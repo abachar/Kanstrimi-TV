@@ -27,7 +27,7 @@ struct MainView: View {
             SeriesView()
                 .tag(2)
                 .tabItem {
-                    Label("Séries", systemImage: "rectangle.stack")
+                    Label("Séries", systemImage: "film.stack")
                 }
 
             SearchView()
@@ -39,10 +39,9 @@ struct MainView: View {
             SettingsView()
                 .tag(4)
                 .tabItem {
-                    Label("Paramètres", systemImage: "gearshape")
+                    Label("", systemImage: "gearshape")
                 }
         }
-        .tabViewStyle(.page)
     }
 }
 

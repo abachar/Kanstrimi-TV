@@ -14,21 +14,19 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             if showWelcome {
-                WelcomeView()
-                    .transition(.opacity)
+                WelcomeView {
+                    // Callback appelé quand le compte est prêt
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        showWelcome = false
+                    }
+                }
+                .transition(.opacity)
             } else {
                 MainView()
                     .transition(.opacity)
             }
         }
         .ignoresSafeArea()
-        .task {
-            // Attendre 5 secondes puis passer à MainView
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            withAnimation(.easeInOut(duration: 0.5)) {
-                showWelcome = false
-            }
-        }
     }
 }
 
