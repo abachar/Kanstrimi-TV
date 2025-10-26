@@ -1,5 +1,5 @@
 //
-//  LiveCategory.swift
+//  MoviesCategory.swift
 //  Kanstrimi TV
 //
 //  Created by Abdelhakim Bachar on 26/10/2025.
@@ -9,9 +9,9 @@ import Foundation
 import SwiftUI
 import SwiftData
 
-/// Modèle représentant une catégorie de chaines
+/// Modèle représentant une catégorie de série
 @Model
-final class Category {
+final class SeriesCategory {
     /// Identifiant unique de la catégorie
     var id: String
 
@@ -29,7 +29,7 @@ final class Category {
         name: String,
         sortOrder: Int = 0
     ) {
-        self.id = "live-cat-\(categoryId)"
+        self.id = "series-cat-\(categoryId)"
         self.categoryId = categoryId
         self.name = name
         self.sortOrder = sortOrder

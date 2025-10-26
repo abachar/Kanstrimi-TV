@@ -126,3 +126,27 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Construction d'URL VOD : `{serverURL}/movie/{username}/{password}/{streamId}.{containerExtension}`
 - Cohérence avec l'implémentation Live TV (même pattern de mapping et persistance)
 - Build réussi sans erreur (1 warning existant sur try? non critique)
+
+## [0.6.0] - 2025-10-26
+
+### Ajouté
+- Synchronisation complète des séries TV lors de `syncAccount`
+- Persistance des catégories de séries (SeriesCategory) dans SwiftData
+- Persistance des séries (Series) dans SwiftData avec métadonnées complètes
+- Mapping automatique des réponses `SeriesCategoryResponse` vers `SeriesCategory`
+- Mapping automatique des réponses `SeriesResponse` vers `Series`
+- Support complet des métadonnées Series (cover, plot, cast, director, genre, rating, backdropPaths, youtubeTrailer, episodeRunTime)
+- Ordre de tri préservé (sortOrder) pour les catégories et séries
+- Gestion d'erreurs spécifique pour la synchronisation Series (ne bloque pas la finalisation)
+
+### Modifié
+- AccountService.syncAccount() : Implémentation de la synchronisation des catégories et séries
+- Étape 3 de synchronisation complètement fonctionnelle (appels API + persistance SwiftData)
+
+### Technique
+- Pattern identique à la synchronisation VOD pour cohérence architecturale
+- Batch insert pour les catégories et séries (insertion puis save unique)
+- Récupération de toutes les séries sans filtrage par catégorie (categoryId: nil)
+- Mapping `backdropPath` (Array) → `backdropPaths` (Array)
+- Build réussi sans erreur ni warning
+- Les 3 étapes de synchronisation sont maintenant complètes : Live TV ✅ VOD ✅ Series ✅

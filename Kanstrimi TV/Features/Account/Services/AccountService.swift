@@ -180,7 +180,54 @@ final class AccountService {
 
         // Étape 3 : Synchronisation des séries
         onStepChange(.series)
-        try? await XtreamService.shared.getSeries(account: account)
+
+        do {
+            // Récupérer les catégories de séries
+            let seriesCategoryResponses = try await XtreamService.shared.getSeriesCategories(account: account)
+
+            // Mapper vers SeriesCategory et insérer dans SwiftData
+            for (index, response) in seriesCategoryResponses.enumerated() {
+                let seriesCategory = SeriesCategory(
+                    categoryId: response.categoryId,
+                    name: response.categoryName,
+                    sortOrder: index
+                )
+                modelContext.insert(seriesCategory)
+            }
+
+            // Récupérer les séries (toutes les séries, sans filtrage par catégorie)
+            let seriesResponses = try await XtreamService.shared.getSeries(account: account)
+
+            // Mapper vers Series et insérer dans SwiftData
+            for (index, response) in seriesResponses.enumerated() {
+                let series = Series(
+                    seriesId: response.seriesId,
+                    name: response.name,
+                    sortOrder: index,
+                    categoryId: response.categoryId,
+                    cover: response.cover,
+                    backdropPaths: response.backdropPath,
+                    rating: response.rating,
+                    rating5based: response.rating5based,
+                    plot: response.plot,
+                    director: response.director,
+                    cast: response.cast,
+                    genre: response.genre,
+                    releaseDate: response.releaseDate,
+                    lastModified: response.lastModified,
+                    youtubeTrailer: response.youtubeTrailer,
+                    episodeRunTime: response.episodeRunTime
+                )
+                modelContext.insert(series)
+            }
+
+            // Sauvegarder les données Series
+            try modelContext.save()
+        } catch {
+            // Log l'erreur mais continue la synchronisation
+            print("⚠️ Erreur lors de la synchronisation Series: \(error)")
+        }
+
         try? await Task.sleep(nanoseconds: 500_000_000)
 
         // Étape 4 : Finalisation
