@@ -54,8 +54,8 @@ final class AccountService {
             throw XtreamError.invalidCredentials
         }
 
-        // 3. Synchroniser les données (appels API sans sauvegarde)
-        await syncAccount(account: account, onStepChange: onStepChange)
+        // 3. Synchroniser les données (appels API et sauvegarde dans SwiftData)
+        await syncAccount(account: account, modelContext: modelContext, onStepChange: onStepChange)
 
         // 4. Mettre à jour la date de dernière synchronisation
         account.lastSyncDate = Date()
@@ -69,18 +69,61 @@ final class AccountService {
 
     // MARK: - Sync Account
 
-    /// Synchronise les données d'un compte (appels API sans sauvegarde des données)
+    /// Synchronise les données d'un compte (appels API et sauvegarde dans SwiftData)
     /// - Parameters:
     ///   - account: Compte à synchroniser
+    ///   - modelContext: Contexte SwiftData pour persister les données
     ///   - onStepChange: Callback appelé à chaque changement d'étape
     private func syncAccount(
         account: Account,
+        modelContext: ModelContext,
         onStepChange: @escaping (SyncStep) -> Void
     ) async {
 
         // Étape 1 : Synchronisation des chaînes live
         onStepChange(.liveChannels)
-        try? await XtreamService.shared.getLiveStreams(account: account)
+
+        do {
+            // Récupérer les catégories Live TV
+            let categoryResponses = try await XtreamService.shared.getLiveCategories(account: account)
+
+            // Mapper vers Category et insérer dans SwiftData
+            for (index, response) in categoryResponses.enumerated() {
+                let category = Category(
+                    categoryId: response.categoryId,
+                    name: response.categoryName,
+                    sortOrder: index
+                )
+                modelContext.insert(category)
+            }
+
+            // Récupérer les chaînes Live TV
+            let channelResponses = try await XtreamService.shared.getLiveStreams(account: account)
+
+            // Mapper vers LiveChannel et insérer dans SwiftData
+            for (index, response) in channelResponses.enumerated() {
+                let streamURL = XtreamURLBuilder.buildLiveStreamURL(account: account, streamId: response.streamId)
+
+                let channel = LiveChannel(
+                    streamId: response.streamId,
+                    name: response.name,
+                    streamURL: streamURL,
+                    categoryId: response.categoryId,
+                    sortOrder: index,
+                    streamIcon: response.streamIcon,
+                    epgChannelId: response.epgChannelId,
+                    added: response.added
+                )
+                modelContext.insert(channel)
+            }
+
+            // Sauvegarder les données Live TV
+            try modelContext.save()
+        } catch {
+            // Log l'erreur mais continue la synchronisation
+            print("⚠️ Erreur lors de la synchronisation Live TV: \(error)")
+        }
+
         try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5s pour UX
 
         // Étape 2 : Synchronisation des films

@@ -30,7 +30,7 @@ struct LiveChannelResponse: Codable {
     let streamIcon: String?
     let epgChannelId: String?
     let added: String?
-    let categoryId: String?
+    let categoryId: String
     let categoryName: String?
     let customSid: String?
     let tvArchive: Int?
@@ -63,7 +63,7 @@ struct LiveChannelResponse: Codable {
         streamIcon = try container.decodeIfPresent(String.self, forKey: .streamIcon)
         epgChannelId = try container.decodeIfPresent(String.self, forKey: .epgChannelId)
         added = try container.decodeIfPresent(String.self, forKey: .added)
-        categoryId = try container.decodeIfPresent(String.self, forKey: .categoryId)
+        categoryId = try container.decodeIfPresent(String.self, forKey: .categoryId) ?? "0"
         categoryName = try container.decodeIfPresent(String.self, forKey: .categoryName)
         customSid = try container.decodeIfPresent(String.self, forKey: .customSid)
         tvArchive = try container.decodeIfPresent(Int.self, forKey: .tvArchive)

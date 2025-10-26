@@ -95,6 +95,17 @@ enum XtreamEndpoint {
 
 /// Builder pour construire les URLs de l'API Xtream Codes
 struct XtreamURLBuilder {
+    /// Construit l'URL de lecture d'une chaîne Live TV
+    /// - Parameters:
+    ///   - account: Compte contenant les credentials et l'URL du serveur
+    ///   - streamId: ID du stream
+    ///   - ext: Extension du flux (par défaut "ts")
+    /// - Returns: URL complète de lecture
+    static func buildLiveStreamURL(account: Account, streamId: Int, ext: String = "ts") -> String {
+        let serverURL = account.serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return "\(serverURL)/live/\(account.username)/\(account.password)/\(streamId).\(ext)"
+    }
+
     /// Construit une URL complète pour un endpoint Xtream
     /// - Parameters:
     ///   - endpoint: Type d'endpoint
@@ -102,7 +113,7 @@ struct XtreamURLBuilder {
     /// - Returns: URL complète ou nil si invalide
     static func buildURL(endpoint: XtreamEndpoint, account: Account) -> URL? {
         // Nettoyage de l'URL du serveur (suppression du trailing slash)
-        var serverURL = account.serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let serverURL = account.serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
         // Construction de l'URL de base
         var urlString = "\(serverURL)/player_api.php"
