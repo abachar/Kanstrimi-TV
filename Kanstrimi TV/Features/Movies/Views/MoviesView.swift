@@ -11,7 +11,6 @@ import SwiftData
 struct MoviesView: View {
     // MARK: - SwiftData Queries
     @Query(sort: \MoviesCategory.sortOrder) private var categories: [MoviesCategory]
-    @Query(sort: \Movie.sortOrder) private var allMovies: [Movie]
 
     // MARK: - Focus State
     @FocusState private var focusedMovieId: String?
@@ -39,14 +38,10 @@ struct MoviesView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 30) {
                         ForEach(categories) { category in
-                            let movies = allMovies.filter { $0.categoryId == category.categoryId }
-                            if !movies.isEmpty {
-                                MovieCategoryRow(
-                                    category: category,
-                                    movies: movies,
-                                    focusedMovieId: $focusedMovieId
-                                )
-                            }
+                            MovieCategoryRow(
+                                category: category,
+                                focusedMovieId: $focusedMovieId
+                            )
                         }
                     }
                     .padding(.top, 40)

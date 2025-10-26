@@ -12,8 +12,25 @@ import SwiftData
 struct LiveCategoryRow: View {
     // MARK: - Properties
     let category: Category
-    let channels: [LiveChannel]
     @FocusState.Binding var focusedChannelId: String?
+
+    // MARK: - SwiftData Query
+    @Query private var channels: [LiveChannel]
+
+    // MARK: - Init
+    init(category: Category, focusedChannelId: FocusState<String?>.Binding) {
+        self.category = category
+        self._focusedChannelId = focusedChannelId
+
+        // Query filtrée par categoryId avec tri par sortOrder
+        let categoryId = category.categoryId ?? ""
+        _channels = Query(
+            filter: #Predicate<LiveChannel> { channel in
+                channel.categoryId == categoryId
+            },
+            sort: \.sortOrder
+        )
+    }
 
     // MARK: - Body
     var body: some View {
@@ -56,14 +73,7 @@ struct LiveCategoryRow: View {
 
     let sampleCategory = Category(categoryId: "1", name: "Sport", sortOrder: 0)
 
-    let sampleChannels = [
-        LiveChannel(streamId: 1, name: "BeIN Sports 1", streamURL: "http://example.com/1", categoryId: "1", sortOrder: 0),
-        LiveChannel(streamId: 2, name: "Eurosport 1", streamURL: "http://example.com/2", categoryId: "1", sortOrder: 1),
-        LiveChannel(streamId: 3, name: "L'Équipe", streamURL: "http://example.com/3", categoryId: "1", sortOrder: 2),
-        LiveChannel(streamId: 4, name: "RMC Sport 1", streamURL: "http://example.com/4", categoryId: "1", sortOrder: 3),
-        LiveChannel(streamId: 5, name: "Canal+ Sport", streamURL: "http://example.com/5", categoryId: "1", sortOrder: 4)
-    ]
-
-    LiveCategoryRow(category: sampleCategory, channels: sampleChannels, focusedChannelId: $focusedChannelId)
+    LiveCategoryRow(category: sampleCategory, focusedChannelId: $focusedChannelId)
+        .modelContainer(for: [LiveChannel.self], inMemory: true)
         .background(Color.kanBackground)
 }

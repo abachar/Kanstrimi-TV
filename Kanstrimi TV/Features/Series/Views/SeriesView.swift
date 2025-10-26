@@ -11,7 +11,6 @@ import SwiftData
 struct SeriesView: View {
     // MARK: - SwiftData Queries
     @Query(sort: \SeriesCategory.sortOrder) private var categories: [SeriesCategory]
-    @Query(sort: \Series.sortOrder) private var allSeries: [Series]
 
     // MARK: - Focus State
     @FocusState private var focusedSeriesId: String?
@@ -39,14 +38,10 @@ struct SeriesView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 30) {
                         ForEach(categories) { category in
-                            let series = allSeries.filter { $0.categoryId == category.categoryId }
-                            if !series.isEmpty {
-                                SeriesCategoryRow(
-                                    category: category,
-                                    series: series,
-                                    focusedSeriesId: $focusedSeriesId
-                                )
-                            }
+                            SeriesCategoryRow(
+                                category: category,
+                                focusedSeriesId: $focusedSeriesId
+                            )
                         }
                     }
                     .padding(.top, 40)

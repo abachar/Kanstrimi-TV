@@ -12,8 +12,25 @@ import SwiftData
 struct MovieCategoryRow: View {
     // MARK: - Properties
     let category: MoviesCategory
-    let movies: [Movie]
     @FocusState.Binding var focusedMovieId: String?
+
+    // MARK: - SwiftData Query
+    @Query private var movies: [Movie]
+
+    // MARK: - Init
+    init(category: MoviesCategory, focusedMovieId: FocusState<String?>.Binding) {
+        self.category = category
+        self._focusedMovieId = focusedMovieId
+
+        // Query filtrée par categoryId avec tri par sortOrder
+        let categoryId = category.categoryId ?? ""
+        _movies = Query(
+            filter: #Predicate<Movie> { movie in
+                movie.categoryId == categoryId
+            },
+            sort: \.sortOrder
+        )
+    }
 
     // MARK: - Body
     var body: some View {
@@ -56,15 +73,7 @@ struct MovieCategoryRow: View {
 
     let sampleCategory = MoviesCategory(categoryId: "1", name: "Action", sortOrder: 0)
 
-    let sampleMovies = [
-        Movie(streamId: 1, name: "Mission Impossible", streamURL: "http://example.com/1", sortOrder: 0, rating5based: 4.5),
-        Movie(streamId: 2, name: "John Wick", streamURL: "http://example.com/2", sortOrder: 1, rating5based: 4.8),
-        Movie(streamId: 3, name: "Mad Max", streamURL: "http://example.com/3", sortOrder: 2, rating5based: 4.6),
-        Movie(streamId: 4, name: "The Matrix", streamURL: "http://example.com/4", sortOrder: 3, rating5based: 4.9),
-        Movie(streamId: 5, name: "Inception", streamURL: "http://example.com/5", sortOrder: 4, rating5based: 4.7),
-        Movie(streamId: 6, name: "Tenet", streamURL: "http://example.com/6", sortOrder: 5, rating5based: 4.3)
-    ]
-
-    MovieCategoryRow(category: sampleCategory, movies: sampleMovies, focusedMovieId: $focusedMovieId)
+    MovieCategoryRow(category: sampleCategory, focusedMovieId: $focusedMovieId)
+        .modelContainer(for: [Movie.self], inMemory: true)
         .background(Color.kanBackground)
 }

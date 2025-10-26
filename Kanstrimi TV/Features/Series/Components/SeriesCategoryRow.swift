@@ -12,8 +12,25 @@ import SwiftData
 struct SeriesCategoryRow: View {
     // MARK: - Properties
     let category: SeriesCategory
-    let series: [Series]
     @FocusState.Binding var focusedSeriesId: String?
+
+    // MARK: - SwiftData Query
+    @Query private var series: [Series]
+
+    // MARK: - Init
+    init(category: SeriesCategory, focusedSeriesId: FocusState<String?>.Binding) {
+        self.category = category
+        self._focusedSeriesId = focusedSeriesId
+
+        // Query filtrée par categoryId avec tri par sortOrder
+        let categoryId = category.categoryId ?? ""
+        _series = Query(
+            filter: #Predicate<Series> { series in
+                series.categoryId == categoryId
+            },
+            sort: \.sortOrder
+        )
+    }
 
     // MARK: - Body
     var body: some View {
@@ -56,15 +73,7 @@ struct SeriesCategoryRow: View {
 
     let sampleCategory = SeriesCategory(categoryId: "1", name: "Drama", sortOrder: 0)
 
-    let sampleSeries = [
-        Series(seriesId: 1, name: "Breaking Bad", sortOrder: 0, backdropPaths: nil, rating5based: 4.9, genre: "Drama"),
-        Series(seriesId: 2, name: "The Wire", sortOrder: 1, backdropPaths: nil, rating5based: 4.8, genre: "Drama"),
-        Series(seriesId: 3, name: "The Sopranos", sortOrder: 2, backdropPaths: nil, rating5based: 4.7, genre: "Drama"),
-        Series(seriesId: 4, name: "Mad Men", sortOrder: 3, backdropPaths: nil, rating5based: 4.6, genre: "Drama"),
-        Series(seriesId: 5, name: "Better Call Saul", sortOrder: 4, backdropPaths: nil, rating5based: 4.8, genre: "Drama"),
-        Series(seriesId: 6, name: "The Crown", sortOrder: 5, backdropPaths: nil, rating5based: 4.5, genre: "Drama")
-    ]
-
-    SeriesCategoryRow(category: sampleCategory, series: sampleSeries, focusedSeriesId: $focusedSeriesId)
+    SeriesCategoryRow(category: sampleCategory, focusedSeriesId: $focusedSeriesId)
+        .modelContainer(for: [Series.self], inMemory: true)
         .background(Color.kanBackground)
 }

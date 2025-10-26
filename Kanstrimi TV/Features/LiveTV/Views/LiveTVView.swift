@@ -11,7 +11,6 @@ import SwiftData
 struct LiveTVView: View {
     // MARK: - SwiftData Queries
     @Query(sort: \Category.sortOrder) private var categories: [Category]
-    @Query(sort: \LiveChannel.sortOrder) private var allChannels: [LiveChannel]
 
     // MARK: - Focus State
     @FocusState private var focusedChannelId: String?
@@ -39,14 +38,10 @@ struct LiveTVView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 30) {
                         ForEach(categories) { category in
-                            let channels = allChannels.filter { $0.categoryId == category.categoryId }
-                            if !channels.isEmpty {
-                                LiveCategoryRow(
-                                    category: category,
-                                    channels: channels,
-                                    focusedChannelId: $focusedChannelId
-                                )
-                            }
+                            LiveCategoryRow(
+                                category: category,
+                                focusedChannelId: $focusedChannelId
+                            )
                         }
                     }
                     .padding(.top, 40)

@@ -25,7 +25,7 @@ final class Movie {
     var containerExtension: String?
 
     /// ID de la catégorie
-    var categoryId: String?
+    @Attribute(.indexed) var categoryId: String?
 
     /// URL du poster
     var streamIcon: String?

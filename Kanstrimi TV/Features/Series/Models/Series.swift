@@ -19,9 +19,9 @@ final class Series {
 
     /// Nom de la série
     var name: String
-    
+
     /// ID de la catégorie
-    var categoryId: String?
+    @Attribute(.indexed) var categoryId: String?
 
     /// URL du poster
     var cover: String?

@@ -25,7 +25,7 @@ final class LiveChannel {
     var streamIcon: String?
 
     /// ID de la catégorie
-    var categoryId: String
+    @Attribute(.indexed) var categoryId: String
     
     /// Informations EPG (Electronic Program Guide)
     var epgChannelId: String?
