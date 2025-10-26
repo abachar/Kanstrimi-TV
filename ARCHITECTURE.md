@@ -8,6 +8,15 @@ Kanstrimi TV utilise une **architecture Feature-Based** pour organiser le code d
 ```
 ProjectName/
 ├── Features/
+│   ├── Account/
+│   │   ├── Models/
+│   │   │   ├── Account.swift
+│   │   │   └── SyncStep.swift
+│   │   ├── Services/
+│   │   │   └── AccountService.swift
+│   │   └── Components/
+│   │       ├── AccountFormView.swift
+│   │       └── SyncProgressView.swift
 │   ├── Movies/
 │   │   ├── Views/
 │   │   │   ├── MoviesListView.swift
@@ -19,7 +28,6 @@ ProjectName/
 │   │       └── MoviePoster.swift
 │   └── Settings/
 │       ├── Views/
-│       ├── Models/
 │       └── Components/
 ├── Shared/
 │   ├── Players/         # AVPlayer / VLCPlayer

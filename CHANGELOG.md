@@ -68,3 +68,38 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Type-safety complète avec enum XtreamEndpoint
 - Méthode générique `request<T: Decodable>()` pour éviter la duplication de code
 - Cache HTTP désactivé pour garantir des données fraîches
+
+## [0.4.0] - 2025-10-26
+
+### Ajouté
+- Nouvelle feature Account avec architecture complète (Models/Services/Components)
+- AccountService singleton pour la gestion centralisée des comptes
+- SyncStep enum pour représenter les étapes de synchronisation
+- SyncProgressView : composant affichant la progression de synchronisation (barre de progression, message d'étape, indicateur numérique)
+- Flux de validation et synchronisation lors de la création d'un compte :
+  - Validation des credentials via XtreamService.getAccountInfo
+  - Synchronisation séquentielle : Live TV → Films → Séries → Finalisation
+  - Affichage d'une barre de progression animée avec 5 étapes
+  - Gestion des erreurs avec retour au formulaire en cas d'échec
+- Méthode AccountService.createAccount() avec callback onStepChange pour la progression
+- Méthode privée AccountService.syncAccount() pour orchestrer la synchronisation
+
+### Modifié
+- WelcomeView : Intégration du flux de synchronisation avec AccountService
+- WelcomeView : Affichage conditionnel formulaire/progression/erreur
+- WelcomeView : Renommage de saveAccount() en createAccount() pour plus de clarté
+- AccountFormView : Renommage du callback onSave en onSubmit (plus générique pour create/update)
+- Account model : Ajout de la propriété lastSyncDate (Date?)
+
+### Refactorisation
+- Déplacement de Account.swift : Settings/Models → Account/Models
+- Déplacement de AccountFormView.swift : Settings/Components → Account/Components
+- Réorganisation de l'architecture en feature Account indépendante
+- Centralisation de la logique métier des comptes dans AccountService
+
+### Technique
+- Appels API séquentiels avec délais de 0.5s entre chaque étape pour meilleure UX
+- Les données ne sont pas encore persistées (validation uniquement)
+- Animations fluides avec withAnimation sur les changements d'étape
+- Gestion des erreurs typées (XtreamError) avec messages localisés
+- Build réussi sans erreur ni warning (à l'exception du warning XtreamURLBuilder existant)

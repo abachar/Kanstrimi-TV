@@ -22,7 +22,7 @@ struct AccountFormView: View {
     @State private var errorMessage: String = ""
 
     // MARK: - Callback
-    let onSave: (String, String, String, String) -> Void
+    let onSubmit: (String, String, String, String) -> Void
 
     // MARK: - Body
     var body: some View {
@@ -105,7 +105,7 @@ struct AccountFormView: View {
             }
 
             // Bouton Enregistrer
-            Button(action: handleSave) {
+            Button(action: handleSubmit) {
                 Text("Enregistrer")
                     .font(.system(size: 36, weight: .semibold))
                     .foregroundColor(.kanTextPrimary)
@@ -125,8 +125,8 @@ struct AccountFormView: View {
         }
     }
 
-    // MARK: - Validation & Save
-    private func handleSave() {
+    // MARK: - Validation & Submit
+    private func handleSubmit() {
         // Validation des champs
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else {
             showError(message: "Le nom du compte est requis")
@@ -149,7 +149,7 @@ struct AccountFormView: View {
         }
 
         // Tous les champs sont valides, appeler le callback
-        onSave(
+        onSubmit(
             name.trimmingCharacters(in: .whitespaces),
             serverURL.trimmingCharacters(in: .whitespaces),
             username.trimmingCharacters(in: .whitespaces),
