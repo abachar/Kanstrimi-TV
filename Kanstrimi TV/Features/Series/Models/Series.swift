@@ -10,6 +10,7 @@ import SwiftData
 
 /// Modèle représentant une série TV
 @Model
+#Index<Series>([\.categoryId])
 final class Series {
     /// Identifiant unique de la série
     var id: String
@@ -19,7 +20,7 @@ final class Series {
 
     /// Nom de la série
     var name: String
-    
+
     /// ID de la catégorie
     var categoryId: String?
 
