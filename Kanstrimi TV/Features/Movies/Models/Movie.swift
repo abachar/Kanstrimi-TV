@@ -11,6 +11,7 @@ import os
 
 /// Modèle représentant un film VOD
 @Model
+#Index<Movie>([\.categoryId])
 final class Movie {
     /// Identifiant unique du film
     var id: String
@@ -25,7 +26,7 @@ final class Movie {
     var containerExtension: String?
 
     /// ID de la catégorie
-    @Attribute(.indexed) var categoryId: String?
+    var categoryId: String?
 
     /// URL du poster
     var streamIcon: String?

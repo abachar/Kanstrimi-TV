@@ -11,6 +11,7 @@ import os
 
 /// Modèle représentant une chaîne TV en direct
 @Model
+#Index<LiveChannel>([\.categoryId])
 final class LiveChannel {
     /// Identifiant unique de la chaîne
     var id: String
@@ -20,12 +21,12 @@ final class LiveChannel {
 
     /// Nom de la chaîne
     var name: String
-    
+
     /// Icône/Logo de la chaîne
     var streamIcon: String?
 
     /// ID de la catégorie
-    @Attribute(.indexed) var categoryId: String
+    var categoryId: String
     
     /// Informations EPG (Electronic Program Guide)
     var epgChannelId: String?
