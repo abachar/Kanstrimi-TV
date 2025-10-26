@@ -94,3 +94,6 @@ iOSInjectionProject/
 
 # Swift Package Manager
 .swiftpm/
+
+# Developer configuration (contains secrets)
+Kanstrimi TV/Features/Account/Models/DefaultAccount.swift

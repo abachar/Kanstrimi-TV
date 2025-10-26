@@ -12,10 +12,10 @@ struct AccountFormView: View {
     @FocusState private var focusedField: Field?
 
     // MARK: - Form Fields
-    @State private var name: String = ""
-    @State private var serverURL: String = ""
-    @State private var username: String = ""
-    @State private var password: String = ""
+    @State private var name: String = DefaultAccount.accountName
+    @State private var serverURL: String = DefaultAccount.serverURL
+    @State private var username: String = DefaultAccount.username
+    @State private var password: String = DefaultAccount.password
 
     // MARK: - Validation
     @State private var showError: Bool = false

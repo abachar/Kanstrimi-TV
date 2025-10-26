@@ -34,44 +34,49 @@ struct WelcomeView: View {
             Color.kanBackground
                 .ignoresSafeArea()
 
-            if isSyncing {
-                // Afficher la barre de progression
-                SyncProgressView(currentStep: currentSyncStep)
+            // Afficher titre + formulaire (toujours présent)
+            HStack(spacing: 0) {
+                // Titre "Kanstrimi TV"
+                VStack(spacing: 20) {
+                    Text("Kanstrimi TV")
+                        .font(.system(size: 80, weight: .bold))
+                        .foregroundColor(.kanTextPrimary)
+
+                    // Afficher erreur si présente
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.system(size: 24))
+                            .foregroundColor(.kanError)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                            .transition(.opacity)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                // Formulaire d'inscription (si pas de compte)
+                if showForm && !isSyncing {
+                    AccountFormView { name, serverURL, username, password in
+                        createAccount(
+                            name: name,
+                            serverURL: serverURL,
+                            username: username,
+                            password: password
+                        )
+                    }
                     .transition(.opacity)
-            } else {
-                // Afficher titre + formulaire
-                HStack(spacing: 0) {
-                    // Titre "Kanstrimi TV"
-                    VStack(spacing: 20) {
-                        Text("Kanstrimi TV")
-                            .font(.system(size: 80, weight: .bold))
-                            .foregroundColor(.kanTextPrimary)
+                    .frame(maxWidth: 800)
+                }
+            }
+            .opacity(isSyncing ? 0.3 : 1.0)  // Effet de transparence pendant la sync
 
-                        // Afficher erreur si présente
-                        if let errorMessage {
-                            Text(errorMessage)
-                                .font(.system(size: 24))
-                                .foregroundColor(.kanError)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 40)
-                                .transition(.opacity)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    // Formulaire d'inscription (si pas de compte)
-                    if showForm {
-                        AccountFormView { name, serverURL, username, password in
-                            createAccount(
-                                name: name,
-                                serverURL: serverURL,
-                                username: username,
-                                password: password
-                            )
-                        }
-                        .transition(.opacity)
-                        .frame(maxWidth: 800)
-                    }
+            // Barre de progression (apparaît par le bas)
+            if isSyncing {
+                VStack {
+                    Spacer()
+                    SyncProgressView(currentStep: currentSyncStep)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.bottom, 100)
                 }
             }
         }
@@ -102,9 +107,8 @@ struct WelcomeView: View {
         // Réinitialiser l'erreur
         errorMessage = nil
 
-        // Afficher la progression
-        withAnimation {
-            showForm = false
+        // Afficher la progression (le formulaire se cache automatiquement via isSyncing)
+        withAnimation(.easeInOut(duration: 0.5)) {
             isSyncing = true
         }
 
@@ -118,7 +122,7 @@ struct WelcomeView: View {
                     password: password,
                     modelContext: modelContext,
                     onStepChange: { step in
-                        withAnimation {
+                        withAnimation(.easeInOut(duration: 0.3)) {
                             currentSyncStep = step
                         }
                     }
@@ -128,17 +132,15 @@ struct WelcomeView: View {
                 onAccountReady()
 
             } catch let error as XtreamError {
-                // Erreur Xtream : afficher message et revenir au formulaire
-                withAnimation {
+                // Erreur Xtream : afficher message et masquer la progression
+                withAnimation(.easeInOut(duration: 0.5)) {
                     isSyncing = false
-                    showForm = true
                     errorMessage = error.errorDescription
                 }
             } catch {
                 // Erreur générique
-                withAnimation {
+                withAnimation(.easeInOut(duration: 0.5)) {
                     isSyncing = false
-                    showForm = true
                     errorMessage = "Erreur inconnue : \(error.localizedDescription)"
                 }
             }
