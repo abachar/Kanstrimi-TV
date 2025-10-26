@@ -18,9 +18,6 @@ struct SettingsView: View {
     // MARK: - Queries
     @Query private var accounts: [Account]
     @Query private var playerSettings: [PlayerSettings]
-    @Query private var liveChannels: [LiveChannel]
-    @Query private var movies: [Movie]
-    @Query private var series: [Series]
 
     // MARK: - State
     @FocusState private var focusedButton: String?
@@ -63,9 +60,6 @@ struct SettingsView: View {
                         // Section Compte
                         AccountSectionView(
                             account: currentAccount,
-                            channelsCount: liveChannels.count,
-                            moviesCount: movies.count,
-                            seriesCount: series.count,
                             focusedButton: $focusedButton,
                             onRefresh: handleRefreshAccount,
                             onEdit: handleEditAccount,
@@ -118,7 +112,7 @@ struct SettingsView: View {
         }
         .onAppear {
             initializePlayerSettingsIfNeeded()
-            focusedButton = "account-refresh"
+            // focusedButton = "account-refresh"
         }
     }
 
@@ -224,9 +218,20 @@ struct SettingsView: View {
         guard let account = currentAccount else { return }
 
         // Supprimer toutes les données liées
-        liveChannels.forEach { modelContext.delete($0) }
-        movies.forEach { modelContext.delete($0) }
-        series.forEach { modelContext.delete($0) }
+        let liveChannelsDescriptor = FetchDescriptor<LiveChannel>()
+        if let liveChannels = try? modelContext.fetch(liveChannelsDescriptor) {
+            liveChannels.forEach { modelContext.delete($0) }
+        }
+
+        let moviesDescriptor = FetchDescriptor<Movie>()
+        if let movies = try? modelContext.fetch(moviesDescriptor) {
+            movies.forEach { modelContext.delete($0) }
+        }
+
+        let seriesDescriptor = FetchDescriptor<Series>()
+        if let series = try? modelContext.fetch(seriesDescriptor) {
+            series.forEach { modelContext.delete($0) }
+        }
 
         // Supprimer les catégories
         let categoriesDescriptor = FetchDescriptor<Category>()
@@ -286,9 +291,6 @@ struct SettingsView: View {
     let container = try! ModelContainer(
         for: Account.self,
         PlayerSettings.self,
-        LiveChannel.self,
-        Movie.self,
-        Series.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 

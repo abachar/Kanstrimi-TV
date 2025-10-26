@@ -6,20 +6,21 @@
 //
 
 import SwiftUI
+import SwiftData
 
 /// Section affichant les informations du compte et les actions disponibles
 struct AccountSectionView: View {
     // MARK: - Properties
     let account: Account?
-    let channelsCount: Int
-    let moviesCount: Int
-    let seriesCount: Int
 
     @FocusState.Binding var focusedButton: String?
 
     let onRefresh: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
+
+    // MARK: - Environment
+    @Environment(\.modelContext) private var modelContext
 
     // MARK: - Computed Properties
     private var lastSyncText: String {
@@ -31,6 +32,21 @@ struct AccountSectionView: View {
         formatter.unitsStyle = .full
         formatter.locale = Locale(identifier: "fr_FR")
         return formatter.localizedString(for: lastSyncDate, relativeTo: Date())
+    }
+
+    private var liveChannelsCount: Int {
+        let descriptor = FetchDescriptor<LiveChannel>()
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
+    }
+
+    private var moviesCount: Int {
+        let descriptor = FetchDescriptor<Movie>()
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
+    }
+
+    private var seriesCount: Int {
+        let descriptor = FetchDescriptor<Series>()
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
     }
 
     // MARK: - Body
@@ -49,7 +65,7 @@ struct AccountSectionView: View {
                         .background(Color.kanTextSecondary.opacity(0.3))
                         .padding(.vertical, 8)
 
-                    InfoRow(label: "Chaînes", value: "\(channelsCount)")
+                    InfoRow(label: "Chaînes", value: "\(liveChannelsCount)")
                     InfoRow(label: "Films", value: "\(moviesCount)")
                     InfoRow(label: "Séries", value: "\(seriesCount)")
                 }
@@ -139,6 +155,16 @@ struct AccountSectionView: View {
 #Preview {
     @Previewable @FocusState var focusedButton: String?
 
+    let container = try! ModelContainer(
+        for: Account.self,
+        LiveChannel.self,
+        Movie.self,
+        Series.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    let context = container.mainContext
+
     let sampleAccount = Account(
         name: "Mon IPTV",
         serverURL: "http://example.com:8080",
@@ -146,17 +172,16 @@ struct AccountSectionView: View {
         password: "pass123"
     )
     sampleAccount.lastSyncDate = Date()
+    context.insert(sampleAccount)
 
     return AccountSectionView(
         account: sampleAccount,
-        channelsCount: 1250,
-        moviesCount: 3400,
-        seriesCount: 890,
         focusedButton: $focusedButton,
         onRefresh: { print("Refresh") },
         onEdit: { print("Edit") },
         onDelete: { print("Delete") }
     )
+    .modelContainer(container)
     .padding(60)
     .background(Color.kanBackground)
 }
