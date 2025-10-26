@@ -210,3 +210,48 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - SyncProgressView réutilisé pour afficher la progression du refresh
 - Build réussi sans erreur
 
+## [0.9.0] - 2025-10-26
+
+### Ajouté
+- Implémentation complète de la feature Search avec architecture MV Feature-Based
+- SearchView : Vue principale de recherche avec 3 tabs (TV en direct, Films, Séries)
+- SearchHelper : Algorithme de recherche multi-mots avec support du split sur espaces
+- SearchTabButton : Bouton de tab personnalisé avec count de résultats et gestion du focus
+- SearchResultsGrid : Grille générique et réutilisable pour afficher les résultats de recherche
+- EmptySearchView : Vue vide contextuelle par tab (message adapté selon searchText et contentType)
+- ResultLimitIndicator : Indicateur "20 sur X résultats" quand plus de 20 résultats disponibles
+- Recherche activée à partir de 3 caractères minimum
+- Recherche multi-mots : l'ordre des mots n'a pas d'importance ("spider man" = "man spider")
+- Limitation à 20 résultats affichés par tab avec message si résultats supplémentaires
+- Count de résultats dynamique affiché dans chaque tab (ex: "Films (42)")
+- Barre de recherche .searchable avec clavier tvOS natif
+
+### Fonctionnalités de recherche
+- **TV en direct** : Recherche dans le champ `name` uniquement
+- **Films** : Recherche dans le champ `name` (extensible pour `cast` et `plot` dans le futur)
+- **Séries** : Recherche dans les champs `name`, `plot`, `cast`, `genre`
+- Algorithme : `contains` case-insensitive avec split sur espaces (tous les termes doivent être présents)
+- EmptySearchView par tab : chaque tab peut afficher son propre état vide indépendamment
+
+### Architecture
+- Nouvelle feature Search organisée en Views/Components/Helpers
+- SearchHelper avec fonctions statiques extensibles (filterLiveChannels, filterMovies, filterSeries)
+- Réutilisation des composants existants : ChannelCard, MovieCard, SeriesCard
+- Décomposition en petits composants réutilisables (4 components + 1 helper)
+- Queries @Query pour accéder aux données (allLiveChannels, allMovies, allSeries)
+- Filtrage en mémoire avec computed properties réactives
+- Documentation inline pour faciliter l'ajout futur de champs de recherche pour Films
+
+### Modifié
+- ARCHITECTURE.md : Ajout de la feature Search dans la structure du projet
+- SearchView (placeholder) : Remplacement par l'implémentation complète
+
+### Technique
+- Tabs en haut avec focus tvOS géré via @FocusState
+- Navigation entre tabs via focus (gauche/droite) et sélection automatique
+- Grille de 5 colonnes avec LazyVGrid pour performance
+- Computed properties pour filtres : filteredLive, filteredMovies, filteredSeries
+- Limitation via Array.prefix(20) pour n'afficher que les 20 premiers
+- Count total calculé avant limitation pour afficher "20 sur X"
+- Build réussi sans erreur
+

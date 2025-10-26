@@ -26,6 +26,16 @@ ProjectName/
 │   │   └── Components/
 │   │       ├── MovieCard.swift
 │   │       └── MoviePoster.swift
+│   ├── Search/
+│   │   ├── Views/
+│   │   │   └── SearchView.swift
+│   │   ├── Components/
+│   │   │   ├── SearchTabButton.swift
+│   │   │   ├── SearchResultsGrid.swift
+│   │   │   ├── EmptySearchView.swift
+│   │   │   └── ResultLimitIndicator.swift
+│   │   └── Helpers/
+│   │       └── SearchHelper.swift
 │   └── Settings/
 │       ├── Views/
 │       └── Components/
