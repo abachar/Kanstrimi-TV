@@ -194,13 +194,19 @@ struct SettingsView: View {
                     account: account,
                     modelContext: modelContext,
                     onStepChange: { step in
-                        currentSyncStep = step
+                        Task { @MainActor in
+                            currentSyncStep = step
+                        }
                     }
                 )
-                showSyncProgress = false
+                await MainActor.run {
+                    showSyncProgress = false
+                }
             } catch {
                 print("⚠️ Erreur lors du rafraîchissement: \(error)")
-                showSyncProgress = false
+                await MainActor.run {
+                    showSyncProgress = false
+                }
             }
         }
     }
