@@ -185,3 +185,28 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Focus par défaut : Premier bouton AccountSectionView ("Rafraîchir")
 - Build réussi sans erreur
 
+## [0.8.0] - 2025-10-26
+
+### Ajouté
+- Implémentation fonctionnelle du bouton Refresh dans SettingsView
+- Implémentation fonctionnelle du bouton Delete avec relance de l'application
+- Méthode AccountService.refreshAccount() pour re-synchroniser les données du compte
+- Méthode privée AccountService.deleteAllAccountData() pour supprimer toutes les données
+- Navigation programmatique après suppression de compte (retour à WelcomeView)
+- Binding resetToWelcome propagé de ContentView → MainView → SettingsView
+
+### Modifié
+- AccountService.refreshAccount() : Implémentation complète (suppression + re-synchronisation)
+- SettingsView.confirmDeleteAccount() : Ajout du déclenchement de navigation après suppression
+- ContentView : Ajout du state resetToWelcome avec onChange pour retour à WelcomeView
+- MainView : Ajout du @Binding resetToWelcome et propagation à SettingsView
+- SettingsView : Ajout du @Binding resetToWelcome pour navigation programmatique
+
+### Technique
+- Refresh : Supprime toutes les données (channels, movies, series, categories), puis re-lance syncAccount()
+- Delete : Supprime toutes les données + compte, puis déclenche resetToWelcome = true
+- Navigation : Utilisation de @Binding au lieu de exit(0) (conforme aux guidelines Apple)
+- Animation fluide de transition lors du retour à WelcomeView (easeInOut 0.5s)
+- SyncProgressView réutilisé pour afficher la progression du refresh
+- Build réussi sans erreur
+

@@ -5,10 +5,13 @@
 //  Created by Abdelhakim Bachar on 26/10/2025.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct SettingsView: View {
+    // MARK: - Bindings
+    @Binding var resetToWelcome: Bool
+
     // MARK: - Environment
     @Environment(\.modelContext) private var modelContext
 
@@ -134,11 +137,13 @@ struct SettingsView: View {
                     .font(.system(size: 36, weight: .bold))
                     .foregroundColor(.kanTextPrimary)
 
-                Text("Toutes les données (chaînes, films, séries) seront supprimées. Cette action est irréversible.")
-                    .font(.system(size: 22))
-                    .foregroundColor(.kanTextSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
+                Text(
+                    "Toutes les données (chaînes, films, séries) seront supprimées. Cette action est irréversible."
+                )
+                .font(.system(size: 22))
+                .foregroundColor(.kanTextSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
 
                 HStack(spacing: 20) {
                     Button("Annuler") {
@@ -224,12 +229,16 @@ struct SettingsView: View {
         }
 
         let moviesCategoriesDescriptor = FetchDescriptor<MoviesCategory>()
-        if let moviesCategories = try? modelContext.fetch(moviesCategoriesDescriptor) {
+        if let moviesCategories = try? modelContext.fetch(
+            moviesCategoriesDescriptor
+        ) {
             moviesCategories.forEach { modelContext.delete($0) }
         }
 
         let seriesCategoriesDescriptor = FetchDescriptor<SeriesCategory>()
-        if let seriesCategories = try? modelContext.fetch(seriesCategoriesDescriptor) {
+        if let seriesCategories = try? modelContext.fetch(
+            seriesCategoriesDescriptor
+        ) {
             seriesCategories.forEach { modelContext.delete($0) }
         }
 
@@ -240,6 +249,9 @@ struct SettingsView: View {
         try? modelContext.save()
 
         showDeleteConfirmation = false
+
+        // Déclencher le retour à l'écran d'accueil
+        resetToWelcome = true
     }
 
     private func handleShowLicenses() {
@@ -263,8 +275,14 @@ struct SettingsView: View {
 
 // MARK: - Preview
 #Preview {
+    @Previewable @State var resetToWelcome = false
+
     let container = try! ModelContainer(
-        for: Account.self, PlayerSettings.self, LiveChannel.self, Movie.self, Series.self,
+        for: Account.self,
+        PlayerSettings.self,
+        LiveChannel.self,
+        Movie.self,
+        Series.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 
@@ -284,6 +302,6 @@ struct SettingsView: View {
     let settings = PlayerSettings(bufferSize: 30)
     context.insert(settings)
 
-    return SettingsView()
+    return SettingsView(resetToWelcome: $resetToWelcome)
         .modelContainer(container)
 }

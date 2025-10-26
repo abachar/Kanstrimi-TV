@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct MainView: View {
+    @Binding var resetToWelcome: Bool
     @State private var selectedTab = 0
 
     var body: some View {
@@ -36,7 +37,7 @@ struct MainView: View {
                     Label("Recherche", systemImage: "magnifyingglass")
                 }
 
-            SettingsView()
+            SettingsView(resetToWelcome: $resetToWelcome)
                 .tag(4)
                 .tabItem {
                     Label("", systemImage: "gearshape")
@@ -46,5 +47,6 @@ struct MainView: View {
 }
 
 #Preview {
-    MainView()
+    @Previewable @State var resetToWelcome = false
+    MainView(resetToWelcome: $resetToWelcome)
 }

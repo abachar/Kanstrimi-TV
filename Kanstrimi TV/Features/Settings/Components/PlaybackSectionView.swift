@@ -14,7 +14,7 @@ struct PlaybackSectionView: View {
     @FocusState.Binding var focusedButton: String?
 
     // Options de buffer disponibles (en secondes)
-    private let bufferOptions = [10, 20, 30, 40, 60, 90, 120]
+    private let bufferOptions = [5, 10, 20, 30]
 
     // MARK: - Body
     var body: some View {

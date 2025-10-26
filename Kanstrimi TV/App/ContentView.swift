@@ -10,6 +10,7 @@ import SwiftData
 
 struct ContentView: View {
     @State private var showWelcome = true
+    @State private var resetToWelcome = false
 
     var body: some View {
         ZStack {
@@ -22,11 +23,19 @@ struct ContentView: View {
                 }
                 .transition(.opacity)
             } else {
-                MainView()
+                MainView(resetToWelcome: $resetToWelcome)
                     .transition(.opacity)
             }
         }
         .ignoresSafeArea()
+        .onChange(of: resetToWelcome) { _, newValue in
+            if newValue {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    showWelcome = true
+                }
+                resetToWelcome = false
+            }
+        }
     }
 }
 

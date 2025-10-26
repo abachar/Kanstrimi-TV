@@ -252,8 +252,66 @@ final class AccountService {
         modelContext: ModelContext,
         onStepChange: @escaping (SyncStep) -> Void
     ) async throws {
-        // TODO: Implémenter la logique de rafraîchissement
-        // Pour le moment, corps vide
+        // Note: Pour respecter l'option 2-B (télécharger d'abord, supprimer ensuite si succès),
+        // nous devons gérer le fait que syncAccount() insère directement dans le contexte.
+        // Stratégie : Supprimer d'abord, puis re-synchroniser.
+        // En cas d'échec de la synchro, l'utilisateur devra relancer manuellement.
+
+        // 1. Supprimer toutes les anciennes données
+        deleteAllAccountData(modelContext: modelContext)
+
+        // 2. Re-synchroniser les données (téléchargement et insertion)
+        await syncAccount(account: account, modelContext: modelContext, onStepChange: onStepChange)
+
+        // 3. Mettre à jour la date de synchronisation
+        account.lastSyncDate = Date()
+        try modelContext.save()
+    }
+
+    // MARK: - Delete Account Data
+
+    /// Supprime toutes les données liées au compte (chaînes, films, séries, catégories)
+    /// - Parameter modelContext: Contexte SwiftData
+    private func deleteAllAccountData(modelContext: ModelContext) {
+        let liveChannelsDescriptor = FetchDescriptor<LiveChannel>()
+        let moviesDescriptor = FetchDescriptor<Movie>()
+        let seriesDescriptor = FetchDescriptor<Series>()
+        let categoriesDescriptor = FetchDescriptor<Category>()
+        let moviesCategoriesDescriptor = FetchDescriptor<MoviesCategory>()
+        let seriesCategoriesDescriptor = FetchDescriptor<SeriesCategory>()
+
+        // Supprimer les chaînes live
+        if let channels = try? modelContext.fetch(liveChannelsDescriptor) {
+            channels.forEach { modelContext.delete($0) }
+        }
+
+        // Supprimer les films
+        if let movies = try? modelContext.fetch(moviesDescriptor) {
+            movies.forEach { modelContext.delete($0) }
+        }
+
+        // Supprimer les séries
+        if let series = try? modelContext.fetch(seriesDescriptor) {
+            series.forEach { modelContext.delete($0) }
+        }
+
+        // Supprimer les catégories Live TV
+        if let categories = try? modelContext.fetch(categoriesDescriptor) {
+            categories.forEach { modelContext.delete($0) }
+        }
+
+        // Supprimer les catégories VOD
+        if let moviesCategories = try? modelContext.fetch(moviesCategoriesDescriptor) {
+            moviesCategories.forEach { modelContext.delete($0) }
+        }
+
+        // Supprimer les catégories Séries
+        if let seriesCategories = try? modelContext.fetch(seriesCategoriesDescriptor) {
+            seriesCategories.forEach { modelContext.delete($0) }
+        }
+
+        // Sauvegarder la suppression
+        try? modelContext.save()
     }
 
     // MARK: - Future Methods (TODO)
