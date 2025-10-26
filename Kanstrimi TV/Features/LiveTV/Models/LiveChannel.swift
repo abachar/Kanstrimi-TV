@@ -11,8 +11,9 @@ import os
 
 /// Modèle représentant une chaîne TV en direct
 @Model
-#Index<LiveChannel>([\.categoryId])
 final class LiveChannel {
+    #Index<LiveChannel>([\.categoryId])
+    
     /// Identifiant unique de la chaîne
     var id: String
 

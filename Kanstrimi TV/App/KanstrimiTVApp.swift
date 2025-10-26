@@ -13,7 +13,14 @@ struct KanstrimiTVApp: App {
     // MARK: - SwiftData Model Container
     var modelContainer: ModelContainer = {
         let schema = Schema([
-            Account.self
+            Account.self,
+            PlayerSettings.self,
+            Category.self,
+            LiveChannel.self,
+            MoviesCategory.self,
+            Movie.self,
+            SeriesCategory.self,
+            Series.self
         ])
 
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)

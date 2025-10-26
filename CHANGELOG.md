@@ -150,3 +150,38 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Mapping `backdropPath` (Array) → `backdropPaths` (Array)
 - Build réussi sans erreur ni warning
 - Les 3 étapes de synchronisation sont maintenant complètes : Live TV ✅ VOD ✅ Series ✅
+
+## [0.7.0] - 2025-10-26
+
+### Ajouté
+- Implémentation complète de SettingsView avec layout deux colonnes
+- Modèle PlayerSettings (SwiftData) pour les paramètres de lecture persistés
+- Struct AppInfo pour informations statiques de l'application (version, build, disclaimer)
+- Composant AppInfoPanel : Panneau d'informations avec nom app et disclaimer légal
+- Composant AccountSectionView : Section compte avec informations de synchronisation et actions
+- Composant PlaybackSectionView : Section lecture avec paramètre de buffer (10-120 secondes)
+- Composant InfoSectionView : Section informations avec version/build et boutons Licences/Crédits
+- Composant SettingsSectionHeader : Header réutilisable pour sections avec icon et titre
+- Composant SettingsButton : Bouton réutilisable avec 3 styles (primary, secondary, destructive)
+- Layout deux colonnes : Colonne gauche (info app) / Colonne droite (sections paramètres)
+- Gestion du focus tvOS complète avec animations (scale, border highlight)
+- Alert de confirmation pour suppression de compte
+- Overlay de progression pour rafraîchissement du compte
+- Initialisation automatique du singleton PlayerSettings au démarrage
+
+### Modifié
+- SettingsView : Refonte complète avec architecture MV Feature-Based
+- KanstrimiTVApp : Ajout de PlayerSettings et tous les modèles au Schema SwiftData
+- SettingsView : Implémentation des actions compte (refresh, modifier, supprimer)
+- SettingsView : Binding vers PlayerSettings pour modification du buffer en temps réel
+
+### Technique
+- Section Compte : Affichage date dernière synchro, compteurs (chaînes/films/séries)
+- Actions compte : Refresh (avec SyncProgressView), Modifier (TODO), Supprimer (avec confirmation)
+- Section Lecture : Picker horizontal avec 7 options de buffer (10s à 120s)
+- Section Informations : Version dynamique depuis Bundle.main.infoDictionary
+- Disclaimer légal : "Kanstrimi TV est un lecteur IPTV neutre..." (colonne gauche)
+- Suppression compte : Cascade delete sur toutes les données (channels, movies, series, categories)
+- Focus par défaut : Premier bouton AccountSectionView ("Rafraîchir")
+- Build réussi sans erreur
+

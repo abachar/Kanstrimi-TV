@@ -11,8 +11,9 @@ import os
 
 /// Modèle représentant un film VOD
 @Model
-#Index<Movie>([\.categoryId])
 final class Movie {
+    #Index<Movie>([\.categoryId])
+
     /// Identifiant unique du film
     var id: String
 
