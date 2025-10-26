@@ -28,6 +28,17 @@ struct WelcomeView: View {
         !accounts.isEmpty
     }
 
+    /// Vérifie si le compte a besoin d'être rafraîchi (> 5 jours)
+    private var needsRefresh: Bool {
+        guard let account = accounts.first,
+              let lastSyncDate = account.lastSyncDate else {
+            return false
+        }
+
+        let fiveDaysAgo = Calendar.current.date(byAdding: .day, value: -5, to: Date()) ?? Date()
+        return lastSyncDate < fiveDaysAgo
+    }
+
     // MARK: - Body
     var body: some View {
         ZStack {
@@ -83,9 +94,14 @@ struct WelcomeView: View {
         .ignoresSafeArea()
         .task {
             if hasAccount {
-                // Un compte existe : attendre 5 secondes puis passer à MainView
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-                onAccountReady()
+                if needsRefresh {
+                    // Compte existe mais > 5 jours : rafraîchir
+                    await refreshExistingAccount()
+                } else {
+                    // Compte existe et récent : attendre 5 secondes puis passer à MainView
+                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                    onAccountReady()
+                }
             } else {
                 // Aucun compte : afficher le formulaire avec animation
                 try? await Task.sleep(nanoseconds: 500_000_000)  // Petit délai pour l'effet
@@ -94,6 +110,38 @@ struct WelcomeView: View {
                     showForm = true
                 }
             }
+        }
+    }
+
+    // MARK: - Refresh Existing Account
+    private func refreshExistingAccount() async {
+        guard let account = accounts.first else { return }
+
+        // Afficher la progression
+        withAnimation(.easeInOut(duration: 0.5)) {
+            isSyncing = true
+        }
+
+        do {
+            // Rafraîchir le compte via AccountService
+            try await AccountService.shared.refreshAccount(
+                account: account,
+                modelContext: modelContext,
+                onStepChange: { step in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        currentSyncStep = step
+                    }
+                }
+            )
+
+            // Succès : transition vers MainView
+            onAccountReady()
+
+        } catch {
+            // En cas d'erreur, on passe quand même à MainView
+            // (le compte reste utilisable même si le refresh échoue)
+            print("Erreur lors du rafraîchissement du compte : \(error)")
+            onAccountReady()
         }
     }
 

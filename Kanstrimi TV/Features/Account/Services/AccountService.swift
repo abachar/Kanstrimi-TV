@@ -102,9 +102,25 @@ final class AccountService {
         try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1s pour afficher le message de succès
     }
 
+    // MARK: - Refresh Account
+
+    /// Rafraîchit les données d'un compte existant
+    /// - Parameters:
+    ///   - account: Compte à rafraîchir
+    ///   - modelContext: Contexte SwiftData
+    ///   - onStepChange: Callback appelé à chaque changement d'étape
+    /// - Throws: XtreamError si la synchronisation échoue
+    func refreshAccount(
+        account: Account,
+        modelContext: ModelContext,
+        onStepChange: @escaping (SyncStep) -> Void
+    ) async throws {
+        // TODO: Implémenter la logique de rafraîchissement
+        // Pour le moment, corps vide
+    }
+
     // MARK: - Future Methods (TODO)
 
     // func updateAccount(...) async throws -> Account
     // func deleteAccount(...) async throws
-    // func refreshAccount(...) async throws
 }
