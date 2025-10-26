@@ -103,3 +103,26 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Animations fluides avec withAnimation sur les changements d'étape
 - Gestion des erreurs typées (XtreamError) avec messages localisés
 - Build réussi sans erreur ni warning (à l'exception du warning XtreamURLBuilder existant)
+
+## [0.5.0] - 2025-10-26
+
+### Ajouté
+- Synchronisation complète des films VOD lors de `syncAccount`
+- Construction d'URL de lecture VOD avec `XtreamURLBuilder.buildVODStreamURL()`
+- Persistance des catégories VOD (MoviesCategory) dans SwiftData
+- Persistance des films VOD (Movie) dans SwiftData
+- Mapping automatique des réponses `VODCategoryResponse` vers `MoviesCategory`
+- Mapping automatique des réponses `MovieResponse` vers `Movie`
+- Ordre de tri préservé (sortOrder) pour les catégories et films
+- Gestion d'erreurs spécifique pour la synchronisation VOD (ne bloque pas les séries)
+
+### Modifié
+- AccountService.syncAccount() : Ajout de la synchronisation des catégories et films VOD
+- XtreamURLBuilder : Ajout de la méthode `buildVODStreamURL()` pour construire les URLs de lecture VOD
+
+### Technique
+- Batch insert pour les catégories et films (insertion puis save unique)
+- Fallback sur "mp4" pour containerExtension si non fourni par l'API
+- Construction d'URL VOD : `{serverURL}/movie/{username}/{password}/{streamId}.{containerExtension}`
+- Cohérence avec l'implémentation Live TV (même pattern de mapping et persistance)
+- Build réussi sans erreur (1 warning existant sur try? non critique)

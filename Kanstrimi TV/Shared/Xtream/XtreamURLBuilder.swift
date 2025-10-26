@@ -106,6 +106,17 @@ struct XtreamURLBuilder {
         return "\(serverURL)/live/\(account.username)/\(account.password)/\(streamId).\(ext)"
     }
 
+    /// Construit l'URL de lecture d'un film VOD
+    /// - Parameters:
+    ///   - account: Compte contenant les credentials et l'URL du serveur
+    ///   - streamId: ID du stream
+    ///   - containerExtension: Extension du conteneur (mp4, mkv, etc.)
+    /// - Returns: URL complète de lecture
+    static func buildVODStreamURL(account: Account, streamId: Int, containerExtension: String = "mp4") -> String {
+        let serverURL = account.serverURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return "\(serverURL)/movie/\(account.username)/\(account.password)/\(streamId).\(containerExtension)"
+    }
+
     /// Construit une URL complète pour un endpoint Xtream
     /// - Parameters:
     ///   - endpoint: Type d'endpoint

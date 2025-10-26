@@ -128,7 +128,54 @@ final class AccountService {
 
         // Étape 2 : Synchronisation des films
         onStepChange(.movies)
-        try? await XtreamService.shared.getVODStreams(account: account)
+
+        do {
+            // Récupérer les catégories VOD
+            let vodCategoryResponses = try await XtreamService.shared.getVODCategories(account: account)
+
+            // Mapper vers MoviesCategory et insérer dans SwiftData
+            for (index, response) in vodCategoryResponses.enumerated() {
+                let moviesCategory = MoviesCategory(
+                    categoryId: response.categoryId,
+                    name: response.categoryName,
+                    sortOrder: index
+                )
+                modelContext.insert(moviesCategory)
+            }
+
+            // Récupérer les films VOD (tous les films, sans filtrage par catégorie)
+            let movieResponses = try await XtreamService.shared.getVODStreams(account: account)
+
+            // Mapper vers Movie et insérer dans SwiftData
+            for (index, response) in movieResponses.enumerated() {
+                let streamURL = XtreamURLBuilder.buildVODStreamURL(
+                    account: account,
+                    streamId: response.streamId,
+                    containerExtension: response.containerExtension ?? "mp4"
+                )
+
+                let movie = Movie(
+                    streamId: response.streamId,
+                    name: response.name,
+                    streamURL: streamURL,
+                    sortOrder: index,
+                    containerExtension: response.containerExtension,
+                    categoryId: response.categoryId,
+                    streamIcon: response.streamIcon,
+                    rating: response.rating,
+                    rating5based: response.rating5based,
+                    added: response.added
+                )
+                modelContext.insert(movie)
+            }
+
+            // Sauvegarder les données VOD
+            try modelContext.save()
+        } catch {
+            // Log l'erreur mais continue la synchronisation
+            print("⚠️ Erreur lors de la synchronisation VOD: \(error)")
+        }
+
         try? await Task.sleep(nanoseconds: 500_000_000)
 
         // Étape 3 : Synchronisation des séries
