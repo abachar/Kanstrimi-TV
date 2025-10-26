@@ -25,9 +25,6 @@ final class Account: Equatable {
 
     /// Mot de passe (temporairement en clair, migration Keychain à venir)
     var password: String
-
-    /// Mot de passe (sera stocké de manière sécurisée dans le Keychain)
-    var passwordKeychainKey: String
     
     /// Date de la dernière synchronisation complète
     var lastSyncDate: Date?
@@ -44,14 +41,12 @@ final class Account: Equatable {
         name: String,
         serverURL: String,
         username: String,
-        password: String,
-        passwordKeychainKey: String = ""
+        password: String
     ) {
         self.id = id
         self.name = name
         self.serverURL = serverURL
         self.username = username
         self.password = password
-        self.passwordKeychainKey = passwordKeychainKey
     }
 }

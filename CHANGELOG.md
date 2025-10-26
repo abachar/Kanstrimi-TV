@@ -39,3 +39,32 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Flux de navigation automatique : WelcomeView → MainView
 - Support complet de la palette de couleurs Kanstrimi
 - Structure de dossiers Features organisée par fonctionnalité
+
+## [0.3.0] - 2025-10-26
+
+### Ajouté
+- Service XtreamService singleton pour gérer toutes les requêtes API Xtream Codes
+- Gestion d'erreurs typée avec enum XtreamError (invalidURL, invalidCredentials, networkError, decodingError, serverError, emptyResponse)
+- URLBuilder type-safe (XtreamURLBuilder) pour construire les endpoints Xtream
+- 11 méthodes API complètes :
+  - `getAccountInfo()` : Informations du compte et du serveur
+  - `getLiveCategories()` : Catégories Live TV
+  - `getLiveStreams()` : Chaînes Live TV (par catégorie ou toutes)
+  - `getSimpleDataTable()` : Données EPG basiques d'un stream
+  - `getShortEPG()` : EPG court d'un stream
+  - `getVODCategories()` : Catégories VOD
+  - `getVODStreams()` : Films VOD (par catégorie ou tous)
+  - `getVODInfo()` : Informations détaillées d'un film
+  - `getSeriesCategories()` : Catégories de séries
+  - `getSeries()` : Séries (par catégorie ou toutes)
+  - `getSeriesInfo()` : Informations détaillées d'une série (saisons, épisodes)
+- Configuration URLSession adaptée à tvOS (timeouts 30s/60s)
+- Toutes les méthodes async/await pour un code moderne et non-bloquant
+- Support complet des modèles de réponse Xtream existants (AccountInfoResponse, LiveCategoryResponse, MovieResponse, SeriesResponse, etc.)
+
+### Technique
+- Architecture : URLSession native (pas de dépendance externe Get)
+- Gestion d'erreurs localisées pour affichage dans l'UI tvOS
+- Type-safety complète avec enum XtreamEndpoint
+- Méthode générique `request<T: Decodable>()` pour éviter la duplication de code
+- Cache HTTP désactivé pour garantir des données fraîches
