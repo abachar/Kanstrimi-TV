@@ -9,12 +9,10 @@ import SwiftUI
 
 /// Section affichant les informations de l'application
 struct InfoSectionView: View {
-    // MARK: - Properties
-    let appInfo: AppInfo
-    @FocusState.Binding var focusedButton: String?
-
-    let onLicenses: () -> Void
-    let onCredits: () -> Void
+    // MARK: - Computed Properties
+    private var appInfo: AppInfo {
+        AppInfo()
+    }
 
     // MARK: - Body
     var body: some View {
@@ -34,29 +32,51 @@ struct InfoSectionView: View {
 
                 // Boutons d'actions
                 VStack(spacing: 16) {
-                    SettingsButton(
-                        title: "Licences Open Source",
-                        icon: "doc.text",
-                        style: .secondary,
-                        buttonId: "info-licenses",
-                        focusedButton: $focusedButton,
-                        action: onLicenses
-                    )
+                    Button(action: {
+                        // TODO: Navigation vers LicensesView
+                        print("Show licenses (à implémenter)")
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 24, weight: .semibold))
+                            Text("Licences Open Source")
+                                .font(.system(size: 24, weight: .medium))
+                        }
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.cyan)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .hoverEffect(.highlight)
 
-                    SettingsButton(
-                        title: "Crédits",
-                        icon: "star.fill",
-                        style: .secondary,
-                        buttonId: "info-credits",
-                        focusedButton: $focusedButton,
-                        action: onCredits
-                    )
+                    Button(action: {
+                        // TODO: Navigation vers CreditsView
+                        print("Show credits (à implémenter)")
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 24, weight: .semibold))
+                            Text("Crédits")
+                                .font(.system(size: 24, weight: .medium))
+                        }
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.cyan)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .hoverEffect(.highlight)
                 }
             }
             .padding(24)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    // .fill(Color.gray.opacity(0.3))
+                    .fill(Color.gray.opacity(0.3))
             )
         }
     }

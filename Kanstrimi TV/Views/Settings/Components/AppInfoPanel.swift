@@ -9,8 +9,10 @@ import SwiftUI
 
 /// Panneau d'informations sur l'application (colonne gauche de SettingsView)
 struct AppInfoPanel: View {
-    // MARK: - Properties
-    let appInfo: AppInfo
+    // MARK: - Computed Properties
+    private var appInfo: AppInfo {
+        AppInfo()
+    }
 
     // MARK: - Body
     var body: some View {

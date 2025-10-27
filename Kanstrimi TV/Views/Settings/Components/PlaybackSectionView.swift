@@ -6,12 +6,21 @@
 //
 
 import SwiftUI
+import SwiftData
 
 /// Section affichant les paramètres de lecture
 struct PlaybackSectionView: View {
-    // MARK: - Properties
-    @Binding var bufferSize: Int
-    @FocusState.Binding var focusedButton: String?
+    // MARK: - Queries
+    @Query private var playerSettings: [PlayerSettings]
+
+    // MARK: - Computed Properties
+    private var currentPlayerSettings: PlayerSettings? {
+        playerSettings.first
+    }
+
+    private var bufferSize: Int {
+        currentPlayerSettings?.bufferSize ?? 30
+    }
 
     // Options de buffer disponibles (en secondes)
     private let bufferOptions = [5, 10, 20, 30]
@@ -38,11 +47,9 @@ struct PlaybackSectionView: View {
                     ForEach(bufferOptions, id: \.self) { option in
                         BufferOptionButton(
                             value: option,
-                            isSelected: bufferSize == option,
-                            isFocused: focusedButton == "buffer-\(option)",
-                            focusedButton: $focusedButton
+                            isSelected: bufferSize == option
                         ) {
-                            bufferSize = option
+                            updateBufferSize(option)
                         }
                     }
                 }
@@ -56,12 +63,17 @@ struct PlaybackSectionView: View {
         }
     }
 
+    // MARK: - Actions
+    private func updateBufferSize(_ newValue: Int) {
+        guard let settings = currentPlayerSettings else { return }
+        settings.bufferSize = newValue
+        try? StorageService.shared.save()
+    }
+
     // MARK: - Buffer Option Button
     private struct BufferOptionButton: View {
         let value: Int
         let isSelected: Bool
-        let isFocused: Bool
-        @FocusState.Binding var focusedButton: String?
         let action: () -> Void
 
         var body: some View {
@@ -69,48 +81,19 @@ struct PlaybackSectionView: View {
                 VStack(spacing: 8) {
                     Text("\(value)")
                         .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(textColor)
 
                     Text("sec")
                         .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(textColor.opacity(0.8))
+                        .opacity(0.8)
                 }
                 .frame(width: 100, height: 80)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(backgroundColor)
+                        .fill(isSelected ? Color.blue : Color.gray.opacity(0.3))
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(borderColor, lineWidth: isFocused ? 3 : (isSelected ? 2 : 0))
-                )
-                .scaleEffect(isFocused ? 1.1 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: isFocused)
             }
             .buttonStyle(.plain)
-            .focusable()
-            .focused($focusedButton, equals: "buffer-\(value)")
-        }
-
-        private var backgroundColor: Color {
-            if isFocused {
-                return isSelected ? .blue : Color.gray.opacity(0.3).opacity(0.8)
-            }
-            return isSelected ? .blue.opacity(0.5) : .black
-        }
-
-        private var textColor: Color {
-            if isFocused || isSelected {
-                return .primary
-            }
-            return .secondary
-        }
-
-        private var borderColor: Color {
-            if isFocused {
-                return .blue
-            }
-            return isSelected ? .blue : .clear
+            .hoverEffect(.highlight)
         }
     }
 }

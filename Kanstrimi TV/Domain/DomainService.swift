@@ -214,4 +214,49 @@ final class DomainService {
     func deleteAllAccountData() {
         AccountService.shared.deleteAllAccountData()
     }
+
+    /// Supprime un compte et toutes ses données associées
+    /// - Parameter account: Le compte à supprimer
+    @MainActor
+    func deleteAccount(account: Account) async {
+        // Supprimer toutes les données liées
+        let liveChannelsDescriptor = FetchDescriptor<LiveChannel>()
+        if let liveChannels = try? StorageService.shared.fetch(liveChannelsDescriptor) {
+            liveChannels.forEach { StorageService.shared.context.delete($0) }
+        }
+
+        let moviesDescriptor = FetchDescriptor<Movie>()
+        if let movies = try? StorageService.shared.fetch(moviesDescriptor) {
+            movies.forEach { StorageService.shared.context.delete($0) }
+        }
+
+        let seriesDescriptor = FetchDescriptor<Series>()
+        if let series = try? StorageService.shared.fetch(seriesDescriptor) {
+            series.forEach { StorageService.shared.context.delete($0) }
+        }
+
+        // Supprimer les catégories
+        let categoriesDescriptor = FetchDescriptor<LiveCategory>()
+        if let categories = try? StorageService.shared.fetch(categoriesDescriptor) {
+            categories.forEach { StorageService.shared.context.delete($0) }
+        }
+
+        let moviesCategoriesDescriptor = FetchDescriptor<MoviesCategory>()
+        if let moviesCategories = try? StorageService.shared.fetch(moviesCategoriesDescriptor) {
+            moviesCategories.forEach { StorageService.shared.context.delete($0) }
+        }
+
+        let seriesCategoriesDescriptor = FetchDescriptor<SeriesCategory>()
+        if let seriesCategories = try? StorageService.shared.fetch(seriesCategoriesDescriptor) {
+            seriesCategories.forEach { StorageService.shared.context.delete($0) }
+        }
+
+        // Supprimer le compte
+        StorageService.shared.context.delete(account)
+
+        // Sauvegarder
+        try? StorageService.shared.save()
+
+        print("✅ DomainService: Compte et données associées supprimés avec succès")
+    }
 }
