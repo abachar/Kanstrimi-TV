@@ -10,34 +10,12 @@ import SwiftData
 
 @main
 struct KanstrimiTVApp: App {
-    // MARK: - SwiftData Model Container
-    var modelContainer: ModelContainer = {
-        let schema = Schema([
-            Account.self,
-            PlayerSettings.self,
-            Category.self,
-            LiveChannel.self,
-            MoviesCategory.self,
-            Movie.self,
-            MovieDetail.self,
-            WatchHistory.self,
-            SeriesCategory.self,
-            Series.self
-        ])
-
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    private let storageService = StorageService.shared
 
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(modelContainer)
+        .modelContainer(storageService.container)
     }
 }

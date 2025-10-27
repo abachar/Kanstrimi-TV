@@ -14,7 +14,6 @@ struct MovieDetailView: View {
     let movie: Movie
 
     // MARK: - Environment
-    @Environment(\.modelContext) private var modelContext
     @Environment(MoviesViewModel.self) private var viewModel
 
     // MARK: - Queries
@@ -66,7 +65,7 @@ struct MovieDetailView: View {
             }
         }
         .task {
-            await CommandBus.shared.loadMovieDetailsIfNeeded(movie: movie, context: modelContext)
+            await DomainService.shared.loadMovieDetailsIfNeeded(movie: movie)
         }
         .ignoresSafeArea()
     }

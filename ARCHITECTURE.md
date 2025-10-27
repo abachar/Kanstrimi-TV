@@ -2,7 +2,7 @@
 
 ## Vue d'ensemble
 
-Kanstrimi TV utilise une **architecture MV (Model-View)** organisée par features. Cette approche simple et efficace repose sur SwiftData pour la persistance et la réactivité, tout en gardant une séparation claire entre les couches métier, présentation et utilitaires.
+Kanstrimi TV utilise une **architecture MV (Model-View)** organisée par features. Cette approche simple et efficace repose sur SwiftData pour la persistance et la réactivité, tout en gardant une séparation claire entre les couches métier, présentation, persistance et utilitaires.
 
 ## 📁 Structure du projet
 
@@ -51,7 +51,7 @@ Kanstrimi TV/
 │           ├── AccountSectionView.swift
 │           └── SettingsButton.swift
 ├── Domain/
-│   ├── CommandBus.swift             # Coordination de la logique métier
+│   ├── DomainService.swift          # Coordination de la logique métier
 │   ├── Models/                      # SwiftData models
 │   │   ├── Account.swift
 │   │   ├── SyncStep.swift
@@ -69,7 +69,8 @@ Kanstrimi TV/
 │   │   ├── SettingsModel.swift
 │   │   └── PlayerSettings.swift
 │   └── Services/
-│       └── AccountService.swift     # Service métier pour Account
+│       ├── AccountService.swift     # Service métier pour Account
+│       └── StorageService.swift     # Service de persistance SwiftData
 └── Utilities/
     ├── Xtream/                      # Protocole Xtream Codes
     │   ├── XtreamService.swift
@@ -102,7 +103,8 @@ Kanstrimi TV/
 
 - **Models** (`Domain/Models/`) : SwiftData models avec `@Model` macro
 - **Views** (`Views/`) : SwiftUI views organisées par feature
-- **CommandBus** (`Domain/CommandBus.swift`) : Coordination de la logique métier
+- **DomainService** (`Domain/DomainService.swift`) : Coordination de la logique métier
+- **StorageService** (`Domain/Services/StorageService.swift`) : Point unique d'accès à SwiftData
 
 ### 2. Organisation par features
 
@@ -130,17 +132,31 @@ Les vues lisent directement depuis SwiftData avec `@Query` :
 @Query(sort: \Movie.sortOrder) private var movies: [Movie]
 ```
 
-#### CommandBus
-Pour la logique métier complexe, utilisez CommandBus :
+#### DomainService
+Pour la logique métier complexe, utilisez DomainService :
 ```swift
-await CommandBus.shared.loadMovieDetailsIfNeeded(movie: movie, context: modelContext)
+await DomainService.shared.loadMovieDetailsIfNeeded(movie: movie)
 ```
 
-Le CommandBus :
-- Vérifie si les données existent déjà
-- Appelle les services (Xtream, TMDB) si nécessaire
-- Insère/met à jour les données dans SwiftData
+Le DomainService :
+- Vérifie si les données existent déjà via StorageService
+- Appelle les services externes (Xtream, TMDB) si nécessaire
+- Persiste les données via StorageService
 - La vue observe automatiquement les changements via `@Query`
+
+#### StorageService
+Point unique d'accès à SwiftData :
+```swift
+// Écriture
+try StorageService.shared.insert(item)
+try StorageService.shared.delete(item)
+try StorageService.shared.save()
+
+// Lecture
+let items = try StorageService.shared.fetch(descriptor)
+let count = try StorageService.shared.fetchCount(descriptor)
+let item = try StorageService.shared.fetchOne(descriptor)
+```
 
 ### 4. Navigation
 
@@ -199,16 +215,16 @@ SwiftData Store → @Query → View (affichage)
 
 ### Écriture (Command)
 ```
-User Action → View → CommandBus → Services (Xtream/TMDB) → SwiftData insert → @Query (auto-update)
+User Action → View → DomainService → Services (Xtream/TMDB) → StorageService → SwiftData → @Query (auto-update)
 ```
 
 ### Exemple concret : Chargement de détails de film
 1. User clique sur MovieCard → `selectedMovie = movie`
 2. `fullScreenCover` affiche `MovieDetailView(movie: movie)`
-3. `MovieDetailView.task` appelle `CommandBus.shared.loadMovieDetailsIfNeeded()`
-4. `CommandBus` vérifie si `MovieDetail` existe déjà via `FetchDescriptor`
+3. `MovieDetailView.task` appelle `DomainService.shared.loadMovieDetailsIfNeeded(movie)`
+4. `DomainService` vérifie si `MovieDetail` existe déjà via `StorageService.fetchOne(descriptor)`
 5. Si absent → appelle `XtreamService.getVODInfo()` + `TMDBService.getMovieCredits()`
-6. Insère `MovieDetail` dans SwiftData
+6. Persiste `MovieDetail` via `StorageService.shared.insert(detail)`
 7. `@Query private var movieDetails: [MovieDetail]` se met à jour automatiquement
 8. La vue se rafraîchit avec les nouveaux détails
 
@@ -231,6 +247,7 @@ User Action → View → CommandBus → Services (Xtream/TMDB) → SwiftData ins
 
 1. **Éviter prop drilling** : Utiliser l'état local dans les vues principales, passer uniquement les bindings nécessaires
 2. **SwiftData est la source de vérité** : Toutes les données passent par SwiftData, les vues observent via @Query
-3. **CommandBus ne retourne rien** : Il modifie SwiftData, les vues observent automatiquement
-4. **Focus natif tvOS** : `.hoverEffect()` au lieu de @FocusState custom
-5. **CachedImage partout** : Remplacement d'AsyncImage pour bénéficier du cache disque
+3. **StorageService = point unique d'accès** : Toutes les écritures passent par StorageService
+4. **DomainService ne retourne rien** : Il persiste via StorageService, les vues observent automatiquement via @Query
+5. **Focus natif tvOS** : `.hoverEffect()` au lieu de @FocusState custom
+6. **CachedImage partout** : Remplacement d'AsyncImage pour bénéficier du cache disque

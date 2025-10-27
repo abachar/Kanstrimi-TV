@@ -75,7 +75,7 @@ struct SettingsView: View {
                                 get: { currentPlayerSettings.bufferSize },
                                 set: { newValue in
                                     currentPlayerSettings.bufferSize = newValue
-                                    try? modelContext.save()
+                                    try? StorageService.shared.save()
                                 }
                             ),
                             focusedButton: $focusedButton
@@ -186,7 +186,6 @@ struct SettingsView: View {
             do {
                 try await AccountService.shared.refreshAccount(
                     account: account,
-                    modelContext: modelContext,
                     onStepChange: { step in
                         Task { @MainActor in
                             currentSyncStep = step
@@ -219,45 +218,45 @@ struct SettingsView: View {
 
         // Supprimer toutes les données liées
         let liveChannelsDescriptor = FetchDescriptor<LiveChannel>()
-        if let liveChannels = try? modelContext.fetch(liveChannelsDescriptor) {
-            liveChannels.forEach { modelContext.delete($0) }
+        if let liveChannels = try? StorageService.shared.fetch(liveChannelsDescriptor) {
+            liveChannels.forEach { StorageService.shared.context.delete($0) }
         }
 
         let moviesDescriptor = FetchDescriptor<Movie>()
-        if let movies = try? modelContext.fetch(moviesDescriptor) {
-            movies.forEach { modelContext.delete($0) }
+        if let movies = try? StorageService.shared.fetch(moviesDescriptor) {
+            movies.forEach { StorageService.shared.context.delete($0) }
         }
 
         let seriesDescriptor = FetchDescriptor<Series>()
-        if let series = try? modelContext.fetch(seriesDescriptor) {
-            series.forEach { modelContext.delete($0) }
+        if let series = try? StorageService.shared.fetch(seriesDescriptor) {
+            series.forEach { StorageService.shared.context.delete($0) }
         }
 
         // Supprimer les catégories
         let categoriesDescriptor = FetchDescriptor<Category>()
-        if let categories = try? modelContext.fetch(categoriesDescriptor) {
-            categories.forEach { modelContext.delete($0) }
+        if let categories = try? StorageService.shared.fetch(categoriesDescriptor) {
+            categories.forEach { StorageService.shared.context.delete($0) }
         }
 
         let moviesCategoriesDescriptor = FetchDescriptor<MoviesCategory>()
-        if let moviesCategories = try? modelContext.fetch(
+        if let moviesCategories = try? StorageService.shared.fetch(
             moviesCategoriesDescriptor
         ) {
-            moviesCategories.forEach { modelContext.delete($0) }
+            moviesCategories.forEach { StorageService.shared.context.delete($0) }
         }
 
         let seriesCategoriesDescriptor = FetchDescriptor<SeriesCategory>()
-        if let seriesCategories = try? modelContext.fetch(
+        if let seriesCategories = try? StorageService.shared.fetch(
             seriesCategoriesDescriptor
         ) {
-            seriesCategories.forEach { modelContext.delete($0) }
+            seriesCategories.forEach { StorageService.shared.context.delete($0) }
         }
 
         // Supprimer le compte
-        modelContext.delete(account)
+        StorageService.shared.context.delete(account)
 
         // Sauvegarder
-        try? modelContext.save()
+        try? StorageService.shared.save()
 
         showDeleteConfirmation = false
 
@@ -278,8 +277,7 @@ struct SettingsView: View {
     private func initializePlayerSettingsIfNeeded() {
         if playerSettings.isEmpty {
             let settings = PlayerSettings()
-            modelContext.insert(settings)
-            try? modelContext.save()
+            try? StorageService.shared.insert(settings)
         }
     }
 }

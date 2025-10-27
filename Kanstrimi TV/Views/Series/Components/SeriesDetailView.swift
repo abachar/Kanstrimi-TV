@@ -251,10 +251,7 @@ struct SeriesDetailView: View {
         }
 
         do {
-            await CommandBus.shared.loadSeriesDetailsIfNeeded(
-                series: series,
-                context: modelContext
-            )
+            await DomainService.shared.loadSeriesDetailsIfNeeded(series: series)
             // Les détails sont maintenant dans la DB, @Query va les charger automatiquement
 
             // ✅ Petit délai pour laisser SwiftData finaliser la persistance
@@ -288,8 +285,8 @@ struct SeriesDetailView: View {
         // Forcer la synchronisation du contexte avec le conteneur persistant
         // Cela garantit que les insertions récentes sont visibles
         do {
-            try modelContext.save()
-            print("🔍 [SeriesDetailView] modelContext.save() réussi")
+            try StorageService.shared.save()
+            print("🔍 [SeriesDetailView] StorageService.save() réussi")
         } catch {
             print("⚠️ [SeriesDetailView] Erreur lors de la sauvegarde du contexte: \(error)")
         }
@@ -301,10 +298,10 @@ struct SeriesDetailView: View {
 
         do {
             // Utiliser fetchCount pour diagnostiquer
-            let count = try modelContext.fetchCount(descriptor)
+            let count = try StorageService.shared.fetchCount(descriptor)
             print("🔍 [SeriesDetailView] fetchCount retourne: \(count) saisons pour seriesId \(currentSeriesId)")
 
-            seasons = try modelContext.fetch(descriptor)
+            seasons = try StorageService.shared.fetch(descriptor)
             print("🔄 [SeriesDetailView] Saisons rafraîchies: \(seasons.count) saisons pour seriesId \(currentSeriesId)")
 
             // Log des saisons chargées
@@ -330,7 +327,7 @@ struct SeriesDetailView: View {
             ]
         )
 
-        let episode = try? modelContext.fetch(descriptor).first
+        let episode = try? StorageService.shared.fetchOne(descriptor)
         print("🎬 [SeriesDetailView] Premier épisode non visionné: \(episode != nil ? "S\(episode!.seasonNumber)E\(episode!.episodeNum)" : "aucun")")
         return episode
     }
@@ -345,7 +342,7 @@ struct SeriesDetailView: View {
             sortBy: [SortDescriptor(\.lastWatchedDate, order: .reverse)]
         )
 
-        guard let lastHistory = try? modelContext.fetch(descriptor).first,
+        guard let lastHistory = try? StorageService.shared.fetchOne(descriptor),
               let episodeId = lastHistory.episodeId else {
             return nil
         }
@@ -354,7 +351,7 @@ struct SeriesDetailView: View {
             predicate: #Predicate { $0.id == episodeId }
         )
 
-        return try? modelContext.fetch(episodeDescriptor).first
+        return try? StorageService.shared.fetchOne(episodeDescriptor)
     }
 
     /// Récupère le tout premier épisode (S1E1)
@@ -368,7 +365,7 @@ struct SeriesDetailView: View {
             ]
         )
 
-        let episode = try? modelContext.fetch(descriptor).first
+        let episode = try? StorageService.shared.fetchOne(descriptor)
         print("🎬 [SeriesDetailView] Premier épisode (S1E1): \(episode != nil ? "S\(episode!.seasonNumber)E\(episode!.episodeNum)" : "aucun")")
         return episode
     }
@@ -392,11 +389,11 @@ struct SeriesDetailView: View {
             }
         )
 
-        if let history = try? modelContext.fetch(descriptor).first {
+        if let history = try? StorageService.shared.fetchOne(descriptor) {
             // Marquer comme vu si >95% visionné
             if history.isCompleted {
                 episode.isWatched = true
-                try? modelContext.save()
+                try? StorageService.shared.save()
             }
         }
     }

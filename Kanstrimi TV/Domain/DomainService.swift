@@ -1,5 +1,5 @@
 //
-//  CommandBus.swift
+//  DomainService.swift
 //  Kanstrimi TV
 //
 //  Created on 2025-10-27.
@@ -11,28 +11,28 @@ import SwiftData
 
 /// Coordinateur central pour les actions métier
 @Observable
-final class CommandBus {
-    static let shared = CommandBus()
+final class DomainService {
+    static let shared = DomainService()
 
     private init() {}
 
     // MARK: - Movies
 
     /// Charge les détails d'un film si nécessaire (met à jour la DB)
-    func loadMovieDetailsIfNeeded(movie: Movie, context: ModelContext) async {
+    func loadMovieDetailsIfNeeded(movie: Movie) async {
         // Vérifier si les détails existent déjà
         let streamId = movie.streamId
         let descriptor = FetchDescriptor<MovieDetail>(
             predicate: #Predicate { $0.streamId == streamId }
         )
 
-        guard (try? context.fetch(descriptor).first) == nil else {
+        guard (try? StorageService.shared.fetchOne(descriptor)) == nil else {
             return  // Détails déjà chargés
         }
 
         // Charger depuis Xtream + TMDB
-        guard let account = try? context.fetch(FetchDescriptor<Account>()).first else {
-            print("CommandBus: Aucun compte actif")
+        guard let account = try? StorageService.shared.fetchOne(FetchDescriptor<Account>()) else {
+            print("DomainService: Aucun compte actif")
             return
         }
 
@@ -75,33 +75,32 @@ final class CommandBus {
             )
 
             await MainActor.run {
-                context.insert(detail)
-                try? context.save()
+                try? StorageService.shared.insert(detail)
             }
 
-            print("CommandBus: Détails du film \(movie.name) chargés avec succès")
+            print("DomainService: Détails du film \(movie.name) chargés avec succès")
         } catch {
-            print("CommandBus: Erreur chargement détails film: \(error)")
+            print("DomainService: Erreur chargement détails film: \(error)")
         }
     }
 
     // MARK: - Series
 
     /// Charge les détails d'une série si nécessaire (met à jour la DB)
-    func loadSeriesDetailsIfNeeded(series: Series, context: ModelContext) async {
+    func loadSeriesDetailsIfNeeded(series: Series) async {
         // Vérifier si les détails existent déjà
         let streamId = series.seriesId
         let descriptor = FetchDescriptor<SeriesDetail>(
             predicate: #Predicate { $0.seriesId == streamId }
         )
 
-        guard (try? context.fetch(descriptor).first) == nil else {
+        guard (try? StorageService.shared.fetchOne(descriptor)) == nil else {
             return  // Détails déjà chargés
         }
 
         // Charger depuis Xtream + TMDB
-        guard let account = try? context.fetch(FetchDescriptor<Account>()).first else {
-            print("CommandBus: Aucun compte actif")
+        guard let account = try? StorageService.shared.fetchOne(FetchDescriptor<Account>()) else {
+            print("DomainService: Aucun compte actif")
             return
         }
 
@@ -133,7 +132,7 @@ final class CommandBus {
             )
 
             await MainActor.run {
-                context.insert(detail)
+                try? StorageService.shared.insert(detail)
 
                 // Créer les saisons et épisodes
                 guard let episodes = xtreamDetail.episodes else { return }
@@ -145,7 +144,7 @@ final class CommandBus {
                         seriesId: series.seriesId,
                         seasonNumber: seasonNumber
                     )
-                    context.insert(season)
+                    StorageService.shared.context.insert(season)
 
                     // Créer les épisodes
                     for episodeData in episodesDict {
@@ -171,16 +170,16 @@ final class CommandBus {
                             streamURL: streamURL,
                             containerExtension: episodeData.containerExtension
                         )
-                        context.insert(episode)
+                        StorageService.shared.context.insert(episode)
                     }
                 }
 
-                try? context.save()
+                try? StorageService.shared.save()
             }
 
-            print("CommandBus: Détails de la série \(series.name) chargés avec succès")
+            print("DomainService: Détails de la série \(series.name) chargés avec succès")
         } catch {
-            print("CommandBus: Erreur chargement détails série: \(error)")
+            print("DomainService: Erreur chargement détails série: \(error)")
         }
     }
 
@@ -192,7 +191,6 @@ final class CommandBus {
         serverURL: String,
         username: String,
         password: String,
-        modelContext: ModelContext,
         onStepChange: @escaping (SyncStep) -> Void
     ) async throws -> Account {
         try await AccountService.shared.createAccount(
@@ -200,22 +198,20 @@ final class CommandBus {
             serverURL: serverURL,
             username: username,
             password: password,
-            modelContext: modelContext,
             onStepChange: onStepChange
         )
     }
 
     /// Rafraîchit les données du compte
-    func refreshAccount(account: Account, modelContext: ModelContext, onStepChange: @escaping (SyncStep) -> Void) async throws {
+    func refreshAccount(account: Account, onStepChange: @escaping (SyncStep) -> Void) async throws {
         try await AccountService.shared.refreshAccount(
             account: account,
-            modelContext: modelContext,
             onStepChange: onStepChange
         )
     }
 
     /// Supprime toutes les données du compte
-    func deleteAllAccountData(modelContext: ModelContext) {
-        AccountService.shared.deleteAllAccountData(modelContext: modelContext)
+    func deleteAllAccountData() {
+        AccountService.shared.deleteAllAccountData()
     }
 }

@@ -25,7 +25,6 @@ final class AccountService {
     ///   - serverURL: URL du serveur
     ///   - username: Nom d'utilisateur
     ///   - password: Mot de passe
-    ///   - modelContext: Contexte SwiftData
     ///   - onStepChange: Callback appelé à chaque changement d'étape
     /// - Returns: Le compte créé et validé
     /// - Throws: XtreamError si la validation échoue
@@ -34,7 +33,6 @@ final class AccountService {
         serverURL: String,
         username: String,
         password: String,
-        modelContext: ModelContext,
         onStepChange: @escaping (SyncStep) -> Void
     ) async throws -> Account {
 
@@ -55,14 +53,13 @@ final class AccountService {
         }
 
         // 3. Synchroniser les données (appels API et sauvegarde dans SwiftData)
-        await syncAccount(account: account, modelContext: modelContext, onStepChange: onStepChange)
+        await syncAccount(account: account, onStepChange: onStepChange)
 
         // 4. Mettre à jour la date de dernière synchronisation
         account.lastSyncDate = Date()
 
         // 5. Sauvegarder dans SwiftData
-        modelContext.insert(account)
-        try modelContext.save()
+        try StorageService.shared.insert(account)
 
         return account
     }
@@ -72,11 +69,9 @@ final class AccountService {
     /// Synchronise les données d'un compte (appels API et sauvegarde dans SwiftData)
     /// - Parameters:
     ///   - account: Compte à synchroniser
-    ///   - modelContext: Contexte SwiftData pour persister les données
     ///   - onStepChange: Callback appelé à chaque changement d'étape
     private func syncAccount(
         account: Account,
-        modelContext: ModelContext,
         onStepChange: @escaping (SyncStep) -> Void
     ) async {
 
@@ -94,7 +89,7 @@ final class AccountService {
                     name: response.categoryName,
                     sortOrder: index
                 )
-                modelContext.insert(category)
+                StorageService.shared.context.insert(category)
             }
 
             // Récupérer les chaînes Live TV
@@ -114,11 +109,11 @@ final class AccountService {
                     epgChannelId: response.epgChannelId,
                     added: response.added
                 )
-                modelContext.insert(channel)
+                StorageService.shared.context.insert(channel)
             }
 
             // Sauvegarder les données Live TV
-            try modelContext.save()
+            try StorageService.shared.save()
         } catch {
             // Log l'erreur mais continue la synchronisation
             print("⚠️ Erreur lors de la synchronisation Live TV: \(error)")
@@ -140,7 +135,7 @@ final class AccountService {
                     name: response.categoryName,
                     sortOrder: index
                 )
-                modelContext.insert(moviesCategory)
+                StorageService.shared.context.insert(moviesCategory)
             }
 
             // Récupérer les films VOD (tous les films, sans filtrage par catégorie)
@@ -166,11 +161,11 @@ final class AccountService {
                     rating5based: response.rating5based,
                     added: response.added
                 )
-                modelContext.insert(movie)
+                StorageService.shared.context.insert(movie)
             }
 
             // Sauvegarder les données VOD
-            try modelContext.save()
+            try StorageService.shared.save()
         } catch {
             // Log l'erreur mais continue la synchronisation
             print("⚠️ Erreur lors de la synchronisation VOD: \(error)")
@@ -192,7 +187,7 @@ final class AccountService {
                     name: response.categoryName,
                     sortOrder: index
                 )
-                modelContext.insert(seriesCategory)
+                StorageService.shared.context.insert(seriesCategory)
             }
 
             // Récupérer les séries (toutes les séries, sans filtrage par catégorie)
@@ -218,11 +213,11 @@ final class AccountService {
                     youtubeTrailer: response.youtubeTrailer,
                     episodeRunTime: response.episodeRunTime
                 )
-                modelContext.insert(series)
+                StorageService.shared.context.insert(series)
             }
 
             // Sauvegarder les données Series
-            try modelContext.save()
+            try StorageService.shared.save()
         } catch {
             // Log l'erreur mais continue la synchronisation
             print("⚠️ Erreur lors de la synchronisation Series: \(error)")
@@ -244,12 +239,10 @@ final class AccountService {
     /// Rafraîchit les données d'un compte existant
     /// - Parameters:
     ///   - account: Compte à rafraîchir
-    ///   - modelContext: Contexte SwiftData
     ///   - onStepChange: Callback appelé à chaque changement d'étape
     /// - Throws: XtreamError si la synchronisation échoue
     func refreshAccount(
         account: Account,
-        modelContext: ModelContext,
         onStepChange: @escaping (SyncStep) -> Void
     ) async throws {
         // Note: Pour respecter l'option 2-B (télécharger d'abord, supprimer ensuite si succès),
@@ -258,21 +251,20 @@ final class AccountService {
         // En cas d'échec de la synchro, l'utilisateur devra relancer manuellement.
 
         // 1. Supprimer toutes les anciennes données
-        deleteAllAccountData(modelContext: modelContext)
+        deleteAllAccountData()
 
         // 2. Re-synchroniser les données (téléchargement et insertion)
-        await syncAccount(account: account, modelContext: modelContext, onStepChange: onStepChange)
+        await syncAccount(account: account, onStepChange: onStepChange)
 
         // 3. Mettre à jour la date de synchronisation
         account.lastSyncDate = Date()
-        try modelContext.save()
+        try StorageService.shared.save()
     }
 
     // MARK: - Delete Account Data
 
     /// Supprime toutes les données liées au compte (chaînes, films, séries, catégories)
-    /// - Parameter modelContext: Contexte SwiftData
-    func deleteAllAccountData(modelContext: ModelContext) {
+    func deleteAllAccountData() {
         let liveChannelsDescriptor = FetchDescriptor<LiveChannel>()
         let moviesDescriptor = FetchDescriptor<Movie>()
         let seriesDescriptor = FetchDescriptor<Series>()
@@ -281,37 +273,37 @@ final class AccountService {
         let seriesCategoriesDescriptor = FetchDescriptor<SeriesCategory>()
 
         // Supprimer les chaînes live
-        if let channels = try? modelContext.fetch(liveChannelsDescriptor) {
-            channels.forEach { modelContext.delete($0) }
+        if let channels = try? StorageService.shared.fetch(liveChannelsDescriptor) {
+            channels.forEach { StorageService.shared.context.delete($0) }
         }
 
         // Supprimer les films
-        if let movies = try? modelContext.fetch(moviesDescriptor) {
-            movies.forEach { modelContext.delete($0) }
+        if let movies = try? StorageService.shared.fetch(moviesDescriptor) {
+            movies.forEach { StorageService.shared.context.delete($0) }
         }
 
         // Supprimer les séries
-        if let series = try? modelContext.fetch(seriesDescriptor) {
-            series.forEach { modelContext.delete($0) }
+        if let series = try? StorageService.shared.fetch(seriesDescriptor) {
+            series.forEach { StorageService.shared.context.delete($0) }
         }
 
         // Supprimer les catégories Live TV
-        if let categories = try? modelContext.fetch(categoriesDescriptor) {
-            categories.forEach { modelContext.delete($0) }
+        if let categories = try? StorageService.shared.fetch(categoriesDescriptor) {
+            categories.forEach { StorageService.shared.context.delete($0) }
         }
 
         // Supprimer les catégories VOD
-        if let moviesCategories = try? modelContext.fetch(moviesCategoriesDescriptor) {
-            moviesCategories.forEach { modelContext.delete($0) }
+        if let moviesCategories = try? StorageService.shared.fetch(moviesCategoriesDescriptor) {
+            moviesCategories.forEach { StorageService.shared.context.delete($0) }
         }
 
         // Supprimer les catégories Séries
-        if let seriesCategories = try? modelContext.fetch(seriesCategoriesDescriptor) {
-            seriesCategories.forEach { modelContext.delete($0) }
+        if let seriesCategories = try? StorageService.shared.fetch(seriesCategoriesDescriptor) {
+            seriesCategories.forEach { StorageService.shared.context.delete($0) }
         }
 
         // Sauvegarder la suppression
-        try? modelContext.save()
+        try? StorageService.shared.save()
     }
 
     // MARK: - Future Methods (TODO)

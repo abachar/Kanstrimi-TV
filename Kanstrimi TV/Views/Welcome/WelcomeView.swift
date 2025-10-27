@@ -10,7 +10,6 @@ import SwiftUI
 
 struct WelcomeView: View {
     // MARK: - SwiftData
-    @Environment(\.modelContext) private var modelContext
     @Query private var accounts: [Account]
 
     // MARK: - State
@@ -126,7 +125,6 @@ struct WelcomeView: View {
             // Rafraîchir le compte via AccountService
             try await AccountService.shared.refreshAccount(
                 account: account,
-                modelContext: modelContext,
                 onStepChange: { step in
                     withAnimation(.easeInOut(duration: 0.3)) {
                         currentSyncStep = step
@@ -168,7 +166,6 @@ struct WelcomeView: View {
                     serverURL: serverURL,
                     username: username,
                     password: password,
-                    modelContext: modelContext,
                     onStepChange: { step in
                         withAnimation(.easeInOut(duration: 0.3)) {
                             currentSyncStep = step

@@ -9,7 +9,7 @@ Application tvOS native pour Apple TV permettant de gérer et lire du contenu IP
 **Kanstrimi TV** est une application propriétaire (non open-source) développée en Swift pour tvOS. Elle permet aux utilisateurs de diffuser du contenu IPTV (chaînes en direct, films VOD, séries) provenant de serveurs compatibles Xtream Codes.
 
 L'application se distingue par :
-- **Architecture MV (Model-View)** : Organisation claire par features avec CommandBus pour la logique métier
+- **Architecture MV (Model-View)** : Organisation claire par features avec DomainService pour la logique métier et StorageService pour la persistance
 - **SwiftData pour la persistance** : Réactivité automatique avec @Query
 - **Architecture mono-compte** : Une source Xtream active à la fois pour une gestion simplifiée
 - **Filtrage avancé par regex** : Recherche puissante sur tous les types de contenu

@@ -36,17 +36,17 @@ struct AccountSectionView: View {
 
     private var liveChannelsCount: Int {
         let descriptor = FetchDescriptor<LiveChannel>()
-        return (try? modelContext.fetchCount(descriptor)) ?? 0
+        return (try? StorageService.shared.fetchCount(descriptor)) ?? 0
     }
 
     private var moviesCount: Int {
         let descriptor = FetchDescriptor<Movie>()
-        return (try? modelContext.fetchCount(descriptor)) ?? 0
+        return (try? StorageService.shared.fetchCount(descriptor)) ?? 0
     }
 
     private var seriesCount: Int {
         let descriptor = FetchDescriptor<Series>()
-        return (try? modelContext.fetchCount(descriptor)) ?? 0
+        return (try? StorageService.shared.fetchCount(descriptor)) ?? 0
     }
 
     // MARK: - Body
