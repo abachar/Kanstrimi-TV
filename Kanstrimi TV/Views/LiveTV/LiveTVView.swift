@@ -54,11 +54,19 @@ struct LiveTVView: View {
         .onPlayPauseDoubleTap {
             showSearchView = true
         }
-        .fullScreenCover(item: $viewModel.selectedChannel) { channel in
-            UniversalPlayerView(content: .liveChannel(channel))
-        }
-        .fullScreenCover(isPresented: $showSearchView) {
-            SearchLiveTV()
+        .fullScreenCover(isPresented: Binding(
+            get: { viewModel.selectedChannel != nil || showSearchView },
+            set: { if !$0 {
+                viewModel.selectedChannel = nil
+                showSearchView = false
+            }}
+        )) {
+            if let channel = viewModel.selectedChannel {
+                UniversalPlayerView(content: .liveChannel(channel))
+            } else if showSearchView {
+                SearchLiveTV()
+                    .environment(viewModel)
+            }
         }
     }
 }
