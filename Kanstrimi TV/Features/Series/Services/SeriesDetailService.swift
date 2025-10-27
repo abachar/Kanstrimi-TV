@@ -32,6 +32,7 @@ final class SeriesDetailService {
         modelContext: ModelContext
     ) async throws -> SeriesDetail {
         print("🔄 [SeriesDetailService] Début du chargement pour seriesId: \(series.seriesId)")
+        print("🔍 [SeriesDetailService] ModelContext: \(ObjectIdentifier(modelContext))")
 
         // 1. Récupérer les infos détaillées depuis Xtream
         let seriesInfo = try await XtreamService.shared.getSeriesInfo(
@@ -56,6 +57,15 @@ final class SeriesDetailService {
                 modelContext: modelContext
             )
             print("✅ [SeriesDetailService] \(seasons.count) saisons insérées")
+
+            // Vérifier immédiatement après l'insertion
+            let currentSeriesId = series.seriesId
+            let verifyDescriptor = FetchDescriptor<SeriesSeason>(
+                predicate: #Predicate<SeriesSeason> { $0.seriesId == currentSeriesId }
+            )
+            if let count = try? modelContext.fetchCount(verifyDescriptor) {
+                print("🔍 [SeriesDetailService] Vérification immédiate : \(count) saisons dans le contexte pour seriesId \(currentSeriesId)")
+            }
         } else {
             print("⚠️ [SeriesDetailService] Aucune saison dans la réponse API")
         }

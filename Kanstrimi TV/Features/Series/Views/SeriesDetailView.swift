@@ -280,10 +280,20 @@ struct SeriesDetailView: View {
     private func refreshSeasons() {
         let currentSeriesId = series.seriesId
 
+        print("🔍 [SeriesDetailView] Début refreshSeasons pour seriesId: \(currentSeriesId)")
+        print("🔍 [SeriesDetailView] ModelContext: \(ObjectIdentifier(modelContext))")
+
+        // Vérifier toutes les saisons dans le contexte (sans filtre)
+        let allSeasonsDescriptor = FetchDescriptor<SeriesSeason>()
+        if let allCount = try? modelContext.fetchCount(allSeasonsDescriptor) {
+            print("🔍 [SeriesDetailView] Total de saisons dans le contexte: \(allCount)")
+        }
+
         // Forcer la synchronisation du contexte avec le conteneur persistant
         // Cela garantit que les insertions récentes sont visibles
         do {
             try modelContext.save()
+            print("🔍 [SeriesDetailView] modelContext.save() réussi")
         } catch {
             print("⚠️ [SeriesDetailView] Erreur lors de la sauvegarde du contexte: \(error)")
         }
@@ -294,12 +304,16 @@ struct SeriesDetailView: View {
         )
 
         do {
+            // Utiliser fetchCount pour diagnostiquer
+            let count = try modelContext.fetchCount(descriptor)
+            print("🔍 [SeriesDetailView] fetchCount retourne: \(count) saisons pour seriesId \(currentSeriesId)")
+
             seasons = try modelContext.fetch(descriptor)
             print("🔄 [SeriesDetailView] Saisons rafraîchies: \(seasons.count) saisons pour seriesId \(currentSeriesId)")
 
             // Log des saisons chargées
             for season in seasons {
-                print("   - Saison \(season.seasonNumber): \(season.name ?? "Sans nom")")
+                print("   - Saison \(season.seasonNumber): \(season.name ?? "Sans nom") (seriesId: \(season.seriesId))")
             }
         } catch {
             print("⚠️ [SeriesDetailView] Erreur lors du rafraîchissement des saisons: \(error)")
