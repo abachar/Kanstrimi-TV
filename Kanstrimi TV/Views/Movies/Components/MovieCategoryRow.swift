@@ -13,9 +13,6 @@ struct MovieCategoryRow: View {
     // MARK: - Properties
     let category: MoviesCategory
 
-    // MARK: - Environment
-    @Environment(MoviesViewModel.self) private var viewModel
-
     // MARK: - SwiftData Query
     @Query private var movies: [Movie]
 
@@ -58,9 +55,7 @@ struct MovieCategoryRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 24) {
                     ForEach(movies) { movie in
-                        MovieCard(movie: movie) { selectedMovie in
-                            viewModel.selectMovie(selectedMovie)
-                        }
+                        MovieCard(movie: movie)
                     }
                 }
                 .padding(.horizontal, 60)

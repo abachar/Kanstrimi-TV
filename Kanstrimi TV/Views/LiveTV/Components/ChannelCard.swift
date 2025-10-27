@@ -11,13 +11,9 @@ import SwiftUI
 struct ChannelCard: View {
     // MARK: - Properties
     let channel: LiveChannel
-    let onSelect: (LiveChannel) -> Void
 
-    // MARK: - Init
-    init(channel: LiveChannel, onSelect: @escaping (LiveChannel) -> Void) {
-        self.channel = channel
-        self.onSelect = onSelect
-    }
+    // MARK: - Environment
+    @Environment(LiveTVViewModel.self) private var viewModel
 
     // MARK: - Body
     var body: some View {
@@ -61,7 +57,7 @@ struct ChannelCard: View {
         .padding(16)
         .hoverEffect(.highlight)
         .onTapGesture {
-            onSelect(channel)
+            viewModel.selectChannel(channel)
         }
     }
 }
@@ -77,8 +73,7 @@ struct ChannelCard: View {
         streamIcon: "https://via.placeholder.com/200x120"
     )
 
-    ChannelCard(channel: sampleChannel) { _ in
-        print("Channel selected")
-    }
-    .background(Color.black)
+    ChannelCard(channel: sampleChannel)
+        .background(Color.black)
+        .environment(LiveTVViewModel())
 }

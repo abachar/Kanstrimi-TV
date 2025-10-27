@@ -13,9 +13,6 @@ struct SeriesCategoryRow: View {
     // MARK: - Properties
     let category: SeriesCategory
 
-    // MARK: - Environment
-    @Environment(SeriesViewModel.self) private var viewModel
-
     // MARK: - SwiftData Query
     @Query private var series: [Series]
 
@@ -58,9 +55,7 @@ struct SeriesCategoryRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 24) {
                     ForEach(series) { series in
-                        SeriesCard(series: series) { selectedSeries in
-                            viewModel.selectSeries(selectedSeries)
-                        }
+                        SeriesCard(series: series)
                     }
                 }
                 .padding(.horizontal, 60)

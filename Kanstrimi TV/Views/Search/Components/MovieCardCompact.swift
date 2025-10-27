@@ -17,7 +17,7 @@ import SwiftUI
 struct MovieCardCompact: View {
     // MARK: - Properties
     let movie: Movie
-
+    let onSelect: (Movie) -> Void
 
     // MARK: - Body
     var body: some View {
@@ -71,6 +71,9 @@ struct MovieCardCompact: View {
         }
         .padding(12)
         .hoverEffect(.highlight)
+        .onTapGesture {
+            onSelect(movie)
+        }
     }
 }
 
@@ -85,6 +88,8 @@ struct MovieCardCompact: View {
         rating5based: 4.5
     )
 
-    MovieCardCompact(movie: sampleMovie)
-        .background(Color.black)
+    MovieCardCompact(movie: sampleMovie) { _ in
+        print("Movie selected")
+    }
+    .background(Color.black)
 }

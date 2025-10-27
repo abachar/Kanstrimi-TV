@@ -11,13 +11,9 @@ import SwiftUI
 struct SeriesCard: View {
     // MARK: - Properties
     let series: Series
-    let onSelect: (Series) -> Void
 
-    // MARK: - Init
-    init(series: Series, onSelect: @escaping (Series) -> Void) {
-        self.series = series
-        self.onSelect = onSelect
-    }
+    // MARK: - Environment
+    @Environment(SeriesViewModel.self) private var viewModel
 
     // MARK: - Body
     var body: some View {
@@ -81,7 +77,7 @@ struct SeriesCard: View {
         .padding(16)
         .hoverEffect(.highlight)
         .onTapGesture {
-            onSelect(series)
+            viewModel.selectSeries(series)
         }
     }
 }
@@ -98,8 +94,7 @@ struct SeriesCard: View {
         genre: "Drama, Crime"
     )
 
-    SeriesCard(series: sampleSeries) { _ in
-        print("Series selected")
-    }
-    .background(Color.black)
+    SeriesCard(series: sampleSeries)
+        .background(Color.black)
+        .environment(SeriesViewModel())
 }

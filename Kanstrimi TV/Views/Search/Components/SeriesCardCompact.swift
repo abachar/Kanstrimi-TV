@@ -17,7 +17,7 @@ import SwiftUI
 struct SeriesCardCompact: View {
     // MARK: - Properties
     let series: Series
-
+    let onSelect: (Series) -> Void
 
     // MARK: - Body
     var body: some View {
@@ -80,6 +80,9 @@ struct SeriesCardCompact: View {
         }
         .padding(12)
         .hoverEffect(.highlight)
+        .onTapGesture {
+            onSelect(series)
+        }
     }
 }
 
@@ -95,6 +98,8 @@ struct SeriesCardCompact: View {
         genre: "Drama, Crime"
     )
 
-    SeriesCardCompact(series: sampleSeries)
-        .background(Color.black)
+    SeriesCardCompact(series: sampleSeries) { _ in
+        print("Series selected")
+    }
+    .background(Color.black)
 }

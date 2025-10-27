@@ -45,6 +45,12 @@ class SearchViewModel {
         selectedSeries = series
     }
 
+    /// Démarre la lecture d'un contenu
+    /// - Parameter content: Le contenu à lire
+    func playContent(_ content: PlaybackContent) {
+        playingContent = content
+    }
+
     /// Réinitialise toutes les sélections
     func clearSelections() {
         selectedChannel = nil

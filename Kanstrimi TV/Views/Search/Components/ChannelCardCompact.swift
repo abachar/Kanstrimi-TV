@@ -17,7 +17,7 @@ import SwiftUI
 struct ChannelCardCompact: View {
     // MARK: - Properties
     let channel: LiveChannel
-
+    let onSelect: (LiveChannel) -> Void
 
     // MARK: - Body
     var body: some View {
@@ -60,6 +60,9 @@ struct ChannelCardCompact: View {
         }
         .padding(12)
         .hoverEffect(.highlight)
+        .onTapGesture {
+            onSelect(channel)
+        }
     }
 }
 
@@ -74,6 +77,8 @@ struct ChannelCardCompact: View {
         streamIcon: "https://via.placeholder.com/140x90"
     )
 
-    ChannelCardCompact(channel: sampleChannel)
-        .background(Color.black)
+    ChannelCardCompact(channel: sampleChannel) { _ in
+        print("Channel selected")
+    }
+    .background(Color.black)
 }

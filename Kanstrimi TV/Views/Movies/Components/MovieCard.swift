@@ -11,18 +11,14 @@ import SwiftUI
 struct MovieCard: View {
     // MARK: - Properties
     let movie: Movie
-    let onSelect: (Movie) -> Void
 
-    // MARK: - Init
-    init(movie: Movie, onSelect: @escaping (Movie) -> Void) {
-        self.movie = movie
-        self.onSelect = onSelect
-    }
+    // MARK: - Environment
+    @Environment(MoviesViewModel.self) private var viewModel
 
     // MARK: - Body
     var body: some View {
         Button(action: {
-            onSelect(movie)
+            viewModel.selectMovie(movie)
         }) {
             VStack(spacing: 12) {
                 // Poster du film
@@ -89,8 +85,7 @@ struct MovieCard: View {
         rating5based: 4.5
     )
 
-    MovieCard(movie: sampleMovie) { _ in
-        print("Movie selected")
-    }
-    .background(Color.black)
+    MovieCard(movie: sampleMovie)
+        .background(Color.black)
+        .environment(MoviesViewModel())
 }

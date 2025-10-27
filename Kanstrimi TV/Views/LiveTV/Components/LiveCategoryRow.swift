@@ -13,9 +13,6 @@ struct LiveCategoryRow: View {
     // MARK: - Properties
     let category: Category
 
-    // MARK: - Environment
-    @Environment(LiveTVViewModel.self) private var viewModel
-
     // MARK: - SwiftData Query
     @Query private var channels: [LiveChannel]
 
@@ -58,9 +55,7 @@ struct LiveCategoryRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 24) {
                     ForEach(channels) { channel in
-                        ChannelCard(channel: channel) { selectedChannel in
-                            viewModel.selectChannel(selectedChannel)
-                        }
+                        ChannelCard(channel: channel)
                     }
                 }
                 .padding(.horizontal, 60)

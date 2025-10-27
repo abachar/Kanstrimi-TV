@@ -91,7 +91,7 @@ struct SearchView: View {
                         displayedCount: displayedLive.count
                     ) {
                         ForEach(displayedLive) { channel in
-                            ChannelCard(channel: channel) { selectedChannel in
+                            ChannelCardCompact(channel: channel) { selectedChannel in
                                 self.selectedChannel = selectedChannel
                             }
                         }
@@ -109,7 +109,7 @@ struct SearchView: View {
                         displayedCount: displayedMovies.count
                     ) {
                         ForEach(displayedMovies) { movie in
-                            MovieCard(movie: movie) { selectedMovie in
+                            MovieCardCompact(movie: movie) { selectedMovie in
                                 self.selectedMovie = selectedMovie
                             }
                         }
@@ -127,7 +127,7 @@ struct SearchView: View {
                         displayedCount: displayedSeries.count
                     ) {
                         ForEach(displayedSeries) { series in
-                            SeriesCard(series: series) { selectedSeries in
+                            SeriesCardCompact(series: series) { selectedSeries in
                                 self.selectedSeries = selectedSeries
                             }
                         }
