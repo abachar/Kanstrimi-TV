@@ -259,7 +259,13 @@ struct SeriesDetailView: View {
             await MainActor.run {
                 self.seriesDetail = detail
                 self.isLoading = false
-                // ✅ Rafraîchir les saisons après le chargement
+            }
+
+            // ✅ Petit délai pour laisser SwiftData finaliser la persistance
+            // SwiftData peut avoir besoin d'un cycle pour propager les changements
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+
+            await MainActor.run {
                 self.refreshSeasons()
             }
         } catch {
@@ -273,6 +279,15 @@ struct SeriesDetailView: View {
     /// Rafraîchit la liste des saisons depuis le ModelContext
     private func refreshSeasons() {
         let currentSeriesId = series.seriesId
+
+        // Forcer la synchronisation du contexte avec le conteneur persistant
+        // Cela garantit que les insertions récentes sont visibles
+        do {
+            try modelContext.save()
+        } catch {
+            print("⚠️ [SeriesDetailView] Erreur lors de la sauvegarde du contexte: \(error)")
+        }
+
         let descriptor = FetchDescriptor<SeriesSeason>(
             predicate: #Predicate<SeriesSeason> { $0.seriesId == currentSeriesId },
             sortBy: [SortDescriptor(\SeriesSeason.seasonNumber, order: .forward)]

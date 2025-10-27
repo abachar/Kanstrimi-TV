@@ -82,6 +82,13 @@ struct SeasonRow: View {
         let seriesId = season.seriesId
         let seasonNumber = season.seasonNumber
 
+        // Forcer la synchronisation du contexte avec le conteneur persistant
+        do {
+            try modelContext.save()
+        } catch {
+            print("⚠️ [SeasonRow] Erreur lors de la sauvegarde du contexte: \(error)")
+        }
+
         let descriptor = FetchDescriptor<Episode>(
             predicate: #Predicate<Episode> {
                 $0.seriesId == seriesId && $0.seasonNumber == seasonNumber
