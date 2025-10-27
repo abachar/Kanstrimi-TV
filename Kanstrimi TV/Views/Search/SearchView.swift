@@ -8,15 +8,20 @@
 import SwiftUI
 import SwiftData
 
-/// Vue de recherche avec 3 tabs (TV en direct, Films, Séries)
+/// Vue de recherche unifiée avec grille unique pour tous les types de contenu
 ///
 /// Fonctionnalités:
 /// - Recherche multi-mots (split sur espaces, ordre indépendant)
 /// - Minimum 3 caractères pour activer la recherche
-/// - Count de résultats dans chaque tab
-/// - Limite de 20 résultats affichés
-/// - EmptySearchView par tab
+/// - Tri par pertinence (match au début du nom = prioritaire)
+/// - Limite de 30 résultats affichés
+/// - Badge Live/Film/Série sur chaque carte
 struct SearchView: View {
+
+    // MARK: - Environment
+
+    @Environment(SearchViewModel.self) private var searchViewModel
+    @Environment(MoviesViewModel.self) private var moviesViewModel
 
     // MARK: - Queries
 
@@ -24,140 +29,59 @@ struct SearchView: View {
     @Query private var allMovies: [Movie]
     @Query private var allSeries: [Series]
 
-    // MARK: - State
-
-    @State private var searchText = ""
-    @State private var selectedTab = 0
-    @State private var selectedChannel: LiveChannel?
-    @State private var selectedMovie: Movie?
-    @State private var selectedSeries: Series?
-    @State private var moviesViewModel = MoviesViewModel()
-
-
     // MARK: - Computed Properties
 
-    /// Termes de recherche (splitté sur espaces)
-    private var searchTerms: [String] {
-        searchText.split(separator: " ").map(String.init)
+    /// Résultats filtrés et triés par pertinence (max 30)
+    private var allResults: [SearchResult] {
+        searchViewModel.filterAllResults(
+            liveChannels: allLiveChannels,
+            movies: allMovies,
+            series: allSeries
+        )
     }
 
-    /// La recherche est active si >= 3 caractères
-    private var isSearchActive: Bool {
-        searchText.count >= 3
+    /// Count total avant limite de 30
+    private var totalCount: Int {
+        guard searchViewModel.isSearchActive else { return 0 }
+
+        let liveCount = SearchHelper.filterLiveChannels(allLiveChannels, terms: searchViewModel.searchTerms).count
+        let moviesCount = SearchHelper.filterMovies(allMovies, terms: searchViewModel.searchTerms).count
+        let seriesCount = SearchHelper.filterSeries(allSeries, terms: searchViewModel.searchTerms).count
+
+        return liveCount + moviesCount + seriesCount
     }
-
-    // Chaînes TV filtrées
-    private var filteredLive: [LiveChannel] {
-        guard isSearchActive else { return [] }
-        return SearchHelper.filterLiveChannels(allLiveChannels, terms: searchTerms)
-    }
-
-    // Films filtrés
-    private var filteredMovies: [Movie] {
-        guard isSearchActive else { return [] }
-        return SearchHelper.filterMovies(allMovies, terms: searchTerms)
-    }
-
-    // Séries filtrées
-    private var filteredSeries: [Series] {
-        guard isSearchActive else { return [] }
-        return SearchHelper.filterSeries(allSeries, terms: searchTerms)
-    }
-
-    // Counts totaux
-    private var liveCount: Int { filteredLive.count }
-    private var moviesCount: Int { filteredMovies.count }
-    private var seriesCount: Int { filteredSeries.count }
-
-    // Résultats affichés (max 20)
-    private var displayedLive: [LiveChannel] { Array(filteredLive.prefix(20)) }
-    private var displayedMovies: [Movie] { Array(filteredMovies.prefix(20)) }
-    private var displayedSeries: [Series] { Array(filteredSeries.prefix(20)) }
 
     // MARK: - Body
 
     var body: some View {
+        @Bindable var searchVM = searchViewModel
+        @Bindable var moviesVM = moviesViewModel
+
         VStack(spacing: 0) {
-            // Tabs en haut avec counts
-            HStack(spacing: 20) {
-                
-                // Contenu des tabs
-                TabView(selection: $selectedTab) {
-                    // Tab 0: TV en direct
-                    SearchResultsGrid(
-                        searchText: searchText,
-                        contentType: "chaînes",
-                        totalCount: liveCount,
-                        displayedCount: displayedLive.count
-                    ) {
-                        ForEach(displayedLive) { channel in
-                            ChannelCardCompact(channel: channel) { selectedChannel in
-                                self.selectedChannel = selectedChannel
-                            }
-                        }
-                    }
-                    .tabItem {
-                        Label("TV en direct", systemImage: "tv")
-                            .font(.caption2)
-                    }
-
-                    // Tab 1: Films
-                    SearchResultsGrid(
-                        searchText: searchText,
-                        contentType: "films",
-                        totalCount: moviesCount,
-                        displayedCount: displayedMovies.count
-                    ) {
-                        ForEach(displayedMovies) { movie in
-                            MovieCardCompact(movie: movie) { selectedMovie in
-                                self.selectedMovie = selectedMovie
-                            }
-                        }
-                    }
-                    .tabItem {
-                        Label("Films", systemImage: "film")
-                            .font(.caption2)
-                    }
-
-                    // Tab 2: Séries
-                    SearchResultsGrid(
-                        searchText: searchText,
-                        contentType: "séries",
-                        totalCount: seriesCount,
-                        displayedCount: displayedSeries.count
-                    ) {
-                        ForEach(displayedSeries) { series in
-                            SeriesCardCompact(series: series) { selectedSeries in
-                                self.selectedSeries = selectedSeries
-                            }
-                        }
-                    }
-                    .tabItem {
-                        Label("Séries", systemImage: "film.stack")
-                            .font(.caption2)
-                    }
+            // Grille unifiée de résultats
+            SearchResultsGrid(
+                searchText: searchViewModel.searchText,
+                results: allResults,
+                totalCount: totalCount,
+                onSelect: { result in
+                    searchViewModel.selectResult(result)
                 }
-                .tabViewStyle(.tabBarOnly)
-            }
-            .padding(.horizontal, 60)
-            .padding(.top, 1)
-            .padding(.bottom, 20)
+            )
         }
-        // .ignoresSafeArea()
         .background(Color.black)
-        .searchable(text: $searchText, prompt: "Rechercher du contenu...")
-        .environment(moviesViewModel)
-        .fullScreenCover(item: $selectedChannel) { channel in
-            UniversalPlayerView(content: .liveChannel(channel))
+        .searchable(text: $searchVM.searchText, prompt: "Rechercher du contenu...")
+        .fullScreenCover(item: $searchVM.selectedResult) { result in
+            switch result {
+            case .liveChannel(let channel):
+                UniversalPlayerView(content: .liveChannel(channel))
+            case .movie(let movie):
+                MovieDetailView(movie: movie)
+            case .series(let series):
+                SeriesDetailView(series: series)
+            }
         }
-        .fullScreenCover(item: $selectedMovie) { movie in
-            MovieDetailView(movie: movie)
-        }
-        .fullScreenCover(item: $moviesViewModel.playingContent) { content in
+        .fullScreenCover(item: $moviesVM.playingContent) { content in
             UniversalPlayerView(content: content)
-        }
-        .fullScreenCover(item: $selectedSeries) { series in
-            SeriesDetailView(series: series)
         }
     }
 }

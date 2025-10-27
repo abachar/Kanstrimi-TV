@@ -11,7 +11,45 @@ import Foundation
 ///
 /// Algorithme: Split sur espaces + recherche indépendante de l'ordre
 /// Tous les termes doivent être présents (AND), mais l'ordre n'a pas d'importance
+/// Tri par pertinence : match au début du nom = prioritaire
 struct SearchHelper {
+
+    // MARK: - Unified Search
+
+    /// Filtre et trie tous les types de contenu par pertinence
+    /// - Parameters:
+    ///   - liveChannels: Chaînes TV en direct
+    ///   - movies: Films VOD
+    ///   - series: Séries TV
+    ///   - terms: Termes de recherche (splitté sur espaces)
+    /// - Returns: Résultats unifiés triés par pertinence (match au début = prioritaire)
+    static func filterAll(
+        liveChannels: [LiveChannel],
+        movies: [Movie],
+        series: [Series],
+        terms: [String]
+    ) -> [SearchResult] {
+        var results: [SearchResult] = []
+
+        // Filtrer les chaînes
+        let filteredChannels = filterLiveChannels(liveChannels, terms: terms)
+        results.append(contentsOf: filteredChannels.map { .liveChannel($0) })
+
+        // Filtrer les films
+        let filteredMovies = filterMovies(movies, terms: terms)
+        results.append(contentsOf: filteredMovies.map { .movie($0) })
+
+        // Filtrer les séries
+        let filteredSeries = filterSeries(series, terms: terms)
+        results.append(contentsOf: filteredSeries.map { .series($0) })
+
+        // Trier par pertinence (score le plus bas = match au début du nom)
+        return results.sorted { result1, result2 in
+            let score1 = result1.relevanceScore(for: terms)
+            let score2 = result2.relevanceScore(for: terms)
+            return score1 < score2
+        }
+    }
 
     // MARK: - Live Channels
 

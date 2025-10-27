@@ -7,42 +7,68 @@
 
 import Foundation
 import Observation
+import SwiftData
 
-/// ViewModel observable pour gérer l'état de sélection dans SearchView
+/// ViewModel observable pour gérer l'état de recherche et de sélection
+///
+/// Responsabilités :
+/// - Gestion du texte de recherche
+/// - Gestion des sélections (channel, movie, series)
+/// - Filtrage et tri des résultats via SearchHelper
 @Observable
 class SearchViewModel {
     // MARK: - Properties
 
-    /// Chaîne actuellement sélectionnée (pour TV en direct)
-    var selectedChannel: LiveChannel?
+    /// Texte de recherche saisi par l'utilisateur
+    var searchText = ""
 
-    /// Film actuellement sélectionné
-    var selectedMovie: Movie?
+    /// Résultat actuellement sélectionné (pour navigation)
+    var selectedResult: SearchResult?
 
-    /// Série actuellement sélectionnée
-    var selectedSeries: Series?
-
-    /// Contenu en cours de lecture (pour les films)
+    /// Contenu en cours de lecture (pour les films via MovieDetailView)
     var playingContent: PlaybackContent?
+
+    // MARK: - Computed Properties
+
+    /// Termes de recherche (splitté sur espaces)
+    var searchTerms: [String] {
+        searchText.split(separator: " ").map(String.init)
+    }
+
+    /// La recherche est active si >= 3 caractères
+    var isSearchActive: Bool {
+        searchText.count >= 3
+    }
 
     // MARK: - Methods
 
-    /// Sélectionne une chaîne pour lecture
-    /// - Parameter channel: La chaîne à lire
-    func selectChannel(_ channel: LiveChannel) {
-        selectedChannel = channel
+    /// Filtre et trie tous les résultats par pertinence
+    /// - Parameters:
+    ///   - liveChannels: Chaînes TV en direct
+    ///   - movies: Films VOD
+    ///   - series: Séries TV
+    /// - Returns: Résultats unifiés triés par pertinence (max 30)
+    func filterAllResults(
+        liveChannels: [LiveChannel],
+        movies: [Movie],
+        series: [Series]
+    ) -> [SearchResult] {
+        guard isSearchActive else { return [] }
+
+        let results = SearchHelper.filterAll(
+            liveChannels: liveChannels,
+            movies: movies,
+            series: series,
+            terms: searchTerms
+        )
+
+        return Array(results.prefix(30)) // Limite à 30 résultats
     }
 
-    /// Sélectionne un film pour afficher les détails
-    /// - Parameter movie: Le film à afficher
-    func selectMovie(_ movie: Movie) {
-        selectedMovie = movie
-    }
-
-    /// Sélectionne une série pour afficher les détails
-    /// - Parameter series: La série à afficher
-    func selectSeries(_ series: Series) {
-        selectedSeries = series
+    /// Sélectionne un résultat pour navigation
+    /// - Parameter result: Le résultat à sélectionner
+    func selectResult(_ result: SearchResult) {
+        selectedResult = result
     }
 
     /// Démarre la lecture d'un contenu
@@ -53,9 +79,7 @@ class SearchViewModel {
 
     /// Réinitialise toutes les sélections
     func clearSelections() {
-        selectedChannel = nil
-        selectedMovie = nil
-        selectedSeries = nil
+        selectedResult = nil
         playingContent = nil
     }
 }

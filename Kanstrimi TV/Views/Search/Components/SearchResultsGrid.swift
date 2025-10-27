@@ -7,56 +7,43 @@
 
 import SwiftUI
 
-/// Grille de résultats de recherche générique
+/// Grille de résultats de recherche unifiée
 ///
 /// Affiche:
 /// - EmptySearchView si aucun résultat
-/// - Grille des résultats (max 20)
-/// - ResultLimitIndicator si > 20 résultats
-struct SearchResultsGrid<Content: View>: View {
+/// - Grille des résultats avec UnifiedContentCard (max 30)
+/// - ResultLimitIndicator si > 30 résultats
+struct SearchResultsGrid: View {
 
     let searchText: String
-    let contentType: String // "chaînes", "films", "séries"
+    let results: [SearchResult]
     let totalCount: Int
-    let displayedCount: Int
-    let content: Content
-
-    init(
-        searchText: String,
-        contentType: String,
-        totalCount: Int,
-        displayedCount: Int,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.searchText = searchText
-        self.contentType = contentType
-        self.totalCount = totalCount
-        self.displayedCount = displayedCount
-        self.content = content()
-    }
+    let onSelect: (SearchResult) -> Void
 
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                if totalCount == 0 {
-                    // Aucun résultat pour ce tab
-                    EmptySearchView(searchText: searchText, contentType: contentType)
+                if results.isEmpty {
+                    // Aucun résultat
+                    EmptySearchView(searchText: searchText, contentType: "contenu")
                         .frame(minHeight: 400)
                 } else {
-                    // Grille de résultats
+                    // Grille de résultats unifiés
                     LazyVGrid(
                         columns: columns,
-                        spacing: 40
+                        spacing: 30
                     ) {
-                        content
+                        ForEach(results) { result in
+                            UnifiedContentCard(result: result, onSelect: onSelect)
+                        }
                     }
                     .padding(.horizontal, 60)
                     .padding(.top, 40)
 
-                    // Indicateur si plus de 20 résultats
-                    if totalCount > 20 {
+                    // Indicateur si plus de 30 résultats
+                    if totalCount > 30 {
                         ResultLimitIndicator(
-                            displayedCount: displayedCount,
+                            displayedCount: results.count,
                             totalCount: totalCount
                         )
                         .padding(.bottom, 40)
@@ -69,6 +56,6 @@ struct SearchResultsGrid<Content: View>: View {
     // MARK: - Computed Properties
 
     private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 40), count: 5)
+        Array(repeating: GridItem(.flexible(), spacing: 30), count: 5)
     }
 }

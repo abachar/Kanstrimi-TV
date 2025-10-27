@@ -10,6 +10,7 @@ import SwiftUI
 struct MainView: View {
     @Binding var resetToWelcome: Bool
     @State private var selectedTab = 0
+    @State private var searchViewModel = SearchViewModel()
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -36,6 +37,7 @@ struct MainView: View {
                 .tabItem {
                     Label("Recherche", systemImage: "magnifyingglass")
                 }
+                .environment(searchViewModel)
 
             SettingsView(resetToWelcome: $resetToWelcome)
                 .tag(4)
