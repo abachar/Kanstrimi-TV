@@ -21,6 +21,9 @@ struct AVPlayerWrapper: UIViewControllerRepresentable {
         controller.allowsPictureInPicturePlayback = false
         controller.showsPlaybackControls = true
 
+        // Lancer la lecture automatiquement
+        player.play()
+
         return controller
     }
 

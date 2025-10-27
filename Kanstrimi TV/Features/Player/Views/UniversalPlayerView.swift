@@ -35,19 +35,10 @@ struct UniversalPlayerView: View {
                 case .avPlayer:
                     AVPlayerWrapper(url: url)
                         .ignoresSafeArea()
-                        .onAppear {
-                            // Lancer la lecture automatiquement
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                // AVPlayer lance automatiquement via AVPlayerViewController
-                            }
-                        }
 
                 case .vlcPlayer:
                     VLCPlayerWrapper(url: url)
                         .ignoresSafeArea()
-                        .onAppear {
-                            // VLC lance automatiquement la lecture
-                        }
                 }
             } else {
                 // Erreur : URL invalide

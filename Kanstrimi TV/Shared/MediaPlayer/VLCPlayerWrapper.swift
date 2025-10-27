@@ -27,6 +27,9 @@ struct VLCPlayerWrapper: UIViewRepresentable {
         // Stocker le player dans le context pour accès ultérieur
         context.coordinator.mediaPlayer = mediaPlayer
 
+        // Lancer la lecture automatiquement
+        mediaPlayer.play()
+
         return view
     }
 
