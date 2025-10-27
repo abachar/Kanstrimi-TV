@@ -20,17 +20,6 @@ struct ChannelCard: View {
 
     // MARK: - Body
     var body: some View {
-        Button {
-            selectedChannel = channel
-        } label: {
-            cardContent
-        }
-        .buttonStyle(.plain)
-        .focusable()
-        .focused($focusedChannelId, equals: channel.id)
-    }
-
-    private var cardContent: some View {
         VStack(spacing: 12) {
             // Logo de la chaîne
             AsyncImage(url: URL(string: channel.streamIcon ?? "")) { phase in
@@ -78,6 +67,11 @@ struct ChannelCard: View {
         )
         .scaleEffect(isFocused ? 1.05 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isFocused)
+        .focusable()
+        .focused($focusedChannelId, equals: channel.id)
+        .onTapGesture {
+            selectedChannel = channel
+        }
     }
 }
 
