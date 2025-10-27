@@ -12,25 +12,8 @@ import SwiftData
 struct SeasonRow: View {
     // MARK: - Properties
     let season: SeriesSeason
+    let episodes: [Episode]
     let onEpisodeTap: (Episode) -> Void
-    @FocusState.Binding var focusedEpisodeId: String?
-
-    // MARK: - Environment
-    @Environment(\.modelContext) private var modelContext
-
-    // MARK: - State pour les épisodes (chargement manuel)
-    @State private var episodes: [Episode] = []
-
-    // MARK: - Initializer
-    init(
-        season: SeriesSeason,
-        onEpisodeTap: @escaping (Episode) -> Void,
-        focusedEpisodeId: FocusState<String?>.Binding
-    ) {
-        self.season = season
-        self.onEpisodeTap = onEpisodeTap
-        self._focusedEpisodeId = focusedEpisodeId
-    }
 
     // MARK: - Body
     var body: some View {
@@ -61,55 +44,13 @@ struct SeasonRow: View {
                         ForEach(episodes) { episode in
                             EpisodeCard(
                                 episode: episode,
-                                onTap: { onEpisodeTap(episode) },
-                                focusedEpisodeId: $focusedEpisodeId
+                                onTap: { onEpisodeTap(episode) }
                             )
                         }
                     }
                     .padding(.horizontal, 60)
                 }
             }
-        }
-        .onAppear {
-            loadEpisodes()
-        }
-    }
-
-    // MARK: - Helper Methods
-
-    /// Charge les épisodes de cette saison depuis le ModelContext
-    private func loadEpisodes() {
-        let seriesId = season.seriesId
-        let seasonNumber = season.seasonNumber
-
-        // Forcer la synchronisation du contexte avec le conteneur persistant
-        do {
-            try modelContext.save()
-        } catch {
-            print("⚠️ [SeasonRow] Erreur lors de la sauvegarde du contexte: \(error)")
-        }
-
-        let descriptor = FetchDescriptor<Episode>(
-            predicate: #Predicate<Episode> {
-                $0.seriesId == seriesId && $0.seasonNumber == seasonNumber
-            },
-            sortBy: [SortDescriptor(\Episode.episodeNum, order: .forward)]
-        )
-
-        do {
-            episodes = try modelContext.fetch(descriptor)
-            print("📺 [SeasonRow] Épisodes chargés: \(episodes.count) épisodes pour S\(seasonNumber) (seriesId: \(seriesId))")
-
-            // Log des épisodes chargés
-            for episode in episodes.prefix(3) {
-                print("   - E\(episode.episodeNum): \(episode.title ?? "Sans titre")")
-            }
-            if episodes.count > 3 {
-                print("   ... et \(episodes.count - 3) autres épisodes")
-            }
-        } catch {
-            print("⚠️ [SeasonRow] Erreur lors du chargement des épisodes: \(error)")
-            episodes = []
         }
     }
 }

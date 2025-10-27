@@ -404,3 +404,57 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Lazy loading des épisodes par saison via @Query dans SeasonRow
 - Mise à jour automatique du statut isWatched basé sur WatchHistory.isCompleted (>95%)
 
+## [Non versionné] - 2025-10-27
+
+### Optimisé
+- **MovieDetailView** : Optimisation des @Query avec #Predicate dans l'init
+  - Query MovieDetail filtrée uniquement par streamId (évite de charger tous les MovieDetail)
+  - Query WatchHistory filtrée par streamId ET contentType (évite de charger tout l'historique)
+  - Suppression des filtres post-query dans les computed properties (déjà filtrées par Predicate)
+  - Amélioration significative de la performance mémoire
+
+### Refactoré
+- **SeriesDetailView** : Refactoring complet vers architecture MV avec @Query
+  - Remplacement de @State var seriesDetail par @Query avec Predicate (filtre seriesId)
+  - Remplacement de @State var seasons par @Query avec Predicate + sort (filtre seriesId, tri par seasonNumber)
+  - Ajout @Query pour episodes avec Predicate + sort (filtre seriesId, tri par seasonNumber/episodeNum)
+  - Ajout @Query pour watchHistories avec Predicate + sort (filtre seriesId + contentType)
+  - Suppression complète des états locaux (@State isLoading, @State error)
+  - Suppression de TOUS les @FocusState custom (5 occurrences) → focus natif tvOS
+  - Ajout de @Environment(SeriesViewModel.self) pour gérer playingContent
+  - Computed property episodesBySeason pour grouper les épisodes par saison
+  - Computed properties pour helper episodes (firstUnwatchedEpisode, lastWatchedEpisode, firstEpisode)
+  - Simplification du body : suppression des états loading/error, affichage direct du contenu
+  - Boutons de lecture natifs SwiftUI avec .buttonStyle(.borderedProminent/.bordered)
+  - Section casting : remplacement de CastMemberCard par CachedImage + .hoverEffect(.lift)
+  - Section seasons : passage des épisodes filtrés directement à SeasonRow
+  - Suppression de toutes les méthodes manuelles : loadDetails(), refreshSeasons(), getFirstUnwatchedEpisode(), etc.
+
+- **SeasonRow** : Simplification et suppression du state local
+  - Suppression de @FocusState.Binding var focusedEpisodeId
+  - Suppression de @Environment(\.modelContext)
+  - Suppression de @State private var episodes (reçoit maintenant les épisodes via paramètre)
+  - Ajout du paramètre episodes: [Episode] (passés directement depuis SeriesDetailView)
+  - Suppression de la méthode loadEpisodes() (plus de chargement manuel)
+  - Suppression du .onAppear (plus nécessaire)
+  - Propagation de onEpisodeTap sans focusedEpisodeId à EpisodeCard
+
+- **EpisodeCard** : Migration vers focus natif tvOS
+  - Suppression de @FocusState.Binding var focusedEpisodeId
+  - Suppression de la computed property isFocused
+  - Remplacement d'AsyncImage par CachedImage (cache mémoire + disque)
+  - Suppression de tous les styles custom liés au focus (background, overlay, scaleEffect, animation)
+  - Ajout de .hoverEffect(.highlight) pour focus natif tvOS
+  - Suppression de .focusable() et .focused() (gérés automatiquement par .hoverEffect)
+  - Simplification des couleurs texte (plus de changement selon isFocused)
+
+### Technique
+- Pattern #Predicate dans l'init des Views pour filtrer les @Query dès la source
+  - Évite de charger toutes les données en mémoire puis de filtrer post-query
+  - Amélioration significative de la performance et de l'utilisation mémoire
+- Architecture MV pure : Views observent les données via @Query, pas d'état local
+- SwiftData gère automatiquement la réactivité (pas besoin de refreshSeasons() manuel)
+- Focus natif tvOS : .hoverEffect() remplace complètement @FocusState custom
+- Computed properties basées sur @Query pour logique dérivée (episodesBySeason, firstUnwatchedEpisode, etc.)
+- Navigation via SeriesViewModel.playingContent (pattern identique à MoviesViewModel)
+- Build réussi sans erreur ni warning

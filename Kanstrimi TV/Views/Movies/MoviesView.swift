@@ -15,6 +15,9 @@ struct MoviesView: View {
     // MARK: - ViewModel
     @State private var viewModel = MoviesViewModel()
 
+    // MARK: - Search State
+    @State private var showSearchView = false
+
     // MARK: - Body
     var body: some View {
         ZStack {
@@ -48,11 +51,17 @@ struct MoviesView: View {
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
         .environment(viewModel)
+        .onPlayPauseDoubleTap {
+            showSearchView = true
+        }
         .fullScreenCover(item: $viewModel.selectedMovie) { movie in
             MovieDetailView(movie: movie)
         }
         .fullScreenCover(item: $viewModel.playingContent) { content in
             UniversalPlayerView(content: content)
+        }
+        .fullScreenCover(isPresented: $showSearchView) {
+            SearchMovies()
         }
     }
 }

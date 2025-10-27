@@ -14,35 +14,55 @@ struct SeriesDetailView: View {
     let series: Series
 
     // MARK: - Environment
-    @Environment(\.modelContext) private var modelContext
-
-    // MARK: - State
-    @State private var seriesDetail: SeriesDetail?
-    @State private var isLoading = true
-    @State private var error: String?
-    @State private var showPlayer = false
-    @State private var selectedEpisode: Episode?
-
-    // MARK: - Focus State
-    @FocusState private var focusedPlayButton: Bool
-    @FocusState private var focusedResumeButton: Bool
-    @FocusState private var focusedRestartButton: Bool
-    @FocusState private var focusedEpisodeId: String?
-    @FocusState private var focusedCastId: String?
+    @Environment(SeriesViewModel.self) private var viewModel
 
     // MARK: - Queries
-    @Query private var accounts: [Account]
+    @Query private var seriesDetails: [SeriesDetail]
+    @Query private var seasons: [SeriesSeason]
+    @Query private var episodes: [Episode]
+    @Query private var watchHistories: [WatchHistory]
 
-    // MARK: - State pour les saisons (chargement manuel)
-    @State private var seasons: [SeriesSeason] = []
-
-    private var activeAccount: Account? {
-        accounts.first
+    // MARK: - Computed Properties
+    private var seriesDetail: SeriesDetail? {
+        seriesDetails.first
     }
 
-    // MARK: - Initializer
+    private var episodesBySeason: [Int: [Episode]] {
+        Dictionary(grouping: episodes, by: { $0.seasonNumber })
+    }
+
+    // MARK: - Init
     init(series: Series) {
         self.series = series
+        let seriesId = series.seriesId
+
+        // Filtrer SeriesDetail par seriesId
+        _seriesDetails = Query(
+            filter: #Predicate<SeriesDetail> { $0.seriesId == seriesId }
+        )
+
+        // Filtrer SeriesSeason par seriesId + sort
+        _seasons = Query(
+            filter: #Predicate<SeriesSeason> { $0.seriesId == seriesId },
+            sort: [SortDescriptor(\SeriesSeason.seasonNumber, order: .forward)]
+        )
+
+        // Filtrer Episode par seriesId + sort
+        _episodes = Query(
+            filter: #Predicate<Episode> { $0.seriesId == seriesId },
+            sort: [
+                SortDescriptor(\Episode.seasonNumber, order: .forward),
+                SortDescriptor(\Episode.episodeNum, order: .forward)
+            ]
+        )
+
+        // Filtrer WatchHistory par seriesId + contentType
+        _watchHistories = Query(
+            filter: #Predicate<WatchHistory> {
+                $0.streamId == seriesId && $0.contentType == "series"
+            },
+            sort: [SortDescriptor(\.lastWatchedDate, order: .reverse)]
+        )
     }
 
     // MARK: - Body
@@ -51,122 +71,99 @@ struct SeriesDetailView: View {
             Color.black
                 .ignoresSafeArea()
 
-            if isLoading {
-                // État de chargement
-                VStack(spacing: 30) {
-                    ProgressView()
-                        .tint(.blue)
-                        .scaleEffect(1.5)
-                    Text("Chargement des détails...")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                }
-            } else if let error = error {
-                // État d'erreur
-                VStack(spacing: 30) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 80))
-                        .foregroundColor(.red)
+            // Contenu principal
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 40) {
+                    // Hero Section
+                    SeriesHeroSection(series: series, seriesDetail: seriesDetail)
 
-                    Text("Erreur")
-                        .font(.title)
-                        .foregroundColor(.primary)
+                    VStack(alignment: .leading, spacing: 40) {
+                        // Boutons de lecture
+                        playbackButtonsSection
 
-                    Text(error)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 60)
-                }
-            } else {
-                // Contenu principal
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 40) {
-                        // Hero Section
-                        SeriesHeroSection(series: series, seriesDetail: seriesDetail)
+                        // Synopsis
+                        if let plot = seriesDetail?.plot, !plot.isEmpty {
+                            synopsisSection(plot: plot)
+                        }
 
-                        VStack(alignment: .leading, spacing: 40) {
-                            // Boutons de lecture
-                            playbackButtonsSection
-                                .padding(.horizontal, 60)
+                        // Réalisateur
+                        if let director = seriesDetail?.director, !director.isEmpty {
+                            directorSection(director: director)
+                        }
 
-                            // Synopsis
-                            if let plot = seriesDetail?.plot, !plot.isEmpty {
-                                synopsisSection(plot: plot)
-                                    .padding(.horizontal, 60)
-                            }
+                        // Cast
+                        if let castImages = seriesDetail?.castImages, !castImages.isEmpty {
+                            castSection(castImages: castImages)
+                        }
 
-                            // Réalisateur
-                            if let director = seriesDetail?.director, !director.isEmpty {
-                                directorSection(director: director)
-                                    .padding(.horizontal, 60)
-                            }
-
-                            // Cast
-                            if let castImages = seriesDetail?.castImages, !castImages.isEmpty {
-                                castSection(castImages: castImages)
-                            }
-
-                            // Saisons et épisodes
-                            if !seasons.isEmpty {
-                                seasonsSection
-                            }
+                        // Saisons et épisodes
+                        if !seasons.isEmpty {
+                            seasonsSection
                         }
                     }
-                    .padding(.bottom, 60)
+                    .padding(.horizontal, 60)
                 }
+                .padding(.bottom, 60)
             }
         }
         .task {
-            await loadDetails()
+            await DomainService.shared.loadSeriesDetailsIfNeeded(series: series)
         }
         .ignoresSafeArea()
-        .fullScreenCover(isPresented: $showPlayer) {
-            if let episode = selectedEpisode {
-                UniversalPlayerView(content: .episode(episode))
-                    .onDisappear {
-                        // Mettre à jour l'historique de visionnage
-                        updateEpisodeWatchStatus(episode: episode)
-                    }
-            }
-        }
     }
 
     // MARK: - Playback Buttons Section
     private var playbackButtonsSection: some View {
         HStack(spacing: 20) {
-            // Déterminer le premier épisode non vu
-            let firstUnwatchedEpisode = getFirstUnwatchedEpisode()
-            let lastWatchedEpisode = getLastWatchedEpisode()
-
-            if let episode = lastWatchedEpisode, !episode.isWatched {
+            // Déterminer le dernier épisode regardé (en cours)
+            if let lastWatchedEpisode = lastWatchedEpisode, !lastWatchedEpisode.isWatched {
                 // Bouton "Reprendre" (épisode en cours)
-                PlaybackButton(
-                    title: "Reprendre S\(episode.seasonNumber)E\(episode.episodeNum)",
-                    icon: "play.fill",
-                    action: { playEpisode(episode) },
-                    isFocused: $focusedResumeButton
-                )
-            } else if let episode = firstUnwatchedEpisode {
+                Button {
+                    viewModel.playingContent = .episode(lastWatchedEpisode)
+                } label: {
+                    Label("Reprendre S\(lastWatchedEpisode.seasonNumber)E\(lastWatchedEpisode.episodeNum)", systemImage: "play.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.borderedProminent)
+            } else if let firstUnwatchedEpisode = firstUnwatchedEpisode {
                 // Bouton "Lire" (premier épisode non vu)
-                PlaybackButton(
-                    title: "Lire S\(episode.seasonNumber)E\(episode.episodeNum)",
-                    icon: "play.fill",
-                    action: { playEpisode(episode) },
-                    isFocused: $focusedPlayButton
-                )
+                Button {
+                    viewModel.playingContent = .episode(firstUnwatchedEpisode)
+                } label: {
+                    Label("Lire S\(firstUnwatchedEpisode.seasonNumber)E\(firstUnwatchedEpisode.episodeNum)", systemImage: "play.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.borderedProminent)
             }
 
             // Bouton "Redémarrer" (premier épisode de la série)
-            if let firstEpisode = getFirstEpisode() {
-                PlaybackButton(
-                    title: "Redémarrer",
-                    icon: "arrow.counterclockwise",
-                    action: { playEpisode(firstEpisode) },
-                    isFocused: $focusedRestartButton
-                )
+            if let firstEpisode = firstEpisode {
+                Button {
+                    viewModel.playingContent = .episode(firstEpisode)
+                } label: {
+                    Label("Redémarrer", systemImage: "arrow.counterclockwise")
+                        .font(.title3)
+                }
+                .buttonStyle(.bordered)
             }
         }
+    }
+
+    // MARK: - Computed Properties for Episodes
+    private var firstUnwatchedEpisode: Episode? {
+        episodes.first { !$0.isWatched }
+    }
+
+    private var lastWatchedEpisode: Episode? {
+        guard let lastHistory = watchHistories.first,
+              let episodeId = lastHistory.episodeId else {
+            return nil
+        }
+        return episodes.first { $0.id == episodeId }
+    }
+
+    private var firstEpisode: Episode? {
+        episodes.first
     }
 
     // MARK: - Synopsis Section
@@ -202,20 +199,38 @@ struct SeriesDetailView: View {
             Text("Casting")
                 .font(.system(size: 28, weight: .bold))
                 .foregroundColor(.primary)
-                .padding(.horizontal, 60)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 20) {
                     ForEach(Array(castImages.enumerated()), id: \.offset) { index, imageURL in
-                        CastMemberCard(
-                            name: getCastName(at: index),
-                            character: nil,
-                            imageURL: imageURL,
-                            focusedCastId: $focusedCastId
-                        )
+                        CachedImage(url: URL(string: imageURL)) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 120, height: 180)
+                                    .cornerRadius(12)
+                            case .empty:
+                                Color.gray.opacity(0.3)
+                                    .frame(width: 120, height: 180)
+                                    .cornerRadius(12)
+                                    .overlay { ProgressView() }
+                            case .failure:
+                                Color.gray.opacity(0.3)
+                                    .frame(width: 120, height: 180)
+                                    .cornerRadius(12)
+                                    .overlay {
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(.secondary)
+                                    }
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                        .hoverEffect(.lift)
                     }
                 }
-                .padding(.horizontal, 60)
             }
         }
     }
@@ -226,183 +241,17 @@ struct SeriesDetailView: View {
             Text("Épisodes")
                 .font(.system(size: 32, weight: .bold))
                 .foregroundColor(.primary)
-                .padding(.horizontal, 60)
 
             ForEach(seasons) { season in
                 SeasonRow(
                     season: season,
+                    episodes: episodesBySeason[season.seasonNumber] ?? [],
                     onEpisodeTap: { episode in
-                        playEpisode(episode)
-                    },
-                    focusedEpisodeId: $focusedEpisodeId
+                        viewModel.playingContent = .episode(episode)
+                    }
                 )
             }
         }
-    }
-
-    // MARK: - Helper Methods
-
-    /// Charge les détails de la série
-    private func loadDetails() async {
-        guard let account = activeAccount else {
-            error = "Aucun compte actif"
-            isLoading = false
-            return
-        }
-
-        do {
-            await DomainService.shared.loadSeriesDetailsIfNeeded(series: series)
-            // Les détails sont maintenant dans la DB, @Query va les charger automatiquement
-
-            // ✅ Petit délai pour laisser SwiftData finaliser la persistance
-            // SwiftData peut avoir besoin d'un cycle pour propager les changements
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-
-            await MainActor.run {
-                self.refreshSeasons()
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error.localizedDescription
-                self.isLoading = false
-            }
-        }
-    }
-
-    /// Rafraîchit la liste des saisons depuis le ModelContext
-    private func refreshSeasons() {
-        let currentSeriesId = series.seriesId
-
-        print("🔍 [SeriesDetailView] Début refreshSeasons pour seriesId: \(currentSeriesId)")
-        print("🔍 [SeriesDetailView] ModelContext: \(ObjectIdentifier(modelContext))")
-
-        // Vérifier toutes les saisons dans le contexte (sans filtre)
-        let allSeasonsDescriptor = FetchDescriptor<SeriesSeason>()
-        if let allCount = try? modelContext.fetchCount(allSeasonsDescriptor) {
-            print("🔍 [SeriesDetailView] Total de saisons dans le contexte: \(allCount)")
-        }
-
-        // Forcer la synchronisation du contexte avec le conteneur persistant
-        // Cela garantit que les insertions récentes sont visibles
-        do {
-            try StorageService.shared.save()
-            print("🔍 [SeriesDetailView] StorageService.save() réussi")
-        } catch {
-            print("⚠️ [SeriesDetailView] Erreur lors de la sauvegarde du contexte: \(error)")
-        }
-
-        let descriptor = FetchDescriptor<SeriesSeason>(
-            predicate: #Predicate<SeriesSeason> { $0.seriesId == currentSeriesId },
-            sortBy: [SortDescriptor(\SeriesSeason.seasonNumber, order: .forward)]
-        )
-
-        do {
-            // Utiliser fetchCount pour diagnostiquer
-            let count = try StorageService.shared.fetchCount(descriptor)
-            print("🔍 [SeriesDetailView] fetchCount retourne: \(count) saisons pour seriesId \(currentSeriesId)")
-
-            seasons = try StorageService.shared.fetch(descriptor)
-            print("🔄 [SeriesDetailView] Saisons rafraîchies: \(seasons.count) saisons pour seriesId \(currentSeriesId)")
-
-            // Log des saisons chargées
-            for season in seasons {
-                print("   - Saison \(season.seasonNumber): \(season.name ?? "Sans nom") (seriesId: \(season.seriesId))")
-            }
-        } catch {
-            print("⚠️ [SeriesDetailView] Erreur lors du rafraîchissement des saisons: \(error)")
-            seasons = []
-        }
-    }
-
-    /// Récupère le premier épisode non visionné
-    private func getFirstUnwatchedEpisode() -> Episode? {
-        let currentSeriesId = series.seriesId
-        let descriptor = FetchDescriptor<Episode>(
-            predicate: #Predicate {
-                $0.seriesId == currentSeriesId && !$0.isWatched
-            },
-            sortBy: [
-                SortDescriptor(\Episode.seasonNumber, order: .forward),
-                SortDescriptor(\Episode.episodeNum, order: .forward)
-            ]
-        )
-
-        let episode = try? StorageService.shared.fetchOne(descriptor)
-        print("🎬 [SeriesDetailView] Premier épisode non visionné: \(episode != nil ? "S\(episode!.seasonNumber)E\(episode!.episodeNum)" : "aucun")")
-        return episode
-    }
-
-    /// Récupère le dernier épisode visionné (ou en cours)
-    private func getLastWatchedEpisode() -> Episode? {
-        let currentSeriesId = series.seriesId
-        let descriptor = FetchDescriptor<WatchHistory>(
-            predicate: #Predicate {
-                $0.streamId == currentSeriesId && $0.contentType == "series"
-            },
-            sortBy: [SortDescriptor(\.lastWatchedDate, order: .reverse)]
-        )
-
-        guard let lastHistory = try? StorageService.shared.fetchOne(descriptor),
-              let episodeId = lastHistory.episodeId else {
-            return nil
-        }
-
-        let episodeDescriptor = FetchDescriptor<Episode>(
-            predicate: #Predicate { $0.id == episodeId }
-        )
-
-        return try? StorageService.shared.fetchOne(episodeDescriptor)
-    }
-
-    /// Récupère le tout premier épisode (S1E1)
-    private func getFirstEpisode() -> Episode? {
-        let currentSeriesId = series.seriesId
-        let descriptor = FetchDescriptor<Episode>(
-            predicate: #Predicate { $0.seriesId == currentSeriesId },
-            sortBy: [
-                SortDescriptor(\Episode.seasonNumber, order: .forward),
-                SortDescriptor(\Episode.episodeNum, order: .forward)
-            ]
-        )
-
-        let episode = try? StorageService.shared.fetchOne(descriptor)
-        print("🎬 [SeriesDetailView] Premier épisode (S1E1): \(episode != nil ? "S\(episode!.seasonNumber)E\(episode!.episodeNum)" : "aucun")")
-        return episode
-    }
-
-    /// Lance la lecture d'un épisode
-    private func playEpisode(_ episode: Episode) {
-        selectedEpisode = episode
-        showPlayer = true
-    }
-
-    /// Met à jour le statut de visionnage d'un épisode
-    private func updateEpisodeWatchStatus(episode: Episode) {
-        // Récupérer l'historique de visionnage de cet épisode
-        let currentSeriesId = series.seriesId
-        let currentEpisodeId = episode.id
-        let descriptor = FetchDescriptor<WatchHistory>(
-            predicate: #Predicate {
-                $0.streamId == currentSeriesId &&
-                $0.contentType == "series" &&
-                $0.episodeId == currentEpisodeId
-            }
-        )
-
-        if let history = try? StorageService.shared.fetchOne(descriptor) {
-            // Marquer comme vu si >95% visionné
-            if history.isCompleted {
-                episode.isWatched = true
-                try? StorageService.shared.save()
-            }
-        }
-    }
-
-    /// Récupère le nom d'un acteur depuis la liste cast (format: "Nom1, Nom2, Nom3")
-    private func getCastName(at index: Int) -> String {
-        guard let cast = seriesDetail?.cast else { return "Inconnu" }
-        let names = cast.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        return index < names.count ? names[index] : "Inconnu"
     }
 }
 
@@ -420,7 +269,8 @@ struct SeriesDetailView: View {
 
     SeriesDetailView(series: sampleSeries)
         .modelContainer(
-            for: [Series.self, SeriesDetail.self, SeriesSeason.self, Episode.self, WatchHistory.self, Account.self],
+            for: [Series.self, SeriesDetail.self, SeriesSeason.self, Episode.self, WatchHistory.self],
             inMemory: true
         )
+        .environment(SeriesViewModel())
 }

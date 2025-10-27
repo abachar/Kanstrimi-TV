@@ -5,8 +5,8 @@
 //  Created by Abdelhakim Bachar on 26/10/2025.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct LiveTVView: View {
     // MARK: - SwiftData Queries
@@ -14,6 +14,9 @@ struct LiveTVView: View {
 
     // MARK: - ViewModel
     @State private var viewModel = LiveTVViewModel()
+
+    // MARK: - Search State
+    @State private var showSearchView = false
 
     // MARK: - Body
     var body: some View {
@@ -48,8 +51,14 @@ struct LiveTVView: View {
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
         .environment(viewModel)
+        .onPlayPauseDoubleTap {
+            showSearchView = true
+        }
         .fullScreenCover(item: $viewModel.selectedChannel) { channel in
             UniversalPlayerView(content: .liveChannel(channel))
+        }
+        .fullScreenCover(isPresented: $showSearchView) {
+            SearchLiveTV()
         }
     }
 }

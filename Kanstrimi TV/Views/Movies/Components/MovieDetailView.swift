@@ -21,11 +21,29 @@ struct MovieDetailView: View {
     @Query private var watchHistories: [WatchHistory]
 
     private var movieDetail: MovieDetail? {
-        movieDetails.first { $0.streamId == movie.streamId }
+        movieDetails.first
     }
 
     private var watchHistory: WatchHistory? {
-        watchHistories.first { $0.streamId == movie.streamId && $0.contentType == "movie" }
+        watchHistories.first
+    }
+
+    // MARK: - Init
+    init(movie: Movie) {
+        self.movie = movie
+        let streamId = movie.streamId
+
+        // Filtrer MovieDetail par streamId
+        _movieDetails = Query(
+            filter: #Predicate<MovieDetail> { $0.streamId == streamId }
+        )
+
+        // Filtrer WatchHistory par streamId ET contentType
+        _watchHistories = Query(
+            filter: #Predicate<WatchHistory> {
+                $0.streamId == streamId && $0.contentType == "movie"
+            }
+        )
     }
 
     // MARK: - Body

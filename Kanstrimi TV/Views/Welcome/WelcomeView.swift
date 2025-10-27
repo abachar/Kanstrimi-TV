@@ -97,8 +97,8 @@ struct WelcomeView: View {
                     // Compte existe mais > 5 jours : rafraîchir
                     await refreshExistingAccount()
                 } else {
-                    // Compte existe et récent : attendre 5 secondes puis passer à MainView
-                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                    // Compte existe et récent : attendre 1 secondes puis passer à MainView
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
                     onAccountReady()
                 }
             } else {

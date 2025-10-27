@@ -12,18 +12,13 @@ struct EpisodeCard: View {
     // MARK: - Properties
     let episode: Episode
     let onTap: () -> Void
-    @FocusState.Binding var focusedEpisodeId: String?
-
-    private var isFocused: Bool {
-        focusedEpisodeId == episode.id
-    }
 
     // MARK: - Body
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Cover de l'épisode avec indicateur "vu"
             ZStack(alignment: .topTrailing) {
-                AsyncImage(url: URL(string: episode.movieImage ?? "")) { phase in
+                CachedImage(url: URL(string: episode.movieImage ?? "")) { phase in
                     switch phase {
                     case .empty:
                         Color.gray.opacity(0.3)
@@ -59,12 +54,12 @@ struct EpisodeCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Épisode \(episode.episodeNum)")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isFocused ? .blue : .secondary)
+                    .foregroundColor(.secondary)
 
                 if let title = episode.title, !title.isEmpty {
                     Text(title)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(isFocused ? .primary : .secondary)
+                        .foregroundColor(.primary)
                         .lineLimit(2)
                 } else {
                     Text("Sans titre")
@@ -82,19 +77,7 @@ struct EpisodeCard: View {
             }
             .frame(width: 240, alignment: .leading)
         }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isFocused ? Color.gray.opacity(0.3) : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isFocused ? Color.blue : Color.clear, lineWidth: 3)
-        )
-        .scaleEffect(isFocused ? 1.08 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isFocused)
-        .focusable()
-        .focused($focusedEpisodeId, equals: episode.id)
+        .hoverEffect(.highlight)
         .onTapGesture {
             onTap()
         }

@@ -9,8 +9,8 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
+    @State private var selectedTab = 0
     @State private var showWelcome = true
-    @State private var resetToWelcome = false
 
     var body: some View {
         ZStack {
@@ -23,18 +23,34 @@ struct ContentView: View {
                 }
                 .transition(.opacity)
             } else {
-                MainView(resetToWelcome: $resetToWelcome)
+                TabView(selection: $selectedTab) {
+                    LiveTVView()
+                        .tag(0)
+                        .tabItem {
+                            Label("TV en direct", systemImage: "tv")
+                        }
+
+                    MoviesView()
+                        .tag(1)
+                        .tabItem {
+                            Label("Films", systemImage: "film")
+                        }
+
+                    SeriesView()
+                        .tag(2)
+                        .tabItem {
+                            Label("Séries", systemImage: "film.stack")
+                        }
+
+                    SettingsView()
+                        .tag(3)
+                        .tabItem {
+                            Label("", systemImage: "gearshape")
+                        }
+                }
                     .transition(.opacity)
             }
         }
         .ignoresSafeArea()
-        .onChange(of: resetToWelcome) { _, newValue in
-            if newValue {
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    showWelcome = true
-                }
-                resetToWelcome = false
-            }
-        }
     }
 }

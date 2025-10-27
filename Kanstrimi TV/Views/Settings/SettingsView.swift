@@ -9,8 +9,6 @@ import SwiftData
 import SwiftUI
 
 struct SettingsView: View {
-    // MARK: - Bindings
-    @Binding var resetToWelcome: Bool
 
     // MARK: - Environment
     @Environment(\.modelContext) private var modelContext
@@ -259,9 +257,6 @@ struct SettingsView: View {
         try? StorageService.shared.save()
 
         showDeleteConfirmation = false
-
-        // Déclencher le retour à l'écran d'accueil
-        resetToWelcome = true
     }
 
     private func handleShowLicenses() {
@@ -284,8 +279,6 @@ struct SettingsView: View {
 
 // MARK: - Preview
 #Preview {
-    @Previewable @State var resetToWelcome = false
-
     let container = try! ModelContainer(
         for: Account.self,
         PlayerSettings.self,
@@ -308,6 +301,6 @@ struct SettingsView: View {
     let settings = PlayerSettings(bufferSize: 30)
     context.insert(settings)
 
-    return SettingsView(resetToWelcome: $resetToWelcome)
+    return SettingsView()
         .modelContainer(container)
 }

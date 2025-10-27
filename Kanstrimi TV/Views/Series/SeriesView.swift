@@ -15,6 +15,9 @@ struct SeriesView: View {
     // MARK: - ViewModel
     @State private var viewModel = SeriesViewModel()
 
+    // MARK: - Search State
+    @State private var showSearchView = false
+
     // MARK: - Body
     var body: some View {
         ZStack {
@@ -48,8 +51,17 @@ struct SeriesView: View {
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
         .environment(viewModel)
+        .onPlayPauseDoubleTap {
+            showSearchView = true
+        }
         .fullScreenCover(item: $viewModel.selectedSeries) { series in
             SeriesDetailView(series: series)
+        }
+        .fullScreenCover(item: $viewModel.playingContent) { content in
+            UniversalPlayerView(content: content)
+        }
+        .fullScreenCover(isPresented: $showSearchView) {
+            SearchSeries()
         }
     }
 }
