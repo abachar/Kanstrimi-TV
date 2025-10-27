@@ -15,44 +15,46 @@ struct MoviesView: View {
     // MARK: - Focus State
     @FocusState private var focusedMovieId: String?
 
+    // MARK: - State
+    @State private var selectedMovie: Movie?
+
     // MARK: - Body
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.kanBackground
-                    .ignoresSafeArea()
+        ZStack {
+            Color.kanBackground
+                .ignoresSafeArea()
 
-                if categories.isEmpty {
-                    // État vide
-                    VStack(spacing: 40) {
-                        Text("Films")
-                            .font(.system(size: 60, weight: .bold))
-                            .foregroundColor(.kanTextPrimary)
+            if categories.isEmpty {
+                // État vide
+                VStack(spacing: 40) {
+                    Text("Films")
+                        .font(.system(size: 60, weight: .bold))
+                        .foregroundColor(.kanTextPrimary)
 
-                        Text("Aucun film disponible")
-                            .font(.title3)
-                            .foregroundColor(.kanTextSecondary)
-                    }
-                    .padding(60)
-                } else {
-                    // Liste des catégories avec films
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(spacing: 30) {
-                            ForEach(categories) { category in
-                                MovieCategoryRow(
-                                    category: category,
-                                    focusedMovieId: $focusedMovieId
-                                )
-                            }
+                    Text("Aucun film disponible")
+                        .font(.title3)
+                        .foregroundColor(.kanTextSecondary)
+                }
+                .padding(60)
+            } else {
+                // Liste des catégories avec films
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 30) {
+                        ForEach(categories) { category in
+                            MovieCategoryRow(
+                                category: category,
+                                focusedMovieId: $focusedMovieId,
+                                selectedMovie: $selectedMovie
+                            )
                         }
-                        .padding(.top, 40)
-                        .padding(.bottom, 60)
                     }
+                    .padding(.top, 40)
+                    .padding(.bottom, 60)
                 }
             }
-            .navigationDestination(for: Movie.self) { movie in
-                MovieDetailView(movie: movie)
-            }
+        }
+        .fullScreenCover(item: $selectedMovie) { movie in
+            MovieDetailView(movie: movie)
         }
     }
 }

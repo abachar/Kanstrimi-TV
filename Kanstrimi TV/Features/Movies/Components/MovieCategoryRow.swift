@@ -13,14 +13,16 @@ struct MovieCategoryRow: View {
     // MARK: - Properties
     let category: MoviesCategory
     @FocusState.Binding var focusedMovieId: String?
+    @Binding var selectedMovie: Movie?
 
     // MARK: - SwiftData Query
     @Query private var movies: [Movie]
 
     // MARK: - Init
-    init(category: MoviesCategory, focusedMovieId: FocusState<String?>.Binding) {
+    init(category: MoviesCategory, focusedMovieId: FocusState<String?>.Binding, selectedMovie: Binding<Movie?>) {
         self.category = category
         self._focusedMovieId = focusedMovieId
+        self._selectedMovie = selectedMovie
 
         // Query filtrée par categoryId avec tri par sortOrder
         let categoryId = category.categoryId ?? ""
@@ -57,7 +59,7 @@ struct MovieCategoryRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 24) {
                     ForEach(movies) { movie in
-                        MovieCard(movie: movie, focusedMovieId: $focusedMovieId)
+                        MovieCard(movie: movie, focusedMovieId: $focusedMovieId, selectedMovie: $selectedMovie)
                     }
                 }
                 .padding(.horizontal, 60)
@@ -70,10 +72,11 @@ struct MovieCategoryRow: View {
 // MARK: - Preview
 #Preview {
     @Previewable @FocusState var focusedMovieId: String?
+    @Previewable @State var selectedMovie: Movie?
 
     let sampleCategory = MoviesCategory(categoryId: "1", name: "Action", sortOrder: 0)
 
-    MovieCategoryRow(category: sampleCategory, focusedMovieId: $focusedMovieId)
+    MovieCategoryRow(category: sampleCategory, focusedMovieId: $focusedMovieId, selectedMovie: $selectedMovie)
         .modelContainer(for: [Movie.self], inMemory: true)
         .background(Color.kanBackground)
 }

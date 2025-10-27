@@ -29,6 +29,7 @@ struct SearchView: View {
     @State private var searchText = ""
     @State private var selectedTab = 0
     @State private var selectedChannel: LiveChannel?
+    @State private var selectedMovie: Movie?
 
     @FocusState private var focusedTab: Int?
     @FocusState private var focusedChannelId: String?
@@ -114,7 +115,8 @@ struct SearchView: View {
                         ForEach(displayedMovies) { movie in
                             MovieCard(
                                 movie: movie,
-                                focusedMovieId: $focusedMovieId
+                                focusedMovieId: $focusedMovieId,
+                                selectedMovie: $selectedMovie
                             )
                         }
                     }
@@ -154,6 +156,9 @@ struct SearchView: View {
         .searchable(text: $searchText, prompt: "Rechercher du contenu...")
         .fullScreenCover(item: $selectedChannel) { channel in
             UniversalPlayerView(content: .liveChannel(channel))
+        }
+        .fullScreenCover(item: $selectedMovie) { movie in
+            MovieDetailView(movie: movie)
         }
     }
 }
