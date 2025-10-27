@@ -65,20 +65,3 @@ struct ChannelCardCompact: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleChannel = LiveChannel(
-        streamId: 1,
-        name: "TF1 HD",
-        streamURL: "http://example.com/stream",
-        categoryId: "1",
-        sortOrder: 0,
-        streamIcon: "https://via.placeholder.com/140x90"
-    )
-
-    ChannelCardCompact(channel: sampleChannel) { _ in
-        print("Channel selected")
-    }
-    .background(Color.black)
-}

@@ -179,10 +179,3 @@ struct AccountFormView: View {
         case saveButton
     }
 }
-
-#Preview {
-    AccountFormView { name, serverURL, username, password in
-        print("Saved: \(name), \(serverURL), \(username), \(password)")
-    }
-    .background(Color.black)
-}

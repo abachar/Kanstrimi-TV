@@ -145,29 +145,3 @@ struct SeriesHeroSection: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleSeries = Series(
-        seriesId: 1,
-        name: "Breaking Bad",
-        sortOrder: 0,
-        cover: "https://via.placeholder.com/300x450",
-        backdropPaths: nil,
-        rating: "9.5",
-        rating5based: 5.0
-    )
-
-    let sampleDetail = SeriesDetail(
-        seriesId: 1,
-        name: "Breaking Bad",
-        genre: "Crime, Drama, Thriller",
-        rating: 4.8,
-        year: "2008",
-        cover: "https://via.placeholder.com/300x450",
-        plot: "A high school chemistry teacher turned methamphetamine producer."
-    )
-
-    SeriesHeroSection(series: sampleSeries, seriesDetail: sampleDetail)
-        .background(Color.black)
-}

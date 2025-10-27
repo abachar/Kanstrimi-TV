@@ -64,13 +64,3 @@ struct SeriesCategoryRow: View {
         .padding(.vertical, 20)
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleCategory = SeriesCategory(categoryId: "1", name: "Drama", sortOrder: 0)
-
-    SeriesCategoryRow(category: sampleCategory)
-        .modelContainer(for: [Series.self], inMemory: true)
-        .background(Color.black)
-        .environment(SeriesViewModel())
-}

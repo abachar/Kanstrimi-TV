@@ -27,13 +27,3 @@ struct WatchedIndicator: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    VStack(spacing: 20) {
-        WatchedIndicator(isWatched: true)
-        WatchedIndicator(isWatched: false)
-    }
-    .padding()
-    // .background(Color.gray.opacity(0.3))
-}

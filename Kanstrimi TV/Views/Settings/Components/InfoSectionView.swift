@@ -81,17 +81,3 @@ struct InfoSectionView: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    @Previewable @FocusState var focusedButton: String?
-
-    InfoSectionView(
-        appInfo: AppInfo(),
-        focusedButton: $focusedButton,
-        onLicenses: { print("Licenses") },
-        onCredits: { print("Credits") }
-    )
-    .padding(60)
-    .background(Color.black)
-}

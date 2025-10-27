@@ -114,16 +114,3 @@ struct PlaybackSectionView: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    @Previewable @State var bufferSize = 30
-    @Previewable @FocusState var focusedButton: String?
-
-    PlaybackSectionView(
-        bufferSize: $bufferSize,
-        focusedButton: $focusedButton
-    )
-    .padding(60)
-    .background(Color.black)
-}

@@ -72,34 +72,3 @@ struct SearchResultsGrid<Content: View>: View {
         Array(repeating: GridItem(.flexible(), spacing: 40), count: 5)
     }
 }
-
-// MARK: - Previews
-
-#Preview("Avec résultats") {
-    SearchResultsGrid(
-        searchText: "test",
-        contentType: "films",
-        totalCount: 42,
-        displayedCount: 20
-    ) {
-        ForEach(0..<20, id: \.self) { index in
-            RoundedRectangle(cornerRadius: 12)
-                // .fill(Color.gray.opacity(0.3))
-                .frame(width: 180, height: 270)
-                .overlay(Text("Film \(index + 1)"))
-        }
-    }
-    .background(Color.black)
-}
-
-#Preview("Aucun résultat") {
-    SearchResultsGrid(
-        searchText: "xyzabc",
-        contentType: "séries",
-        totalCount: 0,
-        displayedCount: 0
-    ) {
-        EmptyView()
-    }
-    .background(Color.black)
-}

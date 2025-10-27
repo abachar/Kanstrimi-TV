@@ -42,16 +42,3 @@ struct PlaybackButton: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    @Previewable @FocusState var isFocused: Bool
-
-    PlaybackButton(
-        title: "Lire",
-        icon: "play.fill",
-        action: {},
-        isFocused: $isFocused
-    )
-    .background(Color.black)
-}

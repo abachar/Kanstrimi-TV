@@ -150,38 +150,3 @@ struct AccountSectionView: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    @Previewable @FocusState var focusedButton: String?
-
-    let container = try! ModelContainer(
-        for: Account.self,
-        LiveChannel.self,
-        Movie.self,
-        Series.self,
-        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-    )
-
-    let context = container.mainContext
-
-    let sampleAccount = Account(
-        name: "Mon IPTV",
-        serverURL: "http://example.com:8080",
-        username: "user123",
-        password: "pass123"
-    )
-    sampleAccount.lastSyncDate = Date()
-    context.insert(sampleAccount)
-
-    return AccountSectionView(
-        account: sampleAccount,
-        focusedButton: $focusedButton,
-        onRefresh: { print("Refresh") },
-        onEdit: { print("Edit") },
-        onDelete: { print("Delete") }
-    )
-    .modelContainer(container)
-    .padding(60)
-    .background(Color.black)
-}

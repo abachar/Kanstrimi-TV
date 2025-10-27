@@ -43,9 +43,3 @@ struct SyncProgressView: View {
         )
     }
 }
-
-// MARK: - Preview
-#Preview {
-    SyncProgressView(currentStep: .movies)
-        .background(Color.black)
-}

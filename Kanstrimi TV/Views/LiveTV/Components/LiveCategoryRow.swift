@@ -64,13 +64,3 @@ struct LiveCategoryRow: View {
         .padding(.vertical, 20)
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleCategory = Category(categoryId: "1", name: "Sport", sortOrder: 0)
-
-    LiveCategoryRow(category: sampleCategory)
-        .modelContainer(for: [LiveChannel.self], inMemory: true)
-        .background(Color.black)
-        .environment(LiveTVViewModel())
-}

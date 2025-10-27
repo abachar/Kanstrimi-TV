@@ -30,14 +30,3 @@ struct SettingsSectionHeader: View {
         .padding(.bottom, 16)
     }
 }
-
-// MARK: - Preview
-#Preview {
-    VStack(spacing: 30) {
-        SettingsSectionHeader(icon: "person.circle.fill", title: "Compte")
-        SettingsSectionHeader(icon: "play.circle.fill", title: "Lecture")
-        SettingsSectionHeader(icon: "info.circle.fill", title: "Informations")
-    }
-    .padding(60)
-    .background(Color.black)
-}

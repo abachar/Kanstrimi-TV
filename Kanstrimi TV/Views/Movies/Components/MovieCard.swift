@@ -73,19 +73,3 @@ struct MovieCard: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleMovie = Movie(
-        streamId: 1,
-        name: "Inception",
-        streamURL: "http://example.com/movie",
-        sortOrder: 0,
-        streamIcon: "https://via.placeholder.com/180x270",
-        rating5based: 4.5
-    )
-
-    MovieCard(movie: sampleMovie)
-        .background(Color.black)
-        .environment(MoviesViewModel())
-}

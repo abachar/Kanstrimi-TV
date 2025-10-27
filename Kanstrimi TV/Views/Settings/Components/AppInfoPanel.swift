@@ -47,9 +47,3 @@ struct AppInfoPanel: View {
         .padding(40)
     }
 }
-
-// MARK: - Preview
-#Preview {
-    AppInfoPanel(appInfo: AppInfo())
-        .background(Color.black)
-}

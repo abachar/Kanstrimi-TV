@@ -86,16 +86,3 @@ struct CastMemberCard: View {
         .focused($focusedCastId, equals: cardId)
     }
 }
-
-// MARK: - Preview
-#Preview {
-    @Previewable @FocusState var focusedCastId: String?
-
-    CastMemberCard(
-        name: "Leonardo DiCaprio",
-        character: "Dom Cobb",
-        imageURL: "https://image.tmdb.org/t/p/w185/wo2hJpn04vbtmh0B9utCFdsQhxM.jpg",
-        focusedCastId: $focusedCastId
-    )
-    .background(Color.black)
-}

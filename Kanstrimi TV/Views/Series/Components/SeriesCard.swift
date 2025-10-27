@@ -81,20 +81,3 @@ struct SeriesCard: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleSeries = Series(
-        seriesId: 1,
-        name: "Breaking Bad",
-        sortOrder: 0,
-        cover: "https://via.placeholder.com/180x270",
-        backdropPaths: nil,
-        rating5based: 4.9,
-        genre: "Drama, Crime"
-    )
-
-    SeriesCard(series: sampleSeries)
-        .background(Color.black)
-        .environment(SeriesViewModel())
-}

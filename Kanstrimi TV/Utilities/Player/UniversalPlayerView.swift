@@ -66,16 +66,3 @@ struct UniversalPlayerView: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleChannel = LiveChannel(
-        streamId: 1,
-        name: "TF1 HD",
-        streamURL: "http://example.com/stream.m3u8",
-        categoryId: "1",
-        sortOrder: 0
-    )
-
-    return UniversalPlayerView(content: .liveChannel(sampleChannel))
-}

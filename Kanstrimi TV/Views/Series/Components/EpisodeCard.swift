@@ -100,28 +100,3 @@ struct EpisodeCard: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    @Previewable @FocusState var focusedEpisodeId: String?
-
-    let sampleEpisode = Episode(
-        seriesId: 1,
-        seasonNumber: 1,
-        episodeNum: 1,
-        episodeId: "12345",
-        title: "Pilot",
-        overview: "A high school chemistry teacher diagnosed with cancer...",
-        duration: "58min",
-        movieImage: "https://via.placeholder.com/240x135",
-        streamURL: "http://example.com/episode",
-        isWatched: true
-    )
-
-    EpisodeCard(
-        episode: sampleEpisode,
-        onTap: { print("Episode tapped") },
-        focusedEpisodeId: $focusedEpisodeId
-    )
-    .background(Color.black)
-}

@@ -37,15 +37,3 @@ struct EmptySearchView: View {
         }
     }
 }
-
-// MARK: - Previews
-
-#Preview("Moins de 3 caractères") {
-    EmptySearchView(searchText: "ab", contentType: "films")
-        .background(Color.black)
-}
-
-#Preview("Aucun résultat") {
-    EmptySearchView(searchText: "xyzabc", contentType: "séries")
-        .background(Color.black)
-}

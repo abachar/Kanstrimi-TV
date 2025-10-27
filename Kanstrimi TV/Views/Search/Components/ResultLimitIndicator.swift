@@ -34,14 +34,3 @@ struct ResultLimitIndicator: View {
         .padding(.top, 20)
     }
 }
-
-// MARK: - Previews
-
-#Preview {
-    VStack {
-        ResultLimitIndicator(displayedCount: 20, totalCount: 156)
-        ResultLimitIndicator(displayedCount: 20, totalCount: 42)
-    }
-    .padding()
-    .background(Color.black)
-}

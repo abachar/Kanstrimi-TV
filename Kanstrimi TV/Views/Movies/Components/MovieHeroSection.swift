@@ -157,29 +157,3 @@ struct MovieHeroSection: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleMovie = Movie(
-        streamId: 1,
-        name: "Inception",
-        streamURL: "http://example.com/movie",
-        sortOrder: 0,
-        streamIcon: "https://via.placeholder.com/300x450",
-        rating5based: 4.5
-    )
-
-    let sampleDetail = MovieDetail(
-        streamId: 1,
-        name: "Inception",
-        genre: "Action, Science Fiction, Thriller",
-        rating: 4.8,
-        duration: "2h 28min",
-        year: "2010",
-        cover: "https://via.placeholder.com/300x450",
-        plot: "A thief who steals corporate secrets through the use of dream-sharing technology."
-    )
-
-    MovieHeroSection(movie: sampleMovie, movieDetail: sampleDetail)
-        .background(Color.black)
-}

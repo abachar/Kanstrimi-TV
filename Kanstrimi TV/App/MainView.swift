@@ -45,8 +45,3 @@ struct MainView: View {
         }
     }
 }
-
-#Preview {
-    @Previewable @State var resetToWelcome = false
-    MainView(resetToWelcome: $resetToWelcome)
-}

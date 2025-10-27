@@ -64,27 +64,3 @@ struct SearchTabButton: View {
         }
     }
 }
-
-// MARK: - Previews
-
-#Preview {
-    VStack(spacing: 20) {
-        SearchTabButton(
-            title: "Films",
-            count: 42,
-            isSelected: true,
-            action: {},
-            isFocused: true
-        )
-
-        SearchTabButton(
-            title: "Séries",
-            count: 0,
-            isSelected: false,
-            action: {},
-            isFocused: false
-        )
-    }
-    .padding()
-    .background(Color.black)
-}

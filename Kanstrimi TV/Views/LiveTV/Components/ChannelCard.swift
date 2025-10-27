@@ -62,19 +62,3 @@ struct ChannelCard: View {
         })
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleChannel = LiveChannel(
-        streamId: 1,
-        name: "TF1 HD",
-        streamURL: "http://example.com/stream",
-        categoryId: "1",
-        sortOrder: 0,
-        streamIcon: "https://via.placeholder.com/200x120"
-    )
-
-    ChannelCard(channel: sampleChannel)
-        .background(Color.black)
-        .environment(LiveTVViewModel())
-}

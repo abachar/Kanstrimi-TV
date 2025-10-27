@@ -64,13 +64,3 @@ struct MovieCategoryRow: View {
         .padding(.vertical, 20)
     }
 }
-
-// MARK: - Preview
-#Preview {
-    let sampleCategory = MoviesCategory(categoryId: "1", name: "Action", sortOrder: 0)
-
-    MovieCategoryRow(category: sampleCategory)
-        .modelContainer(for: [Movie.self], inMemory: true)
-        .background(Color.black)
-        .environment(MoviesViewModel())
-}

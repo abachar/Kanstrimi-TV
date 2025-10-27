@@ -58,22 +58,3 @@ struct PlayerOverlay: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    @Previewable @State var isVisible = true
-
-    let sampleChannel = LiveChannel(
-        streamId: 1,
-        name: "TF1 HD",
-        streamURL: "http://example.com/stream.m3u8",
-        categoryId: "1",
-        sortOrder: 0
-    )
-
-    return PlayerOverlay(
-        content: .liveChannel(sampleChannel),
-        isVisible: $isVisible
-    )
-    .background(Color.black)
-}
