@@ -30,7 +30,6 @@ class SeriesViewModel {
     /// Démarre la lecture d'un contenu
     /// - Parameter content: Le contenu à lire
     func playContent(_ content: PlaybackContent) {
-        selectedSeries = nil  // Fermer la vue de détail avant de lancer le player
         playingContent = content
     }
 

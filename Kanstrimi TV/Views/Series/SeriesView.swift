@@ -54,27 +54,23 @@ struct SeriesView: View {
         .onPlayPauseDoubleTap {
             showSearchView = true
         }
-        .onChange(of: showSearchView) { _, isShowing in
-            if isShowing {
-                viewModel.selectedSeries = nil
+        .fullScreenCover(isPresented: Binding(
+            get: { viewModel.playingContent != nil || viewModel.selectedSeries != nil || showSearchView },
+            set: { if !$0 {
                 viewModel.playingContent = nil
-            }
-        }
-        .onChange(of: viewModel.selectedSeries) { _, newValue in
-            if newValue != nil {
+                viewModel.selectedSeries = nil
                 showSearchView = false
+            }}
+        )) {
+            if let content = viewModel.playingContent {
+                UniversalPlayerView(content: content)
+            } else if let series = viewModel.selectedSeries {
+                SeriesDetailView(series: series)
+                    .environment(viewModel)
+            } else if showSearchView {
+                SearchSeries()
+                    .environment(viewModel)
             }
-        }
-        .fullScreenCover(item: $viewModel.selectedSeries) { series in
-            SeriesDetailView(series: series)
-                .environment(viewModel)
-        }
-        .fullScreenCover(item: $viewModel.playingContent) { content in
-            UniversalPlayerView(content: content)
-        }
-        .fullScreenCover(isPresented: $showSearchView) {
-            SearchSeries()
-                .environment(viewModel)
         }
     }
 }

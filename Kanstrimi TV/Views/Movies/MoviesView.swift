@@ -54,27 +54,23 @@ struct MoviesView: View {
         .onPlayPauseDoubleTap {
             showSearchView = true
         }
-        .onChange(of: showSearchView) { _, isShowing in
-            if isShowing {
-                viewModel.selectedMovie = nil
+        .fullScreenCover(isPresented: Binding(
+            get: { viewModel.playingContent != nil || viewModel.selectedMovie != nil || showSearchView },
+            set: { if !$0 {
                 viewModel.playingContent = nil
-            }
-        }
-        .onChange(of: viewModel.selectedMovie) { _, newValue in
-            if newValue != nil {
+                viewModel.selectedMovie = nil
                 showSearchView = false
+            }}
+        )) {
+            if let content = viewModel.playingContent {
+                UniversalPlayerView(content: content)
+            } else if let movie = viewModel.selectedMovie {
+                MovieDetailView(movie: movie)
+                    .environment(viewModel)
+            } else if showSearchView {
+                SearchMovies()
+                    .environment(viewModel)
             }
-        }
-        .fullScreenCover(item: $viewModel.selectedMovie) { movie in
-            MovieDetailView(movie: movie)
-                .environment(viewModel)
-        }
-        .fullScreenCover(item: $viewModel.playingContent) { content in
-            UniversalPlayerView(content: content)
-        }
-        .fullScreenCover(isPresented: $showSearchView) {
-            SearchMovies()
-                .environment(viewModel)
         }
     }
 }
