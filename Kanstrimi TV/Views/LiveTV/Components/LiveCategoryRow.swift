@@ -12,15 +12,16 @@ import SwiftData
 struct LiveCategoryRow: View {
     // MARK: - Properties
     let category: Category
-    @Binding var selectedChannel: LiveChannel?
+
+    // MARK: - Environment
+    @Environment(LiveTVViewModel.self) private var viewModel
 
     // MARK: - SwiftData Query
     @Query private var channels: [LiveChannel]
 
     // MARK: - Init
-    init(category: Category, selectedChannel: Binding<LiveChannel?>) {
+    init(category: Category) {
         self.category = category
-        self._selectedChannel = selectedChannel
 
         // Query filtrée par categoryId avec tri par sortOrder
         let categoryId = category.categoryId ?? ""
@@ -57,10 +58,9 @@ struct LiveCategoryRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 24) {
                     ForEach(channels) { channel in
-                        ChannelCard(
-                            channel: channel,
-                            selectedChannel: $selectedChannel
-                        )
+                        ChannelCard(channel: channel) { selectedChannel in
+                            viewModel.selectChannel(selectedChannel)
+                        }
                     }
                 }
                 .padding(.horizontal, 60)
@@ -72,14 +72,10 @@ struct LiveCategoryRow: View {
 
 // MARK: - Preview
 #Preview {
-    @Previewable @State var selectedChannel: LiveChannel?
-
     let sampleCategory = Category(categoryId: "1", name: "Sport", sortOrder: 0)
 
-    LiveCategoryRow(
-        category: sampleCategory,
-        selectedChannel: $selectedChannel
-    )
-    .modelContainer(for: [LiveChannel.self], inMemory: true)
-    .background(Color.black)
+    LiveCategoryRow(category: sampleCategory)
+        .modelContainer(for: [LiveChannel.self], inMemory: true)
+        .background(Color.black)
+        .environment(LiveTVViewModel())
 }

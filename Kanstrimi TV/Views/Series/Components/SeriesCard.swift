@@ -11,7 +11,13 @@ import SwiftUI
 struct SeriesCard: View {
     // MARK: - Properties
     let series: Series
-    @Binding var selectedSeries: Series?
+    let onSelect: (Series) -> Void
+
+    // MARK: - Init
+    init(series: Series, onSelect: @escaping (Series) -> Void) {
+        self.series = series
+        self.onSelect = onSelect
+    }
 
     // MARK: - Body
     var body: some View {
@@ -75,15 +81,13 @@ struct SeriesCard: View {
         .padding(16)
         .hoverEffect(.highlight)
         .onTapGesture {
-            selectedSeries = series
+            onSelect(series)
         }
     }
 }
 
 // MARK: - Preview
 #Preview {
-    @Previewable @State var selectedSeries: Series?
-
     let sampleSeries = Series(
         seriesId: 1,
         name: "Breaking Bad",
@@ -94,6 +98,8 @@ struct SeriesCard: View {
         genre: "Drama, Crime"
     )
 
-    SeriesCard(series: sampleSeries, selectedSeries: $selectedSeries)
-        .background(Color.black)
+    SeriesCard(series: sampleSeries) { _ in
+        print("Series selected")
+    }
+    .background(Color.black)
 }

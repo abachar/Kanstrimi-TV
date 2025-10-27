@@ -12,9 +12,8 @@ struct MoviesView: View {
     // MARK: - SwiftData Queries
     @Query(sort: \MoviesCategory.sortOrder) private var categories: [MoviesCategory]
 
-    // MARK: - State
-    @State private var selectedMovie: Movie?
-    @State private var playingContent: PlaybackContent?
+    // MARK: - ViewModel
+    @State private var viewModel = MoviesViewModel()
 
     // MARK: - Body
     var body: some View {
@@ -39,10 +38,7 @@ struct MoviesView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 30) {
                         ForEach(categories) { category in
-                            MovieCategoryRow(
-                                category: category,
-                                selectedMovie: $selectedMovie
-                            )
+                            MovieCategoryRow(category: category)
                         }
                     }
                     .padding(.top, 40)
@@ -51,10 +47,11 @@ struct MoviesView: View {
             }
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
-        .fullScreenCover(item: $selectedMovie) { movie in
-            MovieDetailView(movie: movie, playingContent: $playingContent)
+        .environment(viewModel)
+        .fullScreenCover(item: $viewModel.selectedMovie) { movie in
+            MovieDetailView(movie: movie, playingContent: $viewModel.playingContent)
         }
-        .fullScreenCover(item: $playingContent) { content in
+        .fullScreenCover(item: $viewModel.playingContent) { content in
             UniversalPlayerView(content: content)
         }
     }

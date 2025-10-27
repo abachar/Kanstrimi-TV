@@ -12,10 +12,8 @@ struct LiveTVView: View {
     // MARK: - SwiftData Queries
     @Query(sort: \Category.sortOrder) private var categories: [Category]
 
-    // MARK: - Focus State
-
-    // MARK: - Player State
-    @State private var selectedChannel: LiveChannel?
+    // MARK: - ViewModel
+    @State private var viewModel = LiveTVViewModel()
 
     // MARK: - Body
     var body: some View {
@@ -40,10 +38,7 @@ struct LiveTVView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 30) {
                         ForEach(categories) { category in
-                            LiveCategoryRow(
-                                category: category,
-                                selectedChannel: $selectedChannel
-                            )
+                            LiveCategoryRow(category: category)
                         }
                     }
                     .padding(.top, 40)
@@ -52,7 +47,8 @@ struct LiveTVView: View {
             }
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
-        .fullScreenCover(item: $selectedChannel) { channel in
+        .environment(viewModel)
+        .fullScreenCover(item: $viewModel.selectedChannel) { channel in
             UniversalPlayerView(content: .liveChannel(channel))
         }
     }

@@ -12,15 +12,16 @@ import SwiftData
 struct MovieCategoryRow: View {
     // MARK: - Properties
     let category: MoviesCategory
-    @Binding var selectedMovie: Movie?
+
+    // MARK: - Environment
+    @Environment(MoviesViewModel.self) private var viewModel
 
     // MARK: - SwiftData Query
     @Query private var movies: [Movie]
 
     // MARK: - Init
-    init(category: MoviesCategory, selectedMovie: Binding<Movie?>) {
+    init(category: MoviesCategory) {
         self.category = category
-        self._selectedMovie = selectedMovie
 
         // Query filtrée par categoryId avec tri par sortOrder
         let categoryId = category.categoryId ?? ""
@@ -57,7 +58,9 @@ struct MovieCategoryRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 24) {
                     ForEach(movies) { movie in
-                        MovieCard(movie: movie, selectedMovie: $selectedMovie)
+                        MovieCard(movie: movie) { selectedMovie in
+                            viewModel.selectMovie(selectedMovie)
+                        }
                     }
                 }
                 .padding(.horizontal, 60)
@@ -69,11 +72,10 @@ struct MovieCategoryRow: View {
 
 // MARK: - Preview
 #Preview {
-    @Previewable @State var selectedMovie: Movie?
-
     let sampleCategory = MoviesCategory(categoryId: "1", name: "Action", sortOrder: 0)
 
-    MovieCategoryRow(category: sampleCategory, selectedMovie: $selectedMovie)
+    MovieCategoryRow(category: sampleCategory)
         .modelContainer(for: [Movie.self], inMemory: true)
         .background(Color.black)
+        .environment(MoviesViewModel())
 }

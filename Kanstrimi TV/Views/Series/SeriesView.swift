@@ -10,13 +10,10 @@ import SwiftUI
 
 struct SeriesView: View {
     // MARK: - SwiftData Queries
-    @Query(sort: \SeriesCategory.sortOrder) private var categories:
-        [SeriesCategory]
+    @Query(sort: \SeriesCategory.sortOrder) private var categories: [SeriesCategory]
 
-    // MARK: - Focus State
-
-    // MARK: - State
-    @State private var selectedSeries: Series?
+    // MARK: - ViewModel
+    @State private var viewModel = SeriesViewModel()
 
     // MARK: - Body
     var body: some View {
@@ -41,10 +38,7 @@ struct SeriesView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 30) {
                         ForEach(categories) { category in
-                            SeriesCategoryRow(
-                                category: category,
-                                selectedSeries: $selectedSeries
-                            )
+                            SeriesCategoryRow(category: category)
                         }
                     }
                     .padding(.top, 40)
@@ -53,7 +47,8 @@ struct SeriesView: View {
             }
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
-        .fullScreenCover(item: $selectedSeries) { series in
+        .environment(viewModel)
+        .fullScreenCover(item: $viewModel.selectedSeries) { series in
             SeriesDetailView(series: series)
         }
     }

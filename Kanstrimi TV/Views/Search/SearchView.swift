@@ -91,10 +91,9 @@ struct SearchView: View {
                         displayedCount: displayedLive.count
                     ) {
                         ForEach(displayedLive) { channel in
-                            ChannelCard(
-                                channel: channel,
-                                selectedChannel: $selectedChannel
-                            )
+                            ChannelCard(channel: channel) { selectedChannel in
+                                self.selectedChannel = selectedChannel
+                            }
                         }
                     }
                     .tabItem {
@@ -110,10 +109,9 @@ struct SearchView: View {
                         displayedCount: displayedMovies.count
                     ) {
                         ForEach(displayedMovies) { movie in
-                            MovieCard(
-                                movie: movie,
-                                selectedMovie: $selectedMovie
-                            )
+                            MovieCard(movie: movie) { selectedMovie in
+                                self.selectedMovie = selectedMovie
+                            }
                         }
                     }
                     .tabItem {
@@ -129,10 +127,9 @@ struct SearchView: View {
                         displayedCount: displayedSeries.count
                     ) {
                         ForEach(displayedSeries) { series in
-                            SeriesCard(
-                                series: series,
-                                selectedSeries: $selectedSeries
-                            )
+                            SeriesCard(series: series) { selectedSeries in
+                                self.selectedSeries = selectedSeries
+                            }
                         }
                     }
                     .tabItem {

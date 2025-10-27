@@ -12,18 +12,16 @@ import SwiftData
 struct SeriesCategoryRow: View {
     // MARK: - Properties
     let category: SeriesCategory
-    @Binding var selectedSeries: Series?
+
+    // MARK: - Environment
+    @Environment(SeriesViewModel.self) private var viewModel
 
     // MARK: - SwiftData Query
     @Query private var series: [Series]
 
     // MARK: - Init
-    init(
-        category: SeriesCategory,
-        selectedSeries: Binding<Series?>
-    ) {
+    init(category: SeriesCategory) {
         self.category = category
-        self._selectedSeries = selectedSeries
 
         // Query filtrée par categoryId avec tri par sortOrder
         let categoryId = category.categoryId ?? ""
@@ -60,10 +58,9 @@ struct SeriesCategoryRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 24) {
                     ForEach(series) { series in
-                        SeriesCard(
-                            series: series,
-                            selectedSeries: $selectedSeries
-                        )
+                        SeriesCard(series: series) { selectedSeries in
+                            viewModel.selectSeries(selectedSeries)
+                        }
                     }
                 }
                 .padding(.horizontal, 60)
@@ -75,11 +72,10 @@ struct SeriesCategoryRow: View {
 
 // MARK: - Preview
 #Preview {
-    @Previewable @State var selectedSeries: Series?
-
     let sampleCategory = SeriesCategory(categoryId: "1", name: "Drama", sortOrder: 0)
 
-    SeriesCategoryRow(category: sampleCategory, selectedSeries: $selectedSeries)
+    SeriesCategoryRow(category: sampleCategory)
         .modelContainer(for: [Series.self], inMemory: true)
         .background(Color.black)
+        .environment(SeriesViewModel())
 }

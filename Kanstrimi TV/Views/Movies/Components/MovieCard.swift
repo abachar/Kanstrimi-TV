@@ -11,70 +11,75 @@ import SwiftUI
 struct MovieCard: View {
     // MARK: - Properties
     let movie: Movie
-    @Binding var selectedMovie: Movie?
+    let onSelect: (Movie) -> Void
+
+    // MARK: - Init
+    init(movie: Movie, onSelect: @escaping (Movie) -> Void) {
+        self.movie = movie
+        self.onSelect = onSelect
+    }
 
     // MARK: - Body
     var body: some View {
-        VStack(spacing: 12) {
-            // Poster du film
-            CachedImage(url: URL(string: movie.streamIcon ?? "")) { phase in
-                switch phase {
-                case .empty:
-                    Color.gray.opacity(0.3)
-                        .overlay {
-                            ProgressView()
-                                .tint(.secondary)
-                        }
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
-                    Color.gray.opacity(0.3)
-                        .overlay {
-                            Image(systemName: "film.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(.secondary)
-                        }
-                @unknown default:
-                    Color.gray.opacity(0.3)
+        Button(action: {
+            onSelect(movie)
+        }) {
+            VStack(spacing: 12) {
+                // Poster du film
+                CachedImage(url: URL(string: movie.streamIcon ?? "")) { phase in
+                    switch phase {
+                    case .empty:
+                        Color.gray.opacity(0.3)
+                            .overlay {
+                                ProgressView()
+                                    .tint(.secondary)
+                            }
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure:
+                        Color.gray.opacity(0.3)
+                            .overlay {
+                                Image(systemName: "film.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.secondary)
+                            }
+                    @unknown default:
+                        Color.gray.opacity(0.3)
+                    }
                 }
-            }
-            .frame(width: 180, height: 270)
-            .cornerRadius(12)
-            .clipped()
-
-            // Nom du film
-            Text(movie.name)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.primary)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(width: 180, height: 40)
-
-            // Rating (étoiles)
-            if let rating5based = movie.rating5based {
-                HStack(spacing: 4) {
-                    ForEach(0..<5) { index in
-                        Image(systemName: index < Int(rating5based) ? "star.fill" : "star")
-                            .font(.system(size: 12))
-                            .foregroundColor(.yellow)
+                .frame(width: 180, height: 270)
+                .cornerRadius(12)
+                .clipped()
+                
+                // Nom du film
+                Text(movie.name)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 180, height: 40)
+                
+                // Rating (étoiles)
+                if let rating5based = movie.rating5based {
+                    HStack(spacing: 4) {
+                        ForEach(0..<5) { index in
+                            Image(systemName: index < Int(rating5based) ? "star.fill" : "star")
+                                .font(.system(size: 12))
+                                .foregroundColor(.yellow)
+                        }
                     }
                 }
             }
-        }
-        .padding(16)
-        .hoverEffect(.highlight)
-        .onTapGesture {
-            selectedMovie = movie
+            .padding(16)
+            .hoverEffect(.highlight)
         }
     }
 }
 
 // MARK: - Preview
 #Preview {
-    @Previewable @State var selectedMovie: Movie?
-
     let sampleMovie = Movie(
         streamId: 1,
         name: "Inception",
@@ -84,6 +89,8 @@ struct MovieCard: View {
         rating5based: 4.5
     )
 
-    MovieCard(movie: sampleMovie, selectedMovie: $selectedMovie)
-        .background(Color.black)
+    MovieCard(movie: sampleMovie) { _ in
+        print("Movie selected")
+    }
+    .background(Color.black)
 }
