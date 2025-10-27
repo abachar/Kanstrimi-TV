@@ -32,7 +32,9 @@ struct SeriesDetailView: View {
 
     // MARK: - Queries
     @Query private var accounts: [Account]
-    @Query private var seasons: [SeriesSeason]
+
+    // MARK: - State pour les saisons (chargement manuel)
+    @State private var seasons: [SeriesSeason] = []
 
     private var activeAccount: Account? {
         accounts.first
@@ -41,13 +43,6 @@ struct SeriesDetailView: View {
     // MARK: - Initializer
     init(series: Series) {
         self.series = series
-
-        // Query pour récupérer les saisons de cette série
-        let seriesId = series.seriesId
-        _seasons = Query(
-            filter: #Predicate<SeriesSeason> { $0.seriesId == seriesId },
-            sort: [SortDescriptor(\SeriesSeason.seasonNumber, order: .forward)]
-        )
     }
 
     // MARK: - Body
@@ -264,12 +259,36 @@ struct SeriesDetailView: View {
             await MainActor.run {
                 self.seriesDetail = detail
                 self.isLoading = false
+                // ✅ Rafraîchir les saisons après le chargement
+                self.refreshSeasons()
             }
         } catch {
             await MainActor.run {
                 self.error = error.localizedDescription
                 self.isLoading = false
             }
+        }
+    }
+
+    /// Rafraîchit la liste des saisons depuis le ModelContext
+    private func refreshSeasons() {
+        let currentSeriesId = series.seriesId
+        let descriptor = FetchDescriptor<SeriesSeason>(
+            predicate: #Predicate<SeriesSeason> { $0.seriesId == currentSeriesId },
+            sortBy: [SortDescriptor(\SeriesSeason.seasonNumber, order: .forward)]
+        )
+
+        do {
+            seasons = try modelContext.fetch(descriptor)
+            print("🔄 [SeriesDetailView] Saisons rafraîchies: \(seasons.count) saisons pour seriesId \(currentSeriesId)")
+
+            // Log des saisons chargées
+            for season in seasons {
+                print("   - Saison \(season.seasonNumber): \(season.name ?? "Sans nom")")
+            }
+        } catch {
+            print("⚠️ [SeriesDetailView] Erreur lors du rafraîchissement des saisons: \(error)")
+            seasons = []
         }
     }
 
@@ -286,7 +305,9 @@ struct SeriesDetailView: View {
             ]
         )
 
-        return try? modelContext.fetch(descriptor).first
+        let episode = try? modelContext.fetch(descriptor).first
+        print("🎬 [SeriesDetailView] Premier épisode non visionné: \(episode != nil ? "S\(episode!.seasonNumber)E\(episode!.episodeNum)" : "aucun")")
+        return episode
     }
 
     /// Récupère le dernier épisode visionné (ou en cours)
@@ -322,7 +343,9 @@ struct SeriesDetailView: View {
             ]
         )
 
-        return try? modelContext.fetch(descriptor).first
+        let episode = try? modelContext.fetch(descriptor).first
+        print("🎬 [SeriesDetailView] Premier épisode (S1E1): \(episode != nil ? "S\(episode!.seasonNumber)E\(episode!.episodeNum)" : "aucun")")
+        return episode
     }
 
     /// Lance la lecture d'un épisode

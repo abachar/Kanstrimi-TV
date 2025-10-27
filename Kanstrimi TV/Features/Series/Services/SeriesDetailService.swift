@@ -31,11 +31,14 @@ final class SeriesDetailService {
         account: Account,
         modelContext: ModelContext
     ) async throws -> SeriesDetail {
+        print("🔄 [SeriesDetailService] Début du chargement pour seriesId: \(series.seriesId)")
+
         // 1. Récupérer les infos détaillées depuis Xtream
         let seriesInfo = try await XtreamService.shared.getSeriesInfo(
             account: account,
             seriesId: series.seriesId
         )
+        print("✅ [SeriesDetailService] Réponse API reçue pour seriesId: \(series.seriesId)")
 
         // 2. Créer ou mettre à jour le SeriesDetail
         let seriesDetail = createOrUpdateSeriesDetail(
@@ -43,6 +46,7 @@ final class SeriesDetailService {
             seriesId: series.seriesId,
             modelContext: modelContext
         )
+        print("✅ [SeriesDetailService] SeriesDetail créé/mis à jour")
 
         // 3. Créer ou mettre à jour les Seasons
         if let seasons = seriesInfo.seasons {
@@ -51,31 +55,45 @@ final class SeriesDetailService {
                 seriesId: series.seriesId,
                 modelContext: modelContext
             )
+            print("✅ [SeriesDetailService] \(seasons.count) saisons insérées")
+        } else {
+            print("⚠️ [SeriesDetailService] Aucune saison dans la réponse API")
         }
 
         // 4. Créer ou mettre à jour les Episodes
         if let episodesDict = seriesInfo.episodes {
+            let totalEpisodes = episodesDict.values.flatMap { $0 }.count
             createOrUpdateEpisodes(
                 episodesDict: episodesDict,
                 seriesId: series.seriesId,
                 account: account,
                 modelContext: modelContext
             )
+            print("✅ [SeriesDetailService] \(totalEpisodes) épisodes insérés")
+
+            // Log détaillé par saison
+            for (seasonKey, episodes) in episodesDict.sorted(by: { $0.key < $1.key }) {
+                print("   - Saison \(seasonKey): \(episodes.count) épisodes")
+            }
+        } else {
+            print("⚠️ [SeriesDetailService] Aucun épisode dans la réponse API")
         }
 
         // 5. Enrichir avec TMDB si tmdbId est disponible
         if let tmdbId = seriesDetail.tmdbId {
             do {
                 try await enrichWithTMDB(seriesDetail: seriesDetail, tmdbId: tmdbId)
+                print("✅ [SeriesDetailService] Enrichissement TMDB réussi")
             } catch {
                 // Si l'enrichissement TMDB échoue, on continue quand même
-                print("⚠️ Erreur lors de l'enrichissement TMDB: \(error)")
+                print("⚠️ [SeriesDetailService] Erreur lors de l'enrichissement TMDB: \(error)")
             }
         }
 
         // 6. Sauvegarder les modifications
         seriesDetail.lastUpdated = Date()
         try modelContext.save()
+        print("✅ [SeriesDetailService] Modifications sauvegardées dans SwiftData")
 
         return seriesDetail
     }

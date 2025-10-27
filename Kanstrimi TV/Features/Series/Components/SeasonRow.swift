@@ -15,8 +15,11 @@ struct SeasonRow: View {
     let onEpisodeTap: (Episode) -> Void
     @FocusState.Binding var focusedEpisodeId: String?
 
-    // MARK: - Queries
-    @Query private var episodes: [Episode]
+    // MARK: - Environment
+    @Environment(\.modelContext) private var modelContext
+
+    // MARK: - State pour les épisodes (chargement manuel)
+    @State private var episodes: [Episode] = []
 
     // MARK: - Initializer
     init(
@@ -27,16 +30,6 @@ struct SeasonRow: View {
         self.season = season
         self.onEpisodeTap = onEpisodeTap
         self._focusedEpisodeId = focusedEpisodeId
-
-        // Query pour récupérer les épisodes de cette saison
-        let seriesId = season.seriesId
-        let seasonNumber = season.seasonNumber
-        _episodes = Query(
-            filter: #Predicate<Episode> {
-                $0.seriesId == seriesId && $0.seasonNumber == seasonNumber
-            },
-            sort: [SortDescriptor(\Episode.episodeNum, order: .forward)]
-        )
     }
 
     // MARK: - Body
@@ -76,6 +69,40 @@ struct SeasonRow: View {
                     .padding(.horizontal, 60)
                 }
             }
+        }
+        .onAppear {
+            loadEpisodes()
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    /// Charge les épisodes de cette saison depuis le ModelContext
+    private func loadEpisodes() {
+        let seriesId = season.seriesId
+        let seasonNumber = season.seasonNumber
+
+        let descriptor = FetchDescriptor<Episode>(
+            predicate: #Predicate<Episode> {
+                $0.seriesId == seriesId && $0.seasonNumber == seasonNumber
+            },
+            sortBy: [SortDescriptor(\Episode.episodeNum, order: .forward)]
+        )
+
+        do {
+            episodes = try modelContext.fetch(descriptor)
+            print("📺 [SeasonRow] Épisodes chargés: \(episodes.count) épisodes pour S\(seasonNumber) (seriesId: \(seriesId))")
+
+            // Log des épisodes chargés
+            for episode in episodes.prefix(3) {
+                print("   - E\(episode.episodeNum): \(episode.title ?? "Sans titre")")
+            }
+            if episodes.count > 3 {
+                print("   ... et \(episodes.count - 3) autres épisodes")
+            }
+        } catch {
+            print("⚠️ [SeasonRow] Erreur lors du chargement des épisodes: \(error)")
+            episodes = []
         }
     }
 }
