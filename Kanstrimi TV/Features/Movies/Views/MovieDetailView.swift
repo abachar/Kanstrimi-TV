@@ -106,6 +106,7 @@ struct MovieDetailView: View {
             await loadDetails()
             loadWatchHistory()
         }
+        .ignoresSafeArea()
         .fullScreenCover(isPresented: $showPlayer) {
             UniversalPlayerView(content: .movie(movie))
                 .onDisappear {

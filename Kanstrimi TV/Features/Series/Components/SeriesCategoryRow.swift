@@ -12,8 +12,8 @@ import SwiftData
 struct SeriesCategoryRow: View {
     // MARK: - Properties
     let category: SeriesCategory
-    let onSeriesTap: (Series) -> Void
     @FocusState.Binding var focusedSeriesId: String?
+    @Binding var selectedSeries: Series?
 
     // MARK: - SwiftData Query
     @Query private var series: [Series]
@@ -21,12 +21,12 @@ struct SeriesCategoryRow: View {
     // MARK: - Init
     init(
         category: SeriesCategory,
-        onSeriesTap: @escaping (Series) -> Void,
-        focusedSeriesId: FocusState<String?>.Binding
+        focusedSeriesId: FocusState<String?>.Binding,
+        selectedSeries: Binding<Series?>
     ) {
         self.category = category
-        self.onSeriesTap = onSeriesTap
         self._focusedSeriesId = focusedSeriesId
+        self._selectedSeries = selectedSeries
 
         // Query filtrée par categoryId avec tri par sortOrder
         let categoryId = category.categoryId ?? ""
@@ -65,8 +65,8 @@ struct SeriesCategoryRow: View {
                     ForEach(series) { series in
                         SeriesCard(
                             series: series,
-                            onTap: { onSeriesTap(series) },
-                            focusedSeriesId: $focusedSeriesId
+                            focusedSeriesId: $focusedSeriesId,
+                            selectedSeries: $selectedSeries
                         )
                     }
                 }
@@ -80,10 +80,11 @@ struct SeriesCategoryRow: View {
 // MARK: - Preview
 #Preview {
     @Previewable @FocusState var focusedSeriesId: String?
+    @Previewable @State var selectedSeries: Series?
 
     let sampleCategory = SeriesCategory(categoryId: "1", name: "Drama", sortOrder: 0)
 
-    SeriesCategoryRow(category: sampleCategory, onSeriesTap: { _ in }, focusedSeriesId: $focusedSeriesId)
+    SeriesCategoryRow(category: sampleCategory, focusedSeriesId: $focusedSeriesId, selectedSeries: $selectedSeries)
         .modelContainer(for: [Series.self], inMemory: true)
         .background(Color.kanBackground)
 }

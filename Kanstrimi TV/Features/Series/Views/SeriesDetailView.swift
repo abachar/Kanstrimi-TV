@@ -125,6 +125,7 @@ struct SeriesDetailView: View {
         .task {
             await loadDetails()
         }
+        .ignoresSafeArea()
         .fullScreenCover(isPresented: $showPlayer) {
             if let episode = selectedEpisode {
                 UniversalPlayerView(content: .episode(episode))

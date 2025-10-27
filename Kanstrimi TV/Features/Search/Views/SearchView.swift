@@ -30,6 +30,7 @@ struct SearchView: View {
     @State private var selectedTab = 0
     @State private var selectedChannel: LiveChannel?
     @State private var selectedMovie: Movie?
+    @State private var selectedSeries: Series?
 
     @FocusState private var focusedTab: Int?
     @FocusState private var focusedChannelId: String?
@@ -135,8 +136,8 @@ struct SearchView: View {
                         ForEach(displayedSeries) { series in
                             SeriesCard(
                                 series: series,
-                                onTap: { /* TODO: Navigate to SeriesDetailView */ },
-                                focusedSeriesId: $focusedSeriesId
+                                focusedSeriesId: $focusedSeriesId,
+                                selectedSeries: $selectedSeries
                             )
                         }
                     }
@@ -159,6 +160,9 @@ struct SearchView: View {
         }
         .fullScreenCover(item: $selectedMovie) { movie in
             MovieDetailView(movie: movie)
+        }
+        .fullScreenCover(item: $selectedSeries) { series in
+            SeriesDetailView(series: series)
         }
     }
 }

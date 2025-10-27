@@ -53,6 +53,7 @@ struct LiveTVView: View {
                 }
             }
         }
+        .ignoresSafeArea(.container, edges: [.horizontal])
         .fullScreenCover(item: $selectedChannel) { channel in
             UniversalPlayerView(content: .liveChannel(channel))
         }

@@ -53,6 +53,7 @@ struct MoviesView: View {
                 }
             }
         }
+        .ignoresSafeArea(.container, edges: [.horizontal])
         .fullScreenCover(item: $selectedMovie) { movie in
             MovieDetailView(movie: movie)
         }

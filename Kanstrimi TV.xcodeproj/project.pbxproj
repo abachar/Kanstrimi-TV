@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		15B09E772EAEE37400D017B6 /* TVVLCKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 155506802EAEE17C00892A3D /* TVVLCKit.xcframework */; };
 		15B09E782EAEE37400D017B6 /* TVVLCKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 155506802EAEE17C00892A3D /* TVVLCKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		15B0A06D2EAF6E9600D017B6 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 15B0A06C2EAF6E9600D017B6 /* Config.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -28,6 +29,7 @@
 /* Begin PBXFileReference section */
 		1555055A2EAD74FD00892A3D /* Kanstrimi TV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Kanstrimi TV.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		155506802EAEE17C00892A3D /* TVVLCKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TVVLCKit.xcframework; path = Carthage/Build/TVVLCKit.xcframework; sourceTree = "<group>"; };
+		15B0A06C2EAF6E9600D017B6 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -53,6 +55,7 @@
 		155505512EAD74FD00892A3D = {
 			isa = PBXGroup;
 			children = (
+				15B0A06C2EAF6E9600D017B6 /* Config.xcconfig */,
 				1555055C2EAD74FD00892A3D /* Kanstrimi TV */,
 				1555067F2EAEE17C00892A3D /* Frameworks */,
 				1555055B2EAD74FD00892A3D /* Products */,
@@ -140,6 +143,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				15B0A06D2EAF6E9600D017B6 /* Config.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -158,6 +162,7 @@
 /* Begin XCBuildConfiguration section */
 		155505652EAD74FE00892A3D /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 15B0A06C2EAF6E9600D017B6 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -222,6 +227,7 @@
 		};
 		155505662EAD74FE00892A3D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 15B0A06C2EAF6E9600D017B6 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
