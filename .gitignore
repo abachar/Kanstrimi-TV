@@ -94,3 +94,6 @@ iOSInjectionProject/
 
 # Swift Package Manager
 .swiftpm/
+
+# Configuration files with secrets
+Config.xcconfig

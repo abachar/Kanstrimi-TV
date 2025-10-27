@@ -1,0 +1,6 @@
+// Configuration file template for Kanstrimi TV
+// Copy this file to Config.xcconfig and fill in your API keys
+
+// TMDB API Key (Bearer Token)
+// Get your API key from: https://www.themoviedb.org/settings/api
+TMDB_API_KEY = YOUR_TMDB_BEARER_TOKEN_HERE

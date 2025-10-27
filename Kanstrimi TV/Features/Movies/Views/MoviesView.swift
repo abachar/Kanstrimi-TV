@@ -17,36 +17,41 @@ struct MoviesView: View {
 
     // MARK: - Body
     var body: some View {
-        ZStack {
-            Color.kanBackground
-                .ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                Color.kanBackground
+                    .ignoresSafeArea()
 
-            if categories.isEmpty {
-                // État vide
-                VStack(spacing: 40) {
-                    Text("Films")
-                        .font(.system(size: 60, weight: .bold))
-                        .foregroundColor(.kanTextPrimary)
+                if categories.isEmpty {
+                    // État vide
+                    VStack(spacing: 40) {
+                        Text("Films")
+                            .font(.system(size: 60, weight: .bold))
+                            .foregroundColor(.kanTextPrimary)
 
-                    Text("Aucun film disponible")
-                        .font(.title3)
-                        .foregroundColor(.kanTextSecondary)
-                }
-                .padding(60)
-            } else {
-                // Liste des catégories avec films
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 30) {
-                        ForEach(categories) { category in
-                            MovieCategoryRow(
-                                category: category,
-                                focusedMovieId: $focusedMovieId
-                            )
-                        }
+                        Text("Aucun film disponible")
+                            .font(.title3)
+                            .foregroundColor(.kanTextSecondary)
                     }
-                    .padding(.top, 40)
-                    .padding(.bottom, 60)
+                    .padding(60)
+                } else {
+                    // Liste des catégories avec films
+                    ScrollView(.vertical, showsIndicators: false) {
+                        LazyVStack(spacing: 30) {
+                            ForEach(categories) { category in
+                                MovieCategoryRow(
+                                    category: category,
+                                    focusedMovieId: $focusedMovieId
+                                )
+                            }
+                        }
+                        .padding(.top, 40)
+                        .padding(.bottom, 60)
+                    }
                 }
+            }
+            .navigationDestination(for: Movie.self) { movie in
+                MovieDetailView(movie: movie)
             }
         }
     }

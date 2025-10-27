@@ -19,65 +19,68 @@ struct MovieCard: View {
 
     // MARK: - Body
     var body: some View {
-        VStack(spacing: 12) {
-            // Poster du film
-            AsyncImage(url: URL(string: movie.streamIcon ?? "")) { phase in
-                switch phase {
-                case .empty:
-                    Color.kanCardBackground
-                        .overlay {
-                            ProgressView()
-                                .tint(.kanTextSecondary)
-                        }
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
-                    Color.kanCardBackground
-                        .overlay {
-                            Image(systemName: "film.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(.kanTextSecondary)
-                        }
-                @unknown default:
-                    Color.kanCardBackground
+        NavigationLink(value: movie) {
+            VStack(spacing: 12) {
+                // Poster du film
+                AsyncImage(url: URL(string: movie.streamIcon ?? "")) { phase in
+                    switch phase {
+                    case .empty:
+                        Color.kanCardBackground
+                            .overlay {
+                                ProgressView()
+                                    .tint(.kanTextSecondary)
+                            }
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure:
+                        Color.kanCardBackground
+                            .overlay {
+                                Image(systemName: "film.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.kanTextSecondary)
+                            }
+                    @unknown default:
+                        Color.kanCardBackground
+                    }
                 }
-            }
-            .frame(width: 180, height: 270)
-            .cornerRadius(12)
-            .clipped()
+                .frame(width: 180, height: 270)
+                .cornerRadius(12)
+                .clipped()
 
-            // Nom du film
-            Text(movie.name)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(isFocused ? .kanTextPrimary : .kanTextSecondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(width: 180, height: 40)
+                // Nom du film
+                Text(movie.name)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(isFocused ? .kanTextPrimary : .kanTextSecondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 180, height: 40)
 
-            // Rating (étoiles)
-            if let rating5based = movie.rating5based {
-                HStack(spacing: 4) {
-                    ForEach(0..<5) { index in
-                        Image(systemName: index < Int(rating5based) ? "star.fill" : "star")
-                            .font(.system(size: 12))
-                            .foregroundColor(.yellow)
+                // Rating (étoiles)
+                if let rating5based = movie.rating5based {
+                    HStack(spacing: 4) {
+                        ForEach(0..<5) { index in
+                            Image(systemName: index < Int(rating5based) ? "star.fill" : "star")
+                                .font(.system(size: 12))
+                                .foregroundColor(.yellow)
+                        }
                     }
                 }
             }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isFocused ? Color.kanCardBackground : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isFocused ? Color.kanHighlight : Color.clear, lineWidth: 3)
+            )
+            .scaleEffect(isFocused ? 1.05 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isFocused)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isFocused ? Color.kanCardBackground : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(isFocused ? Color.kanHighlight : Color.clear, lineWidth: 3)
-        )
-        .scaleEffect(isFocused ? 1.05 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isFocused)
+        .buttonStyle(.plain)
         .focusable()
         .focused($focusedMovieId, equals: movie.id)
     }

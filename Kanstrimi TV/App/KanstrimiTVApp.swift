@@ -19,6 +19,8 @@ struct KanstrimiTVApp: App {
             LiveChannel.self,
             MoviesCategory.self,
             Movie.self,
+            MovieDetail.self,
+            WatchHistory.self,
             SeriesCategory.self,
             Series.self
         ])

@@ -314,3 +314,55 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Contrôles play/pause/seek gérés nativement par télécommande tvOS
 - Build réussi sans erreur ni warning
 
+## [0.11.0] - 2025-10-27
+
+### Ajouté
+- Implémentation complète de l'écran de détail des films (MovieDetailView)
+- Nouveau modèle MovieDetail (SwiftData) pour stocker les informations détaillées d'un film séparément
+- Nouveau modèle WatchHistory (SwiftData) pour tracker l'historique de visionnage et la progression
+- MovieDetailService : Service singleton pour charger et enrichir les détails d'un film
+- TMDBService : Service singleton pour interagir avec l'API TMDB (The Movie Database)
+- Enrichissement automatique des films avec données TMDB (images des acteurs via API Credits)
+- Navigation depuis MovieCard vers MovieDetailView via NavigationLink
+- Composants UI tvOS :
+  - MovieHeroSection : Section hero avec backdrop, poster et informations principales
+  - PlaybackButton : Bouton d'action de lecture réutilisable (Play, Resume, Restart)
+  - CastMemberCard : Carte compacte affichant un acteur avec son image
+- Boutons de lecture intelligents :
+  - Bouton "Lire" si film jamais visionné ou progression < 5%
+  - Bouton "Reprendre" si progression > 5% et < 95%
+  - Bouton "Redémarrer" visible si film déjà commencé
+- Sections d'informations :
+  - Hero section avec backdrop, poster, titre, année, durée, rating étoiles, genres
+  - Section Synopsis avec plot complet
+  - Section Réalisateur
+  - Section Casting avec ScrollView horizontal des images d'acteurs (limité à 12)
+- États UI complets : Loading, Error, Content
+- Gestion du focus tvOS optimisée pour navigation fluide
+- Intégration avec UniversalPlayerView pour lecture des films
+
+### Modifié
+- MovieCard : Ajout de NavigationLink pour navigation vers MovieDetailView
+- MoviesView : Wrapping dans NavigationStack avec navigationDestination
+- KanstrimiTVApp : Ajout de MovieDetail et WatchHistory au Schema SwiftData
+
+### Nouvelle architecture
+- Feature Movies/Services : MovieDetailService pour logique métier des détails
+- Shared/TMDB : TMDBService, TMDBResponses, TMDBError pour intégration TMDB
+- Shared/Models : WatchHistory model partagé (réutilisable pour Films et Séries)
+- API TMDB intégrée avec clé Bearer token pour authentification
+- Endpoint `/movie/{id}/credits` pour récupérer le casting avec images
+
+### Technique
+- MovieDetail séparé de Movie pour éviter d'alourdir le modèle principal (pattern optimization)
+- Liaison logique via streamId (pas de @Relationship SwiftData pour éviter chargement automatique)
+- Extraction de l'année depuis releaseDate (format YYYY-MM-DD)
+- WatchHistory avec calcul automatique du pourcentage de progression et isCompleted
+- Chargement asynchrone des détails avec .task {} dans MovieDetailView
+- TMDBService.getMovieCredits() retourne jusqu'à 12 acteurs avec profileImageURL (w185)
+- Gestion d'erreur gracieuse : affichage des données Xtream même si enrichissement TMDB échoue
+- Focus states séparés pour chaque bouton (focusedPlayButton, focusedResumeButton, focusedRestartButton)
+- CastMemberCard : extraction des noms depuis la liste cast (format CSV) et mapping avec images TMDB
+- fullScreenCover pour lancement du player avec gestion de la position de reprise
+- Build réussi sans erreur
+
