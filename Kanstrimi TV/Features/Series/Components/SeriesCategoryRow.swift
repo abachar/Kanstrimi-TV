@@ -12,14 +12,20 @@ import SwiftData
 struct SeriesCategoryRow: View {
     // MARK: - Properties
     let category: SeriesCategory
+    let onSeriesTap: (Series) -> Void
     @FocusState.Binding var focusedSeriesId: String?
 
     // MARK: - SwiftData Query
     @Query private var series: [Series]
 
     // MARK: - Init
-    init(category: SeriesCategory, focusedSeriesId: FocusState<String?>.Binding) {
+    init(
+        category: SeriesCategory,
+        onSeriesTap: @escaping (Series) -> Void,
+        focusedSeriesId: FocusState<String?>.Binding
+    ) {
         self.category = category
+        self.onSeriesTap = onSeriesTap
         self._focusedSeriesId = focusedSeriesId
 
         // Query filtrée par categoryId avec tri par sortOrder
@@ -57,7 +63,11 @@ struct SeriesCategoryRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 24) {
                     ForEach(series) { series in
-                        SeriesCard(series: series, focusedSeriesId: $focusedSeriesId)
+                        SeriesCard(
+                            series: series,
+                            onTap: { onSeriesTap(series) },
+                            focusedSeriesId: $focusedSeriesId
+                        )
                     }
                 }
                 .padding(.horizontal, 60)
@@ -73,7 +83,7 @@ struct SeriesCategoryRow: View {
 
     let sampleCategory = SeriesCategory(categoryId: "1", name: "Drama", sortOrder: 0)
 
-    SeriesCategoryRow(category: sampleCategory, focusedSeriesId: $focusedSeriesId)
+    SeriesCategoryRow(category: sampleCategory, onSeriesTap: { _ in }, focusedSeriesId: $focusedSeriesId)
         .modelContainer(for: [Series.self], inMemory: true)
         .background(Color.kanBackground)
 }

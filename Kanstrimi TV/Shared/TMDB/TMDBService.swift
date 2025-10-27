@@ -49,8 +49,25 @@ final class TMDBService {
     /// - Returns: Réponse contenant le cast
     /// - Throws: TMDBError si la requête échoue
     func getMovieCredits(tmdbId: Int) async throws -> TMDBCreditsResponse {
+        return try await fetchCredits(endpoint: "/movie/\(tmdbId)/credits")
+    }
+
+    // MARK: - Series Credits
+
+    /// Récupère les crédits (cast) d'une série via TMDB
+    /// - Parameter tmdbId: ID TMDB de la série
+    /// - Returns: Réponse contenant le cast
+    /// - Throws: TMDBError si la requête échoue
+    func getSeriesCredits(tmdbId: Int) async throws -> TMDBCreditsResponse {
+        return try await fetchCredits(endpoint: "/tv/\(tmdbId)/credits")
+    }
+
+    // MARK: - Generic Credits Fetch
+
+    /// Méthode générique pour récupérer les crédits (utilisée par movies et séries)
+    private func fetchCredits(endpoint: String) async throws -> TMDBCreditsResponse {
         // Construction de l'URL
-        guard let url = URL(string: "\(baseURL)/movie/\(tmdbId)/credits") else {
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
             throw TMDBError.invalidURL
         }
 

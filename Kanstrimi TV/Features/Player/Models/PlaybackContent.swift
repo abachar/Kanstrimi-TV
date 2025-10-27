@@ -11,7 +11,7 @@ import Foundation
 enum PlaybackContent: Identifiable {
     case liveChannel(LiveChannel)
     case movie(Movie)
-    // case series(Series, episode: SeriesEpisode) // Future implementation
+    case episode(Episode)
 
     var id: String {
         switch self {
@@ -19,6 +19,8 @@ enum PlaybackContent: Identifiable {
             return channel.id
         case .movie(let movie):
             return movie.id
+        case .episode(let episode):
+            return episode.id
         }
     }
 
@@ -29,6 +31,8 @@ enum PlaybackContent: Identifiable {
             return channel.streamURL
         case .movie(let movie):
             return movie.streamURL
+        case .episode(let episode):
+            return episode.streamURL
         }
     }
 
@@ -39,6 +43,12 @@ enum PlaybackContent: Identifiable {
             return channel.name
         case .movie(let movie):
             return movie.name
+        case .episode(let episode):
+            if let title = episode.title {
+                return "S\(episode.seasonNumber)E\(episode.episodeNum) - \(title)"
+            } else {
+                return "S\(episode.seasonNumber)E\(episode.episodeNum)"
+            }
         }
     }
 
@@ -47,7 +57,7 @@ enum PlaybackContent: Identifiable {
         switch self {
         case .liveChannel:
             return .live
-        case .movie:
+        case .movie, .episode:
             return .vod
         }
     }

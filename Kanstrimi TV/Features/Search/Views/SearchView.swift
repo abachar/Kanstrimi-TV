@@ -133,6 +133,7 @@ struct SearchView: View {
                         ForEach(displayedSeries) { series in
                             SeriesCard(
                                 series: series,
+                                onTap: { /* TODO: Navigate to SeriesDetailView */ },
                                 focusedSeriesId: $focusedSeriesId
                             )
                         }

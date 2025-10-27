@@ -11,6 +11,7 @@ import SwiftUI
 struct SeriesCard: View {
     // MARK: - Properties
     let series: Series
+    let onTap: () -> Void
     @FocusState.Binding var focusedSeriesId: String?
 
     private var isFocused: Bool {
@@ -89,6 +90,9 @@ struct SeriesCard: View {
         .animation(.easeInOut(duration: 0.2), value: isFocused)
         .focusable()
         .focused($focusedSeriesId, equals: series.id)
+        .onTapGesture {
+            onTap()
+        }
     }
 }
 
@@ -106,6 +110,6 @@ struct SeriesCard: View {
         genre: "Drama, Crime"
     )
 
-    SeriesCard(series: sampleSeries, focusedSeriesId: $focusedSeriesId)
+    SeriesCard(series: sampleSeries, onTap: {}, focusedSeriesId: $focusedSeriesId)
         .background(Color.kanBackground)
 }

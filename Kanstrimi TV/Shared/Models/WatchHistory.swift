@@ -22,6 +22,9 @@ final class WatchHistory {
     /// Type de contenu (movie, series)
     var contentType: String
 
+    /// Identifiant de l'épisode (pour les séries uniquement)
+    var episodeId: String?
+
     /// Position de lecture actuelle (en secondes)
     var lastPosition: TimeInterval
 
@@ -35,13 +38,19 @@ final class WatchHistory {
     init(
         streamId: Int,
         contentType: String,
+        episodeId: String? = nil,
         lastPosition: TimeInterval,
         duration: TimeInterval,
         lastWatchedDate: Date = Date()
     ) {
-        self.id = "watch-\(contentType)-\(streamId)"
+        if let episodeId = episodeId {
+            self.id = "watch-\(contentType)-\(streamId)-\(episodeId)"
+        } else {
+            self.id = "watch-\(contentType)-\(streamId)"
+        }
         self.streamId = streamId
         self.contentType = contentType
+        self.episodeId = episodeId
         self.lastPosition = lastPosition
         self.duration = duration
         self.lastWatchedDate = lastWatchedDate

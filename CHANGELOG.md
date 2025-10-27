@@ -366,3 +366,41 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - fullScreenCover pour lancement du player avec gestion de la position de reprise
 - Build réussi sans erreur
 
+
+
+## [Non versionné] - 2025-10-27
+
+### Ajouté
+- Modèle SeriesDetail avec informations enrichies (genre, rating, plot, director, cast, castImages, backdropPaths, youtubeTrailer)
+- Modèle SeriesSeason avec informations de saison (name, overview, airDate, episodeCount, coverTmdb)
+- Modèle Episode avec informations complètes d'épisode (title, overview, rating, duration, movieImage, streamURL, isWatched)
+- SeriesDetailService pour charger les détails depuis Xtream et enrichir avec TMDB
+- Extension TMDBService.getSeriesCredits() pour récupérer le casting des séries
+- SeriesDetailView : écran de détail complet avec hero section, synopsis, réalisateur, casting, saisons et épisodes
+- SeriesHeroSection : composant affichant backdrop, poster, titre, année, note, genre
+- SeasonRow : composant affichant une saison avec ses épisodes en scroll horizontal
+- EpisodeCard : carte compacte d'épisode avec cover, titre, durée et indicateur "vu"
+- WatchedIndicator : badge visuel pour épisodes visionnés
+- Navigation SeriesView → SeriesDetailView via NavigationStack
+- Boutons de lecture : Play (premier épisode non vu), Reprendre (dernier épisode en cours), Redémarrer (S1E1)
+- Support des épisodes dans PlaybackContent enum (.episode(Episode))
+- Images des acteurs depuis TMDB (12 acteurs maximum)
+- Construction automatique des URLs de streaming pour les épisodes (format Xtream)
+
+### Modifié
+- WatchHistory : ajout de episodeId optionnel pour supporter les épisodes de séries
+- WatchHistory.id : format conditionnel ("watch-series-{seriesId}-{episodeId}" ou "watch-movie-{streamId}")
+- SeriesCard : ajout du paramètre onTap pour navigation
+- SeriesCategoryRow : ajout du paramètre onSeriesTap pour propager la navigation
+- SearchView : SeriesCard avec onTap vide (TODO: navigation future)
+- TMDBService refactorisé avec méthode générique fetchCredits() partagée
+- SeriesDetailService.createOrUpdateEpisodes() construit les streamURLs pour chaque épisode
+
+### Technique
+- Renommage du modèle Season en SeriesSeason pour éviter conflit avec Xtream.Season (struct Codable)
+- Utilisation de variables locales dans les Predicates pour éviter les erreurs de capture
+- Index SwiftData sur SeriesDetail.seriesId, SeriesSeason.[seriesId, seasonNumber], Episode.[seriesId, seasonNumber]
+- Gestion du focus tvOS sur les boutons de lecture, épisodes et acteurs
+- Lazy loading des épisodes par saison via @Query dans SeasonRow
+- Mise à jour automatique du statut isWatched basé sur WatchHistory.isCompleted (>95%)
+
