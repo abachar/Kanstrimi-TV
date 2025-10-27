@@ -14,13 +14,13 @@ import SwiftData
 struct SearchMovies: View {
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
+    @Environment(MoviesViewModel.self) private var viewModel
 
     // MARK: - Queries
     @Query(sort: \Movie.sortOrder) private var allMovies: [Movie]
 
     // MARK: - State
     @State private var searchText = ""
-    @State private var viewModel = MoviesViewModel()
 
     // MARK: - Computed Properties
 
@@ -114,14 +114,7 @@ struct SearchMovies: View {
                 }
             }
         }
-        .environment(viewModel)
         .searchable(text: $searchText, prompt: "Rechercher un film...")
-        .fullScreenCover(item: $viewModel.selectedMovie) { movie in
-            MovieDetailView(movie: movie)
-        }
-        .fullScreenCover(item: $viewModel.playingContent) { content in
-            MediaPlayerView(content: content)
-        }
     }
 }
 
@@ -130,4 +123,5 @@ struct SearchMovies: View {
 #Preview {
     SearchMovies()
         .modelContainer(for: [Movie.self], inMemory: true)
+        .environment(MoviesViewModel())
 }

@@ -14,13 +14,13 @@ import SwiftData
 struct SearchLiveTV: View {
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
+    @Environment(LiveTVViewModel.self) private var viewModel
 
     // MARK: - Queries
     @Query(sort: \LiveChannel.sortOrder) private var allChannels: [LiveChannel]
 
     // MARK: - State
     @State private var searchText = ""
-    @State private var viewModel = LiveTVViewModel()
 
     // MARK: - Computed Properties
 
@@ -114,11 +114,7 @@ struct SearchLiveTV: View {
                 }
             }
         }
-        .environment(viewModel)
         .searchable(text: $searchText, prompt: "Rechercher une chaîne...")
-        .fullScreenCover(item: $viewModel.selectedChannel) { channel in
-            MediaPlayerView(content: .liveChannel(channel))
-        }
     }
 }
 
@@ -126,4 +122,5 @@ struct SearchLiveTV: View {
 
 #Preview {
     SearchLiveTV()
+        .environment(LiveTVViewModel())
 }

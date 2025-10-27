@@ -14,13 +14,13 @@ import SwiftData
 struct SearchSeries: View {
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
+    @Environment(SeriesViewModel.self) private var viewModel
 
     // MARK: - Queries
     @Query(sort: \Series.sortOrder) private var allSeries: [Series]
 
     // MARK: - State
     @State private var searchText = ""
-    @State private var viewModel = SeriesViewModel()
 
     // MARK: - Computed Properties
 
@@ -114,14 +114,7 @@ struct SearchSeries: View {
                 }
             }
         }
-        .environment(viewModel)
         .searchable(text: $searchText, prompt: "Rechercher une série...")
-        .fullScreenCover(item: $viewModel.selectedSeries) { series in
-            SeriesDetailView(series: series)
-        }
-        .fullScreenCover(item: $viewModel.playingContent) { content in
-            MediaPlayerView(content: content)
-        }
     }
 }
 
@@ -130,4 +123,5 @@ struct SearchSeries: View {
 #Preview {
     SearchSeries()
         .modelContainer(for: [Series.self], inMemory: true)
+        .environment(SeriesViewModel())
 }
