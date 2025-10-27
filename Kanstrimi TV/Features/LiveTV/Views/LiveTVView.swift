@@ -15,6 +15,9 @@ struct LiveTVView: View {
     // MARK: - Focus State
     @FocusState private var focusedChannelId: String?
 
+    // MARK: - Player State
+    @State private var selectedChannel: LiveChannel?
+
     // MARK: - Body
     var body: some View {
         ZStack {
@@ -40,7 +43,8 @@ struct LiveTVView: View {
                         ForEach(categories) { category in
                             LiveCategoryRow(
                                 category: category,
-                                focusedChannelId: $focusedChannelId
+                                focusedChannelId: $focusedChannelId,
+                                selectedChannel: $selectedChannel
                             )
                         }
                     }
@@ -48,6 +52,9 @@ struct LiveTVView: View {
                     .padding(.bottom, 60)
                 }
             }
+        }
+        .fullScreenCover(item: $selectedChannel) { channel in
+            UniversalPlayerView(content: .liveChannel(channel))
         }
     }
 }

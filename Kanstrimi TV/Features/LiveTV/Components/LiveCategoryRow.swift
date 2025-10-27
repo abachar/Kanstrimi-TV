@@ -13,14 +13,16 @@ struct LiveCategoryRow: View {
     // MARK: - Properties
     let category: Category
     @FocusState.Binding var focusedChannelId: String?
+    @Binding var selectedChannel: LiveChannel?
 
     // MARK: - SwiftData Query
     @Query private var channels: [LiveChannel]
 
     // MARK: - Init
-    init(category: Category, focusedChannelId: FocusState<String?>.Binding) {
+    init(category: Category, focusedChannelId: FocusState<String?>.Binding, selectedChannel: Binding<LiveChannel?>) {
         self.category = category
         self._focusedChannelId = focusedChannelId
+        self._selectedChannel = selectedChannel
 
         // Query filtrée par categoryId avec tri par sortOrder
         let categoryId = category.categoryId ?? ""
@@ -57,7 +59,11 @@ struct LiveCategoryRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 24) {
                     ForEach(channels) { channel in
-                        ChannelCard(channel: channel, focusedChannelId: $focusedChannelId)
+                        ChannelCard(
+                            channel: channel,
+                            focusedChannelId: $focusedChannelId,
+                            selectedChannel: $selectedChannel
+                        )
                     }
                 }
                 .padding(.horizontal, 60)
@@ -70,10 +76,15 @@ struct LiveCategoryRow: View {
 // MARK: - Preview
 #Preview {
     @Previewable @FocusState var focusedChannelId: String?
+    @Previewable @State var selectedChannel: LiveChannel?
 
     let sampleCategory = Category(categoryId: "1", name: "Sport", sortOrder: 0)
 
-    LiveCategoryRow(category: sampleCategory, focusedChannelId: $focusedChannelId)
-        .modelContainer(for: [LiveChannel.self], inMemory: true)
-        .background(Color.kanBackground)
+    LiveCategoryRow(
+        category: sampleCategory,
+        focusedChannelId: $focusedChannelId,
+        selectedChannel: $selectedChannel
+    )
+    .modelContainer(for: [LiveChannel.self], inMemory: true)
+    .background(Color.kanBackground)
 }

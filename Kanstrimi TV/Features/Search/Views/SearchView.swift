@@ -28,6 +28,7 @@ struct SearchView: View {
 
     @State private var searchText = ""
     @State private var selectedTab = 0
+    @State private var selectedChannel: LiveChannel?
 
     @FocusState private var focusedTab: Int?
     @FocusState private var focusedChannelId: String?
@@ -93,7 +94,8 @@ struct SearchView: View {
                         ForEach(displayedLive) { channel in
                             ChannelCard(
                                 channel: channel,
-                                focusedChannelId: $focusedChannelId
+                                focusedChannelId: $focusedChannelId,
+                                selectedChannel: $selectedChannel
                             )
                         }
                     }
@@ -149,6 +151,9 @@ struct SearchView: View {
         // .ignoresSafeArea()
         .background(Color.kanBackground)
         .searchable(text: $searchText, prompt: "Rechercher du contenu...")
+        .fullScreenCover(item: $selectedChannel) { channel in
+            UniversalPlayerView(content: .liveChannel(channel))
+        }
     }
 }
 

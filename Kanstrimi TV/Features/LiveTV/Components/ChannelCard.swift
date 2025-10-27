@@ -12,6 +12,7 @@ struct ChannelCard: View {
     // MARK: - Properties
     let channel: LiveChannel
     @FocusState.Binding var focusedChannelId: String?
+    @Binding var selectedChannel: LiveChannel?
 
     private var isFocused: Bool {
         focusedChannelId == channel.id
@@ -19,6 +20,17 @@ struct ChannelCard: View {
 
     // MARK: - Body
     var body: some View {
+        Button {
+            selectedChannel = channel
+        } label: {
+            cardContent
+        }
+        .buttonStyle(.plain)
+        .focusable()
+        .focused($focusedChannelId, equals: channel.id)
+    }
+
+    private var cardContent: some View {
         VStack(spacing: 12) {
             // Logo de la chaîne
             AsyncImage(url: URL(string: channel.streamIcon ?? "")) { phase in
@@ -66,14 +78,13 @@ struct ChannelCard: View {
         )
         .scaleEffect(isFocused ? 1.05 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isFocused)
-        .focusable()
-        .focused($focusedChannelId, equals: channel.id)
     }
 }
 
 // MARK: - Preview
 #Preview {
     @Previewable @FocusState var focusedChannelId: String?
+    @Previewable @State var selectedChannel: LiveChannel?
 
     let sampleChannel = LiveChannel(
         streamId: 1,
@@ -84,6 +95,10 @@ struct ChannelCard: View {
         streamIcon: "https://via.placeholder.com/200x120"
     )
 
-    ChannelCard(channel: sampleChannel, focusedChannelId: $focusedChannelId)
-        .background(Color.kanBackground)
+    ChannelCard(
+        channel: sampleChannel,
+        focusedChannelId: $focusedChannelId,
+        selectedChannel: $selectedChannel
+    )
+    .background(Color.kanBackground)
 }

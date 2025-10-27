@@ -255,3 +255,62 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Count total calculé avant limitation pour afficher "20 sur X"
 - Build réussi sans erreur
 
+## [0.10.0] - 2025-10-27
+
+### Ajouté
+- Nouvelle feature Player avec architecture MV Feature-Based complète
+- Système de lecture vidéo universel supportant tous les formats IPTV
+- Support dual-player : AVPlayer natif (MP4, M4V, MOV) + VLCPlayer (M3U8, TS, MKV, AVI, FLV)
+- VideoPlayerType : Détection automatique du player selon l'extension du fichier
+- AVPlayerWrapper : Wrapper SwiftUI pour AVPlayerViewController natif tvOS
+- VLCPlayerWrapper : Wrapper SwiftUI pour TVVLCKit (formats avancés)
+- PlaybackContent : Enum générique pour représenter le contenu (LiveChannel, Movie, Series futur)
+- UniversalPlayerView : Vue principale du player avec détection automatique du moteur
+- PlayerOverlay : Structure préparée pour Phase 2 (header, progress bar, boutons)
+- Lecture Live TV fonctionnelle depuis LiveTVView et SearchView
+- fullScreenCover pour affichage plein écran du player
+- Gestion automatique de la lecture (play au lancement)
+- Cleanup automatique des players (stop + nil sur dismiss)
+- Message d'erreur en cas d'URL invalide
+
+### Modifié
+- ChannelCard : Ajout d'un Button wrapper pour déclencher la lecture
+- ChannelCard : Ajout du @Binding selectedChannel pour propagation
+- LiveCategoryRow : Ajout du @Binding selectedChannel et propagation aux ChannelCard
+- LiveTVView : Ajout de @State selectedChannel + fullScreenCover avec UniversalPlayerView
+- SearchView : Ajout de @State selectedChannel + fullScreenCover pour lecture depuis recherche
+- SearchView : Propagation du binding selectedChannel au ChannelCard
+
+### Architecture
+- Nouvelle feature Player organisée en Models/Views/Components
+- Shared/MediaPlayer/ pour les wrappers des players natifs (AVPlayer, VLC)
+- Pattern "wrapper SwiftUI" pour intégrer UIKit (UIViewControllerRepresentable, UIViewRepresentable)
+- Détection format automatique : MP4/M4V/MOV → AVPlayer, sinon → VLC
+- Gestion lifecycle : Coordinator pattern pour VLCPlayer, dismantleUIView pour cleanup
+- Navigation fullScreenCover : Dismiss automatique via bouton Menu télécommande
+
+### Technique
+- TVVLCKit 3.6.0 intégré via Carthage (framework déjà installé)
+- AVPlayerViewController avec showsPlaybackControls = true (contrôles natifs tvOS)
+- VLCMediaPlayer avec drawable UIView pour rendu vidéo
+- PlaybackContent.Identifiable pour fullScreenCover(item:)
+- Enum ContentType (.live, .vod) pour différencier Live TV et VOD
+- Computed properties : streamURL, title, contentType
+- Phase 1 : Player basique avec contrôles natifs uniquement (pas d'overlay custom)
+- Phase 2 préparée : PlayerOverlay structure créée mais non utilisée
+
+### Fonctionnalités futures (Phase 2)
+- PlayerOverlay activable avec header (nom contenu + badge LIVE)
+- Barre de progression pour Films/Séries (temps actuel / temps total)
+- Boutons : Choix piste audio, Sous-titres, Reprendre, Episode suivant/précédent
+- Bouton Info : EPG (Live TV), Plot+Covers (Films), Synopsis+Covers (Séries)
+- Support lecture Films depuis MovieCard
+- Support lecture Séries depuis SeriesCard avec gestion épisodes
+
+### Notes
+- VLCPlayer ne fonctionne que sur device tvOS réel (pas simulateur)
+- AVPlayer fonctionne sur simulateur et device
+- Détection format basée sur extension uniquement (pas Content-Type HTTP)
+- Contrôles play/pause/seek gérés nativement par télécommande tvOS
+- Build réussi sans erreur ni warning
+
