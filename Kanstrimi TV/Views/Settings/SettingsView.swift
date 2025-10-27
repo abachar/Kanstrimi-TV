@@ -231,7 +231,7 @@ struct SettingsView: View {
         }
 
         // Supprimer les catégories
-        let categoriesDescriptor = FetchDescriptor<Category>()
+        let categoriesDescriptor = FetchDescriptor<LiveCategory>()
         if let categories = try? StorageService.shared.fetch(categoriesDescriptor) {
             categories.forEach { StorageService.shared.context.delete($0) }
         }

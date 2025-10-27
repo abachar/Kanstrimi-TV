@@ -120,7 +120,7 @@ struct SearchMovies: View {
             MovieDetailView(movie: movie)
         }
         .fullScreenCover(item: $viewModel.playingContent) { content in
-            UniversalPlayerView(content: content)
+            MediaPlayerView(content: content)
         }
     }
 }

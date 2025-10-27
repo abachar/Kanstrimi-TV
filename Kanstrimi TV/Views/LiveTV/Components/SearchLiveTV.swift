@@ -117,7 +117,7 @@ struct SearchLiveTV: View {
         .environment(viewModel)
         .searchable(text: $searchText, prompt: "Rechercher une chaîne...")
         .fullScreenCover(item: $viewModel.selectedChannel) { channel in
-            UniversalPlayerView(content: .liveChannel(channel))
+            MediaPlayerView(content: .liveChannel(channel))
         }
     }
 }

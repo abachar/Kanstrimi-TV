@@ -67,8 +67,6 @@ struct SettingsButton: View {
             .animation(.easeInOut(duration: 0.2), value: isFocused)
         }
         .buttonStyle(.plain)
-        .focusable()
-        .focused($focusedButton, equals: buttonId)
     }
 
     // MARK: - Button Style

@@ -10,7 +10,7 @@ import SwiftUI
 
 struct LiveTVView: View {
     // MARK: - SwiftData Queries
-    @Query(sort: \Category.sortOrder) private var categories: [Category]
+    @Query(sort: \LiveCategory.sortOrder) private var liveCategories: [LiveCategory]
 
     // MARK: - ViewModel
     @State private var viewModel = LiveTVViewModel()
@@ -24,7 +24,7 @@ struct LiveTVView: View {
             Color.black
                 .ignoresSafeArea()
 
-            if categories.isEmpty {
+            if liveCategories.isEmpty {
                 // État vide
                 VStack(spacing: 40) {
                     Text("TV en direct")
@@ -40,8 +40,8 @@ struct LiveTVView: View {
                 // Liste des catégories avec chaînes
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 30) {
-                        ForEach(categories) { category in
-                            LiveCategoryRow(category: category)
+                        ForEach(liveCategories) { liveCategory in
+                            LiveCategoryRow(liveCategory: liveCategory)
                         }
                     }
                     .padding(.top, 40)
@@ -57,12 +57,16 @@ struct LiveTVView: View {
         .fullScreenCover(isPresented: Binding(
             get: { viewModel.selectedChannel != nil || showSearchView },
             set: { if !$0 {
-                viewModel.selectedChannel = nil
-                showSearchView = false
+                // Fermer seulement ce qui est ouvert (en priorité inverse)
+                if viewModel.selectedChannel != nil {
+                    viewModel.selectedChannel = nil
+                } else if showSearchView {
+                    showSearchView = false
+                }
             }}
         )) {
             if let channel = viewModel.selectedChannel {
-                UniversalPlayerView(content: .liveChannel(channel))
+                MediaPlayerView(content: .liveChannel(channel))
             } else if showSearchView {
                 SearchLiveTV()
                     .environment(viewModel)
@@ -73,5 +77,5 @@ struct LiveTVView: View {
 
 #Preview {
     LiveTVView()
-        .modelContainer(for: [Category.self, LiveChannel.self], inMemory: true)
+        .modelContainer(for: [LiveCategory.self, LiveChannel.self], inMemory: true)
 }

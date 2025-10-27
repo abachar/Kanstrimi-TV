@@ -57,13 +57,18 @@ struct SeriesView: View {
         .fullScreenCover(isPresented: Binding(
             get: { viewModel.playingContent != nil || viewModel.selectedSeries != nil || showSearchView },
             set: { if !$0 {
-                viewModel.playingContent = nil
-                viewModel.selectedSeries = nil
-                showSearchView = false
+                // Fermer seulement ce qui est ouvert (en priorité inverse)
+                if viewModel.playingContent != nil {
+                    viewModel.playingContent = nil
+                } else if viewModel.selectedSeries != nil {
+                    viewModel.selectedSeries = nil
+                } else if showSearchView {
+                    showSearchView = false
+                }
             }}
         )) {
             if let content = viewModel.playingContent {
-                UniversalPlayerView(content: content)
+                MediaPlayerView(content: content)
             } else if let series = viewModel.selectedSeries {
                 SeriesDetailView(series: series)
                     .environment(viewModel)

@@ -11,7 +11,7 @@ import SwiftData
 
 /// Modèle représentant une catégorie de chaines
 @Model
-final class Category {
+final class LiveCategory {
     /// Identifiant unique de la catégorie
     var id: String
 

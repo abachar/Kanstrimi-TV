@@ -11,17 +11,17 @@ import SwiftData
 /// Ligne de catégorie avec liste horizontale de chaînes (max 5 visibles)
 struct LiveCategoryRow: View {
     // MARK: - Properties
-    let category: Category
+    let liveCategory: LiveCategory
 
     // MARK: - SwiftData Query
     @Query private var channels: [LiveChannel]
 
     // MARK: - Init
-    init(category: Category) {
-        self.category = category
+    init(liveCategory: LiveCategory) {
+        self.liveCategory = liveCategory
 
         // Query filtrée par categoryId avec tri par sortOrder
-        let categoryId = category.categoryId ?? ""
+        let categoryId = liveCategory.categoryId ?? ""
         _channels = Query(
             filter: #Predicate<LiveChannel> { channel in
                 channel.categoryId == categoryId
@@ -35,7 +35,7 @@ struct LiveCategoryRow: View {
         VStack(alignment: .leading, spacing: 16) {
             // Header : Nom de la catégorie + Badge count
             HStack(spacing: 12) {
-                Text(category.name)
+                Text(liveCategory.name)
                     .font(.system(size: 32, weight: .semibold))
                     .foregroundColor(.primary)
 

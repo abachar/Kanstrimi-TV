@@ -28,16 +28,19 @@ final class StorageService {
             let schema = Schema([
                 Account.self,
                 PlayerSettings.self,
-                Category.self,
+                LiveCategory.self,
                 LiveChannel.self,
                 MoviesCategory.self,
                 Movie.self,
                 MovieDetail.self,
                 WatchHistory.self,
                 SeriesCategory.self,
-                Series.self
+                Series.self,
+                SeriesDetail.self,
+                SeriesSeason.self,
+                Episode.self
             ])
-
+ 
             // Configuration du container
             let configuration = ModelConfiguration(
                 schema: schema,

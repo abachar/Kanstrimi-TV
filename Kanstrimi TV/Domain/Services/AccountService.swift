@@ -82,9 +82,9 @@ final class AccountService {
             // Récupérer les catégories Live TV
             let categoryResponses = try await XtreamService.shared.getLiveCategories(account: account)
 
-            // Mapper vers Category et insérer dans SwiftData
+            // Mapper vers LiveCategory et insérer dans SwiftData
             for (index, response) in categoryResponses.enumerated() {
-                let category = Category(
+                let category = LiveCategory(
                     categoryId: response.categoryId,
                     name: response.categoryName,
                     sortOrder: index
@@ -268,7 +268,7 @@ final class AccountService {
         let liveChannelsDescriptor = FetchDescriptor<LiveChannel>()
         let moviesDescriptor = FetchDescriptor<Movie>()
         let seriesDescriptor = FetchDescriptor<Series>()
-        let categoriesDescriptor = FetchDescriptor<Category>()
+        let categoriesDescriptor = FetchDescriptor<LiveCategory>()
         let moviesCategoriesDescriptor = FetchDescriptor<MoviesCategory>()
         let seriesCategoriesDescriptor = FetchDescriptor<SeriesCategory>()
 

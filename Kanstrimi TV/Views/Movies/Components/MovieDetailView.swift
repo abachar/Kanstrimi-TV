@@ -104,7 +104,7 @@ struct MovieDetailView: View {
             } else {
                 // Bouton "Lire"
                 Button {
-                    viewModel.playingContent = .movie(movie)
+                    viewModel.playContent(.movie(movie))
                 } label: {
                     Label("Lire", systemImage: "play.fill")
                         .font(.title3)

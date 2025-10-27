@@ -1,5 +1,5 @@
 //
-//  UniversalPlayerView.swift
+//  MediaPlayerView.swift
 //  Kanstrimi TV
 //
 //  Created by Abdelhakim Bachar on 27/10/2025.
@@ -10,7 +10,7 @@ import AVKit
 
 /// Vue principale du player universel
 /// Détecte automatiquement le type de player (AVPlayer ou VLC) selon le format
-struct UniversalPlayerView: View {
+struct MediaPlayerView: View {
     let content: PlaybackContent
     @Environment(\.dismiss) private var dismiss
 
