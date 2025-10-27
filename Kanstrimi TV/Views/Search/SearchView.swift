@@ -30,8 +30,8 @@ struct SearchView: View {
     @State private var selectedTab = 0
     @State private var selectedChannel: LiveChannel?
     @State private var selectedMovie: Movie?
-    @State private var playingContent: PlaybackContent?
     @State private var selectedSeries: Series?
+    @State private var moviesViewModel = MoviesViewModel()
 
 
     // MARK: - Computed Properties
@@ -146,11 +146,15 @@ struct SearchView: View {
         // .ignoresSafeArea()
         .background(Color.black)
         .searchable(text: $searchText, prompt: "Rechercher du contenu...")
+        .environment(moviesViewModel)
         .fullScreenCover(item: $selectedChannel) { channel in
             UniversalPlayerView(content: .liveChannel(channel))
         }
         .fullScreenCover(item: $selectedMovie) { movie in
-            MovieDetailView(movie: movie, playingContent: $playingContent)
+            MovieDetailView(movie: movie)
+        }
+        .fullScreenCover(item: $moviesViewModel.playingContent) { content in
+            UniversalPlayerView(content: content)
         }
         .fullScreenCover(item: $selectedSeries) { series in
             SeriesDetailView(series: series)

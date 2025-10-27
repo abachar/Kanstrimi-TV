@@ -49,7 +49,7 @@ struct MoviesView: View {
         .ignoresSafeArea(.container, edges: [.horizontal])
         .environment(viewModel)
         .fullScreenCover(item: $viewModel.selectedMovie) { movie in
-            MovieDetailView(movie: movie, playingContent: $viewModel.playingContent)
+            MovieDetailView(movie: movie)
         }
         .fullScreenCover(item: $viewModel.playingContent) { content in
             UniversalPlayerView(content: content)

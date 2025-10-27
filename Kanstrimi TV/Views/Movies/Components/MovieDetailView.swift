@@ -12,10 +12,10 @@ import SwiftData
 struct MovieDetailView: View {
     // MARK: - Properties
     let movie: Movie
-    @Binding var playingContent: PlaybackContent?
 
     // MARK: - Environment
     @Environment(\.modelContext) private var modelContext
+    @Environment(MoviesViewModel.self) private var viewModel
 
     // MARK: - Queries
     @Query private var movieDetails: [MovieDetail]
@@ -78,7 +78,7 @@ struct MovieDetailView: View {
             if let watchHistory = watchHistory, watchHistory.progressPercentage > 5, !watchHistory.isCompleted {
                 // Bouton "Reprendre"
                 Button {
-                    playingContent = .movie(movie)
+                    viewModel.playingContent = .movie(movie)
                 } label: {
                     Label("Reprendre", systemImage: "play.fill")
                         .font(.title3)
@@ -87,7 +87,7 @@ struct MovieDetailView: View {
             } else {
                 // Bouton "Lire"
                 Button {
-                    playingContent = .movie(movie)
+                    viewModel.playingContent = .movie(movie)
                 } label: {
                     Label("Lire", systemImage: "play.fill")
                         .font(.title3)
@@ -98,7 +98,7 @@ struct MovieDetailView: View {
             // Bouton "Redémarrer" (si déjà commencé)
             if watchHistory != nil, watchHistory!.progressPercentage > 5 {
                 Button {
-                    playingContent = .movie(movie)
+                    viewModel.playingContent = .movie(movie)
                 } label: {
                     Label("Redémarrer", systemImage: "arrow.counterclockwise")
                         .font(.title3)
@@ -180,8 +180,6 @@ struct MovieDetailView: View {
 
 // MARK: - Preview
 #Preview {
-    @Previewable @State var playingContent: PlaybackContent?
-
     let sampleMovie = Movie(
         streamId: 1,
         name: "Inception",
@@ -191,6 +189,7 @@ struct MovieDetailView: View {
         rating5based: 4.5
     )
 
-    MovieDetailView(movie: sampleMovie, playingContent: $playingContent)
+    MovieDetailView(movie: sampleMovie)
         .modelContainer(for: [Movie.self, MovieDetail.self, WatchHistory.self], inMemory: true)
+        .environment(MoviesViewModel())
 }
