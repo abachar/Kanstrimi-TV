@@ -56,12 +56,13 @@ struct SeriesView: View {
         }
         .fullScreenCover(item: $viewModel.selectedSeries) { series in
             SeriesDetailView(series: series)
+                .environment(viewModel)
         }
         .fullScreenCover(item: $viewModel.playingContent) { content in
             UniversalPlayerView(content: content)
         }
         .fullScreenCover(isPresented: $showSearchView) {
-            SearchSeries()
+            //SearchSeries()
         }
     }
 }

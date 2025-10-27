@@ -56,6 +56,7 @@ struct MoviesView: View {
         }
         .fullScreenCover(item: $viewModel.selectedMovie) { movie in
             MovieDetailView(movie: movie)
+                .environment(viewModel)
         }
         .fullScreenCover(item: $viewModel.playingContent) { content in
             UniversalPlayerView(content: content)
