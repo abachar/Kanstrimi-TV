@@ -85,6 +85,17 @@ final class SeriesDetailService {
             for (seasonKey, episodes) in episodesDict.sorted(by: { $0.key < $1.key }) {
                 print("   - Saison \(seasonKey): \(episodes.count) épisodes")
             }
+
+            // ✅ Si aucune saison n'a été créée depuis l'API, créer automatiquement
+            // les saisons à partir des épisodes (certains providers ne remplissent pas seasons)
+            if seriesInfo.seasons == nil || seriesInfo.seasons?.isEmpty == true {
+                print("⚠️ [SeriesDetailService] Création automatique des saisons depuis les épisodes")
+                createSeasonsFromEpisodes(
+                    episodesDict: episodesDict,
+                    seriesId: series.seriesId,
+                    modelContext: modelContext
+                )
+            }
         } else {
             print("⚠️ [SeriesDetailService] Aucun épisode dans la réponse API")
         }
@@ -290,6 +301,49 @@ final class SeriesDetailService {
 
         // Mettre à jour le SeriesDetail
         seriesDetail.castImages = castImageURLs
+    }
+
+    // MARK: - Create Seasons from Episodes
+
+    /// Crée automatiquement les saisons à partir des épisodes
+    /// Utilisé lorsque l'API Xtream ne retourne pas de saisons
+    /// - Parameters:
+    ///   - episodesDict: Dictionnaire des épisodes par saison (clé = numéro de saison)
+    ///   - seriesId: ID de la série
+    ///   - modelContext: Contexte SwiftData
+    private func createSeasonsFromEpisodes(
+        episodesDict: [String: [EpisodeInfo]],
+        seriesId: Int,
+        modelContext: ModelContext
+    ) {
+        var createdCount = 0
+
+        for (seasonKey, episodes) in episodesDict {
+            guard let seasonNumber = Int(seasonKey) else { continue }
+
+            // Vérifier si la saison existe déjà
+            let descriptor = FetchDescriptor<SeriesSeason>(
+                predicate: #Predicate {
+                    $0.seriesId == seriesId && $0.seasonNumber == seasonNumber
+                }
+            )
+
+            let existingSeason = try? modelContext.fetch(descriptor).first
+
+            // Ne créer que si la saison n'existe pas déjà
+            if existingSeason == nil {
+                let season = SeriesSeason(
+                    seriesId: seriesId,
+                    seasonNumber: seasonNumber,
+                    name: "Saison \(seasonNumber)",
+                    episodeCount: episodes.count
+                )
+                modelContext.insert(season)
+                createdCount += 1
+            }
+        }
+
+        print("✅ [SeriesDetailService] \(createdCount) saisons créées automatiquement depuis les épisodes")
     }
 
     // MARK: - Helper Methods
