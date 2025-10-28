@@ -35,3 +35,23 @@ final class SeriesCategory {
         self.sortOrder = sortOrder
     }
 }
+
+// MARK: - Preview Data
+#if DEBUG
+extension SeriesCategory {
+    static var previewCategories: [SeriesCategory] {
+        [
+            SeriesCategory(
+                categoryId: "632",
+                name: "|MULTI| ✪ ENGLISH MULTISUB",
+                sortOrder: 0
+            ),
+            SeriesCategory(
+                categoryId: "2256",
+                name: "✪ ORIGINAL MAX MULTI",
+                sortOrder: 1
+            )
+        ]
+    }
+}
+#endif

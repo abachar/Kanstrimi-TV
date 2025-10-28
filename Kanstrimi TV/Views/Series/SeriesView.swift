@@ -81,9 +81,23 @@ struct SeriesView: View {
 }
 
 #Preview {
-    SeriesView()
-        .modelContainer(
-            for: [SeriesCategory.self, Series.self],
-            inMemory: true
-        )
+    let container = try! ModelContainer(
+        for: SeriesCategory.self, Series.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    let context = container.mainContext
+
+    // Insérer les catégories de preview
+    for category in SeriesCategory.previewCategories {
+        context.insert(category)
+    }
+
+    // Insérer les séries de preview
+    for series in Series.previewSeries {
+        context.insert(series)
+    }
+
+    return SeriesView()
+        .modelContainer(container)
 }

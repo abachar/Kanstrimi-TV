@@ -5,8 +5,8 @@
 //  Created by Abdelhakim Bachar on 28/10/2025.
 //
 
-import SwiftUI
 import AVKit
+import SwiftUI
 
 /// Sélecteur de piste audio pour AVPlayer
 struct AVAudioTrackSelector: View {
@@ -87,14 +87,4 @@ struct AVAudioTrackSelector: View {
         .buttonStyle(.plain)
         .hoverEffect(.highlight)
     }
-}
-
-// MARK: - Preview
-#Preview {
-    AVAudioTrackSelector(
-        audioTracks: [],
-        currentTrack: nil,
-        onSelect: { _ in },
-        onDismiss: {}
-    )
 }

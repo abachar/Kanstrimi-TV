@@ -35,7 +35,7 @@ struct VLCSubtitleSelector: View {
                     VStack(spacing: 12) {
                         // Option "Aucun"
                         Button(action: {
-                            onSelect(-1) // -1 pour désactiver les sous-titres
+                            onSelect(-1)  // -1 pour désactiver les sous-titres
                             onDismiss()
                         }) {
                             HStack {
@@ -97,18 +97,4 @@ struct VLCSubtitleSelector: View {
             .padding(60)
         }
     }
-}
-
-// MARK: - Preview
-#Preview {
-    VLCSubtitleSelector(
-        subtitleTracks: [
-            (index: 0, name: "Français"),
-            (index: 1, name: "English"),
-            (index: 2, name: "Español")
-        ],
-        currentTrackIndex: 0,
-        onSelect: { _ in },
-        onDismiss: {}
-    )
 }

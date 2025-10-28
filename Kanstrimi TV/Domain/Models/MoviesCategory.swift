@@ -35,3 +35,23 @@ final class MoviesCategory {
         self.sortOrder = sortOrder
     }
 }
+
+// MARK: - Preview Data
+#if DEBUG
+extension MoviesCategory {
+    static var previewCategories: [MoviesCategory] {
+        [
+            MoviesCategory(
+                categoryId: "2087",
+                name: "✪ ORIGINAL AMAZON 2024/2025 MULTI",
+                sortOrder: 0
+            ),
+            MoviesCategory(
+                categoryId: "1535",
+                name: "✪ ORIGINAL AMAZON  MULTI",
+                sortOrder: 1
+            )
+        ]
+    }
+}
+#endif

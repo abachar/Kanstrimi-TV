@@ -6,8 +6,8 @@
 //  Composant de recherche générique réutilisable
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// Vue de recherche générique pour tout type de contenu `Searchable`
 ///
@@ -142,7 +142,8 @@ struct GenericSearchView<T: Searchable & Identifiable, CardView: View>: View {
 
                 // Grille de résultats
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 30), count: gridColumns),
+                    columns: Array(
+                        repeating: GridItem(.flexible(), spacing: 30), count: gridColumns),
                     spacing: 30
                 ) {
                     ForEach(filteredItems) { item in
@@ -171,20 +172,4 @@ struct GenericSearchView<T: Searchable & Identifiable, CardView: View>: View {
             return "\(count) résultat\(count > 1 ? "s" : "")"
         }
     }
-}
-
-// MARK: - Previews
-
-#Preview("Films") {
-    GenericSearchView(
-        allItems: [] as [Movie],
-        configuration: SearchConfiguration(
-            title: "Rechercher un film",
-            searchPrompt: "Rechercher un film...",
-            emptyIcon: "film.slash"
-        )
-    ) { movie in
-        Text(movie.name)
-    }
-    .modelContainer(for: [Movie.self], inMemory: true)
 }

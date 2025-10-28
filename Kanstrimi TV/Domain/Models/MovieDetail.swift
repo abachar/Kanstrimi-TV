@@ -91,3 +91,35 @@ final class MovieDetail {
         self.lastUpdated = Date()
     }
 }
+
+// MARK: - Preview Data
+#if DEBUG
+extension MovieDetail {
+    /// MovieDetail pour "You're Cordially Invited (2025)"
+    static var youreInvitedDetail: MovieDetail {
+        MovieDetail(
+            streamId: 1308887, // Correspond à Movie.previewMovies[1]
+            tmdbId: 996821,
+            name: "You're Cordially Invited",
+            genre: "Comedy",
+            rating: 5.894,
+            duration: "01:49:00",
+            year: "2025",
+            cover: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/muXnwAdVdEEktto0NBNMyqK3uQH.jpg",
+            plot: "When two weddings are accidentally booked on the same day at the same venue, each bridal party is challenged with preserving their family's special moment while making the most of the unanticipated tight quarters. In a hilarious battle of determination and grit, the father of the bride and sister of the other bride chaotically go head-to-head as they stop at nothing to uphold an unforgettable celebration for their loved ones.",
+            director: "Nicholas Stoller, Scott Peterson",
+            cast: "Will Ferrell, Reese Witherspoon, Geraldine Viswanathan, Meredith Hagner, Jimmy Tatro",
+            castImages: [
+                "https://image.tmdb.org/t/p/w185/kuSlwTPsVlBMW0cvnFmbZce6PaV.jpg", // Will Ferrell
+                "https://image.tmdb.org/t/p/w185/6NsMbJXRlDZuDzatN2akFdGuTvx.jpg", // Reese Witherspoon
+                "https://image.tmdb.org/t/p/w185/9jAU38lf6GgWDVSZ2npnV9nYmTA.jpg", // Geraldine Viswanathan
+                "https://image.tmdb.org/t/p/w185/yNs4KHxWkXPLfH7DGwwXxcdR1U8.jpg", // Meredith Hagner
+                "https://image.tmdb.org/t/p/w185/4V0rNAHUzF5CnqBcyYLYcrmG3tN.jpg"  // Jimmy Tatro
+            ],
+            backdropPaths: [
+                "https://image.tmdb.org/t/p/w1280/xaNBpBkONtupAVJqQBIW5EZa7xi.jpg"
+            ]
+        )
+    }
+}
+#endif

@@ -91,3 +91,31 @@ final class SeriesDetail {
         self.lastUpdated = Date()
     }
 }
+
+// MARK: - Preview Data
+#if DEBUG
+    extension SeriesDetail {
+        /// SeriesDetail pour "Yellowstone (US)_msub"
+        static var previewSeriesDetails: SeriesDetail {
+            SeriesDetail(
+                seriesId: 3073,  // Correspond à Series.previewSeries[3]
+                tmdbId: 73586,
+                name: "Yellowstone",
+                genre: "Western, Drama",
+                rating: 4.0,  // 8/10 = 4.0/5
+                year: "2018",
+                cover:
+                    "https://image.tmdb.org/t/p/w600_and_h900_bestv2/iqWCUwLcjkVgtpsDLs8xx8kscg6.jpg",
+                plot:
+                    "Follow the violent world of the Dutton family, who controls the largest contiguous ranch in the United States. Led by their patriarch John Dutton, the family defends their property against constant attack by land developers, an Indian reservation, and America's first National Park.",
+                director: "John Linson, Taylor Sheridan",
+                cast: "",
+                castImages: [],
+                backdropPaths: [
+                    "https://image.tmdb.org/t/p/w1280/5YTM1bh3Jyfy9IP2eS64W3JDeGs.jpg"
+                ],
+                youtubeTrailer: ""
+            )
+        }
+    }
+#endif

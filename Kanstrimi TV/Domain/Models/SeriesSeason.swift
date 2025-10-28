@@ -57,3 +57,68 @@ final class SeriesSeason {
         self.coverTmdb = coverTmdb
     }
 }
+
+// MARK: - Preview Data
+#if DEBUG
+extension SeriesSeason {
+    /// Saisons de preview pour Yellowstone (seriesId: 3073)
+    static var previewSeriesSeasons: [SeriesSeason] {
+        [
+            // Saison 1
+            SeriesSeason(
+                seriesId: 3073,
+                seasonNumber: 1,
+                name: "Season 1",
+                overview: "The Dutton family, owners of the largest ranch in Montana, fight ruthlessly to keep their land from the neighboring Indian reservation and the new chief seeking to reclaim it.",
+                airDate: "2018-06-20",
+                episodeCount: 9,
+                coverTmdb: nil
+            ),
+
+            // Saison 2
+            SeriesSeason(
+                seriesId: 3073,
+                seasonNumber: 2,
+                name: "Season 2",
+                overview: "The Duttons face new threats as John's position becomes increasingly precarious and family secrets come to light.",
+                airDate: "2019-06-19",
+                episodeCount: 10,
+                coverTmdb: nil
+            ),
+
+            // Saison 3
+            SeriesSeason(
+                seriesId: 3073,
+                seasonNumber: 3,
+                name: "Season 3",
+                overview: "John makes a deal with Governor Perry, while powerful new enemies threaten the future of Yellowstone.",
+                airDate: "2020-06-21",
+                episodeCount: 10,
+                coverTmdb: nil
+            ),
+
+            // Saison 4
+            SeriesSeason(
+                seriesId: 3073,
+                seasonNumber: 4,
+                name: "Season 4",
+                overview: "The Duttons face the aftermath of a coordinated attack and fight to protect their legacy.",
+                airDate: "2021-11-07",
+                episodeCount: 10,
+                coverTmdb: nil
+            ),
+
+            // Saison 5
+            SeriesSeason(
+                seriesId: 3073,
+                seasonNumber: 5,
+                name: "Season 5",
+                overview: "John is sworn in as governor of Montana and makes bold moves to protect the Yellowstone.",
+                airDate: "2022-11-13",
+                episodeCount: 7,
+                coverTmdb: nil
+            )
+        ]
+    }
+}
+#endif

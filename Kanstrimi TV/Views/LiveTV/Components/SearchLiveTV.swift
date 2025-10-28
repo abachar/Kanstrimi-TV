@@ -39,7 +39,31 @@ struct SearchLiveTV: View {
 
 // MARK: - Previews
 
-#Preview {
-    SearchLiveTV()
+#Preview("Empty State") {
+    let container = try! ModelContainer(
+        for: LiveChannel.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    return SearchLiveTV()
+        .modelContainer(container)
+        .environment(LiveTVViewModel())
+}
+
+#Preview("With 5 Results") {
+    let container = try! ModelContainer(
+        for: LiveChannel.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    let context = container.mainContext
+
+    // Insérer 5 chaînes de preview
+    for channel in Array(LiveChannel.previewChannels.prefix(5)) {
+        context.insert(channel)
+    }
+
+    return SearchLiveTV()
+        .modelContainer(container)
         .environment(LiveTVViewModel())
 }

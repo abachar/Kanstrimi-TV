@@ -5,8 +5,8 @@
 //  Created by Abdelhakim Bachar on 28/10/2025.
 //
 
-import SwiftUI
 import AVKit
+import SwiftUI
 
 /// Sélecteur de sous-titres pour AVPlayer
 struct AVSubtitleSelector: View {
@@ -39,8 +39,11 @@ struct AVSubtitleSelector: View {
 
                         // Pistes disponibles
                         if !subtitleTracks.isEmpty {
-                            ForEach(Array(subtitleTracks.enumerated()), id: \.offset) { index, track in
-                                subtitleRow(track: track, label: track.displayName, isSelected: track == currentTrack)
+                            ForEach(Array(subtitleTracks.enumerated()), id: \.offset) {
+                                index, track in
+                                subtitleRow(
+                                    track: track, label: track.displayName,
+                                    isSelected: track == currentTrack)
                             }
                         }
                     }
@@ -61,7 +64,9 @@ struct AVSubtitleSelector: View {
         }
     }
 
-    private func subtitleRow(track: AVMediaSelectionOption?, label: String, isSelected: Bool) -> some View {
+    private func subtitleRow(track: AVMediaSelectionOption?, label: String, isSelected: Bool)
+        -> some View
+    {
         Button {
             onSelect(track)
             onDismiss()
@@ -86,14 +91,4 @@ struct AVSubtitleSelector: View {
         .buttonStyle(.plain)
         .hoverEffect(.highlight)
     }
-}
-
-// MARK: - Preview
-#Preview {
-    AVSubtitleSelector(
-        subtitleTracks: [],
-        currentTrack: nil,
-        onSelect: { _ in },
-        onDismiss: {}
-    )
 }

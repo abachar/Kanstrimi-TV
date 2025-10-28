@@ -39,8 +39,31 @@ struct SearchSeries: View {
 
 // MARK: - Previews
 
-#Preview {
-    SearchSeries()
-        .modelContainer(for: [Series.self], inMemory: true)
+#Preview("Empty State") {
+    let container = try! ModelContainer(
+        for: Series.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    return SearchSeries()
+        .modelContainer(container)
+        .environment(SeriesViewModel())
+}
+
+#Preview("With 5 Results") {
+    let container = try! ModelContainer(
+        for: Series.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    let context = container.mainContext
+
+    // Insérer 5 séries de preview
+    for series in Array(Series.previewSeries.prefix(5)) {
+        context.insert(series)
+    }
+
+    return SearchSeries()
+        .modelContainer(container)
         .environment(SeriesViewModel())
 }

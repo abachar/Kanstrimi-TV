@@ -215,23 +215,36 @@ struct PlayerOverlay: View {
     }
 }
 
-// MARK: - Preview
-#Preview {
-    let sampleMovie = Movie(
-        streamId: 1,
-        name: "Inception",
-        streamURL: "http://example.com/movie",
-        sortOrder: 0,
-        streamIcon: "https://via.placeholder.com/300x450",
-        rating5based: 4.5
-    )
-
-    return ZStack {
+// MARK: - Previews
+#Preview("Live TV") {
+    ZStack {
         Color.blue
             .ignoresSafeArea()
 
         PlayerOverlay(
-            content: .movie(sampleMovie),
+            content: .liveChannel(LiveChannel.previewChannels[0]),
+            currentPosition: 0,
+            totalDuration: 0,
+            isVisible: .constant(true),
+            onResetAutoHide: {},
+            onSeek: nil,
+            onAudioTapped: { print("Audio") },
+            onSubtitlesTapped: { print("Subtitles") },
+            onResumeTapped: { print("Resume") },
+            onPreviousEpisodeTapped: nil,
+            onNextEpisodeTapped: nil,
+            onInfoTapped: { print("Info") }
+        )
+    }
+}
+
+#Preview("Film") {
+    ZStack {
+        Color.blue
+            .ignoresSafeArea()
+
+        PlayerOverlay(
+            content: .movie(Movie.previewMovies[1]),
             currentPosition: 1800,
             totalDuration: 7200,
             isVisible: .constant(true),
@@ -245,5 +258,26 @@ struct PlayerOverlay: View {
             onInfoTapped: { print("Info") }
         )
     }
-    .modelContainer(for: [Movie.self], inMemory: true)
+}
+
+#Preview("Série") {
+    ZStack {
+        Color.blue
+            .ignoresSafeArea()
+
+        PlayerOverlay(
+            content: .episode(Episode.previewEpisodes[3]),
+            currentPosition: 2400,
+            totalDuration: 5580,
+            isVisible: .constant(true),
+            onResetAutoHide: {},
+            onSeek: { _ in },
+            onAudioTapped: { print("Audio") },
+            onSubtitlesTapped: { print("Subtitles") },
+            onResumeTapped: { print("Resume") },
+            onPreviousEpisodeTapped: { print("Previous Episode") },
+            onNextEpisodeTapped: { print("Next Episode") },
+            onInfoTapped: { print("Info") }
+        )
+    }
 }

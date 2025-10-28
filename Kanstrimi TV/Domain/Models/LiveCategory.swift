@@ -35,3 +35,28 @@ final class LiveCategory {
         self.sortOrder = sortOrder
     }
 }
+
+// MARK: - Preview Data
+#if DEBUG
+extension LiveCategory {
+    static var previewCategories: [LiveCategory] {
+        [
+            LiveCategory(
+                categoryId: "470",
+                name: "|AR| ✪ BEIN SPORT 4K",
+                sortOrder: 0
+            ),
+            LiveCategory(
+                categoryId: "969",
+                name: "|AR| ✪ BEIN SPORT ULTRA ᵁᴴᴰ",
+                sortOrder: 1
+            ),
+            LiveCategory(
+                categoryId: "8",
+                name: "|AR| ✪ BEIN SPORT HD",
+                sortOrder: 2
+            )
+        ]
+    }
+}
+#endif

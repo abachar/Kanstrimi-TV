@@ -39,8 +39,31 @@ struct SearchMovies: View {
 
 // MARK: - Previews
 
-#Preview {
-    SearchMovies()
-        .modelContainer(for: [Movie.self], inMemory: true)
+#Preview("Empty State") {
+    let container = try! ModelContainer(
+        for: Movie.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    return SearchMovies()
+        .modelContainer(container)
+        .environment(MoviesViewModel())
+}
+
+#Preview("With 5 Results") {
+    let container = try! ModelContainer(
+        for: Movie.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    let context = container.mainContext
+
+    // Insérer 5 films de preview
+    for movie in Array(Movie.previewMovies.prefix(5)) {
+        context.insert(movie)
+    }
+
+    return SearchMovies()
+        .modelContainer(container)
         .environment(MoviesViewModel())
 }

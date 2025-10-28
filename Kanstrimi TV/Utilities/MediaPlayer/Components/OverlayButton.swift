@@ -32,34 +32,3 @@ struct OverlayButton: View {
         .hoverEffect(.highlight)
     }
 }
-
-// MARK: - Preview
-#Preview {
-    HStack(spacing: 20) {
-        OverlayButton(icon: "speaker.wave.2", label: "Audio") {
-            print("Audio tapped")
-        }
-
-        OverlayButton(icon: "captions.bubble", label: "Sous-titres") {
-            print("Subtitles tapped")
-        }
-
-        OverlayButton(icon: "arrow.counterclockwise", label: "Reprendre") {
-            print("Resume tapped")
-        }
-
-        OverlayButton(icon: "chevron.left", label: "Précédent") {
-            print("Previous tapped")
-        }
-
-        OverlayButton(icon: "chevron.right", label: "Suivant") {
-            print("Next tapped")
-        }
-
-        OverlayButton(icon: "info.circle", label: "Info") {
-            print("Info tapped")
-        }
-    }
-    .padding(60)
-    .background(Color.black)
-}

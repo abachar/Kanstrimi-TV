@@ -195,18 +195,56 @@ struct MovieDetailView: View {
     }
 }
 
-// MARK: - Preview
-#Preview {
-    let sampleMovie = Movie(
-        streamId: 1,
-        name: "Inception",
-        streamURL: "http://example.com/movie",
-        sortOrder: 0,
-        streamIcon: "https://via.placeholder.com/300x450",
-        rating5based: 4.5
+// MARK: - Previews
+
+#Preview("Without Watch History") {
+    let container = try! ModelContainer(
+        for: Movie.self, MovieDetail.self, WatchHistory.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 
-    MovieDetailView(movie: sampleMovie)
-        .modelContainer(for: [Movie.self, MovieDetail.self, WatchHistory.self], inMemory: true)
+    let context = container.mainContext
+
+    // Utiliser un vrai film de preview avec données complètes
+    let movie = Movie.previewMovies[1] // "AZ - You're Cordially Invited (2025)"
+    context.insert(movie)
+
+    // Ajouter les détails complets du film
+    let movieDetail = MovieDetail.youreInvitedDetail
+    context.insert(movieDetail)
+
+    return MovieDetailView(movie: movie)
+        .modelContainer(container)
+        .environment(MoviesViewModel())
+}
+
+#Preview("With Watch History (50%)") {
+    let container = try! ModelContainer(
+        for: Movie.self, MovieDetail.self, WatchHistory.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    let context = container.mainContext
+
+    // Utiliser un vrai film de preview
+    let movie = Movie.previewMovies[1] // "AZ - You're Cordially Invited (2025)"
+    context.insert(movie)
+
+    // Ajouter les détails complets du film
+    let movieDetail = MovieDetail.youreInvitedDetail
+    context.insert(movieDetail)
+
+    // Créer un historique de visionnage à 50%
+    let watchHistory = WatchHistory(
+        streamId: movie.streamId,
+        contentType: "movie",
+        lastPosition: 3270, // 54:30 minutes (50% de 1h49)
+        duration: 6540, // 1h49 (109 minutes)
+        lastWatchedDate: Date()
+    )
+    context.insert(watchHistory)
+
+    return MovieDetailView(movie: movie)
+        .modelContainer(container)
         .environment(MoviesViewModel())
 }

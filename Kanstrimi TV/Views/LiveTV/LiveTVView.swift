@@ -76,6 +76,23 @@ struct LiveTVView: View {
 }
 
 #Preview {
-    LiveTVView()
-        .modelContainer(for: [LiveCategory.self, LiveChannel.self], inMemory: true)
+    let container = try! ModelContainer(
+        for: LiveCategory.self, LiveChannel.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    let context = container.mainContext
+
+    // Insérer les catégories de preview
+    for category in LiveCategory.previewCategories {
+        context.insert(category)
+    }
+
+    // Insérer les chaînes de preview
+    for channel in LiveChannel.previewChannels {
+        context.insert(channel)
+    }
+
+    return LiveTVView()
+        .modelContainer(container)
 }

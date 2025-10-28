@@ -64,16 +64,3 @@ struct GenericCategoryRowContent<T: Identifiable, CardView: View>: View {
         }
     }
 }
-
-// MARK: - Previews
-
-#Preview("Movie Category Row") {
-    let movies: [Movie] = []
-
-    return GenericCategoryRowContent(
-        categoryName: "Action",
-        items: movies
-    ) { movie in
-        MovieCard(movie: movie)
-    }
-}

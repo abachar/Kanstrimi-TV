@@ -68,12 +68,3 @@ struct PlayerErrorView: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    PlayerErrorView(
-        errorMessage: "Le flux vidéo n'a pas pu être chargé. Vérifiez votre connexion Internet et réessayez.",
-        onRetry: {},
-        onDismiss: {}
-    )
-}

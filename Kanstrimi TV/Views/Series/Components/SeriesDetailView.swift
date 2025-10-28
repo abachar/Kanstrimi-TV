@@ -255,22 +255,78 @@ struct SeriesDetailView: View {
     }
 }
 
-// MARK: - Preview
-#Preview {
-    let sampleSeries = Series(
-        seriesId: 1,
-        name: "Breaking Bad",
-        sortOrder: 0,
-        cover: "https://via.placeholder.com/300x450",
-        backdropPaths: nil,
-        rating: "9.5",
-        rating5based: 5.0
+// MARK: - Previews
+
+#Preview("Without Watch History") {
+    let container = try! ModelContainer(
+        for: Series.self, SeriesDetail.self, SeriesSeason.self, Episode.self, WatchHistory.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 
-    SeriesDetailView(series: sampleSeries)
-        .modelContainer(
-            for: [Series.self, SeriesDetail.self, SeriesSeason.self, Episode.self, WatchHistory.self],
-            inMemory: true
-        )
+    let context = container.mainContext
+
+    // Utiliser Yellowstone avec données complètes
+    let series = Series.previewSeries[3] // "Yellowstone (US)_msub"
+    context.insert(series)
+
+    // Ajouter les détails complets de la série
+    let seriesDetail = SeriesDetail.previewSeriesDetails
+    context.insert(seriesDetail)
+
+    // Ajouter les saisons
+    for season in SeriesSeason.previewSeriesSeasons {
+        context.insert(season)
+    }
+
+    // Ajouter les épisodes
+    for episode in Episode.previewEpisodes {
+        context.insert(episode)
+    }
+
+    return SeriesDetailView(series: series)
+        .modelContainer(container)
+        .environment(SeriesViewModel())
+}
+
+#Preview("With Watch History") {
+    let container = try! ModelContainer(
+        for: Series.self, SeriesDetail.self, SeriesSeason.self, Episode.self, WatchHistory.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    let context = container.mainContext
+
+    // Utiliser Yellowstone avec données complètes
+    let series = Series.previewSeries[3] // "Yellowstone (US)_msub"
+    context.insert(series)
+
+    // Ajouter les détails complets de la série
+    let seriesDetail = SeriesDetail.previewSeriesDetails
+    context.insert(seriesDetail)
+
+    // Ajouter les saisons
+    for season in SeriesSeason.previewSeriesSeasons {
+        context.insert(season)
+    }
+
+    // Ajouter les épisodes
+    for episode in Episode.previewEpisodes {
+        context.insert(episode)
+    }
+
+    // Créer un historique de visionnage pour l'épisode 3 de la saison 1
+    let episode3 = Episode.previewEpisodes[2] // S01E03 "No Good Horses"
+    let watchHistory = WatchHistory(
+        streamId: series.seriesId,
+        contentType: "series",
+        episodeId: episode3.id, // "episode-3073-1-3"
+        lastPosition: 1800, // 30 minutes
+        duration: 3300, // 55 minutes total (60%)
+        lastWatchedDate: Date()
+    )
+    context.insert(watchHistory)
+
+    return SeriesDetailView(series: series)
+        .modelContainer(container)
         .environment(SeriesViewModel())
 }

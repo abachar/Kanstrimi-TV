@@ -81,6 +81,23 @@ struct MoviesView: View {
 }
 
 #Preview {
-    MoviesView()
-        .modelContainer(for: [MoviesCategory.self, Movie.self], inMemory: true)
+    let container = try! ModelContainer(
+        for: MoviesCategory.self, Movie.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    let context = container.mainContext
+
+    // Insérer les catégories de preview
+    for category in MoviesCategory.previewCategories {
+        context.insert(category)
+    }
+
+    // Insérer les films de preview
+    for movie in Movie.previewMovies {
+        context.insert(movie)
+    }
+
+    return MoviesView()
+        .modelContainer(container)
 }

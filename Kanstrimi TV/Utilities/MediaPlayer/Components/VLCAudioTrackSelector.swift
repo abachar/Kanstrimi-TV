@@ -73,17 +73,3 @@ struct VLCAudioTrackSelector: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    VLCAudioTrackSelector(
-        audioTracks: [
-            (index: 0, name: "Français"),
-            (index: 1, name: "English"),
-            (index: 2, name: "Español")
-        ],
-        currentTrackIndex: 0,
-        onSelect: { _ in },
-        onDismiss: {}
-    )
-}

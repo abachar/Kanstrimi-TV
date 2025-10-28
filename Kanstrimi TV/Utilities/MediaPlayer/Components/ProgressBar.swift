@@ -100,19 +100,3 @@ struct ProgressBar: View {
         }
     }
 }
-
-// MARK: - Preview
-#Preview {
-    VStack(spacing: 40) {
-        ProgressBar(currentPosition: 0, totalDuration: 7200, isLive: false, onSeek: { _ in })
-            .frame(width: 800)
-
-        ProgressBar(currentPosition: 1800, totalDuration: 7200, isLive: false, onSeek: { _ in })
-            .frame(width: 800)
-
-        ProgressBar(currentPosition: 7200, totalDuration: 7200, isLive: true, onSeek: nil)
-            .frame(width: 800)
-    }
-    .padding(60)
-    .background(Color.black)
-}

@@ -5,8 +5,8 @@
 //  Created by Abdelhakim Bachar on 28/10/2025.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// Panel affichant les métadonnées du contenu en cours de lecture
 struct InfoPanel: View {
@@ -200,7 +200,7 @@ struct InfoPanel: View {
         case .movie:
             return movieDetail?.director
         case .episode:
-            return nil // Pas de réalisateur pour les séries dans ce contexte
+            return nil  // Pas de réalisateur pour les séries dans ce contexte
         case .liveChannel:
             return nil
         }
@@ -216,22 +216,4 @@ struct InfoPanel: View {
             return nil
         }
     }
-}
-
-// MARK: - Preview
-#Preview {
-    let sampleMovie = Movie(
-        streamId: 1,
-        name: "Inception",
-        streamURL: "http://example.com/movie",
-        sortOrder: 0,
-        streamIcon: "https://via.placeholder.com/300x450",
-        rating5based: 4.5
-    )
-
-    return InfoPanel(
-        content: .movie(sampleMovie),
-        onDismiss: {}
-    )
-    .modelContainer(for: [Movie.self, MovieDetail.self], inMemory: true)
 }
