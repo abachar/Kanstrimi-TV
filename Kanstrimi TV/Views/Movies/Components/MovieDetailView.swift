@@ -19,6 +19,7 @@ struct MovieDetailView: View {
     // MARK: - Queries
     @Query private var movieDetails: [MovieDetail]
     @Query private var watchHistories: [WatchHistory]
+    @Query private var allMovies: [Movie]
 
     private var movieDetail: MovieDetail? {
         movieDetails.first
@@ -28,10 +29,17 @@ struct MovieDetailView: View {
         watchHistories.first
     }
 
+    /// Retourne les variantes du film (même tmdbId, streamId différent)
+    private var movieVariants: [Movie] {
+        guard let tmdbId = movie.tmdbId else { return [] }
+        return allMovies.filter { $0.tmdbId == tmdbId && $0.streamId != movie.streamId }
+    }
+
     // MARK: - Init
     init(movie: Movie) {
         self.movie = movie
         let streamId = movie.streamId
+        let tmdbId = movie.tmdbId
 
         // Filtrer MovieDetail par streamId
         _movieDetails = Query(
@@ -44,6 +52,17 @@ struct MovieDetailView: View {
                 $0.streamId == streamId && $0.contentType == "movie"
             }
         )
+
+        // Charger tous les films si on a un tmdbId (pour trouver les variantes)
+        if let tmdbId = tmdbId {
+            _allMovies = Query(
+                filter: #Predicate<Movie> { $0.tmdbId == tmdbId }
+            )
+        } else {
+            _allMovies = Query(
+                filter: #Predicate<Movie> { _ in false }  // Query vide
+            )
+        }
     }
 
     // MARK: - Body
@@ -82,6 +101,11 @@ struct MovieDetailView: View {
                 if let castImages = movieDetail?.castImages, !castImages.isEmpty {
                     castSection(castImages: castImages)
                 }
+
+                // Variantes du film (différentes langues/qualités)
+                if !movieVariants.isEmpty {
+                    variantsSection
+                }
             }
             .padding(60)
         }
@@ -96,7 +120,7 @@ struct MovieDetailView: View {
     }
 
     var rating: Double? {
-        movieDetail?.rating ?? movie.rating5based
+        movieDetail?.rating ?? movie.rating
     }
 
     @ViewBuilder
@@ -325,6 +349,58 @@ struct MovieDetailView: View {
                                 EmptyView()
                             }
                         }
+                        .hoverEffect(.lift)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Variants Section
+    private var variantsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Autres versions (\(movieVariants.count))")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(.primary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 20) {
+                    ForEach(movieVariants) { variant in
+                        Button {
+                            viewModel.selectedMovie = variant
+                        } label: {
+                            VStack(alignment: .leading, spacing: 8) {
+                                AsyncImage(url: URL(string: variant.streamIcon ?? "")) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    case .empty:
+                                        Color.gray.opacity(0.3)
+                                            .overlay { ProgressView() }
+                                    case .failure:
+                                        Color.gray.opacity(0.3)
+                                            .overlay {
+                                                Image(systemName: "film.fill")
+                                                    .foregroundColor(.secondary)
+                                            }
+                                    @unknown default:
+                                        Color.gray.opacity(0.3)
+                                    }
+                                }
+                                .frame(width: 160, height: 240)
+                                .cornerRadius(12)
+                                .clipped()
+
+                                Text(variant.name)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.primary)
+                                    .lineLimit(2)
+                                    .frame(width: 160, alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(.plain)
                         .hoverEffect(.lift)
                     }
                 }

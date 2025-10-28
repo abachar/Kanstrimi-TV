@@ -154,12 +154,10 @@ final class AccountService {
                     name: response.name,
                     streamURL: streamURL,
                     sortOrder: index,
-                    containerExtension: response.containerExtension,
                     categoryId: response.categoryId,
                     streamIcon: response.streamIcon,
-                    rating: response.rating,
-                    rating5based: response.rating5based,
-                    added: response.added
+                    rating: response.rating5based
+                    // Note: tmdbId sera récupéré et mis à jour lors du chargement des détails
                 )
                 StorageService.shared.context.insert(movie)
             }
@@ -201,17 +199,9 @@ final class AccountService {
                     sortOrder: index,
                     categoryId: response.categoryId,
                     cover: response.cover,
-                    backdropPaths: response.backdropPath,
-                    rating: response.rating,
-                    rating5based: response.rating5based,
-                    plot: response.plot,
-                    director: response.director,
-                    cast: response.cast,
                     genre: response.genre,
-                    releaseDate: response.releaseDate,
-                    lastModified: response.lastModified,
-                    youtubeTrailer: response.youtubeTrailer,
-                    episodeRunTime: response.episodeRunTime
+                    rating: response.rating5based
+                    // Note: tmdbId sera récupéré et mis à jour lors du chargement des détails
                 )
                 StorageService.shared.context.insert(series)
             }

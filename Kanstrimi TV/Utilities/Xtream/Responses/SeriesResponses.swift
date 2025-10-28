@@ -112,6 +112,7 @@ struct SeriesInfo: Codable {
 }
 
 struct SeriesDetailInfo: Codable {
+    let tmdbId: Int?
     let name: String?
     let cover: String?
     let plot: String?
@@ -128,6 +129,7 @@ struct SeriesDetailInfo: Codable {
     let categoryId: String?
 
     enum CodingKeys: String, CodingKey {
+        case tmdbId = "tmdb_id"
         case name
         case cover
         case plot
@@ -147,6 +149,7 @@ struct SeriesDetailInfo: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
+        tmdbId = container.decodeFlexibleIntIfPresent(forKey: .tmdbId)
         name = try container.decodeIfPresent(String.self, forKey: .name)
         cover = try container.decodeIfPresent(String.self, forKey: .cover)
         plot = try container.decodeIfPresent(String.self, forKey: .plot)

@@ -76,6 +76,12 @@ final class DomainService {
 
             await MainActor.run {
                 try? StorageService.shared.insert(detail)
+
+                // Mettre à jour le tmdbId dans l'objet Movie pour permettre le groupement
+                if let tmdbId = tmdbMovieId {
+                    movie.tmdbId = tmdbId
+                    try? StorageService.shared.save()
+                }
             }
 
             print("DomainService: Détails du film \(movie.name) chargés avec succès")
@@ -111,13 +117,19 @@ final class DomainService {
                 seriesId: series.seriesId
             )
 
-            // Recherche TMDB pour enrichir les données (pas de tmdbId dans SeriesDetailInfo)
-            let castImages: [String] = []
+            // Récupérer le tmdbId si disponible
+            var tmdbSeriesId: Int? = nil
+            var castImages: [String] = []
+
+            if let info = xtreamDetail.info, let tmdbId = info.tmdbId {
+                tmdbSeriesId = tmdbId
+                // Optionnel : enrichir avec TMDB si nécessaire
+            }
 
             // Créer SeriesDetail et insérer dans la DB
             let detail = SeriesDetail(
                 seriesId: series.seriesId,
-                tmdbId: nil,
+                tmdbId: tmdbSeriesId,
                 name: xtreamDetail.info?.name,
                 genre: xtreamDetail.info?.genre,
                 rating: xtreamDetail.info?.rating5based,
@@ -133,6 +145,11 @@ final class DomainService {
 
             await MainActor.run {
                 try? StorageService.shared.insert(detail)
+
+                // Mettre à jour le tmdbId dans l'objet Series pour identification
+                if let tmdbId = tmdbSeriesId {
+                    series.tmdbId = tmdbId
+                }
 
                 // Créer les saisons et épisodes
                 guard let episodes = xtreamDetail.episodes else { return }
