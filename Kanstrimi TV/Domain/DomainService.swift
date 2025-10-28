@@ -259,4 +259,99 @@ final class DomainService {
 
         print("✅ DomainService: Compte et données associées supprimés avec succès")
     }
+
+    // MARK: - Watch History
+
+    /// Récupère l'historique de visionnage pour un contenu donné
+    func getWatchHistory(content: PlaybackContent) async -> WatchHistory? {
+        let streamId: Int
+        let contentType: String
+        let episodeId: String?
+
+        switch content {
+        case .liveChannel:
+            return nil // Pas de WatchHistory pour Live TV
+
+        case .movie(let movie):
+            streamId = movie.streamId
+            contentType = "movie"
+            episodeId = nil
+
+        case .episode(let episode, _, _, _):
+            streamId = episode.seriesId
+            contentType = "series"
+            episodeId = episode.episodeId
+        }
+
+        // Construire le predicate
+        let descriptor: FetchDescriptor<WatchHistory>
+        if let episodeId = episodeId {
+            descriptor = FetchDescriptor<WatchHistory>(
+                predicate: #Predicate {
+                    $0.streamId == streamId &&
+                    $0.contentType == contentType &&
+                    $0.episodeId == episodeId
+                }
+            )
+        } else {
+            descriptor = FetchDescriptor<WatchHistory>(
+                predicate: #Predicate {
+                    $0.streamId == streamId &&
+                    $0.contentType == contentType
+                }
+            )
+        }
+
+        return try? StorageService.shared.fetchOne(descriptor)
+    }
+
+    /// Sauvegarde ou met à jour l'historique de visionnage
+    func saveWatchHistory(content: PlaybackContent, position: TimeInterval, duration: TimeInterval) async {
+        // Ignorer Live TV
+        guard content.contentType == .vod else { return }
+
+        // Ignorer les positions invalides
+        guard position > 0, duration > 0 else { return }
+
+        let streamId: Int
+        let contentType: String
+        let episodeId: String?
+
+        switch content {
+        case .liveChannel:
+            return
+
+        case .movie(let movie):
+            streamId = movie.streamId
+            contentType = "movie"
+            episodeId = nil
+
+        case .episode(let episode, _, _, _):
+            streamId = episode.seriesId
+            contentType = "series"
+            episodeId = episode.episodeId
+        }
+
+        // Chercher l'historique existant
+        if let existingHistory = await getWatchHistory(content: content) {
+            // Mettre à jour
+            existingHistory.lastPosition = position
+            existingHistory.duration = duration
+            existingHistory.lastWatchedDate = Date()
+        } else {
+            // Créer nouveau
+            let newHistory = WatchHistory(
+                streamId: streamId,
+                contentType: contentType,
+                episodeId: episodeId,
+                lastPosition: position,
+                duration: duration,
+                lastWatchedDate: Date()
+            )
+            try? StorageService.shared.insert(newHistory)
+        }
+
+        // Sauvegarder
+        try? StorageService.shared.save()
+    }
 }

@@ -24,6 +24,16 @@ struct AccountFormView: View {
     // MARK: - Callback
     let onSubmit: (String, String, String, String) -> Void
 
+    init(
+        onSubmit: @escaping (String, String, String, String) -> Void
+    ) {
+        self.name = Bundle.main.infoDictionary?["IPTV_NAME"] as? String ?? ""
+        self.serverURL = Bundle.main.infoDictionary?["IPTV_SERVER_URL"] as? String ?? ""
+        self.username = Bundle.main.infoDictionary?["IPTV_USERNAME"] as? String ?? ""
+        self.password = Bundle.main.infoDictionary?["IPTV_PASSWORD"] as? String ?? ""
+        self.onSubmit = onSubmit
+    }
+
     // MARK: - Body
     var body: some View {
         VStack(spacing: 40) {

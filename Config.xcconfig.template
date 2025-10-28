@@ -4,3 +4,9 @@
 // TMDB API Key (Bearer Token)
 // Get your API key from: https://www.themoviedb.org/settings/api
 TMDB_API_KEY = YOUR_TMDB_BEARER_TOKEN_HERE
+
+// IPTV Test Credentials
+IPTV_NAME = 
+IPTV_SERVER_URL = 
+IPTV_USERNAME = 
+IPTV_PASSWORD = 

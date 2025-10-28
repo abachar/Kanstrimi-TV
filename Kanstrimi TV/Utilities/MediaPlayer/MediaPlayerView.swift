@@ -7,12 +7,45 @@
 
 import SwiftUI
 import AVKit
+import SwiftData
+import TVVLCKit
 
-/// Vue principale du player universel
+/// Vue principale du player universel avec overlay (Phase 3)
 /// Détecte automatiquement le type de player (AVPlayer ou VLC) selon le format
 struct MediaPlayerView: View {
-    let content: PlaybackContent
+    @State private var content: PlaybackContent
     @Environment(\.dismiss) private var dismiss
+
+    init(content: PlaybackContent) {
+        _content = State(initialValue: content)
+    }
+
+    // État de l'overlay
+    @State private var isOverlayVisible: Bool = true
+    @State private var currentPosition: TimeInterval = 0
+    @State private var totalDuration: TimeInterval = 0
+    @State private var autoHideTask: Task<Void, Never>?
+
+    // État des modales
+    @State private var showingAudioSelector: Bool = false
+    @State private var showingSubtitleSelector: Bool = false
+    @State private var showingInfoPanel: Bool = false
+
+    // État des erreurs
+    @State private var errorMessage: String?
+
+    // Player controller et coordinator (pour AVPlayer uniquement)
+    @State private var avPlayerController: AVPlayerViewController?
+    @State private var avPlayerCoordinator: AVPlayerWrapper.Coordinator?
+
+    // VLC coordinator
+    @State private var vlcPlayerCoordinator: VLCPlayerWrapper.Coordinator?
+
+    // WatchHistory timer
+    @State private var watchHistoryTimer: Timer?
+
+    // Remote control handler
+    @StateObject private var remoteHandler = RemoteControlHandler()
 
     // Détection du type de player
     private var playerType: VideoPlayerType {
@@ -30,39 +63,472 @@ struct MediaPlayerView: View {
                 .ignoresSafeArea()
 
             if let url = streamURL {
-                // Afficher le player approprié selon le format
-                switch playerType {
-                case .avPlayer:
-                    AVPlayerWrapper(url: url)
-                        .ignoresSafeArea()
+                // Player layer
+                playerLayer(url: url)
 
-                case .vlcPlayer:
-                    VLCPlayerWrapper(url: url)
-                        .ignoresSafeArea()
+                // Overlay layer
+                overlayView
+
+                // Modales
+                if showingAudioSelector {
+                    audioSelectorView
+                }
+
+                if showingSubtitleSelector {
+                    subtitleSelectorView
+                }
+
+                if showingInfoPanel {
+                    infoPanelView
+                }
+
+                // Overlay d'erreur
+                if errorMessage != nil {
+                    errorOverlayView
                 }
             } else {
                 // Erreur : URL invalide
-                VStack(spacing: 30) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 80))
-                        .foregroundColor(.red)
+                errorView
+            }
+        }
+        .onAppear {
+            startAutoHideTimer()
+            loadWatchHistoryAndResume()
+            startWatchHistoryUpdates()
+            setupRemoteHandlers()
+        }
+        .onDisappear {
+            autoHideTask?.cancel()
+            stopWatchHistoryUpdates()
+            saveWatchHistoryOnExit()
+        }
+    }
 
-                    Text("URL de stream invalide")
-                        .font(.title2)
-                        .foregroundColor(.primary)
+    // MARK: - Overlay View
+    @ViewBuilder
+    private var overlayView: some View {
+        PlayerOverlay(
+            content: content,
+            currentPosition: currentPosition,
+            totalDuration: totalDuration,
+            isVisible: $isOverlayVisible,
+            onResetAutoHide: resetAutoHideTimer,
+            onSeek: handleSeek,
+            onAudioTapped: handleAudioTapped,
+            onSubtitlesTapped: handleSubtitlesTapped,
+            onResumeTapped: handleResumeTapped,
+            onPreviousEpisodeTapped: previousEpisodeHandler,
+            onNextEpisodeTapped: nextEpisodeHandler,
+            onInfoTapped: handleInfoTapped
+        )
+    }
 
-                    Text(content.streamURL)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 60)
+    private var previousEpisodeHandler: (() -> Void)? {
+        guard content.episodeNavigation?.previous != nil else { return nil }
+        return handlePreviousEpisode
+    }
 
-                    Button("Fermer") {
-                        dismiss()
+    private var nextEpisodeHandler: (() -> Void)? {
+        guard content.episodeNavigation?.next != nil else { return nil }
+        return handleNextEpisode
+    }
+
+    // MARK: - Player Layer
+    @ViewBuilder
+    private func playerLayer(url: URL) -> some View {
+        switch playerType {
+        case .avPlayer:
+            AVPlayerWrapper(
+                url: url,
+                currentPosition: $currentPosition,
+                totalDuration: $totalDuration,
+                playerController: $avPlayerController,
+                coordinator: $avPlayerCoordinator,
+                errorMessage: $errorMessage
+            )
+            .ignoresSafeArea()
+
+        case .vlcPlayer:
+            VLCPlayerWrapper(
+                url: url,
+                currentPosition: $currentPosition,
+                totalDuration: $totalDuration,
+                coordinator: $vlcPlayerCoordinator,
+                errorMessage: $errorMessage
+            )
+            .ignoresSafeArea()
+        }
+    }
+
+    // MARK: - Audio Selector View
+    @ViewBuilder
+    private var audioSelectorView: some View {
+        switch playerType {
+        case .avPlayer:
+            if let coordinator = avPlayerCoordinator {
+                AudioTrackSelector(
+                    audioTracks: coordinator.getAudioTracks(),
+                    currentTrack: coordinator.getCurrentAudioTrack(),
+                    onSelect: { track in
+                        coordinator.selectAudioTrack(track)
+                    },
+                    onDismiss: {
+                        showingAudioSelector = false
                     }
-                    .buttonStyle(.bordered)
+                )
+            }
+        case .vlcPlayer:
+            if let coordinator = vlcPlayerCoordinator {
+                VLCAudioTrackSelector(
+                    audioTracks: coordinator.getAudioTracks(),
+                    currentTrackIndex: coordinator.getCurrentAudioTrackIndex(),
+                    onSelect: { index in
+                        coordinator.selectAudioTrack(index: index)
+                    },
+                    onDismiss: {
+                        showingAudioSelector = false
+                    }
+                )
+            }
+        }
+    }
+
+    // MARK: - Subtitle Selector View
+    @ViewBuilder
+    private var subtitleSelectorView: some View {
+        switch playerType {
+        case .avPlayer:
+            if let coordinator = avPlayerCoordinator {
+                SubtitleSelector(
+                    subtitleTracks: coordinator.getSubtitleTracks(),
+                    currentTrack: coordinator.getCurrentSubtitleTrack(),
+                    onSelect: { track in
+                        coordinator.selectSubtitleTrack(track)
+                    },
+                    onDismiss: {
+                        showingSubtitleSelector = false
+                    }
+                )
+            }
+        case .vlcPlayer:
+            if let coordinator = vlcPlayerCoordinator {
+                VLCSubtitleSelector(
+                    subtitleTracks: coordinator.getSubtitleTracks(),
+                    currentTrackIndex: coordinator.getCurrentSubtitleTrackIndex(),
+                    onSelect: { index in
+                        coordinator.selectSubtitleTrack(index: index)
+                    },
+                    onDismiss: {
+                        showingSubtitleSelector = false
+                    }
+                )
+            }
+        }
+    }
+
+    // MARK: - Info Panel View
+    @ViewBuilder
+    private var infoPanelView: some View {
+        InfoPanel(
+            content: content,
+            onDismiss: {
+                showingInfoPanel = false
+            }
+        )
+    }
+
+    // MARK: - Error Overlay View
+    @ViewBuilder
+    private var errorOverlayView: some View {
+        if let errorMessage = errorMessage {
+            PlayerErrorView(
+                errorMessage: errorMessage,
+                onRetry: handleRetry,
+                onDismiss: handleErrorDismiss
+            )
+        }
+    }
+
+    // MARK: - Error View
+    private var errorView: some View {
+        VStack(spacing: 30) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 80))
+                .foregroundColor(.red)
+
+            Text("URL de stream invalide")
+                .font(.title2)
+                .foregroundColor(.primary)
+
+            Text(content.streamURL)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 60)
+
+            Button("Fermer") {
+                dismiss()
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    // MARK: - Auto-hide Timer
+    private func startAutoHideTimer() {
+        autoHideTask?.cancel()
+        autoHideTask = Task {
+            try? await Task.sleep(for: .seconds(5))
+            if !Task.isCancelled {
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isOverlayVisible = false
+                    }
                 }
             }
         }
+    }
+
+    private func resetAutoHideTimer() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            isOverlayVisible = true
+        }
+        startAutoHideTimer()
+    }
+
+    // MARK: - Watch History
+    private func loadWatchHistoryAndResume() {
+        // Ne charger que pour VOD
+        guard content.contentType == .vod else { return }
+
+        Task {
+            if let history = await DomainService.shared.getWatchHistory(content: content),
+               !history.isCompleted {
+                // Reprendre à la dernière position
+                await MainActor.run {
+                    handleSeek(history.lastPosition)
+                }
+            }
+        }
+    }
+
+    private func startWatchHistoryUpdates() {
+        // Ne sauvegarder que pour VOD
+        guard content.contentType == .vod else { return }
+
+        watchHistoryTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [content] _ in
+            Task {
+                await DomainService.shared.saveWatchHistory(
+                    content: content,
+                    position: currentPosition,
+                    duration: totalDuration
+                )
+            }
+        }
+    }
+
+    private func stopWatchHistoryUpdates() {
+        watchHistoryTimer?.invalidate()
+        watchHistoryTimer = nil
+    }
+
+    private func saveWatchHistoryOnExit() {
+        // Sauvegarde finale avant de quitter
+        guard content.contentType == .vod else { return }
+
+        Task {
+            await DomainService.shared.saveWatchHistory(
+                content: content,
+                position: currentPosition,
+                duration: totalDuration
+            )
+        }
+    }
+
+    // MARK: - Overlay Actions
+    private func handleSeek(_ position: TimeInterval) {
+        switch playerType {
+        case .avPlayer:
+            avPlayerCoordinator?.seek(to: position)
+        case .vlcPlayer:
+            vlcPlayerCoordinator?.seek(to: position)
+        }
+    }
+
+    private func handleAudioTapped() {
+        showingAudioSelector = true
+    }
+
+    private func handleSubtitlesTapped() {
+        showingSubtitleSelector = true
+    }
+
+    private func handleResumeTapped() {
+        // Reprendre depuis le début
+        handleSeek(0)
+    }
+
+    private func handlePreviousEpisode() {
+        guard case .episode(_, let seriesName, let previous, let next) = content,
+              let previousEpisode = previous else { return }
+
+        // Sauvegarder l'historique de l'épisode actuel
+        saveWatchHistoryOnExit()
+
+        // Charger le nouvel épisode
+        loadNewEpisode(previousEpisode, seriesName: seriesName)
+    }
+
+    private func handleNextEpisode() {
+        guard case .episode(_, let seriesName, let previous, let next) = content,
+              let nextEpisode = next else { return }
+
+        // Sauvegarder l'historique de l'épisode actuel
+        saveWatchHistoryOnExit()
+
+        // Charger le nouvel épisode
+        loadNewEpisode(nextEpisode, seriesName: seriesName)
+    }
+
+    private func loadNewEpisode(_ episode: Episode, seriesName: String?) {
+        // Arrêter les timers
+        stopWatchHistoryUpdates()
+
+        // Récupérer les épisodes précédent/suivant depuis la base de données
+        Task {
+            let (previous, next) = await fetchAdjacentEpisodes(for: episode)
+
+            await MainActor.run {
+                // Mettre à jour le contenu
+                content = .episode(
+                    episode,
+                    seriesName: seriesName,
+                    previousEpisode: previous,
+                    nextEpisode: next
+                )
+
+                // Réinitialiser la position
+                currentPosition = 0
+                totalDuration = 0
+
+                // Réinitialiser les coordinators (le player va se recréer)
+                avPlayerController = nil
+                avPlayerCoordinator = nil
+                vlcPlayerCoordinator = nil
+
+                // Redémarrer les timers
+                loadWatchHistoryAndResume()
+                startWatchHistoryUpdates()
+            }
+        }
+    }
+
+    private func fetchAdjacentEpisodes(for episode: Episode) async -> (previous: Episode?, next: Episode?) {
+        // Récupérer tous les épisodes de la série
+        let seasonNum = episode.seasonNumber
+        let descriptor = FetchDescriptor<Episode>(
+            predicate: #Predicate<Episode> { ep in
+                ep.seasonNumber == seasonNum
+            },
+            sortBy: [SortDescriptor(\Episode.episodeNum)]
+        )
+
+        guard let allEpisodes = try? await StorageService.shared.fetch(descriptor) else {
+            return (nil, nil)
+        }
+
+        guard let currentIndex = allEpisodes.firstIndex(where: { $0.id == episode.id }) else {
+            return (nil, nil)
+        }
+
+        let previous = currentIndex > 0 ? allEpisodes[currentIndex - 1] : nil
+        let next = currentIndex < allEpisodes.count - 1 ? allEpisodes[currentIndex + 1] : nil
+
+        return (previous, next)
+    }
+
+    private func handleInfoTapped() {
+        showingInfoPanel = true
+    }
+
+    // MARK: - Error Handlers
+    private func handleRetry() {
+        // Effacer l'erreur et réinitialiser les coordinators pour forcer le rechargement
+        errorMessage = nil
+        avPlayerController = nil
+        avPlayerCoordinator = nil
+        vlcPlayerCoordinator = nil
+        currentPosition = 0
+        totalDuration = 0
+    }
+
+    private func handleErrorDismiss() {
+        // Fermer le player et revenir à la vue précédente
+        dismiss()
+    }
+
+    // MARK: - Remote Control Handlers
+    private func setupRemoteHandlers() {
+        // Menu : Fermer le player
+        remoteHandler.setMenuHandler {
+            dismiss()
+        }
+
+        // Select : Toggle overlay
+        remoteHandler.setSelectHandler {
+            resetAutoHideTimer()
+        }
+
+        // Swipe Up : Afficher overlay
+        remoteHandler.setSwipeUpHandler {
+            resetAutoHideTimer()
+        }
+
+        // Swipe Down : Masquer overlay
+        remoteHandler.setSwipeDownHandler {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isOverlayVisible = false
+            }
+            autoHideTask?.cancel()
+        }
+
+        // Swipe Left : Reculer de 10 secondes
+        remoteHandler.setSwipeLeftHandler {
+            let newPosition = max(0, currentPosition - 10)
+            handleSeek(newPosition)
+            resetAutoHideTimer()
+        }
+
+        // Swipe Right : Avancer de 10 secondes
+        remoteHandler.setSwipeRightHandler {
+            let newPosition = min(currentPosition + 10, totalDuration)
+            handleSeek(newPosition)
+            resetAutoHideTimer()
+        }
+    }
+
+    private func handlePlayPause() {
+        switch playerType {
+        case .avPlayer:
+            if let player = avPlayerCoordinator?.player {
+                if player.timeControlStatus == .playing {
+                    player.pause()
+                    remoteHandler.isPlaying = false
+                } else {
+                    player.play()
+                    remoteHandler.isPlaying = true
+                }
+            }
+        case .vlcPlayer:
+            if let player = vlcPlayerCoordinator?.mediaPlayer {
+                if player.isPlaying {
+                    player.pause()
+                    remoteHandler.isPlaying = false
+                } else {
+                    player.play()
+                    remoteHandler.isPlaying = true
+                }
+            }
+        }
+        resetAutoHideTimer()
     }
 }
