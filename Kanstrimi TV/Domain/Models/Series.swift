@@ -102,3 +102,5 @@ final class Series {
     }
 }
 
+// MARK: - Searchable Conformance
+extension Series: Searchable {}

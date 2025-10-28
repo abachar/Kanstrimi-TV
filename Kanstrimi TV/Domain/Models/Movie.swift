@@ -73,3 +73,6 @@ final class Movie {
         self.streamURL = streamURL
     }
 }
+
+// MARK: - Searchable Conformance
+extension Movie: Searchable {}

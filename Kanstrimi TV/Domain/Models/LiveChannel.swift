@@ -69,3 +69,6 @@ final class LiveChannel {
         self.streamURL = streamURL
     }
 }
+
+// MARK: - Searchable Conformance
+extension LiveChannel: Searchable {}
