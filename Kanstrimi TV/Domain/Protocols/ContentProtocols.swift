@@ -21,6 +21,20 @@ protocol Searchable: Identifiable {
     var sortOrder: Int { get }
 }
 
+// MARK: - CardDisplayable Protocol
+
+/// Protocole pour les entités affichables en carte
+protocol CardDisplayable: Identifiable {
+    /// Nom affiché sur la carte
+    var name: String { get }
+
+    /// URL de l'image (poster, cover, logo)
+    var imageURL: String? { get }
+
+    /// Note sur 5 étoiles (optionnel)
+    var rating5based: Double? { get }
+}
+
 // MARK: - SearchConfiguration
 
 /// Configuration pour la vue de recherche générique
@@ -40,5 +54,36 @@ struct SearchConfiguration {
         self.searchPrompt = searchPrompt
         self.emptyIcon = emptyIcon
         self.minCharacters = minCharacters
+    }
+}
+
+// MARK: - CardConfiguration
+
+/// Style de carte (portrait vs landscape)
+enum CardStyle {
+    case portrait(width: CGFloat, height: CGFloat)  // Ex: 180x270
+    case landscape(width: CGFloat, height: CGFloat) // Ex: 200x120
+}
+
+/// Configuration pour les cartes de contenu
+struct CardConfiguration {
+    let style: CardStyle
+    let aspectMode: ContentMode
+    let emptyIcon: String
+    let showRating: Bool
+    let additionalInfo: String?
+
+    init(
+        style: CardStyle,
+        aspectMode: ContentMode = .fill,
+        emptyIcon: String,
+        showRating: Bool = true,
+        additionalInfo: String? = nil
+    ) {
+        self.style = style
+        self.aspectMode = aspectMode
+        self.emptyIcon = emptyIcon
+        self.showRating = showRating
+        self.additionalInfo = additionalInfo
     }
 }
