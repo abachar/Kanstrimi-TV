@@ -15,61 +15,22 @@ struct MovieCard: View {
     // MARK: - Environment
     @Environment(MoviesViewModel.self) private var viewModel
 
+    // MARK: - Configuration
+    private let configuration = CardConfiguration(
+        style: .portrait(width: 180, height: 270),
+        aspectMode: .fill,
+        emptyIcon: "film.fill",
+        showRating: true
+    )
+
     // MARK: - Body
     var body: some View {
-        Button(action: {
-            viewModel.selectMovie(movie)
-        }) {
-            VStack(spacing: 12) {
-                // Poster du film
-                CachedImage(url: URL(string: movie.streamIcon ?? "")) { phase in
-                    switch phase {
-                    case .empty:
-                        Color.gray.opacity(0.3)
-                            .overlay {
-                                ProgressView()
-                                    .tint(.secondary)
-                            }
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    case .failure:
-                        Color.gray.opacity(0.3)
-                            .overlay {
-                                Image(systemName: "film.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.secondary)
-                            }
-                    @unknown default:
-                        Color.gray.opacity(0.3)
-                    }
-                }
-                .frame(width: 180, height: 270)
-                .cornerRadius(12)
-                .clipped()
-                
-                // Nom du film
-                Text(movie.name)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 180, height: 40)
-                
-                // Rating (étoiles)
-                if let rating5based = movie.rating5based {
-                    HStack(spacing: 4) {
-                        ForEach(0..<5) { index in
-                            Image(systemName: index < Int(rating5based) ? "star.fill" : "star")
-                                .font(.system(size: 12))
-                                .foregroundColor(.yellow)
-                        }
-                    }
-                }
+        GenericContentCard(
+            item: movie,
+            configuration: configuration,
+            action: {
+                viewModel.selectMovie(movie)
             }
-            .padding(16)
-            .hoverEffect(.highlight)
-        }
+        )
     }
 }

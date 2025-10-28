@@ -1,5 +1,5 @@
 //
-//  SubtitleSelector.swift
+//  AVAudioTrackSelector.swift
 //  Kanstrimi TV
 //
 //  Created by Abdelhakim Bachar on 28/10/2025.
@@ -8,9 +8,9 @@
 import SwiftUI
 import AVKit
 
-/// Sélecteur de sous-titres pour AVPlayer
-struct SubtitleSelector: View {
-    let subtitleTracks: [AVMediaSelectionOption]
+/// Sélecteur de piste audio pour AVPlayer
+struct AVAudioTrackSelector: View {
+    let audioTracks: [AVMediaSelectionOption]
     let currentTrack: AVMediaSelectionOption?
     let onSelect: (AVMediaSelectionOption?) -> Void
     let onDismiss: () -> Void
@@ -26,27 +26,28 @@ struct SubtitleSelector: View {
 
             VStack(spacing: 30) {
                 // Header
-                Text("Sous-titres")
+                Text("Piste audio")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
 
                 // Liste des pistes
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 12) {
-                        // Option "Aucun"
-                        subtitleRow(track: nil, label: "Aucun", isSelected: currentTrack == nil)
-
-                        // Pistes disponibles
-                        if !subtitleTracks.isEmpty {
-                            ForEach(Array(subtitleTracks.enumerated()), id: \.offset) { index, track in
-                                subtitleRow(track: track, label: track.displayName, isSelected: track == currentTrack)
+                if audioTracks.isEmpty {
+                    Text("Aucune piste audio disponible")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .padding(40)
+                } else {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 12) {
+                            ForEach(Array(audioTracks.enumerated()), id: \.offset) { index, track in
+                                audioTrackRow(track: track, isSelected: track == currentTrack)
                             }
                         }
+                        .padding(.vertical, 20)
                     }
-                    .padding(.vertical, 20)
+                    .frame(maxHeight: 400)
                 }
-                .frame(maxHeight: 400)
 
                 // Bouton Fermer
                 Button("Fermer") {
@@ -61,13 +62,13 @@ struct SubtitleSelector: View {
         }
     }
 
-    private func subtitleRow(track: AVMediaSelectionOption?, label: String, isSelected: Bool) -> some View {
+    private func audioTrackRow(track: AVMediaSelectionOption, isSelected: Bool) -> some View {
         Button {
             onSelect(track)
             onDismiss()
         } label: {
             HStack {
-                Text(label)
+                Text(track.displayName)
                     .font(.body)
                     .foregroundColor(.primary)
 
@@ -90,8 +91,8 @@ struct SubtitleSelector: View {
 
 // MARK: - Preview
 #Preview {
-    SubtitleSelector(
-        subtitleTracks: [],
+    AVAudioTrackSelector(
+        audioTracks: [],
         currentTrack: nil,
         onSelect: { _ in },
         onDismiss: {}

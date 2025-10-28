@@ -102,3 +102,10 @@ final class Series {
     }
 }
 
+// MARK: - Searchable Conformance
+extension Series: Searchable {}
+
+// MARK: - CardDisplayable Conformance
+extension Series: CardDisplayable {
+    var imageURL: String? { cover }
+}

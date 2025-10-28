@@ -13,135 +13,58 @@ struct SeriesHeroSection: View {
     let series: Series
     let seriesDetail: SeriesDetail?
 
-    // MARK: - Computed Properties
-    private var backdropURL: String? {
-        seriesDetail?.backdropPaths?.first ?? seriesDetail?.cover
+    // MARK: - Hero Data Wrapper
+    private var heroData: SeriesHeroData {
+        SeriesHeroData(series: series, seriesDetail: seriesDetail)
     }
 
-    private var posterURL: String? {
-        seriesDetail?.cover ?? series.cover
-    }
-
-    private var title: String {
-        seriesDetail?.name ?? series.name
-    }
-
-    private var year: String? {
-        seriesDetail?.year
-    }
-
-    private var rating: Double? {
-        seriesDetail?.rating ?? series.rating5based
-    }
+    private let configuration = HeroConfiguration(
+        showDuration: false,
+        fallbackIcon: "tv.fill"
+    )
 
     // MARK: - Body
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            // Backdrop image
-            if let backdropURL = backdropURL {
-                AsyncImage(url: URL(string: backdropURL)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    default:
-                        Color.gray.opacity(0.3)
-                    }
-                }
-                .frame(height: 500)
-                .clipped()
-                .overlay(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.black.opacity(0.1),
-                            Color.black.opacity(0.8),
-                            Color.black
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            } else {
-                // Fallback si pas de backdrop
-                Color.gray.opacity(0.3)
-                    .frame(height: 500)
-            }
+        GenericHeroSection(item: heroData, configuration: configuration)
+    }
+}
 
-            // Poster + Infos
-            HStack(alignment: .bottom, spacing: 30) {
-                // Poster
-                AsyncImage(url: URL(string: posterURL ?? "")) { phase in
-                    switch phase {
-                    case .empty:
-                        Color.gray.opacity(0.3)
-                            .overlay {
-                                ProgressView()
-                                    .tint(.secondary)
-                            }
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    case .failure:
-                        Color.gray.opacity(0.3)
-                            .overlay {
-                                Image(systemName: "tv.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.secondary)
-                            }
-                    @unknown default:
-                        Color.gray.opacity(0.3)
-                    }
-                }
-                .frame(width: 300, height: 450)
-                .cornerRadius(16)
-                .clipped()
-                .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 10)
+// MARK: - SeriesHeroData
 
-                // Infos
-                VStack(alignment: .leading, spacing: 16) {
-                    // Titre
-                    Text(title)
-                        .font(.system(size: 48, weight: .bold))
-                        .foregroundColor(.primary)
+/// Wrapper pour les données d'affichage hero d'une série
+private struct SeriesHeroData: HeroDisplayable {
+    let series: Series
+    let seriesDetail: SeriesDetail?
 
-                    // Année
-                    if let year = year {
-                        Text(year)
-                            .font(.system(size: 20))
-                            .foregroundColor(.secondary)
-                    }
+    var backdropURL: String? {
+        seriesDetail?.backdropPaths?.first ?? seriesDetail?.cover
+    }
 
-                    // Rating (étoiles)
-                    if let rating = rating {
-                        HStack(spacing: 6) {
-                            ForEach(0..<5) { index in
-                                Image(systemName: index < Int(rating) ? "star.fill" : "star")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.yellow)
-                            }
-                            Text(String(format: "%.1f", rating))
-                                .font(.system(size: 18))
-                                .foregroundColor(.secondary)
-                                .padding(.leading, 8)
-                        }
-                    }
+    var posterURL: String? {
+        seriesDetail?.cover ?? series.cover
+    }
 
-                    // Genre
-                    if let genre = seriesDetail?.genre {
-                        Text(genre)
-                            .font(.system(size: 18))
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                    }
-                }
-                .padding(.bottom, 40)
+    var title: String {
+        seriesDetail?.name ?? series.name
+    }
 
-                Spacer()
-            }
-            .padding(.horizontal, 60)
-            .padding(.bottom, 40)
-        }
+    var year: String? {
+        seriesDetail?.year
+    }
+
+    var duration: String? {
+        nil // Les séries n'ont pas de durée unique
+    }
+
+    var rating: Double? {
+        seriesDetail?.rating ?? series.rating5based
+    }
+
+    var genre: String? {
+        seriesDetail?.genre
+    }
+
+    var fallbackIcon: String {
+        "tv.fill"
     }
 }

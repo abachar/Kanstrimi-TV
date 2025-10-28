@@ -73,3 +73,11 @@ final class Movie {
         self.streamURL = streamURL
     }
 }
+
+// MARK: - Searchable Conformance
+extension Movie: Searchable {}
+
+// MARK: - CardDisplayable Conformance
+extension Movie: CardDisplayable {
+    var imageURL: String? { streamIcon }
+}

@@ -32,35 +32,11 @@ struct MovieCategoryRow: View {
 
     // MARK: - Body
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header : Nom de la catégorie + Badge count
-            HStack(spacing: 12) {
-                Text(category.name)
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundColor(.primary)
-
-                Text("\(movies.count)")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color.gray.opacity(0.3))
-                    )
-            }
-            .padding(.leading, 60)
-
-            // Liste horizontale de films (LazyHStack)
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 24) {
-                    ForEach(movies) { movie in
-                        MovieCard(movie: movie)
-                    }
-                }
-                .padding(.horizontal, 60)
-            }
+        GenericCategoryRowContent(
+            categoryName: category.name,
+            items: movies
+        ) { movie in
+            MovieCard(movie: movie)
         }
-        .padding(.vertical, 20)
     }
 }

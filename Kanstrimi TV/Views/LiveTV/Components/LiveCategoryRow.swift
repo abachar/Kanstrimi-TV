@@ -32,35 +32,11 @@ struct LiveCategoryRow: View {
 
     // MARK: - Body
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header : Nom de la catégorie + Badge count
-            HStack(spacing: 12) {
-                Text(liveCategory.name)
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundColor(.primary)
-
-                Text("\(channels.count)")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color.gray.opacity(0.3))
-                    )
-            }
-            .padding(.leading, 60)
-
-            // Liste horizontale de chaînes (LazyHStack)
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 24) {
-                    ForEach(channels) { channel in
-                        ChannelCard(channel: channel)
-                    }
-                }
-                .padding(.horizontal, 60)
-            }
+        GenericCategoryRowContent(
+            categoryName: liveCategory.name,
+            items: channels
+        ) { channel in
+            ChannelCard(channel: channel)
         }
-        .padding(.vertical, 20)
     }
 }

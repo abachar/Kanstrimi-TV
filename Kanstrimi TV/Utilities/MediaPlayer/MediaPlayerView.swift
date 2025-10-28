@@ -166,7 +166,7 @@ struct MediaPlayerView: View {
         switch playerType {
         case .avPlayer:
             if let coordinator = avPlayerCoordinator {
-                AudioTrackSelector(
+                AVAudioTrackSelector(
                     audioTracks: coordinator.getAudioTracks(),
                     currentTrack: coordinator.getCurrentAudioTrack(),
                     onSelect: { track in
@@ -199,7 +199,7 @@ struct MediaPlayerView: View {
         switch playerType {
         case .avPlayer:
             if let coordinator = avPlayerCoordinator {
-                SubtitleSelector(
+                AVSubtitleSelector(
                     subtitleTracks: coordinator.getSubtitleTracks(),
                     currentTrack: coordinator.getCurrentSubtitleTrack(),
                     onSelect: { track in
