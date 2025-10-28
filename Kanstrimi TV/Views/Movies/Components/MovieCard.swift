@@ -17,7 +17,7 @@ struct MovieCard: View {
 
     // MARK: - Configuration
     private let configuration = CardConfiguration(
-        style: .portrait(width: 180, height: 270),
+        style: .portrait(width: 220, height: 300),
         aspectMode: .fill,
         emptyIcon: "film.fill",
         showRating: true

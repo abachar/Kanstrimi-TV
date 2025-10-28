@@ -47,7 +47,7 @@ struct ProgressBar: View {
 
                     // Progress
                     Rectangle()
-                        .fill(isDragging ? Color.blue.opacity(0.8) : Color.blue)
+                        .fill(isDragging ? Color.white.opacity(0.8) : Color.white)
                         .frame(width: geometry.size.width * progress, height: isDragging ? 8 : 6)
                         .cornerRadius(isDragging ? 4 : 3)
 

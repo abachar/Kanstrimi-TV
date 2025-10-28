@@ -33,7 +33,7 @@ struct GenericContentCard<T: CardDisplayable>: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 // Image principale
                 imageView
 
@@ -59,9 +59,11 @@ struct GenericContentCard<T: CardDisplayable>: View {
                     ratingView(rating: rating)
                 }
             }
-            .padding(16)
+            .padding(.bottom, 16)
             .hoverEffect(.highlight)
         }
+        .buttonStyle(.borderless)
+        
     }
 
     // MARK: - Subviews

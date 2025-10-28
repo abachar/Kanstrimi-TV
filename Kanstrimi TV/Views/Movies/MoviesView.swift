@@ -21,9 +21,6 @@ struct MoviesView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.black
-                .ignoresSafeArea()
-
             if categories.isEmpty {
                 // État vide
                 VStack(spacing: 40) {

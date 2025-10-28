@@ -16,9 +16,6 @@ struct SettingsView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.black
-                .ignoresSafeArea()
-
             HStack(spacing: 0) {
                 // Colonne gauche : Informations app + disclaimer
                 AppInfoPanel()

@@ -81,5 +81,6 @@ struct EpisodeCard: View {
             }
             .hoverEffect(.highlight)
         }
+        .buttonStyle(.borderless)
     }
 }

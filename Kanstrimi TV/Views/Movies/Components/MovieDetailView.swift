@@ -5,8 +5,8 @@
 //  Created on 2025-10-27.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// Vue affichant les détails complets d'un film
 struct MovieDetailView: View {
@@ -49,38 +49,41 @@ struct MovieDetailView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.black
-                .ignoresSafeArea()
+            // Backdrop image
+            backdropView
 
-            // Contenu principal
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 40) {
-                    // Hero Section
-                    MovieHeroSection(movie: movie, movieDetail: movieDetail)
+            VStack(alignment: .leading, spacing: 40) {
+                // Hero Section & Boutons de lecture
+                HStack(alignment: .bottom, spacing: 30) {
+                    // Poster
+                    posterView
 
-                    VStack(alignment: .leading, spacing: 40) {
+                    // Infos & Boutons de lecture
+                    VStack(alignment: .leading) {
+                        // Infos
+                        infoView
+
                         // Boutons de lecture
                         playbackButtonsSection
-
-                        // Synopsis
-                        if let plot = movieDetail?.plot, !plot.isEmpty {
-                            synopsisSection(plot: plot)
-                        }
-
-                        // Réalisateur
-                        if let director = movieDetail?.director, !director.isEmpty {
-                            directorSection(director: director)
-                        }
-
-                        // Cast
-                        if let castImages = movieDetail?.castImages, !castImages.isEmpty {
-                            castSection(castImages: castImages)
-                        }
                     }
-                    .padding(.horizontal, 60)
                 }
-                .padding(.bottom, 60)
+
+                // Synopsis
+                if let plot = movieDetail?.plot, !plot.isEmpty {
+                    synopsisSection(plot: plot)
+                }
+
+                // Réalisateur
+                if let director = movieDetail?.director, !director.isEmpty {
+                    directorSection(director: director)
+                }
+
+                // Cast
+                if let castImages = movieDetail?.castImages, !castImages.isEmpty {
+                    castSection(castImages: castImages)
+                }
             }
+            .padding(60)
         }
         .task {
             await DomainService.shared.loadMovieDetailsIfNeeded(movie: movie)
@@ -88,17 +91,154 @@ struct MovieDetailView: View {
         .ignoresSafeArea()
     }
 
+    var title: String {
+        movieDetail?.name ?? movie.name
+    }
+
+    var rating: Double? {
+        movieDetail?.rating ?? movie.rating5based
+    }
+
+    @ViewBuilder
+    private var yearDurationView: some View {
+        HStack(spacing: 20) {
+            if let year = movieDetail?.year {
+                Text(year)
+                    .font(.system(size: 20))
+                    .foregroundColor(.primary)
+            }
+
+            if let duration = movieDetail?.duration {
+                Text(duration)
+                    .font(.system(size: 20))
+                    .foregroundColor(.primary)
+            }
+        }
+    }
+
+    private func ratingView(rating: Double) -> some View {
+        HStack(spacing: 6) {
+            ForEach(0..<5) { index in
+                Image(systemName: index < Int(rating) ? "star.fill" : "star")
+                    .font(.system(size: 20))
+                    .foregroundColor(.yellow)
+            }
+            Text(String(format: "%.1f", rating))
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .padding(.leading, 8)
+        }
+    }
+
+    private var infoView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Titre
+            Text(title)
+                .font(.system(size: 48, weight: .bold))
+                .foregroundColor(.primary)
+
+            // Année + Durée (si applicable)
+            yearDurationView
+
+            // Rating (étoiles)
+            if let movieRating = rating {
+                ratingView(rating: movieRating)
+            }
+
+            // Genre
+            if let genre = movieDetail?.genre {
+                Text(genre)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.bottom, 40)
+    }
+
+    var posterURL: String? {
+        movieDetail?.cover ?? movie.streamIcon
+    }
+
+    private var posterView: some View {
+        AsyncImage(url: URL(string: self.posterURL ?? "")) { phase in
+            switch phase {
+            case .empty:
+                Color.gray.opacity(0.3)
+                    .overlay {
+                        ProgressView()
+                            .tint(.secondary)
+                    }
+            case .success(let image):
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            case .failure:
+                Color.gray.opacity(0.3)
+                    .overlay {
+                        Image(systemName: "film.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.secondary)
+                    }
+            @unknown default:
+                Color.gray.opacity(0.3)
+            }
+        }
+        .frame(width: 300, height: 450)
+        .cornerRadius(16)
+        .clipped()
+        .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 10)
+    }
+
+    private var backdropURL: String? {
+        movieDetail?.backdropPaths?.first ?? movieDetail?.cover
+    }
+
+    // MARK: - Backdrop
+    @ViewBuilder
+    private var backdropView: some View {
+        if let backdropURL = self.backdropURL {
+            AsyncImage(url: URL(string: backdropURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                default:
+                    Color.gray.opacity(0.3)
+                }
+            }
+            .clipped()
+            .overlay(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.black.opacity(0.4),
+                        Color.black.opacity(0.9),
+                        Color.black,
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+        } else {
+            // Fallback si pas de backdrop
+            Color.gray.opacity(0.3)
+                .frame(height: 500)
+        }
+    }
+
     // MARK: - Playback Buttons Section
     private var playbackButtonsSection: some View {
         HStack(spacing: 20) {
             // Bouton Play/Reprendre
-            if let watchHistory = watchHistory, watchHistory.progressPercentage > 5, !watchHistory.isCompleted {
+            if let watchHistory = watchHistory, watchHistory.progressPercentage > 5,
+                !watchHistory.isCompleted
+            {
                 // Bouton "Reprendre"
                 Button {
                     viewModel.playingContent = .movie(movie)
                 } label: {
                     Label("Reprendre", systemImage: "play.fill")
-                        .font(.title3)
                 }
                 .buttonStyle(.borderedProminent)
             } else {
@@ -107,7 +247,6 @@ struct MovieDetailView: View {
                     viewModel.playContent(.movie(movie))
                 } label: {
                     Label("Lire", systemImage: "play.fill")
-                        .font(.title3)
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -118,7 +257,6 @@ struct MovieDetailView: View {
                     viewModel.playingContent = .movie(movie)
                 } label: {
                     Label("Redémarrer", systemImage: "arrow.counterclockwise")
-                        .font(.title3)
                 }
                 .buttonStyle(.bordered)
             }
@@ -206,7 +344,7 @@ struct MovieDetailView: View {
     let context = container.mainContext
 
     // Utiliser un vrai film de preview avec données complètes
-    let movie = Movie.previewMovies[1] // "AZ - You're Cordially Invited (2025)"
+    let movie = Movie.previewMovies[1]  // "AZ - You're Cordially Invited (2025)"
     context.insert(movie)
 
     // Ajouter les détails complets du film
@@ -227,7 +365,7 @@ struct MovieDetailView: View {
     let context = container.mainContext
 
     // Utiliser un vrai film de preview
-    let movie = Movie.previewMovies[1] // "AZ - You're Cordially Invited (2025)"
+    let movie = Movie.previewMovies[1]  // "AZ - You're Cordially Invited (2025)"
     context.insert(movie)
 
     // Ajouter les détails complets du film
@@ -238,8 +376,8 @@ struct MovieDetailView: View {
     let watchHistory = WatchHistory(
         streamId: movie.streamId,
         contentType: "movie",
-        lastPosition: 3270, // 54:30 minutes (50% de 1h49)
-        duration: 6540, // 1h49 (109 minutes)
+        lastPosition: 3270,  // 54:30 minutes (50% de 1h49)
+        duration: 6540,  // 1h49 (109 minutes)
         lastWatchedDate: Date()
     )
     context.insert(watchHistory)

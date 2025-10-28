@@ -30,14 +30,12 @@ struct SeasonRow: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .padding(.horizontal, 60)
 
             // Liste des épisodes en scroll horizontal
             if episodes.isEmpty {
                 Text("Aucun épisode disponible")
                     .font(.system(size: 18))
                     .foregroundColor(.secondary)
-                    .padding(.horizontal, 60)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 30) {
@@ -48,7 +46,6 @@ struct SeasonRow: View {
                             )
                         }
                     }
-                    .padding(.horizontal, 60)
                 }
             }
         }

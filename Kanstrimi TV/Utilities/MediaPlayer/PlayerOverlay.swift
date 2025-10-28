@@ -26,31 +26,25 @@ struct PlayerOverlay: View {
 
     var body: some View {
         if isVisible {
-            ZStack {
-                // Background semi-transparent
-                Color.black.opacity(0.75)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        onResetAutoHide()
-                    }
-
-                VStack(spacing: 0) {
+            VStack(spacing: 0) {
+                Spacer()
+                
+                VStack() {
                     // Header
                     headerSection
-                        .padding(.horizontal, 60)
-                        .padding(.top, 60)
-
-                    Spacer()
 
                     // Footer (VOD uniquement)
                     if content.contentType == .vod {
                         footerSection
-                            .padding(.horizontal, 60)
-                            .padding(.bottom, 60)
                     }
                 }
+                .padding(.top, 40)
+                .background(Color.black.opacity(0.6))
             }
             .transition(.opacity)
+            .onTapGesture {
+                onResetAutoHide()
+            }
         }
     }
 
@@ -72,6 +66,43 @@ struct PlayerOverlay: View {
                 }
 
                 Spacer()
+                
+                // Audio
+                Button(action: {
+                    onAudioTapped()
+                    onResetAutoHide()
+                }) {
+                    Image(systemName: "speaker.wave.2")
+                        .font(.system(size: 28))
+                        //.foregroundColor(.primary)
+                        //.frame(width: 80, height: 80)
+                        //.background(Color.gray.opacity(0.2))
+                        //.cornerRadius(12)
+                        .hoverEffect(.highlight)
+                }
+                .buttonStyle(.borderless)
+
+                // Sous-titres
+                Button(action: {
+                    onSubtitlesTapped()
+                    onResetAutoHide()
+                }) {
+                    Image(systemName: "captions.bubble")
+                        .font(.system(size: 28))
+                        .hoverEffect(.highlight)
+                }
+                .buttonStyle(.borderless)
+
+                // Info
+                Button(action: {
+                    onInfoTapped()
+                    onResetAutoHide()
+                }) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 28))
+                        .hoverEffect(.highlight)
+                }
+                .buttonStyle(.borderless)
 
                 // Badge LIVE
                 if content.contentType == .live {
@@ -90,7 +121,7 @@ struct PlayerOverlay: View {
 
     // MARK: - Footer Section
     private var footerSection: some View {
-        VStack(spacing: 30) {
+        VStack(alignment: .leading, spacing: 30) {
             // Barre de progression
             ProgressBar(
                 currentPosition: currentPosition,
@@ -100,6 +131,7 @@ struct PlayerOverlay: View {
             )
 
             // Boutons de seek (rewind/forward)
+            /*
             HStack(spacing: 40) {
                 // -1min
                 Button(action: {
@@ -161,30 +193,19 @@ struct PlayerOverlay: View {
                 .buttonStyle(.plain)
                 .hoverEffect(.highlight)
             }
+             */
 
             // Boutons de contrôle
             HStack(spacing: 20) {
-                // Audio
-                OverlayButton(icon: "speaker.wave.2", label: "Audio") {
-                    onAudioTapped()
-                    onResetAutoHide()
-                }
-
-                // Sous-titres
-                OverlayButton(icon: "captions.bubble", label: "Sous-titres") {
-                    onSubtitlesTapped()
-                    onResetAutoHide()
-                }
-
                 // Reprendre/Redémarrer
-                OverlayButton(icon: "arrow.counterclockwise", label: "Reprendre") {
+                Button("Reprendre", systemImage: "arrow.counterclockwise"){
                     onResumeTapped()
                     onResetAutoHide()
                 }
 
                 // Épisode précédent (si série)
                 if let onPrevious = onPreviousEpisodeTapped {
-                    OverlayButton(icon: "chevron.left", label: "Précédent") {
+                    Button("Épisode précédent") {
                         onPrevious()
                         onResetAutoHide()
                     }
@@ -192,18 +213,15 @@ struct PlayerOverlay: View {
 
                 // Épisode suivant (si série)
                 if let onNext = onNextEpisodeTapped {
-                    OverlayButton(icon: "chevron.right", label: "Suivant") {
+                    Button("Épisode suivant"){
                         onNext()
                         onResetAutoHide()
                     }
                 }
-
-                // Info
-                OverlayButton(icon: "info.circle", label: "Info") {
-                    onInfoTapped()
-                    onResetAutoHide()
-                }
             }
+            .font(.caption)
+            .buttonStyle(.glass)
+            .foregroundColor(.secondary)
         }
     }
 
@@ -218,7 +236,7 @@ struct PlayerOverlay: View {
 // MARK: - Previews
 #Preview("Live TV") {
     ZStack {
-        Color.blue
+        Color.black
             .ignoresSafeArea()
 
         PlayerOverlay(
@@ -240,7 +258,7 @@ struct PlayerOverlay: View {
 
 #Preview("Film") {
     ZStack {
-        Color.blue
+        Color.black
             .ignoresSafeArea()
 
         PlayerOverlay(
@@ -262,8 +280,15 @@ struct PlayerOverlay: View {
 
 #Preview("Série") {
     ZStack {
-        Color.blue
-            .ignoresSafeArea()
+        AsyncImage(
+            url: URL(string: "https://image.tmdb.org/t/p/w1280/qBKrj7WOBo5A4vX4cB4zU5cO5ca.jpg"),
+            content: { image in
+                image.resizable().scaledToFill()
+            },
+            placeholder: {
+                ProgressView()
+            }
+        ).ignoresSafeArea()
 
         PlayerOverlay(
             content: .episode(Episode.previewEpisodes[3]),

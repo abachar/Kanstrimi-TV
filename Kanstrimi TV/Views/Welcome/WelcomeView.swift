@@ -41,9 +41,6 @@ struct WelcomeView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.black
-                .ignoresSafeArea()
-
             // Afficher titre + formulaire (toujours présent)
             HStack(spacing: 0) {
                 // Titre "Kanstrimi TV"

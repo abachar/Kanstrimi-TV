@@ -22,14 +22,14 @@ struct GenericCategoryRowContent<T: Identifiable, CardView: View>: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 5) {
             // Header : Nom de la catégorie + Badge count
             headerView
 
             // Liste horizontale scrollable
             scrollableContent
         }
-        .padding(.vertical, 20)
+        .padding(.bottom, 20)
     }
 
     // MARK: - Subviews
@@ -55,11 +55,12 @@ struct GenericCategoryRowContent<T: Identifiable, CardView: View>: View {
 
     private var scrollableContent: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 24) {
+            LazyHStack(spacing: 40) {
                 ForEach(items) { item in
                     cardBuilder(item)
                 }
             }
+            .padding(.vertical, 20)
             .padding(.horizontal, 60)
         }
     }

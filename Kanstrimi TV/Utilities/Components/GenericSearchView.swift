@@ -72,9 +72,6 @@ struct GenericSearchView<T: Searchable & Identifiable, CardView: View>: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.black
-                .ignoresSafeArea()
-
             if !isSearchActive {
                 // Message initial
                 initialStateView

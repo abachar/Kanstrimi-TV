@@ -68,19 +68,27 @@ struct SeriesDetailView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.black
-                .ignoresSafeArea()
+            // Backdrop image
+            backdropView
 
-            // Contenu principal
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 40) {
-                    // Hero Section
-                    SeriesHeroSection(series: series, seriesDetail: seriesDetail)
+            VStack(alignment: .leading, spacing: 40) {
+                // Hero Section & Boutons de lecture
+                HStack(alignment: .bottom, spacing: 30) {
+                    // Poster
+                    posterView
 
-                    VStack(alignment: .leading, spacing: 40) {
+                    // Infos & Boutons de lecture
+                    VStack(alignment: .leading) {
+                        // Infos
+                        infoView
+
                         // Boutons de lecture
                         playbackButtonsSection
-
+                    }
+                }
+                
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 30) {
                         // Synopsis
                         if let plot = seriesDetail?.plot, !plot.isEmpty {
                             synopsisSection(plot: plot)
@@ -101,15 +109,130 @@ struct SeriesDetailView: View {
                             seasonsSection
                         }
                     }
-                    .padding(.horizontal, 60)
                 }
-                .padding(.bottom, 60)
             }
+            .padding(60)
         }
         .task {
             await DomainService.shared.loadSeriesDetailsIfNeeded(series: series)
         }
         .ignoresSafeArea()
+    }
+    
+    var title: String {
+        seriesDetail?.name ?? series.name
+    }
+    
+    var rating: Double? {
+        seriesDetail?.rating ?? series.rating5based
+    }
+    
+    private func ratingView(rating: Double) -> some View {
+        HStack(spacing: 6) {
+            ForEach(0..<5) { index in
+                Image(systemName: index < Int(rating) ? "star.fill" : "star")
+                    .font(.system(size: 20))
+                    .foregroundColor(.yellow)
+            }
+            Text(String(format: "%.1f", rating))
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .padding(.leading, 8)
+        }
+    }
+    
+    private var infoView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Titre
+            Text(title)
+                .font(.system(size: 48, weight: .bold))
+                .foregroundColor(.primary)
+
+            // Rating (étoiles)
+            if let rating = rating {
+                ratingView(rating: rating)
+            }
+
+            // Genre
+            if let genre = seriesDetail?.genre {
+                Text(genre)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.bottom, 40)
+    }
+    
+    var posterURL: String? {
+        seriesDetail?.cover ?? series.cover
+    }
+
+    private var posterView: some View {
+        AsyncImage(url: URL(string: self.posterURL ?? "")) { phase in
+            switch phase {
+            case .empty:
+                Color.gray.opacity(0.3)
+                    .overlay {
+                        ProgressView()
+                            .tint(.secondary)
+                    }
+            case .success(let image):
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            case .failure:
+                Color.gray.opacity(0.3)
+                    .overlay {
+                        Image(systemName: "film.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.secondary)
+                    }
+            @unknown default:
+                Color.gray.opacity(0.3)
+            }
+        }
+        .frame(width: 300, height: 450)
+        .cornerRadius(16)
+        .clipped()
+        .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 10)
+    }
+    
+    private var backdropURL: String? {
+        seriesDetail?.backdropPaths?.first ?? seriesDetail?.cover
+    }
+    
+    // MARK: - Backdrop
+    @ViewBuilder
+    private var backdropView: some View {
+        if let backdropURL = self.backdropURL {
+            AsyncImage(url: URL(string: backdropURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                default:
+                    Color.gray.opacity(0.3)
+                }
+            }
+            .clipped()
+            .overlay(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.black.opacity(0.4),
+                        Color.black.opacity(0.9),
+                        Color.black
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+        } else {
+            // Fallback si pas de backdrop
+            Color.gray.opacity(0.3)
+                .frame(height: 500)
+        }
     }
 
     // MARK: - Playback Buttons Section
@@ -122,7 +245,6 @@ struct SeriesDetailView: View {
                     viewModel.playingContent = .episode(lastWatchedEpisode)
                 } label: {
                     Label("Reprendre S\(lastWatchedEpisode.seasonNumber)E\(lastWatchedEpisode.episodeNum)", systemImage: "play.fill")
-                        .font(.title3)
                 }
                 .buttonStyle(.borderedProminent)
             } else if let firstUnwatchedEpisode = firstUnwatchedEpisode {
@@ -131,20 +253,20 @@ struct SeriesDetailView: View {
                     viewModel.playingContent = .episode(firstUnwatchedEpisode)
                 } label: {
                     Label("Lire S\(firstUnwatchedEpisode.seasonNumber)E\(firstUnwatchedEpisode.episodeNum)", systemImage: "play.fill")
-                        .font(.title3)
                 }
                 .buttonStyle(.borderedProminent)
             }
-
-            // Bouton "Redémarrer" (premier épisode de la série)
-            if let firstEpisode = firstEpisode {
-                Button {
-                    viewModel.playingContent = .episode(firstEpisode)
-                } label: {
-                    Label("Redémarrer", systemImage: "arrow.counterclockwise")
-                        .font(.title3)
+            
+            if lastWatchedEpisode != nil {
+                // Bouton "Redémarrer" (premier épisode de la série)
+                if let firstEpisode = firstEpisode {
+                    Button {
+                        viewModel.playingContent = .episode(firstEpisode)
+                    } label: {
+                        Label("Redémarrer", systemImage: "arrow.counterclockwise")
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
         }
     }
