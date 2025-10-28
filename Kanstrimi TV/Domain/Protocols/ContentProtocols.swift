@@ -87,3 +87,43 @@ struct CardConfiguration {
         self.additionalInfo = additionalInfo
     }
 }
+
+// MARK: - HeroDisplayable Protocol
+
+/// Protocole pour les entités affichables en section hero
+protocol HeroDisplayable {
+    /// URL du backdrop (image de fond)
+    var backdropURL: String? { get }
+
+    /// URL du poster
+    var posterURL: String? { get }
+
+    /// Titre principal
+    var title: String { get }
+
+    /// Année de sortie
+    var year: String? { get }
+
+    /// Durée (optionnel, pour les films)
+    var duration: String? { get }
+
+    /// Note sur 5 étoiles
+    var rating: Double? { get }
+
+    /// Genre(s)
+    var genre: String? { get }
+
+    /// Icône pour le fallback du poster
+    var fallbackIcon: String { get }
+}
+
+/// Configuration pour la section hero
+struct HeroConfiguration {
+    let showDuration: Bool
+    let fallbackIcon: String
+
+    init(showDuration: Bool = false, fallbackIcon: String) {
+        self.showDuration = showDuration
+        self.fallbackIcon = fallbackIcon
+    }
+}
