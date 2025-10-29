@@ -7,6 +7,38 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [0.3.0] - 2025-10-29
+
+### Modifié
+- **Optimisation mémoire** : Séparation des models en versions légères (listing) et détaillées (lazy loading)
+  - `LiveChannel` : Conserve uniquement id, name, streamIcon, sortOrder, categoryId (~40% de réduction mémoire)
+  - `Movie` : Conserve uniquement id, name, streamIcon, rating, tmdbId, sortOrder, categoryId (~50% de réduction)
+  - `Series` : Conserve uniquement id, name, cover, rating, genre, sortOrder, categoryId (~70% de réduction)
+  - Nouveau : `LiveChannelDetails` pour streamId, streamURL, epgChannelId, added
+  - Mis à jour : `MovieDetail` avec streamId, streamURL, containerExtension, added
+  - `SeriesDetail` : Inchangé (déjà optimisé)
+
+- `PlaybackContent` : Modifié pour accepter le streamURL en paramètre au lieu de l'accéder directement depuis les models
+- `AccountService` : Création automatique des Details lors de la synchro initiale
+  - LiveChannelDetails créé immédiatement (nécessaire pour la lecture)
+  - MovieDetail créé partiellement (sans genre, enrichi lors de l'ouverture)
+  - SeriesDetail créé complètement (getSeries retourne toutes les données)
+
+- `DomainService.loadMovieDetailsIfNeeded` : Enrichit les MovieDetails existants au lieu de les créer
+- Ajout de helpers `extractedStreamId` et `extractedSeriesId` pour récupérer les IDs depuis les strings
+
+### Note technique
+- Les genres des movies ne sont pas disponibles dans la liste (getVODStreams ne les retourne pas)
+- Les genres des series sont affichés dans les cards (disponibles dès la synchro via getSeries)
+- Les Details sont chargés en lazy lors de l'ouverture des fiches détaillées
+- **Breaking change** : Nécessite une réinstallation de l'app (changement de schéma SwiftData)
+
+### À finaliser
+- Correction de 5 erreurs de compilation restantes dans PlayerOverlay, MovieDetailView, SeriesDetailView
+- Adaptation des vues pour récupérer streamURL depuis les Details avant lecture
+
+---
+
 ## [0.2.0] - 2025-10-26
 
 ### Ajouté

@@ -118,21 +118,27 @@ final class AccountService {
             // Récupérer les chaînes Live TV
             let channelResponses = try await XtreamService.shared.getLiveStreams(account: account)
 
-            // Mapper vers LiveChannel et insérer dans SwiftData
+            // Mapper vers LiveChannel + LiveChannelDetails et insérer dans SwiftData
             for (index, response) in channelResponses.enumerated() {
-                let streamURL = XtreamURLBuilder.buildLiveStreamURL(account: account, streamId: response.streamId)
-
+                // Créer LiveChannel (optimisé pour listing)
                 let channel = LiveChannel(
                     streamId: response.streamId,
                     name: response.name,
-                    streamURL: streamURL,
                     categoryId: response.categoryId,
                     sortOrder: index,
-                    streamIcon: response.streamIcon,
+                    streamIcon: response.streamIcon
+                )
+                StorageService.shared.context.insert(channel)
+
+                // Créer LiveChannelDetails (contient streamURL et autres métadonnées)
+                let streamURL = XtreamURLBuilder.buildLiveStreamURL(account: account, streamId: response.streamId)
+                let channelDetails = LiveChannelDetails(
+                    streamId: response.streamId,
+                    streamURL: streamURL,
                     epgChannelId: response.epgChannelId,
                     added: response.added
                 )
-                StorageService.shared.context.insert(channel)
+                StorageService.shared.context.insert(channelDetails)
             }
 
             // Sauvegarder les données Live TV
@@ -164,7 +170,7 @@ final class AccountService {
             // Récupérer les films VOD (tous les films, sans filtrage par catégorie)
             let movieResponses = try await XtreamService.shared.getVODStreams(account: account)
 
-            // Mapper vers Movie et insérer dans SwiftData
+            // Mapper vers Movie + MovieDetail et insérer dans SwiftData
             for (index, response) in movieResponses.enumerated() {
                 let streamURL = XtreamURLBuilder.buildVODStreamURL(
                     account: account,
@@ -172,19 +178,30 @@ final class AccountService {
                     containerExtension: response.containerExtension ?? "mp4"
                 )
 
+                // Créer Movie (optimisé pour listing)
                 let movie = Movie(
                     streamId: response.streamId,
                     name: response.name,
-                    streamURL: streamURL,
                     sortOrder: index,
-                    containerExtension: response.containerExtension,
                     categoryId: response.categoryId,
                     streamIcon: response.streamIcon,
                     rating: convertRating(rating5based: response.rating5based, rating: response.rating),
-                    added: response.added,
                     tmdbId: response.tmdb
                 )
                 StorageService.shared.context.insert(movie)
+
+                // Créer MovieDetail (partiel, sera enrichi lors de l'ouverture des détails)
+                // Note: genre n'est pas disponible dans getVODStreams, sera ajouté via getVODInfo
+                let movieDetail = MovieDetail(
+                    streamId: response.streamId,
+                    streamURL: streamURL,
+                    containerExtension: response.containerExtension,
+                    added: response.added,
+                    tmdbId: response.tmdb,
+                    name: response.name,
+                    rating: convertRating(rating5based: response.rating5based, rating: response.rating)
+                )
+                StorageService.shared.context.insert(movieDetail)
             }
 
             // Sauvegarder les données VOD
@@ -216,26 +233,34 @@ final class AccountService {
             // Récupérer les séries (toutes les séries, sans filtrage par catégorie)
             let seriesResponses = try await XtreamService.shared.getSeries(account: account)
 
-            // Mapper vers Series et insérer dans SwiftData
+            // Mapper vers Series + SeriesDetail et insérer dans SwiftData
             for (index, response) in seriesResponses.enumerated() {
+                // Créer Series (optimisé pour listing, avec genre)
                 let series = Series(
                     seriesId: response.seriesId,
                     name: response.name,
                     sortOrder: index,
                     categoryId: response.categoryId,
                     cover: response.cover,
-                    backdropPaths: response.backdropPath,
                     rating: convertRating(rating5based: response.rating5based, rating: response.rating),
+                    genre: response.genre
+                )
+                StorageService.shared.context.insert(series)
+
+                // Créer SeriesDetail (complet)
+                let seriesDetail = SeriesDetail(
+                    seriesId: response.seriesId,
+                    name: response.name,
+                    genre: response.genre,
+                    rating: convertRating(rating5based: response.rating5based, rating: response.rating),
+                    cover: response.cover,
                     plot: response.plot,
                     director: response.director,
                     cast: response.cast,
-                    genre: response.genre,
-                    releaseDate: response.releaseDate,
-                    lastModified: response.lastModified,
-                    youtubeTrailer: response.youtubeTrailer,
-                    episodeRunTime: response.episodeRunTime
+                    backdropPaths: response.backdropPath,
+                    youtubeTrailer: response.youtubeTrailer
                 )
-                StorageService.shared.context.insert(series)
+                StorageService.shared.context.insert(seriesDetail)
             }
 
             // Sauvegarder les données Series

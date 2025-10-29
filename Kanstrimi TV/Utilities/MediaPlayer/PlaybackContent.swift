@@ -9,17 +9,17 @@ import Foundation
 
 /// Représente le contenu à lire dans le player universel
 enum PlaybackContent: Identifiable {
-    case liveChannel(LiveChannel)
-    case movie(Movie)
-    case episode(Episode, seriesName: String? = nil, previousEpisode: Episode? = nil, nextEpisode: Episode? = nil)
+    case liveChannel(LiveChannel, streamURL: String)
+    case movie(Movie, streamURL: String)
+    case episode(Episode, streamURL: String, seriesName: String? = nil, previousEpisode: Episode? = nil, nextEpisode: Episode? = nil)
 
     var id: String {
         switch self {
-        case .liveChannel(let channel):
+        case .liveChannel(let channel, _):
             return channel.id
-        case .movie(let movie):
+        case .movie(let movie, _):
             return movie.id
-        case .episode(let episode, _, _, _):
+        case .episode(let episode, _, _, _, _):
             return episode.id
         }
     }
@@ -27,23 +27,23 @@ enum PlaybackContent: Identifiable {
     /// URL du stream vidéo
     var streamURL: String {
         switch self {
-        case .liveChannel(let channel):
-            return channel.streamURL
-        case .movie(let movie):
-            return movie.streamURL
-        case .episode(let episode, _, _, _):
-            return episode.streamURL
+        case .liveChannel(_, let streamURL):
+            return streamURL
+        case .movie(_, let streamURL):
+            return streamURL
+        case .episode(_, let streamURL, _, _, _):
+            return streamURL
         }
     }
 
     /// Titre du contenu (pour overlay)
     var title: String {
         switch self {
-        case .liveChannel(let channel):
+        case .liveChannel(let channel, _):
             return channel.name
-        case .movie(let movie):
+        case .movie(let movie, _):
             return movie.name
-        case .episode(let episode, let seriesName, _, _):
+        case .episode(let episode, _, let seriesName, _, _):
             if let seriesName = seriesName {
                 return seriesName
             } else {
@@ -57,7 +57,7 @@ enum PlaybackContent: Identifiable {
         switch self {
         case .liveChannel:
             return nil
-        case .movie(let movie):
+        case .movie(let movie, _):
             // Ex: "2023 · 2h 30min · ★ 8.5"
             var parts: [String] = []
 
@@ -70,7 +70,7 @@ enum PlaybackContent: Identifiable {
 
             return parts.isEmpty ? nil : parts.joined(separator: " · ")
 
-        case .episode(let episode, _, _, _):
+        case .episode(let episode, _, _, _, _):
             // Ex: "S01E05 · The Heist"
             var subtitle = "S\(String(format: "%02d", episode.seasonNumber))E\(String(format: "%02d", episode.episodeNum))"
             if let title = episode.title, !title.isEmpty {
@@ -93,7 +93,7 @@ enum PlaybackContent: Identifiable {
     /// Navigation entre épisodes (pour séries uniquement)
     var episodeNavigation: EpisodeNavigation? {
         switch self {
-        case .episode(_, _, let previous, let next):
+        case .episode(_, _, _, let previous, let next):
             return EpisodeNavigation(previous: previous, next: next)
         default:
             return nil

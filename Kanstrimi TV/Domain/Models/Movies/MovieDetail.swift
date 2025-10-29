@@ -19,6 +19,15 @@ final class MovieDetail {
     /// Identifiant du flux (stream_id) - clé pour lier au Movie
     var streamId: Int
 
+    /// URL de lecture du film
+    var streamURL: String
+
+    /// Extension du conteneur (mp4, mkv, etc.)
+    var containerExtension: String?
+
+    /// Ajouté à la date
+    var added: String?
+
     /// ID TMDB pour enrichissement
     var tmdbId: Int?
 
@@ -61,6 +70,9 @@ final class MovieDetail {
     /// Initialisation d'un MovieDetail
     init(
         streamId: Int,
+        streamURL: String,
+        containerExtension: String? = nil,
+        added: String? = nil,
         tmdbId: Int? = nil,
         name: String? = nil,
         genre: String? = nil,
@@ -76,6 +88,9 @@ final class MovieDetail {
     ) {
         self.id = "movie-detail-\(streamId)"
         self.streamId = streamId
+        self.streamURL = streamURL
+        self.containerExtension = containerExtension
+        self.added = added
         self.tmdbId = tmdbId
         self.name = name
         self.genre = genre
@@ -99,6 +114,9 @@ extension MovieDetail {
     static var youreInvitedDetail: MovieDetail {
         MovieDetail(
             streamId: 1308887, // Correspond à Movie.previewMovies[1]
+            streamURL: "http://example.com/movie/1308887.mkv",
+            containerExtension: "mkv",
+            added: "1743294540",
             tmdbId: 996821,
             name: "You're Cordially Invited",
             genre: "Comedy",

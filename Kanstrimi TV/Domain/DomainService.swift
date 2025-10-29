@@ -18,16 +18,27 @@ final class DomainService {
 
     // MARK: - Movies
 
-    /// Charge les détails d'un film si nécessaire (met à jour la DB)
+    /// Charge les détails d'un film si nécessaire (enrichit le MovieDetail existant)
     func loadMovieDetailsIfNeeded(movie: Movie) async {
-        // Vérifier si les détails existent déjà
-        let streamId = movie.streamId
+        // Extraire le streamId depuis l'ID
+        guard let streamId = movie.extractedStreamId else {
+            print("DomainService: Impossible d'extraire streamId depuis movie.id=\(movie.id)")
+            return
+        }
+
+        // Vérifier si les détails sont déjà enrichis (genre présent)
         let descriptor = FetchDescriptor<MovieDetail>(
             predicate: #Predicate { $0.streamId == streamId }
         )
 
-        guard (try? StorageService.shared.fetchOne(descriptor)) == nil else {
-            return  // Détails déjà chargés
+        guard let existingDetail = try? StorageService.shared.fetchOne(descriptor) else {
+            print("DomainService: MovieDetail introuvable pour streamId=\(streamId)")
+            return
+        }
+
+        // Si le genre est déjà présent, pas besoin d'enrichir
+        if existingDetail.genre != nil {
+            return
         }
 
         // Charger depuis Xtream + TMDB
@@ -40,15 +51,13 @@ final class DomainService {
             // Appel Xtream pour récupérer les détails du film
             let xtreamDetail = try await XtreamService.shared.getVODInfo(
                 account: account,
-                vodId: movie.streamId
+                vodId: streamId
             )
 
             // Recherche TMDB pour enrichir les données
-            var tmdbMovieId: Int?
             var castImages: [String] = []
 
             if let info = xtreamDetail.info, let tmdbId = info.tmdbId {
-                tmdbMovieId = tmdbId
                 if let credits = try? await TMDBService.shared.getMovieCredits(tmdbId: tmdbId) {
                     castImages = credits.cast.prefix(12).compactMap { actor in
                         guard let profilePath = actor.profilePath else { return nil }
@@ -57,30 +66,25 @@ final class DomainService {
                 }
             }
 
-            // Créer MovieDetail et insérer dans la DB
-            let detail = MovieDetail(
-                streamId: movie.streamId,
-                tmdbId: tmdbMovieId,
-                name: xtreamDetail.info?.name,
-                genre: xtreamDetail.info?.genre,
-                rating: xtreamDetail.info?.rating5based,
-                duration: xtreamDetail.info?.duration,
-                year: xtreamDetail.info?.releaseDate,
-                cover: xtreamDetail.info?.coverBig,
-                plot: xtreamDetail.info?.plot,
-                director: xtreamDetail.info?.director,
-                cast: xtreamDetail.info?.cast,
-                castImages: castImages,
-                backdropPaths: xtreamDetail.info?.backdropPath
-            )
-
+            // Enrichir le MovieDetail existant
             await MainActor.run {
-                try? StorageService.shared.insert(detail)
+                existingDetail.genre = xtreamDetail.info?.genre
+                existingDetail.duration = xtreamDetail.info?.duration
+                existingDetail.year = xtreamDetail.info?.releaseDate
+                existingDetail.cover = xtreamDetail.info?.coverBig
+                existingDetail.plot = xtreamDetail.info?.plot
+                existingDetail.director = xtreamDetail.info?.director
+                existingDetail.cast = xtreamDetail.info?.cast
+                existingDetail.castImages = castImages
+                existingDetail.backdropPaths = xtreamDetail.info?.backdropPath
+                existingDetail.lastUpdated = Date()
+
+                try? StorageService.shared.save()
             }
 
-            print("DomainService: Détails du film \(movie.name) chargés avec succès")
+            print("DomainService: Détails du film \(movie.name) enrichis avec succès")
         } catch {
-            print("DomainService: Erreur chargement détails film: \(error)")
+            print("DomainService: Erreur enrichissement détails film: \(error)")
         }
     }
 
@@ -88,10 +92,15 @@ final class DomainService {
 
     /// Charge les détails d'une série si nécessaire (met à jour la DB)
     func loadSeriesDetailsIfNeeded(series: Series) async {
+        // Extraire le seriesId depuis l'ID
+        guard let seriesId = series.extractedSeriesId else {
+            print("DomainService: Impossible d'extraire seriesId depuis series.id=\(series.id)")
+            return
+        }
+
         // Vérifier si les détails existent déjà
-        let streamId = series.seriesId
         let descriptor = FetchDescriptor<SeriesDetail>(
-            predicate: #Predicate { $0.seriesId == streamId }
+            predicate: #Predicate { $0.seriesId == seriesId }
         )
 
         guard (try? StorageService.shared.fetchOne(descriptor)) == nil else {
@@ -108,7 +117,7 @@ final class DomainService {
             // Appel Xtream pour récupérer les détails de la série
             let xtreamDetail = try await XtreamService.shared.getSeriesInfo(
                 account: account,
-                seriesId: series.seriesId
+                seriesId: seriesId
             )
 
             // Recherche TMDB pour enrichir les données (pas de tmdbId dans SeriesDetailInfo)
@@ -116,7 +125,7 @@ final class DomainService {
 
             // Créer SeriesDetail et insérer dans la DB
             let detail = SeriesDetail(
-                seriesId: series.seriesId,
+                seriesId: seriesId,
                 tmdbId: nil,
                 name: xtreamDetail.info?.name,
                 genre: xtreamDetail.info?.genre,
@@ -141,7 +150,7 @@ final class DomainService {
 
                     // Créer la saison
                     let season = SeriesSeason(
-                        seriesId: series.seriesId,
+                        seriesId: seriesId,
                         seasonNumber: seasonNumber
                     )
                     StorageService.shared.context.insert(season)
@@ -156,7 +165,7 @@ final class DomainService {
                         let streamURL = "\(serverURL)/series/\(account.username)/\(account.password)/\(episodeId).\(ext)"
 
                         let episode = Episode(
-                            seriesId: series.seriesId,
+                            seriesId: seriesId,
                             seasonNumber: seasonNumber,
                             episodeNum: episodeData.episodeNum,
                             episodeId: episodeId,
@@ -272,12 +281,13 @@ final class DomainService {
         case .liveChannel:
             return nil // Pas de WatchHistory pour Live TV
 
-        case .movie(let movie):
-            streamId = movie.streamId
+        case .movie(let movie, _):
+            guard let extractedStreamId = movie.extractedStreamId else { return nil }
+            streamId = extractedStreamId
             contentType = "movie"
             episodeId = nil
 
-        case .episode(let episode, _, _, _):
+        case .episode(let episode, _, _, _, _):
             streamId = episode.seriesId
             contentType = "series"
             episodeId = episode.episodeId
@@ -321,12 +331,13 @@ final class DomainService {
         case .liveChannel:
             return
 
-        case .movie(let movie):
-            streamId = movie.streamId
+        case .movie(let movie, _):
+            guard let extractedStreamId = movie.extractedStreamId else { return }
+            streamId = extractedStreamId
             contentType = "movie"
             episodeId = nil
 
-        case .episode(let episode, _, _, _):
+        case .episode(let episode, _, _, _, _):
             streamId = episode.seriesId
             contentType = "series"
             episodeId = episode.episodeId
