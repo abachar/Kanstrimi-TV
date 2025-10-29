@@ -13,8 +13,8 @@ struct SeriesDetailView: View {
     // MARK: - Properties
     let seriesId: Int
 
-    // MARK: - Environment
-    @Environment(\.playingContent) private var playingContent
+    // MARK: - State
+    @State private var playingContent: PlaybackContent?
 
     // MARK: - Queries
     @Query private var seriesArray: [Series]
@@ -125,6 +125,9 @@ struct SeriesDetailView: View {
         .task {
             guard let series = series else { return }
             await DomainService.shared.loadSeriesDetailsIfNeeded(series: series)
+        }
+        .fullScreenCover(item: $playingContent) { content in
+            MediaPlayerView(content: content)
         }
         .ignoresSafeArea()
     }
@@ -253,7 +256,7 @@ struct SeriesDetailView: View {
                 // Bouton "Reprendre" (épisode en cours)
                 Button {
                     let (previous, next) = getAdjacentEpisodes(for: lastWatchedEpisode)
-                    playingContent.wrappedValue = .episode(
+                    playingContent = .episode(
                         lastWatchedEpisode,
                         seriesName: title,
                         previousEpisode: previous,
@@ -267,7 +270,7 @@ struct SeriesDetailView: View {
                 // Bouton "Lire" (premier épisode non vu)
                 Button {
                     let (previous, next) = getAdjacentEpisodes(for: firstUnwatchedEpisode)
-                    playingContent.wrappedValue = .episode(
+                    playingContent = .episode(
                         firstUnwatchedEpisode,
                         seriesName: title,
                         previousEpisode: previous,
@@ -284,7 +287,7 @@ struct SeriesDetailView: View {
                 if let firstEpisode = firstEpisode {
                     Button {
                         let (previous, next) = getAdjacentEpisodes(for: firstEpisode)
-                        playingContent.wrappedValue = .episode(
+                        playingContent = .episode(
                             firstEpisode,
                             seriesName: title,
                             previousEpisode: previous,
@@ -410,7 +413,7 @@ struct SeriesDetailView: View {
                     episodes: episodesBySeason[season.seasonNumber] ?? [],
                     onEpisodeTap: { episode in
                         let (previous, next) = getAdjacentEpisodes(for: episode)
-                        playingContent.wrappedValue = .episode(
+                        playingContent = .episode(
                             episode,
                             seriesName: title,
                             previousEpisode: previous,
@@ -426,8 +429,6 @@ struct SeriesDetailView: View {
 // MARK: - Previews
 
 #Preview("Without Watch History") {
-    @Previewable @State var playingContent: PlaybackContent?
-
     let container = try! ModelContainer(
         for: Series.self, SeriesDetail.self, SeriesSeason.self, Episode.self, WatchHistory.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
@@ -451,12 +452,9 @@ struct SeriesDetailView: View {
 
     return SeriesDetailView(seriesId: series.extractedSeriesId!)
         .modelContainer(container)
-        .environment(\.playingContent, $playingContent)
 }
 
 #Preview("With Watch History") {
-    @Previewable @State var playingContent: PlaybackContent?
-
     let container = try! ModelContainer(
         for: Series.self, SeriesDetail.self, SeriesSeason.self, Episode.self, WatchHistory.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
@@ -492,5 +490,4 @@ struct SeriesDetailView: View {
 
     return SeriesDetailView(seriesId: series.extractedSeriesId!)
         .modelContainer(container)
-        .environment(\.playingContent, $playingContent)
 }

@@ -11,7 +11,6 @@ import SwiftData
 struct ContentView: View {
     @State private var selectedTab = 0
     @State private var showWelcome = true
-    @State private var playingContent: PlaybackContent?
 
     var body: some View {
         ZStack {
@@ -49,26 +48,9 @@ struct ContentView: View {
                             Label("", systemImage: "gearshape")
                         }
                 }
-                .environment(\.playingContent, $playingContent)
                 .transition(.opacity)
             }
         }
-        .fullScreenCover(item: $playingContent) { content in
-            MediaPlayerView(content: content)
-        }
         .ignoresSafeArea()
-    }
-}
-
-// MARK: - Environment Key for PlayingContent
-
-private struct PlayingContentKey: EnvironmentKey {
-    static let defaultValue: Binding<PlaybackContent?> = .constant(nil)
-}
-
-extension EnvironmentValues {
-    var playingContent: Binding<PlaybackContent?> {
-        get { self[PlayingContentKey.self] }
-        set { self[PlayingContentKey.self] = newValue }
     }
 }

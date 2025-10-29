@@ -16,8 +16,9 @@ struct LiveTVView: View {
     // MARK: - ViewModel
     @State private var viewModel = LiveTVViewModel()
 
-    // MARK: - Search State
+    // MARK: - State
     @State private var showSearchView = false
+    @State private var playingContent: PlaybackContent?
 
     // MARK: - Body
     var body: some View {
@@ -52,24 +53,19 @@ struct LiveTVView: View {
         .onPlayPauseDoubleTap {
             showSearchView = true
         }
-        .fullScreenCover(isPresented: Binding(
-            get: { viewModel.selectedChannel != nil || showSearchView },
-            set: { if !$0 {
-                // Fermer seulement ce qui est ouvert (en priorité inverse)
-                if viewModel.selectedChannel != nil {
-                    viewModel.selectedChannel = nil
-                } else if showSearchView {
-                    showSearchView = false
-                }
-            }}
-        )) {
-            if let channel = viewModel.selectedChannel,
+        .fullScreenCover(item: $playingContent) { content in
+            MediaPlayerView(content: content)
+        }
+        .fullScreenCover(isPresented: $showSearchView) {
+            SearchLiveTV()
+                .environment(viewModel)
+        }
+        .onChange(of: viewModel.selectedChannel) { _, newChannel in
+            if let channel = newChannel,
                let streamId = channel.extractedStreamId,
                let details = channelDetails.first(where: { $0.streamId == streamId }) {
-                MediaPlayerView(content: .liveChannel(details))
-            } else if showSearchView {
-                SearchLiveTV()
-                    .environment(viewModel)
+                playingContent = .liveChannel(details)
+                viewModel.selectedChannel = nil  // Reset selection
             }
         }
     }

@@ -13,8 +13,8 @@ struct MovieDetailView: View {
     // MARK: - Properties
     let streamId: Int
 
-    // MARK: - Environment
-    @Environment(\.playingContent) private var playingContent
+    // MARK: - State
+    @State private var playingContent: PlaybackContent?
 
     // MARK: - Queries
     @Query private var movies: [Movie]
@@ -97,6 +97,9 @@ struct MovieDetailView: View {
         .task {
             guard let movie = movie else { return }
             await DomainService.shared.loadMovieDetailsIfNeeded(movie: movie)
+        }
+        .fullScreenCover(item: $playingContent) { content in
+            MediaPlayerView(content: content)
         }
         .ignoresSafeArea()
     }
@@ -247,7 +250,7 @@ struct MovieDetailView: View {
                 // Bouton "Reprendre"
                 Button {
                     if let detail = movieDetail {
-                        playingContent.wrappedValue = .movie(detail)
+                        playingContent = .movie(detail)
                     }
                 } label: {
                     Label("Reprendre", systemImage: "play.fill")
@@ -257,7 +260,7 @@ struct MovieDetailView: View {
                 // Bouton "Lire"
                 Button {
                     if let detail = movieDetail {
-                        playingContent.wrappedValue = .movie(detail)
+                        playingContent = .movie(detail)
                     }
                 } label: {
                     Label("Lire", systemImage: "play.fill")
@@ -269,7 +272,7 @@ struct MovieDetailView: View {
             if watchHistory != nil, watchHistory!.progressPercentage > 5 {
                 Button {
                     if let detail = movieDetail {
-                        playingContent.wrappedValue = .movie(detail)
+                        playingContent = .movie(detail)
                     }
                 } label: {
                     Label("Redémarrer", systemImage: "arrow.counterclockwise")
@@ -352,8 +355,6 @@ struct MovieDetailView: View {
 // MARK: - Previews
 
 #Preview("Without Watch History") {
-    @Previewable @State var playingContent: PlaybackContent?
-
     let container = try! ModelContainer(
         for: Movie.self, MovieDetail.self, WatchHistory.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
@@ -371,12 +372,9 @@ struct MovieDetailView: View {
 
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
-        .environment(\.playingContent, $playingContent)
 }
 
 #Preview("With Watch History (50%)") {
-    @Previewable @State var playingContent: PlaybackContent?
-
     let container = try! ModelContainer(
         for: Movie.self, MovieDetail.self, WatchHistory.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
@@ -404,5 +402,4 @@ struct MovieDetailView: View {
 
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
-        .environment(\.playingContent, $playingContent)
 }
