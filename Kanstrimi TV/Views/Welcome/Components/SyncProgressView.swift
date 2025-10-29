@@ -37,9 +37,5 @@ struct SyncProgressView: View {
                 .foregroundColor(.secondary)
         }
         .padding(40)
-        .background(
-            Color.black.opacity(0.95)
-                .cornerRadius(20)
-        )
     }
 }

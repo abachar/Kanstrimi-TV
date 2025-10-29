@@ -32,7 +32,7 @@ protocol CardDisplayable {
     var imageURL: String? { get }
 
     /// Note sur 5 étoiles (optionnel)
-    var rating5based: Double? { get }
+    var rating: Double? { get }
 }
 
 // MARK: - SearchConfiguration

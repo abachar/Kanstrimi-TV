@@ -17,11 +17,13 @@ struct MovieCard: View {
 
     // MARK: - Configuration
     private let configuration = CardConfiguration(
-        style: .portrait(width: 220, height: 300),
+        style: .portrait(width: 250, height: 375),
         aspectMode: .fill,
         emptyIcon: "film.fill",
         showRating: true
     )
+    
+    /*250 / 375*/
 
     // MARK: - Body
     var body: some View {

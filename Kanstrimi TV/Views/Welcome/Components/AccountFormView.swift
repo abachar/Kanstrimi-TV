@@ -36,15 +36,18 @@ struct AccountFormView: View {
 
     // MARK: - Body
     var body: some View {
-        VStack(spacing: 40) {
+        VStack(alignment: .leading, spacing: 40) {
             Text("Compte Xtream")
                 .font(.system(size: 50, weight: .semibold))
                 .foregroundColor(.primary)
                 .padding(.bottom, 20)
 
-            VStack(spacing: 30) {
+            Form {
+                TextField("Nom du compte", text: $name)
+
+                
                 // Champ Nom
-                VStack(alignment: .leading, spacing: 10) {
+                /*VStack(alignment: .leading, spacing: 10) {
                     Text("Nom du compte")
                         .font(.system(size: 28))
                         .foregroundColor(.secondary)
@@ -54,9 +57,8 @@ struct AccountFormView: View {
                         .font(.system(size: 32))
                         .foregroundColor(.primary)
                         .padding(.vertical, 10)
-
                         .focused($focusedField, equals: .name)
-                }
+                }*/
 
                 // Champ URL du serveur
                 VStack(alignment: .leading, spacing: 10) {
@@ -118,14 +120,11 @@ struct AccountFormView: View {
             Button(action: handleSubmit) {
                 Text("Enregistrer")
                     .font(.system(size: 36, weight: .semibold))
-                    .foregroundColor(.primary)
-                    .frame(maxWidth: 500)
+                    // .frame(maxWidth: 500)
                     .padding(.vertical, 20)
-                    .background(Color.blue)
-                    .cornerRadius(15)
             }
-            .focused($focusedField, equals: .saveButton)
-            .buttonStyle(.plain)
+            // .focused($focusedField, equals: .saveButton)
+            // .buttonStyle(.border)
             .padding(.top, 20)
         }
         .padding(60)

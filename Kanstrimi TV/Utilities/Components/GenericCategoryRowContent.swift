@@ -63,5 +63,6 @@ struct GenericCategoryRowContent<T: Identifiable, CardView: View>: View {
             .padding(.vertical, 20)
             .padding(.horizontal, 60)
         }
+        .scrollClipDisabled()
     }
 }

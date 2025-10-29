@@ -458,3 +458,24 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Computed properties basées sur @Query pour logique dérivée (episodesBySeason, firstUnwatchedEpisode, etc.)
 - Navigation via SeriesViewModel.playingContent (pattern identique à MoviesViewModel)
 - Build réussi sans erreur ni warning
+
+## [Non versionné] - 2025-10-29
+
+### Refactoré
+- **Unification du champ rating** : Consolidation des champs `rating` et `rating5based` en un seul champ `rating: Double?`
+  - Suppression de `rating: String?` dans Movie et Series
+  - Renommage de `rating5based: Double?` en `rating: Double?` dans Movie et Series
+  - Ajout de la méthode `convertRating()` dans AccountService pour logique de conversion centralisée
+  - Logique de conversion : priorité à `rating_5based` de Xtream, sinon `rating / 2` (car rating Xtream sur 10)
+  - Mise à jour du protocole CardDisplayable : `rating5based` → `rating`
+  - Mise à jour de GenericContentCard, MovieDetailView, SeriesDetailView, LiveChannel pour utiliser `rating`
+  - Mise à jour de PlaybackContent pour utiliser `movie.rating` au lieu de `movie.rating5based`
+  - Mise à jour des données de preview (Movie et Series) avec valeurs simplifiées
+
+### Technique
+- Simplification du modèle de données : -2 champs par entité (Movie et Series)
+- Réduction de la taille des modèles SwiftData et amélioration de la performance
+- Logique de conversion centralisée dans AccountService.convertRating()
+- Compatibilité avec les réponses Xtream existantes (rating_5based prioritaire, fallback sur rating/2)
+- Données de preview cohérentes avec la nouvelle structure
+- Build réussi sans erreur

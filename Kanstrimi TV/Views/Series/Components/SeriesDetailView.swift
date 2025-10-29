@@ -124,7 +124,7 @@ struct SeriesDetailView: View {
     }
     
     var rating: Double? {
-        seriesDetail?.rating ?? series.rating5based
+        seriesDetail?.rating ?? series.rating
     }
     
     private func ratingView(rating: Double) -> some View {

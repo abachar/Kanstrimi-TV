@@ -24,7 +24,7 @@ final class ImageCache {
 
         // Configurer NSCache
         memoryCache.countLimit = 100  // Max 100 images en mémoire
-        memoryCache.totalCostLimit = 50 * 1024 * 1024  // Max 50 MB
+        memoryCache.totalCostLimit = 200 * 1024 * 1024  // Max 200 MB
     }
 
     // MARK: - Memory Cache

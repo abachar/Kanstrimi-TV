@@ -64,7 +64,7 @@ enum PlaybackContent: Identifiable {
             // TODO: Ajouter l'année depuis MovieDetail si disponible
             // TODO: Ajouter la durée depuis MovieDetail si disponible
 
-            if let rating = movie.rating5based, rating > 0 {
+            if let rating = movie.rating, rating > 0 {
                 parts.append("★ \(String(format: "%.1f", rating))")
             }
 

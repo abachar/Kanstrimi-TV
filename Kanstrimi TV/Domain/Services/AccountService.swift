@@ -17,6 +17,29 @@ final class AccountService {
     /// Initialisation privée (singleton)
     private init() {}
 
+    // MARK: - Rating Conversion
+
+    /// Convertit les ratings Xtream en format unifié (sur 5)
+    /// - Parameters:
+    ///   - rating5based: Rating sur 5 (si disponible depuis Xtream)
+    ///   - rating: Rating sur 10 (format Xtream par défaut)
+    /// - Returns: Rating sur 5 ou nil
+    private func convertRating(rating5based: Double?, rating: String?) -> Double? {
+        // Priorité 1 : rating_5based (déjà sur 5)
+        if let rating5 = rating5based {
+            return rating5
+        }
+
+        // Priorité 2 : rating (sur 10) → diviser par 2
+        if let ratingString = rating,
+           let ratingValue = Double(ratingString) {
+            return ratingValue / 2.0
+        }
+
+        // Pas de rating disponible
+        return nil
+    }
+
     // MARK: - Create Account
 
     /// Crée et synchronise un nouveau compte
@@ -157,9 +180,9 @@ final class AccountService {
                     containerExtension: response.containerExtension,
                     categoryId: response.categoryId,
                     streamIcon: response.streamIcon,
-                    rating: response.rating,
-                    rating5based: response.rating5based,
-                    added: response.added
+                    rating: convertRating(rating5based: response.rating5based, rating: response.rating),
+                    added: response.added,
+                    tmdbId: response.tmdb
                 )
                 StorageService.shared.context.insert(movie)
             }
@@ -202,8 +225,7 @@ final class AccountService {
                     categoryId: response.categoryId,
                     cover: response.cover,
                     backdropPaths: response.backdropPath,
-                    rating: response.rating,
-                    rating5based: response.rating5based,
+                    rating: convertRating(rating5based: response.rating5based, rating: response.rating),
                     plot: response.plot,
                     director: response.director,
                     cast: response.cast,

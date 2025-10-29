@@ -96,7 +96,7 @@ struct MovieDetailView: View {
     }
 
     var rating: Double? {
-        movieDetail?.rating ?? movie.rating5based
+        movieDetail?.rating ?? movie.rating
     }
 
     @ViewBuilder

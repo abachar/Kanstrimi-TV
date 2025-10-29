@@ -32,11 +32,8 @@ final class Movie {
     /// URL du poster
     var streamIcon: String?
 
-    /// Note du film
-    var rating: String?
-
-    /// Note sur 5 étoiles
-    var rating5based: Double?
+    /// Note du film sur 5 étoiles
+    var rating: Double?
 
     /// Ajouté à la date
     var added: String?
@@ -46,6 +43,8 @@ final class Movie {
     
     /// URL de lecture de la chaîne
     var streamURL: String
+    
+    var tmdbId: Int?
 
     /// Initialisation d'un film
     init(
@@ -56,9 +55,9 @@ final class Movie {
         containerExtension: String? = nil,
         categoryId: String? = nil,
         streamIcon: String? = nil,
-        rating: String? = nil,
-        rating5based: Double? = nil,
-        added: String? = nil
+        rating: Double? = nil,
+        added: String? = nil,
+        tmdbId: Int? = nil
     ) {
         self.id = "movie-\(streamId)"
         self.streamId = streamId
@@ -67,10 +66,10 @@ final class Movie {
         self.categoryId = categoryId
         self.streamIcon = streamIcon
         self.rating = rating
-        self.rating5based = rating5based
         self.added = added
         self.sortOrder = sortOrder
         self.streamURL = streamURL
+        self.tmdbId = tmdbId
     }
 }
 
@@ -96,8 +95,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "2087",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/cwmVHD41mGDQyPyCAsR8x6aMGc2.jpg",
-                rating: "4",
-                rating5based: 2.0,
+                rating: 2.0,
                 added: "1743294540"
             ),
             Movie(
@@ -108,8 +106,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "2087",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/muXnwAdVdEEktto0NBNMyqK3uQH.jpg",
-                rating: "5.894",
-                rating5based: 2.9,
+                rating: 2.9,
                 added: "1743294540"
             ),
             Movie(
@@ -120,8 +117,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "2087",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/1sQA7lfcF9yUyoLYC0e6Zo3jmxE.jpg",
-                rating: "7.123",
-                rating5based: 3.6,
+                rating: 3.6,
                 added: "1743294571"
             ),
             Movie(
@@ -132,8 +128,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "2087",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/d4xrJ9mLFEheS8b7HLyAC9GjHxc.jpg",
-                rating: "6.5",
-                rating5based: 3.3,
+                rating: 3.3,
                 added: "1743294540"
             ),
             Movie(
@@ -144,8 +139,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "2087",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ee9iNQi91kpIkdfsAiGmJO7QdSF.jpg",
-                rating: "7.894",
-                rating5based: 3.9,
+                rating: 3.9,
                 added: "1743294540"
             ),
             Movie(
@@ -156,8 +150,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "2087",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/fjPhUeAgKYJ5Bx1hOJl71RlTUBQ.jpg",
-                rating: "8",
-                rating5based: 4.0,
+                rating: 4.0,
                 added: "1743294571"
             ),
             Movie(
@@ -168,8 +161,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "2087",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/hZPkT1hx5aLuBMncLgtePNjh4Hl.jpg",
-                rating: "0",
-                rating5based: 0,
+                rating: 0,
                 added: "1743294571"
             ),
 
@@ -182,8 +174,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "1535",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/hKO9O715wYxjkQSEv47giCYcyO8.jpg",
-                rating: "7.6",
-                rating5based: 3.8,
+                rating: 3.8,
                 added: "1743178020"
             ),
             Movie(
@@ -194,8 +185,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "1535",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2",
-                rating: "0",
-                rating5based: 0,
+                rating: 0,
                 added: "1743178020"
             ),
             Movie(
@@ -206,8 +196,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "1535",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ybNEKl4BMLCjlAxCok6t8DHb9x0.jpg",
-                rating: "8.2",
-                rating5based: 4.1,
+                rating: 4.1,
                 added: "1743178020"
             ),
             Movie(
@@ -218,8 +207,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "1535",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ZVrXoqSL8lwdN9ZQHUTf9KzGOw.jpg",
-                rating: "5.2",
-                rating5based: 2.6,
+                rating: 2.6,
                 added: "1743178020"
             ),
             Movie(
@@ -230,8 +218,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "1535",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/1SfsoUYXRRrfL31br8q4DlTYvKK.jpg",
-                rating: "6.169",
-                rating5based: 3.1,
+                rating: 3.1,
                 added: "1743178020"
             ),
             Movie(
@@ -242,8 +229,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "1535",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/pPrUv1zFZmRuKevb4z6Fx3p3wTl.jpg",
-                rating: "2.5",
-                rating5based: 1.3,
+                rating: 1.3,
                 added: "1743178020"
             ),
             Movie(
@@ -254,8 +240,7 @@ extension Movie {
                 containerExtension: "mkv",
                 categoryId: "1535",
                 streamIcon: "https://image.tmdb.org/t/p/w600_and_h900_bestv2/A806wuTGJECDh9krhQAhnieQcLr.jpg",
-                rating: "6.4",
-                rating5based: 3.2,
+                rating: 3.2,
                 added: "1743178020"
             )
         ]

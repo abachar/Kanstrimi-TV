@@ -38,6 +38,7 @@ struct MovieResponse: Codable {
     let containerExtension: String?
     let customSid: String?
     let directSource: String?
+    let tmdb: Int?
 
     enum CodingKeys: String, CodingKey {
         case num
@@ -55,6 +56,7 @@ struct MovieResponse: Codable {
         case containerExtension = "container_extension"
         case customSid = "custom_sid"
         case directSource = "direct_source"
+        case tmdb
     }
 
     init(from decoder: Decoder) throws {
@@ -75,6 +77,7 @@ struct MovieResponse: Codable {
         customSid = try container.decodeIfPresent(String.self, forKey: .customSid)
         directSource = try container.decodeIfPresent(String.self, forKey: .directSource)
         rating5based = container.decodeFlexibleDoubleIfPresent(forKey: .rating5based)
+        tmdb = container.decodeFlexibleIntIfPresent(forKey: .tmdb)
     }
 }
 

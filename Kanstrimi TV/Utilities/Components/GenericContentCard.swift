@@ -55,7 +55,7 @@ struct GenericContentCard<T: CardDisplayable>: View {
                 }
 
                 // Rating (étoiles)
-                if configuration.showRating, let rating = item.rating5based {
+                if configuration.showRating, let rating = item.rating {
                     ratingView(rating: rating)
                 }
             }
