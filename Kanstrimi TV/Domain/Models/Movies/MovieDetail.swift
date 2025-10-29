@@ -107,6 +107,31 @@ final class MovieDetail {
     }
 }
 
+// MARK: - Playable Conformance
+extension MovieDetail: Playable {
+    var displayTitle: String {
+        name ?? "Film sans titre"
+    }
+
+    var subtitle: String? {
+        var parts: [String] = []
+        if let year = year {
+            parts.append(year)
+        }
+        if let duration = duration {
+            parts.append(duration)
+        }
+        if let rating = rating {
+            parts.append("★ \(String(format: "%.1f", rating))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    var contentType: PlaybackContent.ContentType {
+        .vod
+    }
+}
+
 // MARK: - Preview Data
 #if DEBUG
 extension MovieDetail {

@@ -240,7 +240,7 @@ struct PlayerOverlay: View {
             .ignoresSafeArea()
 
         PlayerOverlay(
-            content: .liveChannel(LiveChannel.previewChannels[0]),
+            content: .liveChannel(LiveChannelDetails.previewChannelDetails[0]),
             currentPosition: 0,
             totalDuration: 0,
             isVisible: .constant(true),
@@ -262,7 +262,7 @@ struct PlayerOverlay: View {
             .ignoresSafeArea()
 
         PlayerOverlay(
-            content: .movie(Movie.previewMovies[1]),
+            content: .movie(MovieDetail.youreInvitedDetail),
             currentPosition: 1800,
             totalDuration: 7200,
             isVisible: .constant(true),

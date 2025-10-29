@@ -16,9 +16,6 @@ class MoviesViewModel {
     /// Film actuellement sélectionné (déclenchera l'ouverture de MovieDetailView)
     var selectedMovie: Movie?
 
-    /// Contenu en cours de lecture
-    var playingContent: PlaybackContent?
-
     // MARK: - Methods
 
     /// Sélectionne un film pour afficher les détails
@@ -27,15 +24,8 @@ class MoviesViewModel {
         selectedMovie = movie
     }
 
-    /// Démarre la lecture d'un contenu
-    /// - Parameter content: Le contenu à lire
-    func playContent(_ content: PlaybackContent) {
-        playingContent = content
-    }
-
     /// Réinitialise toutes les sélections
     func clearSelections() {
         selectedMovie = nil
-        playingContent = nil
     }
 }

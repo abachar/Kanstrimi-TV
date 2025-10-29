@@ -134,6 +134,7 @@ final class AccountService {
                 let streamURL = XtreamURLBuilder.buildLiveStreamURL(account: account, streamId: response.streamId)
                 let channelDetails = LiveChannelDetails(
                     streamId: response.streamId,
+                    name: response.name,
                     streamURL: streamURL,
                     epgChannelId: response.epgChannelId,
                     added: response.added

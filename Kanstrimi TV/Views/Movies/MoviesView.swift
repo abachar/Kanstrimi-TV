@@ -52,23 +52,18 @@ struct MoviesView: View {
             showSearchView = true
         }
         .fullScreenCover(isPresented: Binding(
-            get: { viewModel.playingContent != nil || viewModel.selectedMovie != nil || showSearchView },
+            get: { viewModel.selectedMovie != nil || showSearchView },
             set: { if !$0 {
-                // Fermer seulement ce qui est ouvert (en priorité inverse)
-                if viewModel.playingContent != nil {
-                    viewModel.playingContent = nil
-                } else if viewModel.selectedMovie != nil {
+                // Fermer seulement ce qui est ouvert
+                if viewModel.selectedMovie != nil {
                     viewModel.selectedMovie = nil
                 } else if showSearchView {
                     showSearchView = false
                 }
             }}
         )) {
-            if let content = viewModel.playingContent {
-                MediaPlayerView(content: content)
-            } else if let movie = viewModel.selectedMovie {
-                MovieDetailView(movie: movie)
-                    .environment(viewModel)
+            if let movie = viewModel.selectedMovie {
+                MovieDetailView(streamId: movie.extractedStreamId!)
             } else if showSearchView {
                 SearchMovies()
                     .environment(viewModel)

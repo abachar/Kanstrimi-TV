@@ -93,6 +93,23 @@ final class Episode {
     }
 }
 
+// MARK: - Playable Conformance
+extension Episode: Playable {
+    var displayTitle: String {
+        title ?? "Épisode \(episodeNum)"
+    }
+
+    var subtitle: String? {
+        "S\(String(format: "%02d", seasonNumber))E\(String(format: "%02d", episodeNum))"
+    }
+
+    var contentType: PlaybackContent.ContentType {
+        .vod
+    }
+
+    // Episode navigation sera géré par la vue qui construit le PlaybackContent
+}
+
 // MARK: - Preview Data
 #if DEBUG
 extension Episode {

@@ -11,18 +11,23 @@ import SwiftData
 /// Vue affichant les détails complets d'une série
 struct SeriesDetailView: View {
     // MARK: - Properties
-    let series: Series
+    let seriesId: Int
 
     // MARK: - Environment
-    @Environment(SeriesViewModel.self) private var viewModel
+    @Environment(\.playingContent) private var playingContent
 
     // MARK: - Queries
+    @Query private var seriesArray: [Series]
     @Query private var seriesDetails: [SeriesDetail]
     @Query private var seasons: [SeriesSeason]
     @Query private var episodes: [Episode]
     @Query private var watchHistories: [WatchHistory]
 
     // MARK: - Computed Properties
+    private var series: Series? {
+        seriesArray.first
+    }
+
     private var seriesDetail: SeriesDetail? {
         seriesDetails.first
     }
@@ -32,9 +37,13 @@ struct SeriesDetailView: View {
     }
 
     // MARK: - Init
-    init(series: Series) {
-        self.series = series
-        let seriesId = series.seriesId
+    init(seriesId: Int) {
+        self.seriesId = seriesId
+
+        // Filtrer Series par seriesId (via l'ID)
+        _seriesArray = Query(
+            filter: #Predicate<Series> { $0.id == "series-\(seriesId)" }
+        )
 
         // Filtrer SeriesDetail par seriesId
         _seriesDetails = Query(
@@ -114,17 +123,18 @@ struct SeriesDetailView: View {
             .padding(60)
         }
         .task {
+            guard let series = series else { return }
             await DomainService.shared.loadSeriesDetailsIfNeeded(series: series)
         }
         .ignoresSafeArea()
     }
-    
+
     var title: String {
-        seriesDetail?.name ?? series.name
+        seriesDetail?.name ?? series?.name ?? "Série sans titre"
     }
-    
+
     var rating: Double? {
-        seriesDetail?.rating ?? series.rating
+        seriesDetail?.rating ?? series?.rating
     }
     
     private func ratingView(rating: Double) -> some View {
@@ -165,7 +175,7 @@ struct SeriesDetailView: View {
     }
     
     var posterURL: String? {
-        seriesDetail?.cover ?? series.cover
+        seriesDetail?.cover ?? series?.cover
     }
 
     private var posterView: some View {
@@ -242,7 +252,13 @@ struct SeriesDetailView: View {
             if let lastWatchedEpisode = lastWatchedEpisode, !lastWatchedEpisode.isWatched {
                 // Bouton "Reprendre" (épisode en cours)
                 Button {
-                    viewModel.playingContent = .episode(lastWatchedEpisode)
+                    let (previous, next) = getAdjacentEpisodes(for: lastWatchedEpisode)
+                    playingContent.wrappedValue = .episode(
+                        lastWatchedEpisode,
+                        seriesName: title,
+                        previousEpisode: previous,
+                        nextEpisode: next
+                    )
                 } label: {
                     Label("Reprendre S\(lastWatchedEpisode.seasonNumber)E\(lastWatchedEpisode.episodeNum)", systemImage: "play.fill")
                 }
@@ -250,18 +266,30 @@ struct SeriesDetailView: View {
             } else if let firstUnwatchedEpisode = firstUnwatchedEpisode {
                 // Bouton "Lire" (premier épisode non vu)
                 Button {
-                    viewModel.playingContent = .episode(firstUnwatchedEpisode)
+                    let (previous, next) = getAdjacentEpisodes(for: firstUnwatchedEpisode)
+                    playingContent.wrappedValue = .episode(
+                        firstUnwatchedEpisode,
+                        seriesName: title,
+                        previousEpisode: previous,
+                        nextEpisode: next
+                    )
                 } label: {
                     Label("Lire S\(firstUnwatchedEpisode.seasonNumber)E\(firstUnwatchedEpisode.episodeNum)", systemImage: "play.fill")
                 }
                 .buttonStyle(.borderedProminent)
             }
-            
+
             if lastWatchedEpisode != nil {
                 // Bouton "Redémarrer" (premier épisode de la série)
                 if let firstEpisode = firstEpisode {
                     Button {
-                        viewModel.playingContent = .episode(firstEpisode)
+                        let (previous, next) = getAdjacentEpisodes(for: firstEpisode)
+                        playingContent.wrappedValue = .episode(
+                            firstEpisode,
+                            seriesName: title,
+                            previousEpisode: previous,
+                            nextEpisode: next
+                        )
                     } label: {
                         Label("Redémarrer", systemImage: "arrow.counterclockwise")
                     }
@@ -286,6 +314,18 @@ struct SeriesDetailView: View {
 
     private var firstEpisode: Episode? {
         episodes.first
+    }
+
+    /// Récupère les épisodes précédent et suivant pour un épisode donné
+    private func getAdjacentEpisodes(for episode: Episode) -> (previous: Episode?, next: Episode?) {
+        guard let currentIndex = episodes.firstIndex(where: { $0.id == episode.id }) else {
+            return (nil, nil)
+        }
+
+        let previous = currentIndex > 0 ? episodes[currentIndex - 1] : nil
+        let next = currentIndex < episodes.count - 1 ? episodes[currentIndex + 1] : nil
+
+        return (previous, next)
     }
 
     // MARK: - Synopsis Section
@@ -369,7 +409,13 @@ struct SeriesDetailView: View {
                     season: season,
                     episodes: episodesBySeason[season.seasonNumber] ?? [],
                     onEpisodeTap: { episode in
-                        viewModel.playingContent = .episode(episode)
+                        let (previous, next) = getAdjacentEpisodes(for: episode)
+                        playingContent.wrappedValue = .episode(
+                            episode,
+                            seriesName: title,
+                            previousEpisode: previous,
+                            nextEpisode: next
+                        )
                     }
                 )
             }
@@ -380,6 +426,8 @@ struct SeriesDetailView: View {
 // MARK: - Previews
 
 #Preview("Without Watch History") {
+    @Previewable @State var playingContent: PlaybackContent?
+
     let container = try! ModelContainer(
         for: Series.self, SeriesDetail.self, SeriesSeason.self, Episode.self, WatchHistory.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
@@ -396,21 +444,19 @@ struct SeriesDetailView: View {
     context.insert(seriesDetail)
 
     // Ajouter les saisons
-    for season in SeriesSeason.previewSeriesSeasons {
-        context.insert(season)
-    }
+    SeriesSeason.previewSeriesSeasons.forEach { context.insert($0) }
 
     // Ajouter les épisodes
-    for episode in Episode.previewEpisodes {
-        context.insert(episode)
-    }
+    Episode.previewEpisodes.forEach { context.insert($0) }
 
-    return SeriesDetailView(series: series)
+    return SeriesDetailView(seriesId: series.extractedSeriesId!)
         .modelContainer(container)
-        .environment(SeriesViewModel())
+        .environment(\.playingContent, $playingContent)
 }
 
 #Preview("With Watch History") {
+    @Previewable @State var playingContent: PlaybackContent?
+
     let container = try! ModelContainer(
         for: Series.self, SeriesDetail.self, SeriesSeason.self, Episode.self, WatchHistory.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
@@ -427,19 +473,15 @@ struct SeriesDetailView: View {
     context.insert(seriesDetail)
 
     // Ajouter les saisons
-    for season in SeriesSeason.previewSeriesSeasons {
-        context.insert(season)
-    }
+    SeriesSeason.previewSeriesSeasons.forEach { context.insert($0) }
 
     // Ajouter les épisodes
-    for episode in Episode.previewEpisodes {
-        context.insert(episode)
-    }
+    Episode.previewEpisodes.forEach { context.insert($0) }
 
     // Créer un historique de visionnage pour l'épisode 3 de la saison 1
     let episode3 = Episode.previewEpisodes[2] // S01E03 "No Good Horses"
     let watchHistory = WatchHistory(
-        streamId: series.seriesId,
+        streamId: series.extractedSeriesId!,
         contentType: "series",
         episodeId: episode3.id, // "episode-3073-1-3"
         lastPosition: 1800, // 30 minutes
@@ -448,7 +490,7 @@ struct SeriesDetailView: View {
     )
     context.insert(watchHistory)
 
-    return SeriesDetailView(series: series)
+    return SeriesDetailView(seriesId: series.extractedSeriesId!)
         .modelContainer(container)
-        .environment(SeriesViewModel())
+        .environment(\.playingContent, $playingContent)
 }

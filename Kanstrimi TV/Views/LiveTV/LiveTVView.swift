@@ -11,6 +11,7 @@ import SwiftUI
 struct LiveTVView: View {
     // MARK: - SwiftData Queries
     @Query(sort: \LiveCategory.sortOrder) private var liveCategories: [LiveCategory]
+    @Query private var channelDetails: [LiveChannelDetails]
 
     // MARK: - ViewModel
     @State private var viewModel = LiveTVViewModel()
@@ -62,8 +63,10 @@ struct LiveTVView: View {
                 }
             }}
         )) {
-            if let channel = viewModel.selectedChannel {
-                MediaPlayerView(content: .liveChannel(channel))
+            if let channel = viewModel.selectedChannel,
+               let streamId = channel.extractedStreamId,
+               let details = channelDetails.first(where: { $0.streamId == streamId }) {
+                MediaPlayerView(content: .liveChannel(details))
             } else if showSearchView {
                 SearchLiveTV()
                     .environment(viewModel)

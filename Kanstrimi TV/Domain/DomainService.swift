@@ -281,13 +281,12 @@ final class DomainService {
         case .liveChannel:
             return nil // Pas de WatchHistory pour Live TV
 
-        case .movie(let movie, _):
-            guard let extractedStreamId = movie.extractedStreamId else { return nil }
-            streamId = extractedStreamId
+        case .movie(let movieDetail):
+            streamId = movieDetail.streamId
             contentType = "movie"
             episodeId = nil
 
-        case .episode(let episode, _, _, _, _):
+        case .episode(let episode, _, _, _):
             streamId = episode.seriesId
             contentType = "series"
             episodeId = episode.episodeId
@@ -331,13 +330,12 @@ final class DomainService {
         case .liveChannel:
             return
 
-        case .movie(let movie, _):
-            guard let extractedStreamId = movie.extractedStreamId else { return }
-            streamId = extractedStreamId
+        case .movie(let movieDetail):
+            streamId = movieDetail.streamId
             contentType = "movie"
             episodeId = nil
 
-        case .episode(let episode, _, _, _, _):
+        case .episode(let episode, _, _, _):
             streamId = episode.seriesId
             contentType = "series"
             episodeId = episode.episodeId
