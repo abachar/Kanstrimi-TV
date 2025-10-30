@@ -15,6 +15,9 @@ struct SearchMovies: View {
     // MARK: - State
     @State private var searchText = ""
 
+    // MARK: - Environment
+    @Environment(MovieNavigationViewModel.self) private var navigationViewModel
+
     // MARK: - Query
     @Query private var filteredMovies: [Movie]
 
@@ -103,7 +106,7 @@ struct SearchMovies: View {
                     spacing: 30
                 ) {
                     ForEach(filteredMovies) { movie in
-                        MovieCard(movie: movie)
+                        MovieCard(movie: movie, returnTo: .search)
                     }
                 }
                 .padding(.horizontal, 60)
@@ -130,5 +133,5 @@ struct SearchMovies: View {
 
     return SearchMovies()
         .modelContainer(container)
-        .environment(MoviesViewModel())
+        .environment(MovieNavigationViewModel())
 }

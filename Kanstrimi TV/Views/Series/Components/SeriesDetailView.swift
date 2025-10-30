@@ -15,9 +15,7 @@ struct SeriesDetailView: View {
 
     // MARK: - Environment
     @Environment(DomainService.self) private var domainService
-
-    // MARK: - State
-    @State private var playingContent: PlaybackContent?
+    @Environment(SeriesNavigationViewModel.self) private var navigationViewModel
 
     // MARK: - Queries
     @Query private var seriesArray: [Series]
@@ -129,10 +127,16 @@ struct SeriesDetailView: View {
             guard let series = series else { return }
             await domainService.loadSeriesDetailsIfNeeded(series: series)
         }
-        .fullScreenCover(item: $playingContent) { content in
-            MediaPlayerView(content: content)
-        }
         .ignoresSafeArea()
+    }
+
+    // MARK: - Helper Properties
+    private var returnDestination: SeriesNavigationState.ReturnDestination {
+        // Déterminer la destination de retour en fonction de l'état actuel
+        if case .seriesDetail(_, let returnTo) = navigationViewModel.currentState {
+            return returnTo
+        }
+        return .seriesList
     }
 
     var title: String {
@@ -259,11 +263,14 @@ struct SeriesDetailView: View {
                 // Bouton "Reprendre" (épisode en cours)
                 Button {
                     let (previous, next) = getAdjacentEpisodes(for: lastWatchedEpisode)
-                    playingContent = .episode(
-                        lastWatchedEpisode,
-                        seriesName: title,
-                        previousEpisode: previous,
-                        nextEpisode: next
+                    navigationViewModel.navigateToPlayer(
+                        content: .episode(
+                            lastWatchedEpisode,
+                            seriesName: title,
+                            previousEpisode: previous,
+                            nextEpisode: next
+                        ),
+                        from: returnDestination
                     )
                 } label: {
                     Label("Reprendre S\(lastWatchedEpisode.seasonNumber)E\(lastWatchedEpisode.episodeNum)", systemImage: "play.fill")
@@ -273,11 +280,14 @@ struct SeriesDetailView: View {
                 // Bouton "Lire" (premier épisode non vu)
                 Button {
                     let (previous, next) = getAdjacentEpisodes(for: firstUnwatchedEpisode)
-                    playingContent = .episode(
-                        firstUnwatchedEpisode,
-                        seriesName: title,
-                        previousEpisode: previous,
-                        nextEpisode: next
+                    navigationViewModel.navigateToPlayer(
+                        content: .episode(
+                            firstUnwatchedEpisode,
+                            seriesName: title,
+                            previousEpisode: previous,
+                            nextEpisode: next
+                        ),
+                        from: returnDestination
                     )
                 } label: {
                     Label("Lire S\(firstUnwatchedEpisode.seasonNumber)E\(firstUnwatchedEpisode.episodeNum)", systemImage: "play.fill")
@@ -290,11 +300,14 @@ struct SeriesDetailView: View {
                 if let firstEpisode = firstEpisode {
                     Button {
                         let (previous, next) = getAdjacentEpisodes(for: firstEpisode)
-                        playingContent = .episode(
-                            firstEpisode,
-                            seriesName: title,
-                            previousEpisode: previous,
-                            nextEpisode: next
+                        navigationViewModel.navigateToPlayer(
+                            content: .episode(
+                                firstEpisode,
+                                seriesName: title,
+                                previousEpisode: previous,
+                                nextEpisode: next
+                            ),
+                            from: returnDestination
                         )
                     } label: {
                         Label("Redémarrer", systemImage: "arrow.counterclockwise")
@@ -416,11 +429,14 @@ struct SeriesDetailView: View {
                     episodes: episodesBySeason[season.seasonNumber] ?? [],
                     onEpisodeTap: { episode in
                         let (previous, next) = getAdjacentEpisodes(for: episode)
-                        playingContent = .episode(
-                            episode,
-                            seriesName: title,
-                            previousEpisode: previous,
-                            nextEpisode: next
+                        navigationViewModel.navigateToPlayer(
+                            content: .episode(
+                                episode,
+                                seriesName: title,
+                                previousEpisode: previous,
+                                nextEpisode: next
+                            ),
+                            from: returnDestination
                         )
                     }
                 )

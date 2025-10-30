@@ -236,7 +236,7 @@ struct PlayerOverlay: View {
             .ignoresSafeArea()
 
         PlayerOverlay(
-            content: .liveChannel(LiveChannelDetails.previewChannelDetails[1]),
+            content: .liveChannel(LiveChannel.previewChannels[1]),
             currentPosition: 0,
             totalDuration: 0,
             isVisible: .constant(true),

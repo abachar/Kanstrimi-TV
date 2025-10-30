@@ -11,62 +11,68 @@ import SwiftUI
 struct LiveTVView: View {
     // MARK: - SwiftData Queries
     @Query(sort: \LiveCategory.sortOrder) private var liveCategories: [LiveCategory]
-    @Query private var channelDetails: [LiveChannelDetails]
+    @Query private var channels: [LiveChannel]
 
-    // MARK: - ViewModel
-    @State private var viewModel = LiveTVViewModel()
-
-    // MARK: - State
-    @State private var showSearchView = false
-    @State private var playingContent: PlaybackContent?
+    // MARK: - Navigation ViewModel
+    @State private var navigationViewModel = LiveTVNavigationViewModel()
 
     // MARK: - Body
     var body: some View {
-        ZStack {
+        ScrollView(.vertical, showsIndicators: false) {
             if liveCategories.isEmpty {
                 // État vide
-                VStack(spacing: 40) {
-                    Text("TV en direct")
-                        .font(.system(size: 60, weight: .bold))
-                        .foregroundColor(.primary)
-
+                ContentUnavailableView {
+                    Label("TV en direct", systemImage: "tv.slash")
+                } description: {
                     Text("Aucune chaîne disponible")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
                 }
-                .padding(60)
             } else {
                 // Liste des catégories avec chaînes
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 30) {
-                        ForEach(liveCategories) { liveCategory in
-                            LiveCategoryRow(liveCategory: liveCategory)
-                        }
+                LazyVStack(spacing: 30) {
+                    ForEach(liveCategories) { liveCategory in
+                        LiveCategoryRow(liveCategory: liveCategory)
                     }
-                    .padding(.top, 40)
-                    .padding(.bottom, 60)
                 }
+                .padding(.top, 40)
+                .padding(.bottom, 60)
             }
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
-        .environment(viewModel)
+        .environment(navigationViewModel)
         .onPlayPauseDoubleTap {
-            showSearchView = true
+            navigationViewModel.navigateToSearch()
         }
-        .fullScreenCover(item: $playingContent) { content in
-            MediaPlayerView(content: content)
-        }
-        .fullScreenCover(isPresented: $showSearchView) {
-            SearchLiveTV()
-                .environment(viewModel)
-        }
-        .onChange(of: viewModel.selectedChannel) { _, newChannel in
-            if let channel = newChannel,
-               let streamId = channel.extractedStreamId,
-               let details = channelDetails.first(where: { $0.streamId == streamId }) {
-                playingContent = .liveChannel(details)
-                viewModel.selectedChannel = nil  // Reset selection
+        .fullScreenCover(item: Binding(
+            get: {
+                // Retourner l'état courant (nil = écran principal)
+                navigationViewModel.currentState
+            },
+            set: { newValue in
+                if newValue == nil {
+                    navigationViewModel.goBack()
+                }
             }
+        )) { state in
+            navigationDestination(for: state)
+        }
+        .onChange(of: navigationViewModel.selectedChannel) { _, newChannel in
+            if let channel = newChannel {
+                navigationViewModel.navigateToPlayer(content: .liveChannel(channel))
+                navigationViewModel.selectedChannel = nil  // Reset selection
+            }
+        }
+    }
+
+    // MARK: - Navigation Destination
+    @ViewBuilder
+    private func navigationDestination(for state: LiveTVNavigationState) -> some View {
+        switch state {
+        case .search:
+            SearchLiveTV()
+                .environment(navigationViewModel)
+
+        case .player(let content):
+            MediaPlayerView(content: content)
         }
     }
 }

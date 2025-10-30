@@ -119,28 +119,21 @@ final class AccountService {
             // Récupérer les chaînes Live TV
             let channelResponses = try await XtreamService.shared.getLiveStreams(account: account)
 
-            // Mapper vers LiveChannel + LiveChannelDetails et insérer dans SwiftData
+            // Mapper vers LiveChannel et insérer dans SwiftData
             for (index, response) in channelResponses.enumerated() {
-                // Créer LiveChannel (optimisé pour listing)
+                // Créer LiveChannel (avec toutes les données, y compris streamURL)
+                let streamURL = XtreamURLBuilder.buildLiveStreamURL(account: account, streamId: response.streamId)
                 let channel = LiveChannel(
                     streamId: response.streamId,
                     name: response.name,
                     categoryId: response.categoryId,
                     sortOrder: index,
-                    streamIcon: response.streamIcon
-                )
-                storageService.context.insert(channel)
-
-                // Créer LiveChannelDetails (contient streamURL et autres métadonnées)
-                let streamURL = XtreamURLBuilder.buildLiveStreamURL(account: account, streamId: response.streamId)
-                let channelDetails = LiveChannelDetails(
-                    streamId: response.streamId,
-                    name: response.name,
+                    streamIcon: response.streamIcon,
                     streamURL: streamURL,
                     epgChannelId: response.epgChannelId,
                     added: response.added
                 )
-                storageService.context.insert(channelDetails)
+                storageService.context.insert(channel)
             }
 
             // Sauvegarder les données Live TV

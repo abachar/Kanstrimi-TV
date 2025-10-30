@@ -12,62 +12,64 @@ struct SeriesView: View {
     // MARK: - SwiftData Queries
     @Query(sort: \SeriesCategory.sortOrder) private var categories: [SeriesCategory]
 
-    // MARK: - ViewModel
-    @State private var viewModel = SeriesViewModel()
-
-    // MARK: - Search State
-    @State private var showSearchView = false
+    // MARK: - Navigation ViewModel
+    @State private var navigationViewModel = SeriesNavigationViewModel()
 
     // MARK: - Body
     var body: some View {
-        ZStack {
+        ScrollView(.vertical, showsIndicators: false) {
             if categories.isEmpty {
                 // État vide
-                VStack(spacing: 40) {
-                    Text("Séries")
-                        .font(.system(size: 60, weight: .bold))
-                        .foregroundColor(.primary)
-
+                ContentUnavailableView {
+                    Label("Séries", systemImage: "tv.slash")
+                } description: {
                     Text("Aucune série disponible")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
                 }
-                .padding(60)
             } else {
                 // Liste des catégories avec séries
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 30) {
-                        ForEach(categories) { category in
-                            SeriesCategoryRow(category: category)
-                        }
+                LazyVStack(spacing: 30) {
+                    ForEach(categories) { category in
+                        SeriesCategoryRow(category: category)
                     }
-                    .padding(.top, 40)
-                    .padding(.bottom, 60)
                 }
+                .padding(.top, 40)
+                .padding(.bottom, 60)
             }
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
-        .environment(viewModel)
+        .environment(navigationViewModel)
         .onPlayPauseDoubleTap {
-            showSearchView = true
+            navigationViewModel.navigateToSearch()
         }
-        .fullScreenCover(isPresented: Binding(
-            get: { viewModel.selectedSeries != nil || showSearchView },
-            set: { if !$0 {
-                // Fermer seulement ce qui est ouvert
-                if viewModel.selectedSeries != nil {
-                    viewModel.selectedSeries = nil
-                } else if showSearchView {
-                    showSearchView = false
+        .fullScreenCover(item: Binding(
+            get: {
+                // Retourner l'état courant (nil = écran principal)
+                navigationViewModel.currentState
+            },
+            set: { newValue in
+                if newValue == nil {
+                    navigationViewModel.goBack()
                 }
-            }}
-        )) {
-            if let series = viewModel.selectedSeries {
-                SeriesDetailView(seriesId: series.extractedSeriesId!)
-            } else if showSearchView {
-                SearchSeries()
-                    .environment(viewModel)
             }
+        )) { state in
+            navigationDestination(for: state)
+        }
+    }
+
+    // MARK: - Navigation Destination
+    @ViewBuilder
+    private func navigationDestination(for state: SeriesNavigationState) -> some View {
+        switch state {
+        case .search:
+            SearchSeries()
+                .environment(navigationViewModel)
+
+        case .seriesDetail(let seriesId, _):
+            SeriesDetailView(seriesId: seriesId)
+                .environment(navigationViewModel)
+
+        case .player(let content, _):
+            MediaPlayerView(content: content)
         }
     }
 }

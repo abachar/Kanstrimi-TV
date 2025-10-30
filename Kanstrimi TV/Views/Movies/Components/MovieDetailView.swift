@@ -15,9 +15,7 @@ struct MovieDetailView: View {
 
     // MARK: - Environment
     @Environment(DomainService.self) private var domainService
-
-    // MARK: - State
-    @State private var playingContent: PlaybackContent?
+    @Environment(MovieNavigationViewModel.self) private var navigationViewModel
 
     // MARK: - Queries
     @Query private var movies: [Movie]
@@ -101,10 +99,16 @@ struct MovieDetailView: View {
             guard let movie = movie else { return }
             await domainService.loadMovieDetailsIfNeeded(movie: movie)
         }
-        .fullScreenCover(item: $playingContent) { content in
-            MediaPlayerView(content: content)
-        }
         .ignoresSafeArea()
+    }
+
+    // MARK: - Helper Properties
+    private var returnDestination: MovieNavigationState.ReturnDestination {
+        // Déterminer la destination de retour en fonction de l'état actuel
+        if case .movieDetail(_, let returnTo) = navigationViewModel.currentState {
+            return returnTo
+        }
+        return .moviesList
     }
 
     var title: String {
@@ -253,7 +257,10 @@ struct MovieDetailView: View {
                 // Bouton "Reprendre"
                 Button {
                     if let detail = movieDetail {
-                        playingContent = .movie(detail)
+                        navigationViewModel.navigateToPlayer(
+                            content: .movie(detail),
+                            from: returnDestination
+                        )
                     }
                 } label: {
                     Label("Reprendre", systemImage: "play.fill")
@@ -263,7 +270,10 @@ struct MovieDetailView: View {
                 // Bouton "Lire"
                 Button {
                     if let detail = movieDetail {
-                        playingContent = .movie(detail)
+                        navigationViewModel.navigateToPlayer(
+                            content: .movie(detail),
+                            from: returnDestination
+                        )
                     }
                 } label: {
                     Label("Lire", systemImage: "play.fill")
@@ -275,7 +285,10 @@ struct MovieDetailView: View {
             if watchHistory != nil, watchHistory!.progressPercentage > 5 {
                 Button {
                     if let detail = movieDetail {
-                        playingContent = .movie(detail)
+                        navigationViewModel.navigateToPlayer(
+                            content: .movie(detail),
+                            from: returnDestination
+                        )
                     }
                 } label: {
                     Label("Redémarrer", systemImage: "arrow.counterclockwise")
@@ -379,6 +392,7 @@ struct MovieDetailView: View {
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
         .environment(mockDomainService)
+        .environment(MovieNavigationViewModel())
 }
 
 #Preview("With Watch History (50%)") {
@@ -413,4 +427,5 @@ struct MovieDetailView: View {
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
         .environment(mockDomainService)
+        .environment(MovieNavigationViewModel())
 }

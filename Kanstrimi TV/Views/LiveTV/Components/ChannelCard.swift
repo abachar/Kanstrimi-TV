@@ -13,7 +13,7 @@ struct ChannelCard: View {
     let channel: LiveChannel
 
     // MARK: - Environment
-    @Environment(LiveTVViewModel.self) private var viewModel
+    @Environment(LiveTVNavigationViewModel.self) private var navigationViewModel
 
     // MARK: - Configuration
     private let configuration = CardConfiguration(
@@ -29,7 +29,7 @@ struct ChannelCard: View {
             item: channel,
             configuration: configuration,
             action: {
-                viewModel.selectChannel(channel)
+                navigationViewModel.selectChannel(channel)
             }
         )
     }

@@ -11,9 +11,10 @@ import SwiftUI
 struct MovieCard: View {
     // MARK: - Properties
     let movie: Movie
+    let returnTo: MovieNavigationState.ReturnDestination
 
     // MARK: - Environment
-    @Environment(MoviesViewModel.self) private var viewModel
+    @Environment(MovieNavigationViewModel.self) private var navigationViewModel
 
     // MARK: - Configuration
     private let configuration = CardConfiguration(
@@ -21,7 +22,7 @@ struct MovieCard: View {
         aspectMode: .fill,
         emptyIcon: "film.fill"
     )
-    
+
     /*250 / 375*/
 
     // MARK: - Body
@@ -30,7 +31,9 @@ struct MovieCard: View {
             item: movie,
             configuration: configuration,
             action: {
-                viewModel.selectMovie(movie)
+                if let streamId = movie.extractedStreamId {
+                    navigationViewModel.navigateToDetail(streamId: streamId, from: returnTo)
+                }
             }
         )
     }

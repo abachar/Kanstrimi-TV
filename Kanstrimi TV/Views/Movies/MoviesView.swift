@@ -12,62 +12,64 @@ struct MoviesView: View {
     // MARK: - SwiftData Queries
     @Query(sort: \MoviesCategory.sortOrder) private var categories: [MoviesCategory]
 
-    // MARK: - ViewModel
-    @State private var viewModel = MoviesViewModel()
-
-    // MARK: - Search State
-    @State private var showSearchView = false
+    // MARK: - Navigation ViewModel
+    @State private var navigationViewModel = MovieNavigationViewModel()
 
     // MARK: - Body
     var body: some View {
-        ZStack {
+        ScrollView(.vertical, showsIndicators: false) {
             if categories.isEmpty {
                 // État vide
-                VStack(spacing: 40) {
-                    Text("Films")
-                        .font(.system(size: 60, weight: .bold))
-                        .foregroundColor(.primary)
-
+                ContentUnavailableView {
+                    Label("Films", systemImage: "film.slash")
+                } description: {
                     Text("Aucun film disponible")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
                 }
-                .padding(60)
             } else {
                 // Liste des catégories avec films
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 30) {
-                        ForEach(categories) { category in
-                            MovieCategoryRow(category: category)
-                        }
+                LazyVStack(spacing: 30) {
+                    ForEach(categories) { category in
+                        MovieCategoryRow(category: category)
                     }
-                    .padding(.top, 40)
-                    .padding(.bottom, 60)
                 }
+                .padding(.top, 40)
+                .padding(.bottom, 60)
             }
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
-        .environment(viewModel)
+        .environment(navigationViewModel)
         .onPlayPauseDoubleTap {
-            showSearchView = true
+            navigationViewModel.navigateToSearch()
         }
-        .fullScreenCover(isPresented: Binding(
-            get: { viewModel.selectedMovie != nil || showSearchView },
-            set: { if !$0 {
-                // Fermer seulement ce qui est ouvert
-                if viewModel.selectedMovie != nil {
-                    viewModel.selectedMovie = nil
-                } else if showSearchView {
-                    showSearchView = false
+        .fullScreenCover(item: Binding(
+            get: {
+                // Retourner l'état courant (nil = écran principal)
+                navigationViewModel.currentState
+            },
+            set: { newValue in
+                if newValue == nil {
+                    navigationViewModel.goBack()
                 }
-            }}
-        )) {
-            if let movie = viewModel.selectedMovie {
-                MovieDetailView(streamId: movie.extractedStreamId!)
-            } else if showSearchView {
-                SearchMovies()
-                    .environment(viewModel)
             }
+        )) { state in
+            navigationDestination(for: state)
+        }
+    }
+
+    // MARK: - Navigation Destination
+    @ViewBuilder
+    private func navigationDestination(for state: MovieNavigationState) -> some View {
+        switch state {
+        case .search:
+            SearchMovies()
+                .environment(navigationViewModel)
+
+        case .movieDetail(let streamId, _):
+            MovieDetailView(streamId: streamId)
+                .environment(navigationViewModel)
+
+        case .player(let content, _):
+            MediaPlayerView(content: content)
         }
     }
 }

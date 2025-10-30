@@ -27,7 +27,6 @@ final class StorageService {
                 PlayerSettings.self,
                 LiveCategory.self,
                 LiveChannel.self,
-                LiveChannelDetails.self,
                 MoviesCategory.self,
                 Movie.self,
                 MovieDetail.self,

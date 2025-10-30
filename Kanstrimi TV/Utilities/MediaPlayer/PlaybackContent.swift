@@ -8,8 +8,8 @@
 import Foundation
 
 /// Représente le contenu à lire dans le player universel
-enum PlaybackContent: Identifiable {
-    case liveChannel(LiveChannelDetails)
+enum PlaybackContent: Identifiable, Equatable {
+    case liveChannel(LiveChannel)
     case movie(MovieDetail)
     case episode(Episode, seriesName: String? = nil, previousEpisode: Episode? = nil, nextEpisode: Episode? = nil)
 
@@ -89,7 +89,18 @@ enum PlaybackContent: Identifiable {
 }
 
 /// Navigation entre épisodes de séries
-struct EpisodeNavigation {
+struct EpisodeNavigation: Equatable {
     let previous: Episode?
     let next: Episode?
+
+    static func == (lhs: EpisodeNavigation, rhs: EpisodeNavigation) -> Bool {
+        lhs.previous?.id == rhs.previous?.id && lhs.next?.id == rhs.next?.id
+    }
+}
+
+// MARK: - Equatable Conformance
+extension PlaybackContent {
+    static func == (lhs: PlaybackContent, rhs: PlaybackContent) -> Bool {
+        lhs.id == rhs.id
+    }
 }
