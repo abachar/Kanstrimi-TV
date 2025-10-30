@@ -74,10 +74,6 @@ struct PlayerOverlay: View {
                 }) {
                     Image(systemName: "speaker.wave.2")
                         .font(.system(size: 28))
-                        //.foregroundColor(.primary)
-                        //.frame(width: 80, height: 80)
-                        //.background(Color.gray.opacity(0.2))
-                        //.cornerRadius(12)
                         .hoverEffect(.highlight)
                 }
                 .buttonStyle(.borderless)
@@ -240,7 +236,7 @@ struct PlayerOverlay: View {
             .ignoresSafeArea()
 
         PlayerOverlay(
-            content: .liveChannel(LiveChannelDetails.previewChannelDetails[0]),
+            content: .liveChannel(LiveChannelDetails.previewChannelDetails[1]),
             currentPosition: 0,
             totalDuration: 0,
             isVisible: .constant(true),

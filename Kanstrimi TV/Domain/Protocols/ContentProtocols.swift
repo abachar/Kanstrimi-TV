@@ -35,28 +35,6 @@ protocol CardDisplayable {
     var rating: Double? { get }
 }
 
-// MARK: - SearchConfiguration
-
-/// Configuration pour la vue de recherche générique
-struct SearchConfiguration {
-    let title: String
-    let searchPrompt: String
-    let emptyIcon: String
-    let minCharacters: Int
-
-    init(
-        title: String,
-        searchPrompt: String,
-        emptyIcon: String,
-        minCharacters: Int = 3
-    ) {
-        self.title = title
-        self.searchPrompt = searchPrompt
-        self.emptyIcon = emptyIcon
-        self.minCharacters = minCharacters
-    }
-}
-
 // MARK: - CardConfiguration
 
 /// Style de carte (portrait vs landscape)
