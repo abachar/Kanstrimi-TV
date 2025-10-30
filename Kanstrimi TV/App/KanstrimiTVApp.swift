@@ -10,12 +10,13 @@ import SwiftData
 
 @main
 struct KanstrimiTVApp: App {
-    private let storageService = StorageService.shared
+    @State private var domainService = DomainService()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(domainService)
         }
-        .modelContainer(storageService.container)
+        .modelContainer(domainService.modelContainer)
     }
 }

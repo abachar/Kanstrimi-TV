@@ -17,10 +17,10 @@ struct ChannelCard: View {
 
     // MARK: - Configuration
     private let configuration = CardConfiguration(
-        style: .landscape(width: 200, height: 120),
+        style: .landscape(width: 250, height: 150),
         aspectMode: .fit,
         emptyIcon: "tv.fill",
-        showRating: false
+        showName: true
     )
 
     // MARK: - Body

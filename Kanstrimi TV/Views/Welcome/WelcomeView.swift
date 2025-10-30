@@ -9,6 +9,9 @@ import SwiftData
 import SwiftUI
 
 struct WelcomeView: View {
+    // MARK: - Environment
+    @Environment(DomainService.self) private var domainService
+
     // MARK: - SwiftData
     @Query private var accounts: [Account]
 
@@ -119,8 +122,8 @@ struct WelcomeView: View {
         }
 
         do {
-            // Rafraîchir le compte via AccountService
-            try await AccountService.shared.refreshAccount(
+            // Rafraîchir le compte via DomainService
+            try await domainService.refreshAccount(
                 account: account,
                 onStepChange: { step in
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -157,8 +160,8 @@ struct WelcomeView: View {
 
         Task {
             do {
-                // Créer et synchroniser le compte via AccountService
-                _ = try await AccountService.shared.createAccount(
+                // Créer et synchroniser le compte via DomainService
+                _ = try await domainService.createAccount(
                     name: name,
                     serverURL: serverURL,
                     username: username,

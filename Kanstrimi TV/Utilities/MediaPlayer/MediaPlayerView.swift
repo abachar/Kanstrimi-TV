@@ -15,6 +15,7 @@ import TVVLCKit
 struct MediaPlayerView: View {
     @State private var content: PlaybackContent
     @Environment(\.dismiss) private var dismiss
+    @Environment(DomainService.self) private var domainService
 
     init(content: PlaybackContent) {
         _content = State(initialValue: content)
@@ -301,7 +302,7 @@ struct MediaPlayerView: View {
         guard content.contentType == .vod else { return }
 
         Task {
-            if let history = await DomainService.shared.getWatchHistory(content: content),
+            if let history = await domainService.getWatchHistory(content: content),
                !history.isCompleted {
                 // Reprendre à la dernière position
                 await MainActor.run {
@@ -317,7 +318,7 @@ struct MediaPlayerView: View {
 
         watchHistoryTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [content] _ in
             Task {
-                await DomainService.shared.saveWatchHistory(
+                await domainService.saveWatchHistory(
                     content: content,
                     position: currentPosition,
                     duration: totalDuration
@@ -336,7 +337,7 @@ struct MediaPlayerView: View {
         guard content.contentType == .vod else { return }
 
         Task {
-            await DomainService.shared.saveWatchHistory(
+            await domainService.saveWatchHistory(
                 content: content,
                 position: currentPosition,
                 duration: totalDuration
@@ -423,16 +424,11 @@ struct MediaPlayerView: View {
     }
 
     private func fetchAdjacentEpisodes(for episode: Episode) async -> (previous: Episode?, next: Episode?) {
-        // Récupérer tous les épisodes de la série
-        let seasonNum = episode.seasonNumber
-        let descriptor = FetchDescriptor<Episode>(
-            predicate: #Predicate<Episode> { ep in
-                ep.seasonNumber == seasonNum
-            },
-            sortBy: [SortDescriptor(\Episode.episodeNum)]
-        )
-
-        guard let allEpisodes = try? await StorageService.shared.fetch(descriptor) else {
+        // Récupérer tous les épisodes de la série via DomainService
+        guard let allEpisodes = try? domainService.fetchEpisodes(
+            seriesId: episode.seriesId,
+            seasonNumber: episode.seasonNumber
+        ) else {
             return (nil, nil)
         }
 

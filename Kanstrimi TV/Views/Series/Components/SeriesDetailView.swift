@@ -13,6 +13,9 @@ struct SeriesDetailView: View {
     // MARK: - Properties
     let seriesId: Int
 
+    // MARK: - Environment
+    @Environment(DomainService.self) private var domainService
+
     // MARK: - State
     @State private var playingContent: PlaybackContent?
 
@@ -124,7 +127,7 @@ struct SeriesDetailView: View {
         }
         .task {
             guard let series = series else { return }
-            await DomainService.shared.loadSeriesDetailsIfNeeded(series: series)
+            await domainService.loadSeriesDetailsIfNeeded(series: series)
         }
         .fullScreenCover(item: $playingContent) { content in
             MediaPlayerView(content: content)

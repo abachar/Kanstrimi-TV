@@ -11,18 +11,15 @@ import SwiftData
 /// Service de gestion de la persistence avec SwiftData
 @MainActor
 final class StorageService {
-    /// Instance partagée (singleton)
-    static let shared = StorageService()
-    
     /// Container SwiftData
     private(set) var container: ModelContainer
-    
+
     /// Context principal pour les opérations SwiftData
     var context: ModelContext {
         container.mainContext
     }
-    
-    private init() {
+
+    init() {
         do {
             // Configuration du schéma avec tous les modèles
             let schema = Schema([
@@ -30,6 +27,7 @@ final class StorageService {
                 PlayerSettings.self,
                 LiveCategory.self,
                 LiveChannel.self,
+                LiveChannelDetails.self,
                 MoviesCategory.self,
                 Movie.self,
                 MovieDetail.self,

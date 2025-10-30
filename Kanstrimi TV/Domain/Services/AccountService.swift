@@ -9,13 +9,14 @@
 import Foundation
 import SwiftData
 
-/// Service singleton gérant la logique métier des comptes Xtream
+/// Service gérant la logique métier des comptes Xtream
+@MainActor
 final class AccountService {
-    /// Instance partagée (singleton)
-    static let shared = AccountService()
+    private let storageService: StorageService
 
-    /// Initialisation privée (singleton)
-    private init() {}
+    init(storageService: StorageService) {
+        self.storageService = storageService
+    }
 
     // MARK: - Rating Conversion
 
@@ -82,7 +83,7 @@ final class AccountService {
         account.lastSyncDate = Date()
 
         // 5. Sauvegarder dans SwiftData
-        try StorageService.shared.insert(account)
+        try storageService.insert(account)
 
         return account
     }
@@ -112,7 +113,7 @@ final class AccountService {
                     name: response.categoryName,
                     sortOrder: index
                 )
-                StorageService.shared.context.insert(category)
+                storageService.context.insert(category)
             }
 
             // Récupérer les chaînes Live TV
@@ -128,7 +129,7 @@ final class AccountService {
                     sortOrder: index,
                     streamIcon: response.streamIcon
                 )
-                StorageService.shared.context.insert(channel)
+                storageService.context.insert(channel)
 
                 // Créer LiveChannelDetails (contient streamURL et autres métadonnées)
                 let streamURL = XtreamURLBuilder.buildLiveStreamURL(account: account, streamId: response.streamId)
@@ -139,11 +140,11 @@ final class AccountService {
                     epgChannelId: response.epgChannelId,
                     added: response.added
                 )
-                StorageService.shared.context.insert(channelDetails)
+                storageService.context.insert(channelDetails)
             }
 
             // Sauvegarder les données Live TV
-            try StorageService.shared.save()
+            try storageService.save()
         } catch {
             // Log l'erreur mais continue la synchronisation
             print("⚠️ Erreur lors de la synchronisation Live TV: \(error)")
@@ -165,7 +166,7 @@ final class AccountService {
                     name: response.categoryName,
                     sortOrder: index
                 )
-                StorageService.shared.context.insert(moviesCategory)
+                storageService.context.insert(moviesCategory)
             }
 
             // Récupérer les films VOD (tous les films, sans filtrage par catégorie)
@@ -189,7 +190,7 @@ final class AccountService {
                     rating: convertRating(rating5based: response.rating5based, rating: response.rating),
                     tmdbId: response.tmdb
                 )
-                StorageService.shared.context.insert(movie)
+                storageService.context.insert(movie)
 
                 // Créer MovieDetail (partiel, sera enrichi lors de l'ouverture des détails)
                 // Note: genre n'est pas disponible dans getVODStreams, sera ajouté via getVODInfo
@@ -202,11 +203,11 @@ final class AccountService {
                     name: response.name,
                     rating: convertRating(rating5based: response.rating5based, rating: response.rating)
                 )
-                StorageService.shared.context.insert(movieDetail)
+                storageService.context.insert(movieDetail)
             }
 
             // Sauvegarder les données VOD
-            try StorageService.shared.save()
+            try storageService.save()
         } catch {
             // Log l'erreur mais continue la synchronisation
             print("⚠️ Erreur lors de la synchronisation VOD: \(error)")
@@ -228,7 +229,7 @@ final class AccountService {
                     name: response.categoryName,
                     sortOrder: index
                 )
-                StorageService.shared.context.insert(seriesCategory)
+                storageService.context.insert(seriesCategory)
             }
 
             // Récupérer les séries (toutes les séries, sans filtrage par catégorie)
@@ -246,7 +247,7 @@ final class AccountService {
                     rating: convertRating(rating5based: response.rating5based, rating: response.rating),
                     genre: response.genre
                 )
-                StorageService.shared.context.insert(series)
+                storageService.context.insert(series)
 
                 // Créer SeriesDetail (complet)
                 let seriesDetail = SeriesDetail(
@@ -261,11 +262,11 @@ final class AccountService {
                     backdropPaths: response.backdropPath,
                     youtubeTrailer: response.youtubeTrailer
                 )
-                StorageService.shared.context.insert(seriesDetail)
+                storageService.context.insert(seriesDetail)
             }
 
             // Sauvegarder les données Series
-            try StorageService.shared.save()
+            try storageService.save()
         } catch {
             // Log l'erreur mais continue la synchronisation
             print("⚠️ Erreur lors de la synchronisation Series: \(error)")
@@ -306,7 +307,7 @@ final class AccountService {
 
         // 3. Mettre à jour la date de synchronisation
         account.lastSyncDate = Date()
-        try StorageService.shared.save()
+        try storageService.save()
     }
 
     // MARK: - Delete Account Data
@@ -321,37 +322,37 @@ final class AccountService {
         let seriesCategoriesDescriptor = FetchDescriptor<SeriesCategory>()
 
         // Supprimer les chaînes live
-        if let channels = try? StorageService.shared.fetch(liveChannelsDescriptor) {
-            channels.forEach { StorageService.shared.context.delete($0) }
+        if let channels = try? storageService.fetch(liveChannelsDescriptor) {
+            channels.forEach { storageService.context.delete($0) }
         }
 
         // Supprimer les films
-        if let movies = try? StorageService.shared.fetch(moviesDescriptor) {
-            movies.forEach { StorageService.shared.context.delete($0) }
+        if let movies = try? storageService.fetch(moviesDescriptor) {
+            movies.forEach { storageService.context.delete($0) }
         }
 
         // Supprimer les séries
-        if let series = try? StorageService.shared.fetch(seriesDescriptor) {
-            series.forEach { StorageService.shared.context.delete($0) }
+        if let series = try? storageService.fetch(seriesDescriptor) {
+            series.forEach { storageService.context.delete($0) }
         }
 
         // Supprimer les catégories Live TV
-        if let categories = try? StorageService.shared.fetch(categoriesDescriptor) {
-            categories.forEach { StorageService.shared.context.delete($0) }
+        if let categories = try? storageService.fetch(categoriesDescriptor) {
+            categories.forEach { storageService.context.delete($0) }
         }
 
         // Supprimer les catégories VOD
-        if let moviesCategories = try? StorageService.shared.fetch(moviesCategoriesDescriptor) {
-            moviesCategories.forEach { StorageService.shared.context.delete($0) }
+        if let moviesCategories = try? storageService.fetch(moviesCategoriesDescriptor) {
+            moviesCategories.forEach { storageService.context.delete($0) }
         }
 
         // Supprimer les catégories Séries
-        if let seriesCategories = try? StorageService.shared.fetch(seriesCategoriesDescriptor) {
-            seriesCategories.forEach { StorageService.shared.context.delete($0) }
+        if let seriesCategories = try? storageService.fetch(seriesCategoriesDescriptor) {
+            seriesCategories.forEach { storageService.context.delete($0) }
         }
 
         // Sauvegarder la suppression
-        try? StorageService.shared.save()
+        try? storageService.save()
     }
 
     // MARK: - Future Methods (TODO)

@@ -10,6 +10,9 @@ import SwiftData
 
 /// Section affichant les informations du compte et les actions disponibles
 struct AccountSectionView: View {
+    // MARK: - Environment
+    @Environment(DomainService.self) private var domainService
+
     // MARK: - Queries
     @Query private var accounts: [Account]
 
@@ -36,18 +39,15 @@ struct AccountSectionView: View {
     }
 
     private var liveChannelsCount: Int {
-        let descriptor = FetchDescriptor<LiveChannel>()
-        return (try? StorageService.shared.fetchCount(descriptor)) ?? 0
+        (try? domainService.getChannelsCount()) ?? 0
     }
 
     private var moviesCount: Int {
-        let descriptor = FetchDescriptor<Movie>()
-        return (try? StorageService.shared.fetchCount(descriptor)) ?? 0
+        (try? domainService.getMoviesCount()) ?? 0
     }
 
     private var seriesCount: Int {
-        let descriptor = FetchDescriptor<Series>()
-        return (try? StorageService.shared.fetchCount(descriptor)) ?? 0
+        (try? domainService.getSeriesCount()) ?? 0
     }
 
     // MARK: - Body
@@ -170,7 +170,7 @@ struct AccountSectionView: View {
             }
 
             do {
-                try await DomainService.shared.refreshAccount(
+                try await domainService.refreshAccount(
                     account: account,
                     onStepChange: { step in
                         Task { @MainActor in
@@ -194,7 +194,7 @@ struct AccountSectionView: View {
         guard let account = currentAccount else { return }
 
         Task {
-            await DomainService.shared.deleteAccount(account: account)
+            await domainService.deleteAccount(account: account)
         }
     }
 

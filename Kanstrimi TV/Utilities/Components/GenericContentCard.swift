@@ -38,28 +38,15 @@ struct GenericContentCard<T: CardDisplayable>: View {
                 imageView
 
                 // Nom du contenu
-                Text(item.name)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(width: dimensions.width, height: 40)
-
-                // Information additionnelle (genre, etc.)
-                if let additionalInfo = configuration.additionalInfo, !additionalInfo.isEmpty {
-                    Text(additionalInfo)
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .frame(width: dimensions.width)
-                }
-
-                // Rating (étoiles)
-                if configuration.showRating, let rating = item.rating {
-                    ratingView(rating: rating)
+                if (configuration.showName) {
+                    Text(item.name)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .frame(width: dimensions.width, height: 40)
                 }
             }
-            .padding(.bottom, 16)
             .hoverEffect(.highlight)
         }
         .buttonStyle(.borderless)
@@ -95,15 +82,5 @@ struct GenericContentCard<T: CardDisplayable>: View {
         .frame(width: dimensions.width, height: dimensions.height)
         .cornerRadius(12)
         .clipped()
-    }
-
-    private func ratingView(rating: Double) -> some View {
-        HStack(spacing: 4) {
-            ForEach(0..<5) { index in
-                Image(systemName: index < Int(rating) ? "star.fill" : "star")
-                    .font(.system(size: 12))
-                    .foregroundColor(.yellow)
-            }
-        }
     }
 }

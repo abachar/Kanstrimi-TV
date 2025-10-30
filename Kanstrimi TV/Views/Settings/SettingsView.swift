@@ -10,6 +10,9 @@ import SwiftUI
 
 struct SettingsView: View {
 
+    // MARK: - Environment
+    @Environment(DomainService.self) private var domainService
+
     // MARK: - Queries
     @Query private var playerSettings: [PlayerSettings]
 
@@ -58,7 +61,7 @@ struct SettingsView: View {
     private func initializePlayerSettingsIfNeeded() {
         if playerSettings.isEmpty {
             let settings = PlayerSettings()
-            try? StorageService.shared.insert(settings)
+            try? domainService.insertPlayerSettings(settings)
         }
     }
 }
@@ -87,6 +90,10 @@ struct SettingsView: View {
     let settings = PlayerSettings(bufferSize: 30)
     context.insert(settings)
 
+    // Créer le MockDomainService
+    let mockDomainService = MockDomainService(container: container)
+
     return SettingsView()
         .modelContainer(container)
+        .environment(mockDomainService)
 }

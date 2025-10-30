@@ -11,10 +11,30 @@ import SwiftData
 
 /// Coordinateur central pour les actions métier
 @Observable
+@MainActor
 final class DomainService {
-    static let shared = DomainService()
+    /// Instance de StorageService encapsulée
+    private let storageService: StorageService
 
-    private init() {}
+    /// Instance d'AccountService encapsulée
+    private let accountService: AccountService
+
+    /// ModelContainer exposé pour l'injection dans SwiftUI
+    var modelContainer: ModelContainer {
+        storageService.container
+    }
+
+    /// Initialisation par défaut (crée un nouveau StorageService)
+    init() {
+        self.storageService = StorageService()
+        self.accountService = AccountService(storageService: storageService)
+    }
+
+    /// Initialisation avec une instance de StorageService personnalisée (pour les tests)
+    init(storageService: StorageService) {
+        self.storageService = storageService
+        self.accountService = AccountService(storageService: storageService)
+    }
 
     // MARK: - Movies
 
@@ -31,7 +51,7 @@ final class DomainService {
             predicate: #Predicate { $0.streamId == streamId }
         )
 
-        guard let existingDetail = try? StorageService.shared.fetchOne(descriptor) else {
+        guard let existingDetail = try? storageService.fetchOne(descriptor) else {
             print("DomainService: MovieDetail introuvable pour streamId=\(streamId)")
             return
         }
@@ -42,7 +62,7 @@ final class DomainService {
         }
 
         // Charger depuis Xtream + TMDB
-        guard let account = try? StorageService.shared.fetchOne(FetchDescriptor<Account>()) else {
+        guard let account = try? storageService.fetchOne(FetchDescriptor<Account>()) else {
             print("DomainService: Aucun compte actif")
             return
         }
@@ -79,7 +99,7 @@ final class DomainService {
                 existingDetail.backdropPaths = xtreamDetail.info?.backdropPath
                 existingDetail.lastUpdated = Date()
 
-                try? StorageService.shared.save()
+                try? storageService.save()
             }
 
             print("DomainService: Détails du film \(movie.name) enrichis avec succès")
@@ -103,12 +123,12 @@ final class DomainService {
             predicate: #Predicate { $0.seriesId == seriesId }
         )
 
-        guard (try? StorageService.shared.fetchOne(descriptor)) == nil else {
+        guard (try? storageService.fetchOne(descriptor)) == nil else {
             return  // Détails déjà chargés
         }
 
         // Charger depuis Xtream + TMDB
-        guard let account = try? StorageService.shared.fetchOne(FetchDescriptor<Account>()) else {
+        guard let account = try? storageService.fetchOne(FetchDescriptor<Account>()) else {
             print("DomainService: Aucun compte actif")
             return
         }
@@ -141,7 +161,7 @@ final class DomainService {
             )
 
             await MainActor.run {
-                try? StorageService.shared.insert(detail)
+                try? storageService.insert(detail)
 
                 // Créer les saisons et épisodes
                 guard let episodes = xtreamDetail.episodes else { return }
@@ -153,7 +173,7 @@ final class DomainService {
                         seriesId: seriesId,
                         seasonNumber: seasonNumber
                     )
-                    StorageService.shared.context.insert(season)
+                    storageService.context.insert(season)
 
                     // Créer les épisodes
                     for episodeData in episodesDict {
@@ -179,11 +199,11 @@ final class DomainService {
                             streamURL: streamURL,
                             containerExtension: episodeData.containerExtension
                         )
-                        StorageService.shared.context.insert(episode)
+                        storageService.context.insert(episode)
                     }
                 }
 
-                try? StorageService.shared.save()
+                try? storageService.save()
             }
 
             print("DomainService: Détails de la série \(series.name) chargés avec succès")
@@ -202,7 +222,7 @@ final class DomainService {
         password: String,
         onStepChange: @escaping (SyncStep) -> Void
     ) async throws -> Account {
-        try await AccountService.shared.createAccount(
+        try await accountService.createAccount(
             name: name,
             serverURL: serverURL,
             username: username,
@@ -213,7 +233,7 @@ final class DomainService {
 
     /// Rafraîchit les données du compte
     func refreshAccount(account: Account, onStepChange: @escaping (SyncStep) -> Void) async throws {
-        try await AccountService.shared.refreshAccount(
+        try await accountService.refreshAccount(
             account: account,
             onStepChange: onStepChange
         )
@@ -221,7 +241,7 @@ final class DomainService {
 
     /// Supprime toutes les données du compte
     func deleteAllAccountData() {
-        AccountService.shared.deleteAllAccountData()
+        accountService.deleteAllAccountData()
     }
 
     /// Supprime un compte et toutes ses données associées
@@ -230,43 +250,94 @@ final class DomainService {
     func deleteAccount(account: Account) async {
         // Supprimer toutes les données liées
         let liveChannelsDescriptor = FetchDescriptor<LiveChannel>()
-        if let liveChannels = try? StorageService.shared.fetch(liveChannelsDescriptor) {
-            liveChannels.forEach { StorageService.shared.context.delete($0) }
+        if let liveChannels = try? storageService.fetch(liveChannelsDescriptor) {
+            liveChannels.forEach { storageService.context.delete($0) }
         }
 
         let moviesDescriptor = FetchDescriptor<Movie>()
-        if let movies = try? StorageService.shared.fetch(moviesDescriptor) {
-            movies.forEach { StorageService.shared.context.delete($0) }
+        if let movies = try? storageService.fetch(moviesDescriptor) {
+            movies.forEach { storageService.context.delete($0) }
         }
 
         let seriesDescriptor = FetchDescriptor<Series>()
-        if let series = try? StorageService.shared.fetch(seriesDescriptor) {
-            series.forEach { StorageService.shared.context.delete($0) }
+        if let series = try? storageService.fetch(seriesDescriptor) {
+            series.forEach { storageService.context.delete($0) }
         }
 
         // Supprimer les catégories
         let categoriesDescriptor = FetchDescriptor<LiveCategory>()
-        if let categories = try? StorageService.shared.fetch(categoriesDescriptor) {
-            categories.forEach { StorageService.shared.context.delete($0) }
+        if let categories = try? storageService.fetch(categoriesDescriptor) {
+            categories.forEach { storageService.context.delete($0) }
         }
 
         let moviesCategoriesDescriptor = FetchDescriptor<MoviesCategory>()
-        if let moviesCategories = try? StorageService.shared.fetch(moviesCategoriesDescriptor) {
-            moviesCategories.forEach { StorageService.shared.context.delete($0) }
+        if let moviesCategories = try? storageService.fetch(moviesCategoriesDescriptor) {
+            moviesCategories.forEach { storageService.context.delete($0) }
         }
 
         let seriesCategoriesDescriptor = FetchDescriptor<SeriesCategory>()
-        if let seriesCategories = try? StorageService.shared.fetch(seriesCategoriesDescriptor) {
-            seriesCategories.forEach { StorageService.shared.context.delete($0) }
+        if let seriesCategories = try? storageService.fetch(seriesCategoriesDescriptor) {
+            seriesCategories.forEach { storageService.context.delete($0) }
         }
 
         // Supprimer le compte
-        StorageService.shared.context.delete(account)
+        storageService.context.delete(account)
 
         // Sauvegarder
-        try? StorageService.shared.save()
+        try? storageService.save()
 
         print("✅ DomainService: Compte et données associées supprimés avec succès")
+    }
+
+    // MARK: - PlayerSettings
+
+    /// Insère de nouveaux PlayerSettings dans la base de données
+    func insertPlayerSettings(_ settings: PlayerSettings) throws {
+        try storageService.insert(settings)
+    }
+
+    /// Met à jour les PlayerSettings existants
+    func updatePlayerSettings(_ settings: PlayerSettings) throws {
+        try storageService.save()
+    }
+
+    /// Récupère le nombre de PlayerSettings dans la base de données
+    func getPlayerSettingsCount() throws -> Int {
+        let descriptor = FetchDescriptor<PlayerSettings>()
+        return try storageService.fetchCount(descriptor)
+    }
+
+    // MARK: - Statistics
+
+    /// Récupère le nombre de chaînes Live TV dans la base de données
+    func getChannelsCount() throws -> Int {
+        let descriptor = FetchDescriptor<LiveChannel>()
+        return try storageService.fetchCount(descriptor)
+    }
+
+    /// Récupère le nombre de films dans la base de données
+    func getMoviesCount() throws -> Int {
+        let descriptor = FetchDescriptor<Movie>()
+        return try storageService.fetchCount(descriptor)
+    }
+
+    /// Récupère le nombre de séries dans la base de données
+    func getSeriesCount() throws -> Int {
+        let descriptor = FetchDescriptor<Series>()
+        return try storageService.fetchCount(descriptor)
+    }
+
+    // MARK: - Episodes
+
+    /// Récupère tous les épisodes d'une saison triés par numéro d'épisode
+    func fetchEpisodes(seriesId: Int, seasonNumber: Int) throws -> [Episode] {
+        let descriptor = FetchDescriptor<Episode>(
+            predicate: #Predicate<Episode> { ep in
+                ep.seriesId == seriesId && ep.seasonNumber == seasonNumber
+            },
+            sortBy: [SortDescriptor(\Episode.episodeNum)]
+        )
+        return try storageService.fetch(descriptor)
     }
 
     // MARK: - Watch History
@@ -311,7 +382,7 @@ final class DomainService {
             )
         }
 
-        return try? StorageService.shared.fetchOne(descriptor)
+        return try? storageService.fetchOne(descriptor)
     }
 
     /// Sauvegarde ou met à jour l'historique de visionnage
@@ -357,10 +428,10 @@ final class DomainService {
                 duration: duration,
                 lastWatchedDate: Date()
             )
-            try? StorageService.shared.insert(newHistory)
+            try? storageService.insert(newHistory)
         }
 
         // Sauvegarder
-        try? StorageService.shared.save()
+        try? storageService.save()
     }
 }

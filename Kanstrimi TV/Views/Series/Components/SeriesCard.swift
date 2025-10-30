@@ -18,11 +18,9 @@ struct SeriesCard: View {
     // MARK: - Computed Configuration
     private var configuration: CardConfiguration {
         CardConfiguration(
-            style: .portrait(width: 220, height: 300),
+            style: .portrait(width: 250, height: 375),
             aspectMode: .fill,
-            emptyIcon: "tv.fill",
-            showRating: true,
-            additionalInfo: series.genre
+            emptyIcon: "tv.fill"
         )
     }
 

@@ -10,6 +10,9 @@ import SwiftData
 
 /// Section affichant les paramètres de lecture
 struct PlaybackSectionView: View {
+    // MARK: - Environment
+    @Environment(DomainService.self) private var domainService
+
     // MARK: - Queries
     @Query private var playerSettings: [PlayerSettings]
 
@@ -67,7 +70,7 @@ struct PlaybackSectionView: View {
     private func updateBufferSize(_ newValue: Int) {
         guard let settings = currentPlayerSettings else { return }
         settings.bufferSize = newValue
-        try? StorageService.shared.save()
+        try? domainService.updatePlayerSettings(settings)
     }
 
     // MARK: - Buffer Option Button

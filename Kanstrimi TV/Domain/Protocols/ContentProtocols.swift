@@ -70,21 +70,18 @@ struct CardConfiguration {
     let style: CardStyle
     let aspectMode: ContentMode
     let emptyIcon: String
-    let showRating: Bool
-    let additionalInfo: String?
+    let showName: Bool
 
     init(
         style: CardStyle,
         aspectMode: ContentMode = .fill,
         emptyIcon: String,
-        showRating: Bool = true,
-        additionalInfo: String? = nil
+        showName: Bool = false
     ) {
         self.style = style
         self.aspectMode = aspectMode
         self.emptyIcon = emptyIcon
-        self.showRating = showRating
-        self.additionalInfo = additionalInfo
+        self.showName = showName
     }
 }
 

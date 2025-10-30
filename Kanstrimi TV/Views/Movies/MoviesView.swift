@@ -90,6 +90,10 @@ struct MoviesView: View {
         context.insert(movie)
     }
 
+    // Créer le MockDomainService
+    let mockDomainService = MockDomainService(container: container)
+
     return MoviesView()
         .modelContainer(container)
+        .environment(mockDomainService)
 }

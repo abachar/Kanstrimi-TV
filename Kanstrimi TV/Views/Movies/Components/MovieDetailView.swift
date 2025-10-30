@@ -13,6 +13,9 @@ struct MovieDetailView: View {
     // MARK: - Properties
     let streamId: Int
 
+    // MARK: - Environment
+    @Environment(DomainService.self) private var domainService
+
     // MARK: - State
     @State private var playingContent: PlaybackContent?
 
@@ -96,7 +99,7 @@ struct MovieDetailView: View {
         }
         .task {
             guard let movie = movie else { return }
-            await DomainService.shared.loadMovieDetailsIfNeeded(movie: movie)
+            await domainService.loadMovieDetailsIfNeeded(movie: movie)
         }
         .fullScreenCover(item: $playingContent) { content in
             MediaPlayerView(content: content)
@@ -370,8 +373,12 @@ struct MovieDetailView: View {
     let movieDetail = MovieDetail.youreInvitedDetail
     context.insert(movieDetail)
 
+    // Créer le MockDomainService
+    let mockDomainService = MockDomainService(container: container)
+
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
+        .environment(mockDomainService)
 }
 
 #Preview("With Watch History (50%)") {
@@ -400,6 +407,10 @@ struct MovieDetailView: View {
     )
     context.insert(watchHistory)
 
+    // Créer le MockDomainService
+    let mockDomainService = MockDomainService(container: container)
+
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
+        .environment(mockDomainService)
 }
