@@ -12,7 +12,7 @@ import SwiftData
 /// Coordinateur central pour les actions métier
 @Observable
 @MainActor
-final class DomainService {
+final class DomainService: DomainServiceProtocol {
     /// Instance de StorageService encapsulée
     private let storageService: StorageService
 

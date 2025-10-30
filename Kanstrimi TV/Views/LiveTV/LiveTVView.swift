@@ -95,6 +95,10 @@ struct LiveTVView: View {
         context.insert(channel)
     }
 
+    // Créer le MockDomainService
+    let mockDomainService = MockDomainService(container: container)
+
     return LiveTVView()
         .modelContainer(container)
+        .environment(\.domainService, mockDomainService)
 }

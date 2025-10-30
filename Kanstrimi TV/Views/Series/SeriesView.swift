@@ -92,6 +92,10 @@ struct SeriesView: View {
         context.insert(series)
     }
 
+    // Créer le MockDomainService
+    let mockDomainService = MockDomainService(container: container)
+
     return SeriesView()
         .modelContainer(container)
+        .environment(\.domainService, mockDomainService)
 }

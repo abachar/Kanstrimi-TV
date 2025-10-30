@@ -97,5 +97,5 @@ struct MoviesView: View {
 
     return MoviesView()
         .modelContainer(container)
-        .environment(mockDomainService)
+        .environment(\.domainService, mockDomainService)
 }

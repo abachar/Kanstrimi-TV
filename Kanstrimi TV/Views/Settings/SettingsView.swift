@@ -11,7 +11,7 @@ import SwiftUI
 struct SettingsView: View {
 
     // MARK: - Environment
-    @Environment(DomainService.self) private var domainService
+    @Environment(\.domainService) private var domainService
 
     // MARK: - Queries
     @Query private var playerSettings: [PlayerSettings]
@@ -95,5 +95,5 @@ struct SettingsView: View {
 
     return SettingsView()
         .modelContainer(container)
-        .environment(mockDomainService)
+        .environment(\.domainService, mockDomainService)
 }

@@ -15,7 +15,7 @@ struct KanstrimiTVApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(domainService)
+                .environment(\.domainService, domainService)
         }
         .modelContainer(domainService.modelContainer)
     }

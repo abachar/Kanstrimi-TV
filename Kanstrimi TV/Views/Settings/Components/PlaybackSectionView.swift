@@ -11,7 +11,7 @@ import SwiftData
 /// Section affichant les paramètres de lecture
 struct PlaybackSectionView: View {
     // MARK: - Environment
-    @Environment(DomainService.self) private var domainService
+    @Environment(\.domainService) private var domainService
 
     // MARK: - Queries
     @Query private var playerSettings: [PlayerSettings]

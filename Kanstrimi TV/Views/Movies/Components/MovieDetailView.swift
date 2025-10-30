@@ -14,7 +14,7 @@ struct MovieDetailView: View {
     let streamId: Int
 
     // MARK: - Environment
-    @Environment(DomainService.self) private var domainService
+    @Environment(\.domainService) private var domainService
     @Environment(MovieNavigationViewModel.self) private var navigationViewModel
 
     // MARK: - Queries
@@ -391,7 +391,7 @@ struct MovieDetailView: View {
 
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
-        .environment(mockDomainService)
+        .environment(\.domainService, mockDomainService)
         .environment(MovieNavigationViewModel())
 }
 
@@ -426,6 +426,6 @@ struct MovieDetailView: View {
 
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
-        .environment(mockDomainService)
+        .environment(\.domainService, mockDomainService)
         .environment(MovieNavigationViewModel())
 }

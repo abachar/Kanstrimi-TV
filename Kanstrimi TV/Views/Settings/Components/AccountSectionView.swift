@@ -11,7 +11,7 @@ import SwiftData
 /// Section affichant les informations du compte et les actions disponibles
 struct AccountSectionView: View {
     // MARK: - Environment
-    @Environment(DomainService.self) private var domainService
+    @Environment(\.domainService) private var domainService
 
     // MARK: - Queries
     @Query private var accounts: [Account]

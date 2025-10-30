@@ -10,7 +10,7 @@ import SwiftUI
 
 struct WelcomeView: View {
     // MARK: - Environment
-    @Environment(DomainService.self) private var domainService
+    @Environment(\.domainService) private var domainService
 
     // MARK: - SwiftData
     @Query private var accounts: [Account]
@@ -194,7 +194,17 @@ struct WelcomeView: View {
 }
 
 #Preview {
-    WelcomeView {
+    let container = try! ModelContainer(
+        for: Account.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+
+    // Créer le MockDomainService
+    let mockDomainService = MockDomainService(container: container)
+
+    return WelcomeView {
         print("Account ready, transitioning to MainView")
     }
+    .modelContainer(container)
+    .environment(\.domainService, mockDomainService)
 }

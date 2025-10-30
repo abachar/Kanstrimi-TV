@@ -13,7 +13,7 @@ import SwiftData
 /// Utilise un ModelContainer en mémoire au lieu du StorageService
 @Observable
 @MainActor
-final class MockDomainService {
+final class MockDomainService: DomainServiceProtocol {
     private let mockContainer: ModelContainer
 
     /// ModelContainer exposé pour l'injection dans SwiftUI (comme DomainService)

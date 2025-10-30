@@ -14,7 +14,7 @@ struct SeriesDetailView: View {
     let seriesId: Int
 
     // MARK: - Environment
-    @Environment(DomainService.self) private var domainService
+    @Environment(\.domainService) private var domainService
     @Environment(SeriesNavigationViewModel.self) private var navigationViewModel
 
     // MARK: - Queries
@@ -469,8 +469,13 @@ struct SeriesDetailView: View {
     // Ajouter les épisodes
     Episode.previewEpisodes.forEach { context.insert($0) }
 
+        // Créer le MockDomainService
+    let mockDomainService = MockDomainService(container: container)
+
     return SeriesDetailView(seriesId: series.extractedSeriesId!)
         .modelContainer(container)
+        .environment(\.domainService, mockDomainService)
+        .environment(SeriesNavigationViewModel())
 }
 
 #Preview("With Watch History") {
@@ -507,6 +512,11 @@ struct SeriesDetailView: View {
     )
     context.insert(watchHistory)
 
+    // Créer le MockDomainService
+    let mockDomainService = MockDomainService(container: container)
+
     return SeriesDetailView(seriesId: series.extractedSeriesId!)
         .modelContainer(container)
+        .environment(\.domainService, mockDomainService)
+        .environment(SeriesNavigationViewModel())
 }
