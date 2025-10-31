@@ -158,29 +158,13 @@ final class AccountService {
             // Récupérer les films VOD depuis Xtream
             let movieResponses = try await XtreamService.shared.getVODStreams(account: account)
 
-            // Convertir en Movie + MovieDetail et insérer via MovieService
-            var movies: [Movie] = []
-            var movieDetails: [MovieDetail] = []
-
-            for (index, response) in movieResponses.enumerated() {
+            // Convertir en Movie et insérer via MovieService
+            let movies = movieResponses.enumerated().map { (index, response) in
                 let convertedRating = convertRating(rating5based: response.rating5based, rating: response.rating)
-
-                // Créer Movie
-                let movie = response.toMovie(sortOrder: index, convertedRating: convertedRating)
-                movies.append(movie)
-
-                // Créer MovieDetail
-                let streamURL = XtreamURLBuilder.buildVODStreamURL(
-                    account: account,
-                    streamId: response.streamId,
-                    containerExtension: response.containerExtension ?? "mp4"
-                )
-                let detail = response.toMovieDetail(streamURL: streamURL, convertedRating: convertedRating)
-                movieDetails.append(detail)
+                return response.toMovie(sortOrder: index, convertedRating: convertedRating)
             }
 
             try movieService.insertMovies(movies)
-            try movieService.insertMovieDetails(movieDetails)
 
         } catch {
             print("⚠️ Erreur lors de la synchronisation VOD: \(error)")
@@ -204,24 +188,13 @@ final class AccountService {
             // Récupérer les séries depuis Xtream
             let seriesResponses = try await XtreamService.shared.getSeries(account: account)
 
-            // Convertir en Series + SeriesDetail et insérer via SeriesService
-            var seriesList: [Series] = []
-            var seriesDetails: [SeriesDetail] = []
-
-            for (index, response) in seriesResponses.enumerated() {
+            // Convertir en Series et insérer via SeriesService
+            let seriesList = seriesResponses.enumerated().map { (index, response) in
                 let convertedRating = convertRating(rating5based: response.rating5based, rating: response.rating)
-
-                // Créer Series
-                let series = response.toSeries(sortOrder: index, convertedRating: convertedRating)
-                seriesList.append(series)
-
-                // Créer SeriesDetail
-                let detail = response.toSeriesDetail(convertedRating: convertedRating)
-                seriesDetails.append(detail)
+                return response.toSeries(sortOrder: index, convertedRating: convertedRating)
             }
 
             try seriesService.insertSeries(seriesList)
-            try seriesService.insertSeriesDetails(seriesDetails)
 
         } catch {
             print("⚠️ Erreur lors de la synchronisation Series: \(error)")

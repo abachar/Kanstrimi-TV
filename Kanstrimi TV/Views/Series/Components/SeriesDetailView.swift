@@ -78,6 +78,8 @@ struct SeriesDetailView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
+            Color.appBackground
+            
             // Backdrop image
             backdropView
 

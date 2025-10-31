@@ -7,6 +7,58 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [0.11.1] - 2025-10-31
+
+### Corrigé
+- **Affichage des catégories** : Correction du bug empêchant l'affichage des catégories dans LiveTV, Movies et Series
+  - Problème : Les `#Predicate` SwiftData ne supportent pas les comparaisons avec enum
+  - Solution : Migration de `contentType` de `Category.ContentType` (enum) vers `String` dans le modèle SwiftData
+  - Impact : LiveTVView, MoviesView et SeriesView affichent maintenant correctement les catégories existantes
+  - Fichiers modifiés : `Category.swift`, `LiveTVView.swift`, `MoviesView.swift`, `SeriesView.swift`, `CategoryService.swift`
+
+- **Enrichissement TMDB des Details** : Correction du bug empêchant l'enrichissement TMDB des films et séries
+  - Problème : `syncAccount` créait des `MovieDetail` et `SeriesDetail` partiels, puis `loadDetailsIfNeeded` les trouvait existants et ne les enrichissait jamais avec TMDB (casting, images, etc.)
+  - Solution : Suppression de la création des Details dans `syncAccount`, et vrai lazy loading via `loadDetailsIfNeeded`
+  - Impact : Les images des acteurs et données TMDB sont maintenant correctement chargées à l'ouverture des fiches détaillées
+  - Fichiers modifiés : `AccountService.swift`, `MovieService.swift`, `SeriesService.swift`
+
+### Modifié
+- **Modèle Category** : `contentType` stocké comme `String` au lieu de `Category.ContentType` (enum)
+  - L'enum `ContentType` est conservé pour la validation et la sécurité de type (utilisé dans l'init)
+  - Conversion automatique vers String lors de la création : `self.contentType = contentType.rawValue`
+  - Permet l'utilisation de Predicates efficaces : `#Predicate { $0.contentType == "live" }`
+
+- **AccountService.syncAccount()** : Ne crée plus les `MovieDetail` et `SeriesDetail` lors de la synchronisation
+  - Suppression de la création de `MovieDetail` (étape Movies)
+  - Suppression de la création de `SeriesDetail` (étape Series)
+  - Les Details sont maintenant créés à la demande via `loadDetailsIfNeeded`
+
+- **MovieService.loadDetailsIfNeeded()** : Gestion complète de la création et de l'enrichissement des `MovieDetail`
+  - Vérifie si le `MovieDetail` existe et est déjà enrichi (genre != nil)
+  - Si absent : crée un nouveau `MovieDetail` complet avec données Xtream + TMDB
+  - Si présent mais non enrichi : enrichit avec données Xtream + TMDB
+  - Charge systématiquement les images des acteurs via TMDB API
+
+- **SeriesService.loadDetailsIfNeeded()** : Documentation clarifiée
+  - Crée le `SeriesDetail`, les saisons et épisodes à la demande (lazy loading)
+  - Commentaire mis à jour pour refléter la création au lieu de l'enrichissement
+
+### Technique
+- **Architecture optimisée** : Chaque vue filtre uniquement ses catégories via Predicate (pas de chargement de toutes les catégories)
+- **SwiftData Predicates** : `#Predicate<Category> { $0.contentType == "live" }` fonctionne maintenant correctement
+- **CategoryService** : Mise à jour de `deleteCategories()` pour utiliser `contentType.rawValue`
+- **Amélioration mémoire** : Filtrage au niveau de la base de données, pas en mémoire
+- **Lazy loading véritable** : Les Details ne sont créés que lors de l'ouverture des fiches détaillées
+- **Performances synchro** : Synchronisation plus rapide (pas de création de milliers de MovieDetail/SeriesDetail)
+- **Enrichissement TMDB** : Chargement systématique des castImages (images des acteurs) à l'ouverture
+
+### Note de migration
+- ⚠️ **Breaking change SwiftData** : Modification du type de `Category.contentType` (enum → String)
+- ⚠️ **Breaking change Architecture** : Les Details ne sont plus créés pendant la synchronisation
+- ⚠️ Réinstallation de l'application requise (changement de schéma SwiftData)
+
+---
+
 ## [0.11.0] - 2025-10-31
 
 ### Refactorisé

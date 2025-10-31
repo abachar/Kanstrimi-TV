@@ -36,7 +36,7 @@ final class SeriesService {
 
     // MARK: - Load Details
 
-    /// Charge les détails d'une série si nécessaire (met à jour la DB)
+    /// Charge les détails d'une série si nécessaire (crée le SeriesDetail, les saisons et épisodes)
     /// - Parameter series: Série dont charger les détails
     func loadDetailsIfNeeded(series: Series) async {
         // Extraire le seriesId depuis l'ID
@@ -50,8 +50,9 @@ final class SeriesService {
             predicate: #Predicate { $0.seriesId == seriesId }
         )
 
+        // Si les détails existent déjà, ne rien faire
         guard (try? storageService.fetchOne(descriptor)) == nil else {
-            return  // Détails déjà chargés
+            return
         }
 
         // Charger depuis Xtream + TMDB

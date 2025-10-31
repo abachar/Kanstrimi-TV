@@ -15,8 +15,8 @@ final class Category {
     /// Identifiant unique généré
     var id: String
 
-    /// Type de contenu
-    var contentType: ContentType
+    /// Type de contenu (stocké comme String pour compatibilité SwiftData Predicate)
+    var contentType: String
 
     /// ID de la catégorie (depuis l'API Xtream)
     var categoryId: String
@@ -29,9 +29,9 @@ final class Category {
 
     /// Type de contenu supporté
     enum ContentType: String, Codable {
-        case live
-        case movies
-        case series
+        case live = "live"
+        case movies = "movies"
+        case series = "series"
     }
 
     init(
@@ -41,7 +41,7 @@ final class Category {
         sortOrder: Int
     ) {
         self.id = "\(contentType.rawValue)-cat-\(categoryId)"
-        self.contentType = contentType
+        self.contentType = contentType.rawValue
         self.categoryId = categoryId
         self.name = name
         self.sortOrder = sortOrder

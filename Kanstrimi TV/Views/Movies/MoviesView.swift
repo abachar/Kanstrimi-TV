@@ -16,9 +16,8 @@ struct MoviesView: View {
     @State private var navigationViewModel = MovieNavigationViewModel()
 
     init() {
-        let moviesType = Category.ContentType.movies
         let predicate = #Predicate<Category> { category in
-            category.contentType == moviesType
+            category.contentType == "movies"
         }
         let descriptor = FetchDescriptor<Category>(
             predicate: predicate,

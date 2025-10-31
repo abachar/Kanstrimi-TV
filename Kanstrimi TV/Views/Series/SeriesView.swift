@@ -16,9 +16,8 @@ struct SeriesView: View {
     @State private var navigationViewModel = SeriesNavigationViewModel()
 
     init() {
-        let seriesType = Category.ContentType.series
         let predicate = #Predicate<Category> { category in
-            category.contentType == seriesType
+            category.contentType == "series"
         }
         let descriptor = FetchDescriptor<Category>(
             predicate: predicate,

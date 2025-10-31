@@ -16,26 +16,31 @@ struct SyncProgressView: View {
 
     // MARK: - Body
     var body: some View {
-        VStack(spacing: 30) {
-            // Message de l'étape courante
-            Text(currentStep.message)
-                .font(.system(size: 32))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .transition(.opacity)
-                .id(currentStep)  // Force l'animation lors du changement d'étape
+        ZStack {
+            Color.appBackground
+                .ignoresSafeArea()
+            
+            VStack(spacing: 30) {
+                // Message de l'étape courante
+                Text(currentStep.message)
+                    .font(.system(size: 32))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .transition(.opacity)
+                    .id(currentStep)  // Force l'animation lors du changement d'étape
 
-            // Barre de progression
-            ProgressView(value: currentStep.progress, total: 1.0)
-                .progressViewStyle(.linear)
-                .frame(width: 600)
-                .tint(.blue)
+                // Barre de progression
+                ProgressView(value: currentStep.progress, total: 1.0)
+                    .progressViewStyle(.linear)
+                    .frame(width: 600)
+                    .tint(.blue)
 
-            // Indicateur numérique (ex: "3/5")
-            Text("\(currentStep.rawValue + 1)/\(SyncStep.allCases.count)")
-                .font(.system(size: 24))
-                .foregroundColor(.secondary)
+                // Indicateur numérique (ex: "3/5")
+                Text("\(currentStep.rawValue + 1)/\(SyncStep.allCases.count)")
+                    .font(.system(size: 24))
+                    .foregroundColor(.secondary)
+            }
+            .padding(40)
         }
-        .padding(40)
     }
 }

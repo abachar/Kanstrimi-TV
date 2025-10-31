@@ -36,7 +36,7 @@ final class MovieService {
 
     // MARK: - Load Details
 
-    /// Charge les détails d'un film si nécessaire (enrichit le MovieDetail existant)
+    /// Charge les détails d'un film si nécessaire (crée ou enrichit le MovieDetail)
     /// - Parameter movie: Film dont charger les détails
     func loadDetailsIfNeeded(movie: Movie) async {
         // Extraire le streamId depuis l'ID
@@ -45,18 +45,15 @@ final class MovieService {
             return
         }
 
-        // Vérifier si les détails sont déjà enrichis (genre présent)
+        // Vérifier si les détails existent déjà et sont enrichis
         let descriptor = FetchDescriptor<MovieDetail>(
             predicate: #Predicate { $0.streamId == streamId }
         )
 
-        guard let existingDetail = try? storageService.fetchOne(descriptor) else {
-            print("MovieService: MovieDetail introuvable pour streamId=\(streamId)")
-            return
-        }
+        let existingDetail = try? storageService.fetchOne(descriptor)
 
-        // Si le genre est déjà présent, pas besoin d'enrichir
-        if existingDetail.genre != nil {
+        // Si les détails existent et sont déjà enrichis (genre présent), ne rien faire
+        if let detail = existingDetail, detail.genre != nil {
             return
         }
 
@@ -85,25 +82,55 @@ final class MovieService {
                 }
             }
 
-            // Enrichir le MovieDetail existant
             await MainActor.run {
-                existingDetail.genre = xtreamDetail.info?.genre
-                existingDetail.duration = xtreamDetail.info?.duration
-                existingDetail.year = xtreamDetail.info?.releaseDate
-                existingDetail.cover = xtreamDetail.info?.coverBig
-                existingDetail.plot = xtreamDetail.info?.plot
-                existingDetail.director = xtreamDetail.info?.director
-                existingDetail.cast = xtreamDetail.info?.cast
-                existingDetail.castImages = castImages
-                existingDetail.backdropPaths = xtreamDetail.info?.backdropPath
-                existingDetail.lastUpdated = Date()
+                if let detail = existingDetail {
+                    // Enrichir le MovieDetail existant
+                    detail.genre = xtreamDetail.info?.genre
+                    detail.duration = xtreamDetail.info?.duration
+                    detail.year = xtreamDetail.info?.releaseDate
+                    detail.cover = xtreamDetail.info?.coverBig
+                    detail.plot = xtreamDetail.info?.plot
+                    detail.director = xtreamDetail.info?.director
+                    detail.cast = xtreamDetail.info?.cast
+                    detail.castImages = castImages
+                    detail.backdropPaths = xtreamDetail.info?.backdropPath
+                    detail.lastUpdated = Date()
+                } else {
+                    // Créer un nouveau MovieDetail complet
+                    let streamURL = XtreamURLBuilder.buildVODStreamURL(
+                        account: account,
+                        streamId: streamId,
+                        containerExtension: xtreamDetail.movieData?.containerExtension ?? "mp4"
+                    )
+
+                    let newDetail = MovieDetail(
+                        streamId: streamId,
+                        streamURL: streamURL,
+                        containerExtension: xtreamDetail.movieData?.containerExtension,
+                        added: xtreamDetail.movieData?.added,
+                        tmdbId: xtreamDetail.info?.tmdbId,
+                        name: movie.name,
+                        genre: xtreamDetail.info?.genre,
+                        rating: movie.rating,
+                        duration: xtreamDetail.info?.duration,
+                        year: xtreamDetail.info?.releaseDate,
+                        cover: xtreamDetail.info?.coverBig,
+                        plot: xtreamDetail.info?.plot,
+                        director: xtreamDetail.info?.director,
+                        cast: xtreamDetail.info?.cast,
+                        castImages: castImages,
+                        backdropPaths: xtreamDetail.info?.backdropPath
+                    )
+
+                    try? storageService.insert(newDetail)
+                }
 
                 try? storageService.save()
             }
 
-            print("MovieService: Détails du film \(movie.name) enrichis avec succès")
+            print("MovieService: Détails du film \(movie.name) chargés avec succès")
         } catch {
-            print("MovieService: Erreur enrichissement détails film: \(error)")
+            print("MovieService: Erreur chargement détails film: \(error)")
         }
     }
 

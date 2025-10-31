@@ -11,15 +11,13 @@ import SwiftUI
 struct LiveTVView: View {
     // MARK: - SwiftData Queries
     @Query private var liveCategories: [Category]
-    @Query private var channels: [LiveChannel]
 
     // MARK: - Navigation ViewModel
     @State private var navigationViewModel = LiveTVNavigationViewModel()
 
     init() {
-        let liveType = Category.ContentType.live
         let predicate = #Predicate<Category> { category in
-            category.contentType == liveType
+            category.contentType == "live"
         }
         let descriptor = FetchDescriptor<Category>(
             predicate: predicate,

@@ -47,6 +47,7 @@ struct SeasonRow: View {
                         }
                     }
                 }
+                .scrollClipDisabled()
             }
         }
     }

@@ -34,8 +34,9 @@ final class CategoryService {
     /// - Throws: Erreur si la suppression échoue
     func deleteCategories(contentType: Category.ContentType) throws {
         // Note: SwiftData ne permet pas de delete avec predicate, donc on doit fetch puis delete
+        let contentTypeString = contentType.rawValue
         let descriptor = FetchDescriptor<Category>(
-            predicate: #Predicate { $0.contentType == contentType }
+            predicate: #Predicate { $0.contentType == contentTypeString }
         )
         let categories = try storageService.fetch(descriptor)
         for category in categories {
