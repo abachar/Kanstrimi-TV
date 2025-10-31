@@ -20,6 +20,16 @@ struct SeriesCategoryResponse: Codable {
         case categoryName = "category_name"
         case parentId = "parent_id"
     }
+
+    /// Conversion vers Category
+    func toCategory(sortOrder: Int) -> Category {
+        Category(
+            contentType: .series,
+            categoryId: categoryId,
+            name: categoryName,
+            sortOrder: sortOrder
+        )
+    }
 }
 
 struct SeriesResponse: Codable {
@@ -96,6 +106,35 @@ struct SeriesResponse: Codable {
         } else {
             backdropPath = nil
         }
+    }
+
+    /// Conversion vers Series
+    func toSeries(sortOrder: Int, convertedRating: Double?) -> Series {
+        Series(
+            seriesId: seriesId,
+            name: name,
+            sortOrder: sortOrder,
+            categoryId: categoryId,
+            cover: cover,
+            rating: convertedRating,
+            genre: genre
+        )
+    }
+
+    /// Conversion vers SeriesDetail
+    func toSeriesDetail(convertedRating: Double?) -> SeriesDetail {
+        SeriesDetail(
+            seriesId: seriesId,
+            name: name,
+            genre: genre,
+            rating: convertedRating,
+            cover: cover,
+            plot: plot,
+            director: director,
+            cast: cast,
+            backdropPaths: backdropPath,
+            youtubeTrailer: youtubeTrailer
+        )
     }
 }
 

@@ -7,6 +7,58 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [0.11.0] - 2025-10-31
+
+### Refactorisé
+- **Architecture Domain** : Refactorisation majeure du Domain Layer en architecture service-oriented
+  - `DomainService` transformé en façade coordonnant des services spécialisés
+  - Nouveau `CategoryService` pour gestion des catégories (Live, Movies, Series)
+  - Nouveau `LiveChannelService` pour gestion des chaînes Live TV
+  - Nouveau `MovieService` pour gestion des films VOD (avec loadDetailsIfNeeded)
+  - Nouveau `SeriesService` pour gestion des séries TV (avec loadDetailsIfNeeded)
+  - Nouveau `SettingsService` pour gestion des paramètres et statistiques
+  - `AccountService` refactorisé pour utiliser les services spécialisés (au lieu de manipulation directe du context)
+
+- **Modèle Category unifié** : Fusion de LiveCategory, MoviesCategory, SeriesCategory
+  - Nouveau modèle `Category` avec enum `ContentType` (.live, .movies, .series)
+  - Suppression de 3 modèles SwiftData → modèle unique
+  - Filtrage via `@Query` avec `#Predicate { $0.contentType == .live }`
+  - Simplification de l'architecture et facilitation des features cross-content
+
+- **Gestion d'erreurs unifiée** : Création de `NetworkError` centralisé
+  - Suppression de `XtreamError` et `TMDBError`
+  - `NetworkError` utilisé par XtreamService et TMDBService
+  - Nouveau `NetworkService` pour mutualiser la logique HTTP
+  - `XtreamService` et `TMDBService` refactorisés pour utiliser `NetworkService.request()` (élimination duplication code)
+
+- **Conversion Response → Model** : Méthodes de conversion dans les Response structs
+  - `LiveCategoryResponse.toCategory()`, `VODCategoryResponse.toCategory()`, `SeriesCategoryResponse.toCategory()`
+  - `LiveChannelResponse.toLiveChannel()`
+  - `MovieResponse.toMovie()` et `MovieResponse.toMovieDetail()`
+  - `SeriesResponse.toSeries()` et `SeriesResponse.toSeriesDetail()`
+  - Responsabilité de conversion déplacée dans les Response models (architecture claire)
+
+### Ajouté
+- **ARCHITECTURE.md** : Section "Règles strictes" documentant les nouvelles contraintes
+  - DomainService comme point d'entrée unique (interdiction d'appel direct aux services)
+  - Obligation d'utiliser composants SwiftUI natifs (pas de wrappers custom)
+  - Architecture en couches clairement définie
+  - Documentation du modèle Category unifié
+
+### Technique
+- Architecture façade pattern : DomainService délègue à 6 services spécialisés
+- Services utilisent StorageService pour persistance (pas de manipulation directe du context)
+- AccountService orchestre CategoryService, LiveChannelService, MovieService, SeriesService lors de la synchro
+- Breaking change SwiftData : Nécessite réinstallation de l'app (changement schéma)
+- Préparation pour futures optimisations réseau (NetworkService en place)
+
+### Note de migration
+- ⚠️ **Breaking change** : Suppression de LiveCategory, MoviesCategory, SeriesCategory du Schema SwiftData
+- ⚠️ Réinstallation de l'application requise (nouveau schéma SwiftData incompatible)
+- Les @Query utilisant les anciens modèles de catégories doivent être migrées vers `Category` avec filtrage `contentType`
+
+---
+
 ## [0.3.0] - 2025-10-29
 
 ### Modifié

@@ -20,6 +20,16 @@ struct VODCategoryResponse: Codable {
         case categoryName = "category_name"
         case parentId = "parent_id"
     }
+
+    /// Conversion vers Category
+    func toCategory(sortOrder: Int) -> Category {
+        Category(
+            contentType: .movies,
+            categoryId: categoryId,
+            name: categoryName,
+            sortOrder: sortOrder
+        )
+    }
 }
 
 struct MovieResponse: Codable {
@@ -78,6 +88,32 @@ struct MovieResponse: Codable {
         directSource = try container.decodeIfPresent(String.self, forKey: .directSource)
         rating5based = container.decodeFlexibleDoubleIfPresent(forKey: .rating5based)
         tmdb = container.decodeFlexibleIntIfPresent(forKey: .tmdb)
+    }
+
+    /// Conversion vers Movie
+    func toMovie(sortOrder: Int, convertedRating: Double?) -> Movie {
+        Movie(
+            streamId: streamId,
+            name: name,
+            sortOrder: sortOrder,
+            categoryId: categoryId,
+            streamIcon: streamIcon,
+            rating: convertedRating,
+            tmdbId: tmdb
+        )
+    }
+
+    /// Conversion vers MovieDetail
+    func toMovieDetail(streamURL: String, convertedRating: Double?) -> MovieDetail {
+        MovieDetail(
+            streamId: streamId,
+            streamURL: streamURL,
+            containerExtension: containerExtension,
+            added: added,
+            tmdbId: tmdb,
+            name: name,
+            rating: convertedRating
+        )
     }
 }
 

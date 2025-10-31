@@ -11,17 +11,17 @@ import SwiftData
 /// Ligne de catégorie avec liste horizontale de films (max 6 visibles)
 struct MovieCategoryRow: View {
     // MARK: - Properties
-    let category: MoviesCategory
+    let category: Category
 
     // MARK: - SwiftData Query
     @Query private var movies: [Movie]
 
     // MARK: - Init
-    init(category: MoviesCategory) {
+    init(category: Category) {
         self.category = category
 
         // Query filtrée par categoryId avec tri par sortOrder
-        let categoryId = category.categoryId ?? ""
+        let categoryId = category.categoryId
         _movies = Query(
             filter: #Predicate<Movie> { movie in
                 movie.categoryId == categoryId

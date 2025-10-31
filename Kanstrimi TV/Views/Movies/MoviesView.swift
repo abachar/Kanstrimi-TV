@@ -10,10 +10,22 @@ import SwiftData
 
 struct MoviesView: View {
     // MARK: - SwiftData Queries
-    @Query(sort: \MoviesCategory.sortOrder) private var categories: [MoviesCategory]
+    @Query private var categories: [Category]
 
     // MARK: - Navigation ViewModel
     @State private var navigationViewModel = MovieNavigationViewModel()
+
+    init() {
+        let moviesType = Category.ContentType.movies
+        let predicate = #Predicate<Category> { category in
+            category.contentType == moviesType
+        }
+        let descriptor = FetchDescriptor<Category>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.sortOrder)]
+        )
+        _categories = Query(descriptor)
+    }
 
     // MARK: - Body
     var body: some View {
@@ -74,16 +86,17 @@ struct MoviesView: View {
     }
 }
 
+/*
 #Preview {
     let container = try! ModelContainer(
-        for: MoviesCategory.self, Movie.self,
+        for: Category.self, Movie.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 
     let context = container.mainContext
 
     // Insérer les catégories de preview
-    for category in MoviesCategory.previewCategories {
+    for category in Category.previewMoviesCategories {
         context.insert(category)
     }
 
@@ -95,7 +108,8 @@ struct MoviesView: View {
     // Créer le MockDomainService
     let mockDomainService = MockDomainService(container: container)
 
-    return MoviesView()
+    MoviesView()
         .modelContainer(container)
         .environment(\.domainService, mockDomainService)
 }
+*/

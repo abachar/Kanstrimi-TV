@@ -243,6 +243,88 @@ User Action → View → DomainService → Services (Xtream/TMDB) → StorageSer
 - [ ] Optimiser les performances avec pagination
 - [ ] Ajouter des tests unitaires pour CommandBus et Services
 
+## 🚫 Règles strictes
+
+### DomainService : Point d'entrée unique
+- ✅ **TOUJOURS** appeler DomainService depuis les Views
+- ❌ **JAMAIS** appeler directement les services spécialisés (AccountService, MovieService, CategoryService, etc.)
+- ❌ **JAMAIS** appeler XtreamService ou TMDBService depuis les Views
+- ❌ **JAMAIS** appeler NetworkService depuis les Views
+
+**Exemple correct** :
+```swift
+// Dans MovieDetailView
+await domainService.loadMovieDetailsIfNeeded(movie: movie)
+```
+
+**Exemple incorrect** :
+```swift
+// ❌ NE PAS FAIRE
+await MovieService.loadDetailsIfNeeded(movie: movie)
+await XtreamService.shared.getVODInfo(...)
+```
+
+### Composants SwiftUI natifs uniquement
+- ✅ **TOUJOURS** utiliser les composants SwiftUI par défaut (Button, Text, Image, etc.)
+- ❌ **JAMAIS** créer de wrappers custom autour des composants SwiftUI
+- ❌ **JAMAIS** modifier le comportement des composants SwiftUI de base
+
+**Exemple correct** :
+```swift
+Button("Lire") { playMovie() }
+```
+
+**Exemple incorrect** :
+```swift
+// ❌ NE PAS FAIRE : wrapper custom
+struct CustomButton: View {
+    var body: some View {
+        Button(...) { }
+            .overlay(...) // customisation excessive
+            .background(...) // surcharge de style
+    }
+}
+```
+
+### Architecture Domain en couches
+```
+Views → DomainService (façade) → Services spécialisés → StorageService → SwiftData
+                                ↓
+                         XtreamService / TMDBService → NetworkService
+```
+
+**Services spécialisés** :
+- `CategoryService` : Gestion des catégories (Live, Movies, Series)
+- `LiveChannelService` : Gestion des chaînes Live TV
+- `MovieService` : Gestion des films VOD
+- `SeriesService` : Gestion des séries TV
+- `SettingsService` : Gestion des paramètres et statistiques
+- `AccountService` : Gestion des comptes Xtream (utilise tous les services ci-dessus)
+
+**Règles des services** :
+- ✅ Chaque service utilise `StorageService` pour la persistance
+- ✅ `AccountService` utilise les autres services pour la synchronisation
+- ❌ Les Views n'appellent **JAMAIS** les services directement
+
+### Modèle Category unifié
+Un seul modèle `Category` pour tous les types de contenu :
+```swift
+Category.ContentType:
+  - .live    (ex-LiveCategory)
+  - .movies  (ex-MoviesCategory)
+  - .series  (ex-SeriesCategory)
+```
+
+Filtrage via `@Query` :
+```swift
+@Query(filter: #Predicate<Category> { $0.contentType == .live })
+private var liveCategories: [Category]
+```
+
+### Gestion d'erreurs unifiée
+- ✅ Utiliser `NetworkError` pour toutes les erreurs réseau (Xtream, TMDB)
+- ❌ Ne pas créer d'énumérations d'erreurs custom par service
+
 ## 📝 Notes importantes
 
 1. **Éviter prop drilling** : Utiliser l'état local dans les vues principales, passer uniquement les bindings nécessaires
@@ -251,3 +333,5 @@ User Action → View → DomainService → Services (Xtream/TMDB) → StorageSer
 4. **DomainService ne retourne rien** : Il persiste via StorageService, les vues observent automatiquement via @Query
 5. **Focus natif tvOS** : `.hoverEffect()` au lieu de @FocusState custom
 6. **CachedImage partout** : Remplacement d'AsyncImage pour bénéficier du cache disque
+7. **DomainService est une façade** : Il coordonne les services spécialisés sans logique métier directe
+8. **Category unifié** : Un seul modèle avec enum `ContentType` pour Live/Movies/Series

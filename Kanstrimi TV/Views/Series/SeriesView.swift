@@ -10,10 +10,22 @@ import SwiftUI
 
 struct SeriesView: View {
     // MARK: - SwiftData Queries
-    @Query(sort: \SeriesCategory.sortOrder) private var categories: [SeriesCategory]
+    @Query private var categories: [Category]
 
     // MARK: - Navigation ViewModel
     @State private var navigationViewModel = SeriesNavigationViewModel()
+
+    init() {
+        let seriesType = Category.ContentType.series
+        let predicate = #Predicate<Category> { category in
+            category.contentType == seriesType
+        }
+        let descriptor = FetchDescriptor<Category>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.sortOrder)]
+        )
+        _categories = Query(descriptor)
+    }
 
     // MARK: - Body
     var body: some View {
@@ -74,16 +86,17 @@ struct SeriesView: View {
     }
 }
 
+/*
 #Preview {
     let container = try! ModelContainer(
-        for: SeriesCategory.self, Series.self,
+        for: Category.self, Series.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 
     let context = container.mainContext
 
     // Insérer les catégories de preview
-    for category in SeriesCategory.previewCategories {
+    for category in Category.previewSeriesCategories {
         context.insert(category)
     }
 
@@ -95,7 +108,8 @@ struct SeriesView: View {
     // Créer le MockDomainService
     let mockDomainService = MockDomainService(container: container)
 
-    return SeriesView()
+    SeriesView()
         .modelContainer(container)
         .environment(\.domainService, mockDomainService)
 }
+*/

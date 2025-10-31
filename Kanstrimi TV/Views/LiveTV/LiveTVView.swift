@@ -10,11 +10,23 @@ import SwiftUI
 
 struct LiveTVView: View {
     // MARK: - SwiftData Queries
-    @Query(sort: \LiveCategory.sortOrder) private var liveCategories: [LiveCategory]
+    @Query private var liveCategories: [Category]
     @Query private var channels: [LiveChannel]
 
     // MARK: - Navigation ViewModel
     @State private var navigationViewModel = LiveTVNavigationViewModel()
+
+    init() {
+        let liveType = Category.ContentType.live
+        let predicate = #Predicate<Category> { category in
+            category.contentType == liveType
+        }
+        let descriptor = FetchDescriptor<Category>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.sortOrder)]
+        )
+        _liveCategories = Query(descriptor)
+    }
 
     // MARK: - Body
     var body: some View {
@@ -29,8 +41,8 @@ struct LiveTVView: View {
             } else {
                 // Liste des catégories avec chaînes
                 LazyVStack(spacing: 30) {
-                    ForEach(liveCategories) { liveCategory in
-                        LiveCategoryRow(liveCategory: liveCategory)
+                    ForEach(liveCategories) { category in
+                        LiveCategoryRow(liveCategory: category)
                     }
                 }
                 .padding(.top, 40)
@@ -77,16 +89,17 @@ struct LiveTVView: View {
     }
 }
 
+/*
 #Preview {
     let container = try! ModelContainer(
-        for: LiveCategory.self, LiveChannel.self,
+        for: Category.self, LiveChannel.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 
     let context = container.mainContext
 
     // Insérer les catégories de preview
-    for category in LiveCategory.previewCategories {
+    for category in Category.previewLiveCategories {
         context.insert(category)
     }
 
@@ -98,7 +111,8 @@ struct LiveTVView: View {
     // Créer le MockDomainService
     let mockDomainService = MockDomainService(container: container)
 
-    return LiveTVView()
+    LiveTVView()
         .modelContainer(container)
         .environment(\.domainService, mockDomainService)
 }
+*/

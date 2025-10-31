@@ -20,6 +20,16 @@ struct LiveCategoryResponse: Codable {
         case categoryName = "category_name"
         case parentId = "parent_id"
     }
+
+    /// Conversion vers Category
+    func toCategory(sortOrder: Int) -> Category {
+        Category(
+            contentType: .live,
+            categoryId: categoryId,
+            name: categoryName,
+            sortOrder: sortOrder
+        )
+    }
 }
 
 struct LiveChannelResponse: Codable {
@@ -69,6 +79,20 @@ struct LiveChannelResponse: Codable {
         tvArchive = try container.decodeIfPresent(Int.self, forKey: .tvArchive)
         directSource = try container.decodeIfPresent(String.self, forKey: .directSource)
         tvArchiveDuration = container.decodeFlexibleIntIfPresent(forKey: .tvArchiveDuration)
+    }
+
+    /// Conversion vers LiveChannel
+    func toLiveChannel(sortOrder: Int, streamURL: String) -> LiveChannel {
+        LiveChannel(
+            streamId: streamId,
+            name: name,
+            categoryId: categoryId,
+            sortOrder: sortOrder,
+            streamIcon: streamIcon,
+            streamURL: streamURL,
+            epgChannelId: epgChannelId,
+            added: added
+        )
     }
 }
 

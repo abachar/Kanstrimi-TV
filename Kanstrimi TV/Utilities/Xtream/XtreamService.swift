@@ -13,23 +13,11 @@ final class XtreamService {
     /// Instance partagée (singleton)
     static let shared = XtreamService()
 
-    /// Session URL configurée pour tvOS
-    private let session: URLSession
-
-    /// Décodeur JSON
-    private let decoder: JSONDecoder
+    /// NetworkService pour les requêtes
+    private let networkService = NetworkService.shared
 
     /// Initialisation privée (singleton)
-    private init() {
-        // Configuration URLSession adaptée à tvOS
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30  // 30s pour les requêtes
-        config.timeoutIntervalForResource = 60 // 60s pour le téléchargement complet
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData // Toujours fetch les données fraîches
-        self.session = URLSession(configuration: config)
-
-        self.decoder = JSONDecoder()
-    }
+    private init() {}
 
     // MARK: - Generic Request Method
 
@@ -40,38 +28,11 @@ final class XtreamService {
     ) async throws -> T {
         // Construction de l'URL
         guard let url = XtreamURLBuilder.buildURL(endpoint: endpoint, account: account) else {
-            throw XtreamError.invalidURL
+            throw NetworkError.invalidURL
         }
 
-        // Exécution de la requête
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await session.data(from: url)
-        } catch {
-            throw XtreamError.networkError(error)
-        }
-
-        // Vérification du code HTTP
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw XtreamError.emptyResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break // Succès
-        case 401, 403:
-            throw XtreamError.invalidCredentials
-        default:
-            throw XtreamError.serverError(statusCode: httpResponse.statusCode)
-        }
-
-        // Décodage de la réponse
-        do {
-            let decoded = try decoder.decode(T.self, from: data)
-            return decoded
-        } catch {
-            throw XtreamError.decodingError(error)
-        }
+        // Utilisation de NetworkService
+        return try await networkService.request(url: url)
     }
 
     // MARK: - Account

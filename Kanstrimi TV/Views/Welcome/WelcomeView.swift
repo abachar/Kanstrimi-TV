@@ -176,7 +176,7 @@ struct WelcomeView: View {
                 // Succès : transition vers MainView
                 onAccountReady()
 
-            } catch let error as XtreamError {
+            } catch let error as NetworkError {
                 // Erreur Xtream : afficher message et masquer la progression
                 withAnimation(.easeInOut(duration: 0.5)) {
                     isSyncing = false
