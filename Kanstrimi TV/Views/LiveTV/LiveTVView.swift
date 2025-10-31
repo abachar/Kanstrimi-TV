@@ -111,7 +111,7 @@ struct LiveTVView: View {
     // Créer le MockDomainService
     let mockDomainService = MockDomainService(container: container)
 
-    LiveTVView()
+    return LiveTVView()
         .modelContainer(container)
         .environment(\.domainService, mockDomainService)
 }

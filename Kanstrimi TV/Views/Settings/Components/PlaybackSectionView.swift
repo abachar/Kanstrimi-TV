@@ -45,17 +45,16 @@ struct PlaybackSectionView: View {
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // Picker horizontal avec boutons
-                HStack(spacing: 16) {
+                // Picker segment\u00e9
+                Picker("Taille du buffer", selection: Binding(
+                    get: { bufferSize },
+                    set: { newValue in updateBufferSize(newValue) }
+                )) {
                     ForEach(bufferOptions, id: \.self) { option in
-                        BufferOptionButton(
-                            value: option,
-                            isSelected: bufferSize == option
-                        ) {
-                            updateBufferSize(option)
-                        }
+                        Text("\(option) sec").tag(option)
                     }
                 }
+                .pickerStyle(.segmented)
                 .padding(.top, 8)
             }
             .padding(24)
@@ -71,32 +70,5 @@ struct PlaybackSectionView: View {
         guard let settings = currentPlayerSettings else { return }
         settings.bufferSize = newValue
         try? domainService.updatePlayerSettings(settings)
-    }
-
-    // MARK: - Buffer Option Button
-    private struct BufferOptionButton: View {
-        let value: Int
-        let isSelected: Bool
-        let action: () -> Void
-
-        var body: some View {
-            Button(action: action) {
-                VStack(spacing: 8) {
-                    Text("\(value)")
-                        .font(.system(size: 28, weight: .bold))
-
-                    Text("sec")
-                        .font(.system(size: 16, weight: .regular))
-                        .opacity(0.8)
-                }
-                .frame(width: 100, height: 80)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isSelected ? Color.blue : Color.gray.opacity(0.3))
-                )
-            }
-            .buttonStyle(.plain)
-            .hoverEffect(.highlight)
-        }
     }
 }

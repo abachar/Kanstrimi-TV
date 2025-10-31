@@ -31,46 +31,16 @@ struct InfoSectionView: View {
                     .padding(.vertical, 8)
 
                 // Boutons d'actions
-                VStack(spacing: 16) {
-                    Button(action: {
+                HStack(spacing: 16) {
+                    Button("Licences Open Source", systemImage: "doc.text") {
                         // TODO: Navigation vers LicensesView
                         print("Show licenses (à implémenter)")
-                    }) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 24, weight: .semibold))
-                            Text("Licences Open Source")
-                                .font(.system(size: 24, weight: .medium))
-                        }
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.cyan)
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .hoverEffect(.highlight)
 
-                    Button(action: {
+                    Button("Crédits", systemImage: "star.fill") {
                         // TODO: Navigation vers CreditsView
                         print("Show credits (à implémenter)")
-                    }) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 24, weight: .semibold))
-                            Text("Crédits")
-                                .font(.system(size: 24, weight: .medium))
-                        }
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.cyan)
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .hoverEffect(.highlight)
                 }
             }
             .padding(24)

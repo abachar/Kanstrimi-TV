@@ -22,7 +22,7 @@ struct SettingsView: View {
             HStack(spacing: 0) {
                 // Colonne gauche : Informations app + disclaimer
                 AppInfoPanel()
-                    .frame(width: 550)
+                    .frame(maxWidth: .infinity)
 
                 // Séparateur vertical
                 Rectangle()

@@ -38,18 +38,6 @@ struct AccountSectionView: View {
         return formatter.localizedString(for: lastSyncDate, relativeTo: Date())
     }
 
-    private var liveChannelsCount: Int {
-        (try? domainService.getChannelsCount()) ?? 0
-    }
-
-    private var moviesCount: Int {
-        (try? domainService.getMoviesCount()) ?? 0
-    }
-
-    private var seriesCount: Int {
-        (try? domainService.getSeriesCount()) ?? 0
-    }
-
     // MARK: - Body
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -61,14 +49,6 @@ struct AccountSectionView: View {
                     InfoRow(label: "Nom", value: account.name)
                     InfoRow(label: "Serveur", value: account.serverURL)
                     InfoRow(label: "Dernière synchro", value: lastSyncText)
-
-                    Divider()
-                        .background(Color.secondary.opacity(0.3))
-                        .padding(.vertical, 8)
-
-                    InfoRow(label: "Chaînes", value: "\(liveChannelsCount)")
-                    InfoRow(label: "Films", value: "\(moviesCount)")
-                    InfoRow(label: "Séries", value: "\(seriesCount)")
                 }
                 .padding(24)
                 .background(
@@ -78,22 +58,9 @@ struct AccountSectionView: View {
 
                 // Actions
                 HStack(spacing: 20) {
-                    Button(action: { showRefreshDialog = true }) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 24, weight: .semibold))
-                            Text("Rafraîchir")
-                                .font(.system(size: 24, weight: .medium))
-                        }
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.blue)
-                        )
+                    Button("Rafraîchir", systemImage: "arrow.clockwise") {
+                        showRefreshDialog = true
                     }
-                    .buttonStyle(.plain)
-                    .hoverEffect(.highlight)
                     .confirmationDialog(
                         "Rafraîchir le compte ?",
                         isPresented: $showRefreshDialog,
@@ -107,22 +74,9 @@ struct AccountSectionView: View {
                         Text("Toutes les données (chaînes, films, séries) seront supprimées puis re-synchronisées.")
                     }
 
-                    Button(action: { showDeleteDialog = true }) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 24, weight: .semibold))
-                            Text("Supprimer")
-                                .font(.system(size: 24, weight: .medium))
-                        }
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.red)
-                        )
+                    Button("Supprimer", systemImage: "trash", role: .destructive) {
+                        showDeleteDialog = true
                     }
-                    .buttonStyle(.plain)
-                    .hoverEffect(.highlight)
                     .confirmationDialog(
                         "Supprimer le compte ?",
                         isPresented: $showDeleteDialog,
