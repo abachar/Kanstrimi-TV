@@ -10,16 +10,14 @@ import SwiftUI
 
 struct FilterEditableRowView: View {
     // MARK: - Properties
-    let filter: ContentFilter
+    @Binding var editState: FilterEditState
     let isReorderMode: Bool
     let onDelete: () -> Void
     let onMoveUp: () -> Void
     let onMoveDown: () -> Void
     let canMoveUp: Bool
     let canMoveDown: Bool
-
-    // MARK: - State
-    @State private var editedText: String = ""
+    let onChange: () -> Void
 
     // MARK: - Body
     var body: some View {
@@ -41,52 +39,60 @@ struct FilterEditableRowView: View {
                 .disabled(!canMoveDown)
                 .opacity(canMoveDown ? 1 : 0.3)
             }
-            
+
             // Toggle activation
             Toggle("", isOn: Binding(
-                get: { filter.isActive },
-                set: { filter.isActive = $0 }
+                get: { editState.isActive },
+                set: {
+                    editState.isActive = $0
+                    onChange()
+                }
             ))
             .toggleStyle(.switch)
             .labelsHidden()
-            
+
             // TextField pour le texte
-            TextField("Texte du filtre", text: $editedText)
-                .onAppear {
-                    editedText = filter.text
+            TextField("Texte du filtre", text: Binding(
+                get: { editState.text },
+                set: {
+                    editState.text = $0
+                    onChange()
                 }
-                .onChange(of: editedText) { _, newValue in
-                    filter.text = newValue
-                }
-            
-            Button(filter.isInclusive ? "Inclure" : "Exclure") {
-                filter.isInclusive.toggle()
+            ))
+
+            Button(editState.isInclusive ? "Inclure" : "Exclure") {
+                editState.isInclusive.toggle()
+                onChange()
             }
-            .tint(filter.isInclusive ? .green : .red)
+            .tint(editState.isInclusive ? .green : .red)
 
             // ControlGroup {
                 Button("Cat") {
-                    filter.applyToCategories.toggle()
+                    editState.applyToCategories.toggle()
+                    onChange()
                 }
-                .tint(filter.applyToCategories ? .blue : .gray)
+                .tint(editState.applyToCategories ? .blue : .gray)
 
                 Button("Live") {
-                    filter.applyToLive.toggle()
+                    editState.applyToLive.toggle()
+                    onChange()
                 }
-                .tint(filter.applyToLive ? .purple : .gray)
+                .tint(editState.applyToLive ? .purple : .gray)
 
                 Button("Films") {
-                    filter.applyToMovies.toggle()
+                    editState.applyToMovies.toggle()
+                    onChange()
                 }
-                .tint(filter.applyToMovies ? .orange : .gray)
+                .tint(editState.applyToMovies ? .orange : .gray)
 
                 Button("Séries") {
-                    filter.applyToSeries.toggle()
+                    editState.applyToSeries.toggle()
+                    onChange()
                 }
-                .tint(filter.applyToSeries ? .pink : .gray)
+                .tint(editState.applyToSeries ? .pink : .gray)
             //}
             //.padding()
-            
+
             Button("Supprimer", systemImage: "trash", role: .destructive) {
                 onDelete()
             }

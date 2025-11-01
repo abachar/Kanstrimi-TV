@@ -9,17 +9,56 @@
 import SwiftUI
 import SwiftData
 
+/// État temporaire pour édition d'un filtre sans sauvegarde automatique
+struct FilterEditState: Identifiable {
+    let id: String
+    var text: String
+    var isActive: Bool
+    var isInclusive: Bool
+    var priority: Int
+    var applyToCategories: Bool
+    var applyToLive: Bool
+    var applyToMovies: Bool
+    var applyToSeries: Bool
+
+    init(from filter: ContentFilter) {
+        self.id = filter.id
+        self.text = filter.text
+        self.isActive = filter.isActive
+        self.isInclusive = filter.isInclusive
+        self.priority = filter.priority
+        self.applyToCategories = filter.applyToCategories
+        self.applyToLive = filter.applyToLive
+        self.applyToMovies = filter.applyToMovies
+        self.applyToSeries = filter.applyToSeries
+    }
+
+    func applyTo(_ filter: ContentFilter) {
+        filter.text = text
+        filter.isActive = isActive
+        filter.isInclusive = isInclusive
+        filter.priority = priority
+        filter.applyToCategories = applyToCategories
+        filter.applyToLive = applyToLive
+        filter.applyToMovies = applyToMovies
+        filter.applyToSeries = applyToSeries
+    }
+}
+
 struct FilterManagementView: View {
     // MARK: - Environment
     @Environment(\.dismiss) private var dismiss
     @Environment(\.domainService) private var domainService
+    @Environment(\.modelContext) private var modelContext
 
     // MARK: - Queries
     @Query(sort: \ContentFilter.priority) private var filters: [ContentFilter]
 
     // MARK: - State
+    @State private var editStates: [FilterEditState] = []
     @State private var reorderModeFilterId: String?
     @State private var isApplying = false
+    @State private var hasUnsavedChanges = false
 
     // MARK: - Body
     var body: some View {
@@ -29,13 +68,21 @@ struct FilterManagementView: View {
 
             VStack(alignment: .leading, spacing: 40) {
                 // Header
-                Text("Gestion des filtres")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                HStack {
+                    Text("Gestion des filtres")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+
+                    if hasUnsavedChanges {
+                        Text("(modifications non sauvegardées)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
 
                 // Liste des filtres
                 ScrollView(.vertical, showsIndicators: true) {
-                    if filters.isEmpty {
+                    if editStates.isEmpty {
                         ContentUnavailableView {
                             Label("Aucun filtre", systemImage: "slider.horizontal.3")
                         } description: {
@@ -44,12 +91,12 @@ struct FilterManagementView: View {
                         .frame(height: 400)
                     } else {
                         LazyVStack(spacing: 16) {
-                            ForEach(Array(filters.enumerated()), id: \.element.id) { index, filter in
+                            ForEach(Array(editStates.enumerated()), id: \.element.id) { index, _ in
                                 FilterEditableRowView(
-                                    filter: filter,
-                                    isReorderMode: reorderModeFilterId == filter.id,
+                                    editState: $editStates[index],
+                                    isReorderMode: reorderModeFilterId == editStates[index].id,
                                     onDelete: {
-                                        deleteFilter(filter)
+                                        deleteFilter(at: index)
                                     },
                                     onMoveUp: {
                                         moveFilter(at: index, direction: -1)
@@ -58,14 +105,17 @@ struct FilterManagementView: View {
                                         moveFilter(at: index, direction: 1)
                                     },
                                     canMoveUp: index > 0,
-                                    canMoveDown: index < filters.count - 1
+                                    canMoveDown: index < editStates.count - 1,
+                                    onChange: {
+                                        hasUnsavedChanges = true
+                                    }
                                 )
                                 .onLongPressGesture {
                                     // Activer le mode réorganisation pour ce filtre
-                                    if reorderModeFilterId == filter.id {
+                                    if reorderModeFilterId == editStates[index].id {
                                         reorderModeFilterId = nil
                                     } else {
-                                        reorderModeFilterId = filter.id
+                                        reorderModeFilterId = editStates[index].id
                                     }
                                 }
                             }
@@ -90,67 +140,97 @@ struct FilterManagementView: View {
                             await saveAndApply()
                         }
                     }
+                    .disabled(!hasUnsavedChanges)
                 }
                 .disabled(isApplying)
             }
         }
+        .onAppear {
+            loadEditStates()
+        }
     }
 
     // MARK: - Actions
-    private func addNewFilter() {
-        // Créer un nouveau filtre avec une priorité maximale
-        let newFilter = ContentFilter(
-            text: "",
-            isActive: true,
-            isInclusive: true,
-            priority: filters.count,
-            applyToCategories: false,
-            applyToLive: false,
-            applyToMovies: false,
-            applyToSeries: false
-        )
-
-        do {
-            try domainService.saveFilter(newFilter)
-        } catch {
-            print("❌ Erreur lors de la création du filtre: \(error)")
-        }
+    private func loadEditStates() {
+        editStates = filters.map { FilterEditState(from: $0) }
     }
 
-    private func deleteFilter(_ filter: ContentFilter) {
-        do {
-            try domainService.deleteFilter(filter)
-        } catch {
-            print("❌ Erreur lors de la suppression du filtre: \(error)")
+    private func addNewFilter() {
+        let newEditState = FilterEditState(
+            from: ContentFilter(
+                text: "",
+                isActive: true,
+                isInclusive: true,
+                priority: editStates.count,
+                applyToCategories: false,
+                applyToLive: false,
+                applyToMovies: false,
+                applyToSeries: false
+            )
+        )
+        editStates.append(newEditState)
+        hasUnsavedChanges = true
+    }
+
+    private func deleteFilter(at index: Int) {
+        editStates.remove(at: index)
+        // Réajuster les priorités
+        for (idx, _) in editStates.enumerated() {
+            editStates[idx].priority = idx
         }
+        hasUnsavedChanges = true
     }
 
     private func moveFilter(at index: Int, direction: Int) {
         let newIndex = index + direction
-        guard newIndex >= 0 && newIndex < filters.count else { return }
+        guard newIndex >= 0 && newIndex < editStates.count else { return }
 
-        var mutableFilters = filters
-        let movedFilter = mutableFilters.remove(at: index)
-        mutableFilters.insert(movedFilter, at: newIndex)
+        let movedState = editStates.remove(at: index)
+        editStates.insert(movedState, at: newIndex)
 
         // Mettre à jour les priorités
-        for (idx, filter) in mutableFilters.enumerated() {
-            filter.priority = idx
+        for (idx, _) in editStates.enumerated() {
+            editStates[idx].priority = idx
         }
-
-        do {
-            try domainService.reorderFilters(mutableFilters)
-        } catch {
-            print("❌ Erreur lors de la réorganisation des filtres: \(error)")
-        }
+        hasUnsavedChanges = true
     }
 
     private func saveAndApply() async {
         isApplying = true
 
         do {
-            // Appliquer tous les filtres
+            // Synchroniser les états avec les filtres réels
+            // 1. Supprimer les filtres qui n'existent plus
+            let editStateIds = Set(editStates.map { $0.id })
+            for filter in filters where !editStateIds.contains(filter.id) {
+                try domainService.deleteFilter(filter)
+            }
+
+            // 2. Créer ou mettre à jour les filtres
+            for editState in editStates {
+                if let existingFilter = filters.first(where: { $0.id == editState.id }) {
+                    // Mise à jour
+                    editState.applyTo(existingFilter)
+                } else {
+                    // Création
+                    let newFilter = ContentFilter(
+                        text: editState.text,
+                        isActive: editState.isActive,
+                        isInclusive: editState.isInclusive,
+                        priority: editState.priority,
+                        applyToCategories: editState.applyToCategories,
+                        applyToLive: editState.applyToLive,
+                        applyToMovies: editState.applyToMovies,
+                        applyToSeries: editState.applyToSeries
+                    )
+                    try domainService.saveFilter(newFilter)
+                }
+            }
+
+            // 3. Appliquer tous les filtres
             try await domainService.applyFilters()
+
+            hasUnsavedChanges = false
 
             // Fermer la vue
             dismiss()

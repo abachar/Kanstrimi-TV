@@ -76,22 +76,56 @@ final class FilterService {
     func applyFilters() async throws {
         let filters = try fetchAllFilters().filter { $0.isActive }
 
-        // 1. Appliquer les filtres sur les catégories
+        // 1. Réinitialiser tous les contenus à actif (avant d'appliquer les filtres)
+        try await resetAllItemsToActive()
+
+        // 2. Appliquer les filtres sur les catégories
         try await applyFiltersToCategories(filters)
 
-        // 2. Appliquer les filtres sur les contenus
+        // 3. Appliquer les filtres sur les contenus
         try await applyFiltersToLiveChannels(filters)
         try await applyFiltersToMovies(filters)
         try await applyFiltersToSeries(filters)
 
-        // 3. Désactiver les contenus dont la catégorie est désactivée
+        // 4. Désactiver les contenus dont la catégorie est désactivée
         try await deactivateItemsOfInactiveCategories()
 
-        // 4. Désactiver les catégories dont tous les contenus sont inactifs
+        // 5. Désactiver les catégories dont tous les contenus sont inactifs
         try await deactivateCategoriesWithNoActiveItems()
 
-        // 5. Sauvegarder une seule fois
+        // 6. Sauvegarder une seule fois
         try storageService.save()
+    }
+
+    /// Réinitialise tous les items à actif avant d'appliquer les filtres
+    private func resetAllItemsToActive() async throws {
+        // Réinitialiser toutes les catégories
+        let categoriesDescriptor = FetchDescriptor<Category>()
+        let categories = try storageService.fetch(categoriesDescriptor)
+        for category in categories {
+            category.active = true
+        }
+
+        // Réinitialiser tous les live channels
+        let liveDescriptor = FetchDescriptor<LiveChannel>()
+        let channels = try storageService.fetch(liveDescriptor)
+        for channel in channels {
+            channel.active = true
+        }
+
+        // Réinitialiser tous les movies
+        let movieDescriptor = FetchDescriptor<Movie>()
+        let movies = try storageService.fetch(movieDescriptor)
+        for movie in movies {
+            movie.active = true
+        }
+
+        // Réinitialiser toutes les series
+        let seriesDescriptor = FetchDescriptor<Series>()
+        let series = try storageService.fetch(seriesDescriptor)
+        for seriesItem in series {
+            seriesItem.active = true
+        }
     }
 
     // MARK: - Apply Filters (Private)
@@ -150,10 +184,19 @@ final class FilterService {
     ///   - filters: Liste des filtres triés par priorité
     /// - Returns: true si l'item est actif, false sinon
     private func applyFiltersToItem(name: String, filters: [ContentFilter]) -> Bool {
-        var active = false
+        // Filtrer les filtres vides
+        let validFilters = filters.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
+
+        guard !validFilters.isEmpty else {
+            return true // Aucun filtre valide, l'item reste actif
+        }
+
+        // Déterminer l'état initial en fonction du type de filtres
+        let hasInclusiveFilters = validFilters.contains { $0.isInclusive }
+        var active = !hasInclusiveFilters // Si des filtres inclusifs existent, par défaut inactif
 
         // Parcourir les filtres dans l'ordre de priorité
-        for filter in filters {
+        for filter in validFilters {
             // Vérifier si le filtre matche (insensible à la casse)
             if name.localizedCaseInsensitiveContains(filter.text) {
                 // Le dernier filtre qui matche détermine le résultat
@@ -166,74 +209,83 @@ final class FilterService {
 
     /// Désactive les contenus appartenant à des catégories désactivées
     private func deactivateItemsOfInactiveCategories() async throws {
-        // Récupérer les catégories inactives
-        let inactiveCategoriesDescriptor = FetchDescriptor<Category>(
+        // Récupérer les catégories inactives par type
+        let categoriesDescriptor = FetchDescriptor<Category>(
             predicate: #Predicate { !$0.active }
         )
-        let inactiveCategories = try storageService.fetch(inactiveCategoriesDescriptor)
-        let inactiveCategoryIds = Set(inactiveCategories.map { $0.categoryId })
+        let inactiveCategories = try storageService.fetch(categoriesDescriptor)
+
+        // Grouper les catégories par type pour optimiser
+        let inactiveLiveIds = Set(inactiveCategories.filter { $0.contentType == "live" }.map { $0.categoryId })
+        let inactiveMovieIds = Set(inactiveCategories.filter { $0.contentType == "movies" }.map { $0.categoryId })
+        let inactiveSeriesIds = Set(inactiveCategories.filter { $0.contentType == "series" }.map { $0.categoryId })
 
         // Désactiver les chaînes Live des catégories inactives
-        let liveDescriptor = FetchDescriptor<LiveChannel>()
-        let channels = try storageService.fetch(liveDescriptor)
-        for channel in channels where inactiveCategoryIds.contains(channel.categoryId) {
-            channel.active = false
+        if !inactiveLiveIds.isEmpty {
+            let liveDescriptor = FetchDescriptor<LiveChannel>()
+            let channels = try storageService.fetch(liveDescriptor)
+            for channel in channels where inactiveLiveIds.contains(channel.categoryId) {
+                channel.active = false
+            }
         }
 
         // Désactiver les films des catégories inactives
-        let movieDescriptor = FetchDescriptor<Movie>()
-        let movies = try storageService.fetch(movieDescriptor)
-        for movie in movies where movie.categoryId != nil && inactiveCategoryIds.contains(movie.categoryId!) {
-            movie.active = false
+        if !inactiveMovieIds.isEmpty {
+            let movieDescriptor = FetchDescriptor<Movie>()
+            let movies = try storageService.fetch(movieDescriptor)
+            for movie in movies where movie.categoryId != nil && inactiveMovieIds.contains(movie.categoryId!) {
+                movie.active = false
+            }
         }
 
         // Désactiver les séries des catégories inactives
-        let seriesDescriptor = FetchDescriptor<Series>()
-        let series = try storageService.fetch(seriesDescriptor)
-        for seriesItem in series where seriesItem.categoryId != nil && inactiveCategoryIds.contains(seriesItem.categoryId!) {
-            seriesItem.active = false
+        if !inactiveSeriesIds.isEmpty {
+            let seriesDescriptor = FetchDescriptor<Series>()
+            let series = try storageService.fetch(seriesDescriptor)
+            for seriesItem in series where seriesItem.categoryId != nil && inactiveSeriesIds.contains(seriesItem.categoryId!) {
+                seriesItem.active = false
+            }
         }
     }
 
     /// Désactive les catégories dont tous les contenus sont inactifs
     private func deactivateCategoriesWithNoActiveItems() async throws {
+        // Pré-fetch tous les items actifs groupés par categoryId pour optimiser
+        let activeLiveDescriptor = FetchDescriptor<LiveChannel>(
+            predicate: #Predicate { $0.active }
+        )
+        let activeChannels = try storageService.fetch(activeLiveDescriptor)
+        let activeLiveCategoryIds = Set(activeChannels.map { $0.categoryId })
+
+        let activeMovieDescriptor = FetchDescriptor<Movie>(
+            predicate: #Predicate { $0.active }
+        )
+        let activeMovies = try storageService.fetch(activeMovieDescriptor)
+        let activeMovieCategoryIds = Set(activeMovies.compactMap { $0.categoryId })
+
+        let activeSeriesDescriptor = FetchDescriptor<Series>(
+            predicate: #Predicate { $0.active }
+        )
+        let activeSeries = try storageService.fetch(activeSeriesDescriptor)
+        let activeSeriesCategoryIds = Set(activeSeries.compactMap { $0.categoryId })
+
+        // Récupérer toutes les catégories
         let categoriesDescriptor = FetchDescriptor<Category>()
         let categories = try storageService.fetch(categoriesDescriptor)
 
+        // Vérifier chaque catégorie
         for category in categories {
-            // Vérifier selon le type de contenu
             let hasActiveItems: Bool
-
-            // Capturer le categoryId avant de l'utiliser dans le predicate
-            let categoryId = category.categoryId
 
             switch category.contentType {
             case "live":
-                let liveDescriptor = FetchDescriptor<LiveChannel>(
-                    predicate: #Predicate { channel in
-                        channel.categoryId == categoryId && channel.active
-                    }
-                )
-                let activeCount = try storageService.fetchCount(liveDescriptor)
-                hasActiveItems = activeCount > 0
+                hasActiveItems = activeLiveCategoryIds.contains(category.categoryId)
 
             case "movies":
-                let movieDescriptor = FetchDescriptor<Movie>(
-                    predicate: #Predicate { movie in
-                        movie.categoryId == categoryId && movie.active
-                    }
-                )
-                let activeCount = try storageService.fetchCount(movieDescriptor)
-                hasActiveItems = activeCount > 0
+                hasActiveItems = activeMovieCategoryIds.contains(category.categoryId)
 
             case "series":
-                let seriesDescriptor = FetchDescriptor<Series>(
-                    predicate: #Predicate { series in
-                        series.categoryId == categoryId && series.active
-                    }
-                )
-                let activeCount = try storageService.fetchCount(seriesDescriptor)
-                hasActiveItems = activeCount > 0
+                hasActiveItems = activeSeriesCategoryIds.contains(category.categoryId)
 
             default:
                 hasActiveItems = true
