@@ -4,6 +4,7 @@
 //
 //  Created on 2025-10-31.
 //  Vue de gestion des filtres avec réorganisation et édition inline
+//  Refactorisée le 2025-11-01 : copy-on-load pattern avec EditableFilter
 //
 
 import SwiftUI
@@ -14,12 +15,14 @@ struct FilterManagementView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.domainService) private var domainService
 
-    // MARK: - Queries
-    @Query(sort: \ContentFilter.priority) private var filters: [ContentFilter]
+    // MARK: - Queries (lecture seule pour chargement initial)
+    @Query(sort: \ContentFilter.priority) private var persistedFilters: [ContentFilter]
 
-    // MARK: - State
+    // MARK: - State (édition en mémoire)
+    @State private var editableFilters: [EditableFilter] = []
     @State private var reorderModeFilterId: String?
     @State private var isApplying = false
+    @State private var hasLoadedFilters = false
 
     // MARK: - Body
     var body: some View {
@@ -29,13 +32,20 @@ struct FilterManagementView: View {
 
             VStack(alignment: .leading, spacing: 40) {
                 // Header
-                Text("Gestion des filtres")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Gestion des filtres")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+
+                    // Message d'aide
+                    Text("💡 Les types de contenu sans filtres afficheront tous leurs éléments par défaut")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
 
                 // Liste des filtres
                 ScrollView(.vertical, showsIndicators: true) {
-                    if filters.isEmpty {
+                    if editableFilters.isEmpty {
                         ContentUnavailableView {
                             Label("Aucun filtre", systemImage: "slider.horizontal.3")
                         } description: {
@@ -43,13 +53,13 @@ struct FilterManagementView: View {
                         }
                         .frame(height: 400)
                     } else {
-                        LazyVStack(spacing: 16) {
-                            ForEach(Array(filters.enumerated()), id: \.element.id) { index, filter in
+                        LazyVStack(spacing: 30) {
+                            ForEach(Array(editableFilters.enumerated()), id: \.element.id) { index, filter in
                                 FilterEditableRowView(
-                                    filter: filter,
+                                    filter: binding(for: filter),
                                     isReorderMode: reorderModeFilterId == filter.id,
                                     onDelete: {
-                                        deleteFilter(filter)
+                                        deleteFilter(at: index)
                                     },
                                     onMoveUp: {
                                         moveFilter(at: index, direction: -1)
@@ -58,7 +68,7 @@ struct FilterManagementView: View {
                                         moveFilter(at: index, direction: 1)
                                     },
                                     canMoveUp: index > 0,
-                                    canMoveDown: index < filters.count - 1
+                                    canMoveDown: index < editableFilters.count - 1
                                 )
                                 .onLongPressGesture {
                                     // Activer le mode réorganisation pour ce filtre
@@ -94,54 +104,51 @@ struct FilterManagementView: View {
                 .disabled(isApplying)
             }
         }
-    }
-
-    // MARK: - Actions
-    private func addNewFilter() {
-        // Créer un nouveau filtre avec une priorité maximale
-        let newFilter = ContentFilter(
-            text: "",
-            isActive: true,
-            isInclusive: true,
-            priority: filters.count,
-            applyToCategories: false,
-            applyToLive: false,
-            applyToMovies: false,
-            applyToSeries: false
-        )
-
-        do {
-            try domainService.saveFilter(newFilter)
-        } catch {
-            print("❌ Erreur lors de la création du filtre: \(error)")
+        .onAppear {
+            loadFiltersIfNeeded()
         }
     }
 
-    private func deleteFilter(_ filter: ContentFilter) {
-        do {
-            try domainService.deleteFilter(filter)
-        } catch {
-            print("❌ Erreur lors de la suppression du filtre: \(error)")
+    // MARK: - Helper
+    private func binding(for filter: EditableFilter) -> Binding<EditableFilter> {
+        guard let index = editableFilters.firstIndex(where: { $0.id == filter.id }) else {
+            fatalError("Filter not found in editableFilters")
+        }
+        return $editableFilters[index]
+    }
+
+    // MARK: - Actions
+    private func loadFiltersIfNeeded() {
+        guard !hasLoadedFilters else { return }
+        editableFilters = persistedFilters.map { EditableFilter(from: $0) }
+        hasLoadedFilters = true
+    }
+
+    private func addNewFilter() {
+        // Créer un nouveau filtre avec priorité à la fin
+        var newFilter = EditableFilter()
+        newFilter.priority = editableFilters.count
+        editableFilters.append(newFilter)
+    }
+
+    private func deleteFilter(at index: Int) {
+        editableFilters.remove(at: index)
+        // Réassigner les priorités
+        for (idx, _) in editableFilters.enumerated() {
+            editableFilters[idx].priority = idx
         }
     }
 
     private func moveFilter(at index: Int, direction: Int) {
         let newIndex = index + direction
-        guard newIndex >= 0 && newIndex < filters.count else { return }
+        guard newIndex >= 0 && newIndex < editableFilters.count else { return }
 
-        var mutableFilters = filters
-        let movedFilter = mutableFilters.remove(at: index)
-        mutableFilters.insert(movedFilter, at: newIndex)
+        let movedFilter = editableFilters.remove(at: index)
+        editableFilters.insert(movedFilter, at: newIndex)
 
         // Mettre à jour les priorités
-        for (idx, filter) in mutableFilters.enumerated() {
-            filter.priority = idx
-        }
-
-        do {
-            try domainService.reorderFilters(mutableFilters)
-        } catch {
-            print("❌ Erreur lors de la réorganisation des filtres: \(error)")
+        for (idx, _) in editableFilters.enumerated() {
+            editableFilters[idx].priority = idx
         }
     }
 
@@ -149,13 +156,22 @@ struct FilterManagementView: View {
         isApplying = true
 
         do {
-            // Appliquer tous les filtres
+            // 1. Supprimer tous les filtres existants
+            try domainService.deleteAllFilters()
+
+            // 2. Créer et sauvegarder les nouveaux filtres
+            for editableFilter in editableFilters {
+                let contentFilter = editableFilter.toContentFilter()
+                try domainService.saveFilter(contentFilter)
+            }
+
+            // 3. Appliquer les filtres
             try await domainService.applyFilters()
 
-            // Fermer la vue
+            // 4. Fermer la vue
             dismiss()
         } catch {
-            print("❌ Erreur lors de l'application des filtres: \(error)")
+            print("❌ Erreur lors de la sauvegarde et application des filtres: \(error)")
         }
 
         isApplying = false
@@ -178,7 +194,6 @@ struct FilterManagementView: View {
             isActive: true,
             isInclusive: true,
             priority: 0,
-            applyToCategories: true,
             applyToLive: true,
             applyToMovies: false,
             applyToSeries: false
@@ -188,7 +203,6 @@ struct FilterManagementView: View {
             isActive: true,
             isInclusive: true,
             priority: 1,
-            applyToCategories: false,
             applyToLive: true,
             applyToMovies: true,
             applyToSeries: false
@@ -198,28 +212,7 @@ struct FilterManagementView: View {
             isActive: true,
             isInclusive: false,
             priority: 2,
-            applyToCategories: true,
             applyToLive: true,
-            applyToMovies: true,
-            applyToSeries: true
-        ),
-        ContentFilter(
-            text: "HD",
-            isActive: false,
-            isInclusive: true,
-            priority: 3,
-            applyToCategories: false,
-            applyToLive: true,
-            applyToMovies: false,
-            applyToSeries: false
-        ),
-        ContentFilter(
-            text: "FR",
-            isActive: true,
-            isInclusive: true,
-            priority: 4,
-            applyToCategories: true,
-            applyToLive: false,
             applyToMovies: true,
             applyToSeries: true
         )
@@ -262,7 +255,6 @@ struct FilterManagementView: View {
         isActive: true,
         isInclusive: true,
         priority: 0,
-        applyToCategories: true,
         applyToLive: true,
         applyToMovies: false,
         applyToSeries: false
@@ -286,12 +278,11 @@ struct FilterManagementView: View {
 
     let filters = [
         ContentFilter(
-            text: "Catégories uniquement",
+            text: "Inclusion Live",
             isActive: true,
             isInclusive: true,
             priority: 0,
-            applyToCategories: true,
-            applyToLive: false,
+            applyToLive: true,
             applyToMovies: false,
             applyToSeries: false
         ),
@@ -300,7 +291,6 @@ struct FilterManagementView: View {
             isActive: true,
             isInclusive: false,
             priority: 1,
-            applyToCategories: false,
             applyToLive: true,
             applyToMovies: false,
             applyToSeries: false
@@ -310,7 +300,6 @@ struct FilterManagementView: View {
             isActive: true,
             isInclusive: true,
             priority: 2,
-            applyToCategories: false,
             applyToLive: false,
             applyToMovies: true,
             applyToSeries: true
@@ -320,7 +309,6 @@ struct FilterManagementView: View {
             isActive: false,
             isInclusive: true,
             priority: 3,
-            applyToCategories: true,
             applyToLive: false,
             applyToMovies: true,
             applyToSeries: true

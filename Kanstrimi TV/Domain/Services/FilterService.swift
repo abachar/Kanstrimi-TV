@@ -48,46 +48,56 @@ final class FilterService {
         try storageService.save()
     }
 
-    /// Supprime un filtre
-    func deleteFilter(_ filter: ContentFilter) throws {
-        try storageService.delete(filter)
-        try storageService.save()
-    }
-
-    /// Réordonne les filtres en mettant à jour leurs priorités
-    func reorderFilters(_ filters: [ContentFilter]) throws {
-        for (index, filter) in filters.enumerated() {
-            filter.priority = index
-        }
-        try storageService.save()
-    }
-
-    /// Récupère tous les filtres triés par priorité
-    func fetchAllFilters() throws -> [ContentFilter] {
+    /// Récupère tous les filtres triés par priorité (usage interne uniquement)
+    private func fetchAllFilters() throws -> [ContentFilter] {
         let descriptor = FetchDescriptor<ContentFilter>(
             sortBy: [SortDescriptor(\.priority)]
         )
         return try storageService.fetch(descriptor)
     }
 
+    /// Supprime tous les filtres
+    func deleteAllFilters() throws {
+        let descriptor = FetchDescriptor<ContentFilter>()
+        let allFilters = try storageService.fetch(descriptor)
+        for filter in allFilters {
+            try storageService.delete(filter)
+        }
+        try storageService.save()
+    }
+
     // MARK: - Apply Filters
 
     /// Applique tous les filtres actifs sur les catégories et contenus
+    /// Nouvelle logique : types sans filtres = tous actifs, types avec filtres = filtrage appliqué
     func applyFilters() async throws {
         let filters = try fetchAllFilters().filter { $0.isActive }
 
-        // 1. Appliquer les filtres sur les catégories
-        try await applyFiltersToCategories(filters)
+        // 1. Déterminer quels types de contenu ont des filtres actifs
+        let hasLiveFilters = filters.contains { $0.applyToLive }
+        let hasMovieFilters = filters.contains { $0.applyToMovies }
+        let hasSeriesFilters = filters.contains { $0.applyToSeries }
 
-        // 2. Appliquer les filtres sur les contenus
-        try await applyFiltersToLiveChannels(filters)
-        try await applyFiltersToMovies(filters)
-        try await applyFiltersToSeries(filters)
+        // 2. Activation initiale : types sans filtres = tous actifs par défaut
+        try await setInitialActivationState(
+            hasLiveFilters: hasLiveFilters,
+            hasMovieFilters: hasMovieFilters,
+            hasSeriesFilters: hasSeriesFilters
+        )
 
-        // 3. Désactiver les contenus dont la catégorie est désactivée
+        // 3. Appliquer les filtres sur contenu + catégories du même type
+        if hasLiveFilters {
+            try await applyFiltersToLiveAndCategories(filters.filter { $0.applyToLive })
+        }
+        if hasMovieFilters {
+            try await applyFiltersToMoviesAndCategories(filters.filter { $0.applyToMovies })
+        }
+        if hasSeriesFilters {
+            try await applyFiltersToSeriesAndCategories(filters.filter { $0.applyToSeries })
+        }
+
+        // 4. Cascade bidirectionnelle
         try await deactivateItemsOfInactiveCategories()
-
-        // 4. Désactiver les catégories dont tous les contenus sont inactifs
         try await deactivateCategoriesWithNoActiveItems()
 
         // 5. Sauvegarder une seule fois
@@ -96,51 +106,117 @@ final class FilterService {
 
     // MARK: - Apply Filters (Private)
 
-    private func applyFiltersToCategories(_ filters: [ContentFilter]) async throws {
-        let categoriesFilters = filters.filter { $0.applyToCategories }
-        guard !categoriesFilters.isEmpty else { return }
-
-        let descriptor = FetchDescriptor<Category>()
-        let categories = try storageService.fetch(descriptor)
-
-        for category in categories {
-            category.active = applyFiltersToItem(name: category.name, filters: categoriesFilters)
-        }
-    }
-
-    private func applyFiltersToLiveChannels(_ filters: [ContentFilter]) async throws {
-        let liveFilters = filters.filter { $0.applyToLive }
-        guard !liveFilters.isEmpty else { return }
-
-        let descriptor = FetchDescriptor<LiveChannel>()
-        let channels = try storageService.fetch(descriptor)
-
+    /// Définit l'état d'activation initial selon la présence ou non de filtres
+    /// - Types SANS filtres → tous les items sont actifs par défaut
+    /// - Types AVEC filtres → tous les items sont inactifs par défaut (seront activés par les filtres)
+    private func setInitialActivationState(
+        hasLiveFilters: Bool,
+        hasMovieFilters: Bool,
+        hasSeriesFilters: Bool
+    ) async throws {
+        // Live Channels
+        let liveDescriptor = FetchDescriptor<LiveChannel>()
+        let channels = try storageService.fetch(liveDescriptor)
         for channel in channels {
-            channel.active = applyFiltersToItem(name: channel.name, filters: liveFilters)
+            channel.active = !hasLiveFilters
         }
-    }
 
-    private func applyFiltersToMovies(_ filters: [ContentFilter]) async throws {
-        let movieFilters = filters.filter { $0.applyToMovies }
-        guard !movieFilters.isEmpty else { return }
+        // Live Categories
+        let liveCategoriesDescriptor = FetchDescriptor<Category>(
+            predicate: #Predicate { $0.contentType == "live" }
+        )
+        let liveCategories = try storageService.fetch(liveCategoriesDescriptor)
+        for category in liveCategories {
+            category.active = !hasLiveFilters
+        }
 
-        let descriptor = FetchDescriptor<Movie>()
-        let movies = try storageService.fetch(descriptor)
-
+        // Movies
+        let movieDescriptor = FetchDescriptor<Movie>()
+        let movies = try storageService.fetch(movieDescriptor)
         for movie in movies {
-            movie.active = applyFiltersToItem(name: movie.name, filters: movieFilters)
+            movie.active = !hasMovieFilters
+        }
+
+        // Movie Categories
+        let movieCategoriesDescriptor = FetchDescriptor<Category>(
+            predicate: #Predicate { $0.contentType == "movies" }
+        )
+        let movieCategories = try storageService.fetch(movieCategoriesDescriptor)
+        for category in movieCategories {
+            category.active = !hasMovieFilters
+        }
+
+        // Series
+        let seriesDescriptor = FetchDescriptor<Series>()
+        let series = try storageService.fetch(seriesDescriptor)
+        for seriesItem in series {
+            seriesItem.active = !hasSeriesFilters
+        }
+
+        // Series Categories
+        let seriesCategoriesDescriptor = FetchDescriptor<Category>(
+            predicate: #Predicate { $0.contentType == "series" }
+        )
+        let seriesCategories = try storageService.fetch(seriesCategoriesDescriptor)
+        for category in seriesCategories {
+            category.active = !hasSeriesFilters
         }
     }
 
-    private func applyFiltersToSeries(_ filters: [ContentFilter]) async throws {
-        let seriesFilters = filters.filter { $0.applyToSeries }
-        guard !seriesFilters.isEmpty else { return }
+    /// Applique les filtres sur les chaînes Live ET leurs catégories
+    private func applyFiltersToLiveAndCategories(_ filters: [ContentFilter]) async throws {
+        // Appliquer sur les chaînes Live
+        let liveDescriptor = FetchDescriptor<LiveChannel>()
+        let channels = try storageService.fetch(liveDescriptor)
+        for channel in channels {
+            channel.active = applyFiltersToItem(name: channel.name, filters: filters)
+        }
 
-        let descriptor = FetchDescriptor<Series>()
-        let series = try storageService.fetch(descriptor)
+        // Appliquer sur les catégories Live
+        let liveCategoriesDescriptor = FetchDescriptor<Category>(
+            predicate: #Predicate { $0.contentType == "live" }
+        )
+        let liveCategories = try storageService.fetch(liveCategoriesDescriptor)
+        for category in liveCategories {
+            category.active = applyFiltersToItem(name: category.name, filters: filters)
+        }
+    }
 
+    /// Applique les filtres sur les films ET leurs catégories
+    private func applyFiltersToMoviesAndCategories(_ filters: [ContentFilter]) async throws {
+        // Appliquer sur les films
+        let movieDescriptor = FetchDescriptor<Movie>()
+        let movies = try storageService.fetch(movieDescriptor)
+        for movie in movies {
+            movie.active = applyFiltersToItem(name: movie.name, filters: filters)
+        }
+
+        // Appliquer sur les catégories Movies
+        let movieCategoriesDescriptor = FetchDescriptor<Category>(
+            predicate: #Predicate { $0.contentType == "movies" }
+        )
+        let movieCategories = try storageService.fetch(movieCategoriesDescriptor)
+        for category in movieCategories {
+            category.active = applyFiltersToItem(name: category.name, filters: filters)
+        }
+    }
+
+    /// Applique les filtres sur les séries ET leurs catégories
+    private func applyFiltersToSeriesAndCategories(_ filters: [ContentFilter]) async throws {
+        // Appliquer sur les séries
+        let seriesDescriptor = FetchDescriptor<Series>()
+        let series = try storageService.fetch(seriesDescriptor)
         for seriesItem in series {
-            seriesItem.active = applyFiltersToItem(name: seriesItem.name, filters: seriesFilters)
+            seriesItem.active = applyFiltersToItem(name: seriesItem.name, filters: filters)
+        }
+
+        // Appliquer sur les catégories Series
+        let seriesCategoriesDescriptor = FetchDescriptor<Category>(
+            predicate: #Predicate { $0.contentType == "series" }
+        )
+        let seriesCategories = try storageService.fetch(seriesCategoriesDescriptor)
+        for category in seriesCategories {
+            category.active = applyFiltersToItem(name: category.name, filters: filters)
         }
     }
 

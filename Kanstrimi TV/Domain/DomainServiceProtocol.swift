@@ -93,14 +93,8 @@ protocol DomainServiceProtocol {
     /// Sauvegarde un filtre
     func saveFilter(_ filter: ContentFilter) throws
 
-    /// Supprime un filtre
-    func deleteFilter(_ filter: ContentFilter) throws
-
-    /// Réordonne les filtres
-    func reorderFilters(_ filters: [ContentFilter]) throws
-
-    /// Récupère tous les filtres
-    func fetchAllFilters() throws -> [ContentFilter]
+    /// Supprime tous les filtres
+    func deleteAllFilters() throws
 }
 
 // MARK: - Missing Domain Service (Default Value)
@@ -184,15 +178,7 @@ private final class MissingDomainService: DomainServiceProtocol {
         fatalError("❌ No DomainService injected!")
     }
 
-    func deleteFilter(_ filter: ContentFilter) throws {
-        fatalError("❌ No DomainService injected!")
-    }
-
-    func reorderFilters(_ filters: [ContentFilter]) throws {
-        fatalError("❌ No DomainService injected!")
-    }
-
-    func fetchAllFilters() throws -> [ContentFilter] {
+    func deleteAllFilters() throws {
         fatalError("❌ No DomainService injected!")
     }
 }

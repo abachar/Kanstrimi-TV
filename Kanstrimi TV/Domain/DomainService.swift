@@ -208,18 +208,8 @@ final class DomainService: DomainServiceProtocol {
         try filterService.saveFilter(filter)
     }
 
-    /// Supprime un filtre
-    func deleteFilter(_ filter: ContentFilter) throws {
-        try filterService.deleteFilter(filter)
-    }
-
-    /// Réordonne les filtres
-    func reorderFilters(_ filters: [ContentFilter]) throws {
-        try filterService.reorderFilters(filters)
-    }
-
-    /// Récupère tous les filtres
-    func fetchAllFilters() throws -> [ContentFilter] {
-        try filterService.fetchAllFilters()
+    /// Supprime tous les filtres
+    func deleteAllFilters() throws {
+        try filterService.deleteAllFilters()
     }
 }

@@ -7,6 +7,81 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [0.13.0] - 2025-11-01
+
+### Modifié
+- **Système de filtrage** : Simplification majeure de la gestion des filtres
+  - FilterManagementView charge les filtres en mémoire pour édition locale (copy-on-load pattern)
+  - Nouveau modèle `EditableFilter` (struct) pour édition temporaire sans persistence immédiate
+  - Bouton unique "Sauvegarder et appliquer" : supprime tous les filtres puis sauvegarde les nouveaux (opération atomique)
+  - Suppression de `applyToCategories` dans `ContentFilter` : chaque `applyToXXX` applique automatiquement sur le contenu ET les catégories du même type
+  - Message d'aide : "💡 Les types de contenu sans filtres afficheront tous leurs éléments par défaut"
+
+- **Logique d'activation initiale intelligente** : Nouveau comportement lors de l'application des filtres
+  - Si un type de contenu (Live/Movies/Series) n'a AUCUN filtre actif → tous les items de ce type sont visibles (isActive=true)
+  - Si un type de contenu a des filtres actifs → tous les items sont inactifs par défaut (isActive=false), puis les filtres sont appliqués
+  - Exemple : Filtres uniquement sur Movies/Series → tous les Live restent visibles, seuls Movies/Series matchant les filtres inclusifs sont visibles
+
+- **FilterService** : Refactorisation complète de l'algorithme d'application des filtres
+  - Nouvelle méthode `setInitialActivationState()` pour l'activation initiale intelligente
+  - Suppression de `applyFiltersToCategories()` (fusionnée avec les méthodes de contenu)
+  - Nouvelles méthodes unifiées : `applyFiltersToLiveAndCategories()`, `applyFiltersToMoviesAndCategories()`, `applyFiltersToSeriesAndCategories()`
+  - Chaque méthode applique les filtres sur le contenu ET les catégories du même type automatiquement
+  - Cascade bidirectionnelle maintenue (désactivation items → catégories et catégories → items)
+
+- **DomainService** : Ajout de la méthode `deleteAllFilters()`
+  - Permet de supprimer tous les filtres en une seule opération
+  - Exposée via DomainServiceProtocol et implémentée dans DomainService et MockDomainService
+  - Utilisée par FilterManagementView pour le pattern "delete all + save new"
+
+- **FilterEditableRowView** : Adaptation pour EditableFilter
+  - Remplacement de `let filter: ContentFilter` par `@Binding var filter: EditableFilter`
+  - Suppression du bouton "Cat" (applyToCategories)
+  - Simplification des bindings (édition directe sur le @Binding)
+  - Ajout de `.help()` sur les boutons Live/Films/Séries pour documenter qu'ils appliquent sur contenu + catégories
+
+### Ajouté
+- **EditableFilter** : Nouveau modèle struct pour édition temporaire
+  - Convertible depuis/vers ContentFilter via `init(from:)` et `toContentFilter()`
+  - Permet l'édition en mémoire sans persistence SwiftData immédiate
+  - Support de tous les champs de ContentFilter (text, isActive, isInclusive, priority, applyToLive, applyToMovies, applyToSeries)
+
+### Supprimé
+- **API DomainService** : Suppression des méthodes obsolètes devenues inutiles avec le pattern copy-on-load
+  - `deleteFilter()` - remplacée par édition en mémoire puis `deleteAllFilters()` + `saveFilter()` en batch
+  - `reorderFilters()` - remplacée par réorganisation en mémoire puis `deleteAllFilters()` + `saveFilter()` en batch
+  - `fetchAllFilters()` - remplacée par `@Query` directement dans les Views, méthode rendue privée dans FilterService
+
+### Technique
+- **Performance** : Réduction des writes SwiftData pendant l'édition
+  - Les modifications sont faites en mémoire (editableFilters)
+  - Une seule transaction de sauvegarde lors du "Save & Apply"
+  - Pattern copy-on-load : chargement en `.onAppear`, modifications locales, sauvegarde atomique
+
+- **UX améliorée** : Clarté sur l'état des modifications
+  - Bouton "Annuler" permet d'abandonner les modifications
+  - Bouton "Sauvegarder et appliquer" clarifie que les changements ne sont pas persistés immédiatement
+  - Message d'aide pour expliquer la logique d'activation initiale
+  - Labels explicites dans FilterEditableRowView : "Actif", "Rechercher", "Mode", "Appliquer à"
+
+- **Simplification du modèle** : Suppression d'une dimension de complexité
+  - Plus besoin de comprendre la différence entre "catégorie" et "contenu"
+  - applyToLive = applique sur Live + catégories Live (automatique)
+  - applyToMovies = applique sur Movies + catégories Movies (automatique)
+  - applyToSeries = applique sur Series + catégories Series (automatique)
+
+- **Code cleanup** : Simplification de l'API publique DomainService
+  - Suppression de 3 méthodes inutilisées (deleteFilter, reorderFilters, fetchAllFilters)
+  - API réduite à l'essentiel : saveFilter, deleteAllFilters, applyFilters, getFilterStats
+  - fetchAllFilters() conservée en private dans FilterService pour usage interne
+
+### Note de migration
+- ⚠️ **Changement de modèle SwiftData** : Suppression de la propriété `applyToCategories` dans ContentFilter
+- SwiftData migre automatiquement (propriété supprimée, autres propriétés préservées)
+- Les filtres existants restent fonctionnels, mais il est recommandé de les re-vérifier
+
+---
+
 ## [0.12.0] - 2025-10-31
 
 ### Ajouté

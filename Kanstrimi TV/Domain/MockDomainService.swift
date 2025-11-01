@@ -195,25 +195,13 @@ final class MockDomainService: DomainServiceProtocol {
         try context.save()
     }
 
-    /// Supprime un filtre (version simplifiée pour preview)
-    func deleteFilter(_ filter: ContentFilter) throws {
-        context.delete(filter)
-        try context.save()
-    }
-
-    /// Réordonne les filtres (version simplifiée pour preview)
-    func reorderFilters(_ filters: [ContentFilter]) throws {
-        for (index, filter) in filters.enumerated() {
-            filter.priority = index
+    /// Supprime tous les filtres (version simplifiée pour preview)
+    func deleteAllFilters() throws {
+        let descriptor = FetchDescriptor<ContentFilter>()
+        let allFilters = try context.fetch(descriptor)
+        for filter in allFilters {
+            context.delete(filter)
         }
         try context.save()
-    }
-
-    /// Récupère tous les filtres (version simplifiée pour preview)
-    func fetchAllFilters() throws -> [ContentFilter] {
-        let descriptor = FetchDescriptor<ContentFilter>(
-            sortBy: [SortDescriptor(\.priority)]
-        )
-        return try context.fetch(descriptor)
     }
 }

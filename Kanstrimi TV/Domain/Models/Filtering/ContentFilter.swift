@@ -27,16 +27,13 @@ final class ContentFilter {
     /// Priorité d'application (0 = plus prioritaire, ordre croissant)
     var priority: Int
 
-    /// Appliquer le filtre sur les catégories
-    var applyToCategories: Bool
-
-    /// Appliquer le filtre sur les chaînes Live TV
+    /// Appliquer le filtre sur les chaînes Live TV et leurs catégories
     var applyToLive: Bool
 
-    /// Appliquer le filtre sur les films VOD
+    /// Appliquer le filtre sur les films VOD et leurs catégories
     var applyToMovies: Bool
 
-    /// Appliquer le filtre sur les séries TV
+    /// Appliquer le filtre sur les séries TV et leurs catégories
     var applyToSeries: Bool
 
     /// Initialisation d'un filtre de contenu
@@ -45,7 +42,6 @@ final class ContentFilter {
         isActive: Bool = true,
         isInclusive: Bool = true,
         priority: Int = 0,
-        applyToCategories: Bool = false,
         applyToLive: Bool = false,
         applyToMovies: Bool = false,
         applyToSeries: Bool = false
@@ -55,7 +51,6 @@ final class ContentFilter {
         self.isActive = isActive
         self.isInclusive = isInclusive
         self.priority = priority
-        self.applyToCategories = applyToCategories
         self.applyToLive = applyToLive
         self.applyToMovies = applyToMovies
         self.applyToSeries = applyToSeries
@@ -72,7 +67,6 @@ extension ContentFilter {
                 isActive: true,
                 isInclusive: true,
                 priority: 0,
-                applyToCategories: true,
                 applyToLive: true,
                 applyToMovies: false,
                 applyToSeries: false
@@ -82,7 +76,6 @@ extension ContentFilter {
                 isActive: true,
                 isInclusive: true,
                 priority: 1,
-                applyToCategories: false,
                 applyToLive: true,
                 applyToMovies: true,
                 applyToSeries: false
@@ -92,7 +85,6 @@ extension ContentFilter {
                 isActive: true,
                 isInclusive: false,
                 priority: 2,
-                applyToCategories: true,
                 applyToLive: true,
                 applyToMovies: true,
                 applyToSeries: true
