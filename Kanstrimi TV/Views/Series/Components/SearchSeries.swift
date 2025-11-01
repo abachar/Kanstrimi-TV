@@ -32,9 +32,9 @@ struct SearchSeries: View {
             // Aucun résultat si < 3 caractères
             predicate = #Predicate { _ in false }
         } else {
-            // Filtrage avec localizedStandardContains (insensible casse + accents)
+            // Filtrage avec localizedStandardContains (insensible casse + accents) et actif
             predicate = #Predicate { series in
-                series.name.localizedStandardContains(searchText)
+                series.name.localizedStandardContains(searchText) && series.active
             }
         }
 

@@ -35,6 +35,9 @@ final class Movie {
     /// ID de la catégorie
     var categoryId: String?
 
+    /// Indique si le film est actif (après application des filtres)
+    var active: Bool = true
+
     /// Initialisation d'un film
     init(
         streamId: Int,

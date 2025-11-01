@@ -20,11 +20,11 @@ struct LiveCategoryRow: View {
     init(liveCategory: Category) {
         self.liveCategory = liveCategory
 
-        // Query filtrée par categoryId avec tri par sortOrder
+        // Query filtrée par categoryId avec tri par sortOrder et filtrage actif
         let categoryId = liveCategory.categoryId
         _channels = Query(
             filter: #Predicate<LiveChannel> { channel in
-                channel.categoryId == categoryId
+                channel.categoryId == categoryId && channel.active
             },
             sort: \.sortOrder
         )

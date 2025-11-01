@@ -34,6 +34,9 @@ final class Series {
     /// ID de la catégorie
     var categoryId: String?
 
+    /// Indique si la série est active (après application des filtres)
+    var active: Bool = true
+
     /// Initialisation d'une série
     init(
         seriesId: Int,

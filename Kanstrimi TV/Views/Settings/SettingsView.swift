@@ -38,6 +38,12 @@ struct SettingsView: View {
                         Divider()
                             .background(Color.secondary.opacity(0.3))
 
+                        // Section Filtres
+                        FilterSectionView()
+
+                        Divider()
+                            .background(Color.secondary.opacity(0.3))
+
                         // Section Lecture
                         PlaybackSectionView()
 

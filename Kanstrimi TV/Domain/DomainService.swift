@@ -20,6 +20,7 @@ final class DomainService: DomainServiceProtocol {
     private let movieService: MovieService
     private let seriesService: SeriesService
     private let settingsService: SettingsService
+    private let filterService: FilterService
     private let accountService: AccountService
 
     /// ModelContainer exposé pour l'injection dans SwiftUI
@@ -35,6 +36,7 @@ final class DomainService: DomainServiceProtocol {
         self.movieService = MovieService(storageService: storageService)
         self.seriesService = SeriesService(storageService: storageService)
         self.settingsService = SettingsService(storageService: storageService)
+        self.filterService = FilterService(storageService: storageService)
 
         // AccountService reçoit les services spécialisés
         self.accountService = AccountService(
@@ -54,6 +56,7 @@ final class DomainService: DomainServiceProtocol {
         self.movieService = MovieService(storageService: storageService)
         self.seriesService = SeriesService(storageService: storageService)
         self.settingsService = SettingsService(storageService: storageService)
+        self.filterService = FilterService(storageService: storageService)
 
         // AccountService reçoit les services spécialisés
         self.accountService = AccountService(
@@ -89,13 +92,18 @@ final class DomainService: DomainServiceProtocol {
         password: String,
         onStepChange: @escaping (SyncStep) -> Void
     ) async throws -> Account {
-        try await accountService.createAccount(
+        let account = try await accountService.createAccount(
             name: name,
             serverURL: serverURL,
             username: username,
             password: password,
             onStepChange: onStepChange
         )
+
+        // Appliquer les filtres après synchronisation
+        try? await filterService.applyFilters()
+
+        return account
     }
 
     /// Rafraîchit les données du compte
@@ -104,6 +112,9 @@ final class DomainService: DomainServiceProtocol {
             account: account,
             onStepChange: onStepChange
         )
+
+        // Appliquer les filtres après synchronisation
+        try? await filterService.applyFilters()
     }
 
     /// Supprime toutes les données du compte
@@ -178,5 +189,37 @@ final class DomainService: DomainServiceProtocol {
     /// Sauvegarde ou met à jour l'historique de visionnage
     func saveWatchHistory(content: PlaybackContent, position: TimeInterval, duration: TimeInterval) async {
         await settingsService.saveWatchHistory(content: content, position: position, duration: duration)
+    }
+
+    // MARK: - Filtering
+
+    /// Applique tous les filtres actifs sur les catégories et contenus
+    func applyFilters() async throws {
+        try await filterService.applyFilters()
+    }
+
+    /// Récupère les statistiques de filtrage
+    func getFilterStats() async throws -> FilterStats {
+        try await filterService.getFilterStats()
+    }
+
+    /// Sauvegarde un filtre
+    func saveFilter(_ filter: ContentFilter) throws {
+        try filterService.saveFilter(filter)
+    }
+
+    /// Supprime un filtre
+    func deleteFilter(_ filter: ContentFilter) throws {
+        try filterService.deleteFilter(filter)
+    }
+
+    /// Réordonne les filtres
+    func reorderFilters(_ filters: [ContentFilter]) throws {
+        try filterService.reorderFilters(filters)
+    }
+
+    /// Récupère tous les filtres
+    func fetchAllFilters() throws -> [ContentFilter] {
+        try filterService.fetchAllFilters()
     }
 }

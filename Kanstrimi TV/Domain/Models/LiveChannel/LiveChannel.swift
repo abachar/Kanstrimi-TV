@@ -41,6 +41,9 @@ final class LiveChannel {
     /// Date de dernière mise à jour
     var lastUpdated: Date
 
+    /// Indique si la chaîne est active (après application des filtres)
+    var active: Bool = true
+
     /// Initialisation d'une chaîne TV
     /// - Parameters:
     ///   - streamId: ID du flux (utilisé pour générer l'ID unique)

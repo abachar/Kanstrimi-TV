@@ -17,7 +17,7 @@ struct MoviesView: View {
 
     init() {
         let predicate = #Predicate<Category> { category in
-            category.contentType == "movies"
+            category.contentType == "movies" && category.active
         }
         let descriptor = FetchDescriptor<Category>(
             predicate: predicate,

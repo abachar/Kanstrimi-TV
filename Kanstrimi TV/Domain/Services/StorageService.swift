@@ -33,7 +33,8 @@ final class StorageService {
                 Series.self,
                 SeriesDetail.self,
                 SeriesSeason.self,
-                Episode.self
+                Episode.self,
+                ContentFilter.self
             ])
  
             // Configuration du container

@@ -81,6 +81,26 @@ protocol DomainServiceProtocol {
 
     /// Sauvegarde ou met à jour l'historique de visionnage
     func saveWatchHistory(content: PlaybackContent, position: TimeInterval, duration: TimeInterval) async
+
+    // MARK: - Filtering
+
+    /// Applique tous les filtres actifs sur les catégories et contenus
+    func applyFilters() async throws
+
+    /// Récupère les statistiques de filtrage
+    func getFilterStats() async throws -> FilterStats
+
+    /// Sauvegarde un filtre
+    func saveFilter(_ filter: ContentFilter) throws
+
+    /// Supprime un filtre
+    func deleteFilter(_ filter: ContentFilter) throws
+
+    /// Réordonne les filtres
+    func reorderFilters(_ filters: [ContentFilter]) throws
+
+    /// Récupère tous les filtres
+    func fetchAllFilters() throws -> [ContentFilter]
 }
 
 // MARK: - Missing Domain Service (Default Value)
@@ -149,6 +169,30 @@ private final class MissingDomainService: DomainServiceProtocol {
     }
 
     func saveWatchHistory(content: PlaybackContent, position: TimeInterval, duration: TimeInterval) async {
+        fatalError("❌ No DomainService injected!")
+    }
+
+    func applyFilters() async throws {
+        fatalError("❌ No DomainService injected!")
+    }
+
+    func getFilterStats() async throws -> FilterStats {
+        fatalError("❌ No DomainService injected!")
+    }
+
+    func saveFilter(_ filter: ContentFilter) throws {
+        fatalError("❌ No DomainService injected!")
+    }
+
+    func deleteFilter(_ filter: ContentFilter) throws {
+        fatalError("❌ No DomainService injected!")
+    }
+
+    func reorderFilters(_ filters: [ContentFilter]) throws {
+        fatalError("❌ No DomainService injected!")
+    }
+
+    func fetchAllFilters() throws -> [ContentFilter] {
         fatalError("❌ No DomainService injected!")
     }
 }

@@ -17,7 +17,7 @@ struct LiveTVView: View {
 
     init() {
         let predicate = #Predicate<Category> { category in
-            category.contentType == "live"
+            category.contentType == "live" && category.active
         }
         let descriptor = FetchDescriptor<Category>(
             predicate: predicate,

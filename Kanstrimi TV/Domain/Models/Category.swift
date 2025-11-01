@@ -27,6 +27,9 @@ final class Category {
     /// Ordre d'affichage (préservé depuis l'API Xtream)
     var sortOrder: Int
 
+    /// Indique si la catégorie est active (après application des filtres)
+    var active: Bool = true
+
     /// Type de contenu supporté
     enum ContentType: String, Codable {
         case live = "live"

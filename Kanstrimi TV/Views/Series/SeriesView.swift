@@ -17,7 +17,7 @@ struct SeriesView: View {
 
     init() {
         let predicate = #Predicate<Category> { category in
-            category.contentType == "series"
+            category.contentType == "series" && category.active
         }
         let descriptor = FetchDescriptor<Category>(
             predicate: predicate,

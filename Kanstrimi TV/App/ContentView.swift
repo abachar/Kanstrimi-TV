@@ -27,7 +27,7 @@ struct ContentView: View {
                     LiveTVView()
                         .tag(0)
                         .tabItem {
-                            Label("TV en direct", systemImage: "4k.tv")
+                            Label("TV en direct", systemImage: "play.tv.fill")
                         }
 
                     MoviesView()

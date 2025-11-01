@@ -20,11 +20,11 @@ struct MovieCategoryRow: View {
     init(category: Category) {
         self.category = category
 
-        // Query filtrée par categoryId avec tri par sortOrder
+        // Query filtrée par categoryId avec tri par sortOrder et filtrage actif
         let categoryId = category.categoryId
         _movies = Query(
             filter: #Predicate<Movie> { movie in
-                movie.categoryId == categoryId
+                movie.categoryId == categoryId && movie.active
             },
             sort: \.sortOrder
         )

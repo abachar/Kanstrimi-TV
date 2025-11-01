@@ -20,11 +20,11 @@ struct SeriesCategoryRow: View {
     init(category: Category) {
         self.category = category
 
-        // Query filtrée par categoryId avec tri par sortOrder
+        // Query filtrée par categoryId avec tri par sortOrder et filtrage actif
         let categoryId = category.categoryId
         _series = Query(
             filter: #Predicate<Series> { series in
-                series.categoryId == categoryId
+                series.categoryId == categoryId && series.active
             },
             sort: \.sortOrder
         )

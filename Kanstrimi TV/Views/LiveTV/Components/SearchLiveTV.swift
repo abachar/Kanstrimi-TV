@@ -32,9 +32,9 @@ struct SearchLiveTV: View {
             // Aucun résultat si < 3 caractères
             predicate = #Predicate { _ in false }
         } else {
-            // Filtrage avec localizedStandardContains (insensible casse + accents)
+            // Filtrage avec localizedStandardContains (insensible casse + accents) et actif
             predicate = #Predicate { channel in
-                channel.name.localizedStandardContains(searchText)
+                channel.name.localizedStandardContains(searchText) && channel.active
             }
         }
 

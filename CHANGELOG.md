@@ -7,6 +7,75 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [0.12.0] - 2025-10-31
+
+### Ajouté
+- **Système de filtrage avancé** : Implémentation complète d'un système de filtres personnalisables pour le contenu
+  - Nouveaux modèles :
+    - `ContentFilter` : Modèle SwiftData pour stocker les filtres avec texte, mode (inclure/exclure), priorité et cibles
+    - Propriété `active` ajoutée aux modèles `Category`, `Movie`, `Series`, `LiveChannel`
+  - Nouveau service :
+    - `FilterService` : Gestion CRUD des filtres et application sur les catégories/contenus
+    - Algorithme de filtrage basé sur la priorité avec support de patterns textuels
+    - Méthode `applyFilters()` applique tous les filtres actifs sur toutes les données
+    - Statistiques de filtrage (total vs actifs) pour Live/Movies/Series
+  - Nouvelles vues Settings :
+    - `FilterSectionView` : Section dans Settings avec statistiques et bouton de gestion
+    - `FilterManagementView` : Vue fullScreenCover de gestion des filtres avec liste, réorganisation et édition
+    - `FilterRowView` : Ligne de filtre avec toggle activation, affichage du texte, mode et cibles
+    - `FilterEditView` : Formulaire de création/édition de filtre avec validation
+  - Intégration dans SettingsView : Nouvelle section "Filtres" entre Compte et Lecture
+  - Réorganisation des filtres : Mode édition avec boutons Haut/Bas pour ajuster la priorité (adapté tvOS)
+  - Statistiques temps réel : Affichage du nombre de contenus filtrés par type (Live: X/Y, Films: A/B, Séries: C/D)
+
+- **Application automatique des filtres** : Les filtres sont appliqués automatiquement après chaque synchronisation de compte
+  - Modification de `DomainService.createAccount()` : Appelle `applyFilters()` après synchronisation
+  - Modification de `DomainService.refreshAccount()` : Appelle `applyFilters()` après synchronisation
+  - Les nouveaux contenus sont automatiquement filtrés selon les règles actives
+
+- **Filtrage dans toutes les vues** : Toutes les queries SwiftData filtrent sur `active == true`
+  - `MoviesView` et `MovieCategoryRow` : Filtrage des catégories et films actifs uniquement
+  - `SeriesView` et `SeriesCategoryRow` : Filtrage des catégories et séries actives uniquement
+  - `LiveTVView` et `LiveCategoryRow` : Filtrage des catégories et chaînes actives uniquement
+  - `SearchMovies`, `SearchSeries`, `SearchLiveTV` : Recherche uniquement dans les contenus actifs
+
+### Modifié
+- **DomainService** : Ajout des méthodes de filtrage au protocole et à l'implémentation
+  - `applyFilters()` : Applique tous les filtres actifs
+  - `getFilterStats()` : Récupère les statistiques de filtrage
+  - `saveFilter()`, `deleteFilter()`, `reorderFilters()`, `fetchAllFilters()` : CRUD des filtres
+
+- **DomainServiceProtocol** : Extension du protocole avec les méthodes de filtrage
+  - Ajout des signatures de méthodes pour le filtrage
+  - Mise à jour de `MissingDomainService` avec fatalError pour ces méthodes
+
+- **MockDomainService** : Implémentation simplifiée des méthodes de filtrage pour les previews
+  - `getFilterStats()` : Retourne des statistiques réelles depuis le container mocké
+  - Autres méthodes : Implémentation minimale pour éviter les crashes dans les previews
+
+- **StorageService** : Ajout de `ContentFilter.self` au schéma SwiftData
+  - Le modèle `ContentFilter` est maintenant persisté dans la base de données
+
+### Technique
+- **Algorithme de filtrage** : Application séquentielle des filtres par priorité croissante
+  - Chaque filtre actif est appliqué dans l'ordre de sa priorité (0 = plus prioritaire)
+  - Si un item matche le texte du filtre : `active` est défini selon le mode (inclure/exclure)
+  - Le dernier filtre qui matche détermine le résultat final
+  - Les items des catégories désactivées sont automatiquement désactivés
+
+- **Performance** : Filtrage asynchrone avec batch updates
+  - Application des filtres en tâche async pour ne pas bloquer l'UI
+  - Une seule sauvegarde SwiftData après tous les changements
+  - Queries optimisées avec Predicates pour filtrer au niveau de la base de données
+
+- **tvOS UX** : Adaptation des composants pour tvOS
+  - Remplacement de `.textFieldStyle(.roundedBorder)` par style custom avec background
+  - Remplacement de `.toggleStyle(.button)` par des boutons standards avec tint
+  - Mode réorganisation avec boutons visibles au lieu de drag & drop
+  - Support du focus natif avec `.hoverEffect(.highlight)`
+
+---
+
 ## [0.11.1] - 2025-10-31
 
 ### Corrigé

@@ -169,4 +169,51 @@ final class MockDomainService: DomainServiceProtocol {
     func saveWatchHistory(content: PlaybackContent, position: TimeInterval, duration: TimeInterval) async {
         // Version simplifiée pour preview : ne fait rien
     }
+
+    // MARK: - Filtering
+
+    /// Applique tous les filtres actifs (version simplifiée pour preview)
+    func applyFilters() async throws {
+        // Version simplifiée pour preview : ne fait rien
+    }
+
+    /// Récupère les statistiques de filtrage (version simplifiée pour preview)
+    func getFilterStats() async throws -> FilterStats {
+        return FilterStats(
+            liveTotal: try getChannelsCount(),
+            liveActive: try getChannelsCount(),
+            moviesTotal: try getMoviesCount(),
+            moviesActive: try getMoviesCount(),
+            seriesTotal: try getSeriesCount(),
+            seriesActive: try getSeriesCount()
+        )
+    }
+
+    /// Sauvegarde un filtre (version simplifiée pour preview)
+    func saveFilter(_ filter: ContentFilter) throws {
+        context.insert(filter)
+        try context.save()
+    }
+
+    /// Supprime un filtre (version simplifiée pour preview)
+    func deleteFilter(_ filter: ContentFilter) throws {
+        context.delete(filter)
+        try context.save()
+    }
+
+    /// Réordonne les filtres (version simplifiée pour preview)
+    func reorderFilters(_ filters: [ContentFilter]) throws {
+        for (index, filter) in filters.enumerated() {
+            filter.priority = index
+        }
+        try context.save()
+    }
+
+    /// Récupère tous les filtres (version simplifiée pour preview)
+    func fetchAllFilters() throws -> [ContentFilter] {
+        let descriptor = FetchDescriptor<ContentFilter>(
+            sortBy: [SortDescriptor(\.priority)]
+        )
+        return try context.fetch(descriptor)
+    }
 }
