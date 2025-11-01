@@ -46,7 +46,7 @@ struct InfoSectionView: View {
             .padding(24)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(Color.appSecondaryBackground)
             )
         }
     }

@@ -53,6 +53,9 @@ struct SearchMovies: View {
     // MARK: - Body
     var body: some View {
         ZStack {
+            Color.appBackground
+                .ignoresSafeArea()
+
             if !isSearchActive {
                 initialStateView
             } else if filteredMovies.isEmpty {

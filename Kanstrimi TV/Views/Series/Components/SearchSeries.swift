@@ -53,7 +53,9 @@ struct SearchSeries: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.appBackground
+                .ignoresSafeArea()
+
             if !isSearchActive {
                 initialStateView
             } else if filteredSeries.isEmpty {

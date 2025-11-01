@@ -90,7 +90,6 @@ struct WelcomeView: View {
                 }
             }
         }
-        .ignoresSafeArea()
         .task {
             if hasAccount {
                 if needsRefresh {

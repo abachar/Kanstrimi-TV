@@ -14,6 +14,8 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
+            Color.appBackground
+
             if showWelcome {
                 WelcomeView {
                     // Callback appelé quand le compte est prêt

@@ -60,7 +60,6 @@ struct MovieDetailView: View {
     var body: some View {
         ZStack {
             Color.appBackground
-                .ignoresSafeArea()
             
             // Backdrop image
             backdropView
