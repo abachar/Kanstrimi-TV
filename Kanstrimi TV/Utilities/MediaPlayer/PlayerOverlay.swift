@@ -14,6 +14,10 @@ struct PlayerOverlay: View {
     let currentPosition: TimeInterval
     let totalDuration: TimeInterval
     @Binding var isVisible: Bool
+    let isBuffering: Bool
+    let bufferProgress: Double
+    let bufferedDuration: TimeInterval
+    let playerType: VideoPlayerType
 
     let onResetAutoHide: () -> Void
     let onSeek: ((TimeInterval) -> Void)?
@@ -50,32 +54,64 @@ struct PlayerOverlay: View {
 
     // MARK: - Header Section
     private var headerSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(spacing: 4) {
+            HStack {
                 Text(content.title)
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
-
+                
+                Spacer()
+                
+                // Badge Player Type
+                Text(playerType == .avPlayer ? "AVPlayer" : "VLC")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(playerType == .avPlayer ? Color.blue.opacity(0.8) : Color.orange.opacity(0.8))
+                    .cornerRadius(4)
+                
+                // Badge LIVE
+                if content.contentType == .live {
+                    Text("LIVE")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.red)
+                        .cornerRadius(4)
+                }
+            }
+            
+            HStack {
                 if let subtitle = content.subtitle {
                     Text(subtitle)
                         .font(.body)
                         .foregroundColor(.secondary)
                 }
-            }
-
-            Spacer()
-            
-            // Badge LIVE
-            if content.contentType == .live {
-                Text("LIVE")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.red)
-                    .cornerRadius(4)
+                
+                Spacer()
+                
+                // Indicateur de buffering
+                if isBuffering {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        if bufferProgress > 0 {
+                            Text("Chargement... \(Int(bufferProgress * 100))%")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("Chargement...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.top, 4)
+                }
             }
         }
     }
@@ -83,10 +119,11 @@ struct PlayerOverlay: View {
     // MARK: - Footer Section
     private var footerSection: some View {
         VStack(alignment: .leading, spacing: 30) {
-            // Barre de progression
+            // Barre de progression (avec buffer intégré)
             ProgressBar(
                 currentPosition: currentPosition,
                 totalDuration: totalDuration,
+                bufferedDuration: bufferedDuration,
                 isLive: content.contentType == .live,
                 onSeek: onSeek
             )
@@ -157,6 +194,10 @@ struct PlayerOverlay: View {
             currentPosition: 0,
             totalDuration: 0,
             isVisible: .constant(true),
+            isBuffering: false,
+            bufferProgress: 0.0,
+            bufferedDuration: 0.0,
+            playerType: .vlcPlayer,
             onResetAutoHide: {},
             onSeek: nil,
             onAudioTapped: { print("Audio") },
@@ -179,6 +220,10 @@ struct PlayerOverlay: View {
             currentPosition: 1800,
             totalDuration: 7200,
             isVisible: .constant(true),
+            isBuffering: false,
+            bufferProgress: 0.0,
+            bufferedDuration: 2100, // 35 minutes buffered (en avance)
+            playerType: .avPlayer,
             onResetAutoHide: {},
             onSeek: { _ in },
             onAudioTapped: { print("Audio") },
@@ -208,6 +253,10 @@ struct PlayerOverlay: View {
             currentPosition: 2400,
             totalDuration: 5580,
             isVisible: .constant(true),
+            isBuffering: true,
+            bufferProgress: 0.65,
+            bufferedDuration: 3000, // 50 minutes buffered
+            playerType: .vlcPlayer,
             onResetAutoHide: {},
             onSeek: { _ in },
             onAudioTapped: { print("Audio") },

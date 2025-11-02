@@ -16,9 +16,20 @@ struct MediaPlayerView: View {
     @State private var content: PlaybackContent
     @Environment(\.dismiss) private var dismiss
     @Environment(\.domainService) private var domainService
+    @Query private var playerSettingsQuery: [PlayerSettings]
 
     init(content: PlaybackContent) {
         _content = State(initialValue: content)
+    }
+
+    private var playerSettings: PlayerSettings {
+        playerSettingsQuery.first ?? PlayerSettings()
+    }
+
+    private var bufferSize: Int {
+        content.contentType == .live
+            ? playerSettings.liveBufferSize
+            : playerSettings.vodBufferSize
     }
 
     // État de l'overlay
@@ -26,6 +37,11 @@ struct MediaPlayerView: View {
     @State private var currentPosition: TimeInterval = 0
     @State private var totalDuration: TimeInterval = 0
     @State private var autoHideTask: Task<Void, Never>?
+
+    // État du buffering
+    @State private var isBuffering: Bool = false
+    @State private var bufferProgress: Double = 0.0
+    @State private var bufferedDuration: TimeInterval = 0.0
 
     // État des modales
     @State private var showingAudioSelector: Bool = false
@@ -103,6 +119,21 @@ struct MediaPlayerView: View {
             stopWatchHistoryUpdates()
             saveWatchHistoryOnExit()
         }
+        .onChange(of: isBuffering) { oldValue, newValue in
+            if newValue {
+                // Buffering détecté → afficher l'overlay
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isOverlayVisible = true
+                }
+                // Ne pas lancer l'auto-hide timer pendant le buffering
+                autoHideTask?.cancel()
+            } else if oldValue {
+                // Buffering terminé → relancer l'auto-hide si l'overlay est visible
+                if isOverlayVisible {
+                    startAutoHideTimer()
+                }
+            }
+        }
     }
 
     // MARK: - Overlay View
@@ -113,6 +144,10 @@ struct MediaPlayerView: View {
             currentPosition: currentPosition,
             totalDuration: totalDuration,
             isVisible: $isOverlayVisible,
+            isBuffering: isBuffering,
+            bufferProgress: bufferProgress,
+            bufferedDuration: bufferedDuration,
+            playerType: playerType,
             onResetAutoHide: resetAutoHideTimer,
             onSeek: handleSeek,
             onAudioTapped: handleAudioTapped,
@@ -141,21 +176,29 @@ struct MediaPlayerView: View {
         case .avPlayer:
             AVPlayerWrapper(
                 url: url,
+                bufferSize: bufferSize,
                 currentPosition: $currentPosition,
                 totalDuration: $totalDuration,
                 playerController: $avPlayerController,
                 coordinator: $avPlayerCoordinator,
-                errorMessage: $errorMessage
+                errorMessage: $errorMessage,
+                isBuffering: $isBuffering,
+                bufferProgress: $bufferProgress,
+                bufferedDuration: $bufferedDuration
             )
             .ignoresSafeArea()
 
         case .vlcPlayer:
             VLCPlayerWrapper(
                 url: url,
+                bufferSize: bufferSize,
                 currentPosition: $currentPosition,
                 totalDuration: $totalDuration,
                 coordinator: $vlcPlayerCoordinator,
-                errorMessage: $errorMessage
+                errorMessage: $errorMessage,
+                isBuffering: $isBuffering,
+                bufferProgress: $bufferProgress,
+                bufferedDuration: $bufferedDuration
             )
             .ignoresSafeArea()
         }
@@ -466,26 +509,31 @@ struct MediaPlayerView: View {
     private func setupRemoteHandlers() {
         // Play/Pause
         remoteHandler.setPlayPauseHandler {
+            print("remoteHandler -> setPlayPauseHandler...")
             handlePlayPause()
         }
         
         // Menu : Fermer le player
         remoteHandler.setMenuHandler {
+            print("remoteHandler -> setMenuHandler...")
             dismiss()
         }
 
         // Select : Toggle overlay
         remoteHandler.setSelectHandler {
+            print("remoteHandler -> setSelectHandler...")
             resetAutoHideTimer()
         }
 
         // Swipe Up : Afficher overlay
         remoteHandler.setSwipeUpHandler {
+            print("remoteHandler -> setSwipeUpHandler...")
             resetAutoHideTimer()
         }
 
         // Swipe Down : Masquer overlay
         remoteHandler.setSwipeDownHandler {
+            print("remoteHandler -> setSwipeDownHandler...")
             withAnimation(.easeInOut(duration: 0.3)) {
                 isOverlayVisible = false
             }
@@ -494,14 +542,16 @@ struct MediaPlayerView: View {
 
         // Swipe Left : Reculer de 10 secondes
         remoteHandler.setSwipeLeftHandler {
-            // let newPosition = max(0, currentPosition - 10)
+            print("remoteHandler -> setSwipeLeftHandler...")
+            let newPosition = max(0, currentPosition - 10)
             handleSeek(newPosition)
             resetAutoHideTimer()
         }
 
         // Swipe Right : Avancer de 10 secondes
         remoteHandler.setSwipeRightHandler {
-            // let newPosition = min(currentPosition + 10, totalDuration)
+            print("remoteHandler -> setSwipeRightHandler...")
+            let newPosition = min(currentPosition + 10, totalDuration)
             handleSeek(newPosition)
             resetAutoHideTimer()
         }

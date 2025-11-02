@@ -8,9 +8,11 @@
 import SwiftUI
 
 /// Composant affichant la barre de progression de lecture (interactive)
+/// Affiche 3 barres superposées : background (gris clair), buffer (gris foncé), position (blanc)
 struct ProgressBar: View {
     let currentPosition: TimeInterval
     let totalDuration: TimeInterval
+    let bufferedDuration: TimeInterval
     let isLive: Bool
     let onSeek: ((TimeInterval) -> Void)?
 
@@ -26,6 +28,11 @@ struct ProgressBar: View {
         return min(displayPosition / totalDuration, 1.0)
     }
 
+    private var bufferedProgress: Double {
+        guard totalDuration > 0 else { return 0 }
+        return min(bufferedDuration / totalDuration, 1.0)
+    }
+
     private var currentTimeString: String {
         formatTime(displayPosition)
     }
@@ -39,13 +46,19 @@ struct ProgressBar: View {
             // Barre de progression
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
-                    // Background
+                    // Background (gris clair)
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
                         .frame(height: isDragging ? 8 : 6)
                         .cornerRadius(isDragging ? 4 : 3)
 
-                    // Progress
+                    // Buffer downloaded (gris foncé)
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.6))
+                        .frame(width: geometry.size.width * bufferedProgress, height: isDragging ? 8 : 6)
+                        .cornerRadius(isDragging ? 4 : 3)
+
+                    // Current position (blanc)
                     Rectangle()
                         .fill(isDragging ? Color.white.opacity(0.8) : Color.white)
                         .frame(width: geometry.size.width * progress, height: isDragging ? 8 : 6)

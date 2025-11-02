@@ -11,10 +11,14 @@ import TVVLCKit
 /// Wrapper SwiftUI pour VLCMediaPlayer (TVVLCKit)
 struct VLCPlayerWrapper: UIViewRepresentable {
     let url: URL
+    let bufferSize: Int
     @Binding var currentPosition: TimeInterval
     @Binding var totalDuration: TimeInterval
     @Binding var coordinator: Coordinator?
     @Binding var errorMessage: String?
+    @Binding var isBuffering: Bool
+    @Binding var bufferProgress: Double
+    @Binding var bufferedDuration: TimeInterval
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
@@ -25,8 +29,10 @@ struct VLCPlayerWrapper: UIViewRepresentable {
         mediaPlayer.drawable = view
         mediaPlayer.delegate = context.coordinator
 
-        // Créer le media depuis l'URL
+        // Créer le media depuis l'URL avec options de cache
         let media = VLCMedia(url: url)
+        // Configuration du buffer (en millisecondes)
+        media.addOptions(["network-caching": bufferSize * 1000])
         mediaPlayer.media = media
 
         // Stocker le player dans le context pour accès ultérieur
@@ -51,7 +57,14 @@ struct VLCPlayerWrapper: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(currentPosition: $currentPosition, totalDuration: $totalDuration, errorMessage: $errorMessage)
+        Coordinator(
+            currentPosition: $currentPosition,
+            totalDuration: $totalDuration,
+            errorMessage: $errorMessage,
+            isBuffering: $isBuffering,
+            bufferProgress: $bufferProgress,
+            bufferedDuration: $bufferedDuration
+        )
     }
 
     static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
@@ -66,14 +79,27 @@ struct VLCPlayerWrapper: UIViewRepresentable {
         @Binding var currentPosition: TimeInterval
         @Binding var totalDuration: TimeInterval
         @Binding var errorMessage: String?
+        @Binding var isBuffering: Bool
+        @Binding var bufferProgress: Double
+        @Binding var bufferedDuration: TimeInterval
 
         var mediaPlayer: VLCMediaPlayer?
         private var updateTimer: Timer?
 
-        init(currentPosition: Binding<TimeInterval>, totalDuration: Binding<TimeInterval>, errorMessage: Binding<String?>) {
+        init(
+            currentPosition: Binding<TimeInterval>,
+            totalDuration: Binding<TimeInterval>,
+            errorMessage: Binding<String?>,
+            isBuffering: Binding<Bool>,
+            bufferProgress: Binding<Double>,
+            bufferedDuration: Binding<TimeInterval>
+        ) {
             _currentPosition = currentPosition
             _totalDuration = totalDuration
             _errorMessage = errorMessage
+            _isBuffering = isBuffering
+            _bufferProgress = bufferProgress
+            _bufferedDuration = bufferedDuration
         }
 
         func startPositionUpdates() {
@@ -90,6 +116,9 @@ struct VLCPlayerWrapper: UIViewRepresentable {
                 if player.time.intValue > 0 {
                     self.currentPosition = Double(player.time.intValue) / 1000.0
                 }
+
+                // VLC ne fournit pas de buffer précis → bufferedDuration = currentPosition
+                self.bufferedDuration = self.currentPosition
             }
         }
 
@@ -155,16 +184,36 @@ struct VLCPlayerWrapper: UIViewRepresentable {
             guard let player = notification.object as? VLCMediaPlayer else { return }
 
             switch player.state {
+            case .buffering:
+                DispatchQueue.main.async {
+                    self.isBuffering = true
+                    // VLC ne fournit pas de buffer progress précis, on laisse à 0
+                    self.bufferProgress = 0.0
+                }
+            case .playing:
+                DispatchQueue.main.async {
+                    self.isBuffering = false
+                }
             case .error:
                 DispatchQueue.main.async {
+                    self.isBuffering = false
                     self.errorMessage = "Une erreur s'est produite lors de la lecture avec VLC. Le format du média n'est peut-être pas supporté."
                 }
             case .ended:
                 // Le media est terminé, pas d'erreur
-                break
+                DispatchQueue.main.async {
+                    self.isBuffering = false
+                }
             case .stopped:
                 // Le media a été arrêté, pas d'erreur
-                break
+                DispatchQueue.main.async {
+                    self.isBuffering = false
+                }
+            case .paused:
+                // Pause manuelle, pas de buffering
+                DispatchQueue.main.async {
+                    self.isBuffering = false
+                }
             default:
                 break
             }

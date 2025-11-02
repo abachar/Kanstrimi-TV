@@ -12,11 +12,15 @@ import Combine
 /// Wrapper SwiftUI pour AVPlayerViewController natif tvOS
 struct AVPlayerWrapper: UIViewControllerRepresentable {
     let url: URL
+    let bufferSize: Int
     @Binding var currentPosition: TimeInterval
     @Binding var totalDuration: TimeInterval
     @Binding var playerController: AVPlayerViewController?
     @Binding var coordinator: Coordinator?
     @Binding var errorMessage: String?
+    @Binding var isBuffering: Bool
+    @Binding var bufferProgress: Double
+    @Binding var bufferedDuration: TimeInterval
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
@@ -26,6 +30,12 @@ struct AVPlayerWrapper: UIViewControllerRepresentable {
         // Configuration pour tvOS
         controller.allowsPictureInPicturePlayback = false
         controller.showsPlaybackControls = false // Désactivé car on utilise PlayerOverlay
+
+        // Configuration du buffer
+        player.automaticallyWaitsToMinimizeStalling = true
+        if let currentItem = player.currentItem {
+            currentItem.preferredForwardBufferDuration = TimeInterval(bufferSize)
+        }
 
         // Stocker le player dans le coordinator
         context.coordinator.player = player
@@ -46,6 +56,9 @@ struct AVPlayerWrapper: UIViewControllerRepresentable {
         // Observer les erreurs
         context.coordinator.observeErrors(player: player)
 
+        // Observer le buffering
+        context.coordinator.observeBuffering(player: player)
+
         // Lancer la lecture automatiquement
         player.play()
 
@@ -57,7 +70,14 @@ struct AVPlayerWrapper: UIViewControllerRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(currentPosition: $currentPosition, totalDuration: $totalDuration, errorMessage: $errorMessage)
+        Coordinator(
+            currentPosition: $currentPosition,
+            totalDuration: $totalDuration,
+            errorMessage: $errorMessage,
+            isBuffering: $isBuffering,
+            bufferProgress: $bufferProgress,
+            bufferedDuration: $bufferedDuration
+        )
     }
 
     static func dismantleUIViewController(_ uiViewController: AVPlayerViewController, coordinator: Coordinator) {
@@ -72,6 +92,9 @@ struct AVPlayerWrapper: UIViewControllerRepresentable {
         @Binding var currentPosition: TimeInterval
         @Binding var totalDuration: TimeInterval
         @Binding var errorMessage: String?
+        @Binding var isBuffering: Bool
+        @Binding var bufferProgress: Double
+        @Binding var bufferedDuration: TimeInterval
 
         var player: AVPlayer?
         var controller: AVPlayerViewController?
@@ -79,11 +102,25 @@ struct AVPlayerWrapper: UIViewControllerRepresentable {
         private var durationObserver: AnyCancellable?
         private var errorObserver: AnyCancellable?
         private var statusObserver: AnyCancellable?
+        private var timeControlStatusObserver: AnyCancellable?
+        private var loadedTimeRangesObserver: AnyCancellable?
+        private var bufferEmptyObserver: AnyCancellable?
+        private var bufferKeepUpObserver: AnyCancellable?
 
-        init(currentPosition: Binding<TimeInterval>, totalDuration: Binding<TimeInterval>, errorMessage: Binding<String?>) {
+        init(
+            currentPosition: Binding<TimeInterval>,
+            totalDuration: Binding<TimeInterval>,
+            errorMessage: Binding<String?>,
+            isBuffering: Binding<Bool>,
+            bufferProgress: Binding<Double>,
+            bufferedDuration: Binding<TimeInterval>
+        ) {
             _currentPosition = currentPosition
             _totalDuration = totalDuration
             _errorMessage = errorMessage
+            _isBuffering = isBuffering
+            _bufferProgress = bufferProgress
+            _bufferedDuration = bufferedDuration
         }
 
         func observeDuration(player: AVPlayer) {
@@ -147,6 +184,75 @@ struct AVPlayerWrapper: UIViewControllerRepresentable {
             }
         }
 
+        func observeBuffering(player: AVPlayer) {
+            // Observer le timeControlStatus pour détecter les pauses dues au buffering
+            timeControlStatusObserver = player.publisher(for: \.timeControlStatus)
+                .sink { [weak self] status in
+                    guard let self = self else { return }
+                    DispatchQueue.main.async {
+                        switch status {
+                        case .waitingToPlayAtSpecifiedRate:
+                            // Le player est en attente (buffering)
+                            self.isBuffering = true
+                        case .playing:
+                            // Le player joue normalement
+                            self.isBuffering = false
+                        case .paused:
+                            // Pause manuelle, pas de buffering
+                            self.isBuffering = false
+                        @unknown default:
+                            break
+                        }
+                    }
+                }
+
+            // Observer les loadedTimeRanges pour calculer le buffer progress et bufferedDuration
+            loadedTimeRangesObserver = player.currentItem?.publisher(for: \.loadedTimeRanges)
+                .sink { [weak self] timeRanges in
+                    guard let self = self,
+                          let playerItem = player.currentItem,
+                          !timeRanges.isEmpty else { return }
+
+                    let timeRange = timeRanges[0].timeRangeValue
+                    let bufferedDurationValue = CMTimeGetSeconds(timeRange.start) + CMTimeGetSeconds(timeRange.duration)
+                    let totalDuration = CMTimeGetSeconds(playerItem.duration)
+
+                    DispatchQueue.main.async {
+                        // Mettre à jour bufferedDuration (en secondes absolues)
+                        self.bufferedDuration = bufferedDurationValue
+
+                        // Mettre à jour bufferProgress (0.0 à 1.0)
+                        if totalDuration > 0 {
+                            self.bufferProgress = min(bufferedDurationValue / totalDuration, 1.0)
+                        } else {
+                            self.bufferProgress = 0.0
+                        }
+                    }
+                }
+
+            // Observer playbackBufferEmpty pour affiner la détection
+            bufferEmptyObserver = player.currentItem?.publisher(for: \.isPlaybackBufferEmpty)
+                .sink { [weak self] isEmpty in
+                    guard let self = self else { return }
+                    if isEmpty {
+                        DispatchQueue.main.async {
+                            self.isBuffering = true
+                        }
+                    }
+                }
+
+            // Observer playbackLikelyToKeepUp pour détecter la fin du buffering
+            bufferKeepUpObserver = player.currentItem?.publisher(for: \.isPlaybackLikelyToKeepUp)
+                .sink { [weak self] isLikelyToKeepUp in
+                    guard let self = self else { return }
+                    if isLikelyToKeepUp && player.timeControlStatus == .playing {
+                        DispatchQueue.main.async {
+                            self.isBuffering = false
+                        }
+                    }
+                }
+        }
+
         func stopObserving() {
             if let observer = timeObserver, let player = player {
                 player.removeTimeObserver(observer)
@@ -155,6 +261,10 @@ struct AVPlayerWrapper: UIViewControllerRepresentable {
             durationObserver?.cancel()
             errorObserver?.cancel()
             statusObserver?.cancel()
+            timeControlStatusObserver?.cancel()
+            loadedTimeRangesObserver?.cancel()
+            bufferEmptyObserver?.cancel()
+            bufferKeepUpObserver?.cancel()
         }
 
         // MARK: - Player Controls

@@ -7,6 +7,96 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [0.13.2] - 2025-11-02
+
+### Ajouté
+- **Configuration du buffer séparée Live/VOD** : Deux configurations de buffer distinctes dans les Settings
+  - **Buffer Live TV** : 1sec, 3sec, 5sec, 10sec (défaut: 3sec)
+  - **Buffer VOD/Séries** : 5sec, 10sec, 20sec, 30sec (défaut: 10sec)
+  - PlayerSettings : Remplacement de `bufferSize` par `liveBufferSize` et `vodBufferSize`
+  - PlaybackSectionView : Deux Pickers segmentés pour configurer séparément Live et VOD
+  - MediaPlayerView : Calcul automatique du buffer selon le type de contenu (`contentType == .live`)
+  - AVPlayerWrapper : Application du buffer via `preferredForwardBufferDuration`
+  - VLCPlayerWrapper : Application du buffer via options `network-caching` (en millisecondes)
+  - Permet d'optimiser le buffer selon le type de contenu (Live nécessite moins de buffer que VOD)
+
+- **Badge Player Type** : Affichage du moteur de lecture utilisé dans l'overlay
+  - Badge "AVPlayer" (bleu) pour le player natif Apple
+  - Badge "VLC" (orange) pour TVVLCKit
+  - Positionné dans le header à côté du badge "LIVE"
+  - Permet de voir en un coup d'œil quel player est actif
+  - PlayerOverlay : Nouveau paramètre `playerType: VideoPlayerType`
+  - MediaPlayerView : Passe `playerType` au PlayerOverlay
+
+- **Indicateur de buffer intégré dans ProgressBar** : Affichage permanent du buffer dans la barre de progression
+  - 3 barres superposées : background (gris clair), buffer downloaded (gris foncé), position actuelle (blanc)
+  - Barre grise foncée : Quantité de contenu déjà téléchargé/buffered (buffer en avance)
+  - Barre blanche : Position de lecture actuelle
+  - Garde le style de l'ancienne ProgressBar (hauteur 6-8px, timecodes, interactivité)
+  - AVPlayerWrapper : Calcul précis de `bufferedDuration` via `loadedTimeRanges`
+  - VLCPlayerWrapper : `bufferedDuration = currentPosition` (VLC ne fournit pas de buffer précis)
+  - MediaPlayerView : Gestion de l'état `bufferedDuration` et propagation aux wrappers/overlay
+  - ProgressBar : Nouveau paramètre `bufferedDuration` pour afficher le buffer entre background et position
+
+- **Indicateur de buffering dans le header** : Affichage de l'état de chargement pendant le buffering
+  - ProgressView animé + texte "Chargement..." (avec pourcentage pour AVPlayer)
+  - Auto-show de l'overlay quand le player buffere
+  - AVPlayerWrapper : Observation du buffering via `timeControlStatus`, `isPlaybackBufferEmpty` et `isPlaybackLikelyToKeepUp`
+  - VLCPlayerWrapper : Détection du buffering via `VLCMediaPlayerDelegate.mediaPlayerStateChanged` (état `.buffering`)
+
+### Modifié
+- **ProgressBar** : Fusion de BufferIndicator dans ProgressBar pour une seule barre de progression
+  - Ajout du paramètre `bufferedDuration: TimeInterval`
+  - Ajout de la computed property `bufferedProgress` calculant `bufferedDuration / totalDuration`
+  - Ajout d'une barre grise foncée (opacity 0.6) affichant le buffer entre background et position
+  - Conservation du style existant : hauteur 6-8px, timecodes, cercle indicateur, animations
+
+- **PlayerOverlay** : Simplification du footer avec une seule barre de progression
+  - ProgressBar reçoit maintenant `bufferedDuration` en paramètre
+  - Suppression de l'affichage de BufferIndicator séparé (fusionné dans ProgressBar)
+  - Retour à l'espacement original de 30px dans le footer
+
+- **Auto-show de l'overlay lors du buffering** : L'overlay s'affiche automatiquement quand le player buffere
+  - L'auto-hide timer est annulé pendant le buffering
+  - L'overlay se réaffiche immédiatement dès que `isBuffering` passe à `true`
+  - L'auto-hide reprend quand le buffering se termine
+  - Amélioration de l'UX : l'utilisateur comprend immédiatement pourquoi la vidéo ne joue pas
+
+### Technique
+- **ProgressBar fusionnée** : Une seule barre au lieu de deux
+  - Background (gris clair 0.3) : Durée totale du contenu
+  - Buffer downloaded (gris foncé 0.6) : Quantité buffered (`bufferedDuration / totalDuration`)
+  - Current position (blanc) : Position de lecture (`currentPosition / totalDuration`)
+  - Hauteur : 6-8px (selon isDragging) - style existant conservé
+
+- **AVPlayer** : Observers Combine sur `timeControlStatus` et `loadedTimeRanges`
+  - Détection du buffering : `.waitingToPlayAtSpecifiedRate` ou `isPlaybackBufferEmpty == true`
+  - Fin du buffering : `isPlaybackLikelyToKeepUp == true` et `timeControlStatus == .playing`
+  - Buffer progress calculé : `bufferedDuration / totalDuration` (précision 0-100%)
+  - `bufferedDuration` calculé : `CMTimeGetSeconds(timeRange.start) + CMTimeGetSeconds(timeRange.duration)`
+
+- **VLC** : Observation du state via `VLCMediaPlayerDelegate`
+  - Détection du buffering : `state == .buffering`
+  - Fin du buffering : `state == .playing`
+  - Buffer progress : Non disponible (VLC ne fournit pas de `loadedTimeRanges`), affiché à 0%
+  - `bufferedDuration = currentPosition` (fallback, pas de buffer en avance visible)
+
+- **MediaPlayerView** : Bindings `isBuffering`, `bufferProgress` et `bufferedDuration` passés aux wrappers et à l'overlay
+  - Observer `.onChange(of: isBuffering)` pour auto-show de l'overlay
+  - Annulation du timer auto-hide pendant le buffering
+
+- **PlayerOverlay** :
+  - Badge Player Type dans le header avec couleurs différenciées (AVPlayer : bleu, VLC : orange)
+  - Section buffering dans le header avec ProgressView + texte dynamique (AVPlayer : "Chargement... X%", VLC : "Chargement...")
+  - ProgressBar avec buffer intégré (une seule barre au lieu de deux)
+  - HStack regroupant Badge Player Type et Badge LIVE (espacement 8px)
+
+- **BufferIndicator** : Composant conservé pour référence mais non utilisé (fusionné dans ProgressBar)
+
+- Build réussi sans erreur
+
+---
+
 ## [0.13.1] - 2025-11-02
 
 ### Corrigé

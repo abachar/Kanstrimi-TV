@@ -93,7 +93,7 @@ struct SettingsView: View {
     context.insert(account)
 
     // Créer des PlayerSettings de test
-    let settings = PlayerSettings(bufferSize: 30)
+    let settings = PlayerSettings(liveBufferSize: 3, vodBufferSize: 10)
     context.insert(settings)
 
     // Créer le MockDomainService

@@ -21,12 +21,13 @@ struct PlaybackSectionView: View {
         playerSettings.first
     }
 
-    private var bufferSize: Int {
-        currentPlayerSettings?.bufferSize ?? 30
+    private var liveBufferSize: Int {
+        currentPlayerSettings?.liveBufferSize ?? 3
     }
 
-    // Options de buffer disponibles (en secondes)
-    private let bufferOptions = [5, 10, 20, 30]
+    private var vodBufferSize: Int {
+        currentPlayerSettings?.vodBufferSize ?? 10
+    }
 
     // MARK: - Body
     var body: some View {
@@ -34,8 +35,8 @@ struct PlaybackSectionView: View {
             SettingsSectionHeader(icon: "play.circle.fill", title: "Lecture")
 
             VStack(alignment: .leading, spacing: 20) {
-                // Description
-                Text("Taille du buffer")
+                // Description générale
+                Text("Configuration du buffer")
                     .font(.system(size: 24, weight: .medium))
                     .foregroundColor(.primary)
 
@@ -45,17 +46,41 @@ struct PlaybackSectionView: View {
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // Picker segment\u00e9
-                Picker("Taille du buffer", selection: Binding(
-                    get: { bufferSize },
-                    set: { newValue in updateBufferSize(newValue) }
-                )) {
-                    ForEach(bufferOptions, id: \.self) { option in
-                        Text("\(option) sec").tag(option)
+                // Buffer Live TV
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Buffer Live TV")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.primary)
+
+                    Picker("Buffer Live TV", selection: Binding(
+                        get: { liveBufferSize },
+                        set: { newValue in updateLiveBufferSize(newValue) }
+                    )) {
+                        ForEach(PlayerSettings.liveBufferOptions, id: \.self) { option in
+                            Text("\(option) sec").tag(option)
+                        }
                     }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
-                .padding(.top, 8)
+                .padding(.top, 12)
+
+                // Buffer VOD/Séries
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Buffer VOD/Séries")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.primary)
+
+                    Picker("Buffer VOD", selection: Binding(
+                        get: { vodBufferSize },
+                        set: { newValue in updateVodBufferSize(newValue) }
+                    )) {
+                        ForEach(PlayerSettings.vodBufferOptions, id: \.self) { option in
+                            Text("\(option) sec").tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.top, 12)
             }
             .padding(24)
             .background(
@@ -66,9 +91,15 @@ struct PlaybackSectionView: View {
     }
 
     // MARK: - Actions
-    private func updateBufferSize(_ newValue: Int) {
+    private func updateLiveBufferSize(_ newValue: Int) {
         guard let settings = currentPlayerSettings else { return }
-        settings.bufferSize = newValue
+        settings.liveBufferSize = newValue
+        try? domainService.updatePlayerSettings(settings)
+    }
+
+    private func updateVodBufferSize(_ newValue: Int) {
+        guard let settings = currentPlayerSettings else { return }
+        settings.vodBufferSize = newValue
         try? domainService.updatePlayerSettings(settings)
     }
 }
