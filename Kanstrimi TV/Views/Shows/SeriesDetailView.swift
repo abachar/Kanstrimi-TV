@@ -1,5 +1,5 @@
 //
-//  SeriesDetailView.swift
+//  ShowDetailView.swift
 //  Kanstrimi TV
 //
 //  Created on 2025-10-27.
@@ -10,7 +10,7 @@ import SwiftData
 import NukeUI
 
 /// Vue affichant les détails complets d'une série
-struct SeriesDetailView: View {
+struct ShowDetailView: View {
     // MARK: - Properties
     let seriesId: Int
 
@@ -448,7 +448,7 @@ struct SeriesDetailView: View {
         // Créer le MockDomainService
     let mockDomainService = MockDomainService(container: container)
 
-    return SeriesDetailView(seriesId: series.extractedSeriesId!)
+    return ShowDetailView(seriesId: series.extractedSeriesId!)
         .modelContainer(container)
         .environment(\.domainService, mockDomainService)
 }
@@ -490,7 +490,7 @@ struct SeriesDetailView: View {
     // Créer le MockDomainService
     let mockDomainService = MockDomainService(container: container)
 
-    return SeriesDetailView(seriesId: series.extractedSeriesId!)
+    return ShowDetailView(seriesId: series.extractedSeriesId!)
         .modelContainer(container)
         .environment(\.domainService, mockDomainService)
 }

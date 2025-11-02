@@ -22,8 +22,6 @@ struct MovieCard: View {
         emptyIcon: "film.fill"
     )
 
-    /*250 / 375*/
-
     // MARK: - Body
     var body: some View {
         GenericContentCard(

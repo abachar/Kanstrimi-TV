@@ -102,3 +102,18 @@ struct HeroConfiguration {
         self.fallbackIcon = fallbackIcon
     }
 }
+
+// MARK: - ShelfItem Protocol
+
+/// Protocole pour les entités affichables dans une ligne de contenu (shelf)
+/// Permet d'utiliser @Query dans ContentShelfView avec des types génériques
+protocol ShelfItem: PersistentModel {
+    /// ID de la catégorie à laquelle appartient l'item
+    var categoryId: String { get }
+
+    /// Indique si l'item est actif (après application des filtres)
+    var active: Bool { get }
+
+    /// Ordre de tri dans la catégorie
+    var sortOrder: Int { get }
+}

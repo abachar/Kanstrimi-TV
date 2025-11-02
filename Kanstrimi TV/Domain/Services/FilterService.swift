@@ -259,14 +259,14 @@ final class FilterService {
         // Désactiver les films des catégories inactives
         let movieDescriptor = FetchDescriptor<Movie>()
         let movies = try storageService.fetch(movieDescriptor)
-        for movie in movies where movie.categoryId != nil && inactiveCategoryIds.contains(movie.categoryId!) {
+        for movie in movies where inactiveCategoryIds.contains(movie.categoryId) {
             movie.active = false
         }
 
         // Désactiver les séries des catégories inactives
         let seriesDescriptor = FetchDescriptor<Series>()
         let series = try storageService.fetch(seriesDescriptor)
-        for seriesItem in series where seriesItem.categoryId != nil && inactiveCategoryIds.contains(seriesItem.categoryId!) {
+        for seriesItem in series where inactiveCategoryIds.contains(seriesItem.categoryId) {
             seriesItem.active = false
         }
     }

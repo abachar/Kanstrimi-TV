@@ -1,23 +1,45 @@
 //
-//  GenericCategoryRowContent.swift
+//  ContentShelfView.swift
 //  Kanstrimi TV
 //
-//  Created on 2025-10-28.
-//  Composant générique pour afficher une ligne de catégorie
+//  Created on 2025-11-02.
+//  Composant générique pour afficher une ligne de contenu (shelf/étagère)
 //
 
 import SwiftUI
+import SwiftData
 
-/// Composant d'affichage générique pour une ligne de catégorie
+/// Composant générique pour afficher une ligne de contenu horizontale avec scrolling
 ///
-/// Ne gère PAS les @Query (qui doivent rester dans les composants spécifiques)
-/// mais factorie l'affichage du header et de la liste horizontale
-struct GenericCategoryRowContent<T: Identifiable, CardView: View>: View {
+/// Utilise @Query pour charger automatiquement les items filtrés par catégorie
+struct ContentShelfView<Item: ShelfItem, CardView: View>: View {
     // MARK: - Properties
 
-    let categoryName: String
-    let items: [T]
-    let cardBuilder: (T) -> CardView
+    let category: Category
+    let cardBuilder: (Item) -> CardView
+
+    // MARK: - SwiftData Query
+
+    @Query private var items: [Item]
+
+    // MARK: - Init
+
+    init(
+        category: Category,
+        @ViewBuilder cardBuilder: @escaping (Item) -> CardView
+    ) {
+        self.category = category
+        self.cardBuilder = cardBuilder
+
+        // @Query avec filtrage par categoryId et active
+        let categoryId = category.categoryId
+        _items = Query(
+            filter: #Predicate<Item> { item in
+                item.categoryId == categoryId && item.active
+            },
+            sort: \.sortOrder
+        )
+    }
 
     // MARK: - Body
 
@@ -36,7 +58,7 @@ struct GenericCategoryRowContent<T: Identifiable, CardView: View>: View {
 
     private var headerView: some View {
         HStack(spacing: 12) {
-            Text(categoryName)
+            Text(category.name)
                 .font(.system(size: 32, weight: .semibold))
                 .foregroundColor(.primary)
 

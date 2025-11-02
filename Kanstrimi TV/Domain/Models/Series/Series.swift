@@ -32,7 +32,7 @@ final class Series {
     var sortOrder: Int
 
     /// ID de la catégorie
-    var categoryId: String?
+    var categoryId: String
 
     /// Indique si la série est active (après application des filtres)
     var active: Bool = true
@@ -42,7 +42,7 @@ final class Series {
         seriesId: Int,
         name: String,
         sortOrder: Int,
-        categoryId: String? = nil,
+        categoryId: String,
         cover: String? = nil,
         rating: Double? = nil,
         genre: String? = nil
@@ -71,6 +71,9 @@ extension Series: Searchable {}
 extension Series: CardDisplayable {
     var imageURL: String? { cover }
 }
+
+// MARK: - ShelfItem Conformance
+extension Series: ShelfItem {}
 
 // MARK: - Preview Data
 #if DEBUG

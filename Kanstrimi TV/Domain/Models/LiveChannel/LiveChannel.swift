@@ -86,6 +86,9 @@ final class LiveChannel {
 // MARK: - Searchable Conformance
 extension LiveChannel: Searchable {}
 
+// MARK: - ShelfItem Conformance
+extension LiveChannel: ShelfItem {}
+
 // MARK: - CardDisplayable Conformance
 extension LiveChannel: CardDisplayable {
     var imageURL: String? { streamIcon }

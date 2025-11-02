@@ -33,7 +33,7 @@ final class Movie {
     var sortOrder: Int
 
     /// ID de la catégorie
-    var categoryId: String?
+    var categoryId: String
 
     /// Indique si le film est actif (après application des filtres)
     var active: Bool = true
@@ -43,7 +43,7 @@ final class Movie {
         streamId: Int,
         name: String,
         sortOrder: Int,
-        categoryId: String? = nil,
+        categoryId: String,
         streamIcon: String? = nil,
         rating: Double? = nil,
         tmdbId: Int? = nil
@@ -72,6 +72,9 @@ extension Movie: Searchable {}
 extension Movie: CardDisplayable {
     var imageURL: String? { streamIcon }
 }
+
+// MARK: - ShelfItem Conformance
+extension Movie: ShelfItem {}
 
 // MARK: - Preview Data
 #if DEBUG

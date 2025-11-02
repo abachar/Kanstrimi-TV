@@ -96,7 +96,7 @@ struct MovieResponse: Codable {
             streamId: streamId,
             name: name,
             sortOrder: sortOrder,
-            categoryId: categoryId,
+            categoryId: categoryId ?? "",
             streamIcon: streamIcon,
             rating: convertedRating,
             tmdbId: tmdb

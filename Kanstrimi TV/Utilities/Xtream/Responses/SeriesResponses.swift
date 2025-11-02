@@ -114,7 +114,7 @@ struct SeriesResponse: Codable {
             seriesId: seriesId,
             name: name,
             sortOrder: sortOrder,
-            categoryId: categoryId,
+            categoryId: categoryId ?? "",
             cover: cover,
             rating: convertedRating,
             genre: genre
