@@ -11,6 +11,17 @@ import NukeUI
 
 /// Overlay du player avec auto-hide et contrôles interactifs
 struct PlayerOverlay: View {
+    // MARK: - Focusable Elements
+    enum FocusableElement: Hashable {
+        case progressBar
+        case resumeButton
+        case previousEpisode
+        case nextEpisode
+        case audioButton
+        case subtitlesButton
+        case infoButton
+    }
+
     let content: PlaybackContent
     let currentPosition: TimeInterval
     let totalDuration: TimeInterval
@@ -28,12 +39,16 @@ struct PlayerOverlay: View {
     let onPreviousEpisodeTapped: (() -> Void)?
     let onNextEpisodeTapped: (() -> Void)?
     let onInfoTapped: () -> Void
+    let onProgressBarSwipeLeft: (() -> Void)?
+    let onProgressBarSwipeRight: (() -> Void)?
+
+    @FocusState private var focusedElement: FocusableElement?
 
     var body: some View {
         if isVisible {
             VStack(spacing: 0) {
                 Spacer()
-                
+
                 VStack() {
                     // Header
                     headerSection
@@ -50,6 +65,10 @@ struct PlayerOverlay: View {
             .onTapGesture {
                 onResetAutoHide()
             }
+            .onAppear {
+                // Focus initial sur la ProgressBar quand l'overlay s'affiche
+                focusedElement = .progressBar
+            }
         }
     }
 
@@ -60,10 +79,16 @@ struct PlayerOverlay: View {
                 Text(content.title)
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundColor(.primary)
-                
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.white, .white.opacity(0.9)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
                 Spacer()
-                
+
                 // Badge Player Type
                 Text(playerType == .avPlayer ? "AVPlayer" : "VLC")
                     .font(.caption)
@@ -73,7 +98,7 @@ struct PlayerOverlay: View {
                     .padding(.vertical, 4)
                     .background(playerType == .avPlayer ? Color.blue.opacity(0.8) : Color.orange.opacity(0.8))
                     .cornerRadius(4)
-                
+
                 // Badge LIVE
                 if content.contentType == .live {
                     Text("LIVE")
@@ -86,16 +111,22 @@ struct PlayerOverlay: View {
                         .cornerRadius(4)
                 }
             }
-            
+
             HStack {
                 if let subtitle = content.subtitle {
                     Text(subtitle)
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white.opacity(0.9), .white.opacity(0.7)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
                 }
-                
+
                 Spacer()
-                
+
                 // Indicateur de buffering
                 if isBuffering {
                     HStack(spacing: 8) {
@@ -104,11 +135,23 @@ struct PlayerOverlay: View {
                         if bufferProgress > 0 {
                             Text("Chargement... \(Int(bufferProgress * 100))%")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.8), .white.opacity(0.6)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
                         } else {
                             Text("Chargement...")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.8), .white.opacity(0.6)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
                         }
                     }
                     .padding(.top, 4)
@@ -126,8 +169,13 @@ struct PlayerOverlay: View {
                 totalDuration: totalDuration,
                 bufferedDuration: bufferedDuration,
                 isLive: content.contentType == .live,
-                onSeek: onSeek
+                onSeek: onSeek,
+                onSwipeLeft: onProgressBarSwipeLeft,
+                onSwipeRight: onProgressBarSwipeRight,
+                isFocused: focusedElement == .progressBar
             )
+            .focusable()
+            .focused($focusedElement, equals: .progressBar)
 
             // Boutons de contrôle
             HStack(spacing: 20) {
@@ -136,6 +184,7 @@ struct PlayerOverlay: View {
                     onResumeTapped()
                     onResetAutoHide()
                 }
+                .focused($focusedElement, equals: .resumeButton)
 
                 // Épisode précédent (si série)
                 if let onPrevious = onPreviousEpisodeTapped {
@@ -143,6 +192,7 @@ struct PlayerOverlay: View {
                         onPrevious()
                         onResetAutoHide()
                     }
+                    .focused($focusedElement, equals: .previousEpisode)
                 }
 
                 // Épisode suivant (si série)
@@ -151,28 +201,32 @@ struct PlayerOverlay: View {
                         onNext()
                         onResetAutoHide()
                     }
+                    .focused($focusedElement, equals: .nextEpisode)
                 }
-                
+
                 Spacer()
-                
+
                 HStack(spacing: 20) {
                     // Audio
                     Button("Audio", systemImage: "waveform") {
                         onAudioTapped()
                         onResetAutoHide()
                     }
+                    .focused($focusedElement, equals: .audioButton)
 
                     // Sous-titres
                     Button("Sous-titres", systemImage: "captions.bubble") {
                         onSubtitlesTapped()
                         onResetAutoHide()
                     }
+                    .focused($focusedElement, equals: .subtitlesButton)
 
                     // Info
                     Button("Infos", systemImage: "info.circle") {
                         onInfoTapped()
                         onResetAutoHide()
                     }
+                    .focused($focusedElement, equals: .infoButton)
                 }
                 .labelStyle(.iconOnly)
                 .buttonBorderShape(.circle)
@@ -206,7 +260,9 @@ struct PlayerOverlay: View {
             onResumeTapped: { print("Resume") },
             onPreviousEpisodeTapped: nil,
             onNextEpisodeTapped: nil,
-            onInfoTapped: { print("Info") }
+            onInfoTapped: { print("Info") },
+            onProgressBarSwipeLeft: { print("Swipe Left") },
+            onProgressBarSwipeRight: { print("Swipe Right") }
         )
     }
 }
@@ -232,7 +288,9 @@ struct PlayerOverlay: View {
             onResumeTapped: { print("Resume") },
             onPreviousEpisodeTapped: nil,
             onNextEpisodeTapped: nil,
-            onInfoTapped: { print("Info") }
+            onInfoTapped: { print("Info") },
+            onProgressBarSwipeLeft: { print("Swipe Left") },
+            onProgressBarSwipeRight: { print("Swipe Right") }
         )
     }
 }
@@ -263,7 +321,9 @@ struct PlayerOverlay: View {
             onResumeTapped: { print("Resume") },
             onPreviousEpisodeTapped: { print("Previous Episode") },
             onNextEpisodeTapped: { print("Next Episode") },
-            onInfoTapped: { print("Info") }
+            onInfoTapped: { print("Info") },
+            onProgressBarSwipeLeft: { print("Swipe Left") },
+            onProgressBarSwipeRight: { print("Swipe Right") }
         )
     }
 }

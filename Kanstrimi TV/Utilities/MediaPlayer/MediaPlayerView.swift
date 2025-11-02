@@ -155,7 +155,9 @@ struct MediaPlayerView: View {
             onResumeTapped: handleResumeTapped,
             onPreviousEpisodeTapped: previousEpisodeHandler,
             onNextEpisodeTapped: nextEpisodeHandler,
-            onInfoTapped: handleInfoTapped
+            onInfoTapped: handleInfoTapped,
+            onProgressBarSwipeLeft: handleProgressBarSwipeLeft,
+            onProgressBarSwipeRight: handleProgressBarSwipeRight
         )
     }
 
@@ -398,6 +400,18 @@ struct MediaPlayerView: View {
         }
     }
 
+    private func handleProgressBarSwipeLeft() {
+        let newPosition = max(0, currentPosition - 10)
+        handleSeek(newPosition)
+        resetAutoHideTimer()
+    }
+
+    private func handleProgressBarSwipeRight() {
+        let newPosition = min(currentPosition + 10, totalDuration)
+        handleSeek(newPosition)
+        resetAutoHideTimer()
+    }
+
     private func handleAudioTapped() {
         showingAudioSelector = true
     }
@@ -512,11 +526,21 @@ struct MediaPlayerView: View {
             print("remoteHandler -> setPlayPauseHandler...")
             handlePlayPause()
         }
-        
-        // Menu : Fermer le player
-        remoteHandler.setMenuHandler {
+
+        // Menu : Hide overlay si visible, sinon dismiss player
+        remoteHandler.setMenuHandler { [weak self] in
+            guard let self = self else { return }
             print("remoteHandler -> setMenuHandler...")
-            dismiss()
+            if self.isOverlayVisible {
+                // Première pression : masquer l'overlay
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    self.isOverlayVisible = false
+                }
+                self.autoHideTask?.cancel()
+            } else {
+                // Deuxième pression : fermer le player
+                self.dismiss()
+            }
         }
 
         // Select : Toggle overlay
@@ -540,20 +564,28 @@ struct MediaPlayerView: View {
             autoHideTask?.cancel()
         }
 
-        // Swipe Left : Reculer de 10 secondes
-        remoteHandler.setSwipeLeftHandler {
+        // Left : Seek -10sec si overlay caché (navigation focus si overlay visible)
+        remoteHandler.setSwipeLeftHandler { [weak self] in
+            guard let self = self else { return }
             print("remoteHandler -> setSwipeLeftHandler...")
-            let newPosition = max(0, currentPosition - 10)
-            handleSeek(newPosition)
-            resetAutoHideTimer()
+            if !self.isOverlayVisible {
+                let newPosition = max(0, self.currentPosition - 10)
+                self.handleSeek(newPosition)
+                self.resetAutoHideTimer()
+            }
+            // Si overlay visible : le focus natif tvOS gère la navigation
         }
 
-        // Swipe Right : Avancer de 10 secondes
-        remoteHandler.setSwipeRightHandler {
+        // Right : Seek +10sec si overlay caché (navigation focus si overlay visible)
+        remoteHandler.setSwipeRightHandler { [weak self] in
+            guard let self = self else { return }
             print("remoteHandler -> setSwipeRightHandler...")
-            let newPosition = min(currentPosition + 10, totalDuration)
-            handleSeek(newPosition)
-            resetAutoHideTimer()
+            if !self.isOverlayVisible {
+                let newPosition = min(self.currentPosition + 10, self.totalDuration)
+                self.handleSeek(newPosition)
+                self.resetAutoHideTimer()
+            }
+            // Si overlay visible : le focus natif tvOS gère la navigation
         }
     }
 

@@ -76,7 +76,7 @@ class RemoteControlHandler: ObservableObject {
             }
         }
         
-        // Play/Pause (bouton Play/Pause)
+        // Menu button
         microGamepad.buttonMenu.pressedChangedHandler = { [weak self] (button, value, pressed) in
             if pressed {
                 DispatchQueue.main.async {

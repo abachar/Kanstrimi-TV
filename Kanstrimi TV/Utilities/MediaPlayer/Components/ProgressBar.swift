@@ -15,6 +15,9 @@ struct ProgressBar: View {
     let bufferedDuration: TimeInterval
     let isLive: Bool
     let onSeek: ((TimeInterval) -> Void)?
+    let onSwipeLeft: (() -> Void)?
+    let onSwipeRight: (() -> Void)?
+    let isFocused: Bool
 
     @State private var isDragging: Bool = false
     @State private var previewPosition: TimeInterval?
@@ -49,41 +52,66 @@ struct ProgressBar: View {
                     // Background (gris clair)
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
-                        .frame(height: isDragging ? 8 : 6)
-                        .cornerRadius(isDragging ? 4 : 3)
+                        .frame(height: isFocused ? 8 : 6)
+                        .cornerRadius(isFocused ? 4 : 3)
 
                     // Buffer downloaded (gris foncé)
                     Rectangle()
                         .fill(Color.gray.opacity(0.6))
-                        .frame(width: geometry.size.width * bufferedProgress, height: isDragging ? 8 : 6)
-                        .cornerRadius(isDragging ? 4 : 3)
+                        .frame(width: geometry.size.width * bufferedProgress, height: isFocused ? 8 : 6)
+                        .cornerRadius(isFocused ? 4 : 3)
 
                     // Current position (blanc)
                     Rectangle()
-                        .fill(isDragging ? Color.white.opacity(0.8) : Color.white)
-                        .frame(width: geometry.size.width * progress, height: isDragging ? 8 : 6)
-                        .cornerRadius(isDragging ? 4 : 3)
+                        .fill(isFocused ? Color.white : Color.white.opacity(0.9))
+                        .frame(width: geometry.size.width * progress, height: isFocused ? 8 : 6)
+                        .cornerRadius(isFocused ? 4 : 3)
 
-                    // Preview indicator (cercle au bout de la barre)
-                    if isDragging {
+                    // Preview indicator (cercle au bout de la barre) quand focusée
+                    if isFocused {
                         Circle()
                             .fill(Color.white)
                             .frame(width: 16, height: 16)
                             .offset(x: geometry.size.width * progress - 8)
                     }
                 }
-                // Note: DragGesture non disponible sur tvOS
-                // Le seek se fera via des boutons dédiés dans l'overlay (Phase 3)
+                .gesture(
+                    DragGesture(minimumDistance: 30)
+                        .onEnded { value in
+                            // Swipe detection uniquement si focusée
+                            if isFocused {
+                                if value.translation.width < -30 {
+                                    // Swipe left
+                                    onSwipeLeft?()
+                                } else if value.translation.width > 30 {
+                                    // Swipe right
+                                    onSwipeRight?()
+                                }
+                            }
+                        }
+                )
             }
-            .frame(height: isDragging ? 8 : 6)
-            .animation(.easeOut(duration: 0.2), value: isDragging)
+            .frame(height: isFocused ? 8 : 6)
+            .overlay(
+                RoundedRectangle(cornerRadius: isFocused ? 4 : 3)
+                    .stroke(Color.white, lineWidth: isFocused ? 2 : 0)
+            )
+            .animation(.easeOut(duration: 0.2), value: isFocused)
 
             // Timecodes
             HStack {
                 Text(currentTimeString)
                     .font(.caption)
-                    .foregroundColor(isDragging ? .primary : .secondary)
-                    .fontWeight(isDragging ? .semibold : .regular)
+                    .fontWeight(isFocused ? .semibold : .regular)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: isFocused
+                                ? [.white, .white.opacity(0.9)]
+                                : [.white.opacity(0.8), .white.opacity(0.6)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
 
                 Spacer()
 
@@ -95,7 +123,13 @@ struct ProgressBar: View {
                 } else {
                     Text(totalTimeString)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white.opacity(0.8), .white.opacity(0.6)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                 }
             }
         }

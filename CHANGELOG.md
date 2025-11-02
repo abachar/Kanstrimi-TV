@@ -7,6 +7,79 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [0.15.0] - 2025-11-03
+
+### Ajouté
+- **Système de focus natif dans PlayerOverlay** : Navigation directionnelle entre les boutons et la ProgressBar
+  - Enum `FocusableElement` pour identifier les éléments focusables (progressBar, boutons audio/sous-titres/info, boutons épisodes)
+  - `@FocusState` pour gérer le focus avec support tvOS natif
+  - Focus initial automatique sur la ProgressBar au show de l'overlay
+  - Navigation avec left/right/up/down entre tous les boutons de l'overlay
+  - `.focused()` sur tous les boutons (Resume, Previous/Next Episode, Audio, Subtitles, Info)
+  - `.focusable()` sur la ProgressBar pour permettre le focus
+
+- **Swipe detection sur ProgressBar focusée** : Seek ±10sec uniquement quand la ProgressBar est focusée
+  - `DragGesture` avec `minimumDistance: 30` pour détecter les swipes
+  - Callbacks `onSwipeLeft` et `onSwipeRight` pour communiquer avec MediaPlayerView
+  - Swipe left : reculer de 10 secondes
+  - Swipe right : avancer de 10 secondes
+  - Style visuel focus : border blanc (2px) + indicateur cercle + hauteur augmentée (8px)
+
+### Modifié
+- **Logique conditionnelle du Remote Control** : Comportement différent selon visibilité de l'overlay
+  - **Overlay caché** :
+    - Left/Right : Seek ±10sec directement
+    - Menu : Dismiss player
+  - **Overlay affiché** :
+    - Left/Right/Up/Down : Navigation focus native tvOS (pas de code custom)
+    - Menu : Hide overlay (première pression), dismiss player (deuxième pression)
+    - Swipe Left/Right sur ProgressBar focusée : Seek ±10sec
+  - Suppression des handlers swipe left/right directs (remplacés par logique conditionnelle)
+  - Ajout de `[weak self]` dans les closures Menu et Left/Right pour éviter les retain cycles
+
+- **Style texte avec dégradé blanc permanent** : Meilleure lisibilité sur fond noir
+  - Titre principal : dégradé `.white` → `.white.opacity(0.9)` (top to bottom)
+  - Sous-titre : dégradé `.white.opacity(0.9)` → `.white.opacity(0.7)` (top to bottom)
+  - Textes secondaires (timecodes, labels) : dégradé `.white.opacity(0.8)` → `.white.opacity(0.6)` (leading to trailing)
+  - Indicateur buffering : dégradé `.white.opacity(0.8)` → `.white.opacity(0.6)` (leading to trailing)
+  - ProgressBar timecodes : dégradé dynamique selon focus (plus lumineux quand focusée)
+
+- **ProgressBar améliorée** :
+  - Hauteur dynamique selon focus : 6px (normal) → 8px (focusée)
+  - Border blanc (2px) quand focusée
+  - Indicateur cercle affiché uniquement quand focusée
+  - Position bar couleur adaptative : `.white` (focusée) vs `.white.opacity(0.9)` (normal)
+  - Animation `.easeOut(duration: 0.2)` pour transitions fluides
+
+### Technique
+- **PlayerOverlay** :
+  - Ajout de 2 callbacks : `onProgressBarSwipeLeft: (() -> Void)?` et `onProgressBarSwipeRight: (() -> Void)?`
+  - `@FocusState private var focusedElement: FocusableElement?` pour gestion du focus
+  - `.onAppear { focusedElement = .progressBar }` pour focus initial
+  - 7 éléments focusables : progressBar, resumeButton, previousEpisode, nextEpisode, audioButton, subtitlesButton, infoButton
+
+- **ProgressBar** :
+  - Ajout de 3 paramètres : `onSwipeLeft`, `onSwipeRight`, `isFocused: Bool`
+  - `.gesture(DragGesture())` pour détecter swipes horizontaux (uniquement si focusée)
+  - `.overlay(RoundedRectangle().stroke())` pour border blanc au focus
+  - Remplacement de `isDragging` par `isFocused` pour le style visuel
+
+- **MediaPlayerView** :
+  - Ajout de `handleProgressBarSwipeLeft()` et `handleProgressBarSwipeRight()`
+  - Modification de `setupRemoteHandlers()` avec logique conditionnelle `if isOverlayVisible`
+  - Menu handler : `if isOverlayVisible { hide } else { dismiss }`
+  - Left/Right handlers : `if !isOverlayVisible { seek ±10sec }`
+
+- **UX améliorée** :
+  - Navigation intuitive : focus natif tvOS dans l'overlay
+  - Seek contextuel : swipe sur ProgressBar vs left/right selon mode
+  - Bouton Menu intelligent : hide → dismiss (deux niveaux)
+  - Texte toujours lisible sur fond noir (dégradé blanc)
+
+- Build réussi sans erreur ni warning
+
+---
+
 ## [0.14.0] - 2025-11-02
 
 ### Modifié
