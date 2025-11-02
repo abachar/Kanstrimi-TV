@@ -43,6 +43,9 @@ struct MediaPlayerView: View {
     @State private var bufferProgress: Double = 0.0
     @State private var bufferedDuration: TimeInterval = 0.0
 
+    // État du focus overlay
+    @State private var overlayFocusedElement: PlayerOverlay.FocusableElement? = nil
+
     // État des modales
     @State private var showingAudioSelector: Bool = false
     @State private var showingSubtitleSelector: Bool = false
@@ -156,8 +159,9 @@ struct MediaPlayerView: View {
             onPreviousEpisodeTapped: previousEpisodeHandler,
             onNextEpisodeTapped: nextEpisodeHandler,
             onInfoTapped: handleInfoTapped,
-            onProgressBarSwipeLeft: handleProgressBarSwipeLeft,
-            onProgressBarSwipeRight: handleProgressBarSwipeRight
+            onFocusChanged: { newFocus in
+                overlayFocusedElement = newFocus
+            }
         )
     }
 
@@ -400,18 +404,6 @@ struct MediaPlayerView: View {
         }
     }
 
-    private func handleProgressBarSwipeLeft() {
-        let newPosition = max(0, currentPosition - 10)
-        handleSeek(newPosition)
-        resetAutoHideTimer()
-    }
-
-    private func handleProgressBarSwipeRight() {
-        let newPosition = min(currentPosition + 10, totalDuration)
-        handleSeek(newPosition)
-        resetAutoHideTimer()
-    }
-
     private func handleAudioTapped() {
         showingAudioSelector = true
     }
@@ -528,18 +520,17 @@ struct MediaPlayerView: View {
         }
 
         // Menu : Hide overlay si visible, sinon dismiss player
-        remoteHandler.setMenuHandler { [weak self] in
-            guard let self = self else { return }
+        remoteHandler.setMenuHandler {
             print("remoteHandler -> setMenuHandler...")
-            if self.isOverlayVisible {
+            if isOverlayVisible {
                 // Première pression : masquer l'overlay
                 withAnimation(.easeInOut(duration: 0.3)) {
-                    self.isOverlayVisible = false
+                    isOverlayVisible = false
                 }
-                self.autoHideTask?.cancel()
+                autoHideTask?.cancel()
             } else {
                 // Deuxième pression : fermer le player
-                self.dismiss()
+                dismiss()
             }
         }
 
@@ -564,28 +555,28 @@ struct MediaPlayerView: View {
             autoHideTask?.cancel()
         }
 
-        // Left : Seek -10sec si overlay caché (navigation focus si overlay visible)
-        remoteHandler.setSwipeLeftHandler { [weak self] in
-            guard let self = self else { return }
+        // Left : Seek -10sec si overlay caché OU si focus sur ProgressBar
+        remoteHandler.setSwipeLeftHandler {
             print("remoteHandler -> setSwipeLeftHandler...")
-            if !self.isOverlayVisible {
-                let newPosition = max(0, self.currentPosition - 10)
-                self.handleSeek(newPosition)
-                self.resetAutoHideTimer()
+            // Seek si overlay caché OU si focus sur ProgressBar
+            if !isOverlayVisible || overlayFocusedElement == .progressBar {
+                let newPosition = max(0, currentPosition - 10)
+                handleSeek(newPosition)
+                resetAutoHideTimer()
             }
-            // Si overlay visible : le focus natif tvOS gère la navigation
+            // Si overlay visible ET focus sur autre élément : le focus natif tvOS gère la navigation
         }
 
-        // Right : Seek +10sec si overlay caché (navigation focus si overlay visible)
-        remoteHandler.setSwipeRightHandler { [weak self] in
-            guard let self = self else { return }
+        // Right : Seek +10sec si overlay caché OU si focus sur ProgressBar
+        remoteHandler.setSwipeRightHandler {
             print("remoteHandler -> setSwipeRightHandler...")
-            if !self.isOverlayVisible {
-                let newPosition = min(self.currentPosition + 10, self.totalDuration)
-                self.handleSeek(newPosition)
-                self.resetAutoHideTimer()
+            // Seek si overlay caché OU si focus sur ProgressBar
+            if !isOverlayVisible || overlayFocusedElement == .progressBar {
+                let newPosition = min(currentPosition + 10, totalDuration)
+                handleSeek(newPosition)
+                resetAutoHideTimer()
             }
-            // Si overlay visible : le focus natif tvOS gère la navigation
+            // Si overlay visible ET focus sur autre élément : le focus natif tvOS gère la navigation
         }
     }
 

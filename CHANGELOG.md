@@ -18,11 +18,10 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - `.focused()` sur tous les boutons (Resume, Previous/Next Episode, Audio, Subtitles, Info)
   - `.focusable()` sur la ProgressBar pour permettre le focus
 
-- **Swipe detection sur ProgressBar focusée** : Seek ±10sec uniquement quand la ProgressBar est focusée
-  - `DragGesture` avec `minimumDistance: 30` pour détecter les swipes
-  - Callbacks `onSwipeLeft` et `onSwipeRight` pour communiquer avec MediaPlayerView
-  - Swipe left : reculer de 10 secondes
-  - Swipe right : avancer de 10 secondes
+- **Swipe detection contextuelle sur ProgressBar** : Seek ±10sec quand la ProgressBar est focusée
+  - Utilisation de `RemoteControlHandler` pour détecter les swipes (pas de DragGesture, incompatible tvOS)
+  - Callback `onFocusChanged` pour notifier MediaPlayerView du focus actuel
+  - Swipe left/right : Seek ±10sec si overlay caché OU si focus sur ProgressBar
   - Style visuel focus : border blanc (2px) + indicateur cercle + hauteur augmentée (8px)
 
 ### Modifié
@@ -53,22 +52,24 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### Technique
 - **PlayerOverlay** :
-  - Ajout de 2 callbacks : `onProgressBarSwipeLeft: (() -> Void)?` et `onProgressBarSwipeRight: (() -> Void)?`
+  - Ajout du callback : `onFocusChanged: ((FocusableElement?) -> Void)?` pour notifier MediaPlayerView
   - `@FocusState private var focusedElement: FocusableElement?` pour gestion du focus
   - `.onAppear { focusedElement = .progressBar }` pour focus initial
+  - `.onChange(of: focusedElement)` pour notifier les changements de focus
   - 7 éléments focusables : progressBar, resumeButton, previousEpisode, nextEpisode, audioButton, subtitlesButton, infoButton
 
 - **ProgressBar** :
-  - Ajout de 3 paramètres : `onSwipeLeft`, `onSwipeRight`, `isFocused: Bool`
-  - `.gesture(DragGesture())` pour détecter swipes horizontaux (uniquement si focusée)
+  - Ajout du paramètre : `isFocused: Bool` pour style visuel
   - `.overlay(RoundedRectangle().stroke())` pour border blanc au focus
   - Remplacement de `isDragging` par `isFocused` pour le style visuel
+  - Suppression de DragGesture (incompatible tvOS)
 
 - **MediaPlayerView** :
-  - Ajout de `handleProgressBarSwipeLeft()` et `handleProgressBarSwipeRight()`
-  - Modification de `setupRemoteHandlers()` avec logique conditionnelle `if isOverlayVisible`
+  - Ajout de `@State overlayFocusedElement` pour tracker le focus actuel
+  - Modification de `setupRemoteHandlers()` avec logique conditionnelle
   - Menu handler : `if isOverlayVisible { hide } else { dismiss }`
-  - Left/Right handlers : `if !isOverlayVisible { seek ±10sec }`
+  - Left/Right handlers : `if !isOverlayVisible || overlayFocusedElement == .progressBar { seek ±10sec }`
+  - Callback `onFocusChanged` pour mettre à jour `overlayFocusedElement`
 
 - **UX améliorée** :
   - Navigation intuitive : focus natif tvOS dans l'overlay

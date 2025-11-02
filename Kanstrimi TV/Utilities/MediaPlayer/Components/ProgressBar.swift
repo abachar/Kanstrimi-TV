@@ -15,8 +15,6 @@ struct ProgressBar: View {
     let bufferedDuration: TimeInterval
     let isLive: Bool
     let onSeek: ((TimeInterval) -> Void)?
-    let onSwipeLeft: (() -> Void)?
-    let onSwipeRight: (() -> Void)?
     let isFocused: Bool
 
     @State private var isDragging: Bool = false
@@ -75,21 +73,6 @@ struct ProgressBar: View {
                             .offset(x: geometry.size.width * progress - 8)
                     }
                 }
-                .gesture(
-                    DragGesture(minimumDistance: 30)
-                        .onEnded { value in
-                            // Swipe detection uniquement si focusée
-                            if isFocused {
-                                if value.translation.width < -30 {
-                                    // Swipe left
-                                    onSwipeLeft?()
-                                } else if value.translation.width > 30 {
-                                    // Swipe right
-                                    onSwipeRight?()
-                                }
-                            }
-                        }
-                )
             }
             .frame(height: isFocused ? 8 : 6)
             .overlay(

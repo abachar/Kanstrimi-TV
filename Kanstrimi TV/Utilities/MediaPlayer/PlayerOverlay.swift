@@ -39,8 +39,7 @@ struct PlayerOverlay: View {
     let onPreviousEpisodeTapped: (() -> Void)?
     let onNextEpisodeTapped: (() -> Void)?
     let onInfoTapped: () -> Void
-    let onProgressBarSwipeLeft: (() -> Void)?
-    let onProgressBarSwipeRight: (() -> Void)?
+    let onFocusChanged: ((FocusableElement?) -> Void)?
 
     @FocusState private var focusedElement: FocusableElement?
 
@@ -68,6 +67,10 @@ struct PlayerOverlay: View {
             .onAppear {
                 // Focus initial sur la ProgressBar quand l'overlay s'affiche
                 focusedElement = .progressBar
+            }
+            .onChange(of: focusedElement) { oldValue, newValue in
+                // Notifier MediaPlayerView du changement de focus
+                onFocusChanged?(newValue)
             }
         }
     }
@@ -170,8 +173,6 @@ struct PlayerOverlay: View {
                 bufferedDuration: bufferedDuration,
                 isLive: content.contentType == .live,
                 onSeek: onSeek,
-                onSwipeLeft: onProgressBarSwipeLeft,
-                onSwipeRight: onProgressBarSwipeRight,
                 isFocused: focusedElement == .progressBar
             )
             .focusable()
@@ -261,8 +262,7 @@ struct PlayerOverlay: View {
             onPreviousEpisodeTapped: nil,
             onNextEpisodeTapped: nil,
             onInfoTapped: { print("Info") },
-            onProgressBarSwipeLeft: { print("Swipe Left") },
-            onProgressBarSwipeRight: { print("Swipe Right") }
+            onFocusChanged: { print("Focus changed: \(String(describing: $0))") }
         )
     }
 }
@@ -289,8 +289,7 @@ struct PlayerOverlay: View {
             onPreviousEpisodeTapped: nil,
             onNextEpisodeTapped: nil,
             onInfoTapped: { print("Info") },
-            onProgressBarSwipeLeft: { print("Swipe Left") },
-            onProgressBarSwipeRight: { print("Swipe Right") }
+            onFocusChanged: { print("Focus changed: \(String(describing: $0))") }
         )
     }
 }
@@ -322,8 +321,7 @@ struct PlayerOverlay: View {
             onPreviousEpisodeTapped: { print("Previous Episode") },
             onNextEpisodeTapped: { print("Next Episode") },
             onInfoTapped: { print("Info") },
-            onProgressBarSwipeLeft: { print("Swipe Left") },
-            onProgressBarSwipeRight: { print("Swipe Right") }
+            onFocusChanged: { print("Focus changed: \(String(describing: $0))") }
         )
     }
 }
