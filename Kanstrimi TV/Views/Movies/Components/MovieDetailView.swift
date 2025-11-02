@@ -10,97 +10,88 @@ import SwiftUI
 import NukeUI
 
 /// Vue affichant les détails complets d'un film
+///
+/// ✅ Migration @Observable: Utilise MoviesStore au lieu de 3 @Query
+/// Résout le problème N+1 queries et centralise l'état
 struct MovieDetailView: View {
     // MARK: - Properties
     let streamId: Int
 
     // MARK: - Environment
+    @Environment(AppStore.self) private var appStore
     @Environment(\.domainService) private var domainService
     @Environment(\.showPlayer) private var showPlayer
 
-    // MARK: - Queries
-    @Query private var movies: [Movie]
-    @Query private var movieDetails: [MovieDetail]
-    @Query private var watchHistories: [WatchHistory]
+    private var store: MoviesStore {
+        appStore.moviesStore
+    }
 
+    // ✅ Données depuis le store (déjà chargées par selectMovie)
     private var movie: Movie? {
-        movies.first
+        store.selectedMovie
     }
 
     private var movieDetail: MovieDetail? {
-        movieDetails.first
+        store.selectedMovieDetail
     }
 
     private var watchHistory: WatchHistory? {
-        watchHistories.first
-    }
-
-    // MARK: - Init
-    init(streamId: Int) {
-        self.streamId = streamId
-
-        // Filtrer Movie par streamId (via l'ID)
-        _movies = Query(
-            filter: #Predicate<Movie> { $0.id == "movie-\(streamId)" }
-        )
-
-        // Filtrer MovieDetail par streamId
-        _movieDetails = Query(
-            filter: #Predicate<MovieDetail> { $0.streamId == streamId }
-        )
-
-        // Filtrer WatchHistory par streamId ET contentType
-        _watchHistories = Query(
-            filter: #Predicate<WatchHistory> {
-                $0.streamId == streamId && $0.contentType == "movie"
-            }
-        )
+        store.watchHistory
     }
 
     // MARK: - Body
     var body: some View {
         ZStack {
             Color.appBackground
-            
-            // Backdrop image
-            backdropView
 
-            VStack(alignment: .leading, spacing: 40) {
-                // Hero Section & Boutons de lecture
-                HStack(alignment: .bottom, spacing: 30) {
-                    // Poster
-                    posterView
+            if store.isLoadingDetail {
+                ProgressView("Chargement des détails...")
+            } else {
+                // Backdrop image
+                backdropView
 
-                    // Infos & Boutons de lecture
-                    VStack(alignment: .leading) {
-                        // Infos
-                        infoView
+                VStack(alignment: .leading, spacing: 40) {
+                    // Hero Section & Boutons de lecture
+                    HStack(alignment: .bottom, spacing: 30) {
+                        // Poster
+                        posterView
 
-                        // Boutons de lecture
-                        playbackButtonsSection
+                        // Infos & Boutons de lecture
+                        VStack(alignment: .leading) {
+                            // Infos
+                            infoView
+
+                            // Boutons de lecture
+                            playbackButtonsSection
+                        }
+                    }
+
+                    // Synopsis
+                    if let plot = movieDetail?.plot, !plot.isEmpty {
+                        synopsisSection(plot: plot)
+                    }
+
+                    // Réalisateur
+                    if let director = movieDetail?.director, !director.isEmpty {
+                        directorSection(director: director)
+                    }
+
+                    // Cast
+                    if let castImages = movieDetail?.castImages, !castImages.isEmpty {
+                        castSection(castImages: castImages)
                     }
                 }
-
-                // Synopsis
-                if let plot = movieDetail?.plot, !plot.isEmpty {
-                    synopsisSection(plot: plot)
-                }
-
-                // Réalisateur
-                if let director = movieDetail?.director, !director.isEmpty {
-                    directorSection(director: director)
-                }
-
-                // Cast
-                if let castImages = movieDetail?.castImages, !castImages.isEmpty {
-                    castSection(castImages: castImages)
-                }
+                .padding(60)
             }
-            .padding(60)
         }
         .task {
-            guard let movie = movie else { return }
-            await domainService.loadMovieDetailsIfNeeded(movie: movie)
+            // Charger le film et ses détails si pas déjà sélectionné
+            if store.selectedMovie == nil || store.selectedMovie?.extractedStreamId != streamId {
+                // Trouver le film dans le cache
+                if let movie = store.findMovie(by: streamId) {
+                    await store.selectMovie(movie)
+                }
+            }
         }
         .ignoresSafeArea()
     }

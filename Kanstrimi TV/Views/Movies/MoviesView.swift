@@ -8,28 +8,25 @@
 import SwiftUI
 import SwiftData
 
+/// Vue principale affichant les catégories de films
+///
+/// ✅ Migration @Observable: Utilise MoviesStore au lieu de @Query
 struct MoviesView: View {
-    // MARK: - SwiftData Queries
-    @Query private var categories: [Category]
-
     // MARK: - Environment
+    @Environment(AppStore.self) private var appStore
     @Environment(\.navigationPath) private var navigationPath
 
-    init() {
-        let predicate = #Predicate<Category> { category in
-            category.contentType == "movies" && category.active
-        }
-        let descriptor = FetchDescriptor<Category>(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\.sortOrder)]
-        )
-        _categories = Query(descriptor)
+    private var store: MoviesStore {
+        appStore.moviesStore
     }
 
     // MARK: - Body
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            if categories.isEmpty {
+            if store.isLoadingCategories {
+                ProgressView("Chargement des catégories...")
+                    .padding(60)
+            } else if store.activeCategories.isEmpty {
                 // État vide
                 ContentUnavailableView {
                     Label("Films", systemImage: "film.slash")
@@ -39,7 +36,7 @@ struct MoviesView: View {
             } else {
                 // Liste des catégories avec films
                 LazyVStack(spacing: 30) {
-                    ForEach(categories) { category in
+                    ForEach(store.activeCategories) { category in
                         MovieCategoryRow(category: category)
                     }
                 }
@@ -50,6 +47,16 @@ struct MoviesView: View {
         .ignoresSafeArea(.container, edges: [.horizontal])
         .onPlayPauseDoubleTap {
             navigationPath.wrappedValue.append(NavigationDestination.searchMovies)
+        }
+        .refreshable {
+            // ✅ Pull-to-refresh
+            await store.refresh()
+        }
+        .task {
+            // Charger au premier affichage
+            if store.categories.isEmpty {
+                await store.loadAll()
+            }
         }
     }
 }

@@ -11,40 +11,23 @@ import SwiftData
 /// Vue de recherche pour les films
 ///
 /// Affichée en fullScreenCover via double tap Play/Pause dans MoviesView
+///
+/// ✅ Migration @Observable: Utilise MoviesStore au lieu de @Query
+/// Résout le problème du predicate figé qui empêchait la recherche de fonctionner
 struct SearchMovies: View {
-    // MARK: - State
-    @State private var searchText = ""
+    // MARK: - Environment
+    @Environment(AppStore.self) private var appStore
 
-    // MARK: - Query
-    @Query private var filteredMovies: [Movie]
+    private var store: MoviesStore {
+        appStore.moviesStore
+    }
 
     // MARK: - Configuration
     private let minCharacters = 3
 
-    // MARK: - Initializer
-    init() {
-        // Création du predicate dynamique
-        let predicate: Predicate<Movie>
-        if searchText.count < minCharacters {
-            // Aucun résultat si < 3 caractères
-            predicate = #Predicate { _ in false }
-        } else {
-            // Filtrage avec localizedStandardContains (insensible casse + accents) et actif
-            predicate = #Predicate { movie in
-                movie.name.localizedStandardContains(searchText) && movie.active
-            }
-        }
-
-        // Initialisation de @Query avec le predicate
-        _filteredMovies = Query(
-            filter: predicate,
-            sort: [SortDescriptor(\Movie.sortOrder)]
-        )
-    }
-
     // MARK: - Computed Properties
     private var isSearchActive: Bool {
-        searchText.count >= minCharacters
+        store.searchText.count >= minCharacters
     }
 
     // MARK: - Body
@@ -55,17 +38,29 @@ struct SearchMovies: View {
 
             if !isSearchActive {
                 initialStateView
-            } else if filteredMovies.isEmpty {
+            } else if store.filteredMovies.isEmpty {
                 ContentUnavailableView {
                     Label("Aucun résultat", systemImage: "film.slash")
                 } description: {
-                    Text("pour \"\(searchText)\"")
+                    Text("pour \"\(store.searchText)\"")
                 }
             } else {
                 resultsGridView
             }
         }
-        .searchable(text: $searchText, prompt: "Rechercher un film...")
+        .searchable(
+            text: Binding(
+                get: { store.searchText },
+                set: { store.updateSearchText($0) }
+            ),
+            prompt: "Rechercher un film..."
+        )
+        .task {
+            // Charger tous les films si pas encore fait
+            if store.moviesByCategory.isEmpty {
+                await store.loadAll()
+            }
+        }
     }
     
     // MARK: - Subviews
@@ -105,8 +100,15 @@ struct SearchMovies: View {
                     columns: Array(repeating: GridItem(.flexible(), spacing: 30), count: 5),
                     spacing: 30
                 ) {
-                    ForEach(filteredMovies) { movie in
-                        MovieCard(movie: movie)
+                    ForEach(store.filteredMovies) { movie in
+                        Button {
+                            Task {
+                                await store.selectMovie(movie)
+                            }
+                        } label: {
+                            MovieCard(movie: movie)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 60)
@@ -118,7 +120,7 @@ struct SearchMovies: View {
 
     /// Texte du nombre de résultats avec pluralisation
     private var resultsCountText: String {
-        let count = filteredMovies.count
+        let count = store.filteredMovies.count
         return "\(count) film\(count > 1 ? "s" : "") trouvé\(count > 1 ? "s" : "")"
     }
 }
