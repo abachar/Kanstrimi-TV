@@ -16,7 +16,7 @@ struct MovieDetailView: View {
 
     // MARK: - Environment
     @Environment(\.domainService) private var domainService
-    @Environment(MovieNavigationViewModel.self) private var navigationViewModel
+    @Environment(\.showPlayer) private var showPlayer
 
     // MARK: - Queries
     @Query private var movies: [Movie]
@@ -106,14 +106,6 @@ struct MovieDetailView: View {
     }
 
     // MARK: - Helper Properties
-    private var returnDestination: MovieNavigationState.ReturnDestination {
-        // Déterminer la destination de retour en fonction de l'état actuel
-        if case .movieDetail(_, let returnTo) = navigationViewModel.currentState {
-            return returnTo
-        }
-        return .moviesList
-    }
-
     var title: String {
         movieDetail?.name ?? movie?.name ?? "Film sans titre"
     }
@@ -256,10 +248,7 @@ struct MovieDetailView: View {
                 // Bouton "Reprendre"
                 Button {
                     if let detail = movieDetail {
-                        navigationViewModel.navigateToPlayer(
-                            content: .movie(detail),
-                            from: returnDestination
-                        )
+                        showPlayer.wrappedValue = .movie(detail)
                     }
                 } label: {
                     Label("Reprendre", systemImage: "play.fill")
@@ -269,10 +258,7 @@ struct MovieDetailView: View {
                 // Bouton "Lire"
                 Button {
                     if let detail = movieDetail {
-                        navigationViewModel.navigateToPlayer(
-                            content: .movie(detail),
-                            from: returnDestination
-                        )
+                        showPlayer.wrappedValue = .movie(detail)
                     }
                 } label: {
                     Label("Lire", systemImage: "play.fill")
@@ -284,10 +270,7 @@ struct MovieDetailView: View {
             if watchHistory != nil, watchHistory!.progressPercentage > 5 {
                 Button {
                     if let detail = movieDetail {
-                        navigationViewModel.navigateToPlayer(
-                            content: .movie(detail),
-                            from: returnDestination
-                        )
+                        showPlayer.wrappedValue = .movie(detail)
                     }
                 } label: {
                     Label("Redémarrer", systemImage: "arrow.counterclockwise")
@@ -388,7 +371,6 @@ struct MovieDetailView: View {
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
         .environment(\.domainService, mockDomainService)
-        .environment(MovieNavigationViewModel())
 }
 
 #Preview("With Watch History (50%)") {
@@ -423,5 +405,4 @@ struct MovieDetailView: View {
     return MovieDetailView(streamId: movie.extractedStreamId!)
         .modelContainer(container)
         .environment(\.domainService, mockDomainService)
-        .environment(MovieNavigationViewModel())
 }

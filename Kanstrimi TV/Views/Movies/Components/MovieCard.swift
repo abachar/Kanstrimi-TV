@@ -11,10 +11,9 @@ import SwiftUI
 struct MovieCard: View {
     // MARK: - Properties
     let movie: Movie
-    let returnTo: MovieNavigationState.ReturnDestination
 
     // MARK: - Environment
-    @Environment(MovieNavigationViewModel.self) private var navigationViewModel
+    @Environment(\.navigationPath) private var navigationPath
 
     // MARK: - Configuration
     private let configuration = CardConfiguration(
@@ -32,7 +31,7 @@ struct MovieCard: View {
             configuration: configuration,
             action: {
                 if let streamId = movie.extractedStreamId {
-                    navigationViewModel.navigateToDetail(streamId: streamId, from: returnTo)
+                    navigationPath.wrappedValue.append(NavigationDestination.movieDetail(streamId: streamId))
                 }
             }
         )

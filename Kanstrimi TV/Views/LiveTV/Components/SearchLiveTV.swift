@@ -15,9 +15,6 @@ struct SearchLiveTV: View {
     // MARK: - State
     @State private var searchText = ""
 
-    // MARK: - Environment
-    @Environment(LiveTVNavigationViewModel.self) private var navigationViewModel
-
     // MARK: - Query
     @Query private var filteredChannels: [LiveChannel]
     
@@ -132,7 +129,6 @@ struct SearchLiveTV: View {
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 
-    return SearchLiveTV()
+    SearchLiveTV()
         .modelContainer(container)
-        .environment(LiveTVNavigationViewModel())
 }

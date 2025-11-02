@@ -12,8 +12,8 @@ struct SeriesView: View {
     // MARK: - SwiftData Queries
     @Query private var categories: [Category]
 
-    // MARK: - Navigation ViewModel
-    @State private var navigationViewModel = SeriesNavigationViewModel()
+    // MARK: - Environment
+    @Environment(\.navigationPath) private var navigationPath
 
     init() {
         let predicate = #Predicate<Category> { category in
@@ -48,39 +48,8 @@ struct SeriesView: View {
             }
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
-        .environment(navigationViewModel)
         .onPlayPauseDoubleTap {
-            navigationViewModel.navigateToSearch()
-        }
-        .fullScreenCover(item: Binding(
-            get: {
-                // Retourner l'état courant (nil = écran principal)
-                navigationViewModel.currentState
-            },
-            set: { newValue in
-                if newValue == nil {
-                    navigationViewModel.goBack()
-                }
-            }
-        )) { state in
-            navigationDestination(for: state)
-        }
-    }
-
-    // MARK: - Navigation Destination
-    @ViewBuilder
-    private func navigationDestination(for state: SeriesNavigationState) -> some View {
-        switch state {
-        case .search:
-            SearchSeries()
-                .environment(navigationViewModel)
-
-        case .seriesDetail(let seriesId, _):
-            SeriesDetailView(seriesId: seriesId)
-                .environment(navigationViewModel)
-
-        case .player(let content, _):
-            MediaPlayerView(content: content)
+            navigationPath.wrappedValue.append(NavigationDestination.searchSeries)
         }
     }
 }

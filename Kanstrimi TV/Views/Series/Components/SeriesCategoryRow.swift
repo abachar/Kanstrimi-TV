@@ -36,7 +36,7 @@ struct SeriesCategoryRow: View {
             categoryName: category.name,
             items: series
         ) { series in
-            SeriesCard(series: series, returnTo: .seriesList)
+            SeriesCard(series: series)
         }
     }
 }

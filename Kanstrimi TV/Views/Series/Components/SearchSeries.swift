@@ -15,9 +15,6 @@ struct SearchSeries: View {
     // MARK: - State
     @State private var searchText = ""
 
-    // MARK: - Environment
-    @Environment(SeriesNavigationViewModel.self) private var navigationViewModel
-
     // MARK: - Query
     @Query private var filteredSeries: [Series]
 
@@ -104,7 +101,7 @@ struct SearchSeries: View {
                     spacing: 30
                 ) {
                     ForEach(filteredSeries) { series in
-                        SeriesCard(series: series, returnTo: .search)
+                        SeriesCard(series: series)
                     }
                 }
                 .padding(.horizontal, 60)
@@ -131,7 +128,6 @@ struct SearchSeries: View {
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 
-    return SearchSeries()
+    SearchSeries()
         .modelContainer(container)
-        .environment(SeriesNavigationViewModel())
 }

@@ -36,7 +36,7 @@ struct MovieCategoryRow: View {
             categoryName: category.name,
             items: movies
         ) { movie in
-            MovieCard(movie: movie, returnTo: .moviesList)
+            MovieCard(movie: movie)
         }
     }
 }

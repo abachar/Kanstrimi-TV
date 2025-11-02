@@ -101,7 +101,7 @@ final class DomainService: DomainServiceProtocol {
         )
 
         // Appliquer les filtres après synchronisation
-        try? await filterService.applyFilters()
+        // try? await filterService.applyFilters()
 
         return account
     }

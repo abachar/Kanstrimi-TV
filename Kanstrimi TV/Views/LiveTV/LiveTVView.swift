@@ -12,8 +12,8 @@ struct LiveTVView: View {
     // MARK: - SwiftData Queries
     @Query private var liveCategories: [Category]
 
-    // MARK: - Navigation ViewModel
-    @State private var navigationViewModel = LiveTVNavigationViewModel()
+    // MARK: - Environment
+    @Environment(\.navigationPath) private var navigationPath
 
     init() {
         let predicate = #Predicate<Category> { category in
@@ -48,41 +48,8 @@ struct LiveTVView: View {
             }
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
-        .environment(navigationViewModel)
         .onPlayPauseDoubleTap {
-            navigationViewModel.navigateToSearch()
-        }
-        .fullScreenCover(item: Binding(
-            get: {
-                // Retourner l'état courant (nil = écran principal)
-                navigationViewModel.currentState
-            },
-            set: { newValue in
-                if newValue == nil {
-                    navigationViewModel.goBack()
-                }
-            }
-        )) { state in
-            navigationDestination(for: state)
-        }
-        .onChange(of: navigationViewModel.selectedChannel) { _, newChannel in
-            if let channel = newChannel {
-                navigationViewModel.navigateToPlayer(content: .liveChannel(channel))
-                navigationViewModel.selectedChannel = nil  // Reset selection
-            }
-        }
-    }
-
-    // MARK: - Navigation Destination
-    @ViewBuilder
-    private func navigationDestination(for state: LiveTVNavigationState) -> some View {
-        switch state {
-        case .search:
-            SearchLiveTV()
-                .environment(navigationViewModel)
-
-        case .player(let content):
-            MediaPlayerView(content: content)
+            navigationPath.wrappedValue.append(NavigationDestination.searchLiveTV)
         }
     }
 }

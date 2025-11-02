@@ -12,8 +12,8 @@ struct MoviesView: View {
     // MARK: - SwiftData Queries
     @Query private var categories: [Category]
 
-    // MARK: - Navigation ViewModel
-    @State private var navigationViewModel = MovieNavigationViewModel()
+    // MARK: - Environment
+    @Environment(\.navigationPath) private var navigationPath
 
     init() {
         let predicate = #Predicate<Category> { category in
@@ -48,39 +48,8 @@ struct MoviesView: View {
             }
         }
         .ignoresSafeArea(.container, edges: [.horizontal])
-        .environment(navigationViewModel)
         .onPlayPauseDoubleTap {
-            navigationViewModel.navigateToSearch()
-        }
-        .fullScreenCover(item: Binding(
-            get: {
-                // Retourner l'état courant (nil = écran principal)
-                navigationViewModel.currentState
-            },
-            set: { newValue in
-                if newValue == nil {
-                    navigationViewModel.goBack()
-                }
-            }
-        )) { state in
-            navigationDestination(for: state)
-        }
-    }
-
-    // MARK: - Navigation Destination
-    @ViewBuilder
-    private func navigationDestination(for state: MovieNavigationState) -> some View {
-        switch state {
-        case .search:
-            SearchMovies()
-                .environment(navigationViewModel)
-
-        case .movieDetail(let streamId, _):
-            MovieDetailView(streamId: streamId)
-                .environment(navigationViewModel)
-
-        case .player(let content, _):
-            MediaPlayerView(content: content)
+            navigationPath.wrappedValue.append(NavigationDestination.searchMovies)
         }
     }
 }

@@ -11,10 +11,9 @@ import SwiftUI
 struct SeriesCard: View {
     // MARK: - Properties
     let series: Series
-    let returnTo: SeriesNavigationState.ReturnDestination
 
     // MARK: - Environment
-    @Environment(SeriesNavigationViewModel.self) private var navigationViewModel
+    @Environment(\.navigationPath) private var navigationPath
 
     // MARK: - Computed Configuration
     private var configuration: CardConfiguration {
@@ -32,7 +31,7 @@ struct SeriesCard: View {
             configuration: configuration,
             action: {
                 if let seriesId = series.extractedSeriesId {
-                    navigationViewModel.navigateToDetail(seriesId: seriesId, from: returnTo)
+                    navigationPath.wrappedValue.append(NavigationDestination.seriesDetail(seriesId: seriesId))
                 }
             }
         )
