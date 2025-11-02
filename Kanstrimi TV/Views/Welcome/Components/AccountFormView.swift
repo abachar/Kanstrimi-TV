@@ -8,9 +8,6 @@
 import SwiftUI
 
 struct AccountFormView: View {
-    // MARK: - Focus Management
-    @FocusState private var focusedField: Field?
-
     // MARK: - Form Fields
     @State private var name: String = ""
     @State private var serverURL: String = ""
@@ -36,29 +33,18 @@ struct AccountFormView: View {
 
     // MARK: - Body
     var body: some View {
-        VStack(alignment: .leading, spacing: 40) {
+        VStack(alignment: .leading, spacing: 30) {
             Text("Compte Xtream")
                 .font(.system(size: 50, weight: .semibold))
                 .foregroundColor(.primary)
                 .padding(.bottom, 20)
-
-            Form {
-                TextField("Nom du compte", text: $name)
-
-                
+            
+            VStack {
                 // Champ Nom
-                /*VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text("Nom du compte")
-                        .font(.system(size: 28))
-                        .foregroundColor(.secondary)
-
                     TextField("Ex: Mon IPTV", text: $name)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 32))
-                        .foregroundColor(.primary)
-                        .padding(.vertical, 10)
-                        .focused($focusedField, equals: .name)
-                }*/
+                }
 
                 // Champ URL du serveur
                 VStack(alignment: .leading, spacing: 10) {
@@ -67,11 +53,6 @@ struct AccountFormView: View {
                         .foregroundColor(.secondary)
 
                     TextField("http://example.com:8080", text: $serverURL)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 32))
-                        .foregroundColor(.primary)
-                        .padding(.vertical, 10)
-                        .focused($focusedField, equals: .serverURL)
                         .keyboardType(.URL)
                         .textContentType(.URL)
                 }
@@ -83,11 +64,6 @@ struct AccountFormView: View {
                         .foregroundColor(.secondary)
 
                     TextField("username", text: $username)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 32))
-                        .foregroundColor(.primary)
-                        .padding(.vertical, 10)
-                        .focused($focusedField, equals: .username)
                         .textContentType(.username)
                 }
 
@@ -98,15 +74,16 @@ struct AccountFormView: View {
                         .foregroundColor(.secondary)
 
                     SecureField("password", text: $password)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 32))
-                        .foregroundColor(.primary)
-                        .padding(.vertical, 10)
-                        .focused($focusedField, equals: .password)
                         .textContentType(.password)
                 }
             }
             .frame(maxWidth: 600)
+            .padding(.vertical, 50)
+            .padding(.horizontal, 40)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.appSecondaryBackground)
+            )
 
             // Message d'erreur
             if showError {
@@ -117,21 +94,9 @@ struct AccountFormView: View {
             }
 
             // Bouton Enregistrer
-            Button(action: handleSubmit) {
-                Text("Enregistrer")
-                    .font(.system(size: 36, weight: .semibold))
-                    // .frame(maxWidth: 500)
-                    .padding(.vertical, 20)
-            }
-            // .focused($focusedField, equals: .saveButton)
-            // .buttonStyle(.border)
-            .padding(.top, 20)
+            Button("Enregistrer", action: handleSubmit)
         }
         .padding(60)
-        .onAppear {
-            // Focus sur le premier champ au démarrage
-            focusedField = .name
-        }
     }
 
     // MARK: - Validation & Submit

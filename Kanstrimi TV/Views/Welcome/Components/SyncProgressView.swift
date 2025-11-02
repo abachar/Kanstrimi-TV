@@ -17,9 +17,6 @@ struct SyncProgressView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.appBackground
-                .ignoresSafeArea()
-            
             VStack(spacing: 30) {
                 // Message de l'étape courante
                 Text(currentStep.message)

@@ -110,6 +110,8 @@ struct AccountSectionView: View {
         }
         .fullScreenCover(isPresented: $showSyncProgress) {
             SyncProgressView(currentStep: currentSyncStep)
+                .background(Color.appBackground)
+                .ignoresSafeArea()
         }
     }
 
