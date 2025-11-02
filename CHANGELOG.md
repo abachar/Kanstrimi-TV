@@ -7,6 +7,22 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [0.13.1] - 2025-11-02
+
+### Corrigé
+- **MediaPlayerView** : Correction du crash "No Observable object of type DomainService found"
+  - Problème : `@Environment(DomainService.self)` tentait d'accéder directement à un objet @Observable
+  - Solution : Remplacement par `@Environment(\.domainService)` pour utiliser la custom EnvironmentKey définie dans `DomainServiceProtocol`
+  - Impact : Le player fonctionne maintenant correctement lors du lancement depuis Movies, Series et LiveTV
+  - Cohérence : Syntaxe alignée avec l'injection dans `KanstrimiTVApp.swift` (`.environment(\.domainService, domainService)`)
+
+### Technique
+- Utilisation de la custom EnvironmentKey pour accès au DomainServiceProtocol
+- Permet l'injection de MockDomainService dans les previews
+- Propagation correcte de l'environment dans les fullScreenCover
+
+---
+
 ## [0.13.0] - 2025-11-01
 
 ### Modifié

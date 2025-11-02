@@ -15,7 +15,7 @@ import TVVLCKit
 struct MediaPlayerView: View {
     @State private var content: PlaybackContent
     @Environment(\.dismiss) private var dismiss
-    @Environment(DomainService.self) private var domainService
+    @Environment(\.domainService) private var domainService
 
     init(content: PlaybackContent) {
         _content = State(initialValue: content)
@@ -464,6 +464,11 @@ struct MediaPlayerView: View {
 
     // MARK: - Remote Control Handlers
     private func setupRemoteHandlers() {
+        // Play/Pause
+        remoteHandler.setPlayPauseHandler {
+            handlePlayPause()
+        }
+        
         // Menu : Fermer le player
         remoteHandler.setMenuHandler {
             dismiss()
@@ -489,14 +494,14 @@ struct MediaPlayerView: View {
 
         // Swipe Left : Reculer de 10 secondes
         remoteHandler.setSwipeLeftHandler {
-            let newPosition = max(0, currentPosition - 10)
+            // let newPosition = max(0, currentPosition - 10)
             handleSeek(newPosition)
             resetAutoHideTimer()
         }
 
         // Swipe Right : Avancer de 10 secondes
         remoteHandler.setSwipeRightHandler {
-            let newPosition = min(currentPosition + 10, totalDuration)
+            // let newPosition = min(currentPosition + 10, totalDuration)
             handleSeek(newPosition)
             resetAutoHideTimer()
         }

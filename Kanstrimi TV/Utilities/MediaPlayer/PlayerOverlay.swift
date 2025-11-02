@@ -50,67 +50,32 @@ struct PlayerOverlay: View {
 
     // MARK: - Header Section
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(content.title)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(content.title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
 
-                    if let subtitle = content.subtitle {
-                        Text(subtitle)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
+                if let subtitle = content.subtitle {
+                    Text(subtitle)
+                        .font(.body)
+                        .foregroundColor(.secondary)
                 }
+            }
 
-                Spacer()
-                
-                // Audio
-                Button(action: {
-                    onAudioTapped()
-                    onResetAutoHide()
-                }) {
-                    Image(systemName: "speaker.wave.2")
-                        .font(.system(size: 28))
-                        .hoverEffect(.highlight)
-                }
-                .buttonStyle(.borderless)
-
-                // Sous-titres
-                Button(action: {
-                    onSubtitlesTapped()
-                    onResetAutoHide()
-                }) {
-                    Image(systemName: "captions.bubble")
-                        .font(.system(size: 28))
-                        .hoverEffect(.highlight)
-                }
-                .buttonStyle(.borderless)
-
-                // Info
-                Button(action: {
-                    onInfoTapped()
-                    onResetAutoHide()
-                }) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 28))
-                        .hoverEffect(.highlight)
-                }
-                .buttonStyle(.borderless)
-
-                // Badge LIVE
-                if content.contentType == .live {
-                    Text("LIVE")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.red)
-                        .cornerRadius(4)
-                }
+            Spacer()
+            
+            // Badge LIVE
+            if content.contentType == .live {
+                Text("LIVE")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.red)
+                    .cornerRadius(4)
             }
         }
     }
@@ -125,71 +90,6 @@ struct PlayerOverlay: View {
                 isLive: content.contentType == .live,
                 onSeek: onSeek
             )
-
-            // Boutons de seek (rewind/forward)
-            /*
-            HStack(spacing: 40) {
-                // -1min
-                Button(action: {
-                    seekBy(-60)
-                    onResetAutoHide()
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "gobackward.60")
-                            .font(.title)
-                        Text("-1 min")
-                            .font(.caption)
-                    }
-                }
-                .buttonStyle(.plain)
-                .hoverEffect(.highlight)
-
-                // -10s
-                Button(action: {
-                    seekBy(-10)
-                    onResetAutoHide()
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "gobackward.10")
-                            .font(.title)
-                        Text("-10s")
-                            .font(.caption)
-                    }
-                }
-                .buttonStyle(.plain)
-                .hoverEffect(.highlight)
-
-                // +10s
-                Button(action: {
-                    seekBy(10)
-                    onResetAutoHide()
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "goforward.10")
-                            .font(.title)
-                        Text("+10s")
-                            .font(.caption)
-                    }
-                }
-                .buttonStyle(.plain)
-                .hoverEffect(.highlight)
-
-                // +1min
-                Button(action: {
-                    seekBy(60)
-                    onResetAutoHide()
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "goforward.60")
-                            .font(.title)
-                        Text("+1 min")
-                            .font(.caption)
-                    }
-                }
-                .buttonStyle(.plain)
-                .hoverEffect(.highlight)
-            }
-             */
 
             // Boutons de contrôle
             HStack(spacing: 20) {
@@ -214,18 +114,35 @@ struct PlayerOverlay: View {
                         onResetAutoHide()
                     }
                 }
+                
+                Spacer()
+                
+                HStack(spacing: 20) {
+                    // Audio
+                    Button("Audio", systemImage: "waveform") {
+                        onAudioTapped()
+                        onResetAutoHide()
+                    }
+
+                    // Sous-titres
+                    Button("Sous-titres", systemImage: "captions.bubble") {
+                        onSubtitlesTapped()
+                        onResetAutoHide()
+                    }
+
+                    // Info
+                    Button("Infos", systemImage: "info.circle") {
+                        onInfoTapped()
+                        onResetAutoHide()
+                    }
+                }
+                .labelStyle(.iconOnly)
+                .buttonBorderShape(.circle)
             }
             .font(.caption)
             .buttonStyle(.glass)
             .foregroundColor(.secondary)
         }
-    }
-
-    // MARK: - Helper Methods
-    private func seekBy(_ seconds: TimeInterval) {
-        guard let onSeek = onSeek else { return }
-        let newPosition = max(0, min(currentPosition + seconds, totalDuration))
-        onSeek(newPosition)
     }
 }
 

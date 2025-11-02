@@ -68,6 +68,15 @@ class RemoteControlHandler: ObservableObject {
         guard let microGamepad = controller.microGamepad else { return }
 
         // Play/Pause (bouton Play/Pause)
+        microGamepad.buttonX.pressedChangedHandler = { [weak self] (button, value, pressed) in
+            if pressed {
+                DispatchQueue.main.async {
+                    self?.onPlayPause?()
+                }
+            }
+        }
+        
+        // Play/Pause (bouton Play/Pause)
         microGamepad.buttonMenu.pressedChangedHandler = { [weak self] (button, value, pressed) in
             if pressed {
                 DispatchQueue.main.async {
