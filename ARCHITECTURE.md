@@ -85,16 +85,12 @@ Kanstrimi TV/
     │   └── Responses/
     │       ├── TMDBMovieResponse.swift
     │       └── TMDBSeriesResponse.swift
-    ├── Player/                      # Lecteurs vidéo
-    │   ├── UniversalPlayerView.swift
-    │   ├── AVPlayerWrapper.swift
-    │   ├── VLCPlayerWrapper.swift
-    │   ├── VideoPlayerType.swift
-    │   └── PlaybackContent.swift
-    └── CachedImage/                 # Cache d'images
-        ├── CachedImage.swift        # Composant SwiftUI
-        ├── ImageCache.swift         # Cache mémoire/disque
-        └── ImageCacheConfig.swift   # Configuration
+    └── Player/                      # Lecteurs vidéo
+        ├── UniversalPlayerView.swift
+        ├── AVPlayerWrapper.swift
+        ├── VLCPlayerWrapper.swift
+        ├── VideoPlayerType.swift
+        └── PlaybackContent.swift
 ```
 
 ## 🎯 Principes architecturaux
@@ -186,19 +182,28 @@ MovieCard(movie: movie, selectedMovie: $selectedMovie)
 
 ### 6. Images
 
-Utilisation de `CachedImage` (même contrat qu'`AsyncImage`) avec cache mémoire + disque :
+Utilisation de `LazyImage` de **Nuke** pour le chargement et le cache d'images optimisés :
 ```swift
-CachedImage(url: URL(string: movie.streamIcon ?? "")) { phase in
-    switch phase {
-    case .success(let image):
+import NukeUI
+
+LazyImage(url: URL(string: movie.streamIcon ?? "")) { state in
+    if let image = state.image {
         image.resizable()
-    case .empty:
+    } else if state.isLoading {
         ProgressView()
-    case .failure:
+    } else {
         Image(systemName: "film.fill")
     }
 }
 ```
+
+**Avantages de Nuke** :
+- Cache mémoire LRU optimisé (~20% RAM disponible)
+- Cache disque avec compression intelligente
+- Décompression d'images en arrière-plan (scroll fluide)
+- Support formats modernes (WebP, HEIF, Progressive JPEG)
+- Request coalescing (évite téléchargements multiples)
+- Prioritization automatique des images visibles
 
 ### 7. Couleurs
 
@@ -233,6 +238,7 @@ User Action → View → DomainService → Services (Xtream/TMDB) → StorageSer
 - **SwiftData** : Persistance et réactivité
 - **SwiftUI** : Interface utilisateur
 - **TVVLCKit** : Lecteur vidéo pour formats non supportés par AVPlayer (M3U8, MKV, etc.)
+- **Nuke** : Framework de chargement et cache d'images optimisé
 - **Xtream Codes API** : Source de données pour Live TV / Movies / Series
 - **TMDB API** : Enrichissement des métadonnées (affiches, casting, synopsis)
 
@@ -332,6 +338,6 @@ private var liveCategories: [Category]
 3. **StorageService = point unique d'accès** : Toutes les écritures passent par StorageService
 4. **DomainService ne retourne rien** : Il persiste via StorageService, les vues observent automatiquement via @Query
 5. **Focus natif tvOS** : `.hoverEffect()` au lieu de @FocusState custom
-6. **CachedImage partout** : Remplacement d'AsyncImage pour bénéficier du cache disque
+6. **Nuke pour les images** : LazyImage avec optimisations avancées (cache, décompression, formats modernes)
 7. **DomainService est une façade** : Il coordonne les services spécialisés sans logique métier directe
 8. **Category unifié** : Un seul modèle avec enum `ContentType` pour Live/Movies/Series

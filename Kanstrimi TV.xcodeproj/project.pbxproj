@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		156FBE2D2EB76EB300C44EEA /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = NUKE00022EAF000000000002 /* NukeUI */; };
 		15B09E772EAEE37400D017B6 /* TVVLCKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 155506802EAEE17C00892A3D /* TVVLCKit.xcframework */; };
 		15B09E782EAEE37400D017B6 /* TVVLCKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 155506802EAEE17C00892A3D /* TVVLCKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		15B0A06D2EAF6E9600D017B6 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 15B0A06C2EAF6E9600D017B6 /* Config.xcconfig */; };
@@ -45,6 +46,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				156FBE2D2EB76EB300C44EEA /* NukeUI in Frameworks */,
 				15B09E772EAEE37400D017B6 /* TVVLCKit.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -99,6 +101,7 @@
 			);
 			name = "Kanstrimi TV";
 			packageProductDependencies = (
+				NUKE00022EAF000000000002 /* NukeUI */,
 			);
 			productName = "Kanstrimi TV";
 			productReference = 1555055A2EAD74FD00892A3D /* Kanstrimi TV.app */;
@@ -128,6 +131,9 @@
 			);
 			mainGroup = 155505512EAD74FD00892A3D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				NUKE00012EAF000000000001 /* XCRemoteSwiftPackageReference "Nuke" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1555055B2EAD74FD00892A3D /* Products */;
 			projectDirPath = "";
@@ -365,6 +371,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		NUKE00012EAF000000000001 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		NUKE00022EAF000000000002 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = NUKE00012EAF000000000001 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 155505522EAD74FD00892A3D /* Project object */;
 }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import NukeUI
 
 /// Carte compacte affichant un épisode
 struct EpisodeCard: View {
@@ -19,28 +20,24 @@ struct EpisodeCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 // Cover de l'épisode avec indicateur "vu"
                 ZStack(alignment: .topTrailing) {
-                    CachedImage(url: URL(string: episode.movieImage ?? "")) {
-                        phase in
-                        switch phase {
-                        case .empty:
+                    LazyImage(url: URL(string: episode.movieImage ?? "")) { state in
+                        if let image = state.image {
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } else if state.isLoading {
                             Color.gray.opacity(0.3)
                                 .overlay {
                                     ProgressView()
                                         .tint(.secondary)
                                 }
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        case .failure:
+                        } else {
                             Color.gray.opacity(0.3)
                                 .overlay {
                                     Image(systemName: "tv.fill")
                                         .font(.system(size: 30))
                                         .foregroundColor(.secondary)
                                 }
-                        @unknown default:
-                            Color.gray.opacity(0.3)
                         }
                     }
                     .frame(width: 240, height: 135)

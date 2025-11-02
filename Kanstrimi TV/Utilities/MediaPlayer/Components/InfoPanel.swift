@@ -7,6 +7,7 @@
 
 import SwiftData
 import SwiftUI
+import NukeUI
 
 /// Panel affichant les métadonnées du contenu en cours de lecture
 struct InfoPanel: View {
@@ -151,20 +152,19 @@ struct InfoPanel: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 20) {
                     ForEach(Array(castImages.enumerated()), id: \.offset) { index, imageURL in
-                        CachedImage(url: URL(string: imageURL)) { phase in
-                            switch phase {
-                            case .success(let image):
+                        LazyImage(url: URL(string: imageURL)) { state in
+                            if let image = state.image {
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
                                     .frame(width: 120, height: 180)
                                     .cornerRadius(12)
-                            case .empty:
+                            } else if state.isLoading {
                                 Color.gray.opacity(0.3)
                                     .frame(width: 120, height: 180)
                                     .cornerRadius(12)
                                     .overlay { ProgressView() }
-                            case .failure:
+                            } else {
                                 Color.gray.opacity(0.3)
                                     .frame(width: 120, height: 180)
                                     .cornerRadius(12)
@@ -172,8 +172,6 @@ struct InfoPanel: View {
                                         Image(systemName: "person.fill")
                                             .foregroundColor(.secondary)
                                     }
-                            @unknown default:
-                                EmptyView()
                             }
                         }
                         .hoverEffect(.lift)

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import NukeUI
 
 /// Overlay du player avec auto-hide et contrôles interactifs
 struct PlayerOverlay: View {
@@ -238,15 +239,13 @@ struct PlayerOverlay: View {
 
 #Preview("Série") {
     ZStack {
-        AsyncImage(
-            url: URL(string: "https://image.tmdb.org/t/p/w1280/qBKrj7WOBo5A4vX4cB4zU5cO5ca.jpg"),
-            content: { image in
+        LazyImage(url: URL(string: "https://image.tmdb.org/t/p/w1280/qBKrj7WOBo5A4vX4cB4zU5cO5ca.jpg")) { state in
+            if let image = state.image {
                 image.resizable().scaledToFill()
-            },
-            placeholder: {
+            } else {
                 ProgressView()
             }
-        ).ignoresSafeArea()
+        }.ignoresSafeArea()
 
         PlayerOverlay(
             content: .episode(Episode.previewEpisodes[3]),

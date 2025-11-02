@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import NukeUI
 
 /// Carte compacte affichant un acteur avec son image
 struct CastMemberCard: View {
@@ -27,27 +28,24 @@ struct CastMemberCard: View {
     var body: some View {
         VStack(spacing: 8) {
             // Image de l'acteur
-            AsyncImage(url: URL(string: imageURL ?? "")) { phase in
-                switch phase {
-                case .empty:
+            LazyImage(url: URL(string: imageURL ?? "")) { state in
+                if let image = state.image {
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } else if state.isLoading {
                     Color.gray.opacity(0.3)
                         .overlay {
                             ProgressView()
                                 .tint(.secondary)
                         }
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
+                } else {
                     Color.gray.opacity(0.3)
                         .overlay {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 30))
                                 .foregroundColor(.secondary)
                         }
-                @unknown default:
-                    Color.gray.opacity(0.3)
                 }
             }
             .frame(width: 120, height: 180)

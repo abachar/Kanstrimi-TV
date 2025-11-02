@@ -7,6 +7,25 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+## [0.14.0] - 2025-11-02
+
+### Modifié
+- **Migration vers Nuke pour le chargement d'images** : Remplacement de l'implémentation custom CachedImage par le framework Nuke
+  - Intégration de Nuke 12.x via Swift Package Manager
+  - Remplacement de tous les `CachedImage` par `LazyImage` de NukeUI (6 fichiers migrés)
+  - Suppression du code custom ImageCache (~150 lignes)
+  - **Performances améliorées** : Décompression d'images en arrière-plan pour un scroll fluide
+  - **Cache optimisé** : LRU cache adaptatif (~20% RAM), compression disque intelligente
+  - **Formats modernes** : Support WebP, HEIF, Progressive JPEG natif
+  - **Request coalescing** : Évite les téléchargements multiples lors de navigation rapide
+  - **Prioritization automatique** : Images visibles chargées en priorité
+  - Mise à jour de README.md et ARCHITECTURE.md
+
+### Supprimé
+- Fichiers CachedImage et ImageCache (implémentation custom remplacée par Nuke)
+
+---
+
 ## [0.13.2] - 2025-11-02
 
 ### Ajouté

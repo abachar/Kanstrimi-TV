@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import NukeUI
 
 /// Carte générique pour afficher n'importe quel contenu `CardDisplayable`
 ///
@@ -56,27 +57,24 @@ struct GenericContentCard<T: CardDisplayable>: View {
     // MARK: - Subviews
 
     private var imageView: some View {
-        CachedImage(url: URL(string: item.imageURL ?? "")) { phase in
-            switch phase {
-            case .empty:
+        LazyImage(url: URL(string: item.imageURL ?? "")) { state in
+            if let image = state.image {
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: configuration.aspectMode)
+            } else if state.isLoading {
                 Color.gray.opacity(0.3)
                     .overlay {
                         ProgressView()
                             .tint(.secondary)
                     }
-            case .success(let image):
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: configuration.aspectMode)
-            case .failure:
+            } else {
                 Color.gray.opacity(0.3)
                     .overlay {
                         Image(systemName: configuration.emptyIcon)
                             .font(.system(size: 40))
                             .foregroundColor(.secondary)
                     }
-            @unknown default:
-                Color.gray.opacity(0.3)
             }
         }
         .frame(width: dimensions.width, height: dimensions.height)

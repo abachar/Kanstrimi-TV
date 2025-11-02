@@ -15,7 +15,7 @@ L'application se distingue par :
 - **Filtrage avancé par regex** : Recherche puissante sur tous les types de contenu
 - **Synchronisation complète** : Toutes les données chargées au démarrage pour une navigation fluide
 - **Interface native tvOS** : Focus natif avec `.hoverEffect()`, pas de code focus custom
-- **Cache d'images** : CachedImage avec cache mémoire + disque pour performances optimales
+- **Cache d'images** : Nuke avec optimisations avancées (décompression background, progressive loading, formats modernes)
 
 ## ✨ Fonctionnalités
 

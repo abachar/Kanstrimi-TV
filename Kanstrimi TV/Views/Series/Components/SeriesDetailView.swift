@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import NukeUI
 
 /// Vue affichant les détails complets d'une série
 struct SeriesDetailView: View {
@@ -191,27 +192,24 @@ struct SeriesDetailView: View {
     }
 
     private var posterView: some View {
-        AsyncImage(url: URL(string: self.posterURL ?? "")) { phase in
-            switch phase {
-            case .empty:
+        LazyImage(url: URL(string: self.posterURL ?? "")) { state in
+            if let image = state.image {
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else if state.isLoading {
                 Color.gray.opacity(0.3)
                     .overlay {
                         ProgressView()
                             .tint(.secondary)
                     }
-            case .success(let image):
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            case .failure:
+            } else {
                 Color.gray.opacity(0.3)
                     .overlay {
                         Image(systemName: "film.fill")
                             .font(.system(size: 60))
                             .foregroundColor(.secondary)
                     }
-            @unknown default:
-                Color.gray.opacity(0.3)
             }
         }
         .frame(width: 300, height: 450)
@@ -228,13 +226,12 @@ struct SeriesDetailView: View {
     @ViewBuilder
     private var backdropView: some View {
         if let backdropURL = self.backdropURL {
-            AsyncImage(url: URL(string: backdropURL)) { phase in
-                switch phase {
-                case .success(let image):
+            LazyImage(url: URL(string: backdropURL)) { state in
+                if let image = state.image {
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                default:
+                } else {
                     Color.gray.opacity(0.3)
                 }
             }
@@ -386,20 +383,19 @@ struct SeriesDetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 20) {
                     ForEach(Array(castImages.enumerated()), id: \.offset) { index, imageURL in
-                        CachedImage(url: URL(string: imageURL)) { phase in
-                            switch phase {
-                            case .success(let image):
+                        LazyImage(url: URL(string: imageURL)) { state in
+                            if let image = state.image {
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
                                     .frame(width: 120, height: 180)
                                     .cornerRadius(12)
-                            case .empty:
+                            } else if state.isLoading {
                                 Color.gray.opacity(0.3)
                                     .frame(width: 120, height: 180)
                                     .cornerRadius(12)
                                     .overlay { ProgressView() }
-                            case .failure:
+                            } else {
                                 Color.gray.opacity(0.3)
                                     .frame(width: 120, height: 180)
                                     .cornerRadius(12)
@@ -407,8 +403,6 @@ struct SeriesDetailView: View {
                                         Image(systemName: "person.fill")
                                             .foregroundColor(.secondary)
                                     }
-                            @unknown default:
-                                EmptyView()
                             }
                         }
                         .hoverEffect(.lift)
