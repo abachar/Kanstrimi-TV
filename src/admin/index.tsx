@@ -3,7 +3,7 @@ import { z } from "zod";
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { Layout } from "./layout";
-import { LoginView, DashboardView, JobsStatus, LogsView, SettingsView, RulesView, RulePreview, CatalogView, TmdbCell, type CatalogQuery } from "./views";
+import { LoginView, DashboardView, JobsStatus, LogsView, SettingsView, RulesView, RulePreview, CatalogView, TmdbCell, VisibilityToggle, type CatalogQuery } from "./views";
 import { isLoggedIn, login, logout } from "@/lib/auth/session";
 import { isUnlocked } from "@/lib/auth/vault";
 import { getSettings, setSettings, type SettingKey } from "@/lib/settings";
@@ -164,13 +164,21 @@ admin.get("/catalog", async (c) => {
   const rows = await db.select().from(schema.items).where(and(...where)).orderBy(asc(schema.items.position)).limit(PAGE).offset((qy.page - 1) * PAGE);
   return page(c, "Catalogue", <CatalogView qy={qy} cats={cats} rows={rows} total={total} />);
 });
-admin.post("/catalog/item/:id/hide", async (c) => {
-  await db.update(schema.items).set({ hiddenManual: await checked(c) }).where(eq(schema.items.id, Number(c.req.param("id"))));
-  return c.body(null, 204);
-});
-admin.post("/catalog/category/:id/hide", async (c) => {
-  await db.update(schema.categories).set({ hiddenManual: await checked(c) }).where(eq(schema.categories.id, Number(c.req.param("id"))));
-  return c.body(null, 204);
+/** The switch says "Visible", the column stores `hidden_manual`: invert on the way in. */
+admin.post("/catalog/:scope{item|category}/:id/visible", async (c) => {
+  const id = Number(c.req.param("id"));
+  const scope = c.req.param("scope") as "item" | "category";
+  const hiddenManual = !(await checked(c));
+  if (scope === "item") {
+    await db.update(schema.items).set({ hiddenManual }).where(eq(schema.items.id, id));
+    const [r] = await db.select().from(schema.items).where(eq(schema.items.id, id));
+    if (!r) return c.notFound();
+    return c.html(<VisibilityToggle scope="item" id={r.id} hiddenByRule={r.hiddenByRule} hiddenManual={r.hiddenManual} />);
+  }
+  await db.update(schema.categories).set({ hiddenManual }).where(eq(schema.categories.id, id));
+  const [r] = await db.select().from(schema.categories).where(eq(schema.categories.id, id));
+  if (!r) return c.notFound();
+  return c.html(<VisibilityToggle scope="category" id={r.id} hiddenByRule={r.hiddenByRule} hiddenManual={r.hiddenManual} />);
 });
 const item = async (id: number) => (await db.select().from(schema.items).where(eq(schema.items.id, id)))[0];
 admin.post("/catalog/tmdb-search", async (c) => {

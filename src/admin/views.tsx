@@ -360,9 +360,29 @@ export function TmdbCell({ it, results }: { it: Item; results?: { id: number; la
     </div>
   );
 }
-const Switch = ({ checked, url }: { checked: boolean; url: string }) => (
-  <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" checked={checked} hx-post={url} hx-trigger="change" hx-swap="none" /></div>
-);
+/**
+ * Reads as "Visible", never as "Masqué": a switch that is off must mean the thing is off.
+ * The stored column is `hidden_manual`, so the UI value is its opposite — the route
+ * inverts it back. A rule-based hiding is shown as a badge because the switch cannot
+ * undo it (visible = neither hidden_by_rule nor hidden_manual).
+ */
+export function VisibilityToggle({ scope, id, hiddenByRule, hiddenManual }: {
+  scope: "item" | "category"; id: number; hiddenByRule: boolean; hiddenManual: boolean;
+}) {
+  const domId = `vis-${scope}-${id}`;
+  const visible = !hiddenManual;
+  const label = hiddenByRule ? "Masqué par une règle" : visible ? "Visible" : "Masqué";
+  return (
+    <div id={domId} class="d-flex align-items-center gap-2">
+      <div class="form-check form-switch m-0">
+        <input class="form-check-input" type="checkbox" role="switch" id={`${domId}-input`} checked={visible && !hiddenByRule}
+          title={hiddenByRule ? "Une règle de filtrage masque cet élément : modifiez la règle pour le réafficher." : "Afficher ou masquer cet élément pour les applications IPTV"}
+          hx-post={`/admin/catalog/${scope}/${id}/visible`} hx-trigger="change" hx-target={`#${domId}`} hx-swap="outerHTML" />
+        <label class={`form-check-label small ${hiddenByRule || !visible ? "text-secondary" : ""}`} for={`${domId}-input`}>{label}</label>
+      </div>
+    </div>
+  );
+}
 export function CatalogView({ qy, cats, rows, total }: { qy: CatalogQuery; cats: Category[]; rows: Item[]; total: number }) {
   const PAGE = 100;
   const link = (p: Partial<CatalogQuery>) => "/admin/catalog?" + new URLSearchParams({ ...qy, page: String(qy.page), ...Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])) } as Record<string, string>).toString();
@@ -378,8 +398,8 @@ export function CatalogView({ qy, cats, rows, total }: { qy: CatalogQuery; cats:
         <div class="collapse" id="cats"><div class="table-responsive"><table class="table table-sm mb-0">
           <tbody>{cats.map((c) => (
             <tr class={c.hiddenByRule || c.hiddenManual ? "text-secondary text-decoration-line-through" : ""}>
-              <td><a href={link({ cat: c.xtreamId, page: 1 })}>{c.name}</a> {c.hiddenByRule && <span class="badge text-bg-secondary">règle</span>}</td>
-              <td class="text-end"><Switch checked={c.hiddenManual} url={`/admin/catalog/category/${c.id}/hide`} /></td>
+              <td><a href={link({ cat: c.xtreamId, page: 1 })}>{c.name}</a></td>
+              <td class="text-end"><VisibilityToggle scope="category" id={c.id} hiddenByRule={c.hiddenByRule} hiddenManual={c.hiddenManual} /></td>
             </tr>
           ))}</tbody>
         </table></div></div>
@@ -395,14 +415,14 @@ export function CatalogView({ qy, cats, rows, total }: { qy: CatalogQuery; cats:
       </form>
       <p class="text-secondary small">{fmt(total)} résultat(s)</p>
       <div class="table-responsive"><table class="table table-sm align-middle">
-        <thead><tr><th>ID</th><th>Nom</th><th>Catégorie</th>{qy.kind !== "live" && <th>TMDB</th>}<th>Masqué</th></tr></thead>
+        <thead><tr><th>ID</th><th>Nom</th><th>Catégorie</th>{qy.kind !== "live" && <th>TMDB</th>}<th>Visibilité</th></tr></thead>
         <tbody>{rows.map((r) => (
           <tr class={r.hiddenByRule || r.hiddenManual ? "text-secondary" : ""}>
             <td><code>{r.xtreamId}</code></td>
             <td>{r.hiddenByRule || r.hiddenManual ? <s>{r.name}</s> : r.name}{r.cleanTitle && r.cleanTitle !== r.name && <div class="small text-secondary">→ {r.cleanTitle}{r.year ? ` (${r.year})` : ""}</div>}</td>
             <td class="small">{catName.get(r.categoryXtreamId ?? "") ?? r.categoryXtreamId}</td>
             {qy.kind !== "live" && <td><TmdbCell it={r} /></td>}
-            <td><div class="d-flex align-items-center gap-2">{r.hiddenByRule && <span class="badge text-bg-secondary">règle</span>}<Switch checked={r.hiddenManual} url={`/admin/catalog/item/${r.id}/hide`} /></div></td>
+            <td><VisibilityToggle scope="item" id={r.id} hiddenByRule={r.hiddenByRule} hiddenManual={r.hiddenManual} /></td>
           </tr>
         ))}</tbody>
       </table></div>
