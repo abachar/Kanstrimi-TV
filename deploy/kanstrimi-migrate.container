@@ -1,0 +1,27 @@
+# → /etc/containers/systemd/kanstrimi-migrate.container
+# Remplacer <owner> et <reseau-postgres>.
+[Unit]
+Description=Kanstrimi — migrations de schéma
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=kanstrimi-migrate
+Image=ghcr.io/<owner>/kanstrimi-server:latest
+AutoUpdate=registry
+Network=<reseau-postgres>
+
+# Seul secret nécessaire : src/db/migrate.ts n'importe ni @/db ni @/lib/env,
+# donc ADMIN_PASSWORD_HASH n'est pas requis ici.
+Secret=source=kanstrimi-db-url,type=env,target=DATABASE_URL
+
+WorkingDir=/app
+Exec=node --import tsx src/db/migrate.ts
+Notify=false
+LogDriver=journald
+
+[Service]
+Type=oneshot
+# Pas de RemainAfterExit : l'unité doit redevenir inactive pour être rejouée
+# à chaque démarrage de kanstrimi.service (y compris après une auto-update).
+TimeoutStartSec=300

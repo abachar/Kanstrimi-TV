@@ -1,0 +1,12 @@
+# → /etc/zincati/config.d/55-kanstrimi-updates.toml
+# Regroupe les redémarrages FCOS sur un créneau nocturne : la fenêtre pendant
+# laquelle le coffre est verrouillé (planification en pause) devient prévisible.
+# Heures en UTC — zincati ne gère pas les fuseaux.
+# 02:00 UTC ≈ 04:00 Europe/Paris en été, 03:00 en hiver.
+[updates]
+strategy = "periodic"
+
+[[updates.periodic.window]]
+days = ["Sun"]
+start_time = "02:00"
+length_minutes = 120

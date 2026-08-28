@@ -1,0 +1,61 @@
+# → /etc/containers/systemd/kanstrimi.container
+# Remplacer <owner>, <reseau-postgres> et <reseau-caddy>.
+[Unit]
+Description=Kanstrimi — serveur Xtream / catalogue
+After=network-online.target kanstrimi-migrate.service
+Wants=network-online.target
+# Requires : pas de serveur si les migrations ont échoué.
+Requires=kanstrimi-migrate.service
+
+[Container]
+ContainerName=kanstrimi
+Image=ghcr.io/<owner>/kanstrimi-server:latest
+AutoUpdate=registry
+
+# Deux réseaux, aucun port publié sur l'hôte : seul Caddy joint l'application.
+# Le protocole Xtream fait circuler le mot de passe en clair dans les URLs :
+# il ne doit jamais atterrir sur une interface hôte non chiffrée.
+Network=<reseau-postgres>
+Network=<reseau-caddy>
+NetworkAlias=kanstrimi
+
+Volume=kanstrimi-data.volume:/var/lib/kanstrimi
+WorkingDir=/app
+
+# Secrets podman, jamais EnvironmentFile : podman substitue les variables dans
+# les fichiers --env-file, ce qui mutilerait les $ du hash bcrypt.
+# Créer avec printf '%s' (jamais echo : le \n final casserait bcrypt.compare).
+Secret=source=kanstrimi-admin-hash,type=env,target=ADMIN_PASSWORD_HASH
+Secret=source=kanstrimi-session-secret,type=env,target=SESSION_SECRET
+Secret=source=kanstrimi-db-url,type=env,target=DATABASE_URL
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=DATA_DIR=/var/lib/kanstrimi
+
+# src/lib/jobs/cron.ts évalue les crons en heure locale (getHours/getDay).
+# Sans ceci le conteneur est en UTC et "0 3 * * *" tombe à 05:00 en été.
+Timezone=Europe/Paris
+
+User=node
+NoNewPrivileges=true
+
+# Healthcheck de l'image, sans action automatique : /api/health dépend de
+# Postgres, un HealthOnFailure=restart ferait boucler dès que la base tombe.
+HealthInterval=30s
+HealthTimeout=5s
+HealthStartPeriod=20s
+HealthRetries=3
+
+LogDriver=journald
+
+[Service]
+Restart=always
+RestartSec=10
+# Laisse le temps au premier podman pull
+TimeoutStartSec=900
+# Doit dépasser le garde-fou de 15 s du shutdown() de src/server.ts
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
