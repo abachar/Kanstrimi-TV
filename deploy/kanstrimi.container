@@ -9,7 +9,7 @@ Requires=kanstrimi-migrate.service
 
 [Container]
 ContainerName=kanstrimi
-Image=ghcr.io/<owner>/kanstrimi-server:latest
+Image=ghcr.io/<owner>/kanstrimi:latest
 AutoUpdate=registry
 
 # Deux réseaux, aucun port publié sur l'hôte : seul Caddy joint l'application.
@@ -22,16 +22,16 @@ NetworkAlias=kanstrimi
 Volume=kanstrimi-data.volume:/var/lib/kanstrimi
 WorkingDir=/app
 
-# Secrets podman, jamais EnvironmentFile : podman substitue les variables dans
-# les fichiers --env-file, ce qui mutilerait les $ du hash bcrypt.
-# Créer avec printf '%s' (jamais echo : le \n final casserait bcrypt.compare).
-Secret=source=kanstrimi-admin-hash,type=env,target=ADMIN_PASSWORD_HASH
-Secret=source=kanstrimi-session-secret,type=env,target=SESSION_SECRET
-Secret=source=kanstrimi-db-url,type=env,target=DATABASE_URL
+# Toute la configuration en variables d'environnement (voir deploy/kanstrimi.env.example).
+# Fichier attendu en 0600, propriétaire root : il contient le hash et l'URL Postgres.
+EnvironmentFile=/etc/kanstrimi/kanstrimi.env
 
-Environment=NODE_ENV=production
-Environment=PORT=3000
-Environment=DATA_DIR=/var/lib/kanstrimi
+# ⚠️ Si ADMIN_PASSWORD_HASH arrive tronqué (podman peut interpréter les $ dans un
+# --env-file selon la version), remplacer la ligne ci-dessus par des secrets podman :
+#   printf '%s' '$2b$10$...' | sudo podman secret create kanstrimi-admin-hash -
+#   Secret=source=kanstrimi-admin-hash,type=env,target=ADMIN_PASSWORD_HASH
+# Vérification après démarrage :
+#   sudo podman exec kanstrimi node -e "const h=process.env.ADMIN_PASSWORD_HASH;console.log(h.length===60&&/^\$2[aby]\$/.test(h)?'hash OK':'HASH INVALIDE: '+JSON.stringify(h))"
 
 # src/lib/jobs/cron.ts évalue les crons en heure locale (getHours/getDay).
 # Sans ceci le conteneur est en UTC et "0 3 * * *" tombe à 05:00 en été.
@@ -44,7 +44,7 @@ NoNewPrivileges=true
 # Postgres, un HealthOnFailure=restart ferait boucler dès que la base tombe.
 HealthInterval=30s
 HealthTimeout=5s
-HealthStartPeriod=20s
+HealthStartPeriod=15s
 HealthRetries=3
 
 LogDriver=journald

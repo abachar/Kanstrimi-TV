@@ -2,7 +2,7 @@
 
 Node 22+ · Hono · Postgres + Drizzle · admin en Hono JSX + HTMX + Bootstrap 5 via CDN (pas de React, pas de Tailwind, pas de build, **aucun CSS ni JS maison** — uniquement les classes Bootstrap).
 
-- `npm run dev` (watch) / `npm run start` — `node --env-file-if-exists=.env --import tsx src/server.ts`. En conteneur : `node --import tsx src/server.ts` (jamais `npm start` : npm en PID 1 ne relaie pas SIGTERM).
+- `npm run dev` (watch, tsx). Production : `npm run build` (esbuild → `dist/`, tout bundlé) puis `node dist/server.js`. `tsx` est une devDependency : il ne tourne jamais en production.
 - `npm run typecheck`, `npm run test` (vitest), `npm run db:migrate` (migrateur runtime `src/db/migrate.ts`, pas `drizzle-kit`)
 - Traitement = 3 étapes indépendantes (`src/lib/jobs/jobs.ts`) : `source` (lecture Xtream → DB, puis filtres) · `filters` · `enrich` (TMDB) ; `epg` à part. Le cron enchaîne source → enrich. Pas d'orchestrateur : chaque étape se relance seule depuis le dashboard.
 - Routes Xtream : `src/routes/xtream.ts`. Admin : `src/admin/{index,views,layout}.tsx`. Métier : `src/lib/**` (indépendant du framework).

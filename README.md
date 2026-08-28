@@ -65,7 +65,8 @@ src/db/schema.ts          tables
 ## Déploiement
 Image construite par GitHub Actions et publiée sur `ghcr.io` (`Containerfile`, `linux/amd64`). Cible : Fedora CoreOS, podman + systemd Quadlet, derrière un reverse proxy Caddy.
 
-- Les migrations s'appliquent au démarrage via `npm run db:migrate` (`src/db/migrate.ts`, migrateur de `drizzle-orm` — pas besoin de `drizzle-kit` en production).
+- `npm run build` : esbuild produit `dist/server.js` et `dist/db/migrate.js`, **toutes dépendances incluses** (~1,3 Mo). L'image de production ne contient donc ni `node_modules`, ni TypeScript, ni `tsx`.
+- Les migrations s'appliquent au démarrage via `dist/db/migrate.js` (migrateur de `drizzle-orm` — pas besoin de `drizzle-kit` en production).
 - Variables : `ADMIN_PASSWORD_HASH` (obligatoire, sinon arrêt immédiat), `DATABASE_URL` et `SESSION_SECRET` (obligatoires quand `NODE_ENV=production`), `DATA_DIR`, `PORT`.
 - `DATA_DIR` est un **cache reconstructible** (images TMDB + `epg.xml`) : aucune sauvegarde nécessaire, seule la base compte.
 - Le conteneur doit fixer son fuseau (`TZ` / `Timezone=`) : les expressions cron sont évaluées en heure locale.
