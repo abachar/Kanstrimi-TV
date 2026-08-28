@@ -1,5 +1,7 @@
 # Kanstrimi Server
 
+Sous-dossier `server/` du dépôt (racine = `Kanstrimi TV/`, qui contient aussi `tvOS/`). La CI est à la racine dans `.github/workflows/build.yml` et cible `./server`.
+
 Node 22+ · Hono · Postgres + Drizzle · admin en Hono JSX + HTMX + Bootstrap 5 via CDN (pas de React, pas de Tailwind, pas de build, **aucun CSS ni JS maison** — uniquement les classes Bootstrap).
 
 - `npm run dev` (watch, tsx). Production : `npm run build` (esbuild → `dist/`, tout bundlé) puis `node dist/server.js`. `tsx` est une devDependency : il ne tourne jamais en production.
