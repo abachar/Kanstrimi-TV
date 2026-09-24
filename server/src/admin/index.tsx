@@ -3,11 +3,11 @@ import { z } from "zod";
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { Layout } from "./layout";
-import { LoginView, DashboardView, JobsStatus, LogsView, SettingsView, RulesView, RulePreview, CatalogView, TmdbCell, VisibilityToggle, type CatalogQuery } from "./views";
+import { LoginView, DashboardView, JobsStatus, LogsView, SettingsView, RulesView, RulePreview, CatalogView, TmdbCell, ItemRow, CategoryItems, type CatalogQuery } from "./views";
 import { isLoggedIn, login, logout } from "@/lib/auth/session";
 import { isUnlocked } from "@/lib/auth/vault";
 import { getSettings, setSettings, type SettingKey } from "@/lib/settings";
-import { counts } from "@/lib/api/catalog";
+import { counts, inHiddenCategory } from "@/lib/api/catalog";
 import { cacheStats } from "@/lib/tmdb/images";
 import { epgCacheStat } from "@/lib/epg/rebuild";
 import { testXtream, applyRules } from "@/lib/sync/sync";
@@ -27,8 +27,8 @@ const back = (c: Context, to: string, msg: { ok?: string; err?: string }) => {
   return c.redirect(u.pathname + u.search, 303);
 };
 const form = async (c: Context) => Object.fromEntries((await c.req.formData()).entries()) as Record<string, string>;
-/** HTMX checkbox: body is empty when unchecked. */
-const checked = async (c: Context) => (await c.req.raw.text()).length > 0;
+/** HTMX checkbox: an unchecked box is never sent, so absence of the field means false. */
+const checked = async (c: Context, name: string) => (await c.req.formData()).has(name);
 const zerr = (e: z.ZodError) => e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
 
 // ---------------------------------------------------------------- auth
@@ -127,7 +127,7 @@ admin.post("/rules/:id/delete", async (c) => {
   return back(c, "/admin/rules", { ok: "Règle supprimée" });
 });
 admin.post("/rules/:id/toggle", async (c) => {
-  await db.update(schema.filterRules).set({ enabled: await checked(c) }).where(eq(schema.filterRules.id, Number(c.req.param("id"))));
+  await db.update(schema.filterRules).set({ enabled: await checked(c, "enabled") }).where(eq(schema.filterRules.id, Number(c.req.param("id"))));
   await applyRules();
   return c.body(null, 204);
 });
@@ -145,40 +145,75 @@ admin.post("/rules/preview", async (c) => {
 
 // ---------------------------------------------------------------- catalog
 const PAGE = 100;
-admin.get("/catalog", async (c) => {
-  const q = c.req.query();
-  const qy: CatalogQuery = {
-    kind: (["live", "vod", "series"].includes(q.kind ?? "") ? q.kind : "vod") as CatalogQuery["kind"],
-    q: q.q?.trim() ?? "", cat: q.cat ?? "", status: q.status ?? "", page: Math.max(1, Number(q.page) || 1),
-  };
-  const cats = await db.select().from(schema.categories).where(eq(schema.categories.kind, qy.kind)).orderBy(asc(schema.categories.position));
+const catalogQuery = (q: Record<string, string>): CatalogQuery => ({
+  kind: (["live", "vod", "series"].includes(q.kind ?? "") ? q.kind : "vod") as CatalogQuery["kind"],
+  q: q.q?.trim() ?? "", cat: q.cat ?? "", status: q.status ?? "", page: Math.max(1, Number(q.page) || 1),
+  view: q.view === "flat" ? "flat" : "grouped",
+});
+/** Filters shared by the flat list and by one category's slice of the grouped view. */
+const catalogWhere = (qy: CatalogQuery) => {
   const where: SQL[] = [eq(schema.items.kind, qy.kind)];
   if (qy.q) where.push(ilike(schema.items.name, `%${qy.q}%`));
   if (qy.cat) where.push(eq(schema.items.categoryXtreamId, qy.cat));
-  if (qy.status === "hidden") where.push(or(eq(schema.items.hiddenByRule, true), eq(schema.items.hiddenManual, true))!);
-  if (qy.status === "visible") where.push(and(eq(schema.items.hiddenByRule, false), eq(schema.items.hiddenManual, false))!);
+  if (qy.status === "hidden") where.push(or(eq(schema.items.hiddenByRule, true), eq(schema.items.hiddenManual, true), inHiddenCategory)!);
+  if (qy.status === "visible") where.push(and(eq(schema.items.hiddenByRule, false), eq(schema.items.hiddenManual, false), sql`not ${inHiddenCategory}`)!);
   if (qy.status === "unmatched") where.push(eq(schema.items.matchStatus, "unmatched"));
   if (qy.status === "pending") where.push(eq(schema.items.matchStatus, "pending"));
   if (qy.status === "matched") where.push(sql`${schema.items.matchStatus} in ('matched','manual')`);
+  return where;
+};
+admin.get("/catalog", async (c) => {
+  const qy = catalogQuery(c.req.query());
+  const cats = await db.select().from(schema.categories).where(eq(schema.categories.kind, qy.kind)).orderBy(asc(schema.categories.position));
+  const where = catalogWhere(qy);
   const [{ n: total }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.items).where(and(...where));
-  const rows = await db.select().from(schema.items).where(and(...where)).orderBy(asc(schema.items.position)).limit(PAGE).offset((qy.page - 1) * PAGE);
-  return page(c, "Catalogue", <CatalogView qy={qy} cats={cats} rows={rows} total={total} />);
+  // Grouped view lists categories only; the rows arrive later, one category at a time.
+  const rows = qy.view === "grouped" ? []
+    : await db.select().from(schema.items).where(and(...where)).orderBy(asc(schema.items.position)).limit(PAGE).offset((qy.page - 1) * PAGE);
+  const counted = qy.view === "grouped"
+    ? await db.select({ cat: schema.items.categoryXtreamId, n: sql<number>`count(*)::int` })
+      .from(schema.items).where(eq(schema.items.kind, qy.kind)).groupBy(schema.items.categoryXtreamId)
+    : [];
+  const catCounts = new Map(counted.map((r) => [r.cat ?? "", r.n]));
+  return page(c, "Catalogue", <CatalogView qy={qy} cats={cats} rows={rows} total={total} catCounts={catCounts} />);
 });
-/** The switch says "Visible", the column stores `hidden_manual`: invert on the way in. */
+/** One page of a category, for the grouped view's lazy loading and its infinite scroll. */
+admin.get("/catalog/items", async (c) => {
+  const qy = catalogQuery(c.req.query());
+  if (!qy.cat) return c.body(null, 204);
+  const [cat] = await db.select().from(schema.categories)
+    .where(and(eq(schema.categories.kind, qy.kind), eq(schema.categories.xtreamId, qy.cat)));
+  const where = catalogWhere(qy);
+  // Ask for one row past the page: cheaper than a second count(*) just to know if more remain.
+  const rows = await db.select().from(schema.items).where(and(...where))
+    .orderBy(asc(schema.items.position)).limit(PAGE + 1).offset((qy.page - 1) * PAGE);
+  const hasMore = rows.length > PAGE;
+  return c.html(<CategoryItems qy={qy} cat={qy.cat} rows={rows.slice(0, PAGE)}
+    catHidden={Boolean(cat && (cat.hiddenByRule || cat.hiddenManual))} hasMore={hasMore} />);
+});
+/**
+ * The switch says "Visible", the column stores `hidden_manual`: invert on the way in.
+ * Answers with the whole row so the struck-through name follows the switch; the current
+ * filters travel in the query string because the row links back to the catalog.
+ */
 admin.post("/catalog/:scope{item|category}/:id/visible", async (c) => {
   const id = Number(c.req.param("id"));
   const scope = c.req.param("scope") as "item" | "category";
-  const hiddenManual = !(await checked(c));
+  const qy = catalogQuery(c.req.query());
+  const hiddenManual = !(await checked(c, "visible"));
   if (scope === "item") {
     await db.update(schema.items).set({ hiddenManual }).where(eq(schema.items.id, id));
     const [r] = await db.select().from(schema.items).where(eq(schema.items.id, id));
     if (!r) return c.notFound();
-    return c.html(<VisibilityToggle scope="item" id={r.id} hiddenByRule={r.hiddenByRule} hiddenManual={r.hiddenManual} />);
+    const [cat] = r.categoryXtreamId
+      ? await db.select().from(schema.categories).where(and(eq(schema.categories.kind, r.kind), eq(schema.categories.xtreamId, r.categoryXtreamId)))
+      : [];
+    return c.html(<ItemRow r={r} qy={qy} catLabel={cat?.name ?? r.categoryXtreamId ?? ""} catHidden={Boolean(cat && (cat.hiddenByRule || cat.hiddenManual))} />);
   }
   await db.update(schema.categories).set({ hiddenManual }).where(eq(schema.categories.id, id));
-  const [r] = await db.select().from(schema.categories).where(eq(schema.categories.id, id));
-  if (!r) return c.notFound();
-  return c.html(<VisibilityToggle scope="category" id={r.id} hiddenByRule={r.hiddenByRule} hiddenManual={r.hiddenManual} />);
+  // A category carries every row under it: reload rather than patch each one back into shape.
+  c.header("HX-Refresh", "true");
+  return c.body(null, 204);
 });
 const item = async (id: number) => (await db.select().from(schema.items).where(eq(schema.items.id, id)))[0];
 admin.post("/catalog/tmdb-search", async (c) => {

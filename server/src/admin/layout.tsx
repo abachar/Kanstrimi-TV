@@ -25,7 +25,7 @@ export function Layout({ title, path, flash, loggedIn = true, children }: { titl
   <div class="container">
     <a class="navbar-brand fw-bold" href="/admin">Kanstrimi</a>
     ${loggedIn ? html`
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-label="Menu"><span class="navbar-toggler-icon"></span></button>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-controls="nav" aria-expanded="false" aria-label="Ouvrir le menu"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
         ${NAV.map(([href, label]) => html`<li class="nav-item"><a class="nav-link${href === path ? " active" : ""}" ${href === path ? raw('aria-current="page"') : ""} href="${href}">${label}</a></li>`)}
@@ -35,8 +35,8 @@ export function Layout({ title, path, flash, loggedIn = true, children }: { titl
   </div>
 </nav>
 <main class="container pb-5">
-  ${flash?.ok ? html`<div class="alert alert-success">${flash.ok}</div>` : ""}
-  ${flash?.err ? html`<div class="alert alert-danger">${flash.err}</div>` : ""}
+  ${flash?.ok ? html`<div class="alert alert-success" role="status">${flash.ok}</div>` : ""}
+  ${flash?.err ? html`<div class="alert alert-danger" role="alert">${flash.err}</div>` : ""}
   ${children}
 </main>
 </body>

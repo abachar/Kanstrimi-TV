@@ -8,7 +8,18 @@ import type { Kind } from "@/lib/filters/rules";
 import { XtreamError } from "@/lib/xtream/client";
 
 const visibleCat = and(eq(schema.categories.hiddenByRule, false), eq(schema.categories.hiddenManual, false));
-const visibleItem = and(eq(schema.items.hiddenByRule, false), eq(schema.items.hiddenManual, false));
+/**
+ * An item sitting in a hidden category is hidden too, without touching its own columns:
+ * the category switch stays reversible and never overwrites a per-item choice.
+ * `applyRules` already propagates *rule* hiding at write time; this covers the manual one
+ * and costs nothing to keep. Written as `not exists` on purpose: an item whose category is
+ * missing upstream stays visible rather than silently disappearing.
+ */
+export const inHiddenCategory = sql`exists (
+  select 1 from ${schema.categories} c
+  where c.kind = ${schema.items.kind} and c.xtream_id = ${schema.items.categoryXtreamId}
+    and (c.hidden_by_rule or c.hidden_manual))`;
+const visibleItem = and(eq(schema.items.hiddenByRule, false), eq(schema.items.hiddenManual, false), sql`not ${inHiddenCategory}`);
 const INFO_TTL_MS = 12 * 3600 * 1000;
 
 export async function listCategories(kind: Kind) {
@@ -223,7 +234,7 @@ export async function isVisibleStream(kind: "live" | "movie" | "series", id: str
 export async function counts() {
   const rows = await db.select({
     kind: schema.items.kind, total: sql<number>`count(*)::int`,
-    hidden: sql<number>`count(*) filter (where ${schema.items.hiddenByRule} or ${schema.items.hiddenManual})::int`,
+    hidden: sql<number>`count(*) filter (where ${schema.items.hiddenByRule} or ${schema.items.hiddenManual} or ${inHiddenCategory})::int`,
     matched: sql<number>`count(*) filter (where ${schema.items.matchStatus} in ('matched','manual'))::int`,
     unmatched: sql<number>`count(*) filter (where ${schema.items.matchStatus} = 'unmatched')::int`,
     pending: sql<number>`count(*) filter (where ${schema.items.matchStatus} = 'pending')::int`,
