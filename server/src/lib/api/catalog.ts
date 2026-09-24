@@ -6,6 +6,7 @@ import { imageUrl } from "@/lib/tmdb/images";
 import type { TmdbDetails } from "@/lib/tmdb/client";
 import type { Kind } from "@/lib/filters/rules";
 import { XtreamError } from "@/lib/xtream/client";
+import { wireId } from "./wire";
 
 const visibleCat = and(eq(schema.categories.hiddenByRule, false), eq(schema.categories.hiddenManual, false));
 /**
@@ -46,7 +47,7 @@ export async function listItems(ctx: ApiContext, kind: Kind, categoryId?: string
   return rows.map((r, idx) => {
     // Our own id and category win over `raw`: that is what clients send back to us.
     const idField = kind === "series" ? "series_id" : "stream_id";
-    const out: Record<string, unknown> = { ...r.raw, num: idx + 1, name: r.name, [idField]: r.xtreamId, category_id: r.categoryXtreamId };
+    const out: Record<string, unknown> = { ...r.raw, num: idx + 1, name: r.name, [idField]: wireId(r.xtreamId), category_id: r.categoryXtreamId };
     if (kind === "live" || kind === "vod") {
       const ext = String(r.raw.container_extension ?? (kind === "live" ? "ts" : "mp4"));
       out.direct_source = "";
@@ -143,7 +144,7 @@ export async function vodInfo(ctx: ApiContext, vodId: string) {
   const d = await details(ctx, "movie", it.tmdbId);
   const ext = String(it.raw.container_extension ?? up.movie_data?.container_extension ?? "mp4");
   const movie_data = {
-    ...(up.movie_data ?? {}), stream_id: it.xtreamId, name: it.name, added: it.raw.added ?? up.movie_data?.added ?? "",
+    ...(up.movie_data ?? {}), stream_id: wireId(it.xtreamId), name: it.name, added: it.raw.added ?? up.movie_data?.added ?? "",
     category_id: it.categoryXtreamId, container_extension: ext, custom_sid: it.raw.custom_sid ?? "",
     direct_source: "",
   };
