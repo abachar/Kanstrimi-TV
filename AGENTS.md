@@ -39,7 +39,7 @@ encore** — voir le bloc 3 de `server/BACKLOG.md`.
 
 ## Le cahier des charges diverge de l'implémentation
 
-`README.md` (racine) est le cahier des charges fonctionnel d'origine. Plusieurs de ses
+`docs/cahier-des-charges.md` est le cahier des charges fonctionnel d'origine. Plusieurs de ses
 choix techniques ont été abandonnés à l'usage — ne pas le prendre pour la description
 du code existant :
 

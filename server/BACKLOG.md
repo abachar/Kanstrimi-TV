@@ -1,6 +1,6 @@
 # Kanstrimi Server — Backlog
 
-*Fonctionnalités reprises de l'ancien serveur Rust (`server/`, Axum + SQLite), à porter sur ce projet Next.js.*
+*Fonctionnalités reprises de l'ancien serveur Rust (`_Old/kk/`, Axum + SQLite), à porter sur ce serveur Hono.*
 
 Statuts : `[ ]` à faire · `[~]` en cours · `[x]` terminé. Priorité : P0 bloquant · P1 MVP · P2 V1 · P3 nice to have.
 
@@ -73,8 +73,8 @@ Déjà fait : poster, backdrop, synopsis, genres, note, casting, bande-annonce. 
 
 ## 8 — Sécurité & déploiement (P1)
 
-- [ ] Chiffrement des secrets en base (clé TMDB, identifiants Xtream) en AES-256-GCM, clé dérivée de `SESSION_SECRET` ou d'un `MASTER_SECRET`
-- [ ] Dockerfile multi-stage (`next build` standalone), multi-arch amd64 + arm64
+- [x] Chiffrement des secrets en base (clé TMDB, identifiants Xtream) en AES-256-GCM — clé dérivée du mot de passe admin, gardée en RAM (`src/lib/auth/vault.ts`)
+- [~] `Containerfile` multi-stage (esbuild, bundle autonome) publié sur ghcr.io — amd64 seulement, arm64 à ajouter
 - [ ] `docker-compose.yml` d'exemple (app + Postgres + volume `DATA_DIR`)
 - [ ] Endpoint `GET /admin/api/metrics` (CPU, RAM, disque)
 
