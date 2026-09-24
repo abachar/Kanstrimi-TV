@@ -30,9 +30,6 @@ Trois principes non négociables :
 | `tvOS/` | Client natif Apple TV, consomme l'API REST | Swift, VLCKit | 🔜 spécifié, aucun code |
 | Fire TV | Client natif Amazon | — | ❌ abandonné, tvOS seul client maison |
 
-Choix abandonnés : serveur Rust + Askama, SQLite, binaire statique ARM, API REST comme
-première interface. La pile a changé, les fonctionnalités visées non.
-
 ---
 
 ## 2. Source Xtream

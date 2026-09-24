@@ -1,12 +1,7 @@
 # Anciens projets et notes de travail, hors dépôt
 _Old/
 _old*
-_Backlog.md
-_Technical Specifications.md
 *.log
-
-# État local d'outils (contient un historique de connexions Postgres)
-.foreman/
 
 # Dépendances et artefacts
 node_modules/
