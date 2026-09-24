@@ -1,9 +1,0 @@
-# → /etc/containers/systemd/kanstrimi-data.volume
-# Named volume rather than a bind mount: podman labels it for SELinux on its own and
-# copies the uid 1000 ownership from /var/lib/kanstrimi in the image on first mount.
-# Content is a rebuildable cache (TMDB images + epg.xml) — never backed up.
-[Unit]
-Description=Volume de cache Kanstrimi (images TMDB + epg.xml)
-
-[Volume]
-VolumeName=kanstrimi-data
