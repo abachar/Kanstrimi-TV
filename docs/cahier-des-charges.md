@@ -62,8 +62,10 @@ Trois principes non négociables :
 | Cache local des métadonnées texte, par langue | ✅ |
 | Cache local des images, servi aux apps sous l'URL du serveur | ✅ |
 | Affiche, fond, synopsis, genres, note, casting, réalisateur, bande-annonce, certification, pays, durée, saisons | ✅ |
-| Logos, titre original, tagline, mots-clés, nombre de votes, statut et compte d'épisodes des séries | 🔜 bloc 5 |
-| Enrichissement au niveau saison et épisode | 🔜 bloc 5 |
+| Titre original, tagline, statut et compte de saisons et d'épisodes des séries | ✅ |
+| Logos, mots-clés, nombre de votes | 🔜 bloc 5 |
+| Enrichissement des saisons (nom, synopsis, affiche) | ✅ |
+| Enrichissement des épisodes (titres, synopsis, images) | 🔜 bloc 5 |
 | Réinitialisation du matching automatique en conservant les associations manuelles | ✅ |
 
 ## 5. Diffusion aux applications

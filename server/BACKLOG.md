@@ -48,10 +48,10 @@ API propre pour l'app tvOS, en complément de l'API Xtream. Préfixe `/api/v1`.
 
 Déjà fait : poster, backdrop, synopsis, genres, note, casting, bande-annonce. Manque :
 
-- [ ] Logos, titre original, tagline, mots-clés, certification, nombre de votes
-- [ ] Séries : nombre de saisons / épisodes, statut (en cours / terminée)
-- [ ] Enrichissement saison / épisode (titres, synopsis, stills)
-- [ ] Statistiques d'enrichissement dans le dashboard : taux de matching, liste des non-matchés
+- [~] Titre original, tagline et certification exposés dans `get_vod_info` / `get_series_info` ; manquent logos, mots-clés, nombre de votes
+- [x] Séries : nombre de saisons / épisodes, statut (en cours / terminée) — `seriesInfo` dans `src/lib/api/catalog.ts`
+- [~] Saisons enrichies (nom, synopsis, affiche) depuis les détails TMDB ; épisodes toujours bruts
+- [x] Statistiques d'enrichissement dans le dashboard (taux, associés, non trouvés, en attente) ; non-matchés listés via le filtre « TMDB introuvable » du catalogue
 - [ ] Bouton stop de l'enrichissement en cours
 
 ## 6 — Organisation par IA (P3)
@@ -66,9 +66,9 @@ Déjà fait : poster, backdrop, synopsis, genres, note, casting, bande-annonce. 
 ## 7 — Admin & exploitation (P2)
 
 - [ ] Dashboard : statistiques de groupement (groupes, variantes/groupe), indicateurs système (CPU, RAM, disque)
-- [ ] Recherche dans le catalogue admin (incl. recherche TMDB pour association manuelle — déjà partiel via `tmdb-assign`)
+- [x] Recherche dans le catalogue admin, recherche TMDB et association manuelle (`tmdb-search`, `tmdb-assign`)
 - [ ] Paramètres : durée de rétention du cache métadonnées, sauvegarde / restauration de la configuration
-- [ ] Journal des événements enrichi (durée, erreurs par étape)
+- [x] Journal des exécutions avec durée, statistiques par étape et message d'erreur
 
 ## 8 — Sécurité & déploiement (P1)
 
