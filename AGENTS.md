@@ -11,7 +11,7 @@ répond en `302` vers le flux d'origine. La bande passante vidéo ne le traverse
 Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré + enrichi)
                           │
                           ├──► API Xtream-compatible ──► TiviMate, IPTV Smarters…
-                          ├──► API REST (à venir)     ──► tvOS/, Fire TV
+                          ├──► API REST (à venir)     ──► tvOS/
                           └──► 302 ────────────────────► le flux vidéo, en direct
 ```
 
@@ -37,20 +37,13 @@ lecture, reprise, favoris, recherche vocale, sélection de variante langue/quali
 Elle consommera une API REST maison (`/api/v1/...`) que le serveur **n'expose pas
 encore** — voir le bloc 3 de `server/BACKLOG.md`.
 
-## Le cahier des charges diverge de l'implémentation
+## Le cahier des charges est vivant
 
-`docs/cahier-des-charges.md` est le cahier des charges fonctionnel d'origine. Plusieurs de ses
-choix techniques ont été abandonnés à l'usage — ne pas le prendre pour la description
-du code existant :
-
-| Cahier des charges | Réalité de `server/` |
-|---|---|
-| Serveur en **Rust**, admin **Askama** | Node + Hono, admin Hono JSX + HTMX |
-| API **REST** pour les clients | API **Xtream-compatible** ; le REST reste à écrire |
-| Groupement des variantes, organisation par IA | pas encore implémentés (`server/BACKLOG.md`) |
-
-Les *fonctionnalités* décrites dans le cahier des charges restent la cible ; c'est la
-pile technique qui a changé.
+`docs/cahier-des-charges.md` dit ce que le système doit faire et l'état de chaque exigence
+(fait, prévu avec le bloc du backlog, non planifié, abandonné). Le mettre à jour quand une
+fonctionnalité aboutit ou qu'une décision change la cible. Les choix techniques d'origine
+(Rust + Askama, SQLite, API REST en premier) y sont listés comme abandonnés : ne pas
+s'en étonner en lisant `_Old/`.
 
 ## Conventions
 

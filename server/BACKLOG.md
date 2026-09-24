@@ -28,7 +28,7 @@ Aujourd'hui `xmltv.php` est relayé ; l'ancien serveur importait le XMLTV.
 
 ## 3 — API REST pour les apps maison (P2)
 
-API propre pour l'app tvOS / Fire TV, en complément de l'API Xtream. Préfixe `/api/v1`.
+API propre pour l'app tvOS, en complément de l'API Xtream. Préfixe `/api/v1`.
 
 - [ ] `GET /api/v1/movies` : pagination offset/limit, filtres `genre`, `year`, `rating_min`, `search`, tri `title|year|rating|added_at`
 - [ ] `GET /api/v1/series`, `GET /api/v1/series/{id}` (saisons/épisodes), `GET /api/v1/series/{id}/seasons/{num}`
@@ -43,7 +43,6 @@ API propre pour l'app tvOS / Fire TV, en complément de l'API Xtream. Préfixe `
 - [ ] `GET /api/v1/continue-watching` : progression entre 5 % et 90 %
 - [ ] Table `favorites` ; `POST /api/v1/favorites/{content_id}` (toggle), `GET /api/v1/favorites`
 - [ ] `GET /api/v1/home` : sections « Continuer à regarder », « Récemment ajouté », « Tendances » (TMDB populaires), collections thématiques
-- [ ] Synchronisation entre clients (même compte client)
 
 ## 5 — Métadonnées TMDB étendues (P3)
 

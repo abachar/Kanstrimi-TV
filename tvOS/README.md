@@ -81,7 +81,7 @@ Chaque contenu dispose d'une fiche riche affichant :
 
 - Sauvegarde automatique de la position de lecture à intervalles réguliers.
 - Section « Continuer à regarder » visible sur l'écran d'accueil.
-- Reprise au même point, même si le visionnage a été commencé sur un autre client (Fire TV).
+- Reprise au même point, même après réinstallation : la position est stockée côté serveur, pas sur l'Apple TV.
 - Marquage automatique comme « vu » lorsque le contenu est terminé (≥ 90% de progression).
 
 ---
@@ -90,7 +90,7 @@ Chaque contenu dispose d'une fiche riche affichant :
 
 - Ajout/suppression de contenu aux favoris en un clic.
 - Création de listes personnalisées nommées (ex : « À regarder ce week-end »).
-- Synchronisation des favoris et listes entre tous les clients (tvOS et Fire TV).
+- Favoris et listes stockés côté serveur, retrouvés sur n'importe quelle Apple TV.
 
 ---
 

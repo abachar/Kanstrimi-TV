@@ -12,7 +12,7 @@ répond `302` vers le flux d'origine. La bande passante vidéo ne le traverse pa
 Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré + enrichi)
                           │
                           ├──► API Xtream-compatible ──► TiviMate, IPTV Smarters…
-                          ├──► API REST (à venir)     ──► tvOS/, Fire TV
+                          ├──► API REST (à venir)     ──► tvOS/
                           └──► 302 ────────────────────► le flux vidéo, en direct
 ```
 
@@ -35,7 +35,7 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré + enr
 | EPG importé en base, `xmltv.php` limité aux chaînes visibles | à faire |
 | API REST `/api/v1` pour les apps maison, reprise de lecture, favoris | à faire |
 | Collections organisées par IA | à faire |
-| Application tvOS | spécifiée, aucun code |
+| Application tvOS, seul client maison prévu | spécifiée, aucun code |
 
 Le détail est dans `server/BACKLOG.md`.
 
@@ -90,13 +90,12 @@ server/     le serveur, implémenté et en service
   CLAUDE.md     conventions et pièges, à lire avant toute modification
   BACKLOG.md    fonctionnalités restant à porter
 tvOS/       spécification de l'application Apple TV, aucun code
-docs/       cahier des charges fonctionnel d'origine
+docs/       cahier des charges fonctionnel, vivant : exigences et leur état
 AGENTS.md   description du projet pour les agents de code
 ```
 
-`docs/cahier-des-charges.md` décrit la cible fonctionnelle. Plusieurs de ses choix
-techniques ont été abandonnés à l'usage (Rust et Askama, SQLite, API REST en premier) ;
-les fonctionnalités restent la cible, la pile a changé.
+`docs/cahier-des-charges.md` liste les exigences fonctionnelles avec leur état, et renvoie au
+bloc de `server/BACKLOG.md` pour ce qui reste à faire.
 
 ## Conventions
 
