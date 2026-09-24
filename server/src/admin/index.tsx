@@ -11,7 +11,7 @@ import { counts, inHiddenCategory } from "@/lib/api/catalog";
 import { cacheStats } from "@/lib/tmdb/images";
 import { epgCacheStat } from "@/lib/epg/rebuild";
 import { testXtream, applyRules } from "@/lib/sync/sync";
-import { validatePattern } from "@/lib/filters/rules";
+import { validatePattern, sanitizeFlags, type Kind } from "@/lib/filters/rules";
 import { isValidCron } from "@/lib/jobs/cron";
 import { start, pipeline, runningJobs, getLastError, type Job } from "@/lib/jobs/jobs";
 import { assignManual, resetMatches, getTmdbClient } from "@/lib/tmdb/enrich";
@@ -135,12 +135,15 @@ admin.post("/rules/preview", async (c) => {
   const f = await form(c);
   const pattern = f.pattern ?? "", flags = f.flags ?? "i", kind = f.kind ?? "all", target = f.target ?? "name";
   if (validatePattern(pattern, flags)) return c.html(<RulePreview preview={{ matches: [], total: 0 }} />);
-  const op = flags.includes("i") ? sql`~*` : sql`~`;
+  // Same engine as applyRules, on purpose: Postgres regexes differ from JavaScript's
+  // (`\b` is a backspace there), so a database-side preview would lie about `\b`, `\d`
+  // or lookarounds. Names only, so even the whole catalogue is a few megabytes.
+  const re = new RegExp(pattern, sanitizeFlags(flags).replace("g", ""));
   const t = target === "category" ? schema.categories : schema.items;
-  const where = kind === "all" ? sql`${t.name} ${op} ${pattern}` : sql`${t.name} ${op} ${pattern} and ${t.kind} = ${kind}`;
-  const rows = await db.select({ name: t.name, kind: t.kind }).from(t).where(where).limit(50);
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(t).where(where);
-  return c.html(<RulePreview preview={{ matches: rows.map((r) => `[${r.kind}] ${r.name}`), total: n }} />);
+  const rows = await db.select({ name: t.name, kind: t.kind }).from(t)
+    .where(kind === "all" ? undefined : eq(t.kind, kind as Kind)).orderBy(asc(t.kind), asc(t.position));
+  const hits = rows.filter((r) => re.test(r.name));
+  return c.html(<RulePreview preview={{ matches: hits.slice(0, 50).map((r) => `[${r.kind}] ${r.name}`), total: hits.length }} />);
 });
 
 // ---------------------------------------------------------------- catalog
