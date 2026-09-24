@@ -50,24 +50,25 @@ s'en étonner en lisant `_Old/`.
 - **Français** dans l'interface, les messages d'erreur, les journaux et les commits ;
   anglais dans les commentaires de code.
 - Les décisions structurantes sont consignées dans `server/CLAUDE.md`, pas ici.
-- `_Old/`, `.foreman/`, les notes `_*.md` et les données locales sont hors dépôt.
+- `_Old/` et les données locales sont hors dépôt.
 
 ## Chercher l'inspiration dans `_Old/`
 
-`_Old/` contient les tentatives précédentes du même projet. **Hors dépôt** (3,3 Go,
-exclu par `.gitignore`) mais présent sur le disque : c'est une mine pour retrouver une
-idée d'architecture, un algorithme ou une maquette déjà éprouvés. Ne rien y modifier,
-ne rien y committer — on y lit, on y copie.
+`_Old/` contient les tentatives précédentes du même projet, réduites à leurs sources et
+leurs docs (4 Mo ; dépendances, builds et fichiers de secrets supprimés). **Hors dépôt**,
+exclu par `.gitignore`, mais présent sur le disque. Aucun n'a de `.git`. Ne rien y
+modifier, ne rien y committer — on y lit, on y copie.
 
 | Dossier | Ce qu'on y trouve |
 |---|---|
-| `_Old/_Kanstrimi TV/` | Application **tvOS en Swift** la plus aboutie (Xcode + Pods, `ARCHITECTURE.md`, `CHANGELOG.md`, collection Bruno pour l'API). La référence pour écrire `tvOS/`. |
-| `_Old/Kanstrimi TV/` | Une itération tvOS antérieure (Carthage). |
-| `_Old/kanstrimi/` | Un serveur **Node + Drizzle** et un dossier `tvos`, avec son `CLAUDE.md`. |
-| `_Old/kk/` | Un serveur **Rust** (Cargo) avec des specs `openspec`. Son backlog a servi de base à `server/BACKLOG.md`. |
-| `_Old/Icons/` | Icônes de l'application, toutes tailles. |
+| `_Old/kanstrimi/` | Serveur **TanStack Start + Drizzle** (7 000 lignes, nov. 2025). `server/src/services/sync/cleanNames.ts` extrait les tags langue et qualité et nettoie les titres, calibré sur 283 000 entrées réelles : **la base du groupement des variantes** (bloc 1). Aussi une grammaire nearley de filtres, une API REST tvOS avec suivi de progression (`server/src/routes/api/`). Son `CLAUDE.md` décrit un service Claude qui n'a jamais été écrit. |
+| `_Old/Kanstrimi TV/` | App **tvOS Carthage**, la plus récente (12 000 lignes, nov. 2025) : MV + SwiftData, Nuke, lecteurs AVPlayer et VLC avec sélecteurs audio et sous-titres. `Domain/Models/Movies/Movie+Variants.swift` : algorithme de groupement, désactivé parce que trop lent côté client — à faire côté serveur. |
+| `_Old/_Kanstrimi TV/` | App **tvOS CocoaPods** (15 000 lignes, oct. 2025) : MVVM par feature, EPG avec préchargement, auto-play, `ARCHITECTURE.md` et `CHANGELOG.md` détaillés. |
+| `_Old/kk/` | Squelette **Rust** de 50 lignes, sans intérêt. Vaut par son `README.md` : la spec fonctionnelle dont `server/BACKLOG.md` est tiré (DSL de filtres, import TMDB hors-ligne). |
+
+Les deux apps tvOS parlent **directement à Xtream** ; leur couche réseau est à jeter,
+leurs lecteurs, Focus Engine et EPG sont la référence pour `tvOS/`.
 
 Réflexe utile : avant d'implémenter une fonctionnalité listée dans `server/BACKLOG.md`
 (groupement des variantes, API REST, collections IA), regarder si une version existe
-déjà dans `_Old/` — l'algorithme de groupement et le matching TMDB y ont déjà été
-écrits au moins une fois.
+déjà dans `_Old/`.
