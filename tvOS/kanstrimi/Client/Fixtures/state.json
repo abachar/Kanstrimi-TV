@@ -1,0 +1,114 @@
+{
+ "progress": [
+  {
+   "content_id": "tmdb:tv:20000:s02e04",
+   "position": 1140,
+   "duration": 3060
+  },
+  {
+   "content_id": "tmdb:movie:100002",
+   "position": 4520,
+   "duration": 8280
+  },
+  {
+   "content_id": "tmdb:tv:20003:s01e02",
+   "position": 600,
+   "duration": 2880
+  },
+  {
+   "content_id": "tmdb:movie:100007",
+   "position": 5900,
+   "duration": 6540
+  },
+  {
+   "content_id": "tmdb:tv:20004:s01e07",
+   "position": 300,
+   "duration": 2700
+  },
+  {
+   "content_id": "tmdb:movie:100013",
+   "position": 7400,
+   "duration": 7440,
+   "finished": true
+  },
+  {
+   "content_id": "fallback:movie:silver-book-of-dreams:2013",
+   "position": 5600,
+   "duration": 5640,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s01e01",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s01e02",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s01e03",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s01e04",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s01e05",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s01e06",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s01e07",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s01e08",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s02e01",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s02e02",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  },
+  {
+   "content_id": "tmdb:tv:20000:s02e03",
+   "position": 3000,
+   "duration": 3060,
+   "finished": true
+  }
+ ],
+ "favorites": [
+  "tmdb:movie:100000",
+  "tmdb:movie:100004",
+  "tmdb:tv:20001",
+  "tmdb:movie:100018",
+  "tmdb:tv:20007"
+ ]
+}

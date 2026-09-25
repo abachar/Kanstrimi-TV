@@ -1,0 +1,987 @@
+{
+ "groups": [
+  {
+   "category": "Généralistes",
+   "channels": [
+    {
+     "id": "live:une",
+     "name": "Une",
+     "number": 1,
+     "logo": null,
+     "category": "Généralistes",
+     "versions": [
+      {
+       "id": "fr-4k",
+       "language": "FR",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-0314e6dc",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        },
+        {
+         "id": "src-02308fd2",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Généralistes Backup"
+        }
+       ]
+      },
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-03829e70",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      },
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-038d537a",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:deux",
+     "name": "Deux",
+     "number": 2,
+     "logo": null,
+     "category": "Généralistes",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-05d2c5a3",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      },
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-0261124c",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:trois",
+     "name": "Trois",
+     "number": 3,
+     "logo": null,
+     "category": "Généralistes",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-0201df4a",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:cinq",
+     "name": "Cinq",
+     "number": 5,
+     "logo": null,
+     "category": "Généralistes",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-03914cf7",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      },
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-05eac334",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:six",
+     "name": "Six",
+     "number": 6,
+     "logo": null,
+     "category": "Généralistes",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-04f9f800",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      },
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-0348959b",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      },
+      {
+       "id": "fr-sd",
+       "language": "FR",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-03c18934",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:huit",
+     "name": "Huit",
+     "number": 8,
+     "logo": null,
+     "category": "Généralistes",
+     "versions": [
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-025f1de7",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Généralistes"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "category": "Info",
+   "channels": [
+    {
+     "id": "live:info-24",
+     "name": "Info 24",
+     "number": 10,
+     "logo": null,
+     "category": "Info",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-0281549d",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Info"
+        }
+       ]
+      },
+      {
+       "id": "en-fhd",
+       "language": "EN",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-01586022",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Info"
+        }
+       ]
+      },
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-00d03381",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Info"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:monde-direct",
+     "name": "Monde Direct",
+     "number": 11,
+     "logo": null,
+     "category": "Info",
+     "versions": [
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-04e637f5",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Info"
+        }
+       ]
+      },
+      {
+       "id": "en-hd",
+       "language": "EN",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-046223dc",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Info"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:éco-live",
+     "name": "Éco Live",
+     "number": 12,
+     "logo": null,
+     "category": "Info",
+     "versions": [
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-003ebdd0",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Info"
+        }
+       ]
+      },
+      {
+       "id": "en-hd",
+       "language": "EN",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-01a2f950",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Info"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:parlement",
+     "name": "Parlement",
+     "number": 13,
+     "logo": null,
+     "category": "Info",
+     "versions": [
+      {
+       "id": "fr-sd",
+       "language": "FR",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-01b4e452",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Info"
+        }
+       ]
+      },
+      {
+       "id": "en-sd",
+       "language": "EN",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-0597a9f2",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Info"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "category": "Sport",
+   "channels": [
+    {
+     "id": "live:arena-1",
+     "name": "Arena 1",
+     "number": 20,
+     "logo": null,
+     "category": "Sport",
+     "versions": [
+      {
+       "id": "fr-4k",
+       "language": "FR",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-025b113a",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        },
+        {
+         "id": "src-05b3585b",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Sport Backup"
+        }
+       ]
+      },
+      {
+       "id": "en-4k",
+       "language": "EN",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-033a1a96",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      },
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-01cc7d79",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:arena-2",
+     "name": "Arena 2",
+     "number": 21,
+     "logo": null,
+     "category": "Sport",
+     "versions": [
+      {
+       "id": "fr-4k",
+       "language": "FR",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-0589e732",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        },
+        {
+         "id": "src-055149ce",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Sport Backup"
+        }
+       ]
+      },
+      {
+       "id": "en-4k",
+       "language": "EN",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-029a7b98",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      },
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-0153b780",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:arena-3",
+     "name": "Arena 3",
+     "number": 22,
+     "logo": null,
+     "category": "Sport",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-00cfe2bc",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      },
+      {
+       "id": "en-fhd",
+       "language": "EN",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-01d6ba1c",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:stadeplus",
+     "name": "Stade+",
+     "number": 23,
+     "logo": null,
+     "category": "Sport",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-0314cfe3",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      },
+      {
+       "id": "en-fhd",
+       "language": "EN",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-0107104c",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      },
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-04cffa8f",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:moteurs",
+     "name": "Moteurs",
+     "number": 24,
+     "logo": null,
+     "category": "Sport",
+     "versions": [
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-02ae9188",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      },
+      {
+       "id": "en-hd",
+       "language": "EN",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-0528045b",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Sport"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "category": "Cinéma",
+   "channels": [
+    {
+     "id": "live:ciné-club",
+     "name": "Ciné Club",
+     "number": 30,
+     "logo": null,
+     "category": "Cinéma",
+     "versions": [
+      {
+       "id": "fr-4k",
+       "language": "FR",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-044abfd0",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        },
+        {
+         "id": "src-0328275f",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Cinéma Backup"
+        }
+       ]
+      },
+      {
+       "id": "vostfr-4k",
+       "language": "VOSTFR",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-01a94c8d",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        }
+       ]
+      },
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-04ee6d13",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:ciné-frisson",
+     "name": "Ciné Frisson",
+     "number": 31,
+     "logo": null,
+     "category": "Cinéma",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-04648340",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        }
+       ]
+      },
+      {
+       "id": "vostfr-fhd",
+       "language": "VOSTFR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-026c4c25",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:ciné-famille",
+     "name": "Ciné Famille",
+     "number": 32,
+     "logo": null,
+     "category": "Cinéma",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-0457eb11",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        }
+       ]
+      },
+      {
+       "id": "vostfr-fhd",
+       "language": "VOSTFR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-044e4862",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        }
+       ]
+      },
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-03063803",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:ciné-classique",
+     "name": "Ciné Classique",
+     "number": 33,
+     "logo": null,
+     "category": "Cinéma",
+     "versions": [
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-058c81bd",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        }
+       ]
+      },
+      {
+       "id": "vostfr-hd",
+       "language": "VOSTFR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-021bf798",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Cinéma"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "category": "Jeunesse",
+   "channels": [
+    {
+     "id": "live:kidzo",
+     "name": "Kidzo",
+     "number": 40,
+     "logo": null,
+     "category": "Jeunesse",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-02c7f482",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Jeunesse"
+        }
+       ]
+      },
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-039e02bb",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Jeunesse"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:ludik",
+     "name": "Ludik",
+     "number": 41,
+     "logo": null,
+     "category": "Jeunesse",
+     "versions": [
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-01f0c604",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Jeunesse"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "category": "Découverte",
+   "channels": [
+    {
+     "id": "live:planète-bleue",
+     "name": "Planète Bleue",
+     "number": 50,
+     "logo": null,
+     "category": "Découverte",
+     "versions": [
+      {
+       "id": "fr-4k",
+       "language": "FR",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-0167af40",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Découverte"
+        },
+        {
+         "id": "src-0411c1e6",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Découverte Backup"
+        }
+       ]
+      },
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-026a8be3",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Découverte"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:histoire-tv",
+     "name": "Histoire TV",
+     "number": 51,
+     "logo": null,
+     "category": "Découverte",
+     "versions": [
+      {
+       "id": "fr-fhd",
+       "language": "FR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-004cb184",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Découverte"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:sciences",
+     "name": "Sciences",
+     "number": 52,
+     "logo": null,
+     "category": "Découverte",
+     "versions": [
+      {
+       "id": "fr-hd",
+       "language": "FR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-05e125ec",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "origin": "|FR| Chaînes Découverte"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "epg": {
+  "Généralistes": [
+   "Le Journal",
+   "Météo",
+   "Série du soir",
+   "Grand débat",
+   "Cinéma du dimanche",
+   "Magazine santé"
+  ],
+  "Info": [
+   "Le Journal de 21 h",
+   "Édition spéciale",
+   "Décryptage",
+   "Le Point éco",
+   "Nuit de l'info"
+  ],
+  "Sport": [
+   "Ligue · Lyon – Nantes",
+   "Le Mag du foot",
+   "Tennis · Quarts de finale",
+   "Cyclisme · Étape 12",
+   "Rugby · Top 14"
+  ],
+  "Cinéma": [
+   "Orbite Basse",
+   "La Lisière",
+   "Faubourg",
+   "Court-métrage",
+   "Impasse Nord"
+  ],
+  "Jeunesse": [
+   "Petit Bleu",
+   "Les Aventuriers",
+   "Dessins animés",
+   "Quiz junior"
+  ],
+  "Découverte": [
+   "Sous la Glace",
+   "Les Cimes",
+   "Marathon",
+   "Planète sauvage",
+   "Archives"
+  ]
+ }
+}

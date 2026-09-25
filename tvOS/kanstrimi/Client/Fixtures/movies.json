@@ -1,0 +1,3836 @@
+[
+ {
+  "id": "tmdb:movie:100000",
+  "kind": "movie",
+  "title": "La Lisière",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Un dernier été dans la maison familiale. Trois frères, un héritage, et un secret que personne ne veut nommer.",
+  "genres": [
+   "Drame"
+  ],
+  "runtime": 127,
+  "certification": "12+",
+  "rating": 7.8,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   }
+  ],
+  "director": "Sofia Esposito",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-00d23344",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-01c94969",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-04cee928",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-04f8cca8",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0473d537",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-035d6b5f",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-04949ef4",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-26T04:10:00Z"
+ },
+ {
+  "id": "tmdb:movie:100001",
+  "kind": "movie",
+  "title": "Sel et Cendres",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Après vingt ans d'absence, une femme revient dans le port de son enfance et découvre que rien n'a été oublié.",
+  "genres": [
+   "Thriller"
+  ],
+  "runtime": 112,
+  "certification": "16+",
+  "rating": 7.1,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   }
+  ],
+  "director": "Rachid Bouchareb-Lenoir",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-000530fc",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-04e9e3ef",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     },
+     {
+      "id": "src-00a55273",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Nouveautés"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-00e2c9d7",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-24T06:22:00Z"
+ },
+ {
+  "id": "tmdb:movie:100002",
+  "kind": "movie",
+  "title": "Orbite Basse",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Une équipe de sauveteurs isolée pendant une tempête doit choisir entre les ordres et la vie d'un inconnu.",
+  "genres": [
+   "Science-fiction"
+  ],
+  "runtime": 138,
+  "certification": "12+",
+  "rating": 8.2,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   }
+  ],
+  "director": "Sofia Esposito",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-03ec1b73",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-056f6378",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-22T08:34:00Z"
+ },
+ {
+  "id": "tmdb:movie:100003",
+  "kind": "movie",
+  "title": "Le Dernier Tram",
+  "original_title": null,
+  "year": 2023,
+  "overview": "Dans une ville où la nuit ne tombe plus, un inspecteur suit une piste qui le ramène à sa propre famille.",
+  "genres": [
+   "Comédie",
+   "Thriller"
+  ],
+  "runtime": 98,
+  "certification": "Tous",
+  "rating": 6.9,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Idir Benali",
+    "role": null
+   }
+  ],
+  "director": "Anaïs Delacroix",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0302c0e6",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-041bd3c9",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-051a0b9c",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-20T10:46:00Z"
+ },
+ {
+  "id": "tmdb:movie:100004",
+  "kind": "movie",
+  "title": "Vertige Blanc",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Le portrait d'une génération qui a grandi entre deux rives, raconté par ceux qui l'ont vécue.",
+  "genres": [
+   "Aventure"
+  ],
+  "runtime": 121,
+  "certification": "12+",
+  "rating": 7.4,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Yanis Cohen",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   }
+  ],
+  "director": "Hugo Verlaine",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-025643fe",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-024d023e",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-03a8da64",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-dv",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-01208a12",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-18T12:58:00Z"
+ },
+ {
+  "id": "tmdb:movie:100005",
+  "kind": "movie",
+  "title": "Les Portes d'Alger",
+  "original_title": null,
+  "year": 2022,
+  "overview": "Un jeune cartographe est envoyé mesurer une frontière qui n'existe sur aucune carte.",
+  "genres": [
+   "Historique"
+  ],
+  "runtime": 143,
+  "certification": "12+",
+  "rating": 7.6,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   }
+  ],
+  "director": "Sofia Esposito",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-02f364cc",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-17T14:10:00Z"
+ },
+ {
+  "id": "tmdb:movie:100006",
+  "kind": "movie",
+  "title": "Cendrillon 2099",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Un dernier été dans la maison familiale. Trois frères, un héritage, et un secret que personne ne veut nommer.",
+  "genres": [
+   "Animation",
+   "Thriller"
+  ],
+  "runtime": 95,
+  "certification": "Tous",
+  "rating": 7.0,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   }
+  ],
+  "director": "Hugo Verlaine",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-046f82f9",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-03fcd604",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-hd",
+    "language": "VO",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-00ee7c42",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-15T16:22:00Z"
+ },
+ {
+  "id": "tmdb:movie:100007",
+  "kind": "movie",
+  "title": "Faubourg",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Après vingt ans d'absence, une femme revient dans le port de son enfance et découvre que rien n'a été oublié.",
+  "genres": [
+   "Policier"
+  ],
+  "runtime": 109,
+  "certification": "16+",
+  "rating": 7.3,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   }
+  ],
+  "director": "Karim Souleymane",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-04327d1f",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0211b3a5",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-035c1736",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0483127f",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-03d5618c",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-041a8539",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0424d67d",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-13T18:34:00Z"
+ },
+ {
+  "id": "tmdb:movie:100008",
+  "kind": "movie",
+  "title": "Un Été à Tanger",
+  "original_title": null,
+  "year": 2023,
+  "overview": "Une équipe de sauveteurs isolée pendant une tempête doit choisir entre les ordres et la vie d'un inconnu.",
+  "genres": [
+   "Romance"
+  ],
+  "runtime": 104,
+  "certification": "Tous",
+  "rating": 6.8,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   }
+  ],
+  "director": "Claire Moreau",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-05a3262a",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-042f8c27",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     },
+     {
+      "id": "src-055d2638",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Nouveautés"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-00d21390",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-11T20:46:00Z"
+ },
+ {
+  "id": "tmdb:movie:100009",
+  "kind": "movie",
+  "title": "Le Cri du Fjord",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Dans une ville où la nuit ne tombe plus, un inspecteur suit une piste qui le ramène à sa propre famille.",
+  "genres": [
+   "Horreur",
+   "Aventure"
+  ],
+  "runtime": 101,
+  "certification": "18+",
+  "rating": 6.2,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   }
+  ],
+  "director": "Karim Souleymane",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-01d4d7d1",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-00f9e215",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-09T22:58:00Z"
+ },
+ {
+  "id": "tmdb:movie:100010",
+  "kind": "movie",
+  "title": "Marathon",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Le portrait d'une génération qui a grandi entre deux rives, raconté par ceux qui l'ont vécue.",
+  "genres": [
+   "Documentaire"
+  ],
+  "runtime": 88,
+  "certification": "Tous",
+  "rating": 8.0,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Yanis Cohen",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   }
+  ],
+  "director": "Anaïs Delacroix",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-047a765a",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-033775e2",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-055ba7f2",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-09T00:10:00Z"
+ },
+ {
+  "id": "tmdb:movie:100011",
+  "kind": "movie",
+  "title": "Pierre de Lune",
+  "original_title": null,
+  "year": 2022,
+  "overview": "Un jeune cartographe est envoyé mesurer une frontière qui n'existe sur aucune carte.",
+  "genres": [
+   "Fantastique"
+  ],
+  "runtime": 131,
+  "certification": "12+",
+  "rating": 7.2,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   }
+  ],
+  "director": "Karim Souleymane",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0376ebbe",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-019ec8c0",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-025ae0d4",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-dv",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0226fc50",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-07T02:22:00Z"
+ },
+ {
+  "id": "tmdb:movie:100012",
+  "kind": "movie",
+  "title": "Impasse Nord",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Un dernier été dans la maison familiale. Trois frères, un héritage, et un secret que personne ne veut nommer.",
+  "genres": [
+   "Thriller"
+  ],
+  "runtime": 116,
+  "certification": "16+",
+  "rating": 7.9,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   },
+   {
+    "name": "Yanis Cohen",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   }
+  ],
+  "director": "Hugo Verlaine",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-03ea882a",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-05T04:34:00Z"
+ },
+ {
+  "id": "tmdb:movie:100013",
+  "kind": "movie",
+  "title": "Le Cartographe",
+  "original_title": null,
+  "year": 2021,
+  "overview": "Après vingt ans d'absence, une femme revient dans le port de son enfance et découvre que rien n'a été oublié.",
+  "genres": [
+   "Drame"
+  ],
+  "runtime": 124,
+  "certification": "12+",
+  "rating": 7.5,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   }
+  ],
+  "director": "Karim Souleymane",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-04171309",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-03fa2d84",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-hd",
+    "language": "VO",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-03794d4f",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-03T06:46:00Z"
+ },
+ {
+  "id": "tmdb:movie:100014",
+  "kind": "movie",
+  "title": "Flèche d'Or",
+  "original_title": null,
+  "year": 2023,
+  "overview": "Une équipe de sauveteurs isolée pendant une tempête doit choisir entre les ordres et la vie d'un inconnu.",
+  "genres": [
+   "Western"
+  ],
+  "runtime": 119,
+  "certification": "12+",
+  "rating": 7.0,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   }
+  ],
+  "director": "Anaïs Delacroix",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-03a94753",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-00c9784d",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-0381f29e",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0583c116",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-05bb6e06",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-041f1332",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-02121611",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-09-02T07:58:00Z"
+ },
+ {
+  "id": "tmdb:movie:100015",
+  "kind": "movie",
+  "title": "Bleu Outremer",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Dans une ville où la nuit ne tombe plus, un inspecteur suit une piste qui le ramène à sa propre famille.",
+  "genres": [
+   "Romance",
+   "Thriller"
+  ],
+  "runtime": 107,
+  "certification": "Tous",
+  "rating": 7.1,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Théo Lambert",
+    "role": null
+   }
+  ],
+  "director": "Sofia Esposito",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0221b8ff",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-03fcc405",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     },
+     {
+      "id": "src-02f60613",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Nouveautés"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-00c5f703",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-31T10:10:00Z"
+ },
+ {
+  "id": "tmdb:movie:100016",
+  "kind": "movie",
+  "title": "Station Zéro",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Le portrait d'une génération qui a grandi entre deux rives, raconté par ceux qui l'ont vécue.",
+  "genres": [
+   "Science-fiction"
+  ],
+  "runtime": 129,
+  "certification": "12+",
+  "rating": 7.7,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   }
+  ],
+  "director": "Claire Moreau",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-00bcc2e8",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-0000702e",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-29T12:22:00Z"
+ },
+ {
+  "id": "tmdb:movie:100017",
+  "kind": "movie",
+  "title": "La Fabrique",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Un jeune cartographe est envoyé mesurer une frontière qui n'existe sur aucune carte.",
+  "genres": [
+   "Comédie"
+  ],
+  "runtime": 93,
+  "certification": "Tous",
+  "rating": 6.5,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Théo Lambert",
+    "role": null
+   }
+  ],
+  "director": "Hugo Verlaine",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0197201a",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-01fb9249",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-00f76fe7",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-27T14:34:00Z"
+ },
+ {
+  "id": "tmdb:movie:100018",
+  "kind": "movie",
+  "title": "Dérive",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Un dernier été dans la maison familiale. Trois frères, un héritage, et un secret que personne ne veut nommer.",
+  "genres": [
+   "Drame"
+  ],
+  "runtime": 111,
+  "certification": "12+",
+  "rating": 8.1,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   }
+  ],
+  "director": "Sofia Esposito",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0515510b",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-02dba638",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-013cf349",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-dv",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-000a822c",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-25T16:46:00Z"
+ },
+ {
+  "id": "tmdb:movie:100019",
+  "kind": "movie",
+  "title": "Les Loups de Sienne",
+  "original_title": null,
+  "year": 2023,
+  "overview": "Après vingt ans d'absence, une femme revient dans le port de son enfance et découvre que rien n'a été oublié.",
+  "genres": [
+   "Historique"
+  ],
+  "runtime": 148,
+  "certification": "16+",
+  "rating": 7.8,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   }
+  ],
+  "director": "Sofia Esposito",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-05c38727",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-24T17:58:00Z"
+ },
+ {
+  "id": "tmdb:movie:100020",
+  "kind": "movie",
+  "title": "Halo Noir",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Une équipe de sauveteurs isolée pendant une tempête doit choisir entre les ordres et la vie d'un inconnu.",
+  "genres": [
+   "Policier"
+  ],
+  "runtime": 102,
+  "certification": "16+",
+  "rating": 6.9,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   }
+  ],
+  "director": "Hugo Verlaine",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-010cbb1e",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-04c8fbbe",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-hd",
+    "language": "VO",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-058a55c7",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-22T20:10:00Z"
+ },
+ {
+  "id": "tmdb:movie:100021",
+  "kind": "movie",
+  "title": "Kilomètre 40",
+  "original_title": null,
+  "year": 2022,
+  "overview": "Dans une ville où la nuit ne tombe plus, un inspecteur suit une piste qui le ramène à sa propre famille.",
+  "genres": [
+   "Aventure"
+  ],
+  "runtime": 115,
+  "certification": "12+",
+  "rating": 7.2,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   }
+  ],
+  "director": "Sofia Esposito",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0147edc9",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0115305a",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-04b03012",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0272b265",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-040fc602",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-034bdb2e",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-031f8ddd",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-20T22:22:00Z"
+ },
+ {
+  "id": "tmdb:movie:100022",
+  "kind": "movie",
+  "title": "Rue des Lilas",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Le portrait d'une génération qui a grandi entre deux rives, raconté par ceux qui l'ont vécue.",
+  "genres": [
+   "Comédie"
+  ],
+  "runtime": 96,
+  "certification": "Tous",
+  "rating": 7.3,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   }
+  ],
+  "director": "Claire Moreau",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-00d95cc0",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-031d6278",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     },
+     {
+      "id": "src-00966437",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Nouveautés"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0069377d",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-19T00:34:00Z"
+ },
+ {
+  "id": "tmdb:movie:100023",
+  "kind": "movie",
+  "title": "La Meute",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Un jeune cartographe est envoyé mesurer une frontière qui n'existe sur aucune carte.",
+  "genres": [
+   "Horreur"
+  ],
+  "runtime": 99,
+  "certification": "18+",
+  "rating": 6.6,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Yanis Cohen",
+    "role": null
+   },
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   }
+  ],
+  "director": "Claire Moreau",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-04154638",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-03cee5e4",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-18T01:46:00Z"
+ },
+ {
+  "id": "tmdb:movie:100024",
+  "kind": "movie",
+  "title": "Sous la Glace",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Un dernier été dans la maison familiale. Trois frères, un héritage, et un secret que personne ne veut nommer.",
+  "genres": [
+   "Documentaire",
+   "Thriller"
+  ],
+  "runtime": 92,
+  "certification": "Tous",
+  "rating": 8.4,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Idir Benali",
+    "role": null
+   }
+  ],
+  "director": "Claire Moreau",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-03fb05cf",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-03bb8fc4",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0492ac92",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-16T03:58:00Z"
+ },
+ {
+  "id": "tmdb:movie:100025",
+  "kind": "movie",
+  "title": "Coda",
+  "original_title": null,
+  "year": 2023,
+  "overview": "Après vingt ans d'absence, une femme revient dans le port de son enfance et découvre que rien n'a été oublié.",
+  "genres": [
+   "Drame"
+  ],
+  "runtime": 118,
+  "certification": "12+",
+  "rating": 7.9,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   }
+  ],
+  "director": "Rachid Bouchareb-Lenoir",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0378073e",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-04fc9b49",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-02b0fc5f",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-dv",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-03aba861",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-14T06:10:00Z"
+ },
+ {
+  "id": "tmdb:movie:100026",
+  "kind": "movie",
+  "title": "Saltimbanque",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Une équipe de sauveteurs isolée pendant une tempête doit choisir entre les ordres et la vie d'un inconnu.",
+  "genres": [
+   "Animation"
+  ],
+  "runtime": 101,
+  "certification": "Tous",
+  "rating": 7.4,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   },
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   }
+  ],
+  "director": "Karim Souleymane",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-0045f1d8",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-12T08:22:00Z"
+ },
+ {
+  "id": "tmdb:movie:100027",
+  "kind": "movie",
+  "title": "Le Passeur",
+  "original_title": null,
+  "year": 2022,
+  "overview": "Dans une ville où la nuit ne tombe plus, un inspecteur suit une piste qui le ramène à sa propre famille.",
+  "genres": [
+   "Thriller"
+  ],
+  "runtime": 110,
+  "certification": "16+",
+  "rating": 7.0,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   }
+  ],
+  "director": "Sofia Esposito",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-045bae81",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0062b01b",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-hd",
+    "language": "VO",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-039d5440",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-10T10:34:00Z"
+ },
+ {
+  "id": "tmdb:movie:100028",
+  "kind": "movie",
+  "title": "Éclipse Totale",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Le portrait d'une génération qui a grandi entre deux rives, raconté par ceux qui l'ont vécue.",
+  "genres": [
+   "Science-fiction"
+  ],
+  "runtime": 134,
+  "certification": "12+",
+  "rating": 7.6,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   }
+  ],
+  "director": "Rachid Bouchareb-Lenoir",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-052a4bc3",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-043d4f60",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-01bff21f",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-042283a5",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-011a0ddd",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-01487ae8",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-054a2f3d",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-09T11:46:00Z"
+ },
+ {
+  "id": "tmdb:movie:100029",
+  "kind": "movie",
+  "title": "Terre Brûlée",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Un jeune cartographe est envoyé mesurer une frontière qui n'existe sur aucune carte.",
+  "genres": [
+   "Western"
+  ],
+  "runtime": 126,
+  "certification": "16+",
+  "rating": 7.1,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   }
+  ],
+  "director": "Hugo Verlaine",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-03500cbb",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-00a117df",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     },
+     {
+      "id": "src-0310c37a",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Nouveautés"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-02707444",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-07T13:58:00Z"
+ },
+ {
+  "id": "tmdb:movie:100030",
+  "kind": "movie",
+  "title": "Le Grand Bazar",
+  "original_title": null,
+  "year": 2023,
+  "overview": "Un dernier été dans la maison familiale. Trois frères, un héritage, et un secret que personne ne veut nommer.",
+  "genres": [
+   "Comédie",
+   "Drame"
+  ],
+  "runtime": 105,
+  "certification": "Tous",
+  "rating": 6.7,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Samir Haddad",
+    "role": null
+   }
+  ],
+  "director": "Karim Souleymane",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-03536e20",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-024d2611",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-05T16:10:00Z"
+ },
+ {
+  "id": "tmdb:movie:100031",
+  "kind": "movie",
+  "title": "Manoir",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Après vingt ans d'absence, une femme revient dans le port de son enfance et découvre que rien n'a été oublié.",
+  "genres": [
+   "Fantastique"
+  ],
+  "runtime": 113,
+  "certification": "12+",
+  "rating": 6.9,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Samir Haddad",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   }
+  ],
+  "director": "Karim Souleymane",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-038e817a",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-00f5f9ef",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0437cfd1",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-03T18:22:00Z"
+ },
+ {
+  "id": "tmdb:movie:100032",
+  "kind": "movie",
+  "title": "Vingt Heures",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Une équipe de sauveteurs isolée pendant une tempête doit choisir entre les ordres et la vie d'un inconnu.",
+  "genres": [
+   "Policier"
+  ],
+  "runtime": 108,
+  "certification": "16+",
+  "rating": 7.5,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   }
+  ],
+  "director": "Rachid Bouchareb-Lenoir",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-000a0c11",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-00beb57c",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-03a20655",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-dv",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-052a59dc",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-01T20:34:00Z"
+ },
+ {
+  "id": "tmdb:movie:100033",
+  "kind": "movie",
+  "title": "Latitude Sud",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Dans une ville où la nuit ne tombe plus, un inspecteur suit une piste qui le ramène à sa propre famille.",
+  "genres": [
+   "Aventure"
+  ],
+  "runtime": 122,
+  "certification": "12+",
+  "rating": 7.3,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   }
+  ],
+  "director": "Claire Moreau",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-02d0cb3e",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-07-31T21:46:00Z"
+ },
+ {
+  "id": "tmdb:movie:100034",
+  "kind": "movie",
+  "title": "Le Silence des Quais",
+  "original_title": null,
+  "year": 2022,
+  "overview": "Le portrait d'une génération qui a grandi entre deux rives, raconté par ceux qui l'ont vécue.",
+  "genres": [
+   "Drame"
+  ],
+  "runtime": 117,
+  "certification": "12+",
+  "rating": 8.0,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   }
+  ],
+  "director": "Rachid Bouchareb-Lenoir",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-00e0a6fc",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-04f75dd2",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-hd",
+    "language": "VO",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-05ba64c8",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-07-29T23:58:00Z"
+ },
+ {
+  "id": "tmdb:movie:100035",
+  "kind": "movie",
+  "title": "Néon",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Un jeune cartographe est envoyé mesurer une frontière qui n'existe sur aucune carte.",
+  "genres": [
+   "Thriller"
+  ],
+  "runtime": 104,
+  "certification": "16+",
+  "rating": 7.2,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Jules Okonkwo",
+    "role": null
+   }
+  ],
+  "director": "Hugo Verlaine",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-025b8bbc",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-0480adbe",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-022511fb",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-055cca1b",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-047224c0",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-010f9a1c",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-00cfc806",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-07-28T02:10:00Z"
+ },
+ {
+  "id": "tmdb:movie:100036",
+  "kind": "movie",
+  "title": "Paradis Perdu",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Un dernier été dans la maison familiale. Trois frères, un héritage, et un secret que personne ne veut nommer.",
+  "genres": [
+   "Romance",
+   "Thriller"
+  ],
+  "runtime": 109,
+  "certification": "12+",
+  "rating": 6.8,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   },
+   {
+    "name": "Yanis Cohen",
+    "role": null
+   }
+  ],
+  "director": "Sofia Esposito",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-hdr",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-007bc0af",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-02d99b5e",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     },
+     {
+      "id": "src-05c763cb",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Nouveautés"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-017be4e6",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-07-26T04:22:00Z"
+ },
+ {
+  "id": "tmdb:movie:100037",
+  "kind": "movie",
+  "title": "Les Cimes",
+  "original_title": null,
+  "year": 2023,
+  "overview": "Après vingt ans d'absence, une femme revient dans le port de son enfance et découvre que rien n'a été oublié.",
+  "genres": [
+   "Documentaire"
+  ],
+  "runtime": 86,
+  "certification": "Tous",
+  "rating": 7.9,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Yanis Cohen",
+    "role": null
+   },
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   }
+  ],
+  "director": "Anaïs Delacroix",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0236db9d",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-04b47242",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-07-25T05:34:00Z"
+ },
+ {
+  "id": "tmdb:movie:100038",
+  "kind": "movie",
+  "title": "Ombre Portée",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Une équipe de sauveteurs isolée pendant une tempête doit choisir entre les ordres et la vie d'un inconnu.",
+  "genres": [
+   "Horreur"
+  ],
+  "runtime": 97,
+  "certification": "18+",
+  "rating": 6.4,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Idir Benali",
+    "role": null
+   },
+   {
+    "name": "Nadia Ferrière",
+    "role": null
+   }
+  ],
+  "director": "Anaïs Delacroix",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vostfr-4k-hdr",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-020c8ac8",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "HDR"
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-0080c6bf",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-fhd",
+    "language": "VO",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-001c6827",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-07-23T07:46:00Z"
+ },
+ {
+  "id": "tmdb:movie:100039",
+  "kind": "movie",
+  "title": "Le Fil Rouge",
+  "original_title": null,
+  "year": 2023,
+  "overview": "Dans une ville où la nuit ne tombe plus, un inspecteur suit une piste qui le ramène à sa propre famille.",
+  "genres": [
+   "Policier",
+   "Thriller"
+  ],
+  "runtime": 112,
+  "certification": "16+",
+  "rating": 7.4,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Camille Dorval",
+    "role": null
+   },
+   {
+    "name": "Louise Marchetti",
+    "role": null
+   },
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   },
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   }
+  ],
+  "director": "Claire Moreau",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-01e1bdd8",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     },
+     {
+      "id": "src-002f0eef",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films 4K UHD"
+     }
+    ],
+    "dynamic_range": "DV"
+   },
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-027ab6a4",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-4k-dv",
+    "language": "VOSTFR",
+    "quality": "4K",
+    "sources": [
+     {
+      "id": "src-00fbf213",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "4K DV"
+     }
+    ],
+    "dynamic_range": "DV"
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-07-21T09:58:00Z"
+ },
+ {
+  "id": "tmdb:movie:100040",
+  "kind": "movie",
+  "title": "Antipodes",
+  "original_title": null,
+  "year": 2024,
+  "overview": "Le portrait d'une génération qui a grandi entre deux rives, raconté par ceux qui l'ont vécue.",
+  "genres": [
+   "Science-fiction"
+  ],
+  "runtime": 141,
+  "certification": "12+",
+  "rating": 7.8,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Théo Lambert",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Élise Vautrin",
+    "role": null
+   },
+   {
+    "name": "Idir Benali",
+    "role": null
+   }
+  ],
+  "director": "Anaïs Delacroix",
+  "trailer": "demo://movie",
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-03a5fac4",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-07-19T12:10:00Z"
+ },
+ {
+  "id": "tmdb:movie:100041",
+  "kind": "movie",
+  "title": "Fin de Partie",
+  "original_title": null,
+  "year": 2025,
+  "overview": "Un jeune cartographe est envoyé mesurer une frontière qui n'existe sur aucune carte.",
+  "genres": [
+   "Drame"
+  ],
+  "runtime": 120,
+  "certification": "12+",
+  "rating": 8.3,
+  "poster": null,
+  "backdrop": null,
+  "cast": [
+   {
+    "name": "Marc Delcourt",
+    "role": null
+   },
+   {
+    "name": "Aya Nakamura-Petit",
+    "role": null
+   },
+   {
+    "name": "Yanis Cohen",
+    "role": null
+   },
+   {
+    "name": "Inès Rahmani",
+    "role": null
+   }
+  ],
+  "director": "Karim Souleymane",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "versions": [
+   {
+    "id": "vf-fhd",
+    "language": "VF",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-02874c6b",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vostfr-fhd",
+    "language": "VOSTFR",
+    "quality": "FHD",
+    "sources": [
+     {
+      "id": "src-04dcbeb9",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films FHD"
+     }
+    ]
+   },
+   {
+    "id": "vo-hd",
+    "language": "VO",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-01b99f7c",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-07-17T14:22:00Z"
+ },
+ {
+  "id": "fallback:movie:silver-book-of-dreams:2013",
+  "kind": "movie",
+  "title": "Silver Book of Dreams",
+  "original_title": null,
+  "year": 2013,
+  "overview": null,
+  "genres": [],
+  "runtime": null,
+  "certification": null,
+  "rating": null,
+  "poster": null,
+  "backdrop": null,
+  "cast": [],
+  "director": null,
+  "trailer": null,
+  "has_tmdb": false,
+  "provider_category": "Aventure",
+  "raw_title": "AZ - Silver.Book.of.Dreams.2013",
+  "versions": [
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-04c0a130",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   },
+   {
+    "id": "vf-sd",
+    "language": "VF",
+    "quality": "SD",
+    "sources": [
+     {
+      "id": "src-03b38c3f",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films SD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-17T04:10:00Z"
+ },
+ {
+  "id": "fallback:movie:karate-kid-legends:2025",
+  "kind": "movie",
+  "title": "Karate Kid Legends",
+  "original_title": null,
+  "year": 2025,
+  "overview": null,
+  "genres": [],
+  "runtime": null,
+  "certification": null,
+  "rating": null,
+  "poster": null,
+  "backdrop": null,
+  "cast": [],
+  "director": null,
+  "trailer": null,
+  "has_tmdb": false,
+  "provider_category": "Action",
+  "raw_title": "FR - Karate.Kid.Legends.2025.MULTI",
+  "versions": [
+   {
+    "id": "vf-hd",
+    "language": "VF",
+    "quality": "HD",
+    "sources": [
+     {
+      "id": "src-0368b3ae",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films HD"
+     }
+    ]
+   },
+   {
+    "id": "vf-sd",
+    "language": "VF",
+    "quality": "SD",
+    "sources": [
+     {
+      "id": "src-0568485c",
+      "container": "MKV",
+      "stream_url": "demo://movie",
+      "origin": "Films SD"
+     }
+    ]
+   }
+  ],
+  "progress": null,
+  "is_favorite": false,
+  "seasons": null,
+  "current_episode": null,
+  "added_at": "2026-08-16T04:10:00Z"
+ }
+]

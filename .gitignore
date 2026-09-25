@@ -28,3 +28,7 @@ DerivedData/
 .build/
 .swiftpm/
 *.xcresult
+
+# Xcode
+xcuserdata/
+DerivedData/

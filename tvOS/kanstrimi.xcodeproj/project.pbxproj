@@ -6,15 +6,12 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A1000001000000000000VLC1 /* VLCKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1000001000000000000VLC2 /* VLCKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		158194F03067306B00A28BEA /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 158194DA3067306A00A28BEA /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 158194E13067306A00A28BEA;
-			remoteInfo = kanstrimi;
-		};
-		158194FA3067306B00A28BEA /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 158194DA3067306A00A28BEA /* Project object */;
 			proxyType = 1;
@@ -26,7 +23,6 @@
 /* Begin PBXFileReference section */
 		158194E23067306A00A28BEA /* kanstrimi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = kanstrimi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		158194EF3067306B00A28BEA /* kanstrimiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = kanstrimiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		158194F93067306B00A28BEA /* kanstrimiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = kanstrimiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -40,25 +36,16 @@
 			path = kanstrimiTests;
 			sourceTree = "<group>";
 		};
-		158194FC3067306B00A28BEA /* kanstrimiUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = kanstrimiUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		158194DF3067306A00A28BEA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				A1000001000000000000VLC1 /* VLCKit in Frameworks */,
 			);
 		};
 		158194EC3067306B00A28BEA /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			files = (
-			);
-		};
-		158194F63067306B00A28BEA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 			);
@@ -71,7 +58,6 @@
 			children = (
 				158194E43067306A00A28BEA /* kanstrimi */,
 				158194F23067306B00A28BEA /* kanstrimiTests */,
-				158194FC3067306B00A28BEA /* kanstrimiUITests */,
 				158194E33067306A00A28BEA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -81,7 +67,6 @@
 			children = (
 				158194E23067306A00A28BEA /* kanstrimi.app */,
 				158194EF3067306B00A28BEA /* kanstrimiTests.xctest */,
-				158194F93067306B00A28BEA /* kanstrimiUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -103,6 +88,9 @@
 				158194E43067306A00A28BEA /* kanstrimi */,
 			);
 			name = kanstrimi;
+			packageProductDependencies = (
+				A1000001000000000000VLC2 /* VLCKit */,
+			);
 			productName = kanstrimi;
 			productReference = 158194E23067306A00A28BEA /* kanstrimi.app */;
 			productType = "com.apple.product-type.application";
@@ -128,27 +116,6 @@
 			productReference = 158194EF3067306B00A28BEA /* kanstrimiTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		158194F83067306B00A28BEA /* kanstrimiUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 158195073067306B00A28BEA /* Build configuration list for PBXNativeTarget "kanstrimiUITests" */;
-			buildPhases = (
-				158194F53067306B00A28BEA /* Sources */,
-				158194F63067306B00A28BEA /* Frameworks */,
-				158194F73067306B00A28BEA /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				158194FB3067306B00A28BEA /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				158194FC3067306B00A28BEA /* kanstrimiUITests */,
-			);
-			name = kanstrimiUITests;
-			productName = kanstrimiUITests;
-			productReference = 158194F93067306B00A28BEA /* kanstrimiUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -166,10 +133,6 @@
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = 158194E13067306A00A28BEA;
 					};
-					158194F83067306B00A28BEA = {
-						CreatedOnToolsVersion = 27.0;
-						TestTargetID = 158194E13067306A00A28BEA;
-					};
 				};
 			};
 			buildConfigurationList = 158194DD3067306A00A28BEA /* Build configuration list for PBXProject "kanstrimi" */;
@@ -181,6 +144,9 @@
 			);
 			mainGroup = 158194D93067306A00A28BEA;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A1000001000000000000VLC0 /* XCRemoteSwiftPackageReference "vlckit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 158194E33067306A00A28BEA /* Products */;
 			projectDirPath = "";
@@ -188,7 +154,6 @@
 			targets = (
 				158194E13067306A00A28BEA /* kanstrimi */,
 				158194EE3067306B00A28BEA /* kanstrimiTests */,
-				158194F83067306B00A28BEA /* kanstrimiUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -200,11 +165,6 @@
 			);
 		};
 		158194ED3067306B00A28BEA /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			files = (
-			);
-		};
-		158194F73067306B00A28BEA /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -222,11 +182,6 @@
 			files = (
 			);
 		};
-		158194F53067306B00A28BEA /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			files = (
-			);
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -234,11 +189,6 @@
 			isa = PBXTargetDependency;
 			target = 158194E13067306A00A28BEA /* kanstrimi */;
 			targetProxy = 158194F03067306B00A28BEA /* PBXContainerItemProxy */;
-		};
-		158194FB3067306B00A28BEA /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 158194E13067306A00A28BEA /* kanstrimi */;
-			targetProxy = 158194FA3067306B00A28BEA /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -466,46 +416,6 @@
 			};
 			name = Release;
 		};
-		158195083067306B00A28BEA /* Debug configuration for PBXNativeTarget "kanstrimiUITests" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = H6PDBN2THG;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.crafters.kanstrimiUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 3;
-				TEST_TARGET_NAME = kanstrimi;
-			};
-			name = Debug;
-		};
-		158195093067306B00A28BEA /* Release configuration for PBXNativeTarget "kanstrimiUITests" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = H6PDBN2THG;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.crafters.kanstrimiUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 3;
-				TEST_TARGET_NAME = kanstrimi;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -533,15 +443,26 @@
 			);
 			defaultConfigurationName = Release;
 		};
-		158195073067306B00A28BEA /* Build configuration list for PBXNativeTarget "kanstrimiUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				158195083067306B00A28BEA /* Debug configuration for PBXNativeTarget "kanstrimiUITests" */,
-				158195093067306B00A28BEA /* Release configuration for PBXNativeTarget "kanstrimiUITests" */,
-			);
-			defaultConfigurationName = Release;
-		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1000001000000000000VLC0 /* XCRemoteSwiftPackageReference "vlckit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/videolan/vlckit";
+			requirement = {
+				kind = revision;
+				revision = 440dc1df19d181b500ae414762671701d192bcf8;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1000001000000000000VLC2 /* VLCKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1000001000000000000VLC0 /* XCRemoteSwiftPackageReference "vlckit" */;
+			productName = VLCKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 158194DA3067306A00A28BEA /* Project object */;
 	validationLevel = 1;
