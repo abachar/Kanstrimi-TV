@@ -29,8 +29,31 @@ private struct ScreenHost<Content: View>: View {
         VersionPicker(title: "La Lisière", versions: Fixtures.sevenVersions, recommendedID: "vf-4k-dv") { _, _, _, _ in }
     }
 }
+#Preview("Accueil") { ScreenHost { HomeView() } }
+#Preview("Accueil hors ligne") {
+    ScreenHost(setup: { env in
+        env.scenario.offline = true
+        let cached = HomeScreen(hero: nil, rows: [], generatedAt: .now.addingTimeInterval(-3600 * 5))
+        _ = cached
+    }) { HomeOfflinePreview() }
+}
 #Preview("Appairage") { ScreenHost { PairingView() } }
 #Preview("Réglages") { ScreenHost { SettingsView() } }
+
+/// Loads the home online once to fill the cache, then goes offline and reloads from it.
+private struct HomeOfflinePreview: View {
+    @Environment(AppEnvironment.self) private var env
+    @State private var ready = false
+    var body: some View {
+        Group { if ready { HomeView() } else { Color.clear } }
+            .task {
+                env.scenario.offline = false
+                if let h = try? await env.client.home() { env.homeCache.save(h) }
+                env.scenario.offline = true
+                ready = true
+            }
+    }
+}
 
 private enum Fixtures {
     static func source(_ id: String, origin: String) -> Source {
@@ -45,4 +68,10 @@ private enum Fixtures {
         Version(id: "vo-fhd", language: .vo, quality: .fhd, dynamicRange: nil, sources: [source("g", origin: "VO")]),
     ]
 }
+#endif
+#if DEBUG
+#Preview("Direct") { ScreenHost { LiveView() } }
+#Preview("Recherche") { ScreenHost { SearchView() } }
+#Preview("Recherche · résultats") { ScreenHost { SearchView(initialQuery: "le") } }
+#Preview("Recherche · vide") { ScreenHost { SearchView(initialQuery: "interstellar xyz") } }
 #endif

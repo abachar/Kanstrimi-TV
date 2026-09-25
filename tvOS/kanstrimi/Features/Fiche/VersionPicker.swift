@@ -121,7 +121,7 @@ struct VersionPicker: View {
         } label: {
             HStack(spacing: 18) {
                 Image(systemName: selectedSource?.id == s.id && selectedVersion?.id == v.id ? "largecircle.fill.circle" : "circle").foregroundStyle(Theme.secondary)
-                Text("Source \(Character(UnicodeScalar(65 + index)!))").font(.callout.weight(.semibold)).frame(width: 340, alignment: .leading)
+                Text("Source \(String(Character(UnicodeScalar(65 + index)!)))").font(.callout.weight(.semibold)).frame(width: 340, alignment: .leading)
                 Text("catégorie « \(s.origin) » · \(s.container)").font(.callout).foregroundStyle(Theme.secondary)
                 Spacer()
                 if index == 0 {

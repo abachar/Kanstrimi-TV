@@ -51,11 +51,12 @@ final class MockCatalogClient: CatalogClient {
 
     // MARK: - Plumbing
 
-    private func gate() async throws {
+    /// Simulated latency, then the scripted failures. Pairing calls carry no token: no 401 for them.
+    private func gate(authenticated: Bool = true) async throws {
         if scenario.latency > 0 {
             try? await Task.sleep(for: .seconds(scenario.latency))
         }
-        if scenario.unauthorized { throw CatalogError.unauthorized }
+        if authenticated, scenario.unauthorized { throw CatalogError.unauthorized }
         if scenario.offline { throw CatalogError.offline }
     }
 
@@ -116,7 +117,7 @@ final class MockCatalogClient: CatalogClient {
     // MARK: - Pairing and session
 
     func createPairingCode() async throws -> PairingCode {
-        try await gate()
+        try await gate(authenticated: false)
         pairingApproved = false
         pairingCreatedAt = .now
         let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
@@ -130,11 +131,14 @@ final class MockCatalogClient: CatalogClient {
     func approvePairing() { pairingApproved = true }
 
     func pollPairing(code: String) async throws -> PairingStatus {
-        try await gate()
+        try await gate(authenticated: false)
         if scenario.pairingExpires, let created = pairingCreatedAt, Date.now.timeIntervalSince(created) > 6 { return .expired }
         if scenario.pairingApprovalDelay > 0, let created = pairingCreatedAt,
            Date.now.timeIntervalSince(created) > scenario.pairingApprovalDelay { pairingApproved = true }
-        return pairingApproved ? .approved(token: "mock-" + UUID().uuidString.lowercased(), deviceName: "Salon") : .pending
+        guard pairingApproved else { return .pending }
+        // A freshly approved device gets a valid token: the "revoked" scenario ends here.
+        scenario.unauthorized = false
+        return .approved(token: "mock-" + UUID().uuidString.lowercased(), deviceName: "Salon")
     }
 
     func session() async throws -> Session {
