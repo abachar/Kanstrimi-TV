@@ -38,6 +38,10 @@ private struct ScreenHost<Content: View>: View {
     }) { HomeOfflinePreview() }
 }
 #Preview("Appairage") { ScreenHost { PairingView() } }
+#Preview("Appairage · code expiré") { ScreenHost(setup: { $0.scenario.pairingExpires = true }) { PairingView() } }
+#Preview("Appairage · jeton révoqué") {
+    ScreenHost(setup: { $0.device.forget(reason: "L'appareil « Salon » a été retiré depuis l'admin du serveur. Vos favoris et vos reprises sont conservés côté serveur ; il suffit de l'ajouter à nouveau.") }) { PairingView() }
+}
 #Preview("Réglages") { ScreenHost { SettingsView() } }
 
 /// Loads the home online once to fill the cache, then goes offline and reloads from it.

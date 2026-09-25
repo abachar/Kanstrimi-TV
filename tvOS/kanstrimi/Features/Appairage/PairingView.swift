@@ -11,7 +11,7 @@ struct PairingView: View {
         HStack(alignment: .center, spacing: 120) {
             VStack(alignment: .leading, spacing: 28) {
                 Text("Kanstrimi").font(.system(size: 30, weight: .bold)).tracking(4).foregroundStyle(Theme.accent)
-                Text("Connectez-vous avec votre téléphone").font(.system(size: 60, weight: .bold)).lineLimit(2)
+                Text("Connectez-vous avec votre téléphone").font(.system(size: 56, weight: .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                 step(1, "Scannez le QR code avec l'appareil photo")
                 step(2, "Connectez-vous à l'admin et nommez cet Apple TV")
                 step(3, "L'Apple TV est ajoutée, sans rien saisir ici")
@@ -53,14 +53,14 @@ struct PairingView: View {
             Text("\(n)").font(.title3.weight(.bold))
                 .frame(width: 44, height: 44)
                 .background(Circle().fill(.white.opacity(0.12)))
-            Text(text).font(.title3)
+            Text(text).font(.title3).fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private func revokedNotice(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Cet Apple TV a été dissocié", systemImage: "exclamationmark.triangle").font(.headline).foregroundStyle(Theme.accent)
-            Text(message).font(.callout).foregroundStyle(Theme.secondary)
+            Text(message).font(.callout).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
             Text("Réponse 401 du serveur · jeton effacé du trousseau, cache de l'accueil vidé").font(.caption).foregroundStyle(Theme.secondary)
         }
         .padding(22)

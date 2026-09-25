@@ -30,10 +30,25 @@ lire la source, appliquer les filtres, enrichir via TMDB.
 👉 **Lire `server/CLAUDE.md` avant toute modification** : conventions, modèle de
 sécurité (chiffrement des secrets, coffre en RAM) et pièges.
 
-### `tvOS/` — projet Xcode créé, squelette seulement
+### `tvOS/` — interface complète en maquette, sur données statiques
 
-`tvOS/kanstrimi.xcodeproj` : SwiftUI, Swift 6, cible tvOS 27, Apple TV 4K, Swift Testing.
-Aucun écran n'est encore écrit. Avant de coder, lire dans l'ordre :
+`tvOS/kanstrimi.xcodeproj` : SwiftUI, Swift 6 (isolation `MainActor` par défaut), tvOS 27,
+Apple TV 4K uniquement, Swift Testing, **VLCKit 4 en SPM** (miroir GitHub `videolan/vlckit`,
+révision figée dans le projet). Tous les écrans du flow existent et tournent sur le
+simulateur, alimentés par un client mock ; **aucun appel réseau** autre que les trois flux
+de démo de `Client/DemoStreams.swift`. L'appairage réel viendra en dernier.
+
+Organisation de `tvOS/kanstrimi/` :
+
+| Dossier | Rôle |
+|---|---|
+| `Contract/` | Types calqués sur le futur `/api/v1` (`ContentCard`, `ContentDetail`, `Version`, `Source`, `Season`, `Episode`, `Channel`, `Programme`, `PlaybackContext`…), `nonisolated`, jamais sur la base. |
+| `Client/` | Protocole `CatalogClient`, `MockCatalogClient` sur les fixtures JSON de `Client/Fixtures/`, `MockScenario` (hors ligne, 401, saison en erreur…) piloté depuis Réglages › Démo. |
+| `Player/` | **Le lecteur, service transverse unique** : `PlayerService` (VLCKit, bascule de source, échec après 10 s, épisode suivant, zapping), `VersionChooser` (moteur de choix), écran et panneaux. |
+| `Features/` | Un dossier par fonctionnalité : Appairage, Accueil, Catalogue, Fiche, Direct, Recherche, Réglages. |
+| `Shared/` | Thème, badges, cartes, formats, stores locaux (chaînes récentes, sources en échec, file de progression, cache de l'accueil, cache EPG). |
+
+Avant de coder, lire dans l'ordre :
 
 - `tvOS/FLOW.md` — **le document de référence** : écrans, gestes, états, et ce que chaque
   écran impose à l'API REST (`/api/v1/...`, que le serveur **n'expose pas encore**, bloc 3
@@ -42,6 +57,11 @@ Aucun écran n'est encore écrit. Avant de coder, lire dans l'ordre :
   mise en page, les couleurs et les textes ; `FLOW.md` cite ses numéros entre crochets.
 - `tvOS/ETUDE.md` — contraintes mesurées (VLCKit seul, pas de HLS, MKV, pool amont).
 - `tvOS/README.md` — cahier des charges fonctionnel d'origine.
+
+Vérification visuelle : cette installation Xcode 27 n'a pas de `Simulator.app`, donc pas de
+télécommande à piloter ; on rend les écrans avec les `#Preview` de
+`Features/ScreenPreviews.swift` et `Player/PlayerPreviews.swift` (outil `RenderPreview` du
+MCP Xcode), et les tests avec `RunAllTests`.
 
 ## Le cahier des charges est vivant
 
