@@ -59,7 +59,7 @@ nonisolated extension Array where Element == Version {
         first { $0.language == language && $0.quality == quality && ($0.dynamicRange ?? .sdr) == (dynamicRange ?? .sdr) }
     }
     /// Distinct quality rows for the matrix, best first.
-    var qualityRows: [(quality: Quality, dynamicRange: DynamicRange?)] {
+    var qualityRows: [QualityRow] {
         var seen = Set<String>()
         return sorted { a, b in
             if a.quality != b.quality { return a.quality > b.quality }
@@ -67,7 +67,13 @@ nonisolated extension Array where Element == Version {
         }.compactMap { v in
             let key = "\(v.quality.rawValue)/\(v.dynamicRange?.rawValue ?? "")"
             guard seen.insert(key).inserted else { return nil }
-            return (v.quality, v.dynamicRange)
+            return QualityRow(quality: v.quality, dynamicRange: v.dynamicRange)
         }
     }
+}
+
+nonisolated struct QualityRow: Hashable, Sendable {
+    let quality: Quality
+    let dynamicRange: DynamicRange?
+    var key: String { "\(quality.rawValue)/\(dynamicRange?.rawValue ?? "")" }
 }

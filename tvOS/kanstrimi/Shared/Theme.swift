@@ -24,17 +24,18 @@ struct Badge: View {
     let text: String
     var filled = false
     var color: Color = Theme.text
+    var small = false
 
-    init(_ text: String, filled: Bool = false, color: Color = Theme.text) {
-        self.text = text; self.filled = filled; self.color = color
+    init(_ text: String, filled: Bool = false, color: Color = Theme.text, small: Bool = false) {
+        self.text = text; self.filled = filled; self.color = color; self.small = small
     }
 
     var body: some View {
         Text(text.uppercased())
-            .font(.system(size: 17, weight: .bold))
-            .tracking(0.6)
-            .padding(.horizontal, 9)
-            .frame(height: 28)
+            .font(.system(size: small ? 13 : 17, weight: .bold))
+            .tracking(small ? 0.2 : 0.6)
+            .padding(.horizontal, small ? 6 : 9)
+            .frame(height: small ? 22 : 28)
             .foregroundStyle(filled ? Theme.background : color)
             .background {
                 RoundedRectangle(cornerRadius: 6)
@@ -51,10 +52,10 @@ struct VersionBadges: View {
     var compact = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            if let quality { Badge(quality) }
-            ForEach(compact ? Array(languages.prefix(2)) : languages, id: \.self) { Badge($0.rawValue) }
-            if compact, languages.count > 2 { Badge("+\(languages.count - 2)") }
+        HStack(spacing: compact ? 4 : 6) {
+            if let quality { Badge(quality, small: compact) }
+            ForEach(compact ? Array(languages.prefix(2)) : languages, id: \.self) { Badge($0.rawValue, small: compact) }
+            if compact, languages.count > 2 { Badge("+\(languages.count - 2)", small: compact) }
         }
     }
 }
