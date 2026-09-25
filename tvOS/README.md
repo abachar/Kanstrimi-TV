@@ -117,4 +117,4 @@ Les images du catalogue (affiches, backdrops) sont gérées localement pour gara
 
 | Version minimale | Matériel supporté |
 |---|---|
-| tvOS 17.0+ | Apple TV HD, Apple TV 4K |
+| tvOS 27.0+ | Apple TV 4K uniquement (voir `ETUDE.md` §6) |

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Flow principal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#0C0C10;color:#F5F5F7;font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Figtree",sans-serif;-webkit-font-smoothing:antialiased}
+.node{position:absolute;box-sizing:border-box;padding:18px 22px;border-radius:22px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.18);display:flex;flex-direction:column;gap:6px;justify-content:center}
+.nt{font-size:23px;font-weight:700}
+.ns{font-size:17px;color:rgba(235,235,245,0.64);line-height:1.35}
+.lab{position:absolute;font-size:16px;font-weight:700;letter-spacing:0.02em;color:rgba(235,235,245,0.72)}
+.card{box-sizing:border-box;padding:24px 28px;border-radius:24px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);display:flex;flex-direction:column;gap:8px}
+a{color:#F5B544}a:hover{color:#FFD08A}
+</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0C0C10;">
+  <div style="position: absolute; left: 80px; top: 48px; display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font-size: 44px; font-weight: 800;">Flow principal</h1>
+    <span style="font-size: 20px; color: rgba(235,235,245,0.64);">Du réveil de l'Apple TV à la lecture — chemins Film, Série et Direct</span>
+  </div>
+
+  <svg width="1920" height="1080" viewBox="0 0 1920 1080" aria-hidden="true" style="position: absolute; left: 0; top: 0; fill: none;">
+    <g style="stroke: rgba(255,255,255,0.5); stroke-width: 2.5; fill: none;">
+      <path d="M360 355H430"></path>
+      <path d="M700 355H790"></path>
+      <path d="M750 355V200H790"></path>
+      <path d="M750 355V520H790"></path>
+      <path d="M1520 655H1575V400H1610"></path>
+      <path d="M1730 420V510"></path>
+      <path d="M1840 355H1880V755H1850"></path>
+      <path d="M570 410V740H790"></path>
+    </g>
+    <g style="fill: rgba(255,255,255,0.5); stroke: none;">
+      <path d="M428 348L440 355L428 362z"></path>
+      <path d="M788 348L800 355L788 362z"></path>
+      <path d="M788 193L800 200L788 207z"></path>
+      <path d="M788 513L800 520L788 527z"></path>
+      <path d="M1608 393L1620 400L1608 407z"></path>
+      <path d="M1723 508L1730 520L1737 508z"></path>
+      <path d="M1723 422L1730 410L1737 422z"></path>
+      <path d="M1852 748L1840 755L1852 762z"></path>
+      <path d="M788 733L800 740L788 747z"></path>
+    </g>
+    <g style="stroke: #F5B544; stroke-width: 3; fill: none;">
+      <path d="M1080 200H1130V520H1080"></path>
+      <path d="M1080 355H1170"></path>
+      <path d="M1520 355H1610"></path>
+    </g>
+    <g style="fill: #F5B544; stroke: none;">
+      <path d="M1168 348L1180 355L1168 362z"></path>
+      <path d="M1608 348L1620 355L1608 362z"></path>
+    </g>
+    <path d="M1130 520V655H1170" style="stroke: rgba(255,255,255,0.6); stroke-width: 2.5; stroke-dasharray: 8 7; fill: none;"></path>
+    <path d="M1168 648L1180 655L1168 662z" style="fill: rgba(255,255,255,0.6);"></path>
+  </svg>
+
+  <div class="node" style="left: 80px; top: 300px; width: 280px; height: 110px;"><span class="nt">Appairage</span><span class="ns">QR code au 1er lancement, jeton d'appareil ensuite</span></div>
+  <div class="node" style="left: 440px; top: 300px; width: 260px; height: 110px;"><span class="nt">Accueil</span><span class="ns">Reprendre · Direct · Top Shelf</span></div>
+  <div class="node" style="left: 800px; top: 150px; width: 280px; height: 100px;"><span class="nt">Fiche film</span><span class="ns">Matrice langue × qualité</span></div>
+  <div class="node" style="left: 800px; top: 300px; width: 280px; height: 110px;"><span class="nt">Fiche série</span><span class="ns">Langue mémorisée par série</span></div>
+  <div class="node" style="left: 800px; top: 470px; width: 280px; height: 100px;"><span class="nt">Direct</span><span class="ns">Chaîne → flux (langue, qualité)</span></div>
+  <div class="node" style="left: 800px; top: 690px; width: 280px; height: 100px;"><span class="nt">Films · Séries · Recherche</span><span class="ns">Filtres par langue et qualité → fiches</span></div>
+
+  <div class="node" style="left: 1180px; top: 230px; width: 340px; height: 250px; border: 2px solid #F5B544; background: rgba(245,181,68,0.08); justify-content: flex-start; gap: 10px;">
+    <span class="nt" style="color: #F5B544;">Moteur Smart Play</span>
+    <span class="ns">1. Choix mémorisé pour ce titre</span>
+    <span class="ns">2. Préférences de lecture</span>
+    <span class="ns">3. Capacités TV (4K, HDR)</span>
+    <span class="ns">4. Source en échec récent écartée</span>
+    <span class="ns" style="color: #F5F5F7; font-weight: 600;">→ 1 version + 1 source de secours</span>
+  </div>
+  <div class="node" style="left: 1180px; top: 600px; width: 340px; height: 110px;"><span class="nt">Sélecteur de versions</span><span class="ns">Langue → qualité → source</span></div>
+  <div class="node" style="left: 1620px; top: 300px; width: 220px; height: 110px; background: rgba(255,255,255,0.14);"><span class="nt">Lecteur</span><span class="ns">Liquid Glass</span></div>
+  <div class="node" style="left: 1620px; top: 520px; width: 220px; height: 110px;"><span class="nt">Onglet Versions</span><span class="ns">Reprise au même instant</span></div>
+  <div class="node" style="left: 1620px; top: 700px; width: 220px; height: 110px;"><span class="nt">Bascule auto</span><span class="ns">Source équivalente</span></div>
+
+  <span class="lab" style="left: 1092px; top: 318px; color: #F5B544;">Clic</span>
+  <span class="lab" style="left: 1142px; top: 572px;">Appui long</span>
+  <span class="lab" style="left: 1530px; top: 322px; color: #F5B544;">Version</span>
+  <span class="lab" style="left: 1744px; top: 452px;">Glisser ↓</span>
+  <span class="lab" style="left: 1760px; top: 824px;">Erreur de flux</span>
+  <span class="lab" style="left: 590px; top: 706px;">Onglets</span>
+
+  <div style="position: absolute; left: 80px; top: 870px; width: 1760px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px;">
+    <div class="card"><span style="font-size: 24px; font-weight: 800;">Un clic pour regarder</span><span class="ns">La version est choisie avant l'appui. Aucun dialogue entre Lecture et l'image.</span></div>
+    <div class="card"><span style="font-size: 24px; font-weight: 800;">Des versions, pas des fichiers</span><span class="ns">Langue × qualité. Les sources en double sont fusionnées.</span></div>
+    <div class="card"><span style="font-size: 24px; font-weight: 800;">Pannes invisibles</span><span class="ns">Bascule sur une source équivalente sans quitter la lecture.</span></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

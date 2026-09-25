@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Sélecteur de versions</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#07080B;color:#F5F5F7;font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Figtree",sans-serif;-webkit-font-smoothing:antialiased}
+.glass{background:rgba(255,255,255,0.10);backdrop-filter:blur(40px) saturate(170%);-webkit-backdrop-filter:blur(40px) saturate(170%);border:1px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),0 18px 50px rgba(0,0,0,0.35)}
+button{font-family:inherit;cursor:pointer;text-align:left}
+a{color:#F5B544}a:hover{color:#FFD08A}
+</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #07080B;">
+  <div style="position: absolute; inset: 0; background: radial-gradient(60% 80% at 40% 40%, #9C6236 0%, #4A2A1E 30%, #1A1113 60%, #07080B 90%); filter: blur(30px); opacity: 0.8;"></div>
+  <div style="position: absolute; inset: 0; background: rgba(7,8,11,0.45);"></div>
+
+  <div style="position: absolute; left: 96px; top: 96px; width: 520px; display: flex; flex-direction: column; gap: 22px;">
+    <div style="position: relative; width: 400px; height: 600px; border-radius: 22px; overflow: hidden; background: radial-gradient(90% 70% at 60% 30%, #E3A868 0%, #8A4B2A 35%, #2B1A1C 75%); box-shadow: 0 30px 70px rgba(0,0,0,0.55);">
+      <div style="position: absolute; left: 28px; right: 28px; bottom: 30px; font-size: 44px; line-height: 1.02; font-weight: 800;">Les Heures Claires</div>
+      <div style="position: absolute; left: 28px; top: 26px; font-size: 14px; letter-spacing: 0.12em; color: rgba(255,255,255,0.55);">[AFFICHE]</div>
+    </div>
+    <div style="font-size: 30px; font-weight: 700;">Les Heures Claires</div>
+    <div style="font-size: 22px; color: rgba(235,235,245,0.68);">7 flux · 3 langues · 3 qualités</div>
+  </div>
+
+  <section class="glass" aria-label="Choisir une version" style="position: absolute; left: 700px; top: 56px; width: 1140px; height: 968px; box-sizing: border-box; padding: 44px 48px 36px; border-radius: 44px; display: flex; flex-direction: column; gap: 26px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between;">
+      <h1 style="margin: 0; font-size: 44px; font-weight: 800;">Choisir une version</h1>
+      <span style="font-size: 20px; color: rgba(235,235,245,0.62);">Menu pour fermer</span>
+    </div>
+
+    <div role="tablist" aria-label="Langue" style="display: flex; gap: 6px; padding: 6px; border-radius: 34px; background: rgba(0,0,0,0.28); align-self: flex-start;">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+        <button role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="border: none; height: 56px; padding: 0 28px; border-radius: 28px; font-size: 23px; font-weight: 700; background: {{t.bg}}; color: {{t.fg}};">{{t.label}} <span style="font-weight: 500; opacity: 0.7;">· {{t.n}}</span></button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; flex-grow: 1;">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button onClick="{{r.pick}}" aria-expanded="{{r.expanded}}" style="display: flex; align-items: center; gap: 24px; width: 100%; box-sizing: border-box; padding: 20px 28px; border: none; border-radius: 24px; background: {{r.bg}}; color: {{r.fg}}; transform: {{r.scale}}; box-shadow: {{r.shadow}};">
+            <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="font-size: 28px; font-weight: 800;">{{r.q}}</span>
+                <sc-if value="{{r.rec}}" hint-placeholder-val="{{false}}">
+                  <span style="display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 14px; background: #F5B544; color: #1A1206; font-size: 15px; font-weight: 800; letter-spacing: 0.04em;">RECOMMANDÉ</span>
+                </sc-if>
+              </div>
+              <span style="font-size: 21px; color: {{r.muted}};">{{r.audio}}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-size: 19px; color: {{r.muted}};">
+              <span style="font-weight: 600; color: {{r.fg}};">{{r.count}}</span>
+              <span>{{r.container}}</span>
+            </div>
+            <sc-if value="{{r.hasSubs}}" hint-placeholder-val="{{false}}">
+              <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transform: {{r.chev}};"><path d="M6 9l6 6 6-6"></path></svg>
+            </sc-if>
+          </button>
+          <sc-if value="{{r.expanded}}" hint-placeholder-val="{{false}}">
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 40px;">
+              <sc-for list="{{r.subs}}" as="s" hint-placeholder-count="2">
+                <button onClick="{{s.pick}}" style="display: flex; align-items: center; gap: 20px; width: 100%; box-sizing: border-box; height: 72px; padding: 0 24px; border: 1px solid rgba(255,255,255,0.14); border-radius: 18px; background: {{s.bg}}; color: #F5F5F7;">
+                  <span style="width: 28px; display: flex; justify-content: center;">
+                    <sc-if value="{{s.on}}" hint-placeholder-val="{{false}}">
+                      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: #F5B544; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                    </sc-if>
+                  </span>
+                  <span style="font-size: 22px; font-weight: 700; width: 160px;">{{s.name}}</span>
+                  <span style="font-size: 19px; color: rgba(235,235,245,0.7); flex-grow: 1;">{{s.origin}}</span>
+                  <sc-if value="{{s.best}}" hint-placeholder-val="{{false}}">
+                    <span style="font-size: 16px; font-weight: 700; letter-spacing: 0.04em; color: #F5B544;">PAR DÉFAUT</span>
+                  </sc-if>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 28px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.12);">
+      <button aria-pressed="{{remember}}" onClick="{{toggleRemember}}" style="display: flex; align-items: center; gap: 14px; border: none; background: transparent; color: #F5F5F7; font-size: 21px; font-weight: 600; padding: 0;">
+        <span style="position: relative; width: 60px; height: 34px; border-radius: 17px; background: {{rememberBg}};"><span style="position: absolute; top: 3px; left: {{rememberX}}; width: 28px; height: 28px; border-radius: 14px; background: #FFFFFF;"></span></span>
+        Mémoriser pour ce film
+      </button>
+      <button aria-pressed="{{global}}" onClick="{{toggleGlobal}}" style="display: flex; align-items: center; gap: 14px; border: none; background: transparent; color: #F5F5F7; font-size: 21px; font-weight: 600; padding: 0;">
+        <span style="position: relative; width: 60px; height: 34px; border-radius: 17px; background: {{globalBg}};"><span style="position: absolute; top: 3px; left: {{globalX}}; width: 28px; height: 28px; border-radius: 14px; background: #FFFFFF;"></span></span>
+        Par défaut pour tous
+      </button>
+      <div style="flex-grow: 1;"></div>
+      <button style="display: flex; align-items: center; gap: 12px; height: 68px; padding: 0 36px; border: none; border-radius: 34px; background: #F5F5F7; color: #0B0B0F; font-size: 24px; font-weight: 700;">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style="fill: currentColor;"><path d="M7 4.5v15l12-7.5z"></path></svg>
+        Lire · {{summary}}
+      </button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { lang: 'vf', selected: 'vf-hdr', expanded: 'vf-hdr', source: 'A', remember: true, global: false };
+  }
+  data() {
+    return {
+      vf: [
+        { id: 'vf-dv', q: '4K · Dolby Vision', short: '4K DV · VF', audio: 'Français', container: 'MKV', rec: true, count: '1 source', subs: [] },
+        { id: 'vf-hdr', q: '4K · HDR', short: '4K HDR · VF', audio: 'Français', container: 'MKV', rec: false, count: '2 sources', subs: [
+          { k: 'A', name: 'Source A', origin: 'Catégorie « Films 4K UHD »', best: true },
+          { k: 'B', name: 'Source B', origin: 'Catégorie « Drame »', best: false }
+        ] },
+        { id: 'vf-hd', q: 'HD · 1080p', short: 'HD · VF', audio: 'Français', container: 'MP4', rec: false, count: '1 source', subs: [] }
+      ],
+      st: [
+        { id: 'st-dv', q: '4K · Dolby Vision', short: '4K DV · VOSTFR', audio: 'Anglais · sous-titres français', container: 'MKV', rec: false, count: '1 source', subs: [] },
+        { id: 'st-hd', q: 'HD · 1080p', short: 'HD · VOSTFR', audio: 'Anglais · sous-titres français', container: 'MKV', rec: false, count: '1 source', subs: [] }
+      ],
+      vo: [
+        { id: 'vo-hdr', q: '4K · HDR', short: '4K HDR · VO', audio: 'Anglais · sans sous-titres', container: 'MKV', rec: false, count: '1 source', subs: [] }
+      ]
+    };
+  }
+  renderVals() {
+    const s = this.state || {};
+    const D = this.data();
+    const tabsDef = [ { k: 'vf', label: 'VF', n: 4 }, { k: 'st', label: 'VOSTFR', n: 2 }, { k: 'vo', label: 'VO anglaise', n: 1 } ];
+    const tabs = tabsDef.map((t) => ({
+      ...t,
+      on: s.lang === t.k ? 'true' : 'false',
+      bg: s.lang === t.k ? 'rgba(245,245,247,0.92)' : 'transparent',
+      fg: s.lang === t.k ? '#0B0B0F' : 'rgba(245,245,247,0.8)',
+      pick: () => this.setState({ lang: t.k, selected: D[t.k][0].id, expanded: null, source: 'A' })
+    }));
+    const list = D[s.lang] || D.vf;
+    let summary = '';
+    const rows = list.map((r) => {
+      const sel = s.selected === r.id;
+      const hasSubs = r.subs.length > 0;
+      const expanded = hasSubs && s.expanded === r.id;
+      if (sel) summary = r.short + (hasSubs ? ' · Source ' + s.source : '');
+      return {
+        ...r,
+        rec: !!r.rec,
+        hasSubs,
+        expanded,
+        bg: sel ? 'rgba(245,245,247,0.94)' : 'rgba(255,255,255,0.07)',
+        fg: sel ? '#0B0B0F' : '#F5F5F7',
+        muted: sel ? 'rgba(11,11,15,0.66)' : 'rgba(235,235,245,0.66)',
+        scale: sel ? 'scale(1.02)' : 'none',
+        shadow: sel ? '0 18px 40px rgba(0,0,0,0.45)' : 'none',
+        chev: expanded ? 'rotate(180deg)' : 'none',
+        pick: () => this.setState({ selected: r.id, expanded: hasSubs ? (s.expanded === r.id ? null : r.id) : s.expanded }),
+        subs: r.subs.map((x) => ({
+          ...x,
+          on: sel && s.source === x.k,
+          best: !!x.best,
+          bg: sel && s.source === x.k ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.04)',
+          pick: () => this.setState({ selected: r.id, source: x.k })
+        }))
+      };
+    });
+    return {
+      tabs,
+      rows,
+      summary: summary || list[0].short,
+      remember: s.remember ? 'true' : 'false',
+      global: s.global ? 'true' : 'false',
+      rememberBg: s.remember ? '#30D158' : 'rgba(255,255,255,0.25)',
+      rememberX: s.remember ? '29px' : '3px',
+      globalBg: s.global ? '#30D158' : 'rgba(255,255,255,0.25)',
+      globalX: s.global ? '29px' : '3px',
+      toggleRemember: () => this.setState({ remember: !s.remember }),
+      toggleGlobal: () => this.setState({ global: !s.global })
+    };
+  }
+}
+</script>
+</body>
+</html>

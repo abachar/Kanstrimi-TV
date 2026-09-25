@@ -4,7 +4,7 @@ Ce que le catalogue réel et le fournisseur amont imposent à l'application Appl
 d'en écrire la première ligne.
 
 Mesures relevées le **1ᵉʳ septembre 2026** sur `tv_channels_plus.m3u` (210 Mo, 612 289
-entrées) et sur le fournisseur amont. Cible : **tvOS 26, Apple TV 4K**.
+entrées) et sur le fournisseur amont. Cible : **tvOS 27, Apple TV 4K**.
 
 Ce document distingue trois statuts, parce que les mélanger le rendrait inutilisable dans
 six mois :

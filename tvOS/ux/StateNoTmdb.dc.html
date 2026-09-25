@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Fiche sans TMDB</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#0B0B0F;color:#F5F5F7;font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Figtree",sans-serif;-webkit-font-smoothing:antialiased}
+.glass{background:rgba(255,255,255,0.10);backdrop-filter:blur(40px) saturate(170%);-webkit-backdrop-filter:blur(40px) saturate(170%);border:1px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),0 18px 50px rgba(0,0,0,0.35)}
+.badge{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.6);font-size:16px;font-weight:700;letter-spacing:0.04em;box-sizing:border-box}
+button{font-family:inherit;cursor:pointer}
+a{color:#F5B544}a:hover{color:#FFD08A}
+</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: radial-gradient(70% 80% at 70% 40%, #23242B 0%, #121317 55%, #0B0B0F 100%);">
+  <div style="position: absolute; left: 1240px; top: 120px; width: 400px; height: 600px; border-radius: 22px; border: 2px dashed rgba(255,255,255,0.22); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: rgba(235,235,245,0.5);">
+    <svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 16l5-5 4 4 3-3 6 6"></path><circle cx="16" cy="9" r="1.5"></circle></svg>
+    <span style="font-size: 19px;">Aucune affiche</span>
+  </div>
+
+  <div style="position: absolute; left: 96px; top: 120px; width: 1060px; display: flex; flex-direction: column; gap: 22px;">
+    <h1 style="margin: 0; font-size: 84px; line-height: 1.02; font-weight: 800; letter-spacing: -0.02em;">Silver and the Book of Dreams</h1>
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 24px; color: rgba(235,235,245,0.75);">
+      <span style="margin-right: 8px;">2013 · Aventure</span>
+      <span class="badge">HD</span>
+      <span class="badge">VF</span>
+    </div>
+    <div class="glass" style="display: flex; align-items: flex-start; gap: 16px; align-self: flex-start; padding: 18px 24px; border-radius: 20px; max-width: 900px;">
+      <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: rgba(235,235,245,0.7); stroke-width: 2; stroke-linecap: round; flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 20px; line-height: 1.4; color: rgba(235,235,245,0.8);">
+        <span>Pas de fiche TMDB pour ce titre : ni synopsis, ni casting, ni bande-annonce.</span>
+        <span style="color: rgba(235,235,245,0.55);">Titre nettoyé depuis « AZ - Silver.and.the.Book.of.Dreams.2013 » · catégorie fournisseur « Aventure ». L'association se corrige depuis l'admin du serveur.</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 24px; margin-top: 26px;">
+      <button style="display: flex; align-items: center; gap: 14px; height: 80px; padding: 0 48px; border: none; border-radius: 40px; background: #F5F5F7; color: #0B0B0F; font-size: 30px; font-weight: 700; transform: scale(1.06); transform-origin: left center; box-shadow: 0 22px 50px rgba(0,0,0,0.5);">
+        <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg>
+        Revoir
+      </button>
+      <button class="glass" style="height: 80px; padding: 0 34px; margin-left: 14px; border-radius: 40px; color: #F5F5F7; font-size: 26px; font-weight: 600;">Versions (2)</button>
+      <button class="glass" aria-pressed="true" style="display: flex; align-items: center; gap: 12px; height: 80px; padding: 0 30px; border-radius: 40px; background: rgba(245,245,247,0.2); color: #F5F5F7; font-size: 24px; font-weight: 700;">
+        <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+        Dans ma liste
+      </button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; font-size: 20px; color: rgba(235,235,245,0.62);">
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: #30D158; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+      <span>Vu en entier le 18 sept. · HD · VF · MKV</span>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 96px; bottom: 64px; display: flex; align-items: center; gap: 14px; font-size: 20px; color: rgba(235,235,245,0.6);">
+    <span>Favoris et reprise fonctionnent sans TMDB : l'identité vient du titre nettoyé et de l'année.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

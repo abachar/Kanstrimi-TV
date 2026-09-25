@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Recherche</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#09090D;color:#F5F5F7;font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Figtree",sans-serif;-webkit-font-smoothing:antialiased}
+.glass{background:rgba(255,255,255,0.10);backdrop-filter:blur(40px) saturate(170%);-webkit-backdrop-filter:blur(40px) saturate(170%);border:1px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),0 18px 50px rgba(0,0,0,0.35)}
+.chip{height:46px;padding:0 20px;border-radius:23px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.07);color:rgba(245,245,247,0.85);font-size:19px;font-weight:600;display:flex;align-items:center;gap:8px}
+.chip-on{background:rgba(245,245,247,0.92);color:#0B0B0F;border-color:transparent;font-weight:700}
+.mini{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:5px;border:1.5px solid rgba(255,255,255,0.6);font-size:13px;font-weight:700;letter-spacing:0.05em}
+.h2{margin:0;font-size:26px;font-weight:700}
+button{font-family:inherit;cursor:pointer}
+a{color:#F5B544}a:hover{color:#FFD08A}
+</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: radial-gradient(80% 60% at 50% 0%, #1A1822 0%, #09090D 70%);">
+  <nav class="glass" aria-label="Onglets" style="position: absolute; left: 50%; top: 36px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 8px; border-radius: 40px;">
+    <button style="border: none; padding: 12px 30px; border-radius: 32px; background: transparent; color: rgba(245,245,247,0.78); font-size: 24px; font-weight: 600;">Accueil</button>
+    <button style="border: none; padding: 12px 30px; border-radius: 32px; background: transparent; color: rgba(245,245,247,0.78); font-size: 24px; font-weight: 600;">Direct</button>
+    <button style="border: none; padding: 12px 30px; border-radius: 32px; background: transparent; color: rgba(245,245,247,0.78); font-size: 24px; font-weight: 600;">Films</button>
+    <button style="border: none; padding: 12px 30px; border-radius: 32px; background: transparent; color: rgba(245,245,247,0.78); font-size: 24px; font-weight: 600;">Séries</button>
+    <button aria-label="Rechercher" style="border: none; width: 56px; height: 52px; border-radius: 28px; background: rgba(255,255,255,0.24); color: #F5F5F7; display: flex; align-items: center; justify-content: center;">
+      <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round;"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.6-3.6"></path></svg>
+    </button>
+  </nav>
+
+  <div class="glass" style="position: absolute; left: 80px; top: 140px; width: 1760px; height: 84px; box-sizing: border-box; padding: 0 16px 0 30px; border-radius: 42px; display: flex; align-items: center; gap: 18px;">
+    <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: rgba(235,235,245,0.7); stroke-width: 2.2; stroke-linecap: round;"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.6-3.6"></path></svg>
+    <span style="font-size: 36px; font-weight: 600;">heures</span>
+    <span style="width: 3px; height: 40px; border-radius: 2px; background: #F5B544; margin-left: -12px;"></span>
+    <span style="flex-grow: 1;"></span>
+    <span style="display: flex; align-items: center; gap: 10px; font-size: 19px; color: rgba(235,235,245,0.62);">
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"></path></svg>
+      Maintenir le bouton Siri pour dicter
+    </span>
+    <span style="display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 20px; border-radius: 28px; background: rgba(255,255,255,0.1); font-size: 19px; font-weight: 600;">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"></rect><path d="M11 18.5h2"></path></svg>
+      Saisir sur l'iPhone
+    </span>
+  </div>
+
+  <div style="position: absolute; left: 80px; top: 256px; display: flex; align-items: center; gap: 10px;">
+    <button class="chip chip-on">Tout</button>
+    <button class="chip">Films · 3</button>
+    <button class="chip">Séries · 1</button>
+    <button class="chip">En direct · 1</button>
+    <span style="width: 1px; height: 32px; background: rgba(255,255,255,0.2); margin: 0 10px;"></span>
+    <button class="chip">4K</button>
+    <button class="chip">VF</button>
+    <button class="chip">VOSTFR</button>
+  </div>
+
+  <div style="position: absolute; left: 80px; top: 336px; width: 620px; display: flex; flex-direction: column; gap: 16px;">
+    <h2 class="h2">Meilleur résultat</h2>
+    <div style="position: relative; width: 620px; height: 349px; border-radius: 22px; overflow: hidden; background: radial-gradient(70% 90% at 72% 30%, #E0A565 0%, #8A4B2A 30%, #2B1A1C 70%, #0A090C 100%);">
+      <div style="position: absolute; left: 26px; bottom: 22px; font-size: 44px; font-weight: 800; letter-spacing: -0.01em;">Les Heures Claires</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; color: rgba(245,245,247,0.85);">
+      <span style="font-size: 20px; color: rgba(235,235,245,0.68); margin-right: 6px;">Film · 2025 · Drame</span>
+      <span class="mini">4K DV</span><span class="mini">VF</span><span class="mini">VOSTFR</span><span class="mini">VO</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <button style="display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 30px; border: none; border-radius: 32px; background: rgba(255,255,255,0.14); color: #F5F5F7; font-size: 22px; font-weight: 700;">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="fill: currentColor;"><path d="M7 4.5v15l12-7.5z"></path></svg>
+        Lecture · 4K DV · VF
+      </button>
+      <span style="font-size: 18px; color: rgba(235,235,245,0.6);">Aussi en direct sur Ciné Club</span>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 780px; top: 336px; width: 1060px; display: flex; flex-direction: column; gap: 16px;">
+    <h2 class="h2">Films</h2>
+    <div style="display: flex; gap: 32px;">
+      <sc-for list="{{films}}" as="f" hint-placeholder-count="5">
+        <div style="display: flex; flex-direction: column; gap: 10px; width: 184px;">
+          <div style="position: relative; height: 276px; border-radius: 16px; overflow: hidden; background: {{f.art}};">
+            <div style="position: absolute; left: 14px; right: 14px; bottom: 16px; font-size: 22px; line-height: 1.05; font-weight: 800;">{{f.title}}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; color: rgba(245,245,247,0.85);"><span class="mini">{{f.q}}</span><span style="font-size: 15px; font-weight: 600;">{{f.langs}}</span></div>
+        </div>
+      </sc-for>
+    </div>
+    <h2 class="h2" style="margin-top: 14px;">En direct et séries</h2>
+    <div style="display: flex; gap: 24px;">
+      <div class="glass" style="display: flex; align-items: center; gap: 18px; width: 518px; height: 132px; box-sizing: border-box; padding: 0 20px; border-radius: 22px;">
+        <div style="width: 150px; height: 84px; border-radius: 12px; background: radial-gradient(90% 90% at 60% 30%, #E0A565 0%, #6E3A22 60%, #140C0A 100%); flex-shrink: 0;"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 12px; background: #D70015; color: #FFFFFF; font-size: 13px; font-weight: 800; letter-spacing: 0.06em;">EN DIRECT</span>
+          <span style="font-size: 21px; font-weight: 700;">Ciné Club · Les Heures Claires</span>
+          <span style="font-size: 17px; color: rgba(235,235,245,0.66);">Depuis 1 h 32 · 4K · VF / VOSTFR</span>
+        </div>
+      </div>
+      <div class="glass" style="display: flex; align-items: center; gap: 18px; width: 518px; height: 132px; box-sizing: border-box; padding: 0 20px; border-radius: 22px;">
+        <div style="width: 150px; height: 84px; border-radius: 12px; background: radial-gradient(90% 90% at 60% 30%, #C9B25A 0%, #4A3E16 60%, #120F06 100%); flex-shrink: 0;"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-size: 15px; font-weight: 800; letter-spacing: 0.08em; color: rgba(235,235,245,0.6);">SÉRIE</span>
+          <span style="font-size: 21px; font-weight: 700;">Heures Sup'</span>
+          <span style="font-size: 17px; color: rgba(235,235,245,0.66);">2 saisons · HD · VF S1–S2</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const art = (a, b) => 'radial-gradient(100% 80% at 50% 25%, ' + a + ' 0%, ' + b + ' 55%, #0A090C 100%)';
+    return {
+      films: [
+        { title: 'Les Heures Claires', q: '4K DV', langs: 'VF · VO', art: art('#E0A565', '#6E3A22') },
+        { title: 'Heures Creuses', q: '4K', langs: 'VF', art: art('#7A8FC0', '#252C4A') },
+        { title: 'Vingt-Quatre Heures', q: 'HD', langs: 'VOSTFR', art: art('#B78C8C', '#3E2626') },
+        { title: 'L’Heure Bleue', q: '4K HDR', langs: 'VF · VOSTFR', art: art('#6FA4C9', '#1C3448') },
+        { title: 'Nuits Blanches', q: '4K DV', langs: 'VF', art: art('#9A9AB8', '#2A2A40') }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

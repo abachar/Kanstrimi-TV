@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Séries</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#08090C;color:#F5F5F7;font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Figtree",sans-serif;-webkit-font-smoothing:antialiased}
+.glass{background:rgba(255,255,255,0.10);backdrop-filter:blur(40px) saturate(170%);-webkit-backdrop-filter:blur(40px) saturate(170%);border:1px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),0 18px 50px rgba(0,0,0,0.35)}
+.chip{height:50px;padding:0 22px;border-radius:25px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.07);color:rgba(245,245,247,0.85);font-size:20px;font-weight:600;display:flex;align-items:center;gap:8px}
+.chip-on{background:rgba(245,245,247,0.92);color:#0B0B0F;border-color:transparent;font-weight:700}
+.mini{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.7);font-size:14px;font-weight:700;letter-spacing:0.05em}
+button{font-family:inherit;cursor:pointer}
+a{color:#F5B544}a:hover{color:#FFD08A}
+</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: radial-gradient(80% 60% at 50% 0%, #151C26 0%, #08090C 70%);">
+  <nav class="glass" aria-label="Onglets" style="position: absolute; left: 50%; top: 36px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 8px; border-radius: 40px;">
+    <button style="border: none; padding: 12px 30px; border-radius: 32px; background: transparent; color: rgba(245,245,247,0.78); font-size: 24px; font-weight: 600;">Accueil</button>
+    <button style="border: none; padding: 12px 30px; border-radius: 32px; background: transparent; color: rgba(245,245,247,0.78); font-size: 24px; font-weight: 600;">Direct</button>
+    <button style="border: none; padding: 12px 30px; border-radius: 32px; background: transparent; color: rgba(245,245,247,0.78); font-size: 24px; font-weight: 600;">Films</button>
+    <button style="border: none; padding: 12px 30px; border-radius: 32px; background: rgba(255,255,255,0.24); color: #F5F5F7; font-size: 24px; font-weight: 700;">Séries</button>
+    <button aria-label="Rechercher" style="border: none; width: 56px; height: 52px; border-radius: 28px; background: transparent; color: rgba(245,245,247,0.78); display: flex; align-items: center; justify-content: center;">
+      <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round;"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.6-3.6"></path></svg>
+    </button>
+  </nav>
+
+  <div style="position: absolute; left: 80px; top: 150px; right: 80px; display: flex; align-items: baseline; justify-content: space-between;">
+    <h1 style="margin: 0; font-size: 56px; font-weight: 800;">Séries</h1>
+    <span style="font-size: 20px; color: rgba(235,235,245,0.62);">Trier : Derniers épisodes</span>
+  </div>
+
+  <div style="position: absolute; left: 80px; top: 232px; display: flex; align-items: center; gap: 10px;">
+    <button class="chip">Tous les genres
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;"><path d="M6 9l6 6 6-6"></path></svg>
+    </button>
+    <button class="chip chip-on">Nouveaux épisodes</button>
+    <button class="chip">Thriller</button>
+    <button class="chip">Comédie</button>
+    <button class="chip">Documentaire</button>
+    <span style="width: 1px; height: 34px; background: rgba(255,255,255,0.2); margin: 0 10px;"></span>
+    <button class="chip chip-on">Saison complète en VF</button>
+    <button class="chip">4K</button>
+  </div>
+
+  <div style="position: absolute; left: 80px; top: 322px; width: 1760px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 40px; row-gap: 44px;">
+    <sc-for list="{{shows}}" as="s" hint-placeholder-count="12">
+      <div style="display: flex; flex-direction: column; gap: 12px; transform: {{s.scale}}; transform-origin: center top;">
+        <div style="position: relative; height: 231px; border-radius: 18px; overflow: hidden; background: {{s.art}}; box-shadow: {{s.shadow}};">
+          <div style="position: absolute; left: 22px; right: 22px; bottom: 18px; font-size: 34px; line-height: 1; font-weight: 800; letter-spacing: -0.01em;">{{s.title}}</div>
+          <sc-if value="{{s.fresh}}" hint-placeholder-val="{{false}}">
+            <span class="glass" style="position: absolute; left: 14px; top: 14px; padding: 5px 10px; border-radius: 10px; font-size: 14px; font-weight: 800; letter-spacing: 0.05em;">{{s.fresh}}</span>
+          </sc-if>
+          <span class="mini" style="position: absolute; right: 14px; top: 14px;">{{s.q}}</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 19px; color: rgba(235,235,245,0.66);">{{s.meta}}</span>
+          <span style="font-size: 18px; font-weight: 600; color: rgba(245,245,247,0.9);">{{s.langs}}</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const art = (a, b) => 'radial-gradient(90% 110% at 70% 20%, ' + a + ' 0%, ' + b + ' 60%, #08090C 100%)';
+    const off = { scale: 'none', shadow: 'none', fresh: '' };
+    return {
+      shows: [
+        { ...off, title: 'Nord Profond', meta: '3 saisons · Thriller', langs: 'VF S1–S3 · VOSTFR S1–S3', q: '4K HDR', fresh: 'NOUVEL ÉPISODE', art: art('#6E9BBE', '#1B3346'), scale: 'scale(1.06)', shadow: '0 30px 60px rgba(0,0,0,0.6), 0 0 0 3px rgba(245,245,247,0.9)' },
+        { ...off, title: 'Ligne de Crête', meta: '2 saisons · Aventure', langs: 'VF S1–S2 · VO S1–S2', q: '4K', fresh: 'NOUVELLE SAISON', art: art('#6F79B8', '#262B4D') },
+        { ...off, title: 'Atlas Sauvage', meta: '1 saison · Documentaire', langs: 'VF · VO', q: '4K DV', art: art('#B7834A', '#4A3120') },
+        { ...off, title: 'Bureau 404', meta: '4 saisons · Comédie', langs: 'VF S1–S4', q: 'HD', art: art('#C9B25A', '#4A3E16') },
+        { ...off, title: 'Les Veilleurs', meta: '2 saisons · Policier', langs: 'VF S1–S2 · VOSTFR S1–S2', q: '4K', fresh: 'NOUVEL ÉPISODE', art: art('#8A6FB0', '#2C2140') },
+        { ...off, title: 'Terres Rares', meta: '1 saison · Drame', langs: 'VF · VOSTFR', q: '4K HDR', art: art('#C0735A', '#44221A') },
+        { ...off, title: 'Hauts-Fonds', meta: '3 saisons · Thriller', langs: 'VF S1–S3', q: '4K', art: art('#4F8C9A', '#16323A') },
+        { ...off, title: 'Mercredi Soir', meta: '5 saisons · Comédie', langs: 'VF S1–S5 · VO S1–S5', q: 'HD', art: art('#B46A8C', '#40202F') }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

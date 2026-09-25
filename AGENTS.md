@@ -30,12 +30,18 @@ lire la source, appliquer les filtres, enrichir via TMDB.
 👉 **Lire `server/CLAUDE.md` avant toute modification** : conventions, modèle de
 sécurité (chiffrement des secrets, coffre en RAM) et pièges.
 
-### `tvOS/` — spécification seule, aucun code
+### `tvOS/` — projet Xcode créé, squelette seulement
 
-`tvOS/README.md` décrit l'application Apple TV visée : écran d'accueil, catalogue,
-lecture, reprise, favoris, recherche vocale, sélection de variante langue/qualité.
-Elle consommera une API REST maison (`/api/v1/...`) que le serveur **n'expose pas
-encore** — voir le bloc 3 de `server/BACKLOG.md`.
+`tvOS/kanstrimi.xcodeproj` : SwiftUI, Swift 6, cible tvOS 27, Apple TV 4K, Swift Testing.
+Aucun écran n'est encore écrit. Avant de coder, lire dans l'ordre :
+
+- `tvOS/FLOW.md` — **le document de référence** : écrans, gestes, états, et ce que chaque
+  écran impose à l'API REST (`/api/v1/...`, que le serveur **n'expose pas encore**, bloc 3
+  de `server/BACKLOG.md`).
+- `tvOS/ux/` — export du canvas UX (23 artboards en HTML) : source d'inspiration pour la
+  mise en page, les couleurs et les textes ; `FLOW.md` cite ses numéros entre crochets.
+- `tvOS/ETUDE.md` — contraintes mesurées (VLCKit seul, pas de HLS, MKV, pool amont).
+- `tvOS/README.md` — cahier des charges fonctionnel d'origine.
 
 ## Le cahier des charges est vivant
 

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Flux en échec</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#07080B;color:#F5F5F7;font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Figtree",sans-serif;-webkit-font-smoothing:antialiased}
+.glass{background:rgba(255,255,255,0.10);backdrop-filter:blur(40px) saturate(170%);-webkit-backdrop-filter:blur(40px) saturate(170%);border:1px solid rgba(255,255,255,0.16);box-shadow:inset 0 1px 0 rgba(255,255,255,0.22),0 18px 50px rgba(0,0,0,0.35)}
+button{font-family:inherit;cursor:pointer}
+a{color:#F5B544}a:hover{color:#FFD08A}
+</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: radial-gradient(70% 70% at 50% 45%, #1A1B22 0%, #0C0C10 60%, #07080B 100%);">
+  <div class="glass" style="position: absolute; left: 80px; top: 60px; display: flex; align-items: center; gap: 14px; padding: 10px 22px 10px 14px; border-radius: 30px;">
+    <span style="font-size: 22px; font-weight: 700;">Les Heures Claires</span>
+    <span style="font-size: 19px; color: rgba(235,235,245,0.7);">4K Dolby Vision · VF · Source A</span>
+  </div>
+
+  <div class="glass" role="alertdialog" aria-labelledby="t" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 820px; box-sizing: border-box; padding: 40px 44px 36px; border-radius: 36px; display: flex; flex-direction: column; gap: 22px;">
+    <div style="display: flex; align-items: center; gap: 18px;">
+      <span style="width: 60px; height: 60px; border-radius: 30px; background: rgba(255,159,10,0.18); color: #FF9F0A; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round;"><path d="M12 3l9.5 16.5h-19z"></path><path d="M12 10v4M12 17h.01"></path></svg>
+      </span>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <span id="t" style="font-size: 30px; font-weight: 800;">Le flux ne démarre pas</span>
+        <span style="font-size: 19px; color: rgba(235,235,245,0.7);">Aucune image après 10 s · 2 tentatives sur la source A, aucune autre source pour cette version</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <button style="display: flex; align-items: center; gap: 16px; height: 72px; box-sizing: border-box; padding: 0 26px; border: none; border-radius: 22px; background: rgba(245,245,247,0.95); color: #0B0B0F; font-size: 23px; font-weight: 700; transform: scale(1.02); box-shadow: 0 18px 40px rgba(0,0,0,0.45);">
+        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg>
+        Réessayer
+        <span style="font-weight: 500; opacity: 0.65; margin-left: auto; font-size: 19px;">Nouvelle URL demandée au serveur</span>
+      </button>
+      <button style="display: flex; align-items: center; gap: 16px; height: 72px; box-sizing: border-box; padding: 0 26px; border: 1px solid rgba(255,255,255,0.16); border-radius: 22px; background: rgba(255,255,255,0.08); color: #F5F5F7; font-size: 23px; font-weight: 700;">
+        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" style="fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;"><path d="M4 8h13l-3-3M20 16H7l3 3"></path></svg>
+        Autre version · 4K HDR · VF
+        <span style="font-weight: 500; opacity: 0.65; margin-left: auto; font-size: 19px;">2 sources</span>
+      </button>
+      <button style="display: flex; align-items: center; gap: 16px; height: 72px; box-sizing: border-box; padding: 0 26px; border: 1px solid rgba(255,255,255,0.16); border-radius: 22px; background: rgba(255,255,255,0.08); color: #F5F5F7; font-size: 23px; font-weight: 700;">
+        Quitter
+        <span style="font-weight: 500; opacity: 0.65; margin-left: auto; font-size: 19px;">Retour à la fiche</span>
+      </button>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 80px; right: 80px; bottom: 60px; font-size: 18px; color: rgba(235,235,245,0.55);">Le serveur ne relaie pas la vidéo : réessayer redemande l'URL et obtient un jeton amont frais, souvent sur un autre backend.</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
