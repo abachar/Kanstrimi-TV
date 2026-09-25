@@ -19,3 +19,12 @@ data/
 
 .DS_Store
 **/.DS_Store
+
+# Xcode (tvOS/)
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+DerivedData/
+.build/
+.swiftpm/
+*.xcresult
