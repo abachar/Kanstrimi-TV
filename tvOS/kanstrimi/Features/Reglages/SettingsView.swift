@@ -64,6 +64,12 @@ struct SettingsView: View {
                     LabeledContent("Langues du catalogue", value: env.session?.catalogLanguages.map(\.rawValue).joined(separator: " · ") ?? "—")
                 }
 
+                Section("Lecteur · flux de démo") {
+                    Button { play(ContentID("tmdb:movie:100002")) } label: { Label("Film · Orbite Basse (reprise à 1 h 15)", systemImage: "film") }
+                    Button { play(ContentID("tmdb:tv:20000:s02e04")) } label: { Label("Épisode · Brise-Lames S2 É4 (épisode suivant)", systemImage: "rectangle.stack") }
+                    Button { playLive() } label: { Label("Direct · première chaîne", systemImage: "tv") }
+                }
+
                 Section {
                     Toggle("Hors ligne (serveur injoignable)", isOn: $scenario.offline)
                     Toggle("Jeton révoqué (401 partout)", isOn: $scenario.unauthorized)
@@ -112,6 +118,25 @@ struct SettingsView: View {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
         let b = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         return "\(v) (\(b))"
+    }
+
+    private func play(_ id: ContentID) {
+        Task {
+            guard let ctx = try? await env.client.playbackContext(id: id) else { return }
+            dismiss()
+            env.player.play(ctx)
+        }
+    }
+
+    private func playLive() {
+        Task {
+            guard let groups = try? await env.client.channels() else { return }
+            let all = groups.flatMap(\.channels)
+            guard let first = all.first else { return }
+            dismiss()
+            env.player.play(channel: first, in: all)
+            env.recentChannels.record(first.id)
+        }
     }
 
     private func unpair() {

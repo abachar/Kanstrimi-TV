@@ -13,6 +13,7 @@ final class AppEnvironment {
     let failedSources: FailedSourcesStore
     let progressQueue: ProgressQueue
     let homeCache: HomeCache
+    let epg: EPGCache
     let player: PlayerService
     /// Session fetched after pairing; nil while loading or offline.
     var session: Session?
@@ -31,6 +32,7 @@ final class AppEnvironment {
         self.failedSources = failed
         self.progressQueue = ProgressQueue()
         self.homeCache = HomeCache()
+        self.epg = EPGCache(client: mock)
         self.player = PlayerService(client: mock, preferences: preferences, failedSources: failed, progressQueue: progressQueue)
     }
 

@@ -92,7 +92,7 @@ struct PairingView: View {
     private var codePanel: some View {
         VStack(spacing: 12) {
             VStack(spacing: 2) {
-                (Text("Ou allez sur ").foregroundStyle(Theme.secondary) + Text(model.host + "/tv").foregroundStyle(Theme.accent))
+                Text("Ou allez sur \(Text(model.host + "/tv").foregroundStyle(Theme.accent))").foregroundStyle(Theme.secondary)
                 Text("et saisissez ce code :").foregroundStyle(Theme.secondary)
             }
             .font(.callout)

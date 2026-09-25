@@ -463,3 +463,40 @@ extension PlayerService: VLCMediaPlayerDelegate {
         maybeStartCountdown()
     }
 }
+
+#if DEBUG
+/// Preview scaffolding: puts the player in a given state without a stream.
+extension PlayerService {
+    enum PreviewState { case vodPaused, failure, nextEpisode, livePlaying, panel }
+
+    func debugPut(_ ctx: PlaybackContext, state: PreviewState, channels list: [Channel] = []) {
+        context = ctx
+        version = ctx.versions.first
+        source = ctx.versions.first?.sources.first
+        duration = ctx.duration ?? 7620
+        time = ctx.resumeAt ?? 4368
+        audioTracks = [Track(id: "1", name: "Français (AC3 5.1)", language: "fr", isSelected: true), Track(id: "2", name: "English", language: "en", isSelected: false)]
+        textTracks = [Track(id: "3", name: "Français", language: "fr", isSelected: false)]
+        switch state {
+        case .vodPaused: phase = .paused
+        case .failure:
+            phase = .failed
+            failure = Failure(attempts: 2, sourceLabel: "4K Dolby Vision · VF · Source A", hadAlternativeSource: false)
+        case .nextEpisode:
+            phase = .playing
+            time = duration - 28
+            nextCountdown = 7
+        case .livePlaying:
+            phase = .playing
+            channels = list
+            channel = list.first
+            let start = Date.now.addingTimeInterval(-3200)
+            epg = EPGNow(now: Programme(title: "Ligue · Lyon – Nantes", start: start, end: start.addingTimeInterval(7200), overview: nil),
+                         next: Programme(title: "Le Mag du foot", start: start.addingTimeInterval(7200), end: start.addingTimeInterval(9000), overview: nil))
+            zapBanner = true
+        case .panel: phase = .playing
+        }
+    }
+}
+
+#endif

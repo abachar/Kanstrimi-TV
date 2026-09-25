@@ -136,3 +136,33 @@ final class HomeCache {
         try? FileManager.default.removeItem(at: fileURL)
     }
 }
+
+/// "En cours / suivant" per channel, asked at focus, kept one minute.
+@Observable
+final class EPGCache {
+    private struct Entry { let value: EPGNow; let at: Date }
+    private var entries: [ContentID: Entry] = [:]
+    private var inflight: [ContentID: Task<EPGNow, Never>] = [:]
+    private let client: CatalogClient
+    static let ttl: TimeInterval = 60
+
+    init(client: CatalogClient) { self.client = client }
+
+    func cached(_ id: ContentID) -> EPGNow? {
+        guard let e = entries[id], Date.now.timeIntervalSince(e.at) < Self.ttl else { return nil }
+        return e.value
+    }
+
+    func now(for id: ContentID) async -> EPGNow {
+        if let c = cached(id) { return c }
+        if let t = inflight[id] { return await t.value }
+        let task = Task { [client] in (try? await client.epg(channelID: id)) ?? .empty }
+        inflight[id] = task
+        let value = await task.value
+        inflight[id] = nil
+        entries[id] = Entry(value: value, at: .now)
+        return value
+    }
+
+    func clear() { entries = [:] }
+}
