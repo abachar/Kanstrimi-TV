@@ -79,21 +79,27 @@ le mot de passe unique. Un élément masqué disparaît des listes **et** répon
 lecture. Validée de bout en bout en production ; sa forme de réponse ne change plus sans
 décision explicite.
 
-### 5.2 API REST `/api/v1` — 🔜 bloc 3
+### 5.2 API REST `/api/v1` — ✅ en service, contrat dans `docs/api-v1-tvos.md`
 
-Pour les clients maison. Films, séries avec saisons et épisodes, live groupé par catégorie
-avec EPG, variantes d'un contenu, URL de lecture, recherche plein texte (titre, acteurs,
-réalisateur), filtres genre / année / note, tri. Authentifiée par le compte client.
+Pour les clients maison. Appairage par code et QR (jeton d'appareil, révocable), accueil
+composé par le serveur, films et séries en rangées par genre puis listes à curseur, fiches
+avec versions (langue × qualité × dynamique) et sources, saisons et épisodes fusionnés à
+travers les variantes, direct groupé par catégorie, contexte de lecture avec épisode
+suivant, progression, favoris, recherche plein texte (titre, acteurs, réalisateur). Les
+URL de lecture sont des liens signés vers le serveur, qui répond `302` vers le fournisseur.
+Manque : `now` / `next` des chaînes (bloc 2), tri « derniers épisodes » (identique à
+« nouveautés » pour l'instant).
 
 ## 6. Expérience de visionnage (clients maison)
 
 | Exigence | État |
 |---|---|
 | Lecture live et VOD ; le fournisseur ne sert pas de HLS, donc moteur VLCKit côté tvOS | 🔜 `tvOS/ETUDE.md` |
-| Choix de la variante (langue, qualité) sur la fiche ou au lancement | 🔜 dépend du bloc 1 |
-| Reprise de lecture : position sauvegardée, « Continuer à regarder », marqué vu à 90 % | 🔜 bloc 4 |
-| Favoris et listes nommées | 🔜 bloc 4 |
-| Écran d'accueil : reprise, récemment ajouté, tendances, collections | 🔜 bloc 4 |
+| Choix de la variante (langue, qualité) sur la fiche ou au lancement | ✅ côté serveur (versions × sources) ; moteur de choix dans `tvOS/` |
+| Reprise de lecture : position sauvegardée, « Continuer à regarder », marqué vu à 90 % | ✅ côté serveur |
+| Favoris | ✅ côté serveur ; listes nommées non planifiées |
+| Écran d'accueil : reprise, récemment ajouté | ✅ côté serveur |
+| Écran d'accueil : tendances, collections | 🔜 bloc 6 |
 | Recherche vocale Siri Remote | 🔜 `tvOS/README.md` |
 | Cache images local sur le client (mémoire + disque, éviction LRU) | 🔜 `tvOS/README.md` |
 

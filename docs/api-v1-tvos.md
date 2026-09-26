@@ -8,7 +8,7 @@ adaptation. Remplace la section 3 de `conception-groupement-et-api-rest.md`.*
 
 - Préfixe `/api/v1`, JSON `snake_case`, dates ISO 8601 UTC, `null` explicite.
 - `Authorization: Bearer <jeton>` partout sauf `/devices`. Un `401` sur n'importe quel appel efface jeton et code, vide le cache et ramène à l'appairage.
-- Erreurs : `{ "error": { "code": "not_found", "message": "…" } }`. Codes : `unauthorized` 401, `not_found` 404, `bad_request` 400, `upstream` 502.
+- Erreurs : `{ "error": { "code": "not_found", "message": "…" } }`. Codes : `unauthorized` 401, `not_found` 404, `bad_request` 400, `upstream` 502, `too_many_requests` 429 (appairage), `locked` 503 (serveur redémarré et aucun appel authentifié depuis : rappeler `/playback` régénère le lien).
 - Identifiants opaques et stables, issus des tables du serveur : `tmdb:movie:603`, `tmdb:tv:1396`, `tmdb:tv:1396:s01e05`, `live:tf1`, `fallback:movie:<titre>:<année>`. Aucun identifiant fournisseur ne circule.
 - Vocabulaire : `kind` ∈ `movie` · `series` · `episode` · `live` ; `language` ∈ `VF` · `VOSTFR` · `VO` · code ISO ; `quality` ∈ `SD` · `HD` · `FHD` · `4K` ; `dynamic_range` ∈ `HDR` · `DV` (absent = SDR).
 - Le serveur sert ses propres tables (filtrage, classement, complétion, IA), pas la source brute. Plusieurs sources sont prévues (comptes Xtream, fichiers locaux) : chaque `source` porte son `provider`.
@@ -70,6 +70,8 @@ Obligatoires : `id`, `kind`, `title`. Tout le reste est optionnel et absent quan
 
 Sources dans l'ordre serveur, la première par défaut. `stream_url` opaque, jamais mise en cache, relue à chaque lecture. `provider.kind` ∈ `xtream` · `local` · … ; `origin` est la catégorie chez ce fournisseur.
 
+*Implémentation :* `stream_url` est un lien signé `{base}/api/v1/stream/{source}?d=<code>&e=<expiration>&s=<signature>`, lié à l'appareil, valable 24 h, sans jeton (VLC n'envoie pas d'en-tête) ; le serveur répond `302` vers le fournisseur, `401` si le lien est falsifié, expiré ou l'appareil dissocié. `Source.id` est `src-i…` (film, chaîne) ou `src-e…` (épisode), jamais un identifiant fournisseur.
+
 ### `Season`, `Episode`
 
 ```json
@@ -91,7 +93,7 @@ Sources dans l'ordre serveur, la première par défaut. `stream_url` opaque, jam
   "next": { "title": "…", "start": "…", "end": "…" } }
 ```
 
-`now` et `next` ne sont présents que dans `GET /channels/{id}`.
+`now` et `next` ne sont présents que dans `GET /channels/{id}` ; ils valent `null` tant que l'EPG n'est pas importé en base (bloc 2 du backlog).
 
 ## Écran par écran
 
@@ -100,13 +102,13 @@ Sources dans l'ordre serveur, la première par défaut. `stream_url` opaque, jam
 Sans jeton. Le code à 6 caractères, valable 10 min, reste l'identifiant de l'appareil après validation.
 
 ```json
-POST /devices          → { "code": "K7Q4MZ", "expires_at": "2026-09-26T21:24:00Z", "url": "https://kanstrimi.crafters.dev/admin/pair/K7Q4MZ" }
+POST /devices          → 201 { "code": "K7Q4MZ", "expires_at": "2026-09-26T21:24:00Z", "url": "https://kanstrimi.crafters.dev/admin/pair/K7Q4MZ" }
 GET  /devices/K7Q4MZ   → { "status": "pending" }
                        → { "status": "approved", "token": "dvc_8f2c…", "device_name": "Salon" }
                        → { "status": "expired" }
 ```
 
-L'app sonde toutes les 2 s ; expiré, elle redemande un code seule. Jeton et code vont en Keychain.
+L'app sonde toutes les 2 s ; expiré, elle redemande un code seule. Jeton et code vont en Keychain. Le jeton n'est remis qu'une fois : le sondage suivant répond `expired`, ce qui ne concerne pas une app qui s'est arrêtée de sonder à `approved`.
 
 ### Déjà appairé, au lancement
 
@@ -169,6 +171,8 @@ GET /movies?genre=thriller&sort=recent&cursor=   → { "items": [Card], "next_cu
 ```
 
 Paramètres : `sort` (`recent`, `title`, `year`, `rating`, `latest_episodes` pour les séries), `language`, `min_quality`, `dynamic_range`, `vf_available=1`, `cursor`, `limit`.
+
+*Implémentation :* la présence d'un paramètre quelconque bascule en mode liste ; `genre` est l'`id` d'une rangée (`recent` pour « Nouveautés ») ; `cursor` est opaque (base64 de la clé de tri et de l'identifiant) ; `limit` 30 par défaut, 100 au plus ; `latest_episodes` se comporte comme `recent` tant que la date du dernier épisode n'est pas suivie. `min_quality` et `dynamic_range` invalides répondent `bad_request`.
 
 ### Fiche film — `GET /movies/{id}`
 

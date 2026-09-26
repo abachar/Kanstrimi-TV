@@ -12,7 +12,7 @@ répond `302` vers le flux d'origine. La bande passante vidéo ne le traverse pa
 Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré + enrichi)
                           │
                           ├──► API Xtream-compatible ──► TiviMate, IPTV Smarters…
-                          ├──► API REST (à venir)     ──► tvOS/
+                          ├──► API REST /api/v1       ──► tvOS/
                           └──► 302 ────────────────────► le flux vidéo, en direct
 ```
 
@@ -28,12 +28,12 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré + enr
 | Enrichissement TMDB (affiche, fond, synopsis, genres, note, casting, bande-annonce) avec correction manuelle | fait |
 | API Xtream-compatible : `player_api.php`, `get.php`, `xmltv.php`, redirections de flux, cache images | fait |
 | Admin : tableau de bord, catalogue par catégorie ou en liste, règles, journaux, paramètres ; utilisable sur mobile | fait |
-| Planification cron (sync et EPG), 3 étapes relançables indépendamment | fait |
+| Planification cron (sync et EPG), 4 étapes relançables indépendamment | fait |
 | Secrets chiffrés en base, coffre en RAM déverrouillé par le mot de passe | fait |
 | Image conteneur publiée sur ghcr.io par GitHub Actions | fait |
-| Groupement des variantes (langue, qualité) en une seule entrée | à faire |
+| Groupement des variantes (langue, qualité) en une seule entrée | fait |
 | EPG importé en base, `xmltv.php` limité aux chaînes visibles | à faire |
-| API REST `/api/v1` pour les apps maison, reprise de lecture, favoris | à faire |
+| API REST `/api/v1` pour les apps maison, appairage, reprise de lecture, favoris | fait |
 | Collections organisées par IA | à faire |
 | Application tvOS, seul client maison prévu | spécifiée, aucun code |
 

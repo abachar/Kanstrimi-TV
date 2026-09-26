@@ -11,7 +11,7 @@ répond en `302` vers le flux d'origine. La bande passante vidéo ne le traverse
 Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré + enrichi)
                           │
                           ├──► API Xtream-compatible ──► TiviMate, IPTV Smarters…
-                          ├──► API REST (à venir)     ──► tvOS/
+                          ├──► API REST /api/v1       ──► tvOS/
                           └──► 302 ────────────────────► le flux vidéo, en direct
 ```
 
@@ -22,10 +22,11 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré + enr
 Node 22 + Hono + Postgres/Drizzle, admin rendue côté serveur (Hono JSX + HTMX +
 Bootstrap 5). Compilé par esbuild en un bundle autonome pour la production.
 
-Il expose aujourd'hui une **API Xtream-compatible** (`player_api.php`, `get.php`,
-`xmltv.php`, redirections de flux) : n'importe quel player IPTV du marché s'y connecte
-comme à un vrai serveur Xtream. Le traitement se fait en trois étapes indépendantes —
-lire la source, appliquer les filtres, enrichir via TMDB.
+Il expose une **API Xtream-compatible** (`player_api.php`, `get.php`, `xmltv.php`,
+redirections de flux) : n'importe quel player IPTV du marché s'y connecte comme à un vrai
+serveur Xtream. Et l'**API REST `/api/v1`** de l'app tvOS (contrat : `docs/api-v1-tvos.md`),
+servie depuis les contenus groupés. Le traitement se fait en quatre étapes indépendantes —
+lire la source, appliquer les filtres, enrichir via TMDB, grouper les variantes.
 
 👉 **Lire `server/CLAUDE.md` avant toute modification** : conventions, modèle de
 sécurité (chiffrement des secrets, coffre en RAM) et pièges.
@@ -51,8 +52,8 @@ Organisation de `tvOS/kanstrimi/` :
 Avant de coder, lire dans l'ordre :
 
 - `tvOS/FLOW.md` — **le document de référence** : écrans, gestes, états, et ce que chaque
-  écran impose à l'API REST (`/api/v1/...`, que le serveur **n'expose pas encore**, bloc 3
-  de `server/BACKLOG.md`).
+  écran impose à l'API REST (`/api/v1/...`, servie par `server/`, contrat dans
+  `docs/api-v1-tvos.md`).
 - `tvOS/ux/` — export du canvas UX (23 artboards en HTML) : source d'inspiration pour la
   mise en page, les couleurs et les textes ; `FLOW.md` cite ses numéros entre crochets.
 - `tvOS/ETUDE.md` — contraintes mesurées (VLCKit seul, pas de HLS, MKV, pool amont).

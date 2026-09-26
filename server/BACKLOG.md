@@ -27,23 +27,29 @@ Aujourd'hui `xmltv.php` est relayé ; l'ancien serveur importait le XMLTV.
 - [ ] `xmltv.php` généré depuis la base, limité aux chaînes visibles (règles + masquage)
 - [ ] `get_short_epg` / `get_simple_data_table` servis depuis la base (now + next)
 
-## 3 — API REST pour les apps maison (P2)
+## 3 — API REST pour les apps maison (P2) — fait
 
-API propre pour l'app tvOS, en complément de l'API Xtream. Préfixe `/api/v1`.
+API propre pour l'app tvOS, en complément de l'API Xtream. Préfixe `/api/v1`, contrat arrêté
+dans `docs/api-v1-tvos.md` (il fait foi), code dans `src/lib/rest/` et `src/routes/api.ts`.
 
-- [ ] `GET /api/v1/movies` : pagination offset/limit, filtres `genre`, `year`, `rating_min`, `search`, tri `title|year|rating|added_at`
-- [ ] `GET /api/v1/series`, `GET /api/v1/series/{id}` (saisons/épisodes), `GET /api/v1/series/{id}/seasons/{num}`
-- [ ] `GET /api/v1/live` (groupées par catégorie), `GET /api/v1/live/{id}/epg` (now + next)
-- [ ] `GET /api/v1/content/{id}/variants`, `GET /api/v1/stream/{variant_id}` → URL directe ou 302
-- [ ] `GET /api/v1/search?q=` : recherche full-text (Postgres `tsvector`) sur titre, acteurs, réalisateur ; résultats mixtes typés
-- [ ] Authentification par le compte client (username/password ou token)
+- [x] Appairage sans clavier : `POST /devices` (code 6 caractères, 10 min, limité), page admin `/admin/pair/{code}`, `GET /devices/{code}` sondé par la TV, `DELETE /devices/{code}` ; jeton d'appareil haché, révocable dans l'admin « Appareils » ; clé du coffre enveloppée par le jeton (premier appel après redémarrage = coffre déverrouillé)
+- [x] `GET /info`, `GET /home`
+- [x] `GET /movies`, `GET /series` en rangées par genre, puis `?genre=&sort=&cursor=` avec filtres langue / qualité / dynamique / VF
+- [x] `GET /movies/{id}`, `GET /series/{id}` (saisons et épisodes fusionnés à travers les variantes, versions × sources, progression)
+- [x] `GET /channels`, `GET /channels/{id}` (`now` / `next` à `null` tant que le bloc 2 n'existe pas)
+- [x] `GET /playback/{id}` (film, épisode avec le suivant, chaîne), `PUT /playback/{id}/progress`
+- [x] `GET /search?q=&scope=` : `tsvector` sans accents sur titre, titre original, casting, réalisateur
+- [x] `GET /stream/{source}` : lien signé lié à l'appareil, 24 h, `302` vers le fournisseur
+- [ ] Tri `latest_episodes` réellement basé sur le dernier épisode ajouté (`last_modified` amont) ; aujourd'hui identique à `recent`
+- [ ] Plusieurs sources (second compte Xtream, fichiers locaux) : `Source.provider` est déjà dans le contrat, une seule implémentation `xtream`
 
-## 4 — Progression, favoris, accueil (P2)
+## 4 — Progression, favoris, accueil (P2) — fait
 
-- [ ] Table `watch_progress` (content_id, position, duration, updated_at) ; `POST /api/v1/progress`
-- [ ] `GET /api/v1/continue-watching` : progression entre 5 % et 90 %
-- [ ] Table `favorites` ; `POST /api/v1/favorites/{content_id}` (toggle), `GET /api/v1/favorites`
-- [ ] `GET /api/v1/home` : sections « Continuer à regarder », « Récemment ajouté », « Tendances » (TMDB populaires), collections thématiques
+- [x] Table `watch_progress` (clé texte du contenu ou de l'épisode, position, durée, « vu » dérivé à 90 %) ; `PUT /playback/{id}/progress`, idempotent
+- [x] Rangée « Reprendre » de `/home` : entre 5 % et 90 %, dernière lecture d'abord
+- [x] Table `favorites` ; `PUT` / `DELETE /favorites/{id}` ; rangée « Ma liste »
+- [x] `GET /home` : hero, Reprendre, Films récents, Séries récentes, Ma liste
+- [ ] « Tendances » (TMDB populaires) et collections thématiques (bloc 6)
 
 ## 5 — Métadonnées TMDB étendues (P3)
 
@@ -83,8 +89,8 @@ Déjà fait : poster, backdrop, synopsis, genres, note, casting, bande-annonce. 
 ## Dépendances
 
 ```
-1 Groupement ──→ 3 API REST (variants) ──→ 4 Progression / accueil
-2 EPG ─────────→ 3 API REST (live/epg)
+1 Groupement ──→ 3 API REST ──→ 4 Progression / accueil   (faits)
+2 EPG ─────────→ 3 API REST : now / next de /channels/{id}
 5 TMDB étendu ─→ 6 IA
 8 Sécurité : indépendant, à faire avant mise en production
 ```
