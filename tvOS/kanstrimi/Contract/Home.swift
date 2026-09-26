@@ -8,11 +8,11 @@ nonisolated struct HomeRow: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let kind: HomeRowKind
     let title: String
-    let cards: [ContentCard]
+    let cards: [Card]
 }
 
 nonisolated struct HomeHero: Codable, Hashable, Sendable {
-    let card: ContentCard
+    let card: Card
     /// "FILM · NOUVEAUTÉ"
     let tagline: String
     let overview: String?
@@ -21,7 +21,7 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
     let versions: [Version]
 }
 
-/// Composed by the server: one call, ordered rows.
+/// `GET /home`: composed by the server, one call, ordered rows.
 nonisolated struct HomeScreen: Codable, Hashable, Sendable {
     let hero: HomeHero?
     let rows: [HomeRow]

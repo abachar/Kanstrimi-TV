@@ -3,7 +3,7 @@ import Foundation
 
 enum Fixtures {
     static func source(_ id: String, origin: String = "Films 4K UHD") -> Source {
-        Source(id: id, container: "MKV", streamURL: URL(string: "demo://movie")!, origin: origin)
+        Source(id: id, container: "MKV", streamURL: URL(string: "demo://movie")!, provider: nil, origin: origin)
     }
     static func version(_ id: String, _ lang: Language, _ q: Quality, dr: DynamicRange? = nil, sources: Int = 1) -> Version {
         Version(id: id, language: lang, quality: q, dynamicRange: dr, sources: (0..<sources).map { source("\(id)-s\($0)") })

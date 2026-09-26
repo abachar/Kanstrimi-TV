@@ -1,5 +1,6 @@
 import Foundation
 
+/// `POST /devices`
 nonisolated struct PairingCode: Codable, Hashable, Sendable {
     let code: String
     let expiresAt: Date
@@ -17,7 +18,7 @@ nonisolated struct PairingCode: Codable, Hashable, Sendable {
     }
 }
 
-/// Wire form: `{ "status": "pending" }`, `{ "status": "approved", "token": "…", "device_name": "Salon" }`,
+/// `GET /devices/{code}`: `{ "status": "pending" }`, `{ "status": "approved", "token": "…", "device_name": "Salon" }`,
 /// `{ "status": "expired" }`.
 nonisolated enum PairingStatus: Codable, Hashable, Sendable {
     case pending
@@ -53,36 +54,32 @@ nonisolated struct CatalogCounts: Codable, Hashable, Sendable {
     let channels: Int
 }
 
-nonisolated struct Session: Codable, Hashable, Sendable {
-    let deviceName: String
+/// `GET /info`
+nonisolated struct ServerInfo: Codable, Hashable, Sendable {
     let serverVersion: String
-    let serverHost: String
-    let tmdbLanguage: String
-    let catalogLanguages: [Language]
-    let defaultLanguageOrder: [Language]
     let counts: CatalogCounts
     let lastImport: Date?
     let tmdbRate: Double?
+    let catalogLanguages: [Language]
+    let defaultLanguageOrder: [Language]
 
     enum CodingKeys: String, CodingKey {
         case counts
-        case deviceName = "device_name"
         case serverVersion = "server_version"
-        case serverHost = "server_host"
-        case tmdbLanguage = "tmdb_language"
-        case catalogLanguages = "catalog_languages"
-        case defaultLanguageOrder = "default_language_order"
         case lastImport = "last_import"
         case tmdbRate = "tmdb_rate"
+        case catalogLanguages = "catalog_languages"
+        case defaultLanguageOrder = "default_language_order"
     }
 }
 
+/// `GET /search`
 nonisolated struct SearchResults: Codable, Hashable, Sendable {
     let query: String
-    let best: ContentCard?
-    let movies: [ContentCard]
-    let series: [ContentCard]
-    let live: [ContentCard]
+    let best: Card?
+    let movies: [Card]
+    let series: [Card]
+    let live: [Card]
 
     var isEmpty: Bool { movies.isEmpty && series.isEmpty && live.isEmpty }
     var total: Int { movies.count + series.count + live.count }

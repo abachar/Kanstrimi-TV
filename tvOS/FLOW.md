@@ -409,6 +409,9 @@ source.
 
 ## 7. Ce que ce flow impose à l'API
 
+*Le contrat arrêté écran par écran le 2026-09-26 est dans `docs/api-v1-tvos.md` ; il fait
+foi sur ce tableau, qui garde la trace des besoins.*
+
 Ce tableau est la sortie de ce document : il remplace la liste du bloc 3 du backlog et
 sert de base pour réviser `docs/conception-groupement-et-api-rest.md`.
 

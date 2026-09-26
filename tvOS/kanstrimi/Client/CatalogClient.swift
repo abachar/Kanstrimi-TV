@@ -37,27 +37,24 @@ nonisolated enum CatalogSort: String, CaseIterable, Codable, Sendable {
     }
 }
 
-/// Query string of the paginated lists.
+/// Query string of `GET /movies?genre=…` and `GET /series?genre=…` ("Voir tout").
 nonisolated struct ListQuery: Hashable, Sendable {
     var kind: ContentKind
-    var sort: CatalogSort
     var genre: String?
+    var sort: CatalogSort
     var language: Language?
     var minQuality: Quality?
     var dynamicRange: DynamicRange?
     var vfAvailable = false
-    var completeSeasonVF = false
-    var newEpisodes = false
     var cursor: String?
 
-    init(kind: ContentKind) {
+    init(kind: ContentKind, genre: String? = nil) {
         self.kind = kind
+        self.genre = genre
         self.sort = kind == .series ? .latestEpisodes : .recent
     }
 
-    var hasFilters: Bool {
-        genre != nil || language != nil || minQuality != nil || dynamicRange != nil || vfAvailable || completeSeasonVF || newEpisodes
-    }
+    var hasFilters: Bool { language != nil || minQuality != nil || dynamicRange != nil || vfAvailable }
     /// Same query without the cursor: identity of a list.
     var base: ListQuery { var q = self; q.cursor = nil; return q }
 }
@@ -74,34 +71,45 @@ nonisolated enum SearchScope: String, CaseIterable, Sendable {
     }
 }
 
-/// The future `/api/v1`. One implementation today: `MockCatalogClient`.
+/// `/api/v1`, one method per route. One implementation today: `MockCatalogClient`.
 protocol CatalogClient: AnyObject {
-    // Pairing and session
-    func createPairingCode() async throws -> PairingCode
-    func pollPairing(code: String) async throws -> PairingStatus
-    func session() async throws -> Session
-    func revokeDevice() async throws
+    // Devices
+    /// `POST /devices`
+    func createDevice() async throws -> PairingCode
+    /// `GET /devices/{code}`
+    func pollDevice(code: String) async throws -> PairingStatus
+    /// `DELETE /devices/{code}`
+    func deleteDevice(code: String) async throws
+    /// `GET /info`
+    func info() async throws -> ServerInfo
 
     // Home
+    /// `GET /home`
     func home() async throws -> HomeScreen
 
-    // Lists
-    func list(_ query: ListQuery) async throws -> Page<ContentCard>
-    func genres(kind: ContentKind) async throws -> [Genre]
-
-    // Sheets
-    func detail(id: ContentID) async throws -> ContentDetail
-    func season(seriesID: ContentID, number: Int) async throws -> [Episode]
-    func playbackContext(id: ContentID) async throws -> PlaybackContext
+    // Movies and series
+    /// `GET /movies` · `GET /series`: rows by genre, twenty cards each.
+    func rows(kind: ContentKind) async throws -> [CatalogRow]
+    /// `GET /movies?genre=&cursor=` · `GET /series?genre=&cursor=`: "Voir tout".
+    func list(_ query: ListQuery) async throws -> Page<Card>
+    /// `GET /movies/{id}` · `GET /series/{id}`: the full card, seasons and episodes included.
+    func detail(id: ContentID) async throws -> Card
 
     // Live
+    /// `GET /channels`: every category with its channels.
     func channels() async throws -> [ChannelGroup]
-    func epg(channelID: ContentID) async throws -> EPGNow
+    /// `GET /channels/{id}`: one channel with `now` and `next`.
+    func channel(id: ContentID) async throws -> Channel
 
-    // Search
-    func search(_ query: String, scope: SearchScope) async throws -> SearchResults
-
-    // Writes
+    // Playback
+    /// `GET /playback/{id}`: movie, episode or channel.
+    func playback(id: ContentID) async throws -> Playback
+    /// `PUT /playback/{id}/progress`
     func report(_ progress: ProgressReport) async throws
+
+    // Search and favourites
+    /// `GET /search?q=&scope=`
+    func search(_ query: String, scope: SearchScope) async throws -> SearchResults
+    /// `PUT` / `DELETE /favorites/{id}`
     func setFavorite(id: ContentID, _ favorite: Bool) async throws
 }

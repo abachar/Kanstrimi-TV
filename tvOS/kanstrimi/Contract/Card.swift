@@ -1,0 +1,217 @@
+import Foundation
+
+nonisolated struct Progress: Codable, Hashable, Sendable {
+    /// Seconds.
+    let position: TimeInterval
+    let duration: TimeInterval
+    /// Derived by the server at 90 %; absent on list cards.
+    let finished: Bool?
+
+    var fraction: Double { duration > 0 ? min(1, max(0, position / duration)) : 0 }
+    var remaining: TimeInterval { max(0, duration - position) }
+    var isWatched: Bool { finished ?? false || fraction >= 0.9 }
+    var isResumable: Bool { !isWatched && fraction >= 0.05 }
+}
+
+nonisolated struct EpisodeRef: Codable, Hashable, Sendable {
+    let season: Int
+    let number: Int
+    let title: String?
+
+    /// "S2 · É4".
+    var code: String { "S\(season) · É\(number)" }
+    var shortCode: String { "S\(season) É\(number)" }
+}
+
+nonisolated struct Person: Codable, Hashable, Sendable {
+    let name: String
+    let role: String?
+}
+
+nonisolated struct Episode: Codable, Hashable, Identifiable, Sendable {
+    let id: ContentID
+    let season: Int
+    let number: Int
+    let title: String
+    let overview: String?
+    let runtime: Int?
+    let still: URL?
+    let airDate: Date?
+    let versions: [Version]
+    let progress: Progress?
+
+    enum CodingKeys: String, CodingKey {
+        case id, season, number, title, overview, runtime, still, versions, progress
+        case airDate = "air_date"
+    }
+
+    var ref: EpisodeRef { EpisodeRef(season: season, number: number, title: title) }
+    var languages: [Language] { versions.languages }
+}
+
+/// A season with its episodes: `GET /series/{id}` carries them all.
+nonisolated struct Season: Codable, Hashable, Identifiable, Sendable {
+    let number: Int
+    let title: String?
+    let year: Int?
+    let episodes: [Episode]
+    var id: Int { number }
+    var episodeCount: Int { episodes.count }
+}
+
+/// The one content type. Lists fill the base fields, the sheet fills everything.
+nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
+    // Base, everywhere
+    let id: ContentID
+    let kind: ContentKind
+    let title: String
+    let poster: URL?
+    let maxQuality: Quality?
+    let dynamicRange: DynamicRange?
+    let languages: [Language]
+
+    // Resume row
+    let backdrop: URL?
+    let progress: Progress?
+    let episode: EpisodeRef?
+
+    // Grids and search
+    let year: Int?
+    let rating: Double?
+    let genres: [String]
+    let hint: String?
+    let addedAt: Date?
+
+    // Sheet only
+    let originalTitle: String?
+    let endYear: Int?
+    let overview: String?
+    let runtime: Int?
+    let certification: String?
+    let cast: [Person]
+    let director: String?
+    let trailer: URL?
+    let hasTMDB: Bool?
+    let providerCategory: String?
+    let rawTitle: String?
+    let versions: [Version]
+    var isFavorite: Bool?
+    let seasons: [Season]?
+    let currentEpisode: EpisodeRef?
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, title, poster, languages, backdrop, progress, episode, year, rating, genres, hint
+        case overview, runtime, certification, cast, director, trailer, versions, seasons
+        case maxQuality = "max_quality"
+        case dynamicRange = "dynamic_range"
+        case addedAt = "added_at"
+        case originalTitle = "original_title"
+        case endYear = "end_year"
+        case hasTMDB = "has_tmdb"
+        case providerCategory = "provider_category"
+        case rawTitle = "raw_title"
+        case isFavorite = "is_favorite"
+        case currentEpisode = "current_episode"
+    }
+
+    init(id: ContentID, kind: ContentKind, title: String, poster: URL? = nil, maxQuality: Quality? = nil, dynamicRange: DynamicRange? = nil,
+         languages: [Language] = [], backdrop: URL? = nil, progress: Progress? = nil, episode: EpisodeRef? = nil,
+         year: Int? = nil, rating: Double? = nil, genres: [String] = [], hint: String? = nil, addedAt: Date? = nil,
+         originalTitle: String? = nil, endYear: Int? = nil, overview: String? = nil, runtime: Int? = nil, certification: String? = nil,
+         cast: [Person] = [], director: String? = nil, trailer: URL? = nil, hasTMDB: Bool? = nil, providerCategory: String? = nil,
+         rawTitle: String? = nil, versions: [Version] = [], isFavorite: Bool? = nil, seasons: [Season]? = nil, currentEpisode: EpisodeRef? = nil) {
+        self.id = id; self.kind = kind; self.title = title; self.poster = poster; self.maxQuality = maxQuality; self.dynamicRange = dynamicRange
+        self.languages = languages; self.backdrop = backdrop; self.progress = progress; self.episode = episode
+        self.year = year; self.rating = rating; self.genres = genres; self.hint = hint; self.addedAt = addedAt
+        self.originalTitle = originalTitle; self.endYear = endYear; self.overview = overview; self.runtime = runtime; self.certification = certification
+        self.cast = cast; self.director = director; self.trailer = trailer; self.hasTMDB = hasTMDB; self.providerCategory = providerCategory
+        self.rawTitle = rawTitle; self.versions = versions; self.isFavorite = isFavorite; self.seasons = seasons; self.currentEpisode = currentEpisode
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(ContentID.self, forKey: .id)
+        kind = try c.decode(ContentKind.self, forKey: .kind)
+        title = try c.decode(String.self, forKey: .title)
+        poster = try c.decodeIfPresent(URL.self, forKey: .poster)
+        maxQuality = try c.decodeIfPresent(Quality.self, forKey: .maxQuality)
+        dynamicRange = try c.decodeIfPresent(DynamicRange.self, forKey: .dynamicRange)
+        languages = try c.decodeIfPresent([Language].self, forKey: .languages) ?? []
+        backdrop = try c.decodeIfPresent(URL.self, forKey: .backdrop)
+        progress = try c.decodeIfPresent(Progress.self, forKey: .progress)
+        episode = try c.decodeIfPresent(EpisodeRef.self, forKey: .episode)
+        year = try c.decodeIfPresent(Int.self, forKey: .year)
+        rating = try c.decodeIfPresent(Double.self, forKey: .rating)
+        genres = try c.decodeIfPresent([String].self, forKey: .genres) ?? []
+        hint = try c.decodeIfPresent(String.self, forKey: .hint)
+        addedAt = try c.decodeIfPresent(Date.self, forKey: .addedAt)
+        originalTitle = try c.decodeIfPresent(String.self, forKey: .originalTitle)
+        endYear = try c.decodeIfPresent(Int.self, forKey: .endYear)
+        overview = try c.decodeIfPresent(String.self, forKey: .overview)
+        runtime = try c.decodeIfPresent(Int.self, forKey: .runtime)
+        certification = try c.decodeIfPresent(String.self, forKey: .certification)
+        cast = try c.decodeIfPresent([Person].self, forKey: .cast) ?? []
+        director = try c.decodeIfPresent(String.self, forKey: .director)
+        trailer = try c.decodeIfPresent(URL.self, forKey: .trailer)
+        hasTMDB = try c.decodeIfPresent(Bool.self, forKey: .hasTMDB)
+        providerCategory = try c.decodeIfPresent(String.self, forKey: .providerCategory)
+        rawTitle = try c.decodeIfPresent(String.self, forKey: .rawTitle)
+        versions = try c.decodeIfPresent([Version].self, forKey: .versions) ?? []
+        isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite)
+        seasons = try c.decodeIfPresent([Season].self, forKey: .seasons)
+        currentEpisode = try c.decodeIfPresent(EpisodeRef.self, forKey: .currentEpisode)
+    }
+
+    /// "4K DV" or nil.
+    var qualityBadge: String? {
+        guard let maxQuality else { return nil }
+        if let dynamicRange, dynamicRange != .sdr { return "\(maxQuality.rawValue) \(dynamicRange.shortLabel)" }
+        return maxQuality.rawValue
+    }
+    /// Movies: the sheet says TMDB matched unless told otherwise.
+    var isMatched: Bool { hasTMDB ?? true }
+    var allEpisodes: [Episode] { seasons?.flatMap(\.episodes) ?? [] }
+
+    /// The same card trimmed to what a list carries.
+    var listCard: Card {
+        Card(id: id, kind: kind, title: title, poster: poster, maxQuality: maxQuality ?? versions.maxQuality,
+             dynamicRange: dynamicRange ?? versions.maxDynamicRange, languages: languages.isEmpty ? versions.languages : languages,
+             backdrop: backdrop, progress: progress, episode: episode, year: year, rating: rating, genres: genres, hint: hint, addedAt: addedAt)
+    }
+}
+
+/// A row of `GET /movies` or `GET /series`: one genre, twenty cards, the total for "Voir tout".
+nonisolated struct CatalogRow: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let total: Int
+    let cards: [Card]
+
+    private enum CodingKeys: String, CodingKey { case id, name, total, movies, series }
+
+    init(id: String, name: String, total: Int, cards: [Card]) {
+        self.id = id; self.name = name; self.total = total; self.cards = cards
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        total = try c.decodeIfPresent(Int.self, forKey: .total) ?? 0
+        cards = try c.decodeIfPresent([Card].self, forKey: .movies) ?? c.decodeIfPresent([Card].self, forKey: .series) ?? []
+    }
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id); try c.encode(name, forKey: .name); try c.encode(total, forKey: .total)
+        try c.encode(cards, forKey: cards.first?.kind == .series ? .series : .movies)
+    }
+}
+
+nonisolated struct Page<Item: Codable & Hashable & Sendable>: Codable, Hashable, Sendable {
+    let items: [Item]
+    let nextCursor: String?
+
+    enum CodingKeys: String, CodingKey {
+        case items
+        case nextCursor = "next_cursor"
+    }
+}

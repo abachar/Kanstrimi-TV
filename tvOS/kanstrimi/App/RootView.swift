@@ -9,7 +9,7 @@ struct RootView: View {
         Group {
             if env.device.isPaired {
                 MainTabsView()
-                    .task(id: env.device.token) { await env.loadSession() }
+                    .task(id: env.device.token) { await env.loadInfo() }
                     .task { await debugAutoplay() }
             } else {
                 PairingView()
@@ -40,10 +40,19 @@ private extension RootView {
             guard let groups = try? await env.client.channels(), let first = groups.flatMap(\.channels).first else { return }
             env.player.play(channel: first, in: groups.flatMap(\.channels))
         default:
-            guard var ctx = try? await env.client.playbackContext(id: ContentID(what)) else { return }
+            let id = ContentID(what)
+            guard let card = try? await env.client.detail(id: id.seriesID ?? id) else { return }
+            var ctx: PlaybackContext?
+            if let sid = id.seriesID, let ep = card.allEpisodes.first(where: { $0.id == id }) {
+                _ = sid
+                ctx = try? await env.playbackContext(for: ep, of: card)
+            } else {
+                ctx = try? await env.playbackContext(for: card)
+            }
+            guard var ctx else { return }
             let resume = UserDefaults.standard.double(forKey: "debug.resumeAt")
             if resume > 0 {
-                ctx = PlaybackContext(content: ctx.content, versions: ctx.versions, resumeAt: resume, duration: ctx.duration, next: ctx.next, seriesID: ctx.seriesID)
+                ctx = PlaybackContext(content: ctx.content, versions: ctx.versions, resumeAt: resume, duration: ctx.duration, next: ctx.next)
             }
             env.player.play(ctx)
         }

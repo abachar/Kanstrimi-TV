@@ -9,6 +9,12 @@ nonisolated struct ContentID: RawRepresentable, Hashable, Codable, Sendable, Cus
     var description: String { rawValue }
     var id: String { rawValue }
 
+    /// `tmdb:tv:1396:s01e05` → `tmdb:tv:1396`; nil when this is not an episode id.
+    var seriesID: ContentID? {
+        guard let range = rawValue.range(of: #":s\d{2}e\d{2}$"#, options: .regularExpression) else { return nil }
+        return ContentID(String(rawValue[..<range.lowerBound]))
+    }
+
     init(from decoder: Decoder) throws {
         rawValue = try decoder.singleValueContainer().decode(String.self)
     }

@@ -1,14 +1,17 @@
 {
  "groups": [
   {
-   "category": "Généralistes",
+   "id": "generalistes",
+   "name": "Généralistes",
    "channels": [
     {
      "id": "live:une",
      "name": "Une",
      "number": 1,
      "logo": null,
-     "category": "Généralistes",
+     "max_quality": "4K",
+     "has_epg": true,
+     "is_favorite": true,
      "versions": [
       {
        "id": "fr-4k",
@@ -19,12 +22,22 @@
          "id": "src-0314e6dc",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         },
         {
          "id": "src-02308fd2",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-b",
+          "name": "Fournisseur B",
+          "kind": "xtream"
+         },
          "origin": "|FR| Généralistes Backup"
         }
        ]
@@ -38,6 +51,11 @@
          "id": "src-03829e70",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -51,6 +69,11 @@
          "id": "src-038d537a",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -62,7 +85,9 @@
      "name": "Deux",
      "number": 2,
      "logo": null,
-     "category": "Généralistes",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -73,6 +98,11 @@
          "id": "src-05d2c5a3",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -86,6 +116,11 @@
          "id": "src-0261124c",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -97,7 +132,9 @@
      "name": "Trois",
      "number": 3,
      "logo": null,
-     "category": "Généralistes",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -108,6 +145,11 @@
          "id": "src-0201df4a",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -119,7 +161,9 @@
      "name": "Cinq",
      "number": 5,
      "logo": null,
-     "category": "Généralistes",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -130,6 +174,11 @@
          "id": "src-03914cf7",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -143,6 +192,11 @@
          "id": "src-05eac334",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -154,7 +208,9 @@
      "name": "Six",
      "number": 6,
      "logo": null,
-     "category": "Généralistes",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -165,6 +221,11 @@
          "id": "src-04f9f800",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -178,6 +239,11 @@
          "id": "src-0348959b",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -191,6 +257,11 @@
          "id": "src-03c18934",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -202,7 +273,9 @@
      "name": "Huit",
      "number": 8,
      "logo": null,
-     "category": "Généralistes",
+     "max_quality": "HD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-hd",
@@ -213,6 +286,11 @@
          "id": "src-025f1de7",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Généralistes"
         }
        ]
@@ -222,14 +300,17 @@
    ]
   },
   {
-   "category": "Info",
+   "id": "info",
+   "name": "Info",
    "channels": [
     {
      "id": "live:info-24",
      "name": "Info 24",
      "number": 10,
      "logo": null,
-     "category": "Info",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": true,
      "versions": [
       {
        "id": "fr-fhd",
@@ -240,6 +321,11 @@
          "id": "src-0281549d",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Info"
         }
        ]
@@ -253,6 +339,11 @@
          "id": "src-01586022",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Info"
         }
        ]
@@ -266,6 +357,11 @@
          "id": "src-00d03381",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Info"
         }
        ]
@@ -277,7 +373,9 @@
      "name": "Monde Direct",
      "number": 11,
      "logo": null,
-     "category": "Info",
+     "max_quality": "HD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-hd",
@@ -288,6 +386,11 @@
          "id": "src-04e637f5",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Info"
         }
        ]
@@ -301,6 +404,11 @@
          "id": "src-046223dc",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Info"
         }
        ]
@@ -312,7 +420,9 @@
      "name": "Éco Live",
      "number": 12,
      "logo": null,
-     "category": "Info",
+     "max_quality": "HD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-hd",
@@ -323,6 +433,11 @@
          "id": "src-003ebdd0",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Info"
         }
        ]
@@ -336,6 +451,11 @@
          "id": "src-01a2f950",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Info"
         }
        ]
@@ -347,7 +467,9 @@
      "name": "Parlement",
      "number": 13,
      "logo": null,
-     "category": "Info",
+     "max_quality": "SD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-sd",
@@ -358,6 +480,11 @@
          "id": "src-01b4e452",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Info"
         }
        ]
@@ -371,6 +498,11 @@
          "id": "src-0597a9f2",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Info"
         }
        ]
@@ -380,14 +512,17 @@
    ]
   },
   {
-   "category": "Sport",
+   "id": "sport",
+   "name": "Sport",
    "channels": [
     {
      "id": "live:arena-1",
      "name": "Arena 1",
      "number": 20,
      "logo": null,
-     "category": "Sport",
+     "max_quality": "4K",
+     "has_epg": true,
+     "is_favorite": true,
      "versions": [
       {
        "id": "fr-4k",
@@ -398,12 +533,22 @@
          "id": "src-025b113a",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         },
         {
          "id": "src-05b3585b",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-b",
+          "name": "Fournisseur B",
+          "kind": "xtream"
+         },
          "origin": "|FR| Sport Backup"
         }
        ]
@@ -417,6 +562,11 @@
          "id": "src-033a1a96",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -430,6 +580,11 @@
          "id": "src-01cc7d79",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -441,7 +596,9 @@
      "name": "Arena 2",
      "number": 21,
      "logo": null,
-     "category": "Sport",
+     "max_quality": "4K",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-4k",
@@ -452,12 +609,22 @@
          "id": "src-0589e732",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         },
         {
          "id": "src-055149ce",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-b",
+          "name": "Fournisseur B",
+          "kind": "xtream"
+         },
          "origin": "|FR| Sport Backup"
         }
        ]
@@ -471,6 +638,11 @@
          "id": "src-029a7b98",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -484,6 +656,11 @@
          "id": "src-0153b780",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -495,7 +672,9 @@
      "name": "Arena 3",
      "number": 22,
      "logo": null,
-     "category": "Sport",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -506,6 +685,11 @@
          "id": "src-00cfe2bc",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -519,6 +703,11 @@
          "id": "src-01d6ba1c",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -530,7 +719,9 @@
      "name": "Stade+",
      "number": 23,
      "logo": null,
-     "category": "Sport",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -541,6 +732,11 @@
          "id": "src-0314cfe3",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -554,6 +750,11 @@
          "id": "src-0107104c",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -567,6 +768,11 @@
          "id": "src-04cffa8f",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -578,7 +784,9 @@
      "name": "Moteurs",
      "number": 24,
      "logo": null,
-     "category": "Sport",
+     "max_quality": "HD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-hd",
@@ -589,6 +797,11 @@
          "id": "src-02ae9188",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -602,6 +815,11 @@
          "id": "src-0528045b",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Sport"
         }
        ]
@@ -611,14 +829,17 @@
    ]
   },
   {
-   "category": "Cinéma",
+   "id": "cinema",
+   "name": "Cinéma",
    "channels": [
     {
      "id": "live:ciné-club",
      "name": "Ciné Club",
      "number": 30,
      "logo": null,
-     "category": "Cinéma",
+     "max_quality": "4K",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-4k",
@@ -629,12 +850,22 @@
          "id": "src-044abfd0",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         },
         {
          "id": "src-0328275f",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-b",
+          "name": "Fournisseur B",
+          "kind": "xtream"
+         },
          "origin": "|FR| Cinéma Backup"
         }
        ]
@@ -648,6 +879,11 @@
          "id": "src-01a94c8d",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         }
        ]
@@ -661,6 +897,11 @@
          "id": "src-04ee6d13",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         }
        ]
@@ -672,7 +913,9 @@
      "name": "Ciné Frisson",
      "number": 31,
      "logo": null,
-     "category": "Cinéma",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -683,6 +926,11 @@
          "id": "src-04648340",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         }
        ]
@@ -696,6 +944,11 @@
          "id": "src-026c4c25",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         }
        ]
@@ -707,7 +960,9 @@
      "name": "Ciné Famille",
      "number": 32,
      "logo": null,
-     "category": "Cinéma",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -718,6 +973,11 @@
          "id": "src-0457eb11",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         }
        ]
@@ -731,6 +991,11 @@
          "id": "src-044e4862",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         }
        ]
@@ -744,6 +1009,11 @@
          "id": "src-03063803",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         }
        ]
@@ -755,7 +1025,9 @@
      "name": "Ciné Classique",
      "number": 33,
      "logo": null,
-     "category": "Cinéma",
+     "max_quality": "HD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-hd",
@@ -766,6 +1038,11 @@
          "id": "src-058c81bd",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         }
        ]
@@ -779,6 +1056,11 @@
          "id": "src-021bf798",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Cinéma"
         }
        ]
@@ -788,14 +1070,17 @@
    ]
   },
   {
-   "category": "Jeunesse",
+   "id": "jeunesse",
+   "name": "Jeunesse",
    "channels": [
     {
      "id": "live:kidzo",
      "name": "Kidzo",
      "number": 40,
      "logo": null,
-     "category": "Jeunesse",
+     "max_quality": "FHD",
+     "has_epg": false,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -806,6 +1091,11 @@
          "id": "src-02c7f482",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Jeunesse"
         }
        ]
@@ -819,6 +1109,11 @@
          "id": "src-039e02bb",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Jeunesse"
         }
        ]
@@ -830,7 +1125,9 @@
      "name": "Ludik",
      "number": 41,
      "logo": null,
-     "category": "Jeunesse",
+     "max_quality": "HD",
+     "has_epg": false,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-hd",
@@ -841,6 +1138,11 @@
          "id": "src-01f0c604",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Jeunesse"
         }
        ]
@@ -850,14 +1152,17 @@
    ]
   },
   {
-   "category": "Découverte",
+   "id": "decouverte",
+   "name": "Découverte",
    "channels": [
     {
      "id": "live:planète-bleue",
      "name": "Planète Bleue",
      "number": 50,
      "logo": null,
-     "category": "Découverte",
+     "max_quality": "4K",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-4k",
@@ -868,12 +1173,22 @@
          "id": "src-0167af40",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Découverte"
         },
         {
          "id": "src-0411c1e6",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-b",
+          "name": "Fournisseur B",
+          "kind": "xtream"
+         },
          "origin": "|FR| Découverte Backup"
         }
        ]
@@ -887,6 +1202,11 @@
          "id": "src-026a8be3",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Découverte"
         }
        ]
@@ -898,7 +1218,9 @@
      "name": "Histoire TV",
      "number": 51,
      "logo": null,
-     "category": "Découverte",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-fhd",
@@ -909,6 +1231,11 @@
          "id": "src-004cb184",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Découverte"
         }
        ]
@@ -920,7 +1247,9 @@
      "name": "Sciences",
      "number": 52,
      "logo": null,
-     "category": "Découverte",
+     "max_quality": "HD",
+     "has_epg": true,
+     "is_favorite": false,
      "versions": [
       {
        "id": "fr-hd",
@@ -931,6 +1260,11 @@
          "id": "src-05e125ec",
          "container": "TS",
          "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream-a",
+          "name": "Fournisseur A",
+          "kind": "xtream"
+         },
          "origin": "|FR| Chaînes Découverte"
         }
        ]

@@ -27,6 +27,12 @@ final class PlayerService: NSObject {
         let detail: String?
     }
 
+    struct EPGNow: Equatable {
+        let now: Programme?
+        let next: Programme?
+        static let empty = EPGNow(now: nil, next: nil)
+    }
+
     struct Failure: Equatable {
         let attempts: Int
         let sourceLabel: String
@@ -135,12 +141,12 @@ final class PlayerService: NSObject {
         self.channel = channel
         epg = .empty
         let ctx = PlaybackContext(content: PlaybackContent(id: channel.id, kind: .live, title: channel.name, subtitle: nil, episode: nil, backdrop: nil),
-                                  versions: channel.versions, resumeAt: nil, duration: nil, next: nil, seriesID: nil)
+                                  versions: channel.versions)
         play(ctx)
         Task { [weak self] in
             guard let self else { return }
-            let now = try? await client.epg(channelID: channel.id)
-            if self.channel?.id == channel.id { epg = now ?? .empty }
+            let full = try? await client.channel(id: channel.id)
+            if self.channel?.id == channel.id { epg = full.map { EPGNow(now: $0.now, next: $0.next) } ?? .empty }
         }
     }
 
@@ -253,7 +259,7 @@ final class PlayerService: NSObject {
         failure = nil
         Task { [weak self] in
             guard let self else { return }
-            let fresh = (try? await client.playbackContext(id: context.content.id)) ?? context
+            let fresh = (try? await client.playback(id: context.content.id)).map { PlaybackContext(content: context.content, playback: $0) } ?? context
             let v = fresh.versions.first { $0.id == version.id } ?? version
             let s = chooser.bestSource(of: v) ?? v.sources.first
             guard let s else { return }
@@ -371,8 +377,10 @@ final class PlayerService: NSObject {
     private func prefetchNext(_ ctx: PlaybackContext) {
         guard let next = ctx.next else { return }
         Task { [weak self] in
-            let c = try? await self?.client.playbackContext(id: next.id)
-            if self?.context?.content.id == ctx.content.id { self?.nextContext = c }
+            guard let self, let playback = try? await client.playback(id: next.id) else { return }
+            let content = PlaybackContent(id: next.id, kind: .episode, title: next.title ?? "", subtitle: ctx.content.subtitle,
+                                          episode: next.ref, backdrop: ctx.content.backdrop)
+            if context?.content.id == ctx.content.id { nextContext = PlaybackContext(content: content, playback: playback) }
         }
     }
 

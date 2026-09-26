@@ -1,275 +1,215 @@
-# API `/api/v1` — ce que l'app tvOS attend
+# API `/api/v1` — contrat arrêté avec l'app tvOS
 
-*Contrat tel que l'app le consomme aujourd'hui, dérivé de `tvOS/kanstrimi/Contract/` et du
-protocole `CatalogClient`. Le mock (`MockCatalogClient`) répond exactement ces formes ; le
-client HTTP les décodera sans adaptation. Rédigé le 2026-09-26. Remplace la section 3 de
-`conception-groupement-et-api-rest.md` là où elles divergent (versions × sources au lieu de
-variantes, jeton d'appareil au lieu de Basic).*
+*Arrêté le 2026-09-26, écran par écran. Dérivé de `tvOS/kanstrimi/Contract/` et du protocole
+`CatalogClient` ; le mock répond exactement ces formes, le client HTTP les décodera sans
+adaptation. Remplace la section 3 de `conception-groupement-et-api-rest.md`.*
 
 ## Règles communes
 
-- Préfixe `/api/v1`, JSON en `snake_case`, dates ISO 8601 UTC, `null` explicite, jamais de chaîne vide à sa place.
-- Authentification : `Authorization: Bearer <jeton d'appareil>` sur tout sauf `/pair`. Un `401` sur n'importe quel appel efface le jeton et ramène à l'appairage.
-- Erreurs : `{ "error": { "code": "not_found", "message": "Contenu introuvable" } }`, code stable en anglais, message en français. Codes attendus : `unauthorized` (401), `not_found` (404), `bad_request` (400), `upstream` (502, le fournisseur n'a pas répondu).
-- Identifiants de contenu opaques et stables : `tmdb:movie:603`, `tmdb:tv:1396`, `tmdb:tv:1396:s01e05`, `live:tf1`, `fallback:movie:<titre>:<année>`. L'app ne manipule jamais de `stream_id`.
-- Vocabulaire : `language` ∈ `VF` · `VOSTFR` · `VO` · code ISO ; `quality` ∈ `SD` · `HD` · `FHD` · `4K` ; `dynamic_range` ∈ `SDR` · `HDR` · `DV` (absent = SDR) ; `kind` ∈ `movie` · `series` · `episode` · `live`.
-- Listes paginées : `{ "items": [...], "next_cursor": "…" | null }`.
+- Préfixe `/api/v1`, JSON `snake_case`, dates ISO 8601 UTC, `null` explicite.
+- `Authorization: Bearer <jeton>` partout sauf `/devices`. Un `401` sur n'importe quel appel efface jeton et code, vide le cache et ramène à l'appairage.
+- Erreurs : `{ "error": { "code": "not_found", "message": "…" } }`. Codes : `unauthorized` 401, `not_found` 404, `bad_request` 400, `upstream` 502.
+- Identifiants opaques et stables, issus des tables du serveur : `tmdb:movie:603`, `tmdb:tv:1396`, `tmdb:tv:1396:s01e05`, `live:tf1`, `fallback:movie:<titre>:<année>`. Aucun identifiant fournisseur ne circule.
+- Vocabulaire : `kind` ∈ `movie` · `series` · `episode` · `live` ; `language` ∈ `VF` · `VOSTFR` · `VO` · code ISO ; `quality` ∈ `SD` · `HD` · `FHD` · `4K` ; `dynamic_range` ∈ `HDR` · `DV` (absent = SDR).
+- Le serveur sert ses propres tables (filtrage, classement, complétion, IA), pas la source brute. Plusieurs sources sont prévues (comptes Xtream, fichiers locaux) : chaque `source` porte son `provider`.
 
-## Types partagés
+## Routes
 
-**Carte** (`ContentCard`), même forme dans toutes les listes :
+```
+POST   /devices                 GET /devices/{code}            DELETE /devices/{code}
+GET    /info
+GET    /home
+GET    /movies                  GET /movies?genre=&cursor=     GET /movies/{id}
+GET    /series                  GET /series?genre=&cursor=     GET /series/{id}
+GET    /channels                GET /channels/{id}
+GET    /playback/{id}           PUT /playback/{id}/progress
+GET    /search?q=&scope=
+PUT    /favorites/{id}          DELETE /favorites/{id}
+```
+
+## Types
+
+### `Card` — un seul type, rempli selon l'écran
+
+Obligatoires : `id`, `kind`, `title`. Tout le reste est optionnel et absent quand l'écran ne s'en sert pas.
 
 ```json
 {
-  "id": "tmdb:movie:603", "kind": "movie", "title": "Matrix", "year": 1999,
-  "poster": "https://kanstrimi.crafters.dev/img/w500/abc.jpg", "backdrop": "https://…/w1280/def.jpg",
-  "rating": 8.2, "genres": ["Science-fiction", "Action"],
-  "languages": ["VF", "VOSTFR"], "max_quality": "4K", "dynamic_range": "DV",
-  "progress": { "position": 4520, "duration": 8280, "finished": false },
-  "episode": null, "hint": null, "added_at": "2026-09-20T04:10:00Z"
+  "id": "tmdb:movie:603", "kind": "movie", "title": "Matrix", "poster": "https://…/img/w500/abc.jpg",
+  "max_quality": "4K", "dynamic_range": "DV", "languages": ["VF", "VOSTFR"],
+
+  "backdrop": "https://…", "progress": { "position": 4520, "duration": 8280 }, "episode": { "season": 2, "number": 4, "title": "…" },
+
+  "year": 1999, "rating": 8.2, "genres": ["Science-fiction"], "hint": "VOSTFR seul", "added_at": "2026-09-20T04:10:00Z",
+
+  "original_title": "The Matrix", "end_year": null, "overview": "…", "runtime": 136, "certification": "12+",
+  "cast": [ { "name": "Keanu Reeves", "role": "Neo" } ], "director": "Lana Wachowski", "trailer": "https://…",
+  "has_tmdb": true, "provider_category": null, "raw_title": null,
+  "versions": [Version], "is_favorite": false,
+  "seasons": [Season], "current_episode": { "season": 2, "number": 4, "title": "…" }
 }
 ```
 
-`progress` n'est présent que si une progression existe ; `episode` (`{ "season": 2, "number": 4, "title": "…" }`) seulement quand la carte est un épisode (rangée Reprendre) ; `hint` est un court texte calculé par le serveur (« VOSTFR seul », « VF partielle S3 »).
+| Bloc | Champs | Qui les remplit |
+|---|---|---|
+| base | `id` `kind` `title` `poster` `max_quality` `dynamic_range` `languages` | toutes les listes |
+| reprise | `backdrop` `progress` `episode` | rangée Reprendre de `/home` |
+| grille | `year` `rating` `genres` `hint` `added_at` | `/movies`, `/series`, `/search` |
+| fiche | `original_title` `end_year` `overview` `runtime` `certification` `cast` `director` `trailer` `has_tmdb` `provider_category` `raw_title` `versions` `is_favorite` `progress.finished` | `/movies/{id}`, `/series/{id}` |
+| série | `seasons` (avec épisodes) `current_episode` | `/series/{id}` |
 
-**Version et sources** (`Version`, `Source`) :
+### `Version`, `Source`, `Provider`
 
 ```json
-{
-  "id": "vf-4k-dv", "language": "VF", "quality": "4K", "dynamic_range": "DV",
+{ "id": "vf-4k-dv", "language": "VF", "quality": "4K", "dynamic_range": "DV",
   "sources": [
-    { "id": "src-3f9a1c02", "container": "MKV", "stream_url": "https://kanstrimi.crafters.dev/movie/u/p/12345.mkv", "origin": "Films 4K UHD" },
-    { "id": "src-7b21e0aa", "container": "MKV", "stream_url": "https://kanstrimi.crafters.dev/movie/u/p/67890.mkv", "origin": "4K DV" }
-  ]
-}
+    { "id": "src-3f9a1c02", "container": "MKV", "stream_url": "https://kanstrimi.crafters.dev/movie/u/p/12345.mkv",
+      "provider": { "id": "xtream-a", "name": "Fournisseur A", "kind": "xtream" }, "origin": "Films 4K UHD" }
+  ] }
 ```
 
-Les sources sont **dans l'ordre serveur**, la première est celle par défaut. `stream_url` est opaque, jamais mise en cache, relue à chaque lecture (le serveur répond 302 avec un jeton amont frais).
+Sources dans l'ordre serveur, la première par défaut. `stream_url` opaque, jamais mise en cache, relue à chaque lecture. `provider.kind` ∈ `xtream` · `local` · … ; `origin` est la catégorie chez ce fournisseur.
 
-**Progression** : `{ "position": 4520, "duration": 8280, "finished": false }` en secondes ; `finished` est dérivé côté serveur à 90 %.
-
-## Appairage et session
-
-### `POST /api/v1/pair` — sans authentification
-
-Crée un code à 6 caractères valable 10 minutes. Limité en fréquence.
+### `Season`, `Episode`
 
 ```json
-{ "code": "K7Q4MZ", "expires_at": "2026-09-26T21:24:00Z", "url": "https://kanstrimi.crafters.dev/admin/pair/K7Q4MZ" }
+{ "number": 2, "title": "Saison 2", "year": 2025,
+  "episodes": [
+    { "id": "tmdb:tv:20000:s02e04", "season": 2, "number": 4, "title": "Sans retour", "overview": "…", "runtime": 55,
+      "still": "https://…", "air_date": "2025-03-22T00:00:00Z",
+      "versions": [Version], "progress": { "position": 1140, "duration": 3060, "finished": false } }
+  ] }
 ```
 
-### `GET /api/v1/pair/{code}` — sans authentification
-
-Sondé toutes les 2 s par l'Apple TV jusqu'à validation dans l'admin.
+### `Channel`
 
 ```json
-{ "status": "pending" }
-{ "status": "approved", "token": "dvc_8f2c…", "device_name": "Salon" }
-{ "status": "expired" }
+{ "id": "live:natgeo-wild", "name": "Nat Geo Wild HD", "number": 20, "logo": "https://…",
+  "max_quality": "HD", "has_epg": true, "is_favorite": false,
+  "versions": [Version],
+  "now":  { "title": "Animals and Nature", "start": "…", "end": "…", "overview": "…" },
+  "next": { "title": "…", "start": "…", "end": "…" } }
 ```
 
-### `GET /api/v1/session`
+`now` et `next` ne sont présents que dans `GET /channels/{id}`.
 
-Nom de l'appareil, versions, langues, compteurs. Appelé après l'appairage et à chaque lancement.
+## Écran par écran
+
+### Appairage — `POST /devices`, `GET /devices/{code}`
+
+Sans jeton. Le code à 6 caractères, valable 10 min, reste l'identifiant de l'appareil après validation.
+
+```json
+POST /devices          → { "code": "K7Q4MZ", "expires_at": "2026-09-26T21:24:00Z", "url": "https://kanstrimi.crafters.dev/admin/pair/K7Q4MZ" }
+GET  /devices/K7Q4MZ   → { "status": "pending" }
+                       → { "status": "approved", "token": "dvc_8f2c…", "device_name": "Salon" }
+                       → { "status": "expired" }
+```
+
+L'app sonde toutes les 2 s ; expiré, elle redemande un code seule. Jeton et code vont en Keychain.
+
+### Déjà appairé, au lancement
+
+`GET /info` et `GET /home` en parallèle avec le jeton. `200` → onglets ; `401` → retour au QR avec « Cet Apple TV a été dissocié » ; injoignable → onglets sur le dernier accueil en cache, bandeau Réessayer. Le premier appel après un redémarrage du serveur déverrouille le coffre via la clé enveloppée par le jeton, sans que l'app le sache.
+
+### Réglages — `GET /info`, `DELETE /devices/{code}`
+
+```json
+GET /info → { "server_version": "0.9.3", "counts": { "movies": 35219, "series": 22174, "channels": 722 },
+              "last_import": "2026-09-26T02:10:00Z", "tmdb_rate": 0.97,
+              "catalog_languages": ["VF", "VOSTFR", "VO"], "default_language_order": ["VF", "VOSTFR", "VO"] }
+DELETE /devices/{code} → 204   (« Dissocier cet Apple TV », seulement le sien)
+```
+
+Le reste des Réglages est local (nom reçu à l'appairage, URL compilée, préférences de lecture).
+
+### Accueil — `GET /home`
+
+Un appel, à chaque affichage de l'onglet et sur Réessayer. Le serveur décide de l'ordre et de la présence des rangées ; une rangée inconnue s'affiche quand même. Réponse écrite sur disque pour le mode hors ligne.
 
 ```json
 {
-  "device_name": "Salon", "server_version": "0.9.3", "server_host": "kanstrimi.crafters.dev",
-  "tmdb_language": "fr-FR", "catalog_languages": ["VF", "VOSTFR", "VO"],
-  "default_language_order": ["VF", "VOSTFR", "VO"],
-  "counts": { "movies": 35219, "series": 22174, "channels": 722 },
-  "last_import": "2026-09-26T02:10:00Z", "tmdb_rate": 0.97
-}
-```
-
-### `DELETE /api/v1/session`
-
-Révoque le jeton de l'appareil qui appelle (« Dissocier cet Apple TV »). Réponse `204`.
-
-## Accueil
-
-### `GET /api/v1/home`
-
-Un seul appel : le hero et les rangées ordonnées, avec leurs cartes. Le serveur décide de l'ordre et de la présence des rangées. Mis en cache sur disque par l'app pour le mode hors ligne.
-
-```json
-{
-  "hero": {
-    "card": { "id": "tmdb:movie:100000", "kind": "movie", "title": "La Lisière", "year": 2025, "…": "…" },
-    "tagline": "FILM · NOUVEAUTÉ", "overview": "Un dernier été…", "runtime": 127, "certification": "12+",
-    "versions": [ { "id": "vf-4k-dv", "language": "VF", "quality": "4K", "dynamic_range": "DV", "sources": ["…"] } ]
-  },
+  "hero": { "card": Card, "tagline": "FILM · NOUVEAUTÉ", "overview": "…", "runtime": 127, "certification": "12+", "versions": [Version] },
   "rows": [
-    { "id": "resume", "kind": "resume", "title": "Reprendre", "cards": ["… cartes avec progress, et episode pour les épisodes …"] },
-    { "id": "recent-movies", "kind": "recent_movies", "title": "Films récents", "cards": ["…"] },
-    { "id": "recent-series", "kind": "recent_series", "title": "Séries récentes", "cards": ["…"] },
-    { "id": "favorites", "kind": "favorites", "title": "Ma liste", "cards": ["…"] }
+    { "id": "resume",        "kind": "resume",        "title": "Reprendre",       "cards": [Card + backdrop, progress, episode] },
+    { "id": "recent-movies", "kind": "recent_movies", "title": "Films récents",   "cards": [Card] },
+    { "id": "recent-series", "kind": "recent_series", "title": "Séries récentes", "cards": [Card] },
+    { "id": "favorites",     "kind": "favorites",     "title": "Ma liste",        "cards": [Card] }
   ],
   "generated_at": "2026-09-26T21:14:00Z"
 }
 ```
 
-`kind` ∈ `resume` · `recent_movies` · `recent_series` · `favorites` · `collection`. Une rangée `resume` absente ou vide n'est pas affichée.
+Le hero porte ses `versions` : *Lecture* part sans autre appel. Une carte Reprendre appelle `GET /playback/{id}`. Les autres ouvrent la fiche.
 
-## Films et séries
+### Direct — `GET /channels`, `GET /channels/{id}`
 
-### `GET /api/v1/movies` · `GET /api/v1/series`
-
-Liste paginée par curseur. Paramètres : `sort` (`recent` défaut films, `latest_episodes` défaut séries, `title`, `year`, `rating`), `genre`, `language`, `min_quality`, `dynamic_range`, `vf_available=1`, `complete_season_vf=1` (séries), `new_episodes=1` (séries), `cursor`, `limit` (18 par défaut, l'app en affiche six par ligne).
+Trois colonnes : catégories avec compte, chaînes de la catégorie, aperçu et programme de la chaîne focalisée.
 
 ```json
-{ "items": [ { "id": "tmdb:movie:603", "kind": "movie", "…": "…" } ], "next_cursor": "eyJzIjoicmVjZW50IiwidiI6IjIwMjYtMDktMjAiLCJpIjoiLi4uIn0" }
+GET /channels      → [ { "id": "sport", "name": "Sport", "channels": [Channel] } ]
+GET /channels/{id} → Channel + now + next     (au focus, cache 1 min ; bandeau du lecteur direct)
 ```
 
-### `GET /api/v1/genres?kind=movie|series`
+« Récentes » (local à l'app) et « Favoris » (`is_favorite`) sont deux catégories virtuelles en tête. Le zapping ▲▼ suit la liste de la catégorie courante.
 
-Genres TMDB présents dans le catalogue visible, avec compte, triés par compte décroissant.
+### Films, Séries — `GET /movies`, `GET /series`
+
+Des rangées par genre, vingt cartes chacune, comme sur l'accueil. Le serveur décide des rangées (« Nouveautés » en tête, puis les genres TMDB présents).
 
 ```json
-[ { "id": "thriller", "name": "Thriller", "count": 4120 }, { "id": "drame", "name": "Drame", "count": 3987 } ]
+GET /movies → [ { "id": "thriller", "name": "Thriller", "total": 4120, "movies": [Card × 20] } ]
+GET /series → [ { "id": "drame",    "name": "Drame",    "total": 987,  "series": [Card × 20] } ]
 ```
 
-### `GET /api/v1/content/{id}`
-
-La fiche complète en un appel : métadonnées, versions avec sources prêtes à jouer, progression, favori. Série : `seasons` sans épisodes, `current_episode` pour le bouton principal, `versions` = agrégat dédoublonné des versions des épisodes (pour la langue de la série).
+« Voir tout » d'une rangée, si `total` dépasse les cartes reçues, et selon les mesures de performance :
 
 ```json
-{
-  "id": "tmdb:tv:20000", "kind": "series", "title": "Brise-Lames", "original_title": null,
-  "year": 2024, "end_year": 2026, "overview": "Une équipe de sauveteurs…", "genres": ["Thriller"],
-  "runtime": null, "certification": "16+", "rating": 8.1,
-  "poster": "https://…", "backdrop": "https://…",
-  "cast": [ { "name": "Idir Benali", "role": null } ], "director": "Karim Souleymane",
-  "trailer": null, "has_tmdb": true, "provider_category": null, "raw_title": null,
-  "versions": [ { "id": "vf-4k-hdr", "language": "VF", "quality": "4K", "dynamic_range": "HDR", "sources": [] } ],
-  "progress": { "position": 1140, "duration": 3060, "finished": false },
-  "is_favorite": false,
-  "seasons": [ { "number": 1, "title": "Saison 1", "episode_count": 8, "year": 2024 }, { "number": 2, "title": "Saison 2", "episode_count": 8, "year": 2025 } ],
-  "current_episode": { "season": 2, "number": 4, "title": "Sans retour" },
-  "added_at": "2026-09-22T04:10:00Z"
-}
+GET /movies?genre=thriller&sort=recent&cursor=   → { "items": [Card], "next_cursor": "…" | null }
 ```
 
-Film : `seasons` et `current_episode` à `null`, `versions` avec leurs sources. Sans correspondance TMDB : `has_tmdb: false`, `poster`/`overview`/`cast` à `null` ou vides, `provider_category` et `raw_title` renseignés.
+Paramètres : `sort` (`recent`, `title`, `year`, `rating`, `latest_episodes` pour les séries), `language`, `min_quality`, `dynamic_range`, `vf_available=1`, `cursor`, `limit`.
 
-### `GET /api/v1/content/{id}/seasons/{n}`
+### Fiche film — `GET /movies/{id}`
 
-Les épisodes d'une saison avec versions, sources et progression. C'est l'appel qui touche le fournisseur (`get_series_info`), donc en erreur possible : `502 upstream`, la fiche garde les autres saisons.
+La `Card` complète, avec `versions` et leurs `stream_url` : *Lecture* part sans autre appel, le moteur choisit localement. `progress.finished` donne *Revoir*. Sans TMDB : `has_tmdb: false`, `provider_category` et `raw_title` renseignés.
+
+### Fiche série — `GET /series/{id}`
+
+La `Card` complète avec `end_year`, `seasons[].episodes[]` (versions, sources, progression de chaque épisode, tout en un appel), `current_episode` pour le bouton principal et `progress` de cet épisode, `versions` = agrégat langue × qualité de la série, sans sources, pour « Langue de la série ». Aucun appel au changement de saison. L'épisode suivant est calculé par l'app depuis les saisons reçues.
+
+### Lecteur — `GET /playback/{id}`, `PUT /playback/{id}/progress`
+
+Un seul chemin pour film, épisode et chaîne ; l'identifiant dit lequel.
 
 ```json
-[
-  {
-    "id": "tmdb:tv:20000:s02e04", "season": 2, "number": 4, "title": "Sans retour",
-    "overview": "…", "runtime": 55, "still": "https://…", "air_date": "2025-03-22T00:00:00Z",
-    "versions": [ { "id": "vf-4k-hdr", "language": "VF", "quality": "4K", "dynamic_range": "HDR", "sources": [ { "id": "src-…", "container": "MKV", "stream_url": "https://…", "origin": "Séries 4K" } ] } ],
-    "progress": { "position": 1140, "duration": 3060, "finished": false }
-  }
-]
+GET /playback/{id} → { "versions": [Version], "resume_at": 1140, "duration": 3060,
+                       "next": { "id": "tmdb:tv:20000:s02e05", "title": "Marée haute", "season": 2, "number": 5, "runtime": 51,
+                                 "languages": ["VOSTFR"], "max_quality": "4K", "dynamic_range": "HDR", "still": "https://…" } }
 ```
 
-## Lecture
-
-### `GET /api/v1/content/{id}/playback`
-
-Le contexte de lecture d'un film, d'un épisode ou d'une chaîne, sans passer par la fiche : ce que « Reprendre » sur l'accueil et « Lecture » depuis la recherche appellent. Pour un épisode, `next` pointe le suivant, saison suivante comprise ; l'app demande ensuite son propre contexte.
-
-```json
-{
-  "content": { "id": "tmdb:tv:20000:s02e04", "kind": "episode", "title": "Sans retour", "subtitle": "Brise-Lames",
-               "episode": { "season": 2, "number": 4, "title": "Sans retour" }, "backdrop": "https://…" },
-  "versions": [ "… versions avec sources …" ],
-  "resume_at": 1140, "duration": 3060,
-  "next": { "id": "tmdb:tv:20000:s02e05", "series_title": "Brise-Lames",
-            "episode": { "season": 2, "number": 5, "title": "Marée haute" }, "runtime": 51,
-            "languages": ["VOSTFR"], "max_quality": "4K", "dynamic_range": "HDR", "still": "https://…" },
-  "series_id": "tmdb:tv:20000"
-}
-```
-
-Film : `next` et `series_id` à `null`. Chaîne : `kind: "live"`, `subtitle` = programme en cours, `resume_at` et `duration` à `null`.
-
-### `POST /api/v1/progress`
-
-Toutes les 30 s pendant la lecture, à la pause, à la sortie et au changement de version. Idempotent, le dernier gagne. Réponse `204`.
-
-```json
-{ "content_id": "tmdb:tv:20000:s02e04", "position": 1170, "duration": 3060, "sent_at": "2026-09-26T21:15:30Z" }
-```
-
-### `PUT /api/v1/favorites/{id}` · `DELETE /api/v1/favorites/{id}`
-
-Bascule « Ma liste ». Réponse `204`.
-
-## Direct
-
-### `GET /api/v1/live`
-
-Toutes les chaînes visibles d'un coup, groupées par catégorie fournisseur, chacune avec logo, versions et sources. Pas de pagination.
-
-```json
-[
-  {
-    "category": "Sport",
-    "channels": [
-      {
-        "id": "live:arena-1", "name": "Arena 1", "number": 20, "logo": "https://…", "category": "Sport",
-        "versions": [
-          { "id": "fr-4k", "language": "FR", "quality": "4K",
-            "sources": [ { "id": "src-…", "container": "TS", "stream_url": "https://kanstrimi.crafters.dev/live/u/p/4411.ts", "origin": "|FR| Sport" },
-                         { "id": "src-…", "container": "TS", "stream_url": "https://…/4412.ts", "origin": "|FR| Sport Backup" } ] },
-          { "id": "en-4k", "language": "EN", "quality": "4K", "sources": [ "…" ] }
-        ]
-      }
-    ]
-  }
-]
-```
-
-### `GET /api/v1/live/{id}/epg`
-
-En cours et suivant pour une chaîne, demandé au focus, mis en cache une minute côté app. Vide tant que l'EPG n'est pas en base ; la forme ne change pas ensuite.
-
-```json
-{
-  "now":  { "title": "Ligue · Lyon – Nantes", "start": "2026-09-26T18:45:00Z", "end": "2026-09-26T20:45:00Z", "overview": null },
-  "next": { "title": "Le Mag du foot", "start": "2026-09-26T20:45:00Z", "end": "2026-09-26T21:15:00Z", "overview": null }
-}
-```
-
-`{ "now": null, "next": null }` sans EPG.
-
-## Recherche
-
-### `GET /api/v1/search?q=heures&scope=all|movies|series|live`
-
-Plein texte sur titre, acteurs, réalisateur ; chaînes par nom. Résultats typés avec les mêmes cartes, plus le meilleur résultat. L'app déclenche après 300 ms sans frappe et annule la précédente.
-
-```json
-{
-  "query": "heures",
-  "best": { "id": "tmdb:movie:100034", "kind": "movie", "title": "Le Silence des Quais", "…": "…" },
-  "movies": [ "… cartes …" ],
-  "series": [ "… cartes …" ],
-  "live":   [ { "id": "live:cine-club", "kind": "live", "title": "Ciné Club", "genres": ["Cinéma"], "languages": ["FR"], "max_quality": "4K", "…": "…" } ]
-}
-```
-
-## Récapitulatif
-
-| Méthode et chemin | Auth | Écran | Réponse |
+| | `versions` | `resume_at` / `duration` | `next` |
 |---|---|---|---|
-| `POST /pair` | non | Appairage | `PairingCode` |
-| `GET /pair/{code}` | non | Appairage | `PairingStatus` |
-| `GET /session` | oui | Réglages, lancement | `Session` |
-| `DELETE /session` | oui | Réglages › Dissocier | `204` |
-| `GET /home` | oui | Accueil | `HomeScreen` |
-| `GET /movies`, `GET /series` | oui | Films, Séries | `Page<ContentCard>` |
-| `GET /genres?kind=` | oui | Barre de filtres | `Genre[]` |
-| `GET /content/{id}` | oui | Fiche | `ContentDetail` |
-| `GET /content/{id}/seasons/{n}` | oui | Fiche série | `Episode[]` |
-| `GET /content/{id}/playback` | oui | Reprendre, recherche, épisode suivant | `PlaybackContext` |
-| `GET /live` | oui | Direct | `ChannelGroup[]` |
-| `GET /live/{id}/epg` | oui | Direct, lecteur direct | `EPGNow` |
-| `GET /search?q=&scope=` | oui | Recherche | `SearchResults` |
-| `POST /progress` | oui | Lecteur | `204` |
-| `PUT`/`DELETE /favorites/{id}` | oui | Fiche | `204` |
+| film | oui | oui | null |
+| épisode | oui | oui | l'épisode suivant, saison suivante comprise |
+| chaîne | oui | null | null |
+
+Appelé par Reprendre (accueil), Lecture (recherche), *Réessayer* du dialogue d'échec (URL fraîche), et dès le début d'un épisode pour préparer `next`. Depuis une fiche, rien : les versions sont déjà là.
+
+```json
+PUT /playback/{id}/progress   { "position": 1170, "duration": 3060 }   → 204
+```
+
+Toutes les 30 s, à la pause, à la sortie, au changement de version ; idempotent, le dernier gagne ; le serveur dérive « vu » à 90 %. Hors ligne, file locale rejouée au retour. Audio et sous-titres viennent de VLC, pas de l'API.
+
+### Recherche — `GET /search?q=&scope=`
+
+`scope` ∈ `all` · `movies` · `series` · `live`. Déclenchée après 300 ms sans frappe, la précédente annulée.
+
+```json
+{ "query": "heures", "best": Card, "movies": [Card], "series": [Card], "live": [Card kind=live] }
+```
+
+### Favoris — `PUT` / `DELETE /favorites/{id}`
+
+Bascule « Ma liste » depuis une fiche ou une chaîne. `204`.

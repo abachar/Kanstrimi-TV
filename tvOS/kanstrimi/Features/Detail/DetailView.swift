@@ -77,9 +77,9 @@ private struct DetailContent: View {
         }
     }
 
-    private func backdrop(_ d: ContentDetail) -> some View {
+    private func backdrop(_ d: Card) -> some View {
         ZStack {
-            if d.hasTMDB {
+            if d.isMatched {
                 ArtView(id: d.id, url: d.backdrop).ignoresSafeArea()
                 LinearGradient(colors: [Theme.background.opacity(0.92), Theme.background.opacity(0.2)], startPoint: .leading, endPoint: .trailing)
                 LinearGradient(colors: [.clear, Theme.background.opacity(0.9), Theme.background], startPoint: .top, endPoint: .bottom)
@@ -90,7 +90,7 @@ private struct DetailContent: View {
         .ignoresSafeArea()
     }
 
-    private func header(_ d: ContentDetail) -> some View {
+    private func header(_ d: Card) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(tagline(d)).font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
             Text(d.title).font(.system(size: 76, weight: .heavy)).lineLimit(2).frame(maxWidth: 1100, alignment: .leading)
@@ -102,7 +102,7 @@ private struct DetailContent: View {
             .font(.title3)
             VersionBadges(quality: d.versions.maxQuality.map { q in d.versions.maxDynamicRange.map { $0 == .sdr ? q.rawValue : "\(q.rawValue) \($0.label)" } ?? q.rawValue },
                           languages: d.versions.languages)
-            if d.hasTMDB {
+            if d.isMatched {
                 if let o = d.overview { Text(o).font(.body).foregroundStyle(Theme.text.opacity(0.9)).frame(maxWidth: 1000, alignment: .leading).lineLimit(4) }
                 if !d.cast.isEmpty || d.director != nil {
                     Text([d.director.map { "Réalisation \($0)" }, d.cast.isEmpty ? nil : "Avec " + d.cast.map(\.name).joined(separator: ", ")].compactMap { $0 }.joined(separator: " · "))
@@ -114,12 +114,12 @@ private struct DetailContent: View {
         }
     }
 
-    private func tagline(_ d: ContentDetail) -> String {
+    private func tagline(_ d: Card) -> String {
         if d.kind == .series { return "SÉRIE · \(d.seasons?.count ?? 0) SAISON\((d.seasons?.count ?? 0) > 1 ? "S" : "")" }
-        return d.hasTMDB ? "FILM" : "FILM · SANS FICHE TMDB"
+        return d.isMatched ? "FILM" : "FILM · SANS FICHE TMDB"
     }
 
-    private func meta(_ d: ContentDetail) -> String {
+    private func meta(_ d: Card) -> String {
         var parts: [String] = []
         if let y = d.year { parts.append(d.endYear.map { "\(y) – \($0)" } ?? String(y)) }
         if !d.genres.isEmpty { parts.append(d.genres.prefix(2).joined(separator: ", ")) }
@@ -128,7 +128,7 @@ private struct DetailContent: View {
         return parts.joined(separator: " · ")
     }
 
-    private func noTMDB(_ d: ContentDetail) -> some View {
+    private func noTMDB(_ d: Card) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Pas de fiche TMDB pour ce titre : ni synopsis, ni casting, ni bande-annonce.", systemImage: "questionmark.square.dashed").font(.headline)
             Text("Titre nettoyé depuis « \(d.rawTitle ?? "") » · catégorie fournisseur « \(d.providerCategory ?? "—") ». L'association se corrige depuis l'admin du serveur.")
@@ -140,7 +140,7 @@ private struct DetailContent: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
-    private func buttons(_ d: ContentDetail) -> some View {
+    private func buttons(_ d: Card) -> some View {
         HStack(spacing: 20) {
             Button { Task { await model.playPrimary() } } label: {
                 Label(model.primaryLabel, systemImage: "play.fill").font(.title3.weight(.bold))
@@ -166,14 +166,14 @@ private struct DetailContent: View {
                 Button { model.playTrailer() } label: { Label("Bande-annonce", systemImage: "film") }.focused($focused, equals: .trailer)
             }
             Button { Task { await model.toggleFavorite() } } label: {
-                Label(d.isFavorite ? "Dans ma liste" : "Ma liste", systemImage: d.isFavorite ? "checkmark" : "plus")
+                Label(d.isFavorite == true ? "Dans ma liste" : "Ma liste", systemImage: d.isFavorite == true ? "checkmark" : "plus")
             }
             .focused($focused, equals: .favorite)
         }
         .buttonStyle(.bordered)
     }
 
-    @ViewBuilder private func chosenVersionNote(_ d: ContentDetail) -> some View {
+    @ViewBuilder private func chosenVersionNote(_ d: Card) -> some View {
         if let c = model.choice {
             HStack(spacing: 12) {
                 Image(systemName: "sparkles").foregroundStyle(Theme.accent)
@@ -201,14 +201,11 @@ private struct DetailContent: View {
 
     // MARK: - Series
 
-    private func seasons(_ d: ContentDetail) -> some View {
+    private func seasons(_ d: Card) -> some View {
         VStack(alignment: .leading, spacing: 22) {
             HStack(spacing: 12) {
                 ForEach(d.seasons ?? []) { s in
-                    Button("Saison \(s.number)") {
-                        model.selectedSeason = s.number
-                        Task { await model.loadSeason(s.number) }
-                    }
+                    Button("Saison \(s.number)") { model.selectedSeason = s.number }
                     .buttonStyle(.bordered)
                     .tint(model.selectedSeason == s.number ? Theme.accent : nil)
                     .focused($focused, equals: .season(s.number))
@@ -216,25 +213,16 @@ private struct DetailContent: View {
             }
             if let n = model.selectedSeason {
                 if let gap = model.languageGaps(in: n).first, let lang = model.seriesChoice?.language, let alt = gap.languages.first {
-                    let back = model.episodes[n]?.first { $0.number > gap.number && $0.languages.contains(lang) }
+                    let back = model.episodes(in: n).first { $0.number > gap.number && $0.languages.contains(lang) }
                     Label("É\(gap.number) n'existe qu'en \(alt.rawValue). L'enchaînement le lira en \(alt.rawValue) \(gap.versions.maxQuality?.rawValue ?? "")\(back.map { ", puis reviendra en \(lang.rawValue) à l'épisode \($0.number)" } ?? ".")",
                           systemImage: "info.circle")
                         .font(.callout).foregroundStyle(Theme.accent)
                 }
-                if let error = model.seasonErrors[n] {
-                    StatePanel(icon: "exclamationmark.triangle", title: "Impossible de charger la saison \(n)",
-                               message: "\(error.localizedDescription) Les autres saisons restent disponibles.") {
-                        Task { await model.retrySeason(n) }
+                LazyVStack(spacing: 14) {
+                    ForEach(model.episodes(in: n)) { e in
+                        EpisodeRow(episode: e, seriesLanguage: model.seriesChoice?.language) { Task { await model.play(episode: e) } }
+                            .focused($focused, equals: .episode(e.id))
                     }
-                } else if let eps = model.episodes[n] {
-                    LazyVStack(spacing: 14) {
-                        ForEach(eps) { e in
-                            EpisodeRow(episode: e, seriesLanguage: model.seriesChoice?.language) { Task { await model.play(episode: e) } }
-                                .focused($focused, equals: .episode(e.id))
-                        }
-                    }
-                } else {
-                    ProgressView().padding(40)
                 }
             }
         }

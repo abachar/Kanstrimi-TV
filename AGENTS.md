@@ -42,7 +42,7 @@ Organisation de `tvOS/kanstrimi/` :
 
 | Dossier | Rôle |
 |---|---|
-| `Contract/` | Types calqués sur le futur `/api/v1` (`ContentCard`, `ContentDetail`, `Version`, `Source`, `Season`, `Episode`, `Channel`, `Programme`, `PlaybackContext`…), `nonisolated`, jamais sur la base. |
+| `Contract/` | Types calqués sur `/api/v1` tel qu'arrêté dans `docs/api-v1-tvos.md` (`Card` unique, `Version`, `Source`, `Season`, `Episode`, `Channel`, `Playback`…), `nonisolated`, jamais sur la base. |
 | `Client/` | Protocole `CatalogClient`, `MockCatalogClient` sur les fixtures JSON de `Client/Fixtures/`, `MockScenario` (hors ligne, 401, saison en erreur…) piloté depuis Réglages › Démo. |
 | `Player/` | **Le lecteur, service transverse unique** : `PlayerService` (VLCKit, bascule de source, échec après 10 s, épisode suivant, zapping), `VersionChooser` (moteur de choix), écran et panneaux. |
 | `Features/` | Un dossier par fonctionnalité : Appairage, Accueil, Catalogue, Fiche, Direct, Recherche, Réglages. |

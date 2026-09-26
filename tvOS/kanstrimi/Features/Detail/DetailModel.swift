@@ -1,17 +1,15 @@
 import Foundation
 import Observation
 
-/// Loads the sheet, its seasons on demand, and turns "Lecture" into a playback context.
+/// Loads the full card (`GET /movies/{id}` or `GET /series/{id}`, seasons included) and turns
+/// "Lecture" into a playback context.
 @Observable
 final class DetailModel {
     let id: ContentID
     private let env: AppEnvironment
-    private(set) var detail: ContentDetail?
+    private(set) var detail: Card?
     private(set) var error: CatalogError?
     private(set) var isLoading = false
-    private(set) var episodes: [Int: [Episode]] = [:]
-    private(set) var seasonErrors: [Int: CatalogError] = [:]
-    private(set) var loadingSeasons: Set<Int> = []
     var selectedSeason: Int?
     var favoriteBusy = false
 
@@ -30,40 +28,26 @@ final class DetailModel {
             let d = try await env.call { try await env.client.detail(id: id) }
             detail = d
             if d.kind == .series {
-                let season = d.currentEpisode?.season ?? d.seasons?.first?.number
-                selectedSeason = season
-                if let season { await loadSeason(season) }
+                selectedSeason = d.currentEpisode?.season ?? d.seasons?.first?.number
             }
         } catch {
             self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
         }
     }
 
-    func loadSeason(_ number: Int) async {
-        guard episodes[number] == nil, !loadingSeasons.contains(number) else { return }
-        loadingSeasons.insert(number)
-        seasonErrors[number] = nil
-        defer { loadingSeasons.remove(number) }
-        do {
-            episodes[number] = try await env.call { try await env.client.season(seriesID: id, number: number) }
-        } catch {
-            seasonErrors[number] = (error as? CatalogError) ?? .server(error.localizedDescription)
-        }
-    }
-
-    func retrySeason(_ number: Int) async {
-        seasonErrors[number] = nil
-        await loadSeason(number)
+    func episodes(in season: Int) -> [Episode] {
+        detail?.seasons?.first { $0.number == season }?.episodes ?? []
     }
 
     func toggleFavorite() async {
         guard var d = detail, !favoriteBusy else { return }
         favoriteBusy = true
         defer { favoriteBusy = false }
-        d.isFavorite.toggle()
+        let target = !(d.isFavorite ?? false)
+        d.isFavorite = target
         detail = d
-        do { try await env.call { try await env.client.setFavorite(id: id, d.isFavorite) } }
-        catch { d.isFavorite.toggle(); detail = d }
+        do { try await env.call { try await env.client.setFavorite(id: id, target) } }
+        catch { d.isFavorite = !target; detail = d }
     }
 
     // MARK: - Versions
@@ -72,10 +56,17 @@ final class DetailModel {
     var choice: VersionChooser.Choice? {
         guard let d = detail else { return nil }
         if d.kind == .series {
-            return env.player.chooser.choose(from: d.versions, seriesChoice: env.preferences.seriesChoice(for: id))
+            // Series versions carry no sources: choose on the current episode's versions when known.
+            let pool = currentEpisode?.versions ?? d.versions
+            return env.player.chooser.choose(from: pool, seriesChoice: env.preferences.seriesChoice(for: id))
         }
         let remembered = env.preferences.rememberVersionPerTitle ? env.preferences.rememberedVersion(for: id) : nil
         return env.player.chooser.choose(from: d.versions, remembered: remembered)
+    }
+
+    var currentEpisode: Episode? {
+        guard let d = detail, let cur = d.currentEpisode else { return nil }
+        return episodes(in: cur.season).first { $0.number == cur.number }
     }
 
     var seriesChoice: VersionChoiceKey? {
@@ -101,37 +92,45 @@ final class DetailModel {
     func playPrimary() async {
         guard let d = detail else { return }
         if d.kind == .series {
-            guard let cur = d.currentEpisode else { return }
-            await loadSeason(cur.season)
-            if let ep = episodes[cur.season]?.first(where: { $0.number == cur.number }) { await play(episode: ep) }
+            if let ep = currentEpisode { await play(episode: ep) }
             return
         }
         play(movie: d, version: nil, source: nil)
     }
 
-    func play(movie d: ContentDetail, version: Version?, source: Source?) {
+    /// The sheet already carries the versions: no call.
+    func play(movie d: Card, version: Version?, source: Source?) {
         let resume = d.progress?.isResumable == true ? d.progress?.position : nil
         let ctx = PlaybackContext(content: PlaybackContent(id: d.id, kind: .movie, title: d.title, subtitle: nil, episode: nil, backdrop: d.backdrop),
-                                  versions: d.versions, resumeAt: resume, duration: d.progress?.duration ?? d.runtime.map { TimeInterval($0 * 60) },
-                                  next: nil, seriesID: nil)
+                                  versions: d.versions, resumeAt: resume, duration: d.progress?.duration ?? d.runtime.map { TimeInterval($0 * 60) })
         if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
     }
 
+    /// The season carries the versions too; `next` is computed locally from the loaded seasons.
     func play(episode: Episode) async {
-        guard let ctx = try? await env.call({ try await env.client.playbackContext(id: episode.id) }) else { return }
+        guard let d = detail else { return }
+        let all = d.allEpisodes
+        let next = all.firstIndex(of: episode).flatMap { i in i + 1 < all.count ? all[i + 1] : nil }.map {
+            NextEpisode(id: $0.id, title: $0.title, season: $0.season, number: $0.number, runtime: $0.runtime, languages: $0.languages,
+                        maxQuality: $0.versions.maxQuality, dynamicRange: $0.versions.maxDynamicRange, still: $0.still)
+        }
+        let resume = episode.progress?.isResumable == true ? episode.progress?.position : nil
+        let ctx = PlaybackContext(content: PlaybackContent(id: episode.id, kind: .episode, title: episode.title, subtitle: d.title, episode: episode.ref, backdrop: d.backdrop),
+                                  versions: episode.versions, resumeAt: resume,
+                                  duration: episode.progress?.duration ?? episode.runtime.map { TimeInterval($0 * 60) }, next: next)
         env.player.play(ctx)
     }
 
     func playTrailer() {
         guard let d = detail, let url = d.trailer else { return }
         let v = Version(id: "trailer", language: .vo, quality: .hd, dynamicRange: nil,
-                        sources: [Source(id: "trailer", container: "MP4", streamURL: url, origin: "Bande-annonce")])
+                        sources: [Source(id: "trailer", container: "MP4", streamURL: url, provider: nil, origin: "Bande-annonce")])
         let ctx = PlaybackContext(content: PlaybackContent(id: ContentID("\(d.id.rawValue):trailer"), kind: .movie, title: "Bande-annonce · \(d.title)", subtitle: nil, episode: nil, backdrop: d.backdrop),
-                                  versions: [v], resumeAt: nil, duration: nil, next: nil, seriesID: nil)
+                                  versions: [v])
         env.player.play(ctx, version: v)
     }
 
-    /// Picker result for a movie: remember (or not) and play.
+    /// Picker result: remember (or not) and play.
     func chose(version: Version, source: Source?, remember: Bool, asDefault: Bool) {
         guard let d = detail else { return }
         if d.kind == .series {
@@ -152,7 +151,7 @@ final class DetailModel {
 
     /// Episodes of the selected season missing the series language, for the warning line.
     func languageGaps(in season: Int) -> [Episode] {
-        guard let lang = seriesChoice?.language, let eps = episodes[season] else { return [] }
-        return eps.filter { !$0.languages.contains(lang) && !$0.versions.isEmpty }
+        guard let lang = seriesChoice?.language else { return [] }
+        return episodes(in: season).filter { !$0.languages.contains(lang) && !$0.versions.isEmpty }
     }
 }

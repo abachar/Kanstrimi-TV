@@ -25,7 +25,7 @@ struct ArtView: View {
 
 /// Grid and row card: poster 2:3, title, year, quality and language badges, optional hint and progress.
 struct PosterCard: View {
-    let card: ContentCard
+    let card: Card
     var width: CGFloat = 250
     let action: () -> Void
 
@@ -70,7 +70,7 @@ struct PosterCard: View {
 
 /// Landscape 16:9 card for the "Reprendre" row: version badge, progress, remaining time.
 struct ResumeCard: View {
-    let card: ContentCard
+    let card: Card
     var width: CGFloat = 400
     let action: () -> Void
 
@@ -111,9 +111,9 @@ struct ResumeCard: View {
 /// Horizontal row with a title, used on the home screen and in search.
 struct CardRow: View {
     let title: String
-    let cards: [ContentCard]
+    let cards: [Card]
     var landscape = false
-    let onSelect: (ContentCard) -> Void
+    let onSelect: (Card) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

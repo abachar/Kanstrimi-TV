@@ -1,19 +1,31 @@
 import Foundation
 
-/// A playable stream at the provider. Opaque identifier, never a `stream_id`.
+/// Where a source comes from: an Xtream account, a local share… Several are foreseen.
+nonisolated struct Provider: Codable, Hashable, Sendable {
+    let id: String
+    let name: String
+    /// "xtream", "local"…
+    let kind: String
+}
+
+/// A playable stream. Opaque identifier, never a `stream_id`.
 nonisolated struct Source: Codable, Hashable, Identifiable, Sendable {
     let id: String
     /// Container as the provider names it: "MKV", "MP4", "TS".
     let container: String
     /// Ready-to-play URL on the Kanstrimi server (it answers 302 to the provider).
     let streamURL: URL
-    /// Provider category, the only thing that tells two sources apart for a human.
-    let origin: String
+    let provider: Provider?
+    /// Provider category, what tells two sources of the same provider apart for a human.
+    let origin: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, container, origin
+        case id, container, origin, provider
         case streamURL = "stream_url"
     }
+
+    /// "Fournisseur A · Films 4K UHD"
+    var label: String { [provider?.name, origin].compactMap { $0 }.joined(separator: " · ") }
 }
 
 /// One language × one quality. Sources are ordered by the server; the first is the default.

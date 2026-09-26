@@ -143,7 +143,7 @@ final class PairingModel {
         status = .creating
         defer { isBusy = false }
         do {
-            let created = try await env.client.createPairingCode()
+            let created = try await env.client.createDevice()
             code = created
             qrImage = Self.qr(for: created.url.absoluteString)
             status = .waiting
@@ -166,7 +166,7 @@ final class PairingModel {
                 return
             }
             do {
-                switch try await env.client.pollPairing(code: code.code) {
+                switch try await env.client.pollDevice(code: code.code) {
                 case .pending:
                     if status == .offline { status = .waiting }
                 case .expired:
@@ -176,7 +176,7 @@ final class PairingModel {
                     status = .approved
                     env.preferences.deviceName = deviceName
                     try? await Task.sleep(for: .milliseconds(600))
-                    env.device.store(token: token)
+                    env.device.store(token: token, code: code.code)
                     return
                 }
             } catch {

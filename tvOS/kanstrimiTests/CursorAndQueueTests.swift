@@ -55,7 +55,7 @@ struct PaginatorTests {
         let paginator = Paginator(client: MockCatalogClient(scenario: scenario), query: ListQuery(kind: .movie))
         await paginator.loadFirstPage()
         var q = paginator.query
-        q.genre = "Drame"
+        q.genre = "drame"
         await paginator.apply(q)
         #expect(paginator.items.allSatisfy { $0.genres.contains("Drame") })
         #expect(paginator.query.cursor == nil)

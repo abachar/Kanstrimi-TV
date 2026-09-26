@@ -10,10 +10,12 @@ enum PreviewData {
         return e
     }
     static func movieContext(_ env: AppEnvironment) async -> PlaybackContext {
-        try! await env.client.playbackContext(id: ContentID("tmdb:movie:100000"))
+        try! await env.playbackContext(for: env.client.detail(id: ContentID("tmdb:movie:100000")))
     }
     static func episodeContext(_ env: AppEnvironment) async -> PlaybackContext {
-        try! await env.client.playbackContext(id: ContentID("tmdb:tv:20000:s02e04"))
+        let series = try! await env.client.detail(id: ContentID("tmdb:tv:20000"))
+        let ep = series.allEpisodes.first { $0.id == ContentID("tmdb:tv:20000:s02e04") }!
+        return try! await env.playbackContext(for: ep, of: series)
     }
     static func channels(_ env: AppEnvironment) async -> [Channel] {
         (try! await env.client.channels()).flatMap(\.channels)
@@ -33,7 +35,8 @@ private struct PlayerPreviewHost: View {
             switch state {
             case .livePlaying:
                 let list = await PreviewData.channels(env)
-                let ctx = try! await env.client.playbackContext(id: list[0].id)
+                let ctx = PlaybackContext(content: PlaybackContent(id: list[0].id, kind: .live, title: list[0].name, subtitle: nil, episode: nil, backdrop: nil),
+                                          playback: try! await env.client.playback(id: list[0].id))
                 env.player.debugPut(ctx, state: state, channels: list)
             case .nextEpisode:
                 env.player.debugPut(await PreviewData.episodeContext(env), state: state)

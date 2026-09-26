@@ -155,14 +155,14 @@ final class HomeModel {
         let p = hero.card.progress
         let ctx = PlaybackContext(content: PlaybackContent(id: hero.card.id, kind: hero.card.kind, title: hero.card.title, subtitle: nil, episode: nil, backdrop: hero.card.backdrop),
                                   versions: hero.versions, resumeAt: p?.isResumable == true ? p?.position : nil,
-                                  duration: p?.duration ?? hero.runtime.map { TimeInterval($0 * 60) }, next: nil, seriesID: nil)
+                                  duration: p?.duration ?? hero.runtime.map { TimeInterval($0 * 60) })
         if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
     }
 
     /// "Reprendre" launches the player directly: one call for the playback context, no sheet.
-    func resume(_ card: ContentCard) {
+    func resume(_ card: Card) {
         Task {
-            if let ctx = try? await env.call({ try await env.client.playbackContext(id: card.id) }) {
+            if let ctx = try? await env.playbackContext(for: card) {
                 env.player.play(ctx)
             } else if let cached = home, cached.hero?.card.id == card.id {
                 playHero(version: nil, source: nil)

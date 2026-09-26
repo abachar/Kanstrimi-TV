@@ -47,8 +47,8 @@ struct NextEpisodeCard: View {
                 if let next = player.context?.next {
                     VStack(alignment: .leading, spacing: 14) {
                         Text("ÉPISODE SUIVANT · \(player.nextCountdown ?? 0) s").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.accent)
-                        Text("\(next.seriesTitle) · \(next.episode.code)").font(.callout).foregroundStyle(Theme.secondary)
-                        Text(next.episode.title ?? "").font(.title2.weight(.bold))
+                        Text("\(player.context?.content.subtitle ?? "") · \(next.ref.code)").font(.callout).foregroundStyle(Theme.secondary)
+                        Text(next.title ?? "").font(.title2.weight(.bold))
                         HStack(spacing: 10) {
                             if let r = next.runtime { Text("\(r) min").foregroundStyle(Theme.secondary) }
                             VersionBadges(quality: next.maxQuality.map { q in next.dynamicRange.map { "\(q.rawValue) \($0.shortLabel)" } ?? q.rawValue }, languages: next.languages)

@@ -177,7 +177,7 @@ struct RecentChannelCard: View {
     let watchedAt: Date
     let isCurrent: Bool
     let action: () -> Void
-    @State private var epg: EPGNow = .empty
+    @State private var now: Programme?
 
     var body: some View {
         Button(action: action) {
@@ -191,7 +191,7 @@ struct RecentChannelCard: View {
                     Spacer()
                     if let q = channel.maxQuality { Badge(q.rawValue) }
                 }
-                if let now = epg.now {
+                if let now {
                     Text(now.title).font(.callout).lineLimit(1)
                     ProgressBar(fraction: now.fraction(), height: 4)
                 } else {
@@ -202,7 +202,7 @@ struct RecentChannelCard: View {
             .frame(width: 360)
         }
         .buttonStyle(.card)
-        .task { epg = await env.epg.now(for: channel.id) }
+        .task { now = await env.channelCache.channel(channel.id)?.now }
     }
 }
 

@@ -137,30 +137,30 @@ final class HomeCache {
     }
 }
 
-/// "En cours / suivant" per channel, asked at focus, kept one minute.
+/// `GET /channels/{id}` per channel, asked at focus, kept one minute (now / next).
 @Observable
-final class EPGCache {
-    private struct Entry { let value: EPGNow; let at: Date }
+final class ChannelCache {
+    private struct Entry { let value: Channel; let at: Date }
     private var entries: [ContentID: Entry] = [:]
-    private var inflight: [ContentID: Task<EPGNow, Never>] = [:]
+    private var inflight: [ContentID: Task<Channel?, Never>] = [:]
     private let client: CatalogClient
     static let ttl: TimeInterval = 60
 
     init(client: CatalogClient) { self.client = client }
 
-    func cached(_ id: ContentID) -> EPGNow? {
+    func cached(_ id: ContentID) -> Channel? {
         guard let e = entries[id], Date.now.timeIntervalSince(e.at) < Self.ttl else { return nil }
         return e.value
     }
 
-    func now(for id: ContentID) async -> EPGNow {
+    func channel(_ id: ContentID) async -> Channel? {
         if let c = cached(id) { return c }
         if let t = inflight[id] { return await t.value }
-        let task = Task { [client] in (try? await client.epg(channelID: id)) ?? .empty }
+        let task = Task { [client] in try? await client.channel(id: id) }
         inflight[id] = task
         let value = await task.value
         inflight[id] = nil
-        entries[id] = Entry(value: value, at: .now)
+        if let value { entries[id] = Entry(value: value, at: .now) }
         return value
     }
 

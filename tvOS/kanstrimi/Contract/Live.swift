@@ -13,25 +13,50 @@ nonisolated struct Programme: Codable, Hashable, Sendable {
     }
 }
 
-nonisolated struct EPGNow: Codable, Hashable, Sendable {
-    let now: Programme?
-    let next: Programme?
-    static let empty = EPGNow(now: nil, next: nil)
-}
-
+/// A channel. Lists carry the base; `GET /channels/{id}` adds `now` and `next`.
 nonisolated struct Channel: Codable, Hashable, Identifiable, Sendable {
     let id: ContentID
     let name: String
     let number: Int?
     let logo: URL?
-    let category: String
+    let maxQuality: Quality?
+    let hasEPG: Bool?
+    var isFavorite: Bool?
     let versions: [Version]
+    let now: Programme?
+    let next: Programme?
 
-    var maxQuality: Quality? { versions.maxQuality }
+    enum CodingKeys: String, CodingKey {
+        case id, name, number, logo, versions, now, next
+        case maxQuality = "max_quality"
+        case hasEPG = "has_epg"
+        case isFavorite = "is_favorite"
+    }
+
+    init(id: ContentID, name: String, number: Int? = nil, logo: URL? = nil, maxQuality: Quality? = nil, hasEPG: Bool? = nil,
+         isFavorite: Bool? = nil, versions: [Version] = [], now: Programme? = nil, next: Programme? = nil) {
+        self.id = id; self.name = name; self.number = number; self.logo = logo; self.maxQuality = maxQuality ?? versions.maxQuality
+        self.hasEPG = hasEPG; self.isFavorite = isFavorite; self.versions = versions; self.now = now; self.next = next
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(ContentID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        number = try c.decodeIfPresent(Int.self, forKey: .number)
+        logo = try c.decodeIfPresent(URL.self, forKey: .logo)
+        versions = try c.decodeIfPresent([Version].self, forKey: .versions) ?? []
+        maxQuality = try c.decodeIfPresent(Quality.self, forKey: .maxQuality) ?? versions.maxQuality
+        hasEPG = try c.decodeIfPresent(Bool.self, forKey: .hasEPG)
+        isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite)
+        now = try c.decodeIfPresent(Programme.self, forKey: .now)
+        next = try c.decodeIfPresent(Programme.self, forKey: .next)
+    }
 }
 
+/// One entry of `GET /channels`: a provider category with its channels.
 nonisolated struct ChannelGroup: Codable, Hashable, Identifiable, Sendable {
-    let category: String
+    let id: String
+    let name: String
     let channels: [Channel]
-    var id: String { category }
 }

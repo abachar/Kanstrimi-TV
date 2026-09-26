@@ -76,10 +76,10 @@ struct SearchView: View {
         }
     }
 
-    private func filtered(_ r: SearchResults) -> [ContentCard] {
+    private func filtered(_ r: SearchResults) -> [Card] {
         (r.movies + r.series + r.live).filter(passes)
     }
-    private func passes(_ c: ContentCard) -> Bool {
+    private func passes(_ c: Card) -> Bool {
         if only4K, c.maxQuality != .uhd { return false }
         if let language, !c.languages.contains(language) { return false }
         return true
@@ -103,7 +103,7 @@ struct SearchView: View {
         .padding(.leading, 96)
     }
 
-    private func row(_ title: String, _ cards: [ContentCard]) -> some View {
+    private func row(_ title: String, _ cards: [Card]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title).font(.title3.weight(.bold))
             ScrollView(.horizontal) {
@@ -118,7 +118,7 @@ struct SearchView: View {
         }
     }
 
-    private func bestView(_ c: ContentCard) -> some View {
+    private func bestView(_ c: Card) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Meilleur résultat").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.secondary)
             ArtView(id: c.id, url: c.poster, title: c.title).frame(width: 360, height: 540).clipShape(RoundedRectangle(cornerRadius: 18))
@@ -137,18 +137,18 @@ struct SearchView: View {
         .frame(width: 400, alignment: .leading)
     }
 
-    private func playLabel(_ c: ContentCard, _ choice: VersionChooser.Choice?) -> String {
+    private func playLabel(_ c: Card, _ choice: VersionChooser.Choice?) -> String {
         var parts = ["Lecture"]
         if let q = c.qualityBadge { parts.append(q) }
         if let l = env.preferences.languageOrder.first(where: { c.languages.contains($0) }) ?? c.languages.first { parts.append(l.rawValue) }
         return parts.joined(separator: " · ")
     }
 
-    private func open(_ c: ContentCard) {
+    private func open(_ c: Card) {
         if c.kind == .live { play(c) } else { env.open(c.id) }
     }
 
-    private func play(_ c: ContentCard) {
+    private func play(_ c: Card) {
         Task {
             if c.kind == .live {
                 guard let groups = try? await env.call({ try await env.client.channels() }) else { return }
@@ -156,7 +156,7 @@ struct SearchView: View {
                 guard let ch = all.first(where: { $0.id == c.id }) else { return }
                 env.player.play(channel: ch, in: all)
                 env.recentChannels.record(ch.id)
-            } else if let ctx = try? await env.call({ try await env.client.playbackContext(id: c.id) }) {
+            } else if let ctx = try? await env.playbackContext(for: c) {
                 env.player.play(ctx)
             }
         }

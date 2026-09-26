@@ -1,29 +1,36 @@
 import SwiftUI
 import VLCKit
 
-/// A list, not a grid [10]: channels on the left with category filters and the recent ones first;
-/// on the right a live preview of the focused channel, its programme and "Regarder".
+/// Direct in three columns: categories with their count, the channels of the selected one,
+/// and on the right the live preview of the focused channel with its programme.
 struct LiveView: View {
+    private enum CategoryID: Hashable { case recent, favorites, group(String) }
+
     @Environment(AppEnvironment.self) private var env
     @State private var groups: [ChannelGroup] = []
     @State private var error: CatalogError?
     @State private var isLoading = true
-    @State private var category: String?
-    @State private var only4K = false
-    @State private var focusedID: ContentID?
-    @State private var focusedEPG: EPGNow = .empty
+    @State private var selected: CategoryID = .recent
+    @State private var focusedChannelID: ContentID?
+    @State private var focusedDetail: Channel?
     @State private var preview = PreviewPlayer()
     @State private var isVisible = false
-    @FocusState private var focus: ContentID?
+    @FocusState private var focus: Focus?
+    private enum Focus: Hashable { case category(CategoryID), channel(ContentID), watch }
 
+    private var allChannels: [Channel] { groups.flatMap(\.channels) }
+    private var recents: [Channel] { env.recentChannels.entries.compactMap { e in allChannels.first { $0.id == e.channelID } } }
+    private var favorites: [Channel] { allChannels.filter { $0.isFavorite == true } }
+
+    /// The channels of the selected category, in the order used for zapping.
     private var visible: [Channel] {
-        groups.filter { category == nil || $0.category == category }.flatMap(\.channels).filter { !only4K || $0.maxQuality == .uhd }
+        switch selected {
+        case .recent: recents
+        case .favorites: favorites
+        case .group(let id): groups.first { $0.id == id }?.channels ?? []
+        }
     }
-    private var recents: [Channel] {
-        let all = groups.flatMap(\.channels)
-        return env.recentChannels.entries.compactMap { e in all.first { $0.id == e.channelID } }
-    }
-    private var focusedChannel: Channel? { groups.flatMap(\.channels).first { $0.id == focusedID } }
+    private var focusedChannel: Channel? { allChannels.first { $0.id == focusedChannelID } }
 
     var body: some View {
         Group {
@@ -32,20 +39,22 @@ struct LiveView: View {
             } else if isLoading && groups.isEmpty {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                HStack(alignment: .top, spacing: 40) {
-                    list.frame(width: 900)
+                HStack(alignment: .top, spacing: 30) {
+                    categories.frame(width: 360)
+                    channelList.frame(width: 640)
                     side.frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, 96).padding(.top, 30)
+                .padding(.horizontal, 80).padding(.top, 30)
             }
         }
         .background(Theme.background)
         .task { if groups.isEmpty { await load() } }
         .onChange(of: focus) { _, f in
-            guard let f else { return }
-            focusedID = f
-            Task { focusedEPG = await env.epg.now(for: f) }
-            if isVisible, !env.player.isPresented, let c = focusedChannel { preview.show(c) }
+            switch f {
+            case .category(let id): selected = id
+            case .channel(let id): focusChannel(id)
+            default: break
+            }
         }
         .onChange(of: env.player.isPresented) { _, presented in
             if presented { preview.stop() } else if isVisible, let c = focusedChannel { preview.show(c) }
@@ -66,101 +75,107 @@ struct LiveView: View {
         do {
             groups = try await env.call { try await env.client.channels() }
             error = nil
-            if focusedID == nil { focusedID = recents.first?.id ?? visible.first?.id }
-            if let f = focusedID { focusedEPG = await env.epg.now(for: f) }
+            if recents.isEmpty { selected = favorites.isEmpty ? .group(groups.first?.id ?? "") : .favorites }
+            if focusedChannelID == nil, let first = visible.first { focusChannel(first.id) }
         } catch {
             self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
         }
     }
 
-    private var list: some View {
+    private func focusChannel(_ id: ContentID) {
+        focusedChannelID = id
+        focusedDetail = env.channelCache.cached(id)
+        Task {
+            let c = await env.channelCache.channel(id)
+            if focusedChannelID == id { focusedDetail = c }
+        }
+        if isVisible, !env.player.isPresented, let c = focusedChannel { preview.show(c) }
+    }
+
+    // MARK: - Column 1: categories
+
+    private var categories: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 8) {
-                Text("Direct").font(.largeTitle.weight(.bold))
-                .padding(.bottom, 10)
-                ScrollView(.horizontal) {
-                    HStack(spacing: 10) {
-                        chip("Tout", on: category == nil) { category = nil }
-                        ForEach(groups) { g in chip(g.category, on: category == g.category) { category = g.category } }
-                        Divider().frame(height: 36)
-                        chip("4K uniquement", on: only4K) { only4K.toggle() }
-                    }
-                    .padding(.vertical, 16)
-                }
-                .scrollClipDisabled()
-                if category == nil, !recents.isEmpty {
-                    sectionTitle("Chaînes récentes")
-                    ForEach(recents) { c in row(c, in: visible) }
-                }
-                ForEach(groups.filter { category == nil || $0.category == category }) { g in
-                    let channels = g.channels.filter { !only4K || $0.maxQuality == .uhd }
-                    if !channels.isEmpty {
-                        sectionTitle(g.category)
-                        ForEach(channels) { c in row(c, in: visible) }
-                    }
-                }
-                if visible.isEmpty {
-                    Text("Aucune chaîne pour ce filtre.").foregroundStyle(Theme.secondary).padding(30)
-                }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Direct").font(.largeTitle.weight(.bold)).padding(.bottom, 16)
+                if !recents.isEmpty { categoryRow(.recent, name: "Récentes", count: recents.count, icon: "clock") }
+                if !favorites.isEmpty { categoryRow(.favorites, name: "Favoris", count: favorites.count, icon: "star") }
+                ForEach(groups) { g in categoryRow(.group(g.id), name: g.name, count: g.channels.count, icon: nil) }
             }
-            .padding(.trailing, 20)
+            .padding(.trailing, 10)
         }
         .scrollClipDisabled()
     }
 
-    private func sectionTitle(_ t: String) -> some View {
-        Text(t.uppercased()).font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.secondary).padding(.top, 20).padding(.bottom, 6)
-    }
-
-    private func chip(_ text: String, on: Bool, action: @escaping () -> Void) -> some View {
-        Button(text, action: action).buttonStyle(.bordered).tint(on ? Theme.accent : nil)
-    }
-
-    private func row(_ c: Channel, in order: [Channel]) -> some View {
-        let expanded = focus == c.id
+    private func categoryRow(_ id: CategoryID, name: String, count: Int, icon: String?) -> some View {
+        let on = selected == id
         return Button {
-            watch(c, in: order)
+            selected = id
+            if let first = visible.first { focus = .channel(first.id) }
         } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 16) {
-                    Text(c.number.map(String.init) ?? "").font(.callout.monospacedDigit()).foregroundStyle(Theme.secondary).frame(width: 44, alignment: .trailing)
-                    ChannelLogo(channel: c, size: 52)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(c.name).font(.headline)
-                        if !expanded, let now = env.epg.cached(c.id)?.now {
-                            Text(now.title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-                        }
-                    }
-                    Spacer()
-                    if let q = c.maxQuality { Badge(q.rawValue, small: true) }
+            HStack(spacing: 14) {
+                if let icon { Image(systemName: icon).frame(width: 30) }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name).font(on ? .headline : .body)
+                    Text("\(count) chaîne\(count > 1 ? "s" : "")").font(.caption).foregroundStyle(Theme.secondary)
                 }
-                if expanded {
-                    if let now = focusedEPG.now {
-                        HStack(spacing: 10) {
-                            Text("EN DIRECT").font(.caption2.weight(.bold)).tracking(1).padding(.horizontal, 6).padding(.vertical, 2).background(Theme.live, in: RoundedRectangle(cornerRadius: 4))
-                            Text(now.title).font(.callout.weight(.semibold))
-                            Spacer()
-                            Text("\(Format.hour(now.start)) – \(Format.hour(now.end))").font(.caption).foregroundStyle(Theme.secondary)
-                        }
-                        ProgressBar(fraction: now.fraction(), height: 4)
-                    }
-                    HStack(spacing: 8) {
-                        ForEach(c.versions) { v in
-                            Text("\(v.quality.rawValue) · \(v.language.rawValue)\(v.sources.count > 1 ? " · \(v.sources.count) sources" : "")")
-                                .font(.caption.weight(.semibold)).padding(.horizontal, 10).padding(.vertical, 5)
-                                .background(.white.opacity(0.12), in: Capsule())
-                        }
-                    }
+                Spacer()
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+        .opacity(on ? 1 : 0.7)
+        .focused($focus, equals: .category(id))
+    }
+
+    // MARK: - Column 2: channels
+
+    private var channelList: some View {
+        ScrollView {
+            LazyVStack(spacing: 10) {
+                ForEach(visible) { c in channelRow(c) }
+                if visible.isEmpty {
+                    Text("Aucune chaîne dans cette catégorie.").foregroundStyle(Theme.secondary).padding(30)
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 12)
+            .padding(.vertical, 10)
         }
-        .buttonStyle(.card)
-        .focused($focus, equals: c.id)
+        .scrollClipDisabled()
     }
 
+    private func channelRow(_ c: Channel) -> some View {
+        Button {
+            watch(c)
+        } label: {
+            HStack(spacing: 18) {
+                ChannelLogo(channel: c, size: 96)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(c.name).font(.headline)
+                    if let now = env.channelCache.cached(c.id)?.now {
+                        Text(now.title).font(.callout).foregroundStyle(Theme.secondary).lineLimit(1)
+                    } else if let n = c.number {
+                        Text("Chaîne \(n)").font(.callout).foregroundStyle(Theme.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        if let q = c.maxQuality { Badge(q.rawValue, small: true) }
+                        if c.hasEPG == true { Badge("EPG", small: true) }
+                        ForEach(c.versions.languages.prefix(2), id: \.self) { Badge($0.rawValue, small: true) }
+                    }
+                }
+                Spacer()
+                if c.isFavorite == true { Image(systemName: "star.fill").foregroundStyle(Theme.accent) }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.card)
+        .focused($focus, equals: .channel(c.id))
+    }
+
+    // MARK: - Column 3: preview and programme
+
     private var side: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 20) {
             ZStack {
                 PreviewSurface(view: preview.videoView)
                 if preview.channelID == nil || !preview.hasImage {
@@ -170,38 +185,54 @@ struct LiveView: View {
                     }
                 }
             }
-            .frame(height: 400)
+            .frame(height: 360)
             .background(.black)
             .clipShape(RoundedRectangle(cornerRadius: 22))
             if let c = focusedChannel {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {
                         Text("EN DIRECT").font(.caption.weight(.bold)).tracking(1.5).padding(.horizontal, 8).padding(.vertical, 3).background(Theme.live, in: RoundedRectangle(cornerRadius: 5))
                         Text(c.name).font(.title3.weight(.bold))
                         if let q = c.maxQuality { Badge(q.rawValue) }
                         ForEach(c.versions.languages, id: \.self) { Badge($0.rawValue) }
                     }
-                    if let now = focusedEPG.now {
+                    if let now = focusedDetail?.now {
+                        Text("En ce moment").font(.caption).foregroundStyle(Theme.secondary)
                         Text(now.title).font(.title2.weight(.bold))
-                        Text("\(Format.hour(now.start)) – \(Format.hour(now.end))" + (focusedEPG.next.map { " · Ensuite : \($0.title)" } ?? ""))
-                            .foregroundStyle(Theme.secondary)
+                        if let o = now.overview { Text(o).font(.callout).foregroundStyle(Theme.secondary).lineLimit(4) }
+                        ProgressBar(fraction: now.fraction(), height: 5)
+                        HStack {
+                            Text(Format.hour(now.start)); Spacer(); Text(Format.hour(now.end))
+                        }
+                        .font(.caption).foregroundStyle(Theme.secondary)
+                        if let next = focusedDetail?.next {
+                            Text("Ensuite : \(next.title) · \(Format.hour(next.start))").font(.callout).foregroundStyle(Theme.secondary)
+                        }
+                    } else if focusedDetail == nil {
+                        ProgressView().padding(.vertical, 10)
                     } else {
                         Text("Programme inconnu").foregroundStyle(Theme.secondary)
                     }
-                    HStack(spacing: 16) {
-                        Button { watch(c, in: visible) } label: { Label("Regarder", systemImage: "play.fill") }.buttonStyle(.borderedProminent)
-                        Button { } label: { Label("Guide TV", systemImage: "calendar") }.buttonStyle(.bordered).disabled(true)
+                    HStack(spacing: 8) {
+                        ForEach(c.versions) { v in
+                            Text("\(v.quality.rawValue) · \(v.language.rawValue)\(v.sources.count > 1 ? " · \(v.sources.count) sources" : "")")
+                                .font(.caption.weight(.semibold)).padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(.white.opacity(0.12), in: Capsule())
+                        }
                     }
-                    .padding(.top, 6)
-                    Text("Droite sur une chaîne : ses flux · Haut / bas : zapping avec aperçu").font(.caption).foregroundStyle(Theme.secondary)
+                    Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
+                        .buttonStyle(.borderedProminent)
+                        .focused($focus, equals: .watch)
+                        .padding(.top, 6)
                 }
             }
         }
     }
 
-    private func watch(_ c: Channel, in order: [Channel]) {
+    private func watch(_ c: Channel) {
         preview.stop()
-        env.player.play(channel: c, in: order.isEmpty ? [c] : order)
+        let order = visible.isEmpty ? [c] : visible
+        env.player.play(channel: c, in: order.contains(c) ? order : [c] + order)
         env.recentChannels.record(c.id)
     }
 }

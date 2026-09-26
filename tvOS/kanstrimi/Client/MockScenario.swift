@@ -6,17 +6,17 @@ import Observation
 final class MockScenario {
     /// Every call fails with `.offline`.
     var offline = false
-    /// Every call fails with `.unauthorized` (revoked token).
+    /// Every authenticated call fails with `.unauthorized` (revoked token).
     var unauthorized = false
     /// The pairing code expires at once instead of being approved.
     var pairingExpires = false
-    /// Loading this season number fails (0 = none).
-    var failingSeason = 0
+    /// `GET /series/{id}` and `GET /movies/{id}` fail (the provider did not answer).
+    var failingDetail = false
     /// The search returns nothing.
     var emptySearch = false
-    /// The second page of every list fails.
+    /// The second page of every "Voir tout" list fails.
     var failingSecondPage = false
-    /// The EPG answers empty.
+    /// `GET /channels/{id}` answers without programme.
     var emptyEPG = false
     /// Simulated latency, in seconds.
     var latency: Double = 0.6

@@ -13,10 +13,10 @@ final class AppEnvironment {
     let failedSources: FailedSourcesStore
     let progressQueue: ProgressQueue
     let homeCache: HomeCache
-    let epg: EPGCache
+    let channelCache: ChannelCache
     let player: PlayerService
-    /// Session fetched after pairing; nil while loading or offline.
-    var session: Session?
+    /// `GET /info`, fetched after pairing and at launch; nil while loading or offline.
+    var info: ServerInfo?
     /// The sheet shown full screen above the tabs, from any screen.
     var presentedDetail: ContentID?
 
@@ -36,15 +36,15 @@ final class AppEnvironment {
         self.failedSources = failed
         self.progressQueue = ProgressQueue()
         self.homeCache = HomeCache()
-        self.epg = EPGCache(client: mock)
+        self.channelCache = ChannelCache(client: mock)
         self.player = PlayerService(client: mock, preferences: preferences, failedSources: failed, progressQueue: progressQueue)
     }
 
     /// A 401 anywhere: token gone, cache gone, back to the QR code.
     func handleUnauthorized() {
         homeCache.clear()
-        device.forget(reason: "L'appareil « \(session?.deviceName ?? preferences.deviceName) » a été retiré depuis l'admin du serveur. Vos favoris et vos reprises sont conservés côté serveur ; il suffit de l'ajouter à nouveau.")
-        session = nil
+        device.forget(reason: "L'appareil « \(preferences.deviceName.isEmpty ? "Salon" : preferences.deviceName) » a été retiré depuis l'admin du serveur. Vos favoris et vos reprises sont conservés côté serveur ; il suffit de l'ajouter à nouveau.")
+        info = nil
     }
 
     /// Wraps a client call: converts a 401 into the unpairing flow, rethrows the rest.
@@ -53,8 +53,25 @@ final class AppEnvironment {
         catch CatalogError.unauthorized { handleUnauthorized(); throw CatalogError.unauthorized }
     }
 
-    func loadSession() async {
-        session = try? await call { try await client.session() }
-        if let name = session?.deviceName, preferences.deviceName.isEmpty { preferences.deviceName = name }
+    func loadInfo() async {
+        info = try? await call { try await client.info() }
+    }
+
+    /// `GET /playback/{id}` wrapped with what the player needs to know about the content.
+    func playbackContext(for card: Card) async throws -> PlaybackContext {
+        let playback = try await call { try await client.playback(id: card.id) }
+        let content = PlaybackContent(id: card.id, kind: card.kind, title: card.episode?.title ?? card.title,
+                                      subtitle: card.episode != nil ? card.title : nil, episode: card.episode, backdrop: card.backdrop)
+        return PlaybackContext(content: content, playback: playback)
+    }
+    func playbackContext(for episode: Episode, of series: Card) async throws -> PlaybackContext {
+        let playback = try await call { try await client.playback(id: episode.id) }
+        let content = PlaybackContent(id: episode.id, kind: .episode, title: episode.title, subtitle: series.title, episode: episode.ref, backdrop: series.backdrop)
+        return PlaybackContext(content: content, playback: playback)
+    }
+    func playbackContext(for next: NextEpisode, seriesTitle: String) async throws -> PlaybackContext {
+        let playback = try await call { try await client.playback(id: next.id) }
+        let content = PlaybackContent(id: next.id, kind: .episode, title: next.title ?? "", subtitle: seriesTitle, episode: next.ref, backdrop: nil)
+        return PlaybackContext(content: content, playback: playback)
     }
 }

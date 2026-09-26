@@ -1,26 +1,122 @@
 import SwiftUI
 
-/// Films and Séries: the same paginated grid, six per row, with a filter bar above [4] [5] [19].
+/// Films and Séries: shelves by genre (`GET /movies`, `GET /series`), twenty cards each,
+/// « Voir tout » opening the paginated grid of a genre.
 struct CatalogView: View {
     let kind: ContentKind
     @Environment(AppEnvironment.self) private var env
+    @State private var rows: [CatalogRow] = []
+    @State private var error: CatalogError?
+    @State private var isLoading = false
+    @State private var seeAll: CatalogRow?
+
+    var body: some View {
+        Group {
+            if let error, rows.isEmpty {
+                StatePanel(icon: "exclamationmark.triangle", title: "Impossible de charger la liste", message: error.localizedDescription) {
+                    Task { await load() }
+                }
+            } else if rows.isEmpty, isLoading {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if rows.isEmpty {
+                StatePanel(icon: "film", title: kind == .series ? "Aucune série" : "Aucun film", message: "Le catalogue est vide.", actionTitle: nil)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 10) {
+                        Text(kind == .series ? "Séries" : "Films").font(.largeTitle.weight(.bold)).padding(.horizontal, 96).padding(.top, 30)
+                        ForEach(rows) { row in
+                            ShelfRow(row: row, onSelect: { env.open($0.id) }, onSeeAll: row.total > row.cards.count ? { seeAll = row } : nil)
+                        }
+                        Spacer(minLength: 60)
+                    }
+                }
+                .scrollClipDisabled()
+            }
+        }
+        .background(Theme.background)
+        .task { if rows.isEmpty { await load() } }
+        .fullScreenCover(item: $seeAll) { row in
+            GenreGridView(kind: kind, row: row).environment(env)
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            rows = try await env.call { try await env.client.rows(kind: kind) }
+            error = nil
+        } catch {
+            self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
+        }
+    }
+}
+
+/// One shelf: title, total, the cards, and « Voir tout » at the end when the server has more.
+struct ShelfRow: View {
+    let row: CatalogRow
+    let onSelect: (Card) -> Void
+    var onSeeAll: (() -> Void)?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Text(row.name).font(.title3.weight(.bold))
+                Text(Format.count(row.total)).font(.callout).foregroundStyle(Theme.secondary)
+            }
+            .padding(.horizontal, 96)
+            ScrollView(.horizontal) {
+                LazyHStack(alignment: .top, spacing: 36) {
+                    ForEach(row.cards) { c in
+                        PosterCard(card: c) { onSelect(c) }
+                    }
+                    if let onSeeAll {
+                        Button(action: onSeeAll) {
+                            VStack(spacing: 12) {
+                                Image(systemName: "square.grid.3x3").font(.system(size: 40))
+                                Text("Voir tout").font(.headline)
+                                Text(Format.count(row.total)).font(.caption).foregroundStyle(Theme.secondary)
+                            }
+                            .frame(width: 250, height: 375)
+                        }
+                        .buttonStyle(.card)
+                    }
+                }
+                .padding(.horizontal, 96)
+                .padding(.vertical, 30)
+            }
+            .scrollClipDisabled()
+        }
+    }
+}
+
+/// « Voir tout » of a genre: the paginated grid, six per row, version filters above [4] [5] [19].
+struct GenreGridView: View {
+    let kind: ContentKind
+    let row: CatalogRow
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.dismiss) private var dismiss
     @State private var paginator: Paginator?
-    @State private var genres: [Genre] = []
     @State private var query: ListQuery
     @FocusState private var focusedCard: ContentID?
 
     private let columns = Array(repeating: GridItem(.fixed(250), spacing: 40, alignment: .top), count: 6)
 
-    init(kind: ContentKind) {
+    init(kind: ContentKind, row: CatalogRow) {
         self.kind = kind
-        _query = State(initialValue: ListQuery(kind: kind))
+        self.row = row
+        _query = State(initialValue: ListQuery(kind: kind, genre: row.id))
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
-                header
-                FilterBar(kind: kind, genres: genres, query: $query)
+                HStack(spacing: 14) {
+                    Text(row.name).font(.largeTitle.weight(.bold))
+                    Text(Format.count(row.total)).font(.title3).foregroundStyle(Theme.secondary)
+                }
+                .padding(.horizontal, 96)
+                FilterBar(kind: kind, query: $query)
                 grid
             }
             .padding(.vertical, 40)
@@ -32,21 +128,12 @@ struct CatalogView: View {
                 let p = Paginator(client: env.client, query: query)
                 paginator = p
                 await p.loadFirstPage()
-                genres = (try? await env.client.genres(kind: kind)) ?? []
             }
         }
         .onChange(of: query) { _, q in
             if kind == .series { env.preferences.catalogSortSeries = q.sort } else { env.preferences.catalogSortMovies = q.sort }
             Task { await paginator?.apply(q) }
         }
-    }
-
-    private var header: some View {
-        HStack {
-            Text(kind == .series ? "Séries" : "Films").font(.largeTitle.weight(.bold))
-            Spacer()
-        }
-        .padding(.horizontal, 96)
     }
 
     @ViewBuilder private var grid: some View {
@@ -57,9 +144,9 @@ struct CatalogView: View {
                 }
             } else if p.isEmpty {
                 StatePanel(icon: "line.3.horizontal.decrease.circle", title: "Aucun titre",
-                           message: query.hasFilters ? "Aucun titre ne correspond à ces filtres." : "Le catalogue est vide.",
+                           message: query.hasFilters ? "Aucun titre ne correspond à ces filtres." : "Ce genre est vide.",
                            actionTitle: query.hasFilters ? "Retirer les filtres" : nil) {
-                    query = ListQuery(kind: kind)
+                    query = ListQuery(kind: kind, genre: row.id)
                 }
             } else {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 40) {
@@ -91,7 +178,7 @@ struct CatalogView: View {
 
 /// The poster card content, without a button, for grid buttons.
 struct PosterCardLabel: View {
-    let card: ContentCard
+    let card: Card
     var width: CGFloat = 250
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -120,10 +207,9 @@ struct PosterCardLabel: View {
     }
 }
 
-/// Sort, genres and version filters at the same level. Active filters are chips a click removes.
+/// Sort and version filters of the grid. Active filters are chips a click removes.
 struct FilterBar: View {
     let kind: ContentKind
-    let genres: [Genre]
     @Binding var query: ListQuery
 
     var body: some View {
@@ -137,22 +223,14 @@ struct FilterBar: View {
                     Label("Trier : \(query.sort.label)", systemImage: "arrow.up.arrow.down")
                 }
                 Divider().frame(height: 40)
-                ForEach(genres.prefix(8)) { g in
-                    chip(g.name, count: g.count, on: query.genre == g.name) { query.genre = query.genre == g.name ? nil : g.name }
-                }
-                Divider().frame(height: 40)
                 ForEach([Language.vf, .vostfr, .vo], id: \.self) { l in
                     chip(l.rawValue, on: query.language == l) { query.language = query.language == l ? nil : l }
                 }
                 chip("4K", on: query.minQuality == .uhd) { query.minQuality = query.minQuality == .uhd ? nil : .uhd }
                 chip("Dolby Vision", on: query.dynamicRange == .dolbyVision) { query.dynamicRange = query.dynamicRange == .dolbyVision ? nil : .dolbyVision }
                 chip("VF disponible", on: query.vfAvailable) { query.vfAvailable.toggle() }
-                if kind == .series {
-                    chip("Nouveaux épisodes", on: query.newEpisodes) { query.newEpisodes.toggle() }
-                    chip("Saison complète en VF", on: query.completeSeasonVF) { query.completeSeasonVF.toggle() }
-                }
                 if query.hasFilters {
-                    Button(role: .destructive) { query = ListQuery(kind: kind) } label: { Label("Tout retirer", systemImage: "xmark") }
+                    Button(role: .destructive) { query = ListQuery(kind: kind, genre: query.genre) } label: { Label("Tout retirer", systemImage: "xmark") }
                 }
             }
             .padding(.horizontal, 96)
@@ -162,12 +240,11 @@ struct FilterBar: View {
         .buttonStyle(.bordered)
     }
 
-    private func chip(_ text: String, count: Int? = nil, on: Bool, action: @escaping () -> Void) -> some View {
+    private func chip(_ text: String, on: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if on { Image(systemName: "checkmark") }
                 Text(text)
-                if let count { Text("\(count)").foregroundStyle(Theme.secondary) }
             }
         }
         .tint(on ? Theme.accent : nil)

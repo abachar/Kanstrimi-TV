@@ -4,7 +4,7 @@ import Observation
 /// Holds the loaded pages of a list, the cursor, and preloads when the focus enters the last third.
 @Observable
 final class Paginator {
-    private(set) var items: [ContentCard] = []
+    private(set) var items: [Card] = []
     private(set) var query: ListQuery
     private(set) var nextCursor: String?
     private(set) var isLoading = false

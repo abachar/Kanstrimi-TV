@@ -14,7 +14,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Apple TV « \(prefs.deviceName.isEmpty ? "Salon" : prefs.deviceName) »").font(.title3.weight(.semibold))
                         Spacer()
-                        Text(env.session?.serverHost ?? URL(string: prefs.serverURL)?.host() ?? "").foregroundStyle(Theme.secondary)
+                        Text(URL(string: prefs.serverURL)?.host() ?? "").foregroundStyle(Theme.secondary)
                     }
                 }
 
@@ -50,17 +50,18 @@ struct SettingsView: View {
 
                 Section("À propos") {
                     LabeledContent("Application", value: appVersion)
-                    LabeledContent("Serveur", value: env.session.map { "\($0.serverHost) · \($0.serverVersion)" } ?? "—")
-                    LabeledContent("Catalogue", value: env.session.map {
+                    LabeledContent("Serveur", value: env.info.map { "\(URL(string: prefs.serverURL)?.host() ?? "") · \($0.serverVersion)" } ?? "—")
+                    LabeledContent("Catalogue", value: env.info.map {
                         "\(Format.count($0.counts.movies)) films · \(Format.count($0.counts.series)) séries · \(Format.count($0.counts.channels)) chaînes"
                     } ?? "—")
-                    LabeledContent("Dernier import", value: env.session.map { s in
+                    LabeledContent("Dernier import", value: env.info.map { s in
                         var parts: [String] = []
                         if let d = s.lastImport { parts.append(Calendar.current.isDateInToday(d) ? "Aujourd'hui, \(Format.hour(d))" : Format.dayHour(d)) }
                         if let r = s.tmdbRate { parts.append("TMDB à \(Int(r * 100)) %") }
                         return parts.joined(separator: " · ")
                     } ?? "—")
-                    LabeledContent("Langues du catalogue", value: env.session?.catalogLanguages.map(\.rawValue).joined(separator: " · ") ?? "—")
+                    LabeledContent("Langues du catalogue", value: env.info?.catalogLanguages.map(\.rawValue).joined(separator: " · ") ?? "—")
+                    LabeledContent("Code de l'appareil", value: env.device.code ?? "—")
                 }
 
                 Section("Lecteur · flux de démo") {
@@ -73,10 +74,7 @@ struct SettingsView: View {
                     Toggle("Hors ligne (serveur injoignable)", isOn: $scenario.offline)
                     Toggle("Jeton révoqué (401 partout)", isOn: $scenario.unauthorized)
                     Toggle("Code d'appairage qui expire", isOn: $scenario.pairingExpires)
-                    Picker("Saison en erreur", selection: $scenario.failingSeason) {
-                        Text("Aucune").tag(0)
-                        ForEach(1...4, id: \.self) { Text("Saison \($0)").tag($0) }
-                    }
+                    Toggle("Fiche en erreur (fournisseur muet)", isOn: $scenario.failingDetail)
                     Toggle("Deuxième page en erreur", isOn: $scenario.failingSecondPage)
                     Toggle("Recherche sans résultat", isOn: $scenario.emptySearch)
                     Toggle("EPG vide", isOn: $scenario.emptyEPG)
@@ -118,8 +116,14 @@ struct SettingsView: View {
 
     private func play(_ id: ContentID) {
         Task {
-            guard let ctx = try? await env.client.playbackContext(id: id) else { return }
-            env.player.play(ctx)
+            guard let card = try? await env.client.detail(id: id.seriesID ?? id) else { return }
+            let ctx: PlaybackContext?
+            if id.seriesID != nil, let ep = card.allEpisodes.first(where: { $0.id == id }) {
+                ctx = try? await env.playbackContext(for: ep, of: card)
+            } else {
+                ctx = try? await env.playbackContext(for: card)
+            }
+            if let ctx { env.player.play(ctx) }
         }
     }
 
@@ -135,10 +139,10 @@ struct SettingsView: View {
 
     private func unpair() {
         Task {
-            try? await env.client.revokeDevice()
+            if let code = env.device.code { try? await env.client.deleteDevice(code: code) }
             env.homeCache.clear()
             env.device.forget(reason: nil)
-            env.session = nil
+            env.info = nil
         }
     }
 }
