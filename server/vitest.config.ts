@@ -10,9 +10,11 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     globalSetup: ["src/test/global-setup.ts"],
+    // One shared test database: files must not truncate it under each other.
+    fileParallelism: false,
     env: {
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgres://kanstrimi:kanstrimi@localhost:5432/kanstrimi_test",
-      ADMIN_PASSWORD_HASH: "$2b$10$CwTycUXWue0Thq9StjUM0uJ8Z0Y0S5uKm9O8bYwzGf0Kf7rM.a7Ri", // "test"
+      ADMIN_PASSWORD_HASH: "$2b$04$5/zpgMxPMh1UdeIEbJ8/jux0XzSTWJE/.6fHMMMb47MeNOrHhPiF.", // "test", cost 4
       SESSION_SECRET: "test-only-secret-not-for-production-32chars",
       DATA_DIR: "/tmp/kanstrimi-test-data",
     },

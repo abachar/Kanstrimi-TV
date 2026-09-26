@@ -1,5 +1,5 @@
 import {
-  pgTable, serial, text, integer, boolean, timestamp, jsonb, pgEnum, uniqueIndex, index, real, customType,
+  pgTable, serial, text, integer, boolean, timestamp, jsonb, pgEnum, uniqueIndex, index, real, customType, date,
 } from "drizzle-orm/pg-core";
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
@@ -176,7 +176,83 @@ export const syncLogs = pgTable("sync_logs", {
   stats: jsonb("stats").$type<Record<string, unknown>>(),
 });
 
+/**
+ * Episodes of a series content, merged across its variants by (season, number). Refreshed
+ * from the provider's get_series_info (one call per variant, cached) and TMDB season data
+ * when a series sheet is opened. `key` is the REST id: `tmdb:tv:1396:s01e05`.
+ */
+export const episodes = pgTable("episodes", {
+  id: serial("id").primaryKey(),
+  contentId: integer("content_id").notNull().references(() => contents.id, { onDelete: "cascade" }),
+  key: text("key").notNull().unique(),
+  season: integer("season").notNull(),
+  number: integer("number").notNull(),
+  title: text("title"),
+  overview: text("overview"),
+  runtime: integer("runtime"),
+  stillPath: text("still_path"),
+  airDate: date("air_date"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex("episodes_content_season_number_idx").on(t.contentId, t.season, t.number),
+]);
+
+/** One playable stream of an episode: the provider's episode id under one series variant (item). */
+export const episodeSources = pgTable("episode_sources", {
+  id: serial("id").primaryKey(),
+  episodeId: integer("episode_id").notNull().references(() => episodes.id, { onDelete: "cascade" }),
+  itemId: integer("item_id").notNull().references(() => items.id, { onDelete: "cascade" }),
+  /** Provider episode id, an opaque string, never exposed. */
+  xtreamId: text("xtream_id").notNull(),
+  container: text("container"),
+  seenAt: timestamp("seen_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex("episode_sources_episode_item_idx").on(t.episodeId, t.itemId),
+  index("episode_sources_item_idx").on(t.itemId),
+]);
+
+/** Playback position per content key (movie or episode). Single user: no device column. */
+export const watchProgress = pgTable("watch_progress", {
+  contentKey: text("content_key").primaryKey(),
+  /** Seconds. */
+  position: integer("position").notNull(),
+  duration: integer("duration").notNull(),
+  /** Derived at write time: position ≥ 90 % of duration. */
+  finished: boolean("finished").default(false).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** "Ma liste": movies, series and channels by content key. */
+export const favorites = pgTable("favorites", {
+  contentKey: text("content_key").primaryKey(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const deviceStatusEnum = pgEnum("device_status", ["pending", "approved", "revoked"]);
+
+/**
+ * A paired TV. The 6-character code is its public identifier for life; the token (stored
+ * hashed) authenticates every REST call; `wrapped_key` is the vault key encrypted with a
+ * key derived from the token, so the first call after a restart unlocks the vault.
+ */
+export const devices = pgTable("devices", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  name: text("name"),
+  tokenHash: text("token_hash").unique(),
+  wrappedKey: text("wrapped_key"),
+  status: deviceStatusEnum("status").default("pending").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  lastIp: text("last_ip"),
+  createdIp: text("created_ip"),
+});
+
 export type Item = typeof items.$inferSelect;
+export type Episode = typeof episodes.$inferSelect;
+export type Device = typeof devices.$inferSelect;
 export type Content = typeof contents.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type FilterRule = typeof filterRules.$inferSelect;

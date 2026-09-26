@@ -4,7 +4,7 @@ import type { XStream } from "@/lib/xtream/types";
 
 /** Empty every catalogue table between test files. */
 export async function resetDb() {
-  await db.execute(sql`truncate table items, contents, categories, tmdb_cache, info_cache, filter_rules, sync_logs, settings restart identity cascade`);
+  await db.execute(sql`truncate table items, contents, episodes, episode_sources, categories, tmdb_cache, info_cache, filter_rules, sync_logs, settings, watch_progress, favorites, devices restart identity cascade`);
 }
 
 export async function closeDb() { await client.end({ timeout: 5 }); }
