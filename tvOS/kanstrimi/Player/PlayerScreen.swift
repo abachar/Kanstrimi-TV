@@ -55,7 +55,7 @@ struct PlayerScreen: View {
         }
         .animation(.easeInOut(duration: 0.25), value: controlsVisible)
         .animation(.easeInOut(duration: 0.25), value: sheet)
-        // Menu closes the open panel first, then quits the player. Handled here so it works
+        // Back (Menu on older remotes) closes the open panel first, then quits the player. Handled here so it works
         // whatever element inside the panel has focus.
         .onExitCommand { exit() }
         .onChange(of: sheet) { _, s in
@@ -217,7 +217,7 @@ struct VODOverlay: View {
                 Spacer()
                 hint("◀ ▶", "±10 s")
                 hint("▼", "Infos · Versions · Audio · Sous-titres")
-                hint("Menu", "Quitter")
+                hint("‹", "Retour · quitter")
             }
             .font(.callout).foregroundStyle(Theme.secondary)
         }

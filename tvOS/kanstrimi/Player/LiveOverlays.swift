@@ -40,7 +40,7 @@ struct LiveBanner: View {
                     hint("▼ long", "Liste des chaînes")
                     hint("◀", "Chaînes récentes")
                     hint("▶", "Options · Qualité · Audio · Sous-titres")
-                    hint("Menu", "Quitter")
+                    hint("‹", "Retour · quitter")
                 }
                 .font(.callout).foregroundStyle(Theme.secondary)
                 .transition(.opacity)
@@ -141,7 +141,7 @@ struct RecentChannelsOverlay: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     Text("Chaînes récentes").font(.title2.weight(.bold))
-                    Text("clic = bascule immédiate · Menu pour fermer").font(.callout).foregroundStyle(Theme.secondary)
+                    Text("clic = bascule immédiate · ‹ Retour pour fermer").font(.callout).foregroundStyle(Theme.secondary)
                 }
                 if recents.isEmpty {
                     Text("Aucune chaîne regardée récemment.").foregroundStyle(Theme.secondary).padding(.vertical, 30)

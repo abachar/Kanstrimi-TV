@@ -337,7 +337,7 @@ le temps restant et l'heure de fin, puis les rappels de gestes. Rien d'autre.
 | Clic / Play-Pause | pause / lecture | pause (buffer) / lecture |
 | ◀ ▶ | ±10 s, maintien = défilement | ◀ : chaînes récentes [22] |
 | ▲ ▼ | ▼ : panneau [11] | chaîne précédente / suivante ; ▼ long : liste |
-| Menu | quitter, position sauvegardée | quitter |
+| Retour (‹, « Menu » sur les anciennes télécommandes) | quitter, position sauvegardée | quitter |
 
 ### 4.3 Le panneau [11]
 
