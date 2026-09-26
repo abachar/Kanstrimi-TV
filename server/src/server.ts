@@ -9,6 +9,7 @@ import { startScheduler } from "@/lib/jobs/jobs";
 import { requestLogger } from "@/lib/http-log";
 import { isUnlocked } from "@/lib/auth/vault";
 import { deleteSettings } from "@/lib/settings";
+import { closeOrphanLogs } from "@/lib/jobs/log";
 import { describeError } from "@/lib/errors";
 
 const app = new Hono();
@@ -36,6 +37,9 @@ const server = serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
   // Pre-vault leftovers. Must never kill the process: at boot the database may not be up yet.
   void deleteSettings(["admin_password_hash", "proxy_password", "stream_mode"])
     .catch((e) => console.error("[boot] nettoyage des réglages pré-coffre échoué:", describeError(e)));
+  void closeOrphanLogs()
+    .then((n) => { if (n) console.log(`[boot] ${n} job(s) interrompu(s) par le redémarrage précédent`); })
+    .catch((e) => console.error("[boot] clôture des jobs orphelins échouée:", describeError(e)));
   startScheduler();
 });
 
