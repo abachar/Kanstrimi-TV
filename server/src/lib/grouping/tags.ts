@@ -109,6 +109,9 @@ function extractTags(s: string, f: Found): string {
 function extractYear(s: string): { s: string; year?: number } {
   const paren = /[([]\s*((?:19|20)\d{2})\s*[)\]]/.exec(s);
   if (paren) return { s: s.replace(paren[0], " "), year: Number(paren[1]) };
+  // Scene-style names: "Silver.Book.of.Dreams.2013" → the dots are spaces and the tail is the year.
+  const scene = /^(\S+\.\S+)\.((?:19|20)\d{2})((?:\.\S+)*)$/.exec(s.trim());
+  if (scene && !/\s/.test(s.trim())) return { s: scene[1].replace(/\./g, " ") + scene[3].replace(/\./g, " "), year: Number(scene[2]) };
   const ym = [...s.matchAll(/(?:^|[\s\-.|:])((?:19|20)\d{2})(?=$|[\s\-.|:])/g)];
   const m = ym[ym.length - 1];
   if (m && m.index !== undefined && m.index > 0) {
@@ -146,10 +149,12 @@ export function parseName(raw: string, kind: Kind): ParsedName {
     const m = MARKET_PREFIX.exec(s) ?? BARE_PREFIX.exec(s);
     if (!m) break;
     const code = m[1].toUpperCase();
+    // Technical prefixes some providers stamp on scene releases ("AZ - Title.2013"): not a market.
+    if (["AZ", "VOD", "TV", "LIVE", "NEWS", "MAG", "PPV"].includes(code)) { s = s.slice(m[0].length); continue; }
     // "|FR|" is a market, not a language: "|FR| Tenet (VOST)" is sold in France, in VOSTFR.
     if (/^[A-Z]{2,3}(?:-[A-Z]{2,3})?$/.test(code) && !["VF", "VO", "SUB", "DUB", "ENG", "VFF", "VFQ"].includes(code)) market ??= code.toLowerCase();
     else if (LANG_WORDS[code]) f.language ??= LANG_WORDS[code];
-    else if (!["VOD", "TV", "LIVE", "NEWS", "MAG", "PPV"].includes(code)) break;
+    else break;
     s = s.slice(m[0].length);
   }
   // Leading language words without a separator: "VOSTFR Parasite - 2019".

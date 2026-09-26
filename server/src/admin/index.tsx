@@ -18,6 +18,8 @@ import { assignManual, resetMatches, getTmdbClient } from "@/lib/tmdb/enrich";
 import { TmdbClient } from "@/lib/tmdb/client";
 import { groupingCounts, regroupItems } from "@/lib/grouping/group";
 import { GroupRow, GroupVariants, MergeForm, GROUPS_PAGE, type GroupsQuery } from "./groups";
+import { PairView, DevicesView } from "./devices";
+import { approvePairing, getDevice, listDevices, revokeDevice, forgetDevice, isCode } from "@/lib/rest/devices";
 
 export const admin = new Hono();
 
@@ -34,16 +36,50 @@ const checked = async (c: Context, name: string) => (await c.req.formData()).has
 const zerr = (e: z.ZodError) => e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
 
 // ---------------------------------------------------------------- auth
+/** Only our own pages, so a crafted link cannot send the admin elsewhere after login. */
+const safeNext = (s?: string) => s && /^\/admin\/[A-Za-z0-9/_-]*$/.test(s) ? s : "/admin";
 admin.use("*", async (c, next) => {
   const p = new URL(c.req.url).pathname;
   if (p === "/admin/login" || (await isLoggedIn(c))) return next();
-  return c.redirect("/admin/login");
+  // The pairing page is reached from a QR code: come back to it once logged in.
+  return c.redirect(p.startsWith("/admin/pair/") ? `/admin/login?next=${encodeURIComponent(p)}` : "/admin/login");
 });
 
-admin.get("/login", (c) => page(c, "Connexion", <LoginView locked={!isUnlocked()} error={c.req.query("err")} />, false));
+admin.get("/login", (c) => page(c, "Connexion", <LoginView locked={!isUnlocked()} error={c.req.query("err")} next={c.req.query("next")} />, false));
 admin.post("/login", async (c) => {
-  if (!(await login(c, (await form(c)).password ?? ""))) return back(c, "/admin/login", { err: "Mot de passe incorrect" });
-  return c.redirect("/admin", 303);
+  const next = safeNext(c.req.query("next"));
+  if (!(await login(c, (await form(c)).password ?? ""))) return back(c, `/admin/login${next !== "/admin" ? `?next=${encodeURIComponent(next)}` : ""}`, { err: "Mot de passe incorrect" });
+  return c.redirect(next, 303);
+});
+
+// ---------------------------------------------------------------- devices (block 3)
+const pairState = async (code: string) => {
+  const d = await getDevice(code);
+  if (!d) return "unknown" as const;
+  if (d.status === "approved") return "done" as const;
+  if (d.status === "revoked" || d.expiresAt.getTime() < Date.now()) return "expired" as const;
+  return "pending" as const;
+};
+admin.get("/pair/:code", async (c) => {
+  const code = c.req.param("code").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!isCode(code)) return page(c, "Appairage", <PairView code={code} state="unknown" />);
+  return page(c, "Appairage", <PairView code={code} state={await pairState(code)} error={c.req.query("err")} />);
+});
+admin.post("/pair/:code", async (c) => {
+  const code = c.req.param("code").toUpperCase();
+  const f = await form(c);
+  try { await approvePairing(code, (f.name ?? "").slice(0, 40)); }
+  catch (e) { return page(c, "Appairage", <PairView code={code} state={await pairState(code)} error={(e as Error).message} />); }
+  return page(c, "Appairage", <PairView code={code} state="done" />);
+});
+admin.get("/devices", async (c) => page(c, "Appareils", <DevicesView devices={await listDevices()} />));
+admin.post("/devices/:code/revoke", async (c) => {
+  const ok = await revokeDevice(c.req.param("code").toUpperCase());
+  return back(c, "/admin/devices", ok ? { ok: "Appareil dissocié" } : { err: "Appareil introuvable ou déjà dissocié" });
+});
+admin.post("/devices/:code/forget", async (c) => {
+  await forgetDevice(c.req.param("code").toUpperCase());
+  return back(c, "/admin/devices", { ok: "Appareil oublié" });
 });
 admin.post("/logout", (c) => { logout(c); c.header("HX-Redirect", "/admin/login"); return c.redirect("/admin/login", 303); });
 

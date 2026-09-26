@@ -6,7 +6,7 @@ import type { MiddlewareHandler } from "hono";
  * That password is also the key that decrypts the settings, so it must never reach
  * journald. Hono's own logger prints the raw URL, hence this replacement.
  */
-const SECRET_PARAMS = new Set(["password", "pass", "tmdb_api_key", "api_key", "token"]);
+const SECRET_PARAMS = new Set(["password", "pass", "tmdb_api_key", "api_key", "token", "s", "sig"]);
 const STREAM_PATH = /^\/(live|movie|series)\/([^/]+)\/[^/]+\//;
 const MASK = "***";
 

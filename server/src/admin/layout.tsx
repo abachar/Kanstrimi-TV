@@ -5,6 +5,7 @@ export const NAV = [
   ["/admin", "Tableau de bord"],
   ["/admin/catalog", "Catalogue"],
   ["/admin/rules", "Règles"],
+  ["/admin/devices", "Appareils"],
   ["/admin/logs", "Journaux"],
   ["/admin/settings", "Paramètres"],
 ] as const;

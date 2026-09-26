@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import { db, client } from "@/db";
 import { xtream } from "@/routes/xtream";
+import { api } from "@/routes/api";
 import { admin } from "@/admin";
 import { startScheduler } from "@/lib/jobs/jobs";
 import { requestLogger } from "@/lib/http-log";
@@ -23,6 +24,7 @@ app.get("/api/health", async (c) => {
   catch (e) { return c.json({ ok: false, unlocked: isUnlocked(), error: describeError(e) }, 500); }
 });
 app.get("/", (c) => c.redirect("/admin"));
+app.route("/api/v1", api);
 app.route("/", xtream);
 app.route("/admin", admin);
 
