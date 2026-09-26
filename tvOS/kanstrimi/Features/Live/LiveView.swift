@@ -13,6 +13,7 @@ struct LiveView: View {
     @State private var focusedID: ContentID?
     @State private var focusedEPG: EPGNow = .empty
     @State private var preview = PreviewPlayer()
+    @State private var isVisible = false
     @FocusState private var focus: ContentID?
 
     private var visible: [Channel] {
@@ -44,12 +45,19 @@ struct LiveView: View {
             guard let f else { return }
             focusedID = f
             Task { focusedEPG = await env.epg.now(for: f) }
-            if let c = focusedChannel { preview.show(c) }
+            if isVisible, !env.player.isPresented, let c = focusedChannel { preview.show(c) }
         }
         .onChange(of: env.player.isPresented) { _, presented in
-            if presented { preview.stop() } else if let c = focusedChannel { preview.show(c) }
+            if presented { preview.stop() } else if isVisible, let c = focusedChannel { preview.show(c) }
         }
-        .onDisappear { preview.stop() }
+        .onAppear {
+            isVisible = true
+            if !env.player.isPresented, let c = focusedChannel { preview.show(c) }
+        }
+        .onDisappear {
+            isVisible = false
+            preview.stop()
+        }
     }
 
     private func load() async {
@@ -68,11 +76,7 @@ struct LiveView: View {
     private var list: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Direct").font(.largeTitle.weight(.bold))
-                    Spacer()
-                    SettingsButton()
-                }
+                Text("Direct").font(.largeTitle.weight(.bold))
                 .padding(.bottom, 10)
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
@@ -158,7 +162,7 @@ struct LiveView: View {
     private var side: some View {
         VStack(alignment: .leading, spacing: 22) {
             ZStack {
-                PreviewSurface(player: preview.player)
+                PreviewSurface(view: preview.videoView)
                 if preview.channelID == nil || !preview.hasImage {
                     VStack(spacing: 10) {
                         Image(systemName: "tv").font(.system(size: 50)).foregroundStyle(Theme.secondary)
@@ -205,7 +209,13 @@ struct LiveView: View {
 /// A second, silent VLC instance for the side preview. It closes the previous stream and opens the new one.
 @Observable
 final class PreviewPlayer: NSObject, VLCMediaPlayerDelegate {
-    let player = VLCMediaPlayer(options: ["--network-caching=1000", "--no-video-title-show"])
+    let player = VLCMediaPlayer(options: ["--network-caching=1000", "--no-video-title-show", "--no-audio"])
+    /// The surface VLC draws into, attached once, before any playback.
+    let videoView: UIView = {
+        let v = UIView()
+        v.backgroundColor = .black
+        return v
+    }()
     private(set) var channelID: ContentID?
     private(set) var hasImage = false
     private var debounce: Task<Void, Never>?
@@ -213,7 +223,7 @@ final class PreviewPlayer: NSObject, VLCMediaPlayerDelegate {
     override init() {
         super.init()
         player.delegate = self
-        player.audio?.isMuted = true
+        player.drawable = videoView
     }
 
     func show(_ channel: Channel) {
@@ -243,14 +253,7 @@ final class PreviewPlayer: NSObject, VLCMediaPlayerDelegate {
 }
 
 struct PreviewSurface: UIViewRepresentable {
-    let player: VLCMediaPlayer
-    func makeUIView(context: Context) -> UIView {
-        let v = UIView()
-        v.backgroundColor = .black
-        player.drawable = v
-        return v
-    }
-    func updateUIView(_ uiView: UIView, context: Context) {
-        if (player.drawable as? UIView) !== uiView { player.drawable = uiView }
-    }
+    let view: UIView
+    func makeUIView(context: Context) -> UIView { view }
+    func updateUIView(_ uiView: UIView, context: Context) { }
 }

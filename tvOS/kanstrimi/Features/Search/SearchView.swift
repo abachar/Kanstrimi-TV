@@ -10,17 +10,13 @@ struct SearchView: View {
     @State private var results: SearchResults?
     @State private var error: CatalogError?
     @State private var searchTask: Task<Void, Never>?
-    @State private var path: [ContentID] = []
-
     init(initialQuery: String = "") {
         _text = State(initialValue: initialQuery)
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            content
-                .navigationDestination(for: ContentID.self) { DetailView(id: $0) }
-                .background(Theme.background)
+        NavigationStack {
+            content.background(Theme.background)
         }
         .searchable(text: $text, prompt: "Titre, acteur, réalisateur")
         .task { if !text.isEmpty { schedule(immediately: true) } }
@@ -33,7 +29,6 @@ struct SearchView: View {
             HStack {
                 filters
                 Spacer()
-                SettingsButton()
             }
             .padding(.horizontal, 96)
             if text.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -136,7 +131,7 @@ struct SearchView: View {
             }
             .buttonStyle(.borderedProminent)
             if c.kind != .live {
-                Button("Fiche") { path.append(c.id) }.buttonStyle(.bordered)
+                Button("Fiche") { env.open(c.id) }.buttonStyle(.bordered)
             }
         }
         .frame(width: 400, alignment: .leading)
@@ -150,7 +145,7 @@ struct SearchView: View {
     }
 
     private func open(_ c: ContentCard) {
-        if c.kind == .live { play(c) } else { path.append(c.id) }
+        if c.kind == .live { play(c) } else { env.open(c.id) }
     }
 
     private func play(_ c: ContentCard) {

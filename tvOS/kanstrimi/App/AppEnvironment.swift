@@ -17,6 +17,10 @@ final class AppEnvironment {
     let player: PlayerService
     /// Session fetched after pairing; nil while loading or offline.
     var session: Session?
+    /// The sheet shown full screen above the tabs, from any screen.
+    var presentedDetail: ContentID?
+
+    func open(_ id: ContentID) { presentedDetail = id }
 
     init() {
         let scenario = MockScenario()

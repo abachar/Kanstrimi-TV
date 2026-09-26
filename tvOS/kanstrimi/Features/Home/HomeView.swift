@@ -5,20 +5,16 @@ struct HomeView: View {
     @Environment(AppEnvironment.self) private var env
     @State private var model: HomeModel?
     @State private var showPicker = false
-    @State private var path: [ContentID] = []
 
     var body: some View {
-        NavigationStack(path: $path) {
-            Group {
-                if let model {
-                    content(model)
-                } else {
-                    Color.clear
-                }
+        Group {
+            if let model {
+                content(model)
+            } else {
+                Color.clear
             }
-            .navigationDestination(for: ContentID.self) { DetailView(id: $0) }
-            .background(Theme.background)
         }
+        .background(Theme.background)
         .task {
             if model == nil {
                 let m = HomeModel(env: env)
@@ -30,7 +26,10 @@ struct HomeView: View {
             if let model, let hero = model.home?.hero {
                 VersionPicker(title: hero.card.title, versions: hero.versions, recommendedID: model.heroChoice?.version.id) { v, s, remember, _ in
                     if remember { env.preferences.remember(versionID: v.id, for: hero.card.id) }
-                    model.playHero(version: v, source: s)
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(400))
+                        model.playHero(version: v, source: s)
+                    }
                 }
                 .environment(env)
             }
@@ -41,17 +40,16 @@ struct HomeView: View {
         if let home = model.home {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack { Spacer(); SettingsButton() }.padding(.horizontal, 96).padding(.top, 30)
                     if model.isOffline {
                         OfflineBanner(detail: "Accueil du \(Format.dayHour(home.generatedAt)) affiché · la lecture reste possible si le flux répond") {
                             Task { await model.load() }
                         }
-                        .padding(.horizontal, 96).padding(.top, 10)
+                        .padding(.horizontal, 96).padding(.top, 30)
                     }
                     if let hero = home.hero { heroView(hero, model: model) }
                     ForEach(home.rows) { row in
                         CardRow(title: row.title, cards: row.cards, landscape: row.kind == .resume) { card in
-                            if row.kind == .resume { model.resume(card) } else { path.append(card.id) }
+                            if row.kind == .resume { model.resume(card) } else { env.open(card.id) }
                         }
                     }
                     Spacer(minLength: 60)
@@ -64,7 +62,6 @@ struct HomeView: View {
                        message: "\(error.localizedDescription). Aucun accueil en cache sur cet Apple TV.") {
                 Task { await model.load() }
             }
-            .overlay(alignment: .topTrailing) { SettingsButton().padding(.horizontal, 96).padding(.top, 40) }
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -102,7 +99,7 @@ struct HomeView: View {
                     .buttonStyle(.borderedProminent)
                     .onLongPressGesture(minimumDuration: 0.5) { showPicker = true }
                     Button("Versions · \(hero.versions.count)") { showPicker = true }.buttonStyle(.bordered)
-                    Button { path.append(hero.card.id) } label: { Label("Fiche", systemImage: "info.circle") }.buttonStyle(.bordered)
+                    Button { env.open(hero.card.id) } label: { Label("Fiche", systemImage: "info.circle") }.buttonStyle(.bordered)
                 }
                 .padding(.top, 8)
             }

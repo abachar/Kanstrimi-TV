@@ -2,11 +2,12 @@ import Foundation
 
 /// Stable content identity, derived from TMDB on the server ("tmdb:movie:603",
 /// "tmdb:tv:1396:s01e05", "live:tf1"). Opaque for the app.
-nonisolated struct ContentID: RawRepresentable, Hashable, Codable, Sendable, CustomStringConvertible {
+nonisolated struct ContentID: RawRepresentable, Hashable, Codable, Sendable, CustomStringConvertible, Identifiable {
     let rawValue: String
     init(rawValue: String) { self.rawValue = rawValue }
     init(_ raw: String) { self.rawValue = raw }
     var description: String { rawValue }
+    var id: String { rawValue }
 
     init(from decoder: Decoder) throws {
         rawValue = try decoder.singleValueContainer().decode(String.self)

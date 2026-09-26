@@ -61,7 +61,11 @@ Avant de coder, lire dans l'ordre :
 Vérification visuelle : cette installation Xcode 27 n'a pas de `Simulator.app`, donc pas de
 télécommande à piloter ; on rend les écrans avec les `#Preview` de
 `Features/ScreenPreviews.swift` et `Player/PlayerPreviews.swift` (outil `RenderPreview` du
-MCP Xcode), et les tests avec `RunAllTests`.
+MCP Xcode), et les tests avec `RunAllTests`. Pour voir le lecteur tourner sans télécommande :
+`xcrun simctl spawn <udid> defaults write dev.crafters.kanstrimi debug.autoplay live` (ou un
+identifiant de contenu, plus `debug.resumeAt` en secondes), puis lancer et capturer avec
+`xcrun simctl io <udid> screenshot`. Les trois URL de démo vivent dans
+`Client/DemoStreams.local.json`, hors dépôt (identifiants fournisseur).
 
 ## Le cahier des charges est vivant
 

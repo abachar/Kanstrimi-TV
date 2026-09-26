@@ -1,6 +1,10 @@
 import Foundation
 import Observation
+import OSLog
+import UIKit
 import VLCKit
+
+private let log = Logger(subsystem: "dev.crafters.kanstrimi", category: "player")
 
 /// The one player of the app. Wraps VLCKit, owns the playback context, the version and
 /// source in use, the automatic source switch, the failure dialog and the next-episode countdown.
@@ -63,6 +67,13 @@ final class PlayerService: NSObject {
     private let failedSources: FailedSourcesStore
     private let progressQueue: ProgressQueue
     let player: VLCMediaPlayer
+    /// The surface VLC draws into. Created once and attached before any playback, because a
+    /// drawable set after `play()` is not always picked up by the video output.
+    let videoView: UIView = {
+        let v = UIView()
+        v.backgroundColor = .black
+        return v
+    }()
     private let capabilities: VersionChooser.Capabilities
 
     private var startAttempts = 0
@@ -90,6 +101,7 @@ final class PlayerService: NSObject {
         self.player = VLCMediaPlayer(options: ["--network-caching=1500", "--no-video-title-show"])
         super.init()
         player.delegate = self
+        player.drawable = videoView
         player.timeChangeUpdateInterval = 0.5
     }
 
@@ -179,9 +191,22 @@ final class PlayerService: NSObject {
     func seek(to seconds: TimeInterval) {
         guard !isLive, duration > 0 else { return }
         let target = min(max(0, seconds), duration - 1)
-        player.time = VLCTime(int: Int32(target * 1000))
+        if Self.seekByPosition {
+            // Fraction of the file: the fast byte-offset path of the MKV demuxer when Cues are missing.
+            player.position = target / duration
+        } else {
+            player.time = VLCTime(int: Int32(target * 1000))
+        }
         time = target
+        log.info("seek to \(target, format: .fixed(precision: 0)) (\(Self.seekByPosition ? "position" : "time"))")
     }
+
+    enum ResumeStrategy { case startTime, seekAfterStart }
+    /// How a resume position is applied. On the simulator, both strategies leave the video output
+    /// black after a deep seek into a remote MKV (audio plays, `hasVideoOut` is true), while a
+    /// resume at 120 s works: the "seek MKV" risk of ETUDE.md §3, to measure on a real Apple TV 4K.
+    static var resumeStrategy: ResumeStrategy = .startTime
+    static var seekByPosition = false
 
     var remaining: TimeInterval { max(0, duration - time) }
     var endDate: Date { .now.addingTimeInterval(remaining) }
@@ -286,6 +311,12 @@ final class PlayerService: NSObject {
 
         player.stop()
         let media = VLCMedia(url: s.streamURL)
+        // Resume through the demuxer rather than a seek after `play()`: on a remote MKV the
+        // early seek leaves the video output black while the Cues are fetched.
+        if let position, position > 1, !isLive, Self.resumeStrategy == .startTime {
+            media?.addOption(":start-time=\(Int(position))")
+            pendingSeek = nil
+        }
         player.media = media
         player.play()
         armStartDeadline()
@@ -416,6 +447,7 @@ extension PlayerService: VLCMediaPlayerDelegate {
     }
     nonisolated func mediaPlayerLengthChanged(_ length: Int64) {
         Task { @MainActor in
+            log.info("length \(length) ms")
             if length > 0 { self.duration = TimeInterval(length) / 1000 }
         }
     }
@@ -427,6 +459,7 @@ extension PlayerService: VLCMediaPlayerDelegate {
     }
 
     private func handle(state: VLCMediaPlayerState) {
+        log.info("state \(VLCMediaPlayerStateToString(state)) time \(self.time, format: .fixed(precision: 0)) duration \(self.duration, format: .fixed(precision: 0)) videoOut \(self.player.hasVideoOut)")
         switch state {
         case .opening: phase = .opening
         case .playing:

@@ -17,18 +17,15 @@ struct CatalogView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 30) {
-                    header
-                    FilterBar(kind: kind, genres: genres, query: $query)
-                    grid
-                }
-                .padding(.vertical, 40)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 30) {
+                header
+                FilterBar(kind: kind, genres: genres, query: $query)
+                grid
             }
-            .navigationDestination(for: ContentID.self) { DetailView(id: $0) }
-            .background(Theme.background)
+            .padding(.vertical, 40)
         }
+        .background(Theme.background)
         .task {
             if paginator == nil {
                 query.sort = kind == .series ? env.preferences.catalogSortSeries : env.preferences.catalogSortMovies
@@ -48,7 +45,6 @@ struct CatalogView: View {
         HStack {
             Text(kind == .series ? "Séries" : "Films").font(.largeTitle.weight(.bold))
             Spacer()
-            SettingsButton()
         }
         .padding(.horizontal, 96)
     }
@@ -68,7 +64,7 @@ struct CatalogView: View {
             } else {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 40) {
                     ForEach(Array(p.items.enumerated()), id: \.element.id) { index, card in
-                        NavigationLink(value: card.id) {
+                        Button { env.open(card.id) } label: {
                             PosterCardLabel(card: card)
                         }
                         .buttonStyle(.card)
@@ -93,7 +89,7 @@ struct CatalogView: View {
     }
 }
 
-/// The poster card content, without a button, for NavigationLink labels.
+/// The poster card content, without a button, for grid buttons.
 struct PosterCardLabel: View {
     let card: ContentCard
     var width: CGFloat = 250

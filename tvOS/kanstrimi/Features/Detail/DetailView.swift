@@ -26,7 +26,11 @@ struct DetailView: View {
         .fullScreenCover(isPresented: $showPicker) {
             if let model, let d = model.detail {
                 VersionPicker(title: d.title, versions: d.versions, recommendedID: model.choice?.version.id, isSeries: model.isSeries) { v, s, remember, asDefault in
-                    model.chose(version: v, source: s, remember: remember, asDefault: asDefault)
+                    // Let the picker finish dismissing before the player cover presents.
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(400))
+                        model.chose(version: v, source: s, remember: remember, asDefault: asDefault)
+                    }
                 }
                 .environment(env)
             }
@@ -53,17 +57,18 @@ private struct DetailContent: View {
                     VStack(alignment: .leading, spacing: 34) {
                         header(d).padding(.top, 160)
                         buttons(d)
-                        chosenVersionNote(d)
+                        HStack(alignment: .top, spacing: 40) {
+                            chosenVersionNote(d)
+                            Spacer()
+                            if d.kind == .movie, !d.versions.isEmpty {
+                                VersionMatrix(versions: d.versions, autoID: model.choice?.version.id)
+                            }
+                        }
                         if d.kind == .series { seasons(d) }
                         Spacer(minLength: 80)
                     }
                     .padding(.horizontal, 96)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    if d.kind == .movie, !d.versions.isEmpty {
-                        VersionMatrix(versions: d.versions, autoID: model.choice?.version.id).padding(.trailing, 96).padding(.bottom, 60)
-                    }
                 }
             }
             .onAppear { focused = .play }

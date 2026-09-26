@@ -24,7 +24,7 @@ struct PlayerScreen: View {
 
     private var content: some View {
         ZStack {
-            VLCVideoView(player: player.player).ignoresSafeArea()
+            VLCVideoView(view: player.videoView).ignoresSafeArea()
 
             if player.phase == .opening || player.phase == .buffering {
                 ProgressView().scaleEffect(1.6)

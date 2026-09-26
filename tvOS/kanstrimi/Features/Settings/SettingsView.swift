@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// ⚙ from any tab. Lecture · Appareil · À propos, plus a Démo section that drives the mock.
+/// The Réglages tab: Lecture · Appareil · À propos, plus a Démo section that drives the mock.
 struct SettingsView: View {
     @Environment(AppEnvironment.self) private var env
-    @Environment(\.dismiss) private var dismiss
     @State private var confirmUnpair = false
 
     var body: some View {
@@ -98,9 +97,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Réglages")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
-            }
         }
         .background(Theme.background)
     }
@@ -123,7 +119,6 @@ struct SettingsView: View {
     private func play(_ id: ContentID) {
         Task {
             guard let ctx = try? await env.client.playbackContext(id: id) else { return }
-            dismiss()
             env.player.play(ctx)
         }
     }
@@ -133,7 +128,6 @@ struct SettingsView: View {
             guard let groups = try? await env.client.channels() else { return }
             let all = groups.flatMap(\.channels)
             guard let first = all.first else { return }
-            dismiss()
             env.player.play(channel: first, in: all)
             env.recentChannels.record(first.id)
         }
@@ -145,7 +139,6 @@ struct SettingsView: View {
             env.homeCache.clear()
             env.device.forget(reason: nil)
             env.session = nil
-            dismiss()
         }
     }
 }

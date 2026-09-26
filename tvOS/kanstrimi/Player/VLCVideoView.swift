@@ -1,18 +1,10 @@
 import SwiftUI
-import VLCKit
+import UIKit
 
-/// The surface VLCKit draws into. One instance, owned by the player screen.
+/// Hosts the player's persistent drawable view. VLC was attached to it at init.
 struct VLCVideoView: UIViewRepresentable {
-    let player: VLCMediaPlayer
+    let view: UIView
 
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        view.backgroundColor = .black
-        player.drawable = view
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {
-        if (player.drawable as? UIView) !== uiView { player.drawable = uiView }
-    }
+    func makeUIView(context: Context) -> UIView { view }
+    func updateUIView(_ uiView: UIView, context: Context) { }
 }
