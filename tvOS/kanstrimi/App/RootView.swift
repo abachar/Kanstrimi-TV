@@ -73,8 +73,13 @@ struct MainTabsView: View {
             Tab("Direct", systemImage: "tv", value: .live) { LiveView() }
             Tab("Films", systemImage: "film", value: .movies) { CatalogView(kind: .movie) }
             Tab("Séries", systemImage: "rectangle.stack", value: .series) { CatalogView(kind: .series) }
-            Tab("Recherche", systemImage: "magnifyingglass", value: .search, role: .search) { SearchView() }
-            Tab("Réglages", systemImage: "gearshape", value: .settings) { SettingsView() }
+            // Icon-only tabs: the label stays for accessibility, the bar shows the symbol alone.
+            Tab(value: .search, role: .search) { SearchView() } label: {
+                Image(systemName: "magnifyingglass").accessibilityLabel("Recherche")
+            }
+            Tab(value: .settings) { SettingsView() } label: {
+                Image(systemName: "gearshape").accessibilityLabel("Réglages")
+            }
         }
     }
 }
