@@ -23,6 +23,10 @@ struct PlayerScreen: View {
         }
         .ignoresSafeArea()
         .background(.black)
+        // Back (Menu on older remotes) closes the open panel first, then quits the player.
+        // Attached outside the nested hosting controller so the outer SwiftUI hierarchy sees it;
+        // the cover itself has interactive dismissal disabled.
+        .onExitCommand { exit() }
     }
 
     private var content: some View {
@@ -55,9 +59,6 @@ struct PlayerScreen: View {
         }
         .animation(.easeInOut(duration: 0.25), value: controlsVisible)
         .animation(.easeInOut(duration: 0.25), value: sheet)
-        // Back (Menu on older remotes) closes the open panel first, then quits the player. Handled here so it works
-        // whatever element inside the panel has focus.
-        .onExitCommand { exit() }
         .onChange(of: sheet) { _, s in
             if s == .none { sheetTimer?.cancel() } else { armSheetTimer() }
         }

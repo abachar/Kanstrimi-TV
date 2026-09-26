@@ -23,7 +23,7 @@ struct RootView: View {
         }
         .fullScreenCover(isPresented: Binding(get: { env.player.isPresented && env.presentedDetail == nil },
                                               set: { if !$0 { env.player.stop() } })) {
-            PlayerScreen().environment(env)
+            PlayerScreen().environment(env).interactiveDismissDisabled()
         }
     }
 }
@@ -55,7 +55,7 @@ extension View {
     /// Presents the player above this view when playback starts from it.
     func playerCover(_ env: AppEnvironment) -> some View {
         fullScreenCover(isPresented: Binding(get: { env.player.isPresented }, set: { if !$0 { env.player.stop() } })) {
-            PlayerScreen().environment(env)
+            PlayerScreen().environment(env).interactiveDismissDisabled()
         }
     }
 }
