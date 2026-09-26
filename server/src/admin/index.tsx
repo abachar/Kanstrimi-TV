@@ -25,7 +25,7 @@ export const admin = new Hono();
 
 // ---------------------------------------------------------------- helpers
 const page = (c: Context, title: string, body: unknown, loggedIn = true) =>
-  c.html(Layout({ title, path: new URL(c.req.url).pathname, flash: { ok: c.req.query("ok"), err: c.req.query("err") }, loggedIn, children: body as never }) as never);
+  c.html(Layout({ title, path: new URL(c.req.url).pathname + new URL(c.req.url).search, flash: { ok: c.req.query("ok"), err: c.req.query("err") }, loggedIn, children: body as never }) as never);
 const back = (c: Context, to: string, msg: { ok?: string; err?: string }) => {
   const u = new URL(to, "http://x"); if (msg.ok) u.searchParams.set("ok", msg.ok); if (msg.err) u.searchParams.set("err", msg.err);
   return c.redirect(u.pathname + u.search, 303);
@@ -189,6 +189,7 @@ admin.post("/rules/preview", async (c) => {
 
 // ---------------------------------------------------------------- catalog
 const PAGE = 100;
+const kindTitle = (k: string) => (k === "live" ? "Live" : k === "vod" ? "Films" : "Séries");
 const catalogQuery = (q: Record<string, string>): CatalogQuery => ({
   kind: (["live", "vod", "series"].includes(q.kind ?? "") ? q.kind : "vod") as CatalogQuery["kind"],
   q: q.q?.trim() ?? "", cat: q.cat ?? "", status: q.status ?? "", page: Math.max(1, Number(q.page) || 1),
@@ -224,7 +225,7 @@ admin.get("/catalog", async (c) => {
     const [{ n: total }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.contents).where(and(...where));
     const rows = await db.select().from(schema.contents).where(and(...where))
       .orderBy(desc(schema.contents.variantCount), asc(schema.contents.title)).limit(GROUPS_PAGE).offset((gq.page - 1) * GROUPS_PAGE);
-    return page(c, "Catalogue", <CatalogView qy={qy} cats={cats} rows={[]} total={0} catCounts={new Map()} groups={{ qy: gq, rows, total }} />);
+    return page(c, kindTitle(qy.kind), <CatalogView qy={qy} cats={cats} rows={[]} total={0} catCounts={new Map()} groups={{ qy: gq, rows, total }} />);
   }
   const where = catalogWhere(qy);
   const [{ n: total }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.items).where(and(...where));
@@ -236,7 +237,7 @@ admin.get("/catalog", async (c) => {
       .from(schema.items).where(eq(schema.items.kind, qy.kind)).groupBy(schema.items.categoryXtreamId)
     : [];
   const catCounts = new Map(counted.map((r) => [r.cat ?? "", r.n]));
-  return page(c, "Catalogue", <CatalogView qy={qy} cats={cats} rows={rows} total={total} catCounts={catCounts} />);
+  return page(c, kindTitle(qy.kind), <CatalogView qy={qy} cats={cats} rows={rows} total={total} catCounts={catCounts} />);
 });
 /** One page of a category, for the grouped view's lazy loading and its infinite scroll. */
 admin.get("/catalog/items", async (c) => {

@@ -567,12 +567,9 @@ export function CatalogView({ qy, cats, rows, total, catCounts, groups }: {
   const grouped = qy.view === "grouped";
   return (
     <>
-      <Title t="Catalogue" sub="Parcourir, filtrer et corriger le contenu importé" />
-      {/* Kind is the primary axis, so it gets the pills; the view toggle is secondary and lighter. */}
+      <Title t={qy.kind === "live" ? "Live" : qy.kind === "vod" ? "Films" : "Séries"} sub="Parcourir, filtrer et corriger le contenu importé" />
+      {/* The kind is chosen in the top menu; only the view toggle stays here. */}
       <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <nav class="nav nav-pills" aria-label="Type de contenu">
-          {(["live", "vod", "series"] as const).map((k) => <a class={`nav-link${k === qy.kind ? " active" : ""}`} {...(k === qy.kind ? { "aria-current": "page" } : {})} href={`/admin/catalog?kind=${k}&view=${qy.view}`}>{k === "vod" ? "Films" : k === "live" ? "Live" : "Séries"}</a>)}
-        </nav>
         <div class="btn-group btn-group-sm ms-md-auto" role="group" aria-label="Présentation">
           <a class={`btn btn-${grouped ? "" : "outline-"}secondary`} {...(grouped ? { "aria-current": "true" } : {})} href={link({ view: "grouped", page: 1 })}>Par catégorie</a>
           <a class={`btn btn-${qy.view === "flat" ? "" : "outline-"}secondary`} {...(qy.view === "flat" ? { "aria-current": "true" } : {})} href={link({ view: "flat", page: 1 })}>Liste</a>

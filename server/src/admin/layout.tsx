@@ -3,12 +3,24 @@ import { html, raw } from "hono/html";
 
 export const NAV = [
   ["/admin", "Tableau de bord"],
-  ["/admin/catalog", "Catalogue"],
+  ["/admin/catalog?kind=live", "Live"],
+  ["/admin/catalog?kind=vod", "Films"],
+  ["/admin/catalog?kind=series", "Séries"],
   ["/admin/rules", "Règles"],
   ["/admin/devices", "Appareils"],
   ["/admin/logs", "Journaux"],
   ["/admin/settings", "Paramètres"],
 ] as const;
+
+/** `path` may carry a query string: the catalogue entries differ by `kind` only. */
+function isActive(href: string, path: string) {
+  const [hp, hq] = href.split("?");
+  const [pp, pq] = path.split("?");
+  if (hp !== pp) return false;
+  if (!hq) return true;
+  const want = new URLSearchParams(hq), got = new URLSearchParams(pq ?? "");
+  return [...want].every(([k, v]) => (got.get(k) ?? (k === "kind" ? "vod" : null)) === v);
+}
 
 export function Layout({ title, path, flash, loggedIn = true, children }: { title: string; path: string; flash?: { ok?: string; err?: string }; loggedIn?: boolean; children?: Child }) {
   return html`<!doctype html>
@@ -29,7 +41,7 @@ export function Layout({ title, path, flash, loggedIn = true, children }: { titl
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-controls="nav" aria-expanded="false" aria-label="Ouvrir le menu"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
-        ${NAV.map(([href, label]) => html`<li class="nav-item"><a class="nav-link${href === path ? " active" : ""}" ${href === path ? raw('aria-current="page"') : ""} href="${href}">${label}</a></li>`)}
+        ${NAV.map(([href, label]) => html`<li class="nav-item"><a class="nav-link${isActive(href, path) ? " active" : ""}" ${isActive(href, path) ? raw('aria-current="page"') : ""} href="${href}">${label}</a></li>`)}
       </ul>
       <form method="post" action="/admin/logout"><button class="btn btn-outline-secondary btn-sm">Quitter</button></form>
     </div>` : ""}
