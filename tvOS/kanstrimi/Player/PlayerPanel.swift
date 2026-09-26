@@ -43,7 +43,6 @@ struct PlayerPanel: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                Text("‹ Retour pour fermer · se ferme seul après 10 s sans action").font(.caption).foregroundStyle(Theme.secondary)
             }
             .padding(48)
             .frame(maxWidth: .infinity, alignment: .leading)

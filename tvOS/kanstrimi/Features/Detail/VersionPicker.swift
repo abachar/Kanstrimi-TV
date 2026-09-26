@@ -71,7 +71,6 @@ struct VersionPicker: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(selectedVersion == nil)
                 }
-                Text("‹ Retour pour fermer").font(.caption).foregroundStyle(Theme.secondary)
             }
             .padding(48)
             .frame(width: 1500)
