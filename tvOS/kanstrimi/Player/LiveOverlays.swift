@@ -40,6 +40,7 @@ struct LiveBanner: View {
                     hint("▼ long", "Liste des chaînes")
                     hint("◀", "Chaînes récentes")
                     hint("▶", "Options · Qualité · Audio · Sous-titres")
+                    hint("‹", "Retour · quitter")
                 }
                 .font(.callout).foregroundStyle(Theme.secondary)
                 .transition(.opacity)

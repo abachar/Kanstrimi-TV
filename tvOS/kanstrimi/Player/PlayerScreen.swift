@@ -218,6 +218,7 @@ struct VODOverlay: View {
                 Spacer()
                 hint("◀ ▶", "±10 s")
                 hint("▼", "Infos · Versions · Audio · Sous-titres")
+                hint("‹", "Retour · quitter")
             }
             .font(.callout).foregroundStyle(Theme.secondary)
         }

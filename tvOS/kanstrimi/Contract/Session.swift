@@ -17,10 +17,34 @@ nonisolated struct PairingCode: Codable, Hashable, Sendable {
     }
 }
 
+/// Wire form: `{ "status": "pending" }`, `{ "status": "approved", "token": "…", "device_name": "Salon" }`,
+/// `{ "status": "expired" }`.
 nonisolated enum PairingStatus: Codable, Hashable, Sendable {
     case pending
     case approved(token: String, deviceName: String)
     case expired
+
+    private enum CodingKeys: String, CodingKey { case status, token, deviceName = "device_name" }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .status) {
+        case "approved": self = .approved(token: try c.decode(String.self, forKey: .token), deviceName: try c.decode(String.self, forKey: .deviceName))
+        case "expired": self = .expired
+        default: self = .pending
+        }
+    }
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .pending: try c.encode("pending", forKey: .status)
+        case .expired: try c.encode("expired", forKey: .status)
+        case .approved(let token, let name):
+            try c.encode("approved", forKey: .status)
+            try c.encode(token, forKey: .token)
+            try c.encode(name, forKey: .deviceName)
+        }
+    }
 }
 
 nonisolated struct CatalogCounts: Codable, Hashable, Sendable {
