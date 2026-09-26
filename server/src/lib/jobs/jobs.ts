@@ -2,6 +2,7 @@ import { getSettings, isXtreamConfigured } from "@/lib/settings";
 import { runSync, applyRules } from "@/lib/sync/sync";
 import { runEnrich } from "@/lib/tmdb/enrich";
 import { runEpgRebuild } from "@/lib/epg/rebuild";
+import { runGrouping } from "@/lib/grouping/group";
 import { cronDue } from "./cron";
 import { isUnlocked } from "@/lib/auth/vault";
 import { describeError } from "@/lib/errors";
@@ -11,10 +12,11 @@ import { describeError } from "@/lib/errors";
  *   source  — read the upstream catalog into the DB (then applies filters)
  *   filters — recompute hidden_by_rule from the rule set (no network)
  *   enrich  — TMDB matching of pending items
+ *   group   — variants → contents (no network); also run by source and enrich when they end
  *   epg     — download the XMLTV guide
  * Each can be run alone from the admin; the cron runs source → enrich.
  */
-export type Job = "source" | "filters" | "enrich" | "epg";
+export type Job = "source" | "filters" | "enrich" | "group" | "epg";
 
 const running = new Map<Job, Date>();
 let lastError: { job: Job; message: string; at: Date } | null = null;
@@ -27,6 +29,7 @@ const RUNNERS: Record<Job, () => Promise<unknown>> = {
   source: runSync,
   filters: applyRules,
   enrich: () => runEnrich(),
+  group: runGrouping,
   epg: runEpgRebuild,
 };
 

@@ -1,7 +1,8 @@
 import { fmt, ago, Status } from "./layout";
 import type { Settings } from "@/lib/settings";
-import type { FilterRule, SyncLog, Item, Category } from "@/db/schema";
+import type { FilterRule, SyncLog, Item, Category, Content } from "@/db/schema";
 import { describeCron } from "@/lib/jobs/cron";
+import { GroupsView, type GroupsQuery } from "./groups";
 
 const Title = ({ t, sub }: { t: string; sub: string }) => <div class="mb-4"><h1 class="h2 mb-1">{t}</h1><p class="text-secondary mb-0">{sub}</p></div>;
 /**
@@ -42,6 +43,7 @@ export function LoginView({ locked, error }: { locked: boolean; error?: string }
 type Count = { kind: string; total: number; hidden: number; matched: number; unmatched: number; pending: number };
 type CatCount = { kind: string; total: number; hidden: number };
 export type DashboardData = {
+  groups: { kind: string; total: number; visible: number; multi: number; fallback: number }[];
   s: Settings; items: Count[]; cats: CatCount[]; logs: SyncLog[];
   img: { files: number; bytes: number }; epg: { exists: boolean; bytes: number; mtime: string | null };
 };
@@ -71,13 +73,14 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: Parameters<
       <Title t="Tableau de bord" sub="Vue d'ensemble du serveur et du catalogue" />
       {!configured && <div class="alert alert-warning" role="alert">Serveur Xtream non configuré — <a href="/admin/settings" class="alert-link">ouvrir les paramètres</a>.</div>}
 
-      <Card title="Traitement" hint="3 étapes indépendantes : lire la source → appliquer les filtres → enrichir (TMDB)">
+      <Card title="Traitement" hint="4 étapes indépendantes : lire la source → appliquer les filtres → enrichir (TMDB) → grouper les variantes">
         {/* On a phone the one-shot action comes first, above the fold; on md+ it goes back to the right. */}
         <form method="post" class="d-grid d-md-flex gap-2">
           <Btn job="pipeline" label="Tout enchaîner" cls="btn-success order-first order-md-last ms-md-auto" />
           <Btn job="source" label="1. Lire la source" cls="btn-primary" />
           <Btn job="filters" label="2. Appliquer les filtres" cls="btn-secondary" />
           <Btn job="enrich" label="3. Enrichir TMDB" cls="btn-secondary" />
+          <Btn job="group" label="4. Grouper" cls="btn-secondary" />
           <Btn job="epg" label="EPG" cls="btn-outline-secondary" />
         </form>
         <JobsStatus {...jobs} />
@@ -112,6 +115,14 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: Parameters<
             <hr />
             <div class="text-secondary small">Cache images : {fmt(d.img.files)} fichiers, {(d.img.bytes / 1e6).toFixed(0)} Mo</div>
           </Card>
+          <Card title="Groupement des variantes" extra={<a href="/admin/catalog?view=groups&kind=vod">voir les groupes</a>}>
+            {(["vod", "series", "live"] as const).map((k) => { const g = d.groups.find((r) => r.kind === k) ?? { total: 0, visible: 0, multi: 0, fallback: 0 }; const i = item(k); return (
+              <div class="d-flex justify-content-between small mb-1">
+                <span>{k === "vod" ? "Films" : k === "series" ? "Séries" : "Chaînes"}</span>
+                <span>{fmt(g.visible)} contenus pour {fmt(i.total - i.hidden)} entrées · {fmt(g.multi)} à plusieurs variantes{k !== "live" ? ` · ${fmt(g.fallback)} sans TMDB` : ""}</span>
+              </div>
+            ); })}
+          </Card>
         </div>
         <div class="col-12 col-lg-6">
           <Card title="Connexion des applications">
@@ -135,7 +146,8 @@ const STAT_LABELS: Record<string, string> = {
   live_items: "chaînes", vod_items: "films", series_items: "séries",
   live_categories: "cat. live", vod_categories: "cat. films", series_categories: "cat. séries",
   removed_items: "supprimés", removed_categories: "cat. supprimées",
-  processed: "traités", matched: "associés", unmatched: "non trouvés", errors: "erreurs",
+  processed: "traités", matched: "associés", unmatched: "non trouvés", errors: "erreurs", ids_rejected: "ids amont rejetés",
+  items_grouped: "variantes", contents: "contenus", multi_variant: "à plusieurs variantes", orphans_removed: "contenus retirés",
   items: "éléments", categories: "catégories", bytes: "", // bytes are already rendered as "x Mo"
 };
 /** Stats as readable chips; zeros and unknown keys stay, but the raw JSON never shows. */
@@ -159,7 +171,7 @@ function StatChips({ stats }: { stats: Record<string, unknown> | null }) {
   );
 }
 
-const JOB_LABELS: Record<string, string> = { source: "Lecture source", filters: "Filtres", enrich: "TMDB", epg: "EPG" };
+const JOB_LABELS: Record<string, string> = { source: "Lecture source", filters: "Filtres", enrich: "TMDB", group: "Groupement", epg: "EPG" };
 
 export function LogsTable({ logs }: { logs: SyncLog[] }) {
   if (!logs.length) return <p class="text-secondary mb-0">Aucun job pour l'instant.</p>;
@@ -272,6 +284,10 @@ export function SettingsView({ s }: { s: Settings }) {
           <form method="post" action="/admin/settings/reset-matches" onsubmit="return confirm('Réinitialiser tous les matchings automatiques ?')">
             <Card title="Réinitialiser le matching TMDB">
               <p class="text-secondary small">Remet tous les éléments (sauf associations manuelles) en attente. Relancer ensuite l'étape 3.</p>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="overrides" id="reset-overrides" />
+                <label class="form-check-label small" for="reset-overrides">Effacer aussi les fusions et séparations manuelles de groupes</label>
+              </div>
               <button class="btn btn-outline-danger btn-sm">Réinitialiser le matching</button>
             </Card>
           </form>
@@ -364,7 +380,7 @@ export function RulesView({ rules }: { rules: FilterRule[] }) {
 }
 
 // ---------------------------------------------------------------- catalog
-export type CatalogQuery = { kind: "live" | "vod" | "series"; q: string; cat: string; status: string; page: number; view: "grouped" | "flat" };
+export type CatalogQuery = { kind: "live" | "vod" | "series"; q: string; cat: string; status: string; page: number; view: "grouped" | "flat" | "groups" };
 const KIND_LABELS: Record<string, string> = { all: "tous", live: "live", vod: "films", series: "séries" };
 const MATCH_LABELS: Record<string, string> = { matched: "associé", manual: "manuel", unmatched: "introuvable", pending: "en attente" };
 export function TmdbCell({ it, results }: { it: Item; results?: { id: number; label: string }[] }) {
@@ -541,8 +557,8 @@ export function CategoryItems({ qy, cat, rows, catHidden, hasMore }: {
     </>
   );
 }
-export function CatalogView({ qy, cats, rows, total, catCounts }: {
-  qy: CatalogQuery; cats: Category[]; rows: Item[]; total: number; catCounts: Map<string, number>;
+export function CatalogView({ qy, cats, rows, total, catCounts, groups }: {
+  qy: CatalogQuery; cats: Category[]; rows: Item[]; total: number; catCounts: Map<string, number>; groups?: { qy: GroupsQuery; rows: Content[]; total: number };
 }) {
   const PAGE = 100;
   const link = (p: Partial<CatalogQuery>) => catalogLink(qy, p);
@@ -559,9 +575,11 @@ export function CatalogView({ qy, cats, rows, total, catCounts }: {
         </nav>
         <div class="btn-group btn-group-sm ms-md-auto" role="group" aria-label="Présentation">
           <a class={`btn btn-${grouped ? "" : "outline-"}secondary`} {...(grouped ? { "aria-current": "true" } : {})} href={link({ view: "grouped", page: 1 })}>Par catégorie</a>
-          <a class={`btn btn-${grouped ? "outline-" : ""}secondary`} {...(grouped ? {} : { "aria-current": "true" })} href={link({ view: "flat", page: 1 })}>Liste</a>
+          <a class={`btn btn-${qy.view === "flat" ? "" : "outline-"}secondary`} {...(qy.view === "flat" ? { "aria-current": "true" } : {})} href={link({ view: "flat", page: 1 })}>Liste</a>
+          <a class={`btn btn-${qy.view === "groups" ? "" : "outline-"}secondary`} {...(qy.view === "groups" ? { "aria-current": "true" } : {})} href={link({ view: "groups", page: 1 })}>Groupes</a>
         </div>
       </div>
+      {groups ? <GroupsView qy={groups.qy} rows={groups.rows} total={groups.total} /> : <>
       <form method="get" action="/admin/catalog" class="row g-2 mb-3" role="search">
         <input type="hidden" name="kind" value={qy.kind} />
         {/* Searching is a flat-list activity: a hit buried in a collapsed group is a hit nobody sees. */}
@@ -594,6 +612,7 @@ export function CatalogView({ qy, cats, rows, total, catCounts }: {
           </nav>
         </>
       )}
+      </>}
     </>
   );
 }

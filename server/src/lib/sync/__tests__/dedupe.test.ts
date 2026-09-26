@@ -27,6 +27,7 @@ vi.mock("@/lib/settings", () => ({
   setSettings: async () => undefined,
 }));
 vi.mock("@/lib/jobs/log", () => ({ startLog: async () => 1, finishLog: async () => undefined }));
+vi.mock("@/lib/grouping/group", () => ({ runGrouping: async () => undefined, refreshVisibility: async () => undefined }));
 
 const cats: XCategory[] = [
   { category_id: "10", category_name: "Live FR" },

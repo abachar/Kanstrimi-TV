@@ -7,6 +7,7 @@ import { compileRules, isHidden, type Kind } from "@/lib/filters/rules";
 import { cleanTitle } from "@/lib/tmdb/match";
 import { startLog, finishLog } from "@/lib/jobs/log";
 import { describeError } from "@/lib/errors";
+import { runGrouping, refreshVisibility } from "@/lib/grouping/group";
 
 const CHUNK = 500;
 
@@ -66,6 +67,8 @@ export async function runSync(): Promise<{ stats: Record<string, number> }> {
     await applyRules();
     await setSettings({ last_sync_at: new Date().toISOString() });
     await finishLog(logId, "success", undefined, stats);
+    // New and removed variants change the groups: regroup now, before the enrichment runs.
+    await runGrouping();
     return { stats };
   } catch (e) {
     await finishLog(logId, "error", describeError(e), stats);
@@ -150,6 +153,7 @@ export async function applyRules() {
   }
   for (const u of itemUpdates) for (let i = 0; i < u.ids.length; i += CHUNK)
     await db.update(schema.items).set({ hiddenByRule: u.hidden }).where(inArray(schema.items.id, u.ids.slice(i, i + CHUNK)));
+  await refreshVisibility();
   return { categories: catUpdates[0].ids.length + catUpdates[1].ids.length, items: itemUpdates[0].ids.length + itemUpdates[1].ids.length };
 }
 

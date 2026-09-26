@@ -51,7 +51,7 @@ Trois principes non négociables :
 | Masquage manuel d'un élément ou d'une catégorie entière, réversible, sans écraser l'effet d'une règle | ✅ |
 | Réapplication des règles à chaque import, sans réseau | ✅ |
 | Nettoyage du titre (tags langue et qualité, année) pour le matching | ✅ |
-| **Groupement des variantes** : « The Matrix FR HD » et « The Matrix EN 4K » deviennent une entrée avec plusieurs pistes (langue, qualité) ; fusion par identifiant TMDB après enrichissement ; fusion et séparation manuelles dans l'admin | 🔜 bloc 1 |
+| **Groupement des variantes** : « The Matrix FR HD » et « The Matrix EN 4K » deviennent une entrée avec plusieurs pistes (langue, qualité) ; fusion par identifiant TMDB après enrichissement ; fusion et séparation manuelles dans l'admin | ✅ (servi par l'API REST seulement ; l'API Xtream continue de lister les entrées une par une) |
 | Collections thématiques et suggestions générées par IA (Ollama local ou API cloud), mode dégradé sans IA | 🔜 bloc 6 |
 
 ## 4. Enrichissement TMDB
@@ -59,6 +59,7 @@ Trois principes non négociables :
 | Exigence | État |
 |---|---|
 | Matching automatique des films et séries sur titre nettoyé + année, correction manuelle (recherche, association, retrait) | ✅ |
+| Identifiant TMDB fourni par la source vérifié (similarité de titre) avant d'être accepté ; jamais de confiance aveugle | ✅ |
 | Cache local des métadonnées texte, par langue | ✅ |
 | Cache local des images, servi aux apps sous l'URL du serveur | ✅ |
 | Affiche, fond, synopsis, genres, note, casting, réalisateur, bande-annonce, certification, pays, durée, saisons | ✅ |

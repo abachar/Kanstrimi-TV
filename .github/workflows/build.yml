@@ -26,6 +26,17 @@ jobs:
     defaults:
       run:
         working-directory: server
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: kanstrimi
+          POSTGRES_PASSWORD: kanstrimi
+          POSTGRES_DB: kanstrimi_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://kanstrimi:kanstrimi@localhost:5432/kanstrimi_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

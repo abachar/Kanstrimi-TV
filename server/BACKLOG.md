@@ -10,12 +10,13 @@ Statuts : `[ ]` à faire · `[~]` en cours · `[x]` terminé. Priorité : P0 blo
 
 Un même contenu existe en plusieurs variantes chez le fournisseur (« The Matrix FR HD », « The Matrix EN 4K »…). Les regrouper en une seule entrée.
 
-- [ ] Extraction des tags langue (FR, EN, IT, DE, VOSTFR…) et qualité (SD, HD, FHD, 4K) depuis le nom (`src/lib/grouping/tags.ts`)
-- [ ] Schéma : table `content_groups` + colonne `group_id` sur `items` ; chaque variante garde langue / qualité / stream_id
-- [ ] Regroupement automatique sur titre nettoyé + année, exécuté à chaque sync
-- [ ] Consolidation des groupes par identifiant TMDB après enrichissement (deux groupes → même `tmdb_id` = fusion)
-- [ ] Admin `/admin/catalog` : visualiser les variantes d'un groupe, fusionner / séparer manuellement
-- [ ] Exposer une seule entrée par groupe dans `get_vod_streams` / `get_series` avec la meilleure variante par défaut (ou variantes en `get_vod_info`)
+- [x] Extraction des tags langue, qualité, HDR/DV, marché et année depuis le nom et la catégorie (`src/lib/grouping/tags.ts`, corpus de 200 noms réels figé dans les tests)
+- [x] Schéma : table `contents` (clé texte stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>`) + colonnes de variante sur `items` (`content_id`, `lang`, `quality`, `dynamic_range`…)
+- [x] Étape `group` (4ᵉ job, sans réseau, ~12 s pour 100 000 entrées) : relancée après chaque `source` et chaque `enrich`, champs de carte recopiés depuis `tmdb_cache`, agrégats et visibilité
+- [x] Consolidation par identifiant TMDB : la clé *est* l'identifiant TMDB dès que le matching est vérifié ; un repli `fallback:` migre seul vers sa clé `tmdb:`
+- [x] Admin `/admin/catalog?view=groups` : variantes d'un contenu, séparer / fusionner (par `key_override`), retour à l'automatique
+- ~~Exposer une seule entrée par groupe dans `get_vod_streams`~~ — abandonné : l'API Xtream est figée, le groupement ne sert que le REST
+- [x] Enrichissement : l'identifiant TMDB envoyé par le fournisseur est vérifié par similarité de titre avant d'être accepté ; un appel de détails par identifiant distinct, 20 en parallèle
 
 ## 2 — EPG en base (P2)
 

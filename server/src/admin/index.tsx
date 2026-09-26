@@ -16,6 +16,8 @@ import { isValidCron } from "@/lib/jobs/cron";
 import { start, pipeline, runningJobs, getLastError, type Job } from "@/lib/jobs/jobs";
 import { assignManual, resetMatches, getTmdbClient } from "@/lib/tmdb/enrich";
 import { TmdbClient } from "@/lib/tmdb/client";
+import { groupingCounts, regroupItems } from "@/lib/grouping/group";
+import { GroupRow, GroupVariants, MergeForm, GROUPS_PAGE, type GroupsQuery } from "./groups";
 
 export const admin = new Hono();
 
@@ -47,17 +49,17 @@ admin.post("/logout", (c) => { logout(c); c.header("HX-Redirect", "/admin/login"
 
 // ---------------------------------------------------------------- dashboard & jobs
 admin.get("/", async (c) => {
-  const [s, cnt, logs, img, epg] = await Promise.all([
+  const [s, cnt, logs, img, epg, groups] = await Promise.all([
     getSettings(), counts(),
     db.select().from(schema.syncLogs).orderBy(desc(schema.syncLogs.startedAt)).limit(6),
-    cacheStats(), epgCacheStat(),
+    cacheStats(), epgCacheStat(), groupingCounts(),
   ]);
-  return page(c, "Tableau de bord", <DashboardView d={{ s, items: cnt.items, cats: cnt.categories, logs, img, epg }} jobs={{ running: runningJobs(), lastError: getLastError() }} />);
+  return page(c, "Tableau de bord", <DashboardView d={{ s, items: cnt.items, cats: cnt.categories, logs, img, epg, groups }} jobs={{ running: runningJobs(), lastError: getLastError() }} />);
 });
 admin.get("/jobs/status", (c) => c.html(<JobsStatus running={runningJobs()} lastError={getLastError()} />));
 admin.post("/jobs/:job", async (c) => {
   const job = c.req.param("job");
-  const labels: Record<string, string> = { source: "Lecture de la source lancée", filters: "Filtres appliqués", enrich: "Enrichissement lancé", epg: "Reconstruction EPG lancée", pipeline: "Traitement complet lancé" };
+  const labels: Record<string, string> = { source: "Lecture de la source lancée", filters: "Filtres appliqués", enrich: "Enrichissement lancé", group: "Groupement lancé", epg: "Reconstruction EPG lancée", pipeline: "Traitement complet lancé" };
   if (job === "pipeline") { void pipeline(); return back(c, "/admin", { ok: labels.pipeline }); }
   if (!(job in labels)) return c.notFound();
   if (job === "enrich" && !(await getSettings()).tmdb_api_key) return back(c, "/admin", { err: "Clé TMDB absente" });
@@ -97,7 +99,10 @@ admin.post("/settings/test-tmdb", async (c) => {
   try { await new TmdbClient(f.tmdb_api_key, f.tmdb_language || "fr-FR").ping(); return c.html(<span class="text-success">TMDB OK</span>); }
   catch (e) { return c.html(<span class="text-danger">{(e as Error).message}</span>); }
 });
-admin.post("/settings/reset-matches", async (c) => { await resetMatches(); return back(c, "/admin/settings", { ok: "Matching réinitialisé — relancer l'étape 3" }); });
+admin.post("/settings/reset-matches", async (c) => {
+  await resetMatches(undefined, await checked(c, "overrides"));
+  return back(c, "/admin/settings", { ok: "Matching réinitialisé — relancer l'étape 3" });
+});
 
 // ---------------------------------------------------------------- rules
 const ruleSchema = z.object({
@@ -151,7 +156,12 @@ const PAGE = 100;
 const catalogQuery = (q: Record<string, string>): CatalogQuery => ({
   kind: (["live", "vod", "series"].includes(q.kind ?? "") ? q.kind : "vod") as CatalogQuery["kind"],
   q: q.q?.trim() ?? "", cat: q.cat ?? "", status: q.status ?? "", page: Math.max(1, Number(q.page) || 1),
-  view: q.view === "flat" ? "flat" : "grouped",
+  view: q.view === "flat" ? "flat" : q.view === "groups" ? "groups" : "grouped",
+});
+const groupsQuery = (q: Record<string, string>): GroupsQuery => ({
+  kind: (["live", "vod", "series"].includes(q.kind ?? "") ? q.kind : "vod") as GroupsQuery["kind"],
+  q: q.q?.trim() ?? "", only: (["multi", "fallback", "hidden"].includes(q.only ?? "") ? q.only : "") as GroupsQuery["only"],
+  page: Math.max(1, Number(q.page) || 1),
 });
 /** Filters shared by the flat list and by one category's slice of the grouped view. */
 const catalogWhere = (qy: CatalogQuery) => {
@@ -168,6 +178,18 @@ const catalogWhere = (qy: CatalogQuery) => {
 admin.get("/catalog", async (c) => {
   const qy = catalogQuery(c.req.query());
   const cats = await db.select().from(schema.categories).where(eq(schema.categories.kind, qy.kind)).orderBy(asc(schema.categories.position));
+  if (qy.view === "groups") {
+    const gq = groupsQuery(c.req.query());
+    const where: SQL[] = [eq(schema.contents.kind, gq.kind)];
+    if (gq.q) where.push(ilike(schema.contents.title, `%${gq.q}%`));
+    if (gq.only === "multi") where.push(sql`${schema.contents.variantCount} > 1`);
+    if (gq.only === "fallback") where.push(sql`${schema.contents.key} like 'fallback:%'`);
+    if (gq.only === "hidden") where.push(eq(schema.contents.visible, false));
+    const [{ n: total }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.contents).where(and(...where));
+    const rows = await db.select().from(schema.contents).where(and(...where))
+      .orderBy(desc(schema.contents.variantCount), asc(schema.contents.title)).limit(GROUPS_PAGE).offset((gq.page - 1) * GROUPS_PAGE);
+    return page(c, "Catalogue", <CatalogView qy={qy} cats={cats} rows={[]} total={0} catCounts={new Map()} groups={{ qy: gq, rows, total }} />);
+  }
   const where = catalogWhere(qy);
   const [{ n: total }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.items).where(and(...where));
   // Grouped view lists categories only; the rows arrive later, one category at a time.
@@ -219,6 +241,57 @@ admin.post("/catalog/:scope{item|category}/:id/visible", async (c) => {
   return c.body(null, 204);
 });
 const item = async (id: number) => (await db.select().from(schema.items).where(eq(schema.items.id, id)))[0];
+
+// ---------------------------------------------------------------- groups (block 1)
+const contentById = async (id: number) => (await db.select().from(schema.contents).where(eq(schema.contents.id, id)))[0];
+/** The whole row again after an action: the content may have changed, or vanished. */
+async function groupRowResponse(c: Context, contentId: number | null) {
+  const row = contentId ? await contentById(contentId) : undefined;
+  if (!row) return c.html(<></>);
+  return c.html(<GroupRow c={row} />);
+}
+admin.get("/catalog/groups/:id", async (c) => {
+  const content = await contentById(Number(c.req.param("id")));
+  if (!content) return c.notFound();
+  const items = await db.select().from(schema.items).where(eq(schema.items.contentId, content.id)).orderBy(desc(schema.items.qualityRank), asc(schema.items.id));
+  const cats = new Map((await db.select().from(schema.categories).where(eq(schema.categories.kind, content.kind))).map((k) => [`${k.kind}:${k.xtreamId}`, k]));
+  return c.html(<GroupVariants c={content} items={items} cats={cats} />);
+});
+admin.post("/catalog/groups/split/:id", async (c) => {
+  const it = await item(Number(c.req.param("id")));
+  if (!it) return c.notFound();
+  await db.update(schema.items).set({ keyOverride: `manual:${it.id}` }).where(eq(schema.items.id, it.id));
+  await regroupItems([it.id]);
+  return groupRowResponse(c, it.contentId);
+});
+admin.post("/catalog/groups/reset/:id", async (c) => {
+  const it = await item(Number(c.req.param("id")));
+  if (!it) return c.notFound();
+  await db.update(schema.items).set({ keyOverride: null }).where(eq(schema.items.id, it.id));
+  await regroupItems([it.id]);
+  const after = await item(it.id);
+  return groupRowResponse(c, after?.contentId ?? null);
+});
+admin.get("/catalog/groups/merge-form/:id", (c) => c.html(<MergeForm itemId={Number(c.req.param("id"))} />));
+admin.post("/catalog/groups/merge-search", async (c) => {
+  const f = await form(c);
+  const it = await item(Number(f.id));
+  if (!it) return c.notFound();
+  const q = (f.q ?? "").trim();
+  const results = q ? await db.select({ id: schema.contents.id, key: schema.contents.key, title: schema.contents.title, year: schema.contents.year, variantCount: schema.contents.variantCount })
+    .from(schema.contents).where(and(eq(schema.contents.kind, it.kind), ilike(schema.contents.title, `%${q}%`), sql`${schema.contents.id} <> ${it.contentId ?? 0}`))
+    .orderBy(desc(schema.contents.variantCount), asc(schema.contents.title)).limit(10) : [];
+  return c.html(<MergeForm itemId={it.id} results={results} />);
+});
+admin.post("/catalog/groups/merge", async (c) => {
+  const f = await form(c);
+  const it = await item(Number(f.id));
+  const target = f.key ?? "";
+  if (!it || !target) return c.notFound();
+  await db.update(schema.items).set({ keyOverride: target }).where(eq(schema.items.id, it.id));
+  await regroupItems([it.id]);
+  return groupRowResponse(c, it.contentId);
+});
 admin.post("/catalog/tmdb-search", async (c) => {
   const f = await form(c);
   const it = await item(Number(f.id));
