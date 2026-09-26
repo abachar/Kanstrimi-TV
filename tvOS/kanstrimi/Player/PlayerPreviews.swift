@@ -49,6 +49,7 @@ private struct PlayerPreviewHost: View {
 #Preview("Flux en échec") { PlayerPreviewHost(state: .failure) }
 #Preview("Épisode suivant") { PlayerPreviewHost(state: .nextEpisode) }
 #Preview("Direct + zapping") { PlayerPreviewHost(state: .livePlaying) }
+#Preview("Chargement") { PlayerPreviewHost(state: .opening) }
 #Preview("Panneau") {
     let env = PreviewData.makeEnv()
     PlayerPanel(onClose: {})

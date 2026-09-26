@@ -7,8 +7,12 @@ struct PlayerPanel: View {
     @Environment(AppEnvironment.self) private var env
     @State private var tab: Tab = .versions
     @FocusState private var focusedTab: Tab?
+    @FocusState private var focusedItem: String?
     let onClose: () -> Void
+    var onActivity: () -> Void = { }
     private var player: PlayerService { env.player }
+    /// The panel keeps the same height whatever the tab shows.
+    static let height: CGFloat = 440
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,21 +28,29 @@ struct PlayerPanel: View {
                     Spacer()
                     Text("Reprise au même instant · \(Format.clock(player.time))").font(.callout).foregroundStyle(Theme.secondary)
                 }
-                .onChange(of: focusedTab) { _, f in if let f { tab = f } }
-
-                switch tab {
-                case .infos: infos
-                case .versions: versions
-                case .audio: audio
-                case .subtitles: subtitles
+                .onChange(of: focusedTab) { _, f in
+                    if let f { tab = f }
+                    onActivity()
                 }
+                .onChange(of: focusedItem) { _, _ in onActivity() }
+
+                Group {
+                    switch tab {
+                    case .infos: infos
+                    case .versions: versions
+                    case .audio: audio
+                    case .subtitles: subtitles
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                Text("Menu pour fermer · se ferme seul après 10 s sans action").font(.caption).foregroundStyle(Theme.secondary)
             }
             .padding(48)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
+            .frame(height: Self.height)
+            .background(.thinMaterial.opacity(0.9))
         }
         .ignoresSafeArea()
-        .onExitCommand { onClose() }
         .onAppear { focusedTab = tab }
     }
 
@@ -80,6 +92,7 @@ struct PlayerPanel: View {
                         .padding(20)
                     }
                     .buttonStyle(.card)
+                    .focused($focusedItem, equals: "version-\(v.id)")
                 }
             }
             .padding(.vertical, 20)
@@ -95,6 +108,7 @@ struct PlayerPanel: View {
             Button { player.select(text: nil) } label: {
                 Label("Désactivés", systemImage: player.textTracks.contains(where: \.isSelected) ? "circle" : "checkmark.circle.fill")
             }
+            .focused($focusedItem, equals: "text-off")
             trackList(player.textTracks, empty: "Aucun sous-titre dans ce flux") { player.select(text: $0) }
         }
     }
@@ -110,6 +124,7 @@ struct PlayerPanel: View {
                             Button { select(t) } label: {
                                 Label(t.name + (t.language.map { " · \($0)" } ?? ""), systemImage: t.isSelected ? "checkmark.circle.fill" : "circle")
                             }
+                            .focused($focusedItem, equals: "track-\(t.id)")
                         }
                     }
                     .padding(.vertical, 12)

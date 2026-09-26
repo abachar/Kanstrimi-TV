@@ -84,6 +84,7 @@ struct ChannelListOverlay: View {
     @Environment(AppEnvironment.self) private var env
     @FocusState private var focusedID: ContentID?
     let onClose: () -> Void
+    var onActivity: () -> Void = { }
     private var player: PlayerService { env.player }
 
     var body: some View {
@@ -111,12 +112,12 @@ struct ChannelListOverlay: View {
                 .padding(40)
             }
             .frame(width: 620)
-            .background(.regularMaterial)
+            .background(.thinMaterial.opacity(0.9))
             Spacer()
         }
         .ignoresSafeArea()
         .onAppear { focusedID = player.channel?.id ?? player.channels.first?.id }
-        .onExitCommand { onClose() }
+        .onChange(of: focusedID) { _, _ in onActivity() }
     }
 }
 
@@ -125,6 +126,7 @@ struct RecentChannelsOverlay: View {
     @Environment(AppEnvironment.self) private var env
     @FocusState private var focusedID: ContentID?
     let onClose: () -> Void
+    var onActivity: () -> Void = { }
     private var player: PlayerService { env.player }
 
     private var recents: [(entry: RecentChannelsStore.Entry, channel: Channel)] {
@@ -161,11 +163,11 @@ struct RecentChannelsOverlay: View {
             }
             .padding(40)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
+            .background(.thinMaterial.opacity(0.9))
         }
         .ignoresSafeArea()
         .onAppear { focusedID = env.recentChannels.previous(excluding: player.channel?.id) ?? recents.first?.channel.id }
-        .onExitCommand { onClose() }
+        .onChange(of: focusedID) { _, _ in onActivity() }
     }
 }
 

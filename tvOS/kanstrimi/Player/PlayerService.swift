@@ -500,7 +500,7 @@ extension PlayerService: VLCMediaPlayerDelegate {
 #if DEBUG
 /// Preview scaffolding: puts the player in a given state without a stream.
 extension PlayerService {
-    enum PreviewState { case vodPaused, failure, nextEpisode, livePlaying, panel }
+    enum PreviewState { case vodPaused, failure, nextEpisode, livePlaying, panel, opening }
 
     func debugPut(_ ctx: PlaybackContext, state: PreviewState, channels list: [Channel] = []) {
         context = ctx
@@ -528,6 +528,7 @@ extension PlayerService {
                          next: Programme(title: "Le Mag du foot", start: start.addingTimeInterval(7200), end: start.addingTimeInterval(9000), overview: nil))
             zapBanner = true
         case .panel: phase = .playing
+        case .opening: phase = .buffering; bufferingProgress = 42
         }
     }
 }

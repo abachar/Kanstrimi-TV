@@ -8,7 +8,10 @@ struct PlayerScreen: View {
     @State private var controlsVisible = true
     @State private var sheet: Sheet = .none
     @State private var hideTask: Task<Void, Never>?
+    @State private var sheetTimer: Task<Void, Never>?
     @FocusState private var surfaceFocused: Bool
+    /// A panel closes by itself after this long without any move inside it.
+    static let sheetTimeout: Duration = .seconds(10)
 
     private var player: PlayerService { env.player }
 
@@ -26,10 +29,6 @@ struct PlayerScreen: View {
         ZStack {
             VLCVideoView(view: player.videoView).ignoresSafeArea()
 
-            if player.phase == .opening || player.phase == .buffering {
-                ProgressView().scaleEffect(1.6)
-            }
-
             if sheet == .none {
                 surface
             }
@@ -42,11 +41,13 @@ struct PlayerScreen: View {
             }
 
             switch sheet {
-            case .panel: PlayerPanel(onClose: { closeSheet() })
-            case .channels: ChannelListOverlay(onClose: { closeSheet() })
-            case .recents: RecentChannelsOverlay(onClose: { closeSheet() })
+            case .panel: PlayerPanel(onClose: { closeSheet() }, onActivity: { armSheetTimer() })
+            case .channels: ChannelListOverlay(onClose: { closeSheet() }, onActivity: { armSheetTimer() })
+            case .recents: RecentChannelsOverlay(onClose: { closeSheet() }, onActivity: { armSheetTimer() })
             case .none: EmptyView()
             }
+
+            LoadingBadge()
 
             if let toast = player.toast { ToastView(toast: toast) }
             if player.nextCountdown != nil { NextEpisodeCard() }
@@ -54,12 +55,18 @@ struct PlayerScreen: View {
         }
         .animation(.easeInOut(duration: 0.25), value: controlsVisible)
         .animation(.easeInOut(duration: 0.25), value: sheet)
+        // Menu closes the open panel first, then quits the player. Handled here so it works
+        // whatever element inside the panel has focus.
+        .onExitCommand { exit() }
+        .onChange(of: sheet) { _, s in
+            if s == .none { sheetTimer?.cancel() } else { armSheetTimer() }
+        }
         .onChange(of: player.phase) { _, phase in
             if phase == .playing { scheduleHide() } else { showControls(autoHide: false) }
         }
         .onChange(of: player.channel?.id) { _, _ in showControls() }
         .onAppear { showControls() }
-        .onDisappear { hideTask?.cancel() }
+        .onDisappear { hideTask?.cancel(); sheetTimer?.cancel() }
     }
 
     /// Invisible focus surface that receives the remote when nothing else is focused.
@@ -72,7 +79,6 @@ struct PlayerScreen: View {
             .onTapGesture { select() }
             .onPlayPauseCommand { player.togglePlayPause(); showControls() }
             .onMoveCommand { direction in handleMove(direction) }
-            .onExitCommand { exit() }
             .onLongPressGesture(minimumDuration: 0.6) { if !player.isLive { sheet = .panel } }
     }
 
@@ -109,9 +115,19 @@ struct PlayerScreen: View {
     }
 
     private func closeSheet() {
+        sheetTimer?.cancel()
         sheet = .none
         surfaceFocused = true
         showControls()
+    }
+
+    /// (Re)starts the inactivity countdown of the open panel.
+    private func armSheetTimer() {
+        sheetTimer?.cancel()
+        sheetTimer = Task {
+            try? await Task.sleep(for: Self.sheetTimeout)
+            if !Task.isCancelled, sheet != .none { closeSheet() }
+        }
     }
 
     private func showControls(autoHide: Bool = true) {
@@ -163,8 +179,6 @@ struct VODOverlay: View {
             HStack(spacing: 12) {
                 if player.phase == .paused {
                     Text("PAUSE").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.accent)
-                } else if player.phase == .opening || player.phase == .buffering {
-                    Text("CHARGEMENT").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.secondary)
                 }
                 Text(title).font(.title3.weight(.bold))
             }
@@ -216,6 +230,36 @@ struct VODOverlay: View {
             Text(text)
         }
         .padding(.leading, 24)
+    }
+}
+
+// MARK: - Loading badge
+
+/// Its own zone at the top right: opening, then buffering with its percentage.
+struct LoadingBadge: View {
+    @Environment(AppEnvironment.self) private var env
+    private var player: PlayerService { env.player }
+
+    var body: some View {
+        VStack {
+            HStack {
+                Spacer()
+                if player.phase == .opening || player.phase == .buffering {
+                    HStack(spacing: 12) {
+                        ProgressView().controlSize(.small)
+                        Text(player.phase == .opening ? "Ouverture du flux…" : "Chargement · \(Int(player.bufferingProgress)) %")
+                            .font(.callout.weight(.semibold))
+                    }
+                    .padding(.horizontal, 20).padding(.vertical, 12)
+                    .background(.regularMaterial, in: Capsule())
+                    .transition(.opacity)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 90).padding(.vertical, 60)
+        .animation(.easeInOut(duration: 0.2), value: player.phase)
+        .allowsHitTesting(false)
     }
 }
 
