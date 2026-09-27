@@ -71,7 +71,7 @@ export function GroupVariants({ c, items, cats }: { c: Content; items: Item[]; c
         const hidden = it.hiddenByRule || it.hiddenManual || Boolean(cat && (cat.hiddenByRule || cat.hiddenManual));
         return (
           <div class="row g-2 align-items-center border-top py-1" id={`variant-${it.id}`}>
-            <div class={`col-12 col-md-5${hidden ? " text-secondary text-decoration-line-through" : ""}`}>{it.name}</div>
+            <div class={`col-12 col-md-5${hidden ? " text-secondary text-decoration-line-through" : ""}`}><a class="link-body-emphasis text-decoration-none" href={`/admin/item/${it.id}`}>{it.name}</a></div>
             <div class="col-6 col-md-2"><span class="badge text-bg-dark fw-normal">{it.lang ?? "?"}</span> <span class="badge text-bg-dark fw-normal">{it.quality ?? "?"}</span> {it.dynamicRange && <span class="badge text-bg-dark fw-normal">{it.dynamicRange}</span>}</div>
             <div class="col-6 col-md-2 text-secondary text-truncate">{cat?.name ?? it.categoryXtreamId ?? ""}</div>
             <div class="col-12 col-md-3 d-flex gap-1 justify-content-md-end">

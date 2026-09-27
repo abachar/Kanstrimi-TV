@@ -521,7 +521,7 @@ export function ItemRow({ r, qy, catLabel, catHidden = false }: { r: Item; qy: C
       <div class="row g-2 align-items-center">
         <div class={`${g.id} d-none d-md-block font-monospace small text-secondary`}>{r.xtreamId}</div>
         <div class={`col ${g.name} order-1`}>
-          {hidden ? <s>{r.name}</s> : r.name}
+          <a class={`link-body-emphasis text-decoration-none${hidden ? " text-secondary" : ""}`} href={`/admin/item/${r.id}`}>{hidden ? <s>{r.name}</s> : r.name}</a>
           {r.cleanTitle && r.cleanTitle !== r.name && <div class="small text-secondary">→ {r.cleanTitle}{r.year ? ` (${r.year})` : ""}</div>}
         </div>
         <div class={`col-auto ${g.vis} order-2 order-md-5`}>

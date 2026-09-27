@@ -2,7 +2,7 @@ import { db, schema } from "@/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import pLimit from "p-limit";
 import { TmdbClient, type TmdbDetails } from "./client";
-import { pickBest, similarity, MATCH_THRESHOLD, cleanTitle } from "./match";
+import { pickBest, scoreAll, similarity, MATCH_THRESHOLD, cleanTitle, type ScoredDetail } from "./match";
 import { runGrouping, regroupItems } from "@/lib/grouping/group";
 import { getSettings } from "@/lib/settings";
 import { startLog, finishLog } from "@/lib/jobs/log";
@@ -95,7 +95,7 @@ export async function runEnrich(opts: { limit?: number; onlyVisible?: boolean } 
   }
 }
 
-type PendingItem = { id: number; kind: "live" | "vod" | "series"; name: string; cleanTitle: string | null; year: number | null; raw: Record<string, unknown> };
+export type PendingItem = { id: number; kind: "live" | "vod" | "series"; name: string; cleanTitle: string | null; year: number | null; raw: Record<string, unknown> };
 
 function providedTmdbId(it: PendingItem): number | null {
   const n = Number(it.raw.tmdb ?? it.raw.tmdb_id ?? 0);
@@ -132,6 +132,43 @@ async function matchByTitle(client: TmdbClient, it: PendingItem): Promise<boolea
   }
   await setMatch(it.id, null, best?.score ?? 0, "unmatched");
   return false;
+}
+
+export type MatchExplanation = {
+  cleaned: { title: string; year?: number };
+  threshold: number; idThreshold: number;
+  provided: { id: number; found: boolean; title?: string; year?: number; similarity: number; accepted: boolean } | null;
+  searches: { withYear: number | undefined; candidates: ScoredDetail[] }[];
+  verdict: { status: "matched" | "unmatched"; tmdbId: number | null; score: number; via: "id" | "search" | "none" };
+};
+
+/** The matching, step by step, without writing anything: what the admin sees under "Pourquoi ?". */
+export async function explainMatch(client: TmdbClient, it: PendingItem): Promise<MatchExplanation> {
+  const mediaType = it.kind === "vod" ? "movie" : "tv";
+  const ct = it.cleanTitle ? { title: it.cleanTitle, year: it.year ?? undefined } : cleanTitle(it.name);
+  const out: MatchExplanation = { cleaned: ct, threshold: MATCH_THRESHOLD, idThreshold: ID_THRESHOLD, provided: null, searches: [], verdict: { status: "unmatched", tmdbId: null, score: 0, via: "none" } };
+  const pid = providedTmdbId(it);
+  if (pid) {
+    const d = await getDetails(client, mediaType, pid).catch(() => null);
+    if (d) {
+      const names = [d.title, d.name, d.original_title, d.original_name].filter(Boolean) as string[];
+      const sim = Math.max(0, ...names.map((n) => similarity(n, ct.title)));
+      const accepted = idLooksRight(d, it);
+      out.provided = { id: pid, found: true, title: d.title ?? d.name, year: Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || undefined, similarity: sim, accepted };
+      if (accepted) { out.verdict = { status: "matched", tmdbId: pid, score: 1, via: "id" }; return out; }
+    } else out.provided = { id: pid, found: false, similarity: 0, accepted: false };
+  }
+  const search = async (year?: number) => mediaType === "movie" ? client.searchMovie(ct.title, year) : client.searchTv(ct.title, year);
+  let best: ScoredDetail | undefined;
+  for (const year of ct.year ? [ct.year, undefined] : [undefined]) {
+    const candidates = scoreAll((await search(year)).results ?? [], ct.title, ct.year).slice(0, 8);
+    out.searches.push({ withYear: year, candidates });
+    if (candidates[0] && (!best || candidates[0].score > best.score)) best = candidates[0];
+    if (best && best.score >= MATCH_THRESHOLD) break;
+  }
+  if (best && best.score >= MATCH_THRESHOLD) out.verdict = { status: "matched", tmdbId: best.result.id, score: best.score, via: "search" };
+  else out.verdict = { status: "unmatched", tmdbId: null, score: best?.score ?? 0, via: "none" };
+  return out;
 }
 
 export async function setMatch(itemId: number, tmdbId: number | null, score: number, status: "matched" | "unmatched" | "manual" | "pending") {

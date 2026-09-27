@@ -13,12 +13,14 @@ import { epgCacheStat } from "@/lib/epg/rebuild";
 import { testXtream, applyRules } from "@/lib/sync/sync";
 import { validatePattern, sanitizeFlags, type Kind } from "@/lib/filters/rules";
 import { isValidCron } from "@/lib/jobs/cron";
+import { describeError } from "@/lib/errors";
 import { start, pipeline, runningJobs, getLastError, type Job } from "@/lib/jobs/jobs";
-import { assignManual, resetMatches, getTmdbClient } from "@/lib/tmdb/enrich";
+import { assignManual, resetMatches, getTmdbClient, getCachedDetails, explainMatch } from "@/lib/tmdb/enrich";
 import { TmdbClient } from "@/lib/tmdb/client";
 import { groupingCounts, regroupItems } from "@/lib/grouping/group";
 import { GroupRow, GroupVariants, MergeForm, GROUPS_PAGE, type GroupsQuery } from "./groups";
 import { PairView, DevicesView } from "./devices";
+import { ItemView, ExplainView } from "./item";
 import { approvePairing, getDevice, listDevices, revokeDevice, forgetDevice, isCode } from "@/lib/rest/devices";
 
 export const admin = new Hono();
@@ -281,6 +283,27 @@ admin.post("/catalog/:scope{item|category}/:id/visible", async (c) => {
   return c.body(null, 204);
 });
 const item = async (id: number) => (await db.select().from(schema.items).where(eq(schema.items.id, id)))[0];
+
+// ---------------------------------------------------------------- one entry, in full
+admin.get("/item/:id", async (c) => {
+  const it = await item(Number(c.req.param("id")));
+  if (!it) return c.notFound();
+  const s = await getSettings();
+  const lang = s.tmdb_language || "fr-FR";
+  const [cat] = it.categoryXtreamId ? await db.select().from(schema.categories).where(and(eq(schema.categories.kind, it.kind), eq(schema.categories.xtreamId, it.categoryXtreamId))) : [];
+  const content = it.contentId ? (await db.select().from(schema.contents).where(eq(schema.contents.id, it.contentId)))[0] ?? null : null;
+  const siblings = content ? await db.select().from(schema.items).where(eq(schema.items.contentId, content.id)).orderBy(desc(schema.items.qualityRank), asc(schema.items.id)) : [it];
+  const tmdb = it.tmdbId && it.kind !== "live" ? await getCachedDetails(it.kind === "vod" ? "movie" : "tv", it.tmdbId, lang) : null;
+  return page(c, it.name, <ItemView it={it} cat={cat ?? null} content={content} siblings={siblings} tmdb={tmdb} tmdbLang={lang} />);
+});
+admin.get("/item/:id/explain", async (c) => {
+  const it = await item(Number(c.req.param("id")));
+  if (!it || it.kind === "live") return c.notFound();
+  const client = await getTmdbClient();
+  if (!client) return c.html(<span class="text-danger small">Clé TMDB absente.</span>);
+  try { return c.html(<ExplainView e={await explainMatch(client, it)} kind={it.kind} />); }
+  catch (e) { return c.html(<span class="text-danger small">{describeError(e)}</span>); }
+});
 
 // ---------------------------------------------------------------- groups (block 1)
 const contentById = async (id: number) => (await db.select().from(schema.contents).where(eq(schema.contents.id, id)))[0];

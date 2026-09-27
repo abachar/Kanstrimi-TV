@@ -29,19 +29,25 @@ export function similarity(a: string, b: string): number {
 
 export type Scored = { result: TmdbSearchResult; score: number };
 
-/** Pick the best TMDB search result for a cleaned title (+ optional year). */
-export function pickBest(results: TmdbSearchResult[], title: string, year?: number): Scored | null {
-  let best: Scored | null = null;
-  for (const r of results) {
+export type ScoredDetail = Scored & { similarity: number; year?: number };
+
+/** Every search result with its score: similarity, ± year, + a pinch of popularity. */
+export function scoreAll(results: TmdbSearchResult[], title: string, year?: number): ScoredDetail[] {
+  return results.map((r) => {
     const names = [r.title, r.name, r.original_title, r.original_name].filter(Boolean) as string[];
     const sim = Math.max(0, ...names.map((n) => similarity(n, title)));
     const ry = Number((r.release_date ?? r.first_air_date ?? "").slice(0, 4)) || undefined;
     let score = sim;
     if (year && ry) score += Math.abs(ry - year) <= 1 ? 0.15 : -0.2;
     score += Math.min((r.vote_count ?? 0) / 5000, 0.05);
-    if (!best || score > best.score) best = { result: r, score };
-  }
-  return best;
+    return { result: r, score, similarity: sim, year: ry };
+  }).sort((a, b) => b.score - a.score);
+}
+
+/** Pick the best TMDB search result for a cleaned title (+ optional year). */
+export function pickBest(results: TmdbSearchResult[], title: string, year?: number): Scored | null {
+  const [best] = scoreAll(results, title, year);
+  return best ? { result: best.result, score: best.score } : null;
 }
 
 export const MATCH_THRESHOLD = 0.72;
