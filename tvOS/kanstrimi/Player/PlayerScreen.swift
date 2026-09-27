@@ -204,11 +204,15 @@ struct VODOverlay: View {
                 ZStack(alignment: .leading) {
                     Capsule().fill(.white.opacity(0.28)).frame(height: 8)
                     Capsule().fill(.white).frame(width: max(0, x), height: 8)
+                }
+                // An overlay, not a third layer of the stack: the pill must not count in the
+                // stack's height, or the 8 pt track grows to the pill's size and spills over the hints.
+                .overlay(alignment: .bottomLeading) {
                     Text(Format.clock(player.time))
                         .font(.callout.weight(.semibold))
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(.white, in: Capsule()).foregroundStyle(.black)
-                        .offset(x: min(max(0, x - 40), geo.size.width - 90), y: -40)
+                        .offset(x: min(max(0, x - 40), geo.size.width - 90), y: -16)
                 }
             }
             .frame(height: 8)

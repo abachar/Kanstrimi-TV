@@ -1,6 +1,6 @@
 import Foundation
 
-/// `/api/v1` over HTTPS, the real thing behind `CatalogClient`. One URLSession, the device
+/// `/player` over HTTPS, the real thing behind `CatalogClient`. One URLSession, the device
 /// token read from the Keychain store at every call (it appears right after pairing),
 /// server errors mapped to `CatalogError` so a 401 anywhere becomes the unpairing flow.
 final class HTTPCatalogClient: CatalogClient {
@@ -9,9 +9,9 @@ final class HTTPCatalogClient: CatalogClient {
     private let session: URLSession
     private let decoder = HTTPCatalogClient.makeDecoder()
 
-    /// - Parameter baseURL: the server root, e.g. `https://kanstrimi.crafters.dev`; `/api/v1` is appended here.
+    /// - Parameter baseURL: the server root, e.g. `https://kanstrimi.crafters.dev`; `/player` is appended here.
     init(baseURL: URL, device: DeviceStore, session: URLSession? = nil) {
-        self.baseURL = baseURL.appending(path: "api/v1")
+        self.baseURL = baseURL.appending(path: "player")
         self.device = device
         self.session = session ?? {
             let c = URLSessionConfiguration.default

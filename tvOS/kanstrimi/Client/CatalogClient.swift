@@ -71,7 +71,7 @@ nonisolated enum SearchScope: String, CaseIterable, Sendable {
     }
 }
 
-/// `/api/v1`, one method per route. One implementation today: `MockCatalogClient`.
+/// `/player`, one method per route. One implementation today: `MockCatalogClient`.
 protocol CatalogClient: AnyObject {
     // Devices
     /// `POST /devices`

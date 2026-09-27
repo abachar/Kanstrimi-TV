@@ -154,7 +154,7 @@ enum Format {
     }
     /// "20:45".
     static func hour(_ date: Date) -> String {
-        date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute())
+        date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
     }
     /// "25 sept. à 21:14".
     static func dayHour(_ date: Date) -> String {

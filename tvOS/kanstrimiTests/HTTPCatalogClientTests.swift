@@ -63,7 +63,7 @@ struct HTTPCatalogClientTests {
         #expect(created.code == "K7Q4MZ")
         #expect(created.url.path() == "/admin/pair/K7Q4MZ")
         #expect(try last.httpMethod == "POST")
-        #expect(try last.url?.path() == "/api/v1/devices")
+        #expect(try last.url?.path() == "/player/devices")
         #expect(try last.value(forHTTPHeaderField: "Authorization") == nil)
 
         answer(200, #"{"status":"pending"}"#)
@@ -102,39 +102,39 @@ struct HTTPCatalogClientTests {
         var q = ListQuery(kind: .series, genre: "thriller")
         q.language = .vostfr; q.minQuality = .fhd; q.dynamicRange = .hdr; q.vfAvailable = true; q.cursor = "abc=="
         _ = try await client.list(q)
-        #expect(try last.url?.path() == "/api/v1/series")
+        #expect(try last.url?.path() == "/player/series")
         #expect(try query(last) == ["sort": "latest_episodes", "genre": "thriller", "language": "VOSTFR", "min_quality": "FHD", "dynamic_range": "HDR", "vf_available": "1", "cursor": "abc=="])
 
         answer(200, "[]")
         _ = try await client.rows(kind: .movie)
-        #expect(try last.url?.absoluteString == "https://kanstrimi.test/api/v1/movies")
+        #expect(try last.url?.absoluteString == "https://kanstrimi.test/player/movies")
     }
 
     @Test func idsPickTheirCollectionAndStayInThePath() async throws {
         answer(200, #"{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo"}"#)
         _ = try await client.detail(id: ContentID("tmdb:tv:1396"))
-        #expect(try last.url?.path() == "/api/v1/series/tmdb:tv:1396")
+        #expect(try last.url?.path() == "/player/series/tmdb:tv:1396")
         answer(200, #"{"id":"fallback:movie:tenet:2020","kind":"movie","title":"Tenet"}"#)
         _ = try await client.detail(id: ContentID("fallback:movie:tenet:2020"))
-        #expect(try last.url?.path() == "/api/v1/movies/fallback:movie:tenet:2020")
+        #expect(try last.url?.path() == "/player/movies/fallback:movie:tenet:2020")
         answer(200, #"{"versions":[],"resume_at":1140,"duration":3060,"next":null}"#)
         let p = try await client.playback(id: ContentID("tmdb:tv:1396:s01e05"))
         #expect(p.resumeAt == 1140)
-        #expect(try last.url?.path() == "/api/v1/playback/tmdb:tv:1396:s01e05")
+        #expect(try last.url?.path() == "/player/playback/tmdb:tv:1396:s01e05")
     }
 
     @Test func progressAndFavouritesAreNoContentCalls() async throws {
         answer(204, "")
         try await client.report(ProgressReport(contentID: ContentID("tmdb:movie:603"), position: 1170.4, duration: 3060, sentAt: .now))
         #expect(try last.httpMethod == "PUT")
-        #expect(try last.url?.path() == "/api/v1/playback/tmdb:movie:603/progress")
+        #expect(try last.url?.path() == "/player/playback/tmdb:movie:603/progress")
         #expect(lastBody == ["position": 1170, "duration": 3060])
         try await client.setFavorite(id: ContentID("live:fr-tf1"), true)
-        #expect(try last.httpMethod == "PUT" && last.url?.path() == "/api/v1/favorites/live:fr-tf1")
+        #expect(try last.httpMethod == "PUT" && last.url?.path() == "/player/favorites/live:fr-tf1")
         try await client.setFavorite(id: ContentID("live:fr-tf1"), false)
         #expect(try last.httpMethod == "DELETE")
         try await client.deleteDevice(code: "K7Q4MZ")
-        #expect(try last.httpMethod == "DELETE" && last.url?.path() == "/api/v1/devices/K7Q4MZ")
+        #expect(try last.httpMethod == "DELETE" && last.url?.path() == "/player/devices/K7Q4MZ")
     }
 
     @Test func datesDecodeWithAndWithoutFractionalSeconds() async throws {
