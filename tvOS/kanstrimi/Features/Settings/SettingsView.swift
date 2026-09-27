@@ -37,6 +37,7 @@ struct SettingsView: View {
                 Section("Appareil") {
                     LabeledContent("Nom de cet Apple TV", value: prefs.deviceName.isEmpty ? "Salon" : prefs.deviceName)
                     LabeledContent("Serveur", value: prefs.serverURL)
+                    Toggle("Client de démonstration (données embarquées)", isOn: $prefs.useMockClient)
                     Button(role: .destructive) { confirmUnpair = true } label: {
                         Label("Dissocier cet Apple TV", systemImage: "xmark.circle")
                     }
@@ -64,6 +65,7 @@ struct SettingsView: View {
                     LabeledContent("Code de l'appareil", value: env.device.code ?? "—")
                 }
 
+                if prefs.useMockClient {
                 Section("Lecteur · flux de démo") {
                     Button { play(ContentID("tmdb:movie:100002")) } label: { Label("Film · Orbite Basse (reprise à 1 h 15)", systemImage: "film") }
                     Button { play(ContentID("tmdb:tv:20000:s02e04")) } label: { Label("Épisode · Brise-Lames S2 É4 (épisode suivant)", systemImage: "rectangle.stack") }
@@ -92,6 +94,7 @@ struct SettingsView: View {
                     Text("Démo · pilote le client mock")
                 } footer: {
                     Text("Ces interrupteurs n'existent que dans la maquette : ils déclenchent les états hors ligne, erreur et vide de FLOW.md §3.")
+                }
                 }
             }
             .navigationTitle("Réglages")

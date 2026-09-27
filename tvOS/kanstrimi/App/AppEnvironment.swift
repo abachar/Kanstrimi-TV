@@ -5,8 +5,10 @@ import Observation
 @Observable
 final class AppEnvironment {
     let scenario: MockScenario
-    let client: CatalogClient
+    /// Mock or HTTP, switched from Réglages without a relaunch.
+    let client: SwitchingCatalogClient
     let mock: MockCatalogClient
+    let http: HTTPCatalogClient
     let preferences: Preferences
     let device: DeviceStore
     let recentChannels: RecentChannelsStore
@@ -22,22 +24,28 @@ final class AppEnvironment {
 
     func open(_ id: ContentID) { presentedDetail = id }
 
-    init() {
+    /// - Parameter forceMock: previews and the demo scenarios never touch the network.
+    init(forceMock: Bool = false) {
         let scenario = MockScenario()
         let mock = MockCatalogClient(scenario: scenario)
         let preferences = Preferences()
+        if forceMock { preferences.useMockClient = true }
+        let device = DeviceStore()
+        let http = HTTPCatalogClient(baseURL: URL(string: preferences.serverURL) ?? URL(string: Preferences.compiledServerURL)!, device: device)
+        let client = SwitchingCatalogClient(mock: mock, http: http, preferences: preferences)
         let failed = FailedSourcesStore()
         self.scenario = scenario
         self.mock = mock
-        self.client = mock
+        self.http = http
+        self.client = client
         self.preferences = preferences
-        self.device = DeviceStore()
+        self.device = device
         self.recentChannels = RecentChannelsStore()
         self.failedSources = failed
         self.progressQueue = ProgressQueue()
         self.homeCache = HomeCache()
-        self.channelCache = ChannelCache(client: mock)
-        self.player = PlayerService(client: mock, preferences: preferences, failedSources: failed, progressQueue: progressQueue)
+        self.channelCache = ChannelCache(client: client)
+        self.player = PlayerService(client: client, preferences: preferences, failedSources: failed, progressQueue: progressQueue)
     }
 
     /// A 401 anywhere: token gone, cache gone, back to the QR code.

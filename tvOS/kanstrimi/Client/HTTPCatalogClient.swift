@@ -1,0 +1,174 @@
+import Foundation
+
+/// `/api/v1` over HTTPS, the real thing behind `CatalogClient`. One URLSession, the device
+/// token read from the Keychain store at every call (it appears right after pairing),
+/// server errors mapped to `CatalogError` so a 401 anywhere becomes the unpairing flow.
+final class HTTPCatalogClient: CatalogClient {
+    let baseURL: URL
+    private let device: DeviceStore
+    private let session: URLSession
+    private let decoder = HTTPCatalogClient.makeDecoder()
+
+    /// - Parameter baseURL: the server root, e.g. `https://kanstrimi.crafters.dev`; `/api/v1` is appended here.
+    init(baseURL: URL, device: DeviceStore, session: URLSession? = nil) {
+        self.baseURL = baseURL.appending(path: "api/v1")
+        self.device = device
+        self.session = session ?? {
+            let c = URLSessionConfiguration.default
+            c.timeoutIntervalForRequest = 20
+            c.waitsForConnectivity = false
+            c.httpAdditionalHeaders = ["Accept": "application/json"]
+            return URLSession(configuration: c)
+        }()
+    }
+
+    // MARK: - Devices
+
+    func createDevice() async throws -> PairingCode {
+        try await send("POST", "devices", auth: false)
+    }
+    func pollDevice(code: String) async throws -> PairingStatus {
+        try await send("GET", "devices/\(code)", auth: false)
+    }
+    func deleteDevice(code: String) async throws {
+        try await sendNoContent("DELETE", "devices/\(code)")
+    }
+    func info() async throws -> ServerInfo { try await send("GET", "info") }
+
+    // MARK: - Home, movies, series
+
+    func home() async throws -> HomeScreen { try await send("GET", "home") }
+
+    func rows(kind: ContentKind) async throws -> [CatalogRow] {
+        try await send("GET", Self.collection(kind))
+    }
+    func list(_ query: ListQuery) async throws -> Page<Card> {
+        var q: [URLQueryItem] = [URLQueryItem(name: "sort", value: query.sort.rawValue)]
+        if let g = query.genre { q.append(URLQueryItem(name: "genre", value: g)) }
+        if let l = query.language { q.append(URLQueryItem(name: "language", value: l.rawValue)) }
+        if let m = query.minQuality { q.append(URLQueryItem(name: "min_quality", value: m.rawValue)) }
+        if let d = query.dynamicRange { q.append(URLQueryItem(name: "dynamic_range", value: d.rawValue)) }
+        if query.vfAvailable { q.append(URLQueryItem(name: "vf_available", value: "1")) }
+        if let c = query.cursor { q.append(URLQueryItem(name: "cursor", value: c)) }
+        return try await send("GET", Self.collection(query.kind), query: q)
+    }
+    func detail(id: ContentID) async throws -> Card {
+        try await send("GET", "\(Self.collection(Self.kind(of: id)))/\(id.rawValue)")
+    }
+
+    // MARK: - Live
+
+    func channels() async throws -> [ChannelGroup] { try await send("GET", "channels") }
+    func channel(id: ContentID) async throws -> Channel { try await send("GET", "channels/\(id.rawValue)") }
+
+    // MARK: - Playback
+
+    func playback(id: ContentID) async throws -> Playback { try await send("GET", "playback/\(id.rawValue)") }
+    func report(_ progress: ProgressReport) async throws {
+        struct Body: Encodable { let position: Double; let duration: Double }
+        try await sendNoContent("PUT", "playback/\(progress.contentID.rawValue)/progress",
+                                body: Body(position: progress.position.rounded(), duration: progress.duration.rounded()))
+    }
+
+    // MARK: - Search, favourites
+
+    func search(_ query: String, scope: SearchScope) async throws -> SearchResults {
+        try await send("GET", "search", query: [URLQueryItem(name: "q", value: query), URLQueryItem(name: "scope", value: scope.rawValue)])
+    }
+    func setFavorite(id: ContentID, _ favorite: Bool) async throws {
+        try await sendNoContent(favorite ? "PUT" : "DELETE", "favorites/\(id.rawValue)")
+    }
+
+    // MARK: - Plumbing
+
+    static func collection(_ kind: ContentKind) -> String { kind == .series || kind == .episode ? "series" : "movies" }
+    /// The id says what it is: `tmdb:tv:…` and `fallback:series:…` are series, the rest are movies.
+    static func kind(of id: ContentID) -> ContentKind {
+        id.rawValue.hasPrefix("tmdb:tv:") || id.rawValue.hasPrefix("fallback:series:") ? .series : .movie
+    }
+
+    private func makeRequest(_ method: String, _ path: String, query: [URLQueryItem], auth: Bool, body: (any Encodable)?) throws -> URLRequest {
+        var url = baseURL
+        for segment in path.split(separator: "/") { url.append(path: String(segment)) }
+        if !query.isEmpty { url.append(queryItems: query) }
+        var req = URLRequest(url: url)
+        req.httpMethod = method
+        if auth {
+            guard let token = device.token else { throw CatalogError.unauthorized }
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if let body {
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONEncoder().encode(body)
+        }
+        return req
+    }
+
+    private func perform(_ req: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let data: Data, response: URLResponse
+        do { (data, response) = try await session.data(for: req) }
+        catch let e as URLError { throw Self.map(e) }
+        catch { throw CatalogError.server(error.localizedDescription) }
+        guard let http = response as? HTTPURLResponse else { throw CatalogError.server("Réponse invalide") }
+        if (200..<300).contains(http.statusCode) { return (data, http) }
+        throw Self.error(status: http.statusCode, data: data)
+    }
+
+    private func send<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = [], auth: Bool = true, body: (any Encodable)? = nil) async throws -> T {
+        let (data, _) = try await perform(try makeRequest(method, path, query: query, auth: auth, body: body))
+        do { return try decoder.decode(T.self, from: data) }
+        catch { throw CatalogError.decoding(Self.describe(error)) }
+    }
+    private func sendNoContent(_ method: String, _ path: String, auth: Bool = true, body: (any Encodable)? = nil) async throws {
+        _ = try await perform(try makeRequest(method, path, query: [], auth: auth, body: body))
+    }
+
+    private struct ErrorBody: Decodable { struct Inner: Decodable { let code: String; let message: String }; let error: Inner }
+
+    static func error(status: Int, data: Data) -> CatalogError {
+        let body = try? JSONDecoder().decode(ErrorBody.self, from: data)
+        switch status {
+        case 401: return .unauthorized
+        case 404: return .notFound
+        case 503 where body?.error.code == "locked": return .server(body?.error.message ?? "Serveur verrouillé")
+        default: return .server(body?.error.message ?? "Erreur serveur (\(status))")
+        }
+    }
+    static func map(_ e: URLError) -> CatalogError {
+        switch e.code {
+        case .notConnectedToInternet, .timedOut, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost, .dnsLookupFailed, .internationalRoamingOff, .dataNotAllowed:
+            return .offline
+        case .cancelled: return .server("Annulé")
+        default: return .server(e.localizedDescription)
+        }
+    }
+    private static func describe(_ error: Error) -> String {
+        guard let d = error as? DecodingError else { return error.localizedDescription }
+        switch d {
+        case .keyNotFound(let k, let c): return "clé \(k.stringValue) absente (\(c.codingPath.map(\.stringValue).joined(separator: ".")))"
+        case .typeMismatch(let t, let c): return "type \(t) attendu (\(c.codingPath.map(\.stringValue).joined(separator: ".")))"
+        case .valueNotFound(let t, let c): return "valeur \(t) absente (\(c.codingPath.map(\.stringValue).joined(separator: ".")))"
+        case .dataCorrupted(let c): return c.debugDescription
+        @unknown default: return d.localizedDescription
+        }
+    }
+
+    /// ISO 8601 with or without fractional seconds: `toISOString()` sends milliseconds, Postgres dates do not.
+    nonisolated static func makeDecoder() -> JSONDecoder {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .custom { decoder in
+            let s = try decoder.singleValueContainer().decode(String.self)
+            if let date = parseISO8601(s) { return date }
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "date ISO 8601 attendue : \(s)"))
+        }
+        return d
+    }
+    nonisolated static func parseISO8601(_ s: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = fractional.date(from: s) { return d }
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        return plain.date(from: s)
+    }
+}

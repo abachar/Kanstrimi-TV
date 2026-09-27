@@ -15,6 +15,7 @@ final class Preferences {
         rememberVersionPerTitle = defaults.object(forKey: Keys.rememberVersion) as? Bool ?? true
         switchSourceOnFailure = defaults.object(forKey: Keys.switchSource) as? Bool ?? true
         serverURL = defaults.string(forKey: Keys.serverURL) ?? Self.compiledServerURL
+        useMockClient = defaults.object(forKey: Keys.useMock) as? Bool ?? false
         deviceName = defaults.string(forKey: Keys.deviceName) ?? ""
         rememberedVersions = Self.decode([String: String].self, defaults.string(forKey: Keys.rememberedVersions)) ?? [:]
         seriesLanguages = Self.decode([String: String].self, defaults.string(forKey: Keys.seriesLanguages)) ?? [:]
@@ -29,6 +30,7 @@ final class Preferences {
         static let rememberVersion = "pref.rememberVersion"
         static let switchSource = "pref.switchSource"
         static let serverURL = "pref.serverURL"
+        static let useMock = "pref.useMock"
         static let deviceName = "pref.deviceName"
         static let rememberedVersions = "pref.rememberedVersions"
         static let seriesLanguages = "pref.seriesLanguages"
@@ -45,6 +47,8 @@ final class Preferences {
     var rememberVersionPerTitle: Bool { didSet { defaults.set(rememberVersionPerTitle, forKey: Keys.rememberVersion) } }
     var switchSourceOnFailure: Bool { didSet { defaults.set(switchSourceOnFailure, forKey: Keys.switchSource) } }
     var serverURL: String { didSet { defaults.set(serverURL, forKey: Keys.serverURL) } }
+    /// Réglages › Démo: the embedded fixtures instead of the server. Off by default; previews force it.
+    var useMockClient: Bool { didSet { defaults.set(useMockClient, forKey: Keys.useMock) } }
     var deviceName: String { didSet { defaults.set(deviceName, forKey: Keys.deviceName) } }
     var catalogSortMovies: CatalogSort { didSet { defaults.set(catalogSortMovies.rawValue, forKey: Keys.sortMovies) } }
     var catalogSortSeries: CatalogSort { didSet { defaults.set(catalogSortSeries.rawValue, forKey: Keys.sortSeries) } }

@@ -23,15 +23,21 @@ struct PairingView: View {
                 Spacer().frame(height: 10)
                 HStack(spacing: 24) {
                     Button("Nouveau code") { Task { await model.newCode(env) } }
-                    Button {
-                        env.mock.approvePairing()
-                    } label: {
-                        Label("Simuler la validation dans l'admin", systemImage: "checkmark.seal")
+                    if env.client.isMock {
+                        Button {
+                            env.mock.approvePairing()
+                        } label: {
+                            Label("Simuler la validation dans l'admin", systemImage: "checkmark.seal")
+                        }
                     }
                 }
                 .disabled(model.isBusy)
-                Text("Maquette : le bouton remplace la confirmation depuis l'admin. Aucun appel réseau.")
-                    .font(.callout).foregroundStyle(Theme.secondary)
+                if env.client.isMock {
+                    Text("Maquette : le bouton remplace la confirmation depuis l'admin. Aucun appel réseau.")
+                        .font(.callout).foregroundStyle(Theme.secondary)
+                } else {
+                    Text("Serveur : \(model.host)").font(.callout).foregroundStyle(Theme.secondary)
+                }
             }
             .frame(maxWidth: 900, alignment: .leading)
 
@@ -92,8 +98,8 @@ struct PairingView: View {
     private var codePanel: some View {
         VStack(spacing: 12) {
             VStack(spacing: 2) {
-                Text("Ou allez sur \(Text(model.host + "/tv").foregroundStyle(Theme.accent))").foregroundStyle(Theme.secondary)
-                Text("et saisissez ce code :").foregroundStyle(Theme.secondary)
+                Text("Ou ouvrez \(Text(model.host + "/admin/pair/…").foregroundStyle(Theme.accent))").foregroundStyle(Theme.secondary)
+                Text("en remplaçant les points par ce code :").foregroundStyle(Theme.secondary)
             }
             .font(.callout)
             HStack(spacing: 10) {
@@ -131,6 +137,8 @@ final class PairingModel {
     var qrImage: UIImage?
     var isBusy = false
     var host: String { URL(string: Preferences.compiledServerURL)?.host() ?? "votre-serveur" }
+    /// The pairing URL of the server, shown when the QR cannot be scanned.
+    var pairingURL: String { code?.url.absoluteString ?? "" }
     private var loop: Task<Void, Never>?
 
     func run(_ env: AppEnvironment) async {

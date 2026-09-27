@@ -31,20 +31,22 @@ lire la source, appliquer les filtres, enrichir via TMDB, grouper les variantes.
 👉 **Lire `server/CLAUDE.md` avant toute modification** : conventions, modèle de
 sécurité (chiffrement des secrets, coffre en RAM) et pièges.
 
-### `tvOS/` — interface complète en maquette, sur données statiques
+### `tvOS/` — interface complète, branchée sur le serveur
 
 `tvOS/kanstrimi.xcodeproj` : SwiftUI, Swift 6 (isolation `MainActor` par défaut), tvOS 27,
 Apple TV 4K uniquement, Swift Testing, **VLCKit 4 en SPM** (miroir GitHub `videolan/vlckit`,
-révision figée dans le projet). Tous les écrans du flow existent et tournent sur le
-simulateur, alimentés par un client mock ; **aucun appel réseau** autre que les trois flux
-de démo de `Client/DemoStreams.swift`. L'appairage réel viendra en dernier.
+révision figée dans le projet). Tous les écrans du flow existent. Deux clients derrière le
+même protocole `CatalogClient` : `HTTPCatalogClient` (le serveur, URL compilée dans
+`Preferences.compiledServerURL`, jeton d'appareil en Keychain) et `MockCatalogClient`
+(fixtures JSON, sans réseau). Réglages › Appareil › « Client de démonstration » bascule
+entre les deux sans relancer ; les `#Preview` et les scénarios de démo forcent le mock.
 
 Organisation de `tvOS/kanstrimi/` :
 
 | Dossier | Rôle |
 |---|---|
 | `Contract/` | Types calqués sur `/api/v1` tel qu'arrêté dans `docs/api-v1-tvos.md` (`Card` unique, `Version`, `Source`, `Season`, `Episode`, `Channel`, `Playback`…), `nonisolated`, jamais sur la base. |
-| `Client/` | Protocole `CatalogClient`, `MockCatalogClient` sur les fixtures JSON de `Client/Fixtures/`, `MockScenario` (hors ligne, 401, saison en erreur…) piloté depuis Réglages › Démo. |
+| `Client/` | Protocole `CatalogClient` ; `HTTPCatalogClient` (`/api/v1`, erreurs mappées sur `CatalogError`, dates ISO avec ou sans millisecondes) ; `SwitchingCatalogClient` (mock ou HTTP selon la préférence) ; `MockCatalogClient` sur les fixtures JSON de `Client/Fixtures/`, `MockScenario` (hors ligne, 401, saison en erreur…) piloté depuis Réglages › Démo. |
 | `Player/` | **Le lecteur, service transverse unique** : `PlayerService` (VLCKit, bascule de source, échec après 10 s, épisode suivant, zapping), `VersionChooser` (moteur de choix), écran et panneaux. |
 | `Features/` | Un dossier par fonctionnalité : Appairage, Accueil, Catalogue, Fiche, Direct, Recherche, Réglages. |
 | `Shared/` | Thème, badges, cartes, formats, stores locaux (chaînes récentes, sources en échec, file de progression, cache de l'accueil, cache EPG). |

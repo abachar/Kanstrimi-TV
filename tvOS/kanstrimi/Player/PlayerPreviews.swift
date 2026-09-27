@@ -5,7 +5,7 @@ import SwiftUI
 enum PreviewData {
     /// A fresh environment per preview, so states never bleed between them.
     static func makeEnv() -> AppEnvironment {
-        let e = AppEnvironment()
+        let e = AppEnvironment(forceMock: true)
         e.scenario.latency = 0
         return e
     }
