@@ -56,11 +56,12 @@ export class TmdbClient {
     }
   }
 
-  searchMovie(query: string, year?: number) {
-    return this.get<{ results: TmdbSearchResult[] }>("/search/movie", { query, year, include_adult: "false" });
+  /** `includeAdult`: TMDB hides adult-flagged titles from searches unless asked; the website hides them altogether. */
+  searchMovie(query: string, year?: number, includeAdult = false) {
+    return this.get<{ results: TmdbSearchResult[] }>("/search/movie", { query, year, include_adult: includeAdult ? "true" : "false" });
   }
-  searchTv(query: string, year?: number) {
-    return this.get<{ results: TmdbSearchResult[] }>("/search/tv", { query, first_air_date_year: year, include_adult: "false" });
+  searchTv(query: string, year?: number, includeAdult = false) {
+    return this.get<{ results: TmdbSearchResult[] }>("/search/tv", { query, first_air_date_year: year, include_adult: includeAdult ? "true" : "false" });
   }
   movie(id: number) {
     return this.get<TmdbDetails>(`/movie/${id}`, { append_to_response: "credits,videos,release_dates,alternative_titles,translations,images" }).then(trimTranslations);

@@ -154,13 +154,19 @@ export function idLooksRight(d: TmdbDetails, it: Pick<PendingItem, "name" | "cle
 async function matchByTitle(client: TmdbClient, it: PendingItem): Promise<boolean> {
   const mediaType = it.kind === "vod" ? "movie" : "tv";
   const ct = it.cleanTitle ? { title: it.cleanTitle, year: it.year ?? undefined } : cleanTitle(it.name);
-  const search = async (year?: number) => mediaType === "movie" ? client.searchMovie(ct.title, year) : client.searchTv(ct.title, year);
+  const search = async (year?: number, adult = false) => mediaType === "movie" ? client.searchMovie(ct.title, year, adult) : client.searchTv(ct.title, year, adult);
   let res = await search(ct.year);
   let best = scoreAll(res.results ?? [], ct.title, ct.year)[0];
   if ((!best || best.score < MATCH_THRESHOLD) && ct.year) {
     res = await search(undefined);
     const b2 = scoreAll(res.results ?? [], ct.title, ct.year)[0];
     if (b2 && (!best || b2.score > best.score)) best = b2;
+  }
+  // Last resort: adult-flagged titles never appear in a default search.
+  if (!best || best.score < MATCH_THRESHOLD) {
+    res = await search(undefined, true);
+    const b3 = scoreAll(res.results ?? [], ct.title, ct.year)[0];
+    if (b3 && (!best || b3.score > best.score)) best = b3;
   }
   if (best && best.score >= MATCH_THRESHOLD) {
     await getDetails(client, mediaType, best.result.id);
@@ -185,7 +191,7 @@ export type MatchExplanation = {
   cleaned: { title: string; year?: number };
   threshold: number; idThreshold: number;
   provided: { id: number; found: boolean; title?: string; year?: number; similarity: number; accepted: boolean; evidence?: Evidence } | null;
-  searches: { withYear: number | undefined; candidates: ScoredDetail[] }[];
+  searches: { withYear: number | undefined; adult?: boolean; candidates: ScoredDetail[] }[];
   /** Best candidate re-judged against all its names (alternative titles included). */
   alternative?: { id: number; names: string[]; similarity: number; evidence?: Evidence };
   verdict: { status: "matched" | "unmatched"; tmdbId: number | null; score: number; via: "id" | "search" | "alternative" | "none" };
@@ -206,11 +212,12 @@ export async function explainMatch(client: TmdbClient, it: PendingItem): Promise
       if (ev.accepted) { out.verdict = { status: "matched", tmdbId: pid, score: 1, via: "id" }; return out; }
     } else out.provided = { id: pid, found: false, similarity: 0, accepted: false };
   }
-  const search = async (year?: number) => mediaType === "movie" ? client.searchMovie(ct.title, year) : client.searchTv(ct.title, year);
+  const search = async (year?: number, adult = false) => mediaType === "movie" ? client.searchMovie(ct.title, year, adult) : client.searchTv(ct.title, year, adult);
   let best: ScoredDetail | undefined;
-  for (const year of ct.year ? [ct.year, undefined] : [undefined]) {
-    const candidates = scoreAll((await search(year)).results ?? [], ct.title, ct.year).slice(0, 8);
-    out.searches.push({ withYear: year, candidates });
+  const rounds: [number | undefined, boolean][] = ct.year ? [[ct.year, false], [undefined, false], [undefined, true]] : [[undefined, false], [undefined, true]];
+  for (const [year, adult] of rounds) {
+    const candidates = scoreAll((await search(year, adult)).results ?? [], ct.title, ct.year).slice(0, 8);
+    out.searches.push({ withYear: year, adult, candidates });
     if (candidates[0] && (!best || candidates[0].score > best.score)) best = candidates[0];
     if (best && best.score >= MATCH_THRESHOLD) break;
   }

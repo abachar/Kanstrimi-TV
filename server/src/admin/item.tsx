@@ -97,7 +97,7 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
           : <span class="text-danger">inconnu de TMDB</span>}</p>
       )}
       {e.searches.map((s) => (
-        <div class="mb-1">Recherche {s.withYear ? `avec l'année ${s.withYear}` : "sans année"} : {s.candidates.length ? "" : <span class="text-secondary">aucun résultat</span>}
+        <div class="mb-1">Recherche {s.withYear ? `avec l'année ${s.withYear}` : "sans année"}{s.adult ? ", contenus adultes inclus" : ""} : {s.candidates.length ? "" : <span class="text-secondary">aucun résultat</span>}
           {s.candidates.length > 0 && <table class="table table-sm mb-1"><thead><tr><th>Résultat</th><th>Année</th><th>Similarité</th><th>Score</th></tr></thead><tbody>
             {s.candidates.map((c) => <tr class={c.score >= e.threshold ? "table-success" : ""}><td><a href={url(c.result.id)} target="_blank" rel="noreferrer">{c.result.title ?? c.result.name}</a>{(c.result.original_title ?? c.result.original_name) && (c.result.original_title ?? c.result.original_name) !== (c.result.title ?? c.result.name) ? <span class="text-secondary"> ({c.result.original_title ?? c.result.original_name})</span> : ""}</td><td>{c.year ?? "—"}</td><td>{pct(c.similarity)}</td><td>{pct(c.score)}</td></tr>)}
           </tbody></table>}
