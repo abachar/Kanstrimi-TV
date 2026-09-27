@@ -14,7 +14,10 @@ import type { Card, CatalogRow, ChannelGroupWire, ChannelWire, Home, HomeRow, Pa
 import pkg from "../../../package.json";
 
 const ROW_SIZE = 20, HOME_ROW = 24, PAGE_DEFAULT = 30, PAGE_MAX = 100;
-const visible = (kind: "live" | "vod" | "series") => and(eq(schema.contents.kind, kind), eq(schema.contents.visible, true))!;
+/** Visible for the app: the admin's visibility, and adult contents only when the setting allows them. */
+const visible = (ctx: RestContext, kind: "live" | "vod" | "series") =>
+  and(eq(schema.contents.kind, kind), eq(schema.contents.visible, true), ctx.serveAdult ? undefined : eq(schema.contents.adult, false))!;
+const visibleAny = (ctx: RestContext) => and(eq(schema.contents.visible, true), ctx.serveAdult ? undefined : eq(schema.contents.adult, false))!;
 
 // ---------------------------------------------------------------- helpers
 
@@ -29,8 +32,8 @@ async function variantsOf(content: Content): Promise<{ items: Item[]; categoryNa
   return { items, categoryNames: new Map(cats.map((c) => [c.xtreamId, c.name])) };
 }
 
-export async function contentByKey(key: string): Promise<Content | null> {
-  const [c] = await db.select().from(schema.contents).where(and(eq(schema.contents.key, key), eq(schema.contents.visible, true)));
+export async function contentByKey(ctx: RestContext, key: string): Promise<Content | null> {
+  const [c] = await db.select().from(schema.contents).where(and(eq(schema.contents.key, key), visibleAny(ctx)));
   return c ?? null;
 }
 
@@ -41,15 +44,15 @@ async function upstreamClient(): Promise<XtreamClient | null> {
 
 // ---------------------------------------------------------------- info
 
-export async function serverInfo(): Promise<ServerInfo> {
+export async function serverInfo(ctx: RestContext): Promise<ServerInfo> {
   const [counts, s, rate, langs] = await Promise.all([
-    db.select({ kind: schema.contents.kind, n: sql<number>`count(*)::int` }).from(schema.contents).where(eq(schema.contents.visible, true)).groupBy(schema.contents.kind),
+    db.select({ kind: schema.contents.kind, n: sql<number>`count(*)::int` }).from(schema.contents).where(visibleAny(ctx)).groupBy(schema.contents.kind),
     getSettings(),
     db.select({
       matched: sql<number>`count(*) filter (where ${schema.items.matchStatus} in ('matched','manual'))::int`,
       decided: sql<number>`count(*) filter (where ${schema.items.matchStatus} in ('matched','manual','unmatched'))::int`,
-    }).from(schema.items).where(and(inArray(schema.items.kind, ["vod", "series"]), eq(schema.items.hiddenByRule, false), eq(schema.items.hiddenManual, false))),
-    db.execute<{ l: string }>(sql`select distinct unnest(languages) as l from ${schema.contents} where visible and kind <> 'live'`),
+    }).from(schema.items).where(and(inArray(schema.items.kind, ["vod", "series"]), eq(schema.items.hiddenByRule, false), eq(schema.items.hiddenManual, false), ctx.serveAdult ? undefined : eq(schema.items.adult, false))),
+    db.execute<{ l: string }>(sql`select distinct unnest(languages) as l from ${schema.contents} where visible and kind <> 'live' ${ctx.serveAdult ? sql`` : sql`and not adult`}`),
   ]);
   const n = (k: string) => counts.find((c) => c.kind === k)?.n ?? 0;
   return {
@@ -65,24 +68,24 @@ export async function serverInfo(): Promise<ServerInfo> {
 // ---------------------------------------------------------------- lists
 
 type Genre = { id: number; slug: string; name: string; total: number };
-async function genresOf(kind: "vod" | "series"): Promise<Genre[]> {
+async function genresOf(ctx: RestContext, kind: "vod" | "series"): Promise<Genre[]> {
   const rows = await db.execute<{ id: number; name: string; n: number }>(sql`
     select g.id, g.name, count(*)::int as n
     from ${schema.contents} c, unnest(c.genre_ids, c.genres) as g(id, name)
-    where c.kind = ${kind} and c.visible group by g.id, g.name order by n desc, g.name`);
+    where c.kind = ${kind} and c.visible ${ctx.serveAdult ? sql`` : sql`and not c.adult`} group by g.id, g.name order by n desc, g.name`);
   return rows.map((r) => ({ id: r.id, slug: slug(r.name), name: r.name, total: r.n }));
 }
 
 /** `/movies`, `/series`: "Nouveautés" then one row per TMDB genre, twenty cards each. */
 export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Promise<CatalogRow[]> {
-  const genres = await genresOf(kind);
-  const [{ n: total }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.contents).where(visible(kind));
-  const recent = await db.select().from(schema.contents).where(visible(kind)).orderBy(desc(schema.contents.addedAt), desc(schema.contents.id)).limit(ROW_SIZE);
+  const genres = await genresOf(ctx, kind);
+  const [{ n: total }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.contents).where(visible(ctx, kind));
+  const recent = await db.select().from(schema.contents).where(visible(ctx, kind)).orderBy(desc(schema.contents.addedAt), desc(schema.contents.id)).limit(ROW_SIZE);
   const rows: { id: string; name: string; total: number; cards: Content[] }[] = [
     { id: "recent", name: kind === "series" ? "Derniers épisodes" : "Nouveautés", total, cards: recent },
   ];
   for (const g of genres) {
-    const cards = await db.select().from(schema.contents).where(and(visible(kind), sql`${schema.contents.genreIds} @> array[${g.id}]::int[]`))
+    const cards = await db.select().from(schema.contents).where(and(visible(ctx, kind), sql`${schema.contents.genreIds} @> array[${g.id}]::int[]`))
       .orderBy(desc(schema.contents.addedAt), desc(schema.contents.id)).limit(ROW_SIZE);
     rows.push({ id: g.slug, name: g.name, total: g.total, cards });
   }
@@ -104,9 +107,9 @@ export class BadRequest extends Error {}
 
 /** `/movies?genre=…&cursor=…`: "Voir tout", by cursor on a stable sort key. */
 export async function listContents(ctx: RestContext, kind: "vod" | "series", q: ListQuery): Promise<Page> {
-  const where: SQL[] = [visible(kind)];
+  const where: SQL[] = [visible(ctx, kind)];
   if (q.genre && q.genre !== "recent") {
-    const g = (await genresOf(kind)).find((x) => x.slug === q.genre);
+    const g = (await genresOf(ctx, kind)).find((x) => x.slug === q.genre);
     if (!g) return { items: [], next_cursor: null };
     where.push(sql`${schema.contents.genreIds} @> array[${g.id}]::int[]`);
   }
@@ -211,7 +214,7 @@ function channelWire(ctx: RestContext, c: Content, versions: Version[], favs: Se
 export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[]> {
   const cats = await liveCategories();
   const [channels, items, favs] = await Promise.all([
-    db.select().from(schema.contents).where(visible("live")).orderBy(asc(schema.contents.channelNumber), asc(schema.contents.title), asc(schema.contents.id)),
+    db.select().from(schema.contents).where(visible(ctx, "live")).orderBy(asc(schema.contents.channelNumber), asc(schema.contents.title), asc(schema.contents.id)),
     db.select().from(schema.items).where(and(eq(schema.items.kind, "live"), eq(schema.items.hiddenByRule, false), eq(schema.items.hiddenManual, false), sql`${schema.items.contentId} is not null`)),
     favoriteSet(),
   ]);
@@ -240,8 +243,8 @@ export async function channelSheet(ctx: RestContext, content: Content): Promise<
 export async function home(ctx: RestContext): Promise<Home> {
   const [resume, recentMovies, recentSeries, favKeys] = await Promise.all([
     resumeKeys(20),
-    db.select().from(schema.contents).where(and(visible("vod"), sql`${schema.contents.key} like 'tmdb:%'`)).orderBy(desc(schema.contents.addedAt), desc(schema.contents.id)).limit(HOME_ROW),
-    db.select().from(schema.contents).where(visible("series")).orderBy(desc(schema.contents.addedAt), desc(schema.contents.id)).limit(HOME_ROW),
+    db.select().from(schema.contents).where(and(visible(ctx, "vod"), sql`${schema.contents.key} like 'tmdb:%'`)).orderBy(desc(schema.contents.addedAt), desc(schema.contents.id)).limit(HOME_ROW),
+    db.select().from(schema.contents).where(visible(ctx, "series")).orderBy(desc(schema.contents.addedAt), desc(schema.contents.id)).limit(HOME_ROW),
     favoriteKeys(),
   ]);
   const rows: HomeRow[] = [];
@@ -251,7 +254,7 @@ export async function home(ctx: RestContext): Promise<Home> {
   rows.push({ id: "recent-movies", kind: "recent_movies", title: "Films récents", cards: recentMovies.map((c) => gridCard(ctx, c, progress.get(c.key))) });
   rows.push({ id: "recent-series", kind: "recent_series", title: "Séries récentes", cards: recentSeries.map((c) => gridCard(ctx, c, progress.get(c.key))) });
   if (favKeys.length) {
-    const favs = await db.select().from(schema.contents).where(and(eq(schema.contents.visible, true), inArray(schema.contents.key, favKeys)));
+    const favs = await db.select().from(schema.contents).where(and(visibleAny(ctx), inArray(schema.contents.key, favKeys)));
     const order = new Map(favKeys.map((k, i) => [k, i]));
     favs.sort((a, b) => order.get(a.key)! - order.get(b.key)!);
     if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => gridCard(ctx, c)) });
@@ -274,10 +277,10 @@ async function resumeCardsOf(ctx: RestContext, resume: Progress[]): Promise<Card
   if (!resume.length) return [];
   const movieKeys = resume.filter((p) => !/:s\d{2}e\d{2}$/.test(p.contentKey)).map((p) => p.contentKey);
   const episodeKeys = resume.filter((p) => /:s\d{2}e\d{2}$/.test(p.contentKey)).map((p) => p.contentKey);
-  const movies = movieKeys.length ? await db.select().from(schema.contents).where(and(visible("vod"), inArray(schema.contents.key, movieKeys))) : [];
+  const movies = movieKeys.length ? await db.select().from(schema.contents).where(and(visible(ctx, "vod"), inArray(schema.contents.key, movieKeys))) : [];
   const episodes = episodeKeys.length ? await db.select({ e: schema.episodes, c: schema.contents }).from(schema.episodes)
     .innerJoin(schema.contents, eq(schema.contents.id, schema.episodes.contentId))
-    .where(and(inArray(schema.episodes.key, episodeKeys), eq(schema.contents.visible, true))) : [];
+    .where(and(inArray(schema.episodes.key, episodeKeys), visibleAny(ctx))) : [];
   const byKey = new Map<string, Card>();
   for (const c of movies) byKey.set(c.key, { ...baseCard(ctx, c), backdrop: imageOf(ctx, c), progress: null, });
   for (const { e, c } of episodes) {
@@ -293,7 +296,7 @@ const imageOf = (ctx: RestContext, c: Content) => sheetCard(ctx, c, { providerCa
 export async function playback(ctx: RestContext, key: string): Promise<Playback | null> {
   const ep = /^(.*):s(\d{2})e(\d{2})$/.exec(key);
   if (ep) {
-    const content = await contentByKey(ep[1]);
+    const content = await contentByKey(ctx, ep[1]);
     if (!content || content.kind !== "series") return null;
     const { items, categoryNames } = await variantsOf(content);
     await ensureEpisodes(content, items, await upstreamClient(), ctx.tmdbLang);
@@ -313,7 +316,7 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
       } : null,
     };
   }
-  const content = await contentByKey(key);
+  const content = await contentByKey(ctx, key);
   if (!content) return null;
   const { items, categoryNames } = await variantsOf(content);
   const versions = versionsOf(ctx, items.map((i) => playableOfItem(i, i.categoryXtreamId ? categoryNames.get(i.categoryXtreamId) ?? null : null)));
@@ -324,10 +327,10 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
 }
 
 /** The content a progress or favourite key belongs to; null when nothing visible matches. */
-export async function keyExists(key: string): Promise<boolean> {
+export async function keyExists(ctx: RestContext, key: string): Promise<boolean> {
   const ep = /^(.*):s\d{2}e\d{2}$/.exec(key);
-  if (ep) return (await db.select({ id: schema.episodes.id }).from(schema.episodes).where(eq(schema.episodes.key, key))).length > 0;
-  return (await contentByKey(key)) !== null;
+  if (ep) return (await db.select({ id: schema.episodes.id }).from(schema.episodes).where(eq(schema.episodes.key, key))).length > 0 && (await contentByKey(ctx, ep[1])) !== null;
+  return (await contentByKey(ctx, key)) !== null;
 }
 
 // ---------------------------------------------------------------- search
@@ -340,7 +343,7 @@ export async function search(ctx: RestContext, query: string, scope: "all" | "mo
   const tsq = terms.map((t) => `${t.replace(/'/g, "''")}:*`).join(" & ");
   const rank = sql`ts_rank(${schema.contents.search}, to_tsquery('simple', ${tsq}))`;
   const find = (kind: "vod" | "series" | "live") => db.select().from(schema.contents)
-    .where(and(visible(kind), sql`${schema.contents.search} @@ to_tsquery('simple', ${tsq})`))
+    .where(and(visible(ctx, kind), sql`${schema.contents.search} @@ to_tsquery('simple', ${tsq})`))
     .orderBy(desc(rank), desc(schema.contents.voteCount), asc(schema.contents.title)).limit(20);
   const [movies, series, live] = await Promise.all([
     scope === "all" || scope === "movies" ? find("vod") : [], scope === "all" || scope === "series" ? find("series") : [], scope === "all" || scope === "live" ? find("live") : [],

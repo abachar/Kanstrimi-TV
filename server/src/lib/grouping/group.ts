@@ -1,6 +1,6 @@
 import { db, schema, client as pg } from "@/db";
 import { and, asc, gt, inArray, sql } from "drizzle-orm";
-import { parseName, parseCategory, contentKey, defaultLanguage, QUALITY_RANK, DYNAMIC_RANGE_RANK, type CategoryHints, type Quality, type DynamicRange } from "./tags";
+import { parseName, parseCategory, contentKey, defaultLanguage, isAdultName, QUALITY_RANK, DYNAMIC_RANGE_RANK, type CategoryHints, type Quality, type DynamicRange } from "./tags";
 import { cardFields, deaccent } from "./cardFields";
 import { getSettings } from "@/lib/settings";
 import { startLog, finishLog } from "@/lib/jobs/log";
@@ -79,8 +79,8 @@ export async function refreshVisibility() {
 
 async function categoryHints() {
   const cats = await db.select({ kind: schema.categories.kind, xtreamId: schema.categories.xtreamId, name: schema.categories.name }).from(schema.categories);
-  const map = new Map<string, CategoryHints>();
-  for (const c of cats) map.set(`${c.kind}:${c.xtreamId}`, parseCategory(c.name));
+  const map = new Map<string, CategoryHints & { adult: boolean }>();
+  for (const c of cats) map.set(`${c.kind}:${c.xtreamId}`, { ...parseCategory(c.name), adult: isAdultName(c.name) });
   return map;
 }
 
@@ -99,7 +99,7 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
     total += rows.length;
 
     const ids: number[] = [], keys: string[] = [], titles: string[] = [], years: (number | null)[] = [], markets: (string | null)[] = [];
-    const langs: string[] = [], qualities: (Quality | null)[] = [], qranks: number[] = [], drs: (DynamicRange | null)[] = [], tags: string[] = [], seasons: (number | null)[] = [];
+    const langs: string[] = [], qualities: (Quality | null)[] = [], qranks: number[] = [], drs: (DynamicRange | null)[] = [], tags: string[] = [], seasons: (number | null)[] = [], adults: boolean[] = [];
     for (const r of rows) {
       const p = parseName(r.name, r.kind);
       const h = hints.get(`${r.kind}:${r.cat}`);
@@ -113,15 +113,16 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
       qualities.push(quality); qranks.push(quality ? QUALITY_RANK[quality] : 0); drs.push(dr);
       tags.push([...new Set([...p.tags, ...(h?.tags ?? [])])].sort().join(","));
       seasons.push(p.seasonHint ?? null);
+      adults.push(Boolean(h?.adult) || isAdultName(r.name));
     }
     await pg`
       update items i set
         content_key = u.key, clean_title = u.title, year = u.year,
         market = u.market, lang = u.lang, quality = u.quality, quality_rank = u.qrank, dynamic_range = u.dr,
-        tags = string_to_array(u.tags, ','), season_hint = u.season
+        tags = string_to_array(u.tags, ','), season_hint = u.season, adult = u.adult::boolean
       from unnest(${ids}::int[], ${keys}::text[], ${titles}::text[], ${years}::int[], ${markets}::text[], ${langs}::text[],
-                  ${qualities}::text[], ${qranks}::int[], ${drs}::text[], ${tags}::text[], ${seasons}::int[])
-        as u(id, key, title, year, market, lang, quality, qrank, dr, tags, season)
+                  ${qualities}::text[], ${qranks}::int[], ${drs}::text[], ${tags}::text[], ${seasons}::int[], ${adults.map(String)}::text[])
+        as u(id, key, title, year, market, lang, quality, qrank, dr, tags, season, adult)
       where i.id = u.id`;
     if (rows.length < CHUNK) break;
   }
@@ -166,19 +167,19 @@ async function fillCardFields(onlyIds?: number[]) {
     if (!rows.length) break;
     last = rows[rows.length - 1].id;
 
-    const ids: number[] = [], f: Record<string, unknown[]> = { title: [], original_title: [], title_en: [], year: [], end_year: [], poster: [], backdrop: [], overview: [], rating: [], votes: [], genre_ids: [], genres: [], runtime: [], cert: [], cast: [], director: [], trailer: [], status: [], search: [] };
+    const ids: number[] = [], f: Record<string, unknown[]> = { tmdb_adult: [], title: [], original_title: [], title_en: [], year: [], end_year: [], poster: [], backdrop: [], overview: [], rating: [], votes: [], genre_ids: [], genres: [], runtime: [], cert: [], cast: [], director: [], trailer: [], status: [], search: [] };
     for (const r of rows) {
       ids.push(r.id);
       if (r.data && r.tmdb_id) {
         const c = cardFields(r.kind === "vod" ? "movie" : "tv", r.data, lang, r.title);
-        f.title.push(c.title); f.original_title.push(c.originalTitle); f.title_en.push(c.titleEn); f.year.push(c.year); f.end_year.push(c.endYear);
+        f.tmdb_adult.push(c.adult); f.title.push(c.title); f.original_title.push(c.originalTitle); f.title_en.push(c.titleEn); f.year.push(c.year); f.end_year.push(c.endYear);
         f.poster.push(c.posterPath); f.backdrop.push(c.backdropPath); f.overview.push(c.overview); f.rating.push(c.rating); f.votes.push(c.voteCount);
         f.genre_ids.push(c.genreIds.join(",")); f.genres.push(c.genres.join("\u001f")); f.runtime.push(c.runtime); f.cert.push(c.certification);
         f.cast.push(JSON.stringify(c.cast)); f.director.push(c.director); f.trailer.push(c.trailerKey); f.status.push(c.status);
         f.search.push(deaccent([...c.names, ...c.cast.map((p) => p.name), c.director].filter(Boolean).join(" ")));
       } else {
         // Fallback and live: keep what the variants gave, index the title only.
-        f.title.push(r.title); f.original_title.push(null); f.title_en.push(null); f.year.push(null); f.end_year.push(null);
+        f.tmdb_adult.push(false); f.title.push(r.title); f.original_title.push(null); f.title_en.push(null); f.year.push(null); f.end_year.push(null);
         f.poster.push(null); f.backdrop.push(null); f.overview.push(null); f.rating.push(null); f.votes.push(null);
         f.genre_ids.push(""); f.genres.push(""); f.runtime.push(null); f.cert.push(null);
         f.cast.push(null); f.director.push(null); f.trailer.push(null); f.status.push(null);
@@ -189,16 +190,17 @@ async function fillCardFields(onlyIds?: number[]) {
     await pg`
       update contents c set
         title = u.title, original_title = u.original_title, title_en = u.title_en,
+        adult = u.tmdb_adult::boolean or exists (select 1 from items i where i.content_id = c.id) and not exists (select 1 from items i where i.content_id = c.id and not i.adult),
         year = case when c.tmdb_id is not null and u.year is not null then u.year else c.year end, end_year = u.end_year,
         poster_path = u.poster, backdrop_path = u.backdrop, overview = u.overview, rating = u.rating, vote_count = u.votes,
         genre_ids = coalesce(string_to_array(nullif(u.genre_ids, ''), ',')::int[], '{}'), genres = coalesce(string_to_array(nullif(u.genres, ''), E'\\x1f'), '{}'),
         runtime = u.runtime, certification = u.cert, "cast" = u.cast::jsonb, director = u.director, trailer_key = u.trailer, status = u.status,
         search = to_tsvector('simple', u.search), updated_at = now()
-      from unnest(${ids}::int[], ${f.title as string[]}::text[], ${f.original_title as string[]}::text[], ${f.title_en as string[]}::text[], ${f.year as number[]}::int[], ${f.end_year as number[]}::int[],
+      from unnest(${ids}::int[], ${(f.tmdb_adult as boolean[]).map(String)}::text[], ${f.title as string[]}::text[], ${f.original_title as string[]}::text[], ${f.title_en as string[]}::text[], ${f.year as number[]}::int[], ${f.end_year as number[]}::int[],
                   ${f.poster as string[]}::text[], ${f.backdrop as string[]}::text[], ${f.overview as string[]}::text[], ${f.rating as number[]}::real[], ${f.votes as number[]}::int[],
                   ${f.genre_ids as string[]}::text[], ${f.genres as string[]}::text[], ${f.runtime as number[]}::int[], ${f.cert as string[]}::text[],
                   ${f.cast as string[]}::text[], ${f.director as string[]}::text[], ${f.trailer as string[]}::text[], ${f.status as string[]}::text[], ${f.search as string[]}::text[])
-        as u(id, title, original_title, title_en, year, end_year, poster, backdrop, overview, rating, votes, genre_ids, genres, runtime, cert, "cast", director, trailer, status, search)
+        as u(id, tmdb_adult, title, original_title, title_en, year, end_year, poster, backdrop, overview, rating, votes, genre_ids, genres, runtime, cert, "cast", director, trailer, status, search)
       where c.id = u.id`;
     if (rows.length < CARD_CHUNK) break;
   }
@@ -252,6 +254,7 @@ export async function groupingCounts() {
     visible: sql<number>`count(*) filter (where visible)::int`,
     multi: sql<number>`count(*) filter (where variant_count > 1)::int`,
     fallback: sql<number>`count(*) filter (where key like 'fallback:%')::int`,
+    adult: sql<number>`count(*) filter (where adult)::int`,
   }).from(schema.contents).groupBy(schema.contents.kind);
   return rows;
 }

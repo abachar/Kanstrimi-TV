@@ -90,7 +90,7 @@ api.use("*", async (c, next) => {
   let providerName = "Fournisseur";
   try { providerName = new URL(s.xtream_url.startsWith("http") ? s.xtream_url : `http://${s.xtream_url}`).hostname; } catch { /* keep default */ }
   c.set("device", device);
-  c.set("ctx", { baseUrl: publicBaseUrl(c.req.raw, s), device, tmdbLang: s.tmdb_language || "fr-FR", providerName });
+  c.set("ctx", { baseUrl: publicBaseUrl(c.req.raw, s), device, tmdbLang: s.tmdb_language || "fr-FR", providerName, serveAdult: s.serve_adult === "1" });
   await next();
 });
 
@@ -102,7 +102,7 @@ api.delete("/devices/:code", async (c) => {
   return noContent();
 });
 
-api.get("/info", async () => json(await serverInfo()));
+api.get("/info", async (c) => json(await serverInfo(c.get("ctx"))));
 api.get("/home", async (c) => json(await home(c.get("ctx"))));
 
 // ---------------------------------------------------------------- movies, series
@@ -121,7 +121,7 @@ for (const [path, kind] of [["/movies", "vod"], ["/series", "series"]] as const)
     const key = c.req.param("id");
     const parsed = parseKey(key);
     if (!parsed || parsed.kind !== kind || parsed.episode !== undefined) return fail("not_found", "Contenu introuvable");
-    const content = await contentByKey(key);
+    const content = await contentByKey(c.get("ctx"), key);
     if (!content) return fail("not_found", "Contenu introuvable");
     return json(kind === "vod" ? await movieSheet(c.get("ctx"), content) : await seriesSheet(c.get("ctx"), content));
   });
@@ -133,7 +133,7 @@ api.get("/channels", async (c) => json(await channelGroups(c.get("ctx"))));
 api.get("/channels/:id", async (c) => {
   const key = c.req.param("id");
   if (parseKey(key)?.kind !== "live") return fail("not_found", "Chaîne introuvable");
-  const content = await contentByKey(key);
+  const content = await contentByKey(c.get("ctx"), key);
   if (!content) return fail("not_found", "Chaîne introuvable");
   return json(await channelSheet(c.get("ctx"), content));
 });
@@ -153,7 +153,7 @@ api.put("/playback/:id/progress", async (c) => {
   if (!parsed || parsed.kind === "live") return fail("not_found", "Contenu introuvable");
   const body = progressBody.safeParse(await c.req.json().catch(() => null));
   if (!body.success) return fail("bad_request", "position et duration (secondes, ≥ 0) attendus");
-  if (!(await keyExists(key))) return fail("not_found", "Contenu introuvable");
+  if (!(await keyExists(c.get("ctx"), key))) return fail("not_found", "Contenu introuvable");
   await setProgress(key, body.data.position, body.data.duration);
   return noContent();
 });
@@ -169,7 +169,7 @@ for (const method of ["put", "delete"] as const) {
   api[method]("/favorites/:id", async (c) => {
     const key = c.req.param("id");
     const parsed = parseKey(key);
-    if (!parsed || parsed.episode !== undefined || !(await keyExists(key))) return fail("not_found", "Contenu introuvable");
+    if (!parsed || parsed.episode !== undefined || !(await keyExists(c.get("ctx"), key))) return fail("not_found", "Contenu introuvable");
     await setFavorite(key, method === "put");
     return noContent();
   });

@@ -20,7 +20,7 @@ beforeAll(async () => {
   expect(await verify("test")).toBe(true);
   await setSettings({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p", last_sync_at: "2026-09-26T02:10:00.000Z" });
   await seedCategories([
-    { kind: "vod", xtreamId: "10", name: "|FR| FILMS 4K DV" }, { kind: "vod", xtreamId: "11", name: "|FR| FILMS VOST" }, { kind: "vod", xtreamId: "12", name: "|FR| THRILLER" },
+    { kind: "vod", xtreamId: "10", name: "|FR| FILMS 4K DV" }, { kind: "vod", xtreamId: "11", name: "|FR| FILMS VOST" }, { kind: "vod", xtreamId: "12", name: "|FR| THRILLER" }, { kind: "vod", xtreamId: "13", name: "|FR| ADULTES XXX" },
     { kind: "series", xtreamId: "30", name: "|FR| SERIES" },
     { kind: "live", xtreamId: "20", name: "FRANCE FHD | TV" }, { kind: "live", xtreamId: "21", name: "SPORTS HD | TV" }, { kind: "live", xtreamId: "22", name: "HIDDEN | TV", hiddenManual: true },
   ]);
@@ -30,6 +30,7 @@ beforeAll(async () => {
     { kind: "vod", xtreamId: "3", name: "|FR| Heat (VOST)", cat: "11", tmdbId: 949, matchStatus: "matched", addedAt: new Date("2026-09-10T00:00:00Z") },
     { kind: "vod", xtreamId: "4", name: "AZ - Silver.Book.of.Dreams.2013", cat: "12", matchStatus: "unmatched", addedAt: new Date("2026-09-15T00:00:00Z") },
     { kind: "vod", xtreamId: "5", name: "|FR| Caché", cat: "12", matchStatus: "unmatched", hiddenManual: true },
+    { kind: "vod", xtreamId: "6", name: "|FR| Clan of Violence", cat: "13", matchStatus: "unmatched", addedAt: new Date("2026-09-25T00:00:00Z") },
     { kind: "series", xtreamId: "200", name: "|FR| Vincenzo (MULTI)", cat: "30", tmdbId: 1396, matchStatus: "matched", addedAt: new Date("2026-09-18T00:00:00Z") },
     { kind: "series", xtreamId: "201", name: "|FR| Vincenzo (VOST)", cat: "30", tmdbId: 1396, matchStatus: "matched" },
     { kind: "live", xtreamId: "100", name: "|FR| TF1 HD", cat: "20", raw: { num: 1, stream_icon: "http://x/tf1.png", epg_channel_id: "TF1.fr" } },
@@ -96,6 +97,23 @@ describe("pairing", () => {
       expect(r.status, p).toBe(401);
       expect(((await r.json()) as { error: { code: string } }).error.code).toBe("unauthorized");
     }
+  });
+});
+
+describe("adult contents", () => {
+  it("are hidden everywhere by default and served once the setting is on", async () => {
+    const key = "fallback:movie:clan-of-violence:-";
+    expect((await get("/movies")).body[0].movies.map((c: { id: string }) => c.id)).not.toContain(key);
+    expect((await get(`/movies/${key}`)).status).toBe(404);
+    expect((await get("/search?q=clan")).body.movies).toEqual([]);
+    expect((await call(`/favorites/${key}`, { method: "PUT" })).status).toBe(404);
+    expect((await get("/info")).body.counts.movies).toBe(3);
+    await setSettings({ serve_adult: "1" });
+    expect((await get("/movies")).body[0].movies.map((c: { id: string }) => c.id)).toContain(key);
+    expect((await get(`/movies/${key}`)).status).toBe(200);
+    expect((await get("/search?q=clan")).body.movies.map((c: { id: string }) => c.id)).toEqual([key]);
+    expect((await get("/info")).body.counts.movies).toBe(4);
+    await setSettings({ serve_adult: "0" });
   });
 });
 

@@ -72,6 +72,8 @@ export const items = pgTable("items", {
   dynamicRange: text("dynamic_range"),
   tags: text("tags").array().default([]).notNull(),
   seasonHint: integer("season_hint"),
+  /** The provider says so: adult category or tag in the name. */
+  adult: boolean("adult").default(false).notNull(),
 }, (t) => [
   uniqueIndex("items_kind_xtream_idx").on(t.kind, t.xtreamId),
   index("items_kind_cat_idx").on(t.kind, t.categoryXtreamId),
@@ -123,6 +125,8 @@ export const contents = pgTable("contents", {
   languages: text("languages").array().default([]).notNull(),
   dynamicRange: text("dynamic_range"),
   visible: boolean("visible").default(false).notNull(),
+  /** TMDB's adult flag, or every variant flagged by the provider. Served to the app only when `serve_adult` is on. */
+  adult: boolean("adult").default(false).notNull(),
   addedAt: timestamp("added_at", { withTimezone: true }).notNull(),
   search: tsvector("search"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

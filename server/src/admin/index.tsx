@@ -118,9 +118,10 @@ const settingsSchema = z.object({
 });
 admin.get("/settings", async (c) => page(c, "Paramètres", <SettingsView s={await getSettings()} />));
 admin.post("/settings", async (c) => {
-  const parsed = settingsSchema.safeParse(await form(c));
+  const f = await form(c);
+  const parsed = settingsSchema.safeParse(f);
   if (!parsed.success) return back(c, "/admin/settings", { err: zerr(parsed.error) });
-  await setSettings(parsed.data as Partial<Record<SettingKey, string>>);
+  await setSettings({ ...(parsed.data as Partial<Record<SettingKey, string>>), serve_adult: "serve_adult" in f ? "1" : "0" });
   return back(c, "/admin/settings", { ok: "Paramètres enregistrés" });
 });
 admin.post("/settings/test-xtream", async (c) => {
@@ -206,7 +207,7 @@ const catalogQuery = (q: Record<string, string>): CatalogQuery => ({
 });
 const groupsQuery = (q: Record<string, string>): GroupsQuery => ({
   kind: (["live", "vod", "series"].includes(q.kind ?? "") ? q.kind : "vod") as GroupsQuery["kind"],
-  q: q.q?.trim() ?? "", only: (["multi", "fallback", "hidden"].includes(q.only ?? "") ? q.only : "") as GroupsQuery["only"],
+  q: q.q?.trim() ?? "", only: (["multi", "fallback", "hidden", "adult"].includes(q.only ?? "") ? q.only : "") as GroupsQuery["only"],
   page: Math.max(1, Number(q.page) || 1),
 });
 /** Filters shared by the flat list and by one category's slice of the grouped view. */
@@ -231,6 +232,7 @@ admin.get("/catalog", async (c) => {
     if (gq.only === "multi") where.push(sql`${schema.contents.variantCount} > 1`);
     if (gq.only === "fallback") where.push(sql`${schema.contents.key} like 'fallback:%'`);
     if (gq.only === "hidden") where.push(eq(schema.contents.visible, false));
+    if (gq.only === "adult") where.push(eq(schema.contents.adult, true));
     const [{ n: total }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.contents).where(and(...where));
     const rows = await db.select().from(schema.contents).where(and(...where))
       .orderBy(desc(schema.contents.variantCount), asc(schema.contents.title)).limit(GROUPS_PAGE).offset((gq.page - 1) * GROUPS_PAGE);

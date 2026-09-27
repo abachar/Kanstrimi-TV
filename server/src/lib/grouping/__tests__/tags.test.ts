@@ -77,6 +77,14 @@ describe("parseName", () => {
   });
 });
 
+describe("isAdultName", () => {
+  it("spots adult categories and tags, not ordinary words", async () => {
+    const { isAdultName } = await import("../tags");
+    for (const n of ["|FR| ADULTES", "XXX | VOD", "|IT| FILM PORNO", "Some Title (18+)", "|EN| FOR ADULTS", "|FR| Films Érotiques"]) expect(isAdultName(n), n).toBe(true);
+    for (const n of ["|FR| Sex and the City", "|FR| Adult Swim Shows", "|FR| Les 18 Jours", "|FR| Playboys of the Western World"]) expect(isAdultName(n), n).toBe(false);
+  });
+});
+
 describe("parseCategory", () => {
   it.each([
     ["|FR| FILMS 4K DV", { market: "fr", quality: "4K", dynamicRange: "DV" }],

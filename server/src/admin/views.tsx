@@ -43,7 +43,7 @@ export function LoginView({ locked, error, next }: { locked: boolean; error?: st
 type Count = { kind: string; total: number; hidden: number; matched: number; unmatched: number; pending: number };
 type CatCount = { kind: string; total: number; hidden: number };
 export type DashboardData = {
-  groups: { kind: string; total: number; visible: number; multi: number; fallback: number }[];
+  groups: { kind: string; total: number; visible: number; multi: number; fallback: number; adult: number }[];
   s: Settings; items: Count[]; cats: CatCount[]; logs: SyncLog[];
   img: { files: number; bytes: number }; epg: { exists: boolean; bytes: number; mtime: string | null };
 };
@@ -116,10 +116,10 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: Parameters<
             <div class="text-secondary small">Cache images : {fmt(d.img.files)} fichiers, {(d.img.bytes / 1e6).toFixed(0)} Mo</div>
           </Card>
           <Card title="Groupement des variantes" extra={<a href="/admin/catalog?view=groups&kind=vod">voir les groupes</a>}>
-            {(["vod", "series", "live"] as const).map((k) => { const g = d.groups.find((r) => r.kind === k) ?? { total: 0, visible: 0, multi: 0, fallback: 0 }; const i = item(k); return (
+            {(["vod", "series", "live"] as const).map((k) => { const g = d.groups.find((r) => r.kind === k) ?? { total: 0, visible: 0, multi: 0, fallback: 0, adult: 0 }; const i = item(k); return (
               <div class="d-flex justify-content-between small mb-1">
                 <span>{k === "vod" ? "Films" : k === "series" ? "Séries" : "Chaînes"}</span>
-                <span>{fmt(g.visible)} contenus pour {fmt(i.total - i.hidden)} entrées · {fmt(g.multi)} à plusieurs variantes{k !== "live" ? ` · ${fmt(g.fallback)} sans TMDB` : ""}</span>
+                <span>{fmt(g.visible)} contenus pour {fmt(i.total - i.hidden)} entrées · {fmt(g.multi)} à plusieurs variantes{k !== "live" ? ` · ${fmt(g.fallback)} sans TMDB` : ""}{g.adult ? ` · ${fmt(g.adult)} adultes` : ""}</span>
               </div>
             ); })}
           </Card>
@@ -256,6 +256,11 @@ export function SettingsView({ s }: { s: Settings }) {
           <div class="row g-3">
             <F name="proxy_username" label="Utilisateur" col="col-12 col-md-6" />
             <F name="public_base_url" label="URL publique de ce serveur" hint="Optionnel, ex : http://192.168.1.10:3000" col="col-12 col-md-6" />
+          </div>
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" name="serve_adult" id="serve-adult" checked={s.serve_adult === "1"} />
+            <label class="form-check-label" for="serve-adult">Servir les contenus adultes à l'application tvOS</label>
+            <div class="form-text">Désactivé : les contenus marqués adultes par TMDB ou par la catégorie du fournisseur disparaissent de l'accueil, des listes, de la recherche et des fiches. L'API Xtream n'est pas concernée : ses règles de filtrage s'appliquent seules.</div>
           </div>
         </Card>
         <Card title="Planification" hint="Cron à 5 champs : minute, heure, jour, mois, jour de la semaine.">

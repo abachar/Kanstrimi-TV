@@ -10,6 +10,7 @@ export type CardFields = {
   cast: { name: string; role: string | null }[]; director: string | null; trailerKey: string | null; status: string | null;
   /** Every name the work is known by, for the search index: titles in all languages, capped. */
   names: string[];
+  adult: boolean;
 };
 
 const yearOf = (d?: string) => { const y = Number((d ?? "").slice(0, 4)); return y > 1800 ? y : null; };
@@ -55,6 +56,7 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
     trailerKey: trailerKeyOf(d),
     status: d.status ?? null,
     names: namesOf(d).slice(0, 24),
+    adult: d.adult === true,
   };
 }
 

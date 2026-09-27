@@ -42,7 +42,7 @@ export function ItemView({ it, cat, content, siblings, tmdb, tmdbLang }: {
           <Table title="Lecture du nom" extra="ce que la grammaire en tire" rows={[
             ["Titre nettoyé", p.title], ["Année", p.year], ["Marché", p.market], ["Langue", p.language], ["Qualité", p.quality], ["Dynamique", p.dynamicRange], ["Tags", p.tags], ["Saison", p.seasonHint],
             ["Indices de la catégorie", h ? [h.market && `marché ${h.market}`, h.language && `langue ${h.language}`, h.quality && `qualité ${h.quality}`, h.dynamicRange, ...h.tags].filter(Boolean).join(", ") : null],
-            ["Retenu en base", `${it.lang ?? "—"} · ${it.quality ?? "qualité inconnue"}${it.dynamicRange ? ` · ${it.dynamicRange}` : ""}${it.market ? ` · marché ${it.market}` : ""}`],
+            ["Retenu en base", `${it.lang ?? "—"} · ${it.quality ?? "qualité inconnue"}${it.dynamicRange ? ` · ${it.dynamicRange}` : ""}${it.market ? ` · marché ${it.market}` : ""}${it.adult ? " · adulte (fournisseur)" : ""}`],
           ]} />
           {it.kind !== "live" && (
             <div class="card mb-3"><div class="card-header fw-semibold">Association TMDB <small class="text-secondary ms-2">{MATCH[it.matchStatus] ?? it.matchStatus}{it.matchScore != null ? ` · score ${Math.round(it.matchScore * 100)} %` : ""}{it.matchedAt ? ` · ${it.matchedAt.toLocaleString("fr-FR")}` : ""}</small></div>
@@ -65,7 +65,7 @@ export function ItemView({ it, cat, content, siblings, tmdb, tmdbLang }: {
           <Table title="Contenu" extra={content ? <a href={`/admin/catalog?kind=${it.kind}&view=groups&q=${encodeURIComponent(content.title)}`}>voir le groupe</a> : "aucun : relancer l'étape 4"} rows={content ? [
             ["Clé", content.key], ["Titre", content.title], ["Titre original", content.originalTitle], ["Titre anglais", content.titleEn], ["Année", content.year], ["Note", content.rating], ["Genres", content.genres],
             ["Variantes", content.variantCount], ["Langues", content.languages], ["Qualité max", ["—", "SD", "HD", "FHD", "4K"][content.maxQualityRank]], ["Dynamique", content.dynamicRange],
-            ["Visible pour l'app", content.visible ? "oui" : "non"], ["Ajouté", content.addedAt], ["Override manuel", it.keyOverride],
+            ["Visible pour l'app", content.visible ? (content.adult ? "oui, sauf si les contenus adultes sont désactivés (Paramètres)" : "oui") : "non"], ["Adulte", content.adult ? "oui" : "non"], ["Ajouté", content.addedAt], ["Override manuel", it.keyOverride],
           ] : [["Clé calculée", it.contentKey]]} />
           {siblings.length > 1 && (
             <div class="card mb-3"><div class="card-header fw-semibold">Variantes du même contenu <small class="text-secondary ms-2">{siblings.length}</small></div>

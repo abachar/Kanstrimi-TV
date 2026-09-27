@@ -10,6 +10,7 @@ export const SETTING_KEYS = [
   "sync_cron",            // cron expr for catalog sync
   "epg_cron",             // cron expr for EPG rebuild
   "public_base_url",      // optional, e.g. http://192.168.1.10:3000
+  "serve_adult",          // "1" = adult-flagged contents are served to the apps; off by default
   "last_sync_at",
   "last_epg_at",
 ] as const;
@@ -23,6 +24,7 @@ export const DEFAULTS: Partial<Record<SettingKey, string>> = {
   tmdb_language: "fr-FR",
   sync_cron: "0 */6 * * *",
   epg_cron: "0 3 * * *",
+  serve_adult: "0",
 };
 
 export type Settings = Record<SettingKey, string>;

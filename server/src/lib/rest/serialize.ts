@@ -13,6 +13,8 @@ export type RestContext = {
   tmdbLang: string;
   /** Display name of the single Xtream account (its host). */
   providerName: string;
+  /** Paramètres › « Servir les contenus adultes » ; off by default. */
+  serveAdult: boolean;
 };
 
 export const DEFAULT_LANGUAGE_ORDER = ["VF", "VOSTFR", "VO"];

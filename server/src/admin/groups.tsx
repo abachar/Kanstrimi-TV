@@ -1,7 +1,7 @@
 import type { Content, Item, Category } from "@/db/schema";
 import { fmt } from "./layout";
 
-export type GroupsQuery = { kind: "live" | "vod" | "series"; q: string; only: "" | "multi" | "fallback" | "hidden"; page: number };
+export type GroupsQuery = { kind: "live" | "vod" | "series"; q: string; only: "" | "multi" | "fallback" | "hidden" | "adult"; page: number };
 const PAGE = 50;
 
 export function groupsLink(qy: GroupsQuery, p: Partial<GroupsQuery> = {}) {
@@ -24,7 +24,7 @@ export function GroupsView({ qy, rows, total }: { qy: GroupsQuery; rows: Content
         <input type="hidden" name="view" value="groups" /><input type="hidden" name="kind" value={qy.kind} />
         <div class="col-12 col-md-5"><input class="form-control" type="search" name="q" value={qy.q} placeholder="Rechercher un contenu…" aria-label="Rechercher un contenu" enterkeyhint="search" /></div>
         <div class="col-8 col-md-4"><select class="form-select" name="only" aria-label="Filtre">
-          {[["", "Tous les contenus"], ["multi", "Plusieurs variantes"], ["fallback", "Sans TMDB (repli)"], ["hidden", "Invisibles"]].map(([v, l]) => <option value={v} selected={v === qy.only}>{l}</option>)}
+          {[["", "Tous les contenus"], ["multi", "Plusieurs variantes"], ["fallback", "Sans TMDB (repli)"], ["hidden", "Invisibles"], ["adult", "Adultes"]].map(([v, l]) => <option value={v} selected={v === qy.only}>{l}</option>)}
         </select></div>
         <div class="col-4 col-md-3 d-grid"><button class="btn btn-secondary">Filtrer</button></div>
       </form>
@@ -55,6 +55,7 @@ export function GroupRow({ c }: { c: Content }) {
         <span class="badge text-bg-secondary fw-normal">{keyKind(c.key)}</span>
         {c.languages.map((l) => <span class="badge text-bg-dark fw-normal">{l}</span>)}
         {c.dynamicRange && <span class="badge text-bg-dark fw-normal">{c.dynamicRange}</span>}
+        {c.adult && <span class="badge text-bg-warning fw-normal">adulte</span>}
         <code class="small text-secondary ms-md-auto">{c.key}</code>
       </div>
       <div id={`${id}-variants`}></div>
