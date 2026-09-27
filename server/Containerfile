@@ -25,7 +25,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 # Plain JavaScript plus the SQL migrations, which are data files read at run time
-# (dist/db/migrate.js resolves ../../drizzle relative to itself).
+# (dist/db/migrate.js finds ../drizzle by walking up from its own directory).
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node drizzle ./drizzle
 

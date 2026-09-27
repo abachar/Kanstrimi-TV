@@ -1,6 +1,6 @@
 import { db, schema, client } from "@/db";
 import { sql } from "drizzle-orm";
-import type { XStream } from "@/lib/xtream/types";
+import type { XStream } from "@/sync";
 
 /** Empty every catalogue table between test files. */
 export async function resetDb() {

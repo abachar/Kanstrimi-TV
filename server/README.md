@@ -50,7 +50,7 @@ Le cron `sync_cron` enchaîne `source → enrich` ; `epg_cron` gère l'EPG. Les 
 
 | Route | Rôle |
 |---|---|
-| `/api/v1/*` | API REST de l'app tvOS. Contrat : `src/app/api/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). |
+| `/api/v1/*` | API REST de l'app tvOS. Contrat : `src/player/api/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). |
 | `/img/<size>/<file>` | images TMDB en cache (`DATA_DIR/images`), URL portée par chaque carte |
 | `/api/health` | santé (base joignable ; l'état du coffre est dans le corps, pas dans le code HTTP) |
 
@@ -87,8 +87,8 @@ casserait une règle métier ; sinon elle reste dans le bloc qui l'utilise.
 
 - **Pas de roue réinventée quand une lib fait le travail** : `croner` évalue les crons et
   `cronstrue` les décrit en français (`sync/cron.ts`) ; `@hono/zod-validator` porte les
-  schémas zod sur les routes (`c.req.valid(...)`) ; `hono/csrf` protège les formulaires de
-  l'admin (comparaison sur l'hôte, TLS terminé par Caddy), `hono/secure-headers` et
+  schémas zod sur les routes (`c.req.valid(...)`) ; `admin/csrf.ts` protège les formulaires de
+  l'admin (`Origin`, sinon `Sec-Fetch-Site` ou `Referer`, comparés sur l'hôte : `hono/csrf` rejette Safari, qui omet parfois `Origin`), `hono/secure-headers` et
   `hono/body-limit` s'appliquent à tout ; `shared/env.ts` valide l'environnement avec zod et
   arrête le processus avec un message clair. Reste maison à dessein : la similarité de titres
   (calibrée), les clients Xtream et TMDB (petits, taillés pour ce qu'on stocke), le logger
