@@ -12,24 +12,49 @@ import { catalogQs, type CatalogQuery } from "./query";
  * targeting `closest .list-group-item` there resolves to nothing and htmx drops the request silently.
  * The current filters ride along in the query string so the route can rebuild the row.
  */
-export function VisibilityToggle({ scope, id, hiddenByRule, hiddenManual, catHidden = false, qy }: {
-  scope: "item" | "category"; id: number; hiddenByRule: boolean; hiddenManual: boolean; catHidden?: boolean; qy: CatalogQuery;
+export function VisibilityToggle({
+  scope,
+  id,
+  hiddenByRule,
+  hiddenManual,
+  catHidden = false,
+  qy,
+}: {
+  scope: "item" | "category";
+  id: number;
+  hiddenByRule: boolean;
+  hiddenManual: boolean;
+  catHidden?: boolean;
+  qy: CatalogQuery;
 }) {
   const domId = `vis-${scope}-${id}`;
   const visible = !hiddenManual;
   // A rule or a hidden category outranks the switch: say which, instead of showing a lie.
   const forced = hiddenByRule ? "Masqué par une règle" : catHidden ? "Masqué par la catégorie" : null;
   const label = forced ?? (visible ? "Visible" : "Masqué");
-  const title = hiddenByRule ? "Une règle de filtrage masque cet élément : modifiez la règle pour le réafficher."
-    : catHidden ? "Sa catégorie est masquée : réaffichez la catégorie pour le rendre visible."
+  const title = hiddenByRule
+    ? "Une règle de filtrage masque cet élément : modifiez la règle pour le réafficher."
+    : catHidden
+      ? "Sa catégorie est masquée : réaffichez la catégorie pour le rendre visible."
       : "Afficher ou masquer cet élément pour les applications IPTV";
   return (
     <div id={domId} class="d-flex align-items-center gap-2">
       <div class="form-check form-switch m-0">
-        <input class="form-check-input" type="checkbox" role="switch" name="visible" id={`${domId}-input`} checked={visible && !forced} title={title}
-          hx-post={`/admin/catalog/${scope}/${id}/visible?${catalogQs(qy)}`} hx-trigger="change"
-          {...(scope === "item" ? { "hx-target": "closest .list-group-item", "hx-swap": "outerHTML" } : { "hx-swap": "none" })} />
-        <label class={`form-check-label small ${forced || !visible ? "text-secondary" : ""}`} for={`${domId}-input`}>{label}</label>
+        <input
+          class="form-check-input"
+          type="checkbox"
+          role="switch"
+          name="visible"
+          id={`${domId}-input`}
+          checked={visible && !forced}
+          title={title}
+          hx-post={`/admin/catalog/${scope}/${id}/visible?${catalogQs(qy)}`}
+          hx-trigger="change"
+          {...(scope === "item" ? { "hx-target": "closest .list-group-item", "hx-swap": "outerHTML" } : { "hx-swap": "none" })}
+        />
+        <label class={`form-check-label small ${forced || !visible ? "text-secondary" : ""}`} for={`${domId}-input`}>
+          {label}
+        </label>
       </div>
     </div>
   );

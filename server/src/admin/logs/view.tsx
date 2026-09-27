@@ -1,5 +1,6 @@
 import type { SyncLog } from "@/db";
-import { fmt, duration, Status, Title } from "../layout";
+import { fmt, duration } from "../format";
+import { Status, Title } from "../ui";
 import { STAT_LABELS, jobLabel } from "../labels";
 
 /** Stats as readable chips; zeros and unknown keys stay, but the raw JSON never shows. */
@@ -30,37 +31,60 @@ export function LogsTable({ logs }: { logs: SyncLog[] }) {
   return (
     <>
       {/* Table on md+, stacked cards on phones: a 5-column table would scroll the details off-screen. */}
-      <div class="table-responsive d-none d-md-block"><table class="table table-sm align-middle mb-0">
-        <thead><tr><th>Job</th><th>Statut</th><th class="text-nowrap">Début</th><th>Durée</th><th class="w-50">Détails</th></tr></thead>
-        <tbody>{logs.map((l) => (
-          <tr>
-            <td class="text-nowrap">{jobLabel(l.job)}</td>
-            <td><Status status={l.status} /></td>
-            <td class="text-nowrap small">{when(l)}</td>
-            <td class="text-nowrap">{took(l)}</td>
-            <td>
-              {l.message && <div class="text-danger small text-break">{l.message}</div>}
-              <StatChips stats={l.stats} />
-            </td>
-          </tr>
-        ))}</tbody>
-      </table></div>
+      <div class="table-responsive d-none d-md-block">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>Statut</th>
+              <th class="text-nowrap">Début</th>
+              <th>Durée</th>
+              <th class="w-50">Détails</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((l) => (
+              <tr>
+                <td class="text-nowrap">{jobLabel(l.job)}</td>
+                <td>
+                  <Status status={l.status} />
+                </td>
+                <td class="text-nowrap small">{when(l)}</td>
+                <td class="text-nowrap">{took(l)}</td>
+                <td>
+                  {l.message && <div class="text-danger small text-break">{l.message}</div>}
+                  <StatChips stats={l.stats} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <div class="list-group d-md-none">{logs.map((l) => (
-        <div class="list-group-item">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="fw-semibold">{jobLabel(l.job)}</span>
-            <Status status={l.status} />
+      <div class="list-group d-md-none">
+        {logs.map((l) => (
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-semibold">{jobLabel(l.job)}</span>
+              <Status status={l.status} />
+            </div>
+            <div class="text-secondary small mb-2">
+              {when(l)} · {took(l)}
+            </div>
+            {l.message && <div class="text-danger small text-break mb-2">{l.message}</div>}
+            <StatChips stats={l.stats} />
           </div>
-          <div class="text-secondary small mb-2">{when(l)} · {took(l)}</div>
-          {l.message && <div class="text-danger small text-break mb-2">{l.message}</div>}
-          <StatChips stats={l.stats} />
-        </div>
-      ))}</div>
+        ))}
+      </div>
     </>
   );
 }
 
 export function LogsView({ logs }: { logs: SyncLog[] }) {
-  return <><Title t="Journaux" sub="Historique des traitements" /><LogsTable logs={logs} /></>;
+  return (
+    <>
+      <Title t="Journaux" sub="Historique des traitements" />
+      <LogsTable logs={logs} />
+    </>
+  );
 }

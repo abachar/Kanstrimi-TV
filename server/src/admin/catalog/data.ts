@@ -1,11 +1,12 @@
 import { and, asc, eq, ilike, sql, type SQL } from "drizzle-orm";
-import { db, schema } from "@/db";
-import type { Category, Item } from "@/db";
-import { hiddenItem, visibleItem, type Kind } from "@/db";
+import { db, schema, hiddenItem, visibleItem, type Kind } from "@/db";
+import type { Item } from "@/db";
 
 /** How the admin narrows the catalogue. `vis` and `tmdb` are independent: "hidden and TMDB unmatched" is a valid question. */
 export type CatalogFilter = {
-  kind: Kind; q: string; cat: string;
+  kind: Kind;
+  q: string;
+  cat: string;
   vis: "" | "visible" | "hidden";
   tmdb: "" | "matched" | "unmatched" | "pending";
 };
@@ -23,16 +24,6 @@ export function catalogWhere(f: CatalogFilter): SQL {
   return and(...where)!;
 }
 
-export async function categoriesOfKind(kind: Kind): Promise<Category[]> {
-  return db.select().from(schema.categories).where(eq(schema.categories.kind, kind)).orderBy(asc(schema.categories.position));
-}
-
-export async function categoryByXtreamId(kind: Kind, xtreamId: string | null): Promise<Category | null> {
-  if (!xtreamId) return null;
-  const [c] = await db.select().from(schema.categories).where(and(eq(schema.categories.kind, kind), eq(schema.categories.xtreamId, xtreamId)));
-  return c ?? null;
-}
-
 export async function countItems(f: CatalogFilter): Promise<number> {
   const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.items).where(catalogWhere(f));
   return n;
@@ -40,18 +31,22 @@ export async function countItems(f: CatalogFilter): Promise<number> {
 
 /** One page in provider order. Asks for one row past the page: cheaper than a second count(*) just to know if more remain. */
 export async function pageItems(f: CatalogFilter, page: number, size = CATALOG_PAGE): Promise<{ rows: Item[]; hasMore: boolean }> {
-  const rows = await db.select().from(schema.items).where(catalogWhere(f)).orderBy(asc(schema.items.position)).limit(size + 1).offset((page - 1) * size);
+  const rows = await db
+    .select()
+    .from(schema.items)
+    .where(catalogWhere(f))
+    .orderBy(asc(schema.items.position))
+    .limit(size + 1)
+    .offset((page - 1) * size);
   return { rows: rows.slice(0, size), hasMore: rows.length > size };
 }
 
 /** Entries per category, for the badges of the grouped view. */
 export async function itemCountByCategory(kind: Kind): Promise<Map<string, number>> {
-  const rows = await db.select({ cat: schema.items.categoryXtreamId, n: sql<number>`count(*)::int` })
-    .from(schema.items).where(eq(schema.items.kind, kind)).groupBy(schema.items.categoryXtreamId);
+  const rows = await db
+    .select({ cat: schema.items.categoryXtreamId, n: sql<number>`count(*)::int` })
+    .from(schema.items)
+    .where(eq(schema.items.kind, kind))
+    .groupBy(schema.items.categoryXtreamId);
   return new Map(rows.map((r) => [r.cat ?? "", r.n]));
-}
-
-export async function itemById(id: number): Promise<Item | null> {
-  const [it] = await db.select().from(schema.items).where(eq(schema.items.id, id));
-  return it ?? null;
 }

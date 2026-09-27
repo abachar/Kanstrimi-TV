@@ -1,6 +1,6 @@
 # Kanstrimi — serveur
 
-Node 22 · Hono · TypeScript · Postgres + Drizzle · admin rendue côté serveur (Hono JSX +
+Node 22 · Hono · TypeScript · Biome (formatage, `biome.json`, 140 colonnes) · Postgres + Drizzle · admin rendue côté serveur (Hono JSX +
 HTMX + Bootstrap 5 via CDN, **aucun CSS ni JS maison**) · Vitest · esbuild pour la production.
 Il importe le catalogue du fournisseur, le nettoie, l'enrichit et le sert à l'app tvOS ; la
 vidéo ne le traverse jamais (`302` vers le fournisseur).
@@ -22,103 +22,121 @@ appairer l'Apple TV.
 | Script | Rôle |
 |---|---|
 | `npm run dev` | serveur en watch (tsx) |
-| `npm run typecheck` · `npm test` · `npm run build` | à lancer après chaque modification |
-| `npm run db:generate` | migration drizzle-kit après un changement de `src/db/schema.ts` |
+| `npm run format` · `npm run typecheck` · `npm test` · `npm run build` | à lancer après chaque modification (`format:check` vérifie sans écrire) |
+| `npm run db:generate` | migration drizzle-kit après un changement de `src/db/schema.ts` (`--custom` pour une migration de données, ex. `0006`) |
 | `npm run db:migrate` | migrateur runtime (`src/db/migrate.ts` ; en production le conteneur oneshot `kanstrimi-migrate` lance `dist/db/migrate.js`) |
 
 Les tests `*.db.test.ts` exigent un Postgres de test : `TEST_DATABASE_URL`, sinon
 `kanstrimi_test` en local. Il est migré par `src/test/global-setup.ts` et vidé par chaque
-fichier de test ; jamais la base de dev.
+fichier de test ; jamais la base de dev. Les tests vivent dans un `__tests__/` à côté du code
+qu'ils couvrent.
 
 ## Traitement
 
-Cinq jobs indépendants (`src/sync/jobs.ts`), chacun relançable seul depuis le tableau de
-bord, refusé s'il tourne déjà. Pas d'orchestrateur.
+Le pipeline du catalogue (`src/catalog/pipeline.ts`) enchaîne cinq étapes, chacune une fonction
+de son module, exécutée seule sous le journal (`sync_logs`) et refusée si elle tourne déjà.
 
-| Job | Rôle |
-|---|---|
-| `source` | lit le catalogue Xtream dans la base, supprime les disparus, puis applique les filtres et regroupe |
-| `filters` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau |
-| `enrich` | matching TMDB des éléments en attente (identifiant amont vérifié par preuves, puis recherche par titre), puis regroupe |
-| `group` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` |
-| `epg` | télécharge le XMLTV amont sur disque (rien ne le sert encore : première moitié du `now`/`next` des chaînes) |
+| Étape | Module | Rôle |
+|---|---|---|
+| `source` | `providers/xtream/import.ts` | lit le catalogue Xtream dans la base, supprime les disparus. Rien d'autre. |
+| `filters` | `catalog/rules/apply.ts` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau |
+| `enrich` | `providers/tmdb/enrich.ts` | matching TMDB des éléments en attente (identifiant amont vérifié par preuves, puis recherche par titre) |
+| `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; écrit aussi `clean_title` et `year` |
+| `epg` | `providers/xtream/epg.ts` | télécharge le XMLTV amont sur disque (rien ne le sert encore) |
 
-Le cron `sync_cron` enchaîne `source → enrich` ; `epg_cron` gère l'EPG. Les crons sont
-évalués en heure locale.
+`runAll()` = `source → filters → group`, puis `enrich → group` si une clé TMDB existe. Depuis le
+tableau de bord, « Lire la source » enchaîne aussi filtres et groupement, « Enrichir » regroupe
+ensuite ; « Tout enchaîner » appelle `runAll()`. Deux jobs `croner` (`protect: true`) lancent
+`runAll` sur `sync_cron` et `epg` sur `epg_cron`, en heure locale ; ils sont recréés à chaque
+enregistrement des Paramètres (`onSettingsChange`) et ne font rien tant que le coffre est verrouillé.
 
 ## APIs exposées
 
 | Route | Rôle |
 |---|---|
-| `/api/v1/*` | API REST de l'app tvOS. Contrat : `src/player/api/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). |
-| `/img/<size>/<file>` | images TMDB en cache (`DATA_DIR/images`), URL portée par chaque carte |
-| `/api/health` | santé (base joignable ; l'état du coffre est dans le corps, pas dans le code HTTP) |
+| `/player/*` | API REST de l'app tvOS (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). |
+| `/img/<size>/<file>` | images TMDB en cache (`DATA_DIR/images`), route de `providers/tmdb/img-route.ts` montée par `main.ts` ; URL portée par chaque carte |
+| `/health` | santé (base joignable ; l'état du coffre est dans le corps, pas dans le code HTTP) |
 
 ## Structure
 
-Cinq blocs, chacun avec un `index.ts` qui est sa seule porte d'entrée : on importe `@/sync`,
-jamais `@/sync/grouping/group`. Dépendances dans un seul sens :
-`admin → app, sync, db, shared` · `app → sync, db, shared` · `sync → db, shared` · `db → shared`.
+Un dossier par chose que fait le système. Chaque bloc s'importe par son `index.ts`, qui liste
+nommément ce qu'il expose : on importe `@/catalog`, jamais `@/catalog/grouping/group`, et ce
+qui n'est pas dans l'index est privé au dossier. Le graphe des dépendances est vérifié par
+`src/__tests__/architecture.test.ts` :
 
 ```
-src/
-  server.ts            composition : Hono, blocs, scheduler, arrêt propre
-  shared/              env (validé par zod), crypto, erreurs, journal des requêtes
-  db/                  schéma Drizzle, client, migrateur (bundlé en dist/db/migrate.js), kind,
-                       réglages chiffrés, coffre (clé AES en RAM), queries/ = requêtes partagées
-                       ou porteuses d'un invariant (visibilité)
-  sync/                le pipeline, une étape par dossier :
-    reader/            client Xtream, import du catalogue, EPG
-    filters/           moteur de règles regex et leur application
-    grouping/          grammaire des noms, variantes → contents, champs de carte
-    enrich/tmdb/       client, matching par preuves, enrichissement, cache images
-    episodes.ts        arbre des épisodes d'une série, importé à la demande
-    jobs.ts cron.ts journal.ts   orchestration : 5 jobs, cron, journal des exécutions
-  app/                 l'app tvOS : api/ (routes, contrat types.ts, sérialisation, catalogue,
-                       progression, favoris, images) et devices/ (appairage, jetons)
-  admin/               une page par dossier : routes.tsx, view.tsx, data.ts (ses requêtes)
-  test/                base de test et jeux de données
+main.ts     composition : Hono, middlewares, montage de player, admin et /img, planification, arrêt propre
+admin/      pages (routes.tsx + view.tsx, data.ts pour les seules requêtes de présentation) ;
+            layout.tsx, ui.tsx (composants Bootstrap), format.ts (nombres, dates, cron), labels.ts,
+            http.tsx, session.ts, csrf.ts. Aucune écriture en base : l'admin appelle le domaine.
+player/     /player, un fichier par ressource (devices, stream, info, home, lists, sheets, channels,
+            playback, search, favorites) ; context, auth, http, cards, versions, stream-links,
+            contents (ce que l'app a le droit de voir), progress, episodes (wire), types.ts = le contrat
+catalog/    le domaine : naming (la grammaire des noms), keys (contentKey, parseKey, préfixes),
+            queries (lectures partagées), rules/ (moteur, application, gestion), grouping/ (group,
+            split/merge manuel), matching (correction TMDB manuelle), episodes (arbre d'une série,
+            rafraîchi à la demande), journal, pipeline (les cinq étapes, le verrou, les crons)
+devices/    appairage par code, jetons, déverrouillage du coffre au premier appel
+providers/  xtream/ (client, xtreamFromSettings, import, epg, upstreamStreamUrl), tmdb/ (client,
+            match, enrich, card-fields, cache images + route /img). Un provider ne connaît pas le catalogue.
+config/     settings (réglages chiffrés, cache mémoire, onSettingsChange), vault (mot de passe, clé AES en RAM)
+db/         client, schema, migrate, kind (le vocabulaire live/vod/series et ses mappages),
+            visibility (les prédicats visibleItem / hiddenItem / visibleCategory)
+shared/     env, errors, http-log, crypto, text (stripAccents, slug, searchText, similarityKey)
+            RÈGLE : n'importe jamais `@/`. C'est ce qui l'empêche de devenir un fourre-tout.
+test/       base de test et jeux de données
 ```
 
-Une requête monte dans `db/queries/` quand un deuxième bloc en a besoin ou quand se tromper
-casserait une règle métier ; sinon elle reste dans le bloc qui l'utilise.
+Dépendances, de bas en haut : `shared ← db ← config ← providers/* ← catalog ← devices ← player, admin`.
+`player` et `admin` ne s'importent jamais. `player` ne prend aux providers qu'une fonction pure,
+`upstreamStreamUrl`, pour le `302` ; il ne connaît pas TMDB. Le seul réseau au fil des requêtes
+de l'app : le cache d'images à la première demande, et `catalog/episodes` qui relit
+`get_series_info` et la saison TMDB quand l'arbre d'une série a plus de 12 h.
+
+Une requête monte dans `catalog/queries.ts` quand un deuxième bloc en a besoin ; un prédicat monte
+dans `db/visibility.ts` quand se tromper casserait une règle métier.
 
 ## Conventions et pièges
 
-- **Pas de roue réinventée quand une lib fait le travail** : `croner` évalue les crons et
-  `cronstrue` les décrit en français (`sync/cron.ts`) ; `@hono/zod-validator` porte les
-  schémas zod sur les routes (`c.req.valid(...)`) ; `admin/csrf.ts` protège les formulaires de
-  l'admin (`Origin`, sinon `Sec-Fetch-Site` ou `Referer`, comparés sur l'hôte : `hono/csrf` rejette Safari, qui omet parfois `Origin`), `hono/secure-headers` et
-  `hono/body-limit` s'appliquent à tout ; `shared/env.ts` valide l'environnement avec zod et
-  arrête le processus avec un message clair. Reste maison à dessein : la similarité de titres
-  (calibrée), les clients Xtream et TMDB (petits, taillés pour ce qu'on stocke), le logger
-  (caviarde les mots de passe des URL).
-- Alias `@/` → `src/`. Les vues JSX rendent en HTML ; interactivité minimale via `hx-*`.
-- **Partagé ou local** : ce qui ne sert qu'à un bloc reste dans ce bloc (`admin/*/data.ts`) ;
-  l'enrichissement ne regroupe pas lui-même, c'est `sync/jobs.ts` qui enchaîne les étapes. Uniquement
+- **Pas de roue réinventée quand une lib fait le travail** : `croner` planifie et verrouille
+  (`protect`), `cronstrue` décrit les crons en français (`admin/format.ts`) ; `@hono/zod-validator`
+  porte les schémas zod sur les routes ; `admin/csrf.ts` protège les formulaires (`Origin`, sinon
+  `Sec-Fetch-Site` ou `Referer`, comparés sur l'hôte : `hono/csrf` rejette Safari, qui omet parfois
+  `Origin`), `hono/secure-headers` et `hono/body-limit` s'appliquent à tout ; `shared/env.ts` valide
+  l'environnement avec zod et arrête le processus avec un message clair. Reste maison à dessein : la
+  similarité de titres (calibrée), les clients Xtream et TMDB (petits, taillés pour ce qu'on stocke),
+  le logger (caviarde les mots de passe des URL).
+- Alias `@/` → `src/`. Les vues JSX rendent en HTML ; interactivité minimale via `hx-*`. Uniquement
   des classes Bootstrap, pas d'attribut `style`.
-- **Visibilité** : un seul jeu de prédicats, `db/queries/visibility.ts` (`visibleItem`,
-  `hiddenItem`, `visibleCategory`, `inHiddenCategory`). Une catégorie masquée masque ses
-  éléments sans toucher leurs colonnes.
-- **Groupement** : `sync/grouping/naming.ts` est *la* grammaire des noms. Un `item` = une
-  variante jouable ; `contents.key` = identité exposée aux apps, jamais `contents.id`. Les
-  mises à jour massives passent par `unnest()` avec le template postgres-js (`client`), pas
-  `sql` de Drizzle qui éclate les tableaux.
-- **Données amont non fiables** : `xtream_id` est du texte opaque et non unique
-  (dédoublonnage à l'import), les champs manquants sont tolérés, l'identifiant TMDB fourni
-  n'est jamais cru sur parole.
-- **Secrets** : un seul mot de passe (hash bcrypt dans `.env`), clé AES-256-GCM dérivée en
-  RAM (`db/vault.ts`), chiffrement transparent des réglages sensibles dans `db/settings.ts`. Après un redémarrage le serveur est **verrouillé** jusqu'à la première
-  requête authentifiée ; le premier appel d'un appareil tvOS déverrouille grâce à
-  `devices.wrapped_key`.
-- **Ne jamais journaliser une URL brute** : le mot de passe circule dans les query strings et
-  les chemins de flux. Passer par `requestLogger()` de `shared/http-log.ts`.
+- **Une seule source pour chaque fait** : les mappages de `kind` (`tmdbMediaType`) dans `db/kind.ts` ;
+  la forme des clés dans `catalog/keys.ts` (`isTmdbKey`, `hasTmdbKey`, `isEpisodeKey`…) ; la
+  suppression d'accents dans `shared/text.ts` (quatre dérivés nommés par usage, dont les résultats
+  sont stockés en base : ne pas les unifier davantage) ; les valeurs par défaut des réglages dans
+  `config/settings.ts` (`getSettings()` les applique, aucun appelant n'a de repli) ; le client Xtream
+  par `xtreamFromSettings(s)`.
+- **Visibilité** : un seul jeu de prédicats, `db/visibility.ts` (`visibleItem`, `hiddenItem`,
+  `visibleCategory`, `isItemHidden`), utilisé jusque dans l'agrégat SQL du groupement. Une catégorie
+  masquée masque ses éléments sans toucher leurs colonnes. Côté app, `player/contents.ts` y ajoute
+  le réglage « contenus adultes ».
+- **Groupement** : `catalog/naming.ts` est *la* grammaire des noms. Un `item` = une variante
+  jouable ; `contents.key` = identité exposée aux apps, jamais `contents.id`. Les mises à jour
+  massives passent par `unnest()` avec le template postgres-js (`client`), pas `sql` de Drizzle qui
+  éclate les tableaux. `regroupItems` (admin) et `runGrouping` (pipeline) se sérialisent entre eux.
+- **Données amont non fiables** : `xtream_id` est du texte opaque et non unique (dédoublonnage à
+  l'import), les champs manquants sont tolérés, l'identifiant TMDB fourni n'est jamais cru sur parole.
+- **Secrets** : un seul mot de passe (hash bcrypt dans `.env`), clé AES-256-GCM dérivée en RAM
+  (`config/vault.ts`), chiffrement transparent des réglages sensibles dans `config/settings.ts`. Après
+  un redémarrage le serveur est **verrouillé** jusqu'à la première requête authentifiée ; le premier
+  appel d'un appareil tvOS déverrouille grâce à `devices.wrapped_key`.
+- **Ne jamais journaliser une URL brute** : le mot de passe circule dans les query strings et les
+  chemins de flux. Passer par `requestLogger()` de `shared/http-log.ts`.
 
 ## Déploiement
 
 Image `linux/amd64` construite par GitHub Actions (`.github/workflows/build.yml`, à la racine
 du dépôt) et publiée sur `ghcr.io` ; `Containerfile` multi-stage : esbuild produit
-`dist/server.js` et `dist/db/migrate.js` (chemin figé : le Quadlet de migration en dépend), dépendances incluses, aucun `node_modules` en
+`dist/main.js` et `dist/db/migrate.js` (chemin figé : le Quadlet de migration en dépend), dépendances incluses, aucun `node_modules` en
 production. Cible : Fedora CoreOS, podman rootless + systemd Quadlet, derrière Caddy.
 
 - Variables : `ADMIN_PASSWORD_HASH` (obligatoire), `DATABASE_URL` et `SESSION_SECRET`

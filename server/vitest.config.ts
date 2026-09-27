@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
-import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * Tests that touch the database run against a dedicated one (never the dev database):
@@ -19,5 +19,5 @@ export default defineConfig({
       DATA_DIR: "/tmp/kanstrimi-test-data",
     },
   },
-  resolve: { alias: { "@": path.resolve(__dirname, "src") } },
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
 });

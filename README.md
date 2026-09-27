@@ -10,7 +10,7 @@ répond `302` vers le flux d'origine ; les identifiants du fournisseur ne sorten
 ```
 Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enrichi, groupé)
                           │
-                          ├──► API REST /api/v1 + images ──► tvOS/
+                          ├──► API REST /player + images ──► tvOS/
                           └──► 302 ──────────────────────► le flux vidéo, en direct
 ```
 
@@ -19,9 +19,9 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enri
 | Dossier | Rôle | Pile | Doc |
 |---|---|---|---|
 | `server/` | Import, filtrage, enrichissement, groupement des variantes, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Bootstrap 5 | [`server/README.md`](server/README.md) |
-| `tvOS/` | Client natif Apple TV 4K, consomme `/api/v1` | SwiftUI, Swift 6, tvOS 27, VLCKit 4 | [`tvOS/README.md`](tvOS/README.md) |
+| `tvOS/` | Client natif Apple TV 4K, consomme `/player` | SwiftUI, Swift 6, tvOS 27, VLCKit 4 | [`tvOS/README.md`](tvOS/README.md) |
 
-Le contrat entre les deux est le code : `server/src/app/api/types.ts` côté serveur,
+Le contrat entre les deux est le code : `server/src/player/types.ts` côté serveur,
 `tvOS/kanstrimi/Contract/` côté app, et les fixtures JSON de `tvOS/kanstrimi/Client/Fixtures/`.
 
 ## Conventions communes

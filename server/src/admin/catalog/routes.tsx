@@ -1,8 +1,9 @@
 import { Hono } from "hono";
-import { categoriesOfKind, categoryByXtreamId, countItems, pageItems, itemCountByCategory, itemById } from "@/admin/catalog/data";
+import { countItems, pageItems, itemCountByCategory } from "./data";
+import { categoriesOfKind, categoryByXtreamId, itemById } from "@/catalog";
 import { isCategoryHidden, setItemHiddenManual, setCategoryHiddenManual } from "@/db";
-import { pageGroups } from "@/admin/groups/data";
-import { searchCandidates, assignManual } from "@/admin/tmdb-correction";
+import { pageGroups } from "../groups/data";
+import { searchCandidates, assignManual } from "@/catalog";
 import { page, form, checked } from "../http";
 import { KIND_TITLES } from "../labels";
 import { GroupsView } from "../groups/view";
@@ -14,13 +15,19 @@ import { parseCatalogQuery } from "./query";
 
 export const catalogRoutes = new Hono();
 
-catalogRoutes.get("/catalog", async (c) => {
+catalogRoutes.get("/", async (c) => {
   const qy = parseCatalogQuery(c.req.query());
   const title = KIND_TITLES[qy.kind];
   if (qy.view === "groups") {
     const gq = parseGroupsQuery(c.req.query());
     const { rows, total } = await pageGroups(gq, gq.page);
-    return page(c, title, <CatalogShell qy={qy}><GroupsView qy={gq} rows={rows} total={total} /></CatalogShell>);
+    return page(
+      c,
+      title,
+      <CatalogShell qy={qy}>
+        <GroupsView qy={gq} rows={rows} total={total} />
+      </CatalogShell>,
+    );
   }
   const cats = await categoriesOfKind(qy.kind);
   const total = await countItems(qy);
@@ -31,7 +38,7 @@ catalogRoutes.get("/catalog", async (c) => {
 });
 
 /** One page of a category, for the grouped view's lazy loading and its infinite scroll. */
-catalogRoutes.get("/catalog/items", async (c) => {
+catalogRoutes.get("/items", async (c) => {
   const qy = parseCatalogQuery(c.req.query());
   if (!qy.cat) return c.body(null, 204);
   const [cat, { rows, hasMore }] = await Promise.all([categoryByXtreamId(qy.kind, qy.cat), pageItems(qy, qy.page)]);
@@ -44,7 +51,7 @@ catalogRoutes.get("/catalog/items", async (c) => {
  * current filters travel in the query string because the row links back to the catalogue.
  * A category carries every row under it: reload rather than patch each one back into shape.
  */
-catalogRoutes.post("/catalog/:scope{item|category}/:id/visible", async (c) => {
+catalogRoutes.post("/:scope{item|category}/:id/visible", async (c) => {
   const id = Number(c.req.param("id"));
   const hiddenManual = !(await checked(c, "visible"));
   if (c.req.param("scope") === "category") {
@@ -56,19 +63,30 @@ catalogRoutes.post("/catalog/:scope{item|category}/:id/visible", async (c) => {
   const r = await itemById(id);
   if (!r) return c.notFound();
   const cat = await categoryByXtreamId(r.kind, r.categoryXtreamId);
-  return c.html(<ItemRow r={r} qy={parseCatalogQuery(c.req.query())} catLabel={cat?.name ?? r.categoryXtreamId ?? ""} catHidden={isCategoryHidden(cat)} />);
+  return c.html(
+    <ItemRow
+      r={r}
+      qy={parseCatalogQuery(c.req.query())}
+      catLabel={cat?.name ?? r.categoryXtreamId ?? ""}
+      catHidden={isCategoryHidden(cat)}
+    />,
+  );
 });
 
-catalogRoutes.post("/catalog/tmdb-search", async (c) => {
+catalogRoutes.post("/tmdb-search", async (c) => {
   const f = await form(c);
   const it = await itemById(Number(f.id));
   if (!it) return c.notFound();
   return c.html(<TmdbCell it={it} results={await searchCandidates(it, f.q ?? "")} />);
 });
-catalogRoutes.post("/catalog/tmdb-assign", async (c) => {
+catalogRoutes.post("/tmdb-assign", async (c) => {
   const f = await form(c);
   const id = Number(f.id);
-  try { await assignManual(id, Number(f.tmdb_id) || null); } catch (e) { return c.html(<span class="text-danger">{(e as Error).message}</span>); }
+  try {
+    await assignManual(id, Number(f.tmdb_id) || null);
+  } catch (e) {
+    return c.html(<span class="text-danger">{(e as Error).message}</span>);
+  }
   const it = await itemById(id);
   return it ? c.html(<TmdbCell it={it} />) : c.notFound();
 });

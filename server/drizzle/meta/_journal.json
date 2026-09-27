@@ -43,6 +43,13 @@
       "when": 1790472701309,
       "tag": "0005_adult",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790545761048,
+      "tag": "0006_drop_pre_vault_settings",
+      "breakpoints": true
     }
   ]
 }

@@ -12,7 +12,7 @@ structure change, ne pas créer d'autre fichier de documentation sans demande.
 Règles de travail :
 
 - Vérifier un constat dans le code avant de le corriger.
-- Après toute modification du serveur : `npm run typecheck`, `npm test`, `npm run build` dans `server/`.
+- Après toute modification du serveur : `npm run format`, `npm run typecheck`, `npm test`, `npm run build` dans `server/`.
 - Après toute modification tvOS : compiler et lancer les tests (outils MCP Xcode `BuildProject`, `RunAllTests`) ; dire explicitement ce qui n'a pas pu être vérifié.
 - Ne rien committer sans demande explicite.
 - `_Old/` est hors dépôt : on y lit, on n'y écrit pas.

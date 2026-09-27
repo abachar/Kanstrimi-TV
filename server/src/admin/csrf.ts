@@ -3,7 +3,13 @@ import { HTTPException } from "hono/http-exception";
 
 const UNSAFE = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const FORM = /^(application\/x-www-form-urlencoded|multipart\/form-data|text\/plain)/i;
-const hostOf = (url?: string) => { try { return url ? new URL(url).host : null; } catch { return null; } };
+const hostOf = (url?: string) => {
+  try {
+    return url ? new URL(url).host : null;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Form posts must come from this very site. `hono/csrf` only looks at `Origin`, which Safari

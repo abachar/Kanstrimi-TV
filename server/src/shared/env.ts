@@ -8,18 +8,25 @@ const isProd = process.env.NODE_ENV === "production";
  * mandatory: a silent fallback would mean signing cookies with a public secret or talking
  * to the wrong database.
  */
-const schema = z.object({
-  ADMIN_PASSWORD_HASH: z.string({ error: "ADMIN_PASSWORD_HASH manquant dans l'environnement — générez-le avec : npm run hash-password -- <mot-de-passe>" }).regex(/^\$2[aby]\$/, "ADMIN_PASSWORD_HASH manquant ou invalide dans l'environnement — générez-le avec : npm run hash-password -- <mot-de-passe>"),
-  SESSION_SECRET: z.string().min(32, "SESSION_SECRET doit faire au moins 32 caractères").optional(),
-  DATABASE_URL: z.string().optional(),
-  DATA_DIR: z.string().default("./data"),
-  PORT: z.coerce.number().int().positive().default(3000),
-}).superRefine((v, ctx) => {
-  if (!isProd) return;
-  for (const name of ["SESSION_SECRET", "DATABASE_URL"] as const) {
-    if (!v[name]) ctx.addIssue({ code: "custom", path: [name], message: `${name} est obligatoire en production (NODE_ENV=production).` });
-  }
-});
+const schema = z
+  .object({
+    ADMIN_PASSWORD_HASH: z
+      .string({ error: "ADMIN_PASSWORD_HASH manquant dans l'environnement — générez-le avec : npm run hash-password -- <mot-de-passe>" })
+      .regex(
+        /^\$2[aby]\$/,
+        "ADMIN_PASSWORD_HASH manquant ou invalide dans l'environnement — générez-le avec : npm run hash-password -- <mot-de-passe>",
+      ),
+    SESSION_SECRET: z.string().min(32, "SESSION_SECRET doit faire au moins 32 caractères").optional(),
+    DATABASE_URL: z.string().optional(),
+    DATA_DIR: z.string().default("./data"),
+    PORT: z.coerce.number().int().positive().default(3000),
+  })
+  .superRefine((v, ctx) => {
+    if (!isProd) return;
+    for (const name of ["SESSION_SECRET", "DATABASE_URL"] as const) {
+      if (!v[name]) ctx.addIssue({ code: "custom", path: [name], message: `${name} est obligatoire en production (NODE_ENV=production).` });
+    }
+  });
 
 const parsed = schema.safeParse(process.env);
 if (!parsed.success) {

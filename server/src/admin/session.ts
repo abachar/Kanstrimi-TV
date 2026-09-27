@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { getSignedCookie, setSignedCookie, deleteCookie } from "hono/cookie";
 import { env } from "@/shared";
-import { verify, isUnlocked } from "@/db";
+import { verify, isUnlocked } from "@/config";
 
 const COOKIE = "kanstrimi_admin";
 const MAX_AGE = 60 * 60 * 24 * 30;
@@ -15,7 +15,11 @@ export async function login(c: Context, password: string): Promise<boolean> {
   // Derived from the request rather than hard-coded so `npm run dev` keeps working over http.
   const secure = c.req.header("x-forwarded-proto") === "https" || new URL(c.req.url).protocol === "https:";
   await setSignedCookie(c, COOKIE, "1", env.sessionSecret, {
-    path: "/", httpOnly: true, sameSite: "Lax", maxAge: MAX_AGE, secure,
+    path: "/",
+    httpOnly: true,
+    sameSite: "Lax",
+    maxAge: MAX_AGE,
+    secure,
   });
   return true;
 }

@@ -1,0 +1,15 @@
+export {
+  approvePairing,
+  authenticateToken,
+  createPairing,
+  forgetDevice,
+  getDevice,
+  isCode,
+  listDevices,
+  pairingState,
+  type PairingState,
+  pollPairing,
+  resetPairingState,
+  revokeDevice,
+  TooManyRequests,
+} from "./pairing";
