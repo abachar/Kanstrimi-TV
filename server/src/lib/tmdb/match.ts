@@ -30,15 +30,24 @@ export function similarity(a: string, b: string): number {
 export type Scored = { result: TmdbSearchResult; score: number };
 
 type Named = {
-  title?: string; name?: string; original_title?: string; original_name?: string;
-  alternative_titles?: { titles?: { title: string }[]; results?: { title: string }[] };
-  translations?: { translations?: { data?: { title?: string; name?: string } }[] };
+  title?: string; name?: string; original_title?: string; original_name?: string; original_language?: string;
+  alternative_titles?: { titles?: { iso_3166_1?: string; title: string }[]; results?: { iso_3166_1?: string; title: string }[] };
+  translations?: { translations?: { iso_639_1?: string; data?: { title?: string; name?: string } }[] };
 };
 /** Every name a TMDB document answers to: localised title, original title, alternative and translated titles. */
 export function namesOf(d: Named): string[] {
   const alt = [...(d.alternative_titles?.titles ?? []), ...(d.alternative_titles?.results ?? [])].map((t) => t.title);
   const tr = (d.translations?.translations ?? []).map((t) => t.data?.title || t.data?.name);
   return [...new Set([d.title, d.name, d.original_title, d.original_name, ...alt, ...tr].filter(Boolean) as string[])];
+}
+/** The English title: the `en` translation, else a US/GB alternative title, else the original when it is English. */
+export function englishTitleOf(d: Named): string | null {
+  const tr = (d.translations?.translations ?? []).find((t) => t.iso_639_1 === "en");
+  const t = tr?.data?.title || tr?.data?.name;
+  if (t) return t;
+  const alt = [...(d.alternative_titles?.titles ?? []), ...(d.alternative_titles?.results ?? [])].find((a) => a.iso_3166_1 === "US" || a.iso_3166_1 === "GB");
+  if (alt?.title) return alt.title;
+  return d.original_language === "en" ? (d.original_title ?? d.original_name ?? null) : null;
 }
 /** Does the cached document carry every kind of name we compare against? Older ones need one refresh. */
 export function hasAllNames(d: Named): boolean { return Boolean(d.alternative_titles && d.translations); }

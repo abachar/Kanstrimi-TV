@@ -62,3 +62,46 @@ describe("namesOf / bestSimilarity", () => {
     expect(bestSimilarity({ title: d.title, original_title: d.original_title }, "General Mayhem: The Killing of Brigadier J")).toBeLessThan(0.5);
   });
 });
+
+describe("idEvidence", () => {
+  const patriarche = {
+    id: 0, kind: "series" as const, name: "|FR| Patriarche (MULTI)", cleanTitle: "Patriarche", year: 2025,
+    raw: { cast: "Nikki Amuka-Bird, Daniel Rigby, Gemma Jones", director: "Chris Lang", year: "2025",
+      backdrop_path: ["http://logip.firstcloud.me/posters/eDB1CCNcxnFANadgiWyFlzaqvK6..jpg"], youtube_trailer: "SnuP9SjGq4w" },
+  };
+  const heritage = {
+    id: 262899, name: "Héritage", original_name: "I, Jack Wright", first_air_date: "2025-04-01",
+    credits: { cast: [{ name: "John Simm" }, { name: "Nikki Amuka-Bird" }, { name: "Daniel Rigby" }], crew: [] }, created_by: [{ name: "Chris Lang" }],
+    backdrop_path: "/zzz.jpg", images: { backdrops: [{ file_path: "/eDB1CCNcxnFANadgiWyFlzaqvK6.jpg" }] }, videos: { results: [{ key: "SnuP9SjGq4w", site: "YouTube", type: "Trailer" }] },
+  };
+  it("accepts a provider title TMDB never recorded when cast, image or trailer agree", async () => {
+    const { idEvidence } = await import("../enrich");
+    const ev = idEvidence(heritage, patriarche);
+    expect(ev.similarity).toBeLessThan(0.3);
+    expect(ev.castOverlap).toBe(2);
+    expect(ev.imageMatch).toBe(true);
+    expect(ev.trailerMatch).toBe(true);
+    expect(ev.directorMatch).toBe(true);
+    expect(ev.accepted).toBe(true);
+    // Cast alone is enough; one actor needs the year or the director too.
+    expect(idEvidence({ ...heritage, images: undefined, videos: undefined, backdrop_path: null }, patriarche).accepted).toBe(true);
+    const one = { ...heritage, credits: { cast: [{ name: "Nikki Amuka-Bird" }], crew: [] }, images: undefined, videos: undefined, backdrop_path: null };
+    expect(idEvidence(one, patriarche).reasons).toEqual(["1 acteur en commun et même réalisateur"]);
+    expect(idEvidence({ ...one, created_by: [], first_air_date: "2010-01-01" }, patriarche).accepted).toBe(false);
+  });
+  it("still rejects a wrong film that shares nothing", async () => {
+    const { idEvidence } = await import("../enrich");
+    const other = { id: 1, title: "Titanic", original_title: "Titanic", release_date: "1997-12-19", credits: { cast: [{ name: "Leonardo DiCaprio" }], crew: [{ name: "James Cameron", job: "Director" }] } };
+    expect(idEvidence(other, patriarche).accepted).toBe(false);
+  });
+});
+
+describe("englishTitleOf", () => {
+  it("prefers the en translation, then a US/GB alternative title, then an English original", async () => {
+    const { englishTitleOf } = await import("../match");
+    expect(englishTitleOf({ title: "Héritage", original_title: "I, Jack Wright", original_language: "en", translations: { translations: [{ iso_639_1: "en", data: { title: "I, Jack Wright" } }] } })).toBe("I, Jack Wright");
+    expect(englishTitleOf({ title: "X", alternative_titles: { titles: [{ iso_3166_1: "GB", title: "The X" }] } })).toBe("The X");
+    expect(englishTitleOf({ title: "Matrix", original_title: "The Matrix", original_language: "en" })).toBe("The Matrix");
+    expect(englishTitleOf({ title: "Conspiration", original_title: "Skenario", original_language: "id" })).toBeNull();
+  });
+});

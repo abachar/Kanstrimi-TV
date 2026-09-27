@@ -63,7 +63,7 @@ export function ItemView({ it, cat, content, siblings, tmdb, tmdbLang }: {
         </div>
         <div class="col-12 col-lg-6">
           <Table title="Contenu" extra={content ? <a href={`/admin/catalog?kind=${it.kind}&view=groups&q=${encodeURIComponent(content.title)}`}>voir le groupe</a> : "aucun : relancer l'étape 4"} rows={content ? [
-            ["Clé", content.key], ["Titre", content.title], ["Titre original", content.originalTitle], ["Année", content.year], ["Note", content.rating], ["Genres", content.genres],
+            ["Clé", content.key], ["Titre", content.title], ["Titre original", content.originalTitle], ["Titre anglais", content.titleEn], ["Année", content.year], ["Note", content.rating], ["Genres", content.genres],
             ["Variantes", content.variantCount], ["Langues", content.languages], ["Qualité max", ["—", "SD", "HD", "FHD", "4K"][content.maxQualityRank]], ["Dynamique", content.dynamicRange],
             ["Visible pour l'app", content.visible ? "oui" : "non"], ["Ajouté", content.addedAt], ["Override manuel", it.keyOverride],
           ] : [["Clé calculée", it.contentKey]]} />
@@ -92,7 +92,8 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
       <p class="mb-1">Titre cherché : <strong>{e.cleaned.title}</strong>{e.cleaned.year ? ` (${e.cleaned.year})` : " (sans année)"} · seuil {pct(e.threshold)}</p>
       {e.provided && (
         <p class="mb-1">Identifiant amont <a href={url(e.provided.id)} target="_blank" rel="noreferrer">#{e.provided.id}</a> : {e.provided.found
-          ? <>« {e.provided.title} »{e.provided.year ? ` (${e.provided.year})` : ""}, similarité {pct(e.provided.similarity)} → <span class={e.provided.accepted ? "text-success" : "text-danger"}>{e.provided.accepted ? "accepté" : `rejeté (sous ${pct(e.idThreshold)}, ou année trop éloignée)`}</span></>
+          ? <>« {e.provided.title} »{e.provided.year ? ` (${e.provided.year})` : ""}, similarité {pct(e.provided.similarity)} → <span class={e.provided.accepted ? "text-success" : "text-danger"}>{e.provided.accepted ? `accepté (${e.provided.evidence?.reasons.join(", ")})` : "rejeté"}</span>
+            {e.provided.evidence && <span class="text-secondary"> · année {e.provided.evidence.yearOk === null ? "inconnue" : e.provided.evidence.yearOk ? "compatible" : "différente"}, {e.provided.evidence.castOverlap} acteur(s) en commun, réalisateur {e.provided.evidence.directorMatch ? "identique" : "différent ou absent"}, image {e.provided.evidence.imageMatch ? "identique" : "différente"}, bande-annonce {e.provided.evidence.trailerMatch ? "identique" : "différente"}</span>}</>
           : <span class="text-danger">inconnu de TMDB</span>}</p>
       )}
       {e.searches.map((s) => (
@@ -102,7 +103,7 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
           </tbody></table>}
         </div>
       ))}
-      {e.alternative && <p class="mb-1">Meilleur candidat <a href={url(e.alternative.id)} target="_blank" rel="noreferrer">#{e.alternative.id}</a> rejugé sur tous ses titres ({e.alternative.names.slice(0, 6).join(" · ")}{e.alternative.names.length > 6 ? " · …" : ""}) : similarité {pct(e.alternative.similarity)}</p>}
+      {e.alternative && <p class="mb-1">Meilleur candidat <a href={url(e.alternative.id)} target="_blank" rel="noreferrer">#{e.alternative.id}</a> rejugé sur tous ses titres ({e.alternative.names.slice(0, 6).join(" · ")}{e.alternative.names.length > 6 ? " · …" : ""}) : similarité {pct(e.alternative.similarity)}{e.alternative.evidence?.accepted ? ` → accepté (${e.alternative.evidence.reasons.join(", ")})` : e.alternative.evidence ? ` · ${e.alternative.evidence.castOverlap} acteur(s) en commun` : ""}</p>}
       <p class="mb-0">Verdict : <strong class={e.verdict.status === "matched" ? "text-success" : "text-danger"}>{e.verdict.status === "matched" ? `associé à #${e.verdict.tmdbId}` : "introuvable"}</strong>{e.verdict.via === "search" ? ` par recherche, score ${pct(e.verdict.score)}` : e.verdict.via === "alternative" ? ` par un titre alternatif, similarité ${pct(e.verdict.score)}` : e.verdict.via === "id" ? " par l'identifiant amont" : e.verdict.score ? ` (meilleur score ${pct(e.verdict.score)})` : ""}</p>
     </div>
   );

@@ -20,12 +20,17 @@ export type TmdbDetails = Record<string, unknown> & {
   translations?: { translations?: { iso_639_1: string; iso_3166_1?: string; data?: { title?: string; name?: string; overview?: string } }[] };
 };
 
-/** Keep the translated titles only: the full payload repeats every overview in forty languages. */
+/**
+ * Keep the translated titles and the image file names only: the full payload repeats every
+ * overview in forty languages and describes every image. Both serve one purpose here,
+ * recognising the provider's entry (its English title, its TMDB backdrop hashes).
+ */
 export function trimTranslations(d: TmdbDetails): TmdbDetails {
   const list = (d.translations?.translations ?? [])
     .map((t) => ({ iso_639_1: t.iso_639_1, iso_3166_1: t.iso_3166_1, data: { title: t.data?.title || t.data?.name || undefined } }))
     .filter((t) => t.data.title);
-  return { ...d, translations: { translations: list } };
+  const files = (l?: { file_path: string }[]) => (l ?? []).slice(0, 40).map((i) => ({ file_path: i.file_path }));
+  return { ...d, translations: { translations: list }, images: { backdrops: files(d.images?.backdrops), posters: files(d.images?.posters) } };
 }
 
 export class TmdbClient {
@@ -58,10 +63,10 @@ export class TmdbClient {
     return this.get<{ results: TmdbSearchResult[] }>("/search/tv", { query, first_air_date_year: year, include_adult: "false" });
   }
   movie(id: number) {
-    return this.get<TmdbDetails>(`/movie/${id}`, { append_to_response: "credits,videos,release_dates,alternative_titles,translations" }).then(trimTranslations);
+    return this.get<TmdbDetails>(`/movie/${id}`, { append_to_response: "credits,videos,release_dates,alternative_titles,translations,images" }).then(trimTranslations);
   }
   tv(id: number) {
-    return this.get<TmdbDetails>(`/tv/${id}`, { append_to_response: "credits,videos,content_ratings,alternative_titles,translations" }).then(trimTranslations);
+    return this.get<TmdbDetails>(`/tv/${id}`, { append_to_response: "credits,videos,content_ratings,alternative_titles,translations,images" }).then(trimTranslations);
   }
   tvSeason(id: number, season: number) {
     return this.get<{ episodes?: Record<string, unknown>[] }>(`/tv/${id}/season/${season}`);

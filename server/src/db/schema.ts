@@ -94,6 +94,8 @@ export const contents = pgTable("contents", {
   // Card fields, denormalised so lists sort and filter without touching the TMDB JSON
   title: text("title").notNull(),
   originalTitle: text("original_title"),
+  /** English title from TMDB translations: the name most providers and most people search by. */
+  titleEn: text("title_en"),
   year: integer("year"),
   endYear: integer("end_year"),
   posterPath: text("poster_path"),

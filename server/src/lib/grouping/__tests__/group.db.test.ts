@@ -45,6 +45,8 @@ describe("runGrouping", () => {
       credits: { cast: [{ name: "Tobey Maguire", character: "Peter Parker" }], crew: [{ name: "Sam Raimi", job: "Director" }] },
       videos: { results: [{ key: "abc", site: "YouTube", type: "Trailer", official: true }] },
       release_dates: { results: [{ iso_3166_1: "FR", release_dates: [{ certification: "TP" }] }] },
+      original_language: "en", translations: { translations: [{ iso_639_1: "en", data: { title: "Spider-Man" } }] },
+      alternative_titles: { titles: [{ iso_3166_1: "FR", title: "L'Homme-Araignée" }] },
     });
     await seedTmdb("tv", 1396, { name: "Vincenzo", original_name: "빈센조", first_air_date: "2021-02-20", last_air_date: "2021-05-02", status: "Ended", episode_run_time: [80], genres: [{ id: 80, name: "Crime" }], created_by: [{ name: "Park Jae-bum" }] });
   });
@@ -122,6 +124,8 @@ describe("runGrouping", () => {
     const hit = async (q: string) => (await db.select({ key: schema.contents.key }).from(schema.contents)
       .where(sql`search @@ plainto_tsquery('simple', ${q})`)).map((r) => r.key);
     expect(await hit("tobey maguire")).toEqual(["tmdb:movie:557"]);
+    expect(await hit("homme araignee")).toEqual(["tmdb:movie:557"]);
+    expect((await content("tmdb:movie:557")).titleEn).toBe("Spider-Man");
     expect(await hit("raimi")).toEqual(["tmdb:movie:557"]);
     expect(await hit("빈센조")).toEqual(["tmdb:tv:1396"]);
     expect(await hit("tf1")).toEqual(expect.arrayContaining(["live:fr-tf1", "live:be-tf1"]));

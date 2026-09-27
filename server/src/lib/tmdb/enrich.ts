@@ -2,7 +2,7 @@ import { db, schema } from "@/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import pLimit from "p-limit";
 import { TmdbClient, type TmdbDetails } from "./client";
-import { scoreAll, bestSimilarity, namesOf, hasAllNames, MATCH_THRESHOLD, cleanTitle, type ScoredDetail } from "./match";
+import { scoreAll, bestSimilarity, namesOf, hasAllNames, normalize, MATCH_THRESHOLD, cleanTitle, type ScoredDetail } from "./match";
 import { runGrouping, regroupItems } from "@/lib/grouping/group";
 import { getSettings } from "@/lib/settings";
 import { startLog, finishLog } from "@/lib/jobs/log";
@@ -104,15 +104,51 @@ function providedTmdbId(it: PendingItem): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/** Does the TMDB document the provider pointed at look like this item? */
-export function idLooksRight(d: TmdbDetails, it: Pick<PendingItem, "name" | "cleanTitle" | "year">): boolean {
+export type Evidence = {
+  similarity: number; yearOk: boolean | null; castOverlap: number; directorMatch: boolean; imageMatch: boolean; trailerMatch: boolean;
+  accepted: boolean; reasons: string[];
+};
+
+const splitNames = (v: unknown) => String(v ?? "").split(/[,;/]+/).map((x) => normalize(x)).filter((x) => x.length > 2);
+/** "…/eDB1CCNcxnFANadgiWyFlzaqvK6..jpg" or "/eDB1CCNcxnFANadgiWyFlzaqvK6.jpg" → the TMDB file hash. */
+const imageHash = (u: unknown) => { const m = /([A-Za-z0-9_-]{20,})\.*\.(?:jpg|jpeg|png|webp)$/i.exec(String(u ?? "")); return m ? m[1] : null; };
+
+/**
+ * Is the TMDB document really this entry? Titles first; when they disagree (the provider
+ * uses a platform title TMDB never recorded), the other things it sends decide: the cast,
+ * the director, the year, the TMDB image hashes it copied, the trailer key.
+ */
+export function idEvidence(d: TmdbDetails, it: Pick<PendingItem, "name" | "cleanTitle" | "year" | "raw">): Evidence {
   const title = it.cleanTitle || cleanTitle(it.name).title;
-  const sim = bestSimilarity(d, title);
-  if (sim >= MATCH_THRESHOLD) return true;
-  if (sim < ID_THRESHOLD) return false;
-  // Borderline: the year settles it when both sides have one.
-  const ry = Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || undefined;
-  return !it.year || !ry || Math.abs(ry - it.year) <= 1;
+  const similarity = bestSimilarity(d, title);
+  const raw = it.raw ?? {};
+  const ry = Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || null;
+  const py = it.year ?? (Number(String(raw.year ?? raw.releaseDate ?? raw.release_date ?? "").slice(0, 4)) || null);
+  const yearOk = ry && py ? Math.abs(ry - py) <= 1 : null;
+  const tmdbCast = new Set((d.credits?.cast ?? []).slice(0, 15).map((c) => normalize(c.name)));
+  const castOverlap = splitNames(raw.cast).filter((n) => tmdbCast.has(n)).length;
+  const tmdbDirectors = new Set([...(d.credits?.crew ?? []).filter((c) => c.job === "Director").map((c) => normalize(c.name)), ...((d as { created_by?: { name: string }[] }).created_by ?? []).map((c) => normalize(c.name))]);
+  const directorMatch = splitNames(raw.director).some((n) => tmdbDirectors.has(n));
+  const tmdbImages = new Set([d.backdrop_path, d.poster_path, ...(d.images?.backdrops ?? []).map((i) => i.file_path), ...(d.images?.posters ?? []).map((i) => i.file_path)].map(imageHash).filter(Boolean));
+  const providerImages = [...(Array.isArray(raw.backdrop_path) ? raw.backdrop_path : [raw.backdrop_path]), raw.cover, raw.stream_icon, raw.movie_image].map(imageHash).filter(Boolean);
+  const imageMatch = providerImages.some((h) => tmdbImages.has(h));
+  const trailer = String(raw.youtube_trailer ?? "").trim();
+  const trailerMatch = Boolean(trailer) && (d.videos?.results ?? []).some((v) => v.site === "YouTube" && v.key === trailer);
+
+  const reasons: string[] = [];
+  if (similarity >= MATCH_THRESHOLD) reasons.push(`titre ${Math.round(similarity * 100)} %`);
+  else if (similarity >= ID_THRESHOLD && yearOk !== false) reasons.push(`titre ${Math.round(similarity * 100)} % et année compatible`);
+  if (imageMatch) reasons.push("image TMDB identique");
+  if (trailerMatch) reasons.push("bande-annonce identique");
+  if (castOverlap >= 2) reasons.push(`${castOverlap} acteurs en commun`);
+  else if (castOverlap === 1 && (yearOk || directorMatch)) reasons.push(`1 acteur en commun et ${directorMatch ? "même réalisateur" : "même année"}`);
+  if (directorMatch && yearOk && !reasons.length) reasons.push("même réalisateur et même année");
+  return { similarity, yearOk, castOverlap, directorMatch, imageMatch, trailerMatch, accepted: reasons.length > 0, reasons };
+}
+
+/** Does the TMDB document the provider pointed at look like this item? */
+export function idLooksRight(d: TmdbDetails, it: Pick<PendingItem, "name" | "cleanTitle" | "year" | "raw">): boolean {
+  return idEvidence(d, it).accepted;
 }
 
 async function matchByTitle(client: TmdbClient, it: PendingItem): Promise<boolean> {
@@ -136,10 +172,9 @@ async function matchByTitle(client: TmdbClient, it: PendingItem): Promise<boolea
   if (best) {
     let d = await getDetails(client, mediaType, best.result.id).catch(() => null);
     if (d && !hasAllNames(d)) d = await getDetails(client, mediaType, best.result.id, true).catch(() => d);
-    const sim = d ? bestSimilarity(d, ct.title) : 0;
-    if (d && (sim >= MATCH_THRESHOLD || (sim >= ID_THRESHOLD && (!ct.year || !best.year || Math.abs(best.year - ct.year) <= 1)))) {
-      await setMatch(it.id, best.result.id, sim, "matched");
-      return true;
+    if (d) {
+      const ev = idEvidence(d, it);
+      if (ev.accepted) { await setMatch(it.id, best.result.id, Math.max(ev.similarity, ID_THRESHOLD), "matched"); return true; }
     }
   }
   await setMatch(it.id, null, best?.score ?? 0, "unmatched");
@@ -149,10 +184,10 @@ async function matchByTitle(client: TmdbClient, it: PendingItem): Promise<boolea
 export type MatchExplanation = {
   cleaned: { title: string; year?: number };
   threshold: number; idThreshold: number;
-  provided: { id: number; found: boolean; title?: string; year?: number; similarity: number; accepted: boolean } | null;
+  provided: { id: number; found: boolean; title?: string; year?: number; similarity: number; accepted: boolean; evidence?: Evidence } | null;
   searches: { withYear: number | undefined; candidates: ScoredDetail[] }[];
   /** Best candidate re-judged against all its names (alternative titles included). */
-  alternative?: { id: number; names: string[]; similarity: number };
+  alternative?: { id: number; names: string[]; similarity: number; evidence?: Evidence };
   verdict: { status: "matched" | "unmatched"; tmdbId: number | null; score: number; via: "id" | "search" | "alternative" | "none" };
 };
 
@@ -166,10 +201,9 @@ export async function explainMatch(client: TmdbClient, it: PendingItem): Promise
     let d = await getDetails(client, mediaType, pid).catch(() => null);
     if (d && !hasAllNames(d) && !idLooksRight(d, it)) d = await getDetails(client, mediaType, pid, true).catch(() => d);
     if (d) {
-      const sim = bestSimilarity(d, ct.title);
-      const accepted = idLooksRight(d, it);
-      out.provided = { id: pid, found: true, title: d.title ?? d.name, year: Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || undefined, similarity: sim, accepted };
-      if (accepted) { out.verdict = { status: "matched", tmdbId: pid, score: 1, via: "id" }; return out; }
+      const ev = idEvidence(d, it);
+      out.provided = { id: pid, found: true, title: d.title ?? d.name, year: Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || undefined, similarity: ev.similarity, accepted: ev.accepted, evidence: ev };
+      if (ev.accepted) { out.verdict = { status: "matched", tmdbId: pid, score: 1, via: "id" }; return out; }
     } else out.provided = { id: pid, found: false, similarity: 0, accepted: false };
   }
   const search = async (year?: number) => mediaType === "movie" ? client.searchMovie(ct.title, year) : client.searchTv(ct.title, year);
@@ -184,11 +218,9 @@ export async function explainMatch(client: TmdbClient, it: PendingItem): Promise
   if (best) {
     let d = await getDetails(client, mediaType, best.result.id).catch(() => null);
     if (d && !hasAllNames(d)) d = await getDetails(client, mediaType, best.result.id, true).catch(() => d);
-    const sim = d ? bestSimilarity(d, ct.title) : 0;
-    out.alternative = { id: best.result.id, names: d ? namesOf(d) : [], similarity: sim };
-    if (d && (sim >= MATCH_THRESHOLD || (sim >= ID_THRESHOLD && (!ct.year || !best.year || Math.abs(best.year - ct.year) <= 1)))) {
-      out.verdict = { status: "matched", tmdbId: best.result.id, score: sim, via: "alternative" }; return out;
-    }
+    const ev = d ? idEvidence(d, it) : null;
+    out.alternative = { id: best.result.id, names: d ? namesOf(d) : [], similarity: ev?.similarity ?? 0, evidence: ev ?? undefined };
+    if (ev?.accepted) { out.verdict = { status: "matched", tmdbId: best.result.id, score: Math.max(ev.similarity, ID_THRESHOLD), via: "alternative" }; return out; }
   }
   out.verdict = { status: "unmatched", tmdbId: null, score: best?.score ?? 0, via: "none" };
   return out;

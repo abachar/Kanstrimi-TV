@@ -29,6 +29,13 @@
       "when": 1790462756611,
       "tag": "0003_playback-devices",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790471903285,
+      "tag": "0004_title-en",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,15 @@
 import type { TmdbDetails } from "@/lib/tmdb/client";
+import { englishTitleOf, namesOf } from "@/lib/tmdb/match";
 
 /** What `contents` keeps of a TMDB details document. Pure. */
 export type CardFields = {
-  title: string; originalTitle: string | null; year: number | null; endYear: number | null;
+  title: string; originalTitle: string | null; titleEn: string | null; year: number | null; endYear: number | null;
   posterPath: string | null; backdropPath: string | null; overview: string | null;
   rating: number | null; voteCount: number | null; genreIds: number[]; genres: string[];
   runtime: number | null; certification: string | null;
   cast: { name: string; role: string | null }[]; director: string | null; trailerKey: string | null; status: string | null;
+  /** Every name the work is known by, for the search index: titles in all languages, capped. */
+  names: string[];
 };
 
 const yearOf = (d?: string) => { const y = Number((d ?? "").slice(0, 4)); return y > 1800 ? y : null; };
@@ -37,6 +40,7 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
   return {
     title: (movie ? d.title : d.name) || fallbackTitle,
     originalTitle: (movie ? d.original_title : d.original_name) || null,
+    titleEn: englishTitleOf(d),
     year: yearOf(movie ? d.release_date : d.first_air_date),
     endYear: !movie && ended ? yearOf(d.last_air_date) : null,
     posterPath: d.poster_path ?? null, backdropPath: d.backdrop_path ?? null,
@@ -50,6 +54,7 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
     director: director || null,
     trailerKey: trailerKeyOf(d),
     status: d.status ?? null,
+    names: namesOf(d).slice(0, 24),
   };
 }
 
