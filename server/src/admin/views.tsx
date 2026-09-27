@@ -380,7 +380,8 @@ export function RulesView({ rules }: { rules: FilterRule[] }) {
 }
 
 // ---------------------------------------------------------------- catalog
-export type CatalogQuery = { kind: "live" | "vod" | "series"; q: string; cat: string; status: string; page: number; view: "grouped" | "flat" | "groups" };
+/** `vis` and `tmdb` are two independent filters: "hidden and TMDB unmatched" is a valid question. */
+export type CatalogQuery = { kind: "live" | "vod" | "series"; q: string; cat: string; vis: "" | "visible" | "hidden"; tmdb: "" | "matched" | "unmatched" | "pending"; page: number; view: "grouped" | "flat" | "groups" };
 const KIND_LABELS: Record<string, string> = { all: "tous", live: "live", vod: "films", series: "séries" };
 const MATCH_LABELS: Record<string, string> = { matched: "associé", manual: "manuel", unmatched: "introuvable", pending: "en attente" };
 export function TmdbCell({ it, results }: { it: Item; results?: { id: number; label: string }[] }) {
@@ -445,7 +446,7 @@ export function VisibilityToggle({ scope, id, hiddenByRule, hiddenManual, catHid
   const title = hiddenByRule ? "Une règle de filtrage masque cet élément : modifiez la règle pour le réafficher."
     : catHidden ? "Sa catégorie est masquée : réaffichez la catégorie pour le rendre visible."
       : "Afficher ou masquer cet élément pour les applications IPTV";
-  const qs = new URLSearchParams({ kind: qy.kind, q: qy.q, cat: qy.cat, status: qy.status, view: qy.view, page: String(qy.page) }).toString();
+  const qs = new URLSearchParams({ kind: qy.kind, q: qy.q, cat: qy.cat, vis: qy.vis, tmdb: qy.tmdb, view: qy.view, page: String(qy.page) }).toString();
   return (
     <div id={domId} class="d-flex align-items-center gap-2">
       <div class="form-check form-switch m-0">
@@ -487,7 +488,7 @@ function CatalogHeader({ qy }: { qy: CatalogQuery }) {
  */
 export function CategoryRow({ c, qy, count }: { c: Category; qy: CatalogQuery; count?: number }) {
   const hidden = c.hiddenByRule || c.hiddenManual;
-  const qs = new URLSearchParams({ kind: qy.kind, cat: c.xtreamId, status: qy.status, view: "grouped", page: "1" }).toString();
+  const qs = new URLSearchParams({ kind: qy.kind, cat: c.xtreamId, vis: qy.vis, tmdb: qy.tmdb, view: "grouped", page: "1" }).toString();
   return (
     <div class="accordion-item">
       {/* The strip is painted by the header, not the button (`bg-transparent shadow-none`):
@@ -542,7 +543,7 @@ export function ItemRow({ r, qy, catLabel, catHidden = false }: { r: Item; qy: C
 export function CategoryItems({ qy, cat, rows, catHidden, hasMore }: {
   qy: CatalogQuery; cat: string; rows: Item[]; catHidden: boolean; hasMore: boolean;
 }) {
-  const qs = new URLSearchParams({ kind: qy.kind, cat, status: qy.status, view: "grouped", page: String(qy.page + 1) }).toString();
+  const qs = new URLSearchParams({ kind: qy.kind, cat, vis: qy.vis, tmdb: qy.tmdb, view: "grouped", page: String(qy.page + 1) }).toString();
   return (
     <>
       {rows.map((r) => <ItemRow r={r} qy={qy} catLabel="" catHidden={catHidden} />)}
@@ -581,12 +582,15 @@ export function CatalogView({ qy, cats, rows, total, catCounts, groups }: {
         <input type="hidden" name="kind" value={qy.kind} />
         {/* Searching is a flat-list activity: a hit buried in a collapsed group is a hit nobody sees. */}
         <input type="hidden" name="view" value="flat" />
-        <div class="col-12 col-md-4"><input class="form-control" type="search" name="q" value={qy.q} placeholder="Rechercher un titre…" aria-label="Rechercher un titre" enterkeyhint="search" /></div>
-        <div class="col-6 col-md-3"><select class="form-select" name="cat" aria-label="Catégorie"><option value="">Toutes catégories</option>{cats.map((c) => <option value={c.xtreamId} selected={c.xtreamId === qy.cat}>{c.name}</option>)}</select></div>
-        <div class="col-6 col-md-3"><select class="form-select" name="status" aria-label="Statut">
-          {[["", "Tous les statuts"], ["visible", "Visibles"], ["hidden", "Masqués"], ...(qy.kind !== "live" ? [["matched", "TMDB associé"], ["unmatched", "TMDB introuvable"], ["pending", "TMDB en attente"]] : [])].map(([v, l]) => <option value={v} selected={v === qy.status}>{l}</option>)}
+        <div class="col-12 col-md-3"><input class="form-control" type="search" name="q" value={qy.q} placeholder="Rechercher un titre…" aria-label="Rechercher un titre" enterkeyhint="search" /></div>
+        <div class="col-12 col-md-3"><select class="form-select" name="cat" aria-label="Catégorie"><option value="">Toutes catégories</option>{cats.map((c) => <option value={c.xtreamId} selected={c.xtreamId === qy.cat}>{c.name}</option>)}</select></div>
+        <div class="col-6 col-md-2"><select class="form-select" name="vis" aria-label="Visibilité">
+          {[["", "Visibles et masqués"], ["visible", "Visibles"], ["hidden", "Masqués"]].map(([v, l]) => <option value={v} selected={v === qy.vis}>{l}</option>)}
         </select></div>
-        <div class="col-12 col-md-2 d-grid"><button class="btn btn-secondary">Filtrer</button></div>
+        {qy.kind !== "live" && <div class="col-6 col-md-2"><select class="form-select" name="tmdb" aria-label="TMDB">
+          {[["", "TMDB : tous"], ["matched", "TMDB associé"], ["unmatched", "TMDB introuvable"], ["pending", "TMDB en attente"]].map(([v, l]) => <option value={v} selected={v === qy.tmdb}>{l}</option>)}
+        </select></div>}
+        <div class={`col-12 ${qy.kind !== "live" ? "col-md-2" : "col-md-4"} d-grid`}><button class="btn btn-secondary">Filtrer</button></div>
       </form>
       {grouped ? (
         <>

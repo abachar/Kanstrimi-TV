@@ -192,7 +192,10 @@ const PAGE = 100;
 const kindTitle = (k: string) => (k === "live" ? "Live" : k === "vod" ? "Films" : "Séries");
 const catalogQuery = (q: Record<string, string>): CatalogQuery => ({
   kind: (["live", "vod", "series"].includes(q.kind ?? "") ? q.kind : "vod") as CatalogQuery["kind"],
-  q: q.q?.trim() ?? "", cat: q.cat ?? "", status: q.status ?? "", page: Math.max(1, Number(q.page) || 1),
+  q: q.q?.trim() ?? "", cat: q.cat ?? "",
+  vis: (["visible", "hidden"].includes(q.vis ?? "") ? q.vis : "") as CatalogQuery["vis"],
+  tmdb: (["matched", "unmatched", "pending"].includes(q.tmdb ?? "") ? q.tmdb : "") as CatalogQuery["tmdb"],
+  page: Math.max(1, Number(q.page) || 1),
   view: q.view === "flat" ? "flat" : q.view === "groups" ? "groups" : "grouped",
 });
 const groupsQuery = (q: Record<string, string>): GroupsQuery => ({
@@ -205,11 +208,11 @@ const catalogWhere = (qy: CatalogQuery) => {
   const where: SQL[] = [eq(schema.items.kind, qy.kind)];
   if (qy.q) where.push(ilike(schema.items.name, `%${qy.q}%`));
   if (qy.cat) where.push(eq(schema.items.categoryXtreamId, qy.cat));
-  if (qy.status === "hidden") where.push(or(eq(schema.items.hiddenByRule, true), eq(schema.items.hiddenManual, true), inHiddenCategory)!);
-  if (qy.status === "visible") where.push(and(eq(schema.items.hiddenByRule, false), eq(schema.items.hiddenManual, false), sql`not ${inHiddenCategory}`)!);
-  if (qy.status === "unmatched") where.push(eq(schema.items.matchStatus, "unmatched"));
-  if (qy.status === "pending") where.push(eq(schema.items.matchStatus, "pending"));
-  if (qy.status === "matched") where.push(sql`${schema.items.matchStatus} in ('matched','manual')`);
+  if (qy.vis === "hidden") where.push(or(eq(schema.items.hiddenByRule, true), eq(schema.items.hiddenManual, true), inHiddenCategory)!);
+  if (qy.vis === "visible") where.push(and(eq(schema.items.hiddenByRule, false), eq(schema.items.hiddenManual, false), sql`not ${inHiddenCategory}`)!);
+  if (qy.tmdb === "unmatched") where.push(eq(schema.items.matchStatus, "unmatched"));
+  if (qy.tmdb === "pending") where.push(eq(schema.items.matchStatus, "pending"));
+  if (qy.tmdb === "matched") where.push(sql`${schema.items.matchStatus} in ('matched','manual')`);
   return where;
 };
 admin.get("/catalog", async (c) => {
