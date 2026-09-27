@@ -77,11 +77,16 @@ describe("parseName", () => {
   });
 });
 
-describe("isAdultName", () => {
-  it("spots adult categories and tags, not ordinary words", async () => {
-    const { isAdultName } = await import("../tags");
-    for (const n of ["|FR| ADULTES", "XXX | VOD", "|IT| FILM PORNO", "Some Title (18+)", "|EN| FOR ADULTS", "|FR| Films Érotiques"]) expect(isAdultName(n), n).toBe(true);
-    for (const n of ["|FR| Sex and the City", "|FR| Adult Swim Shows", "|FR| Les 18 Jours", "|FR| Playboys of the Western World"]) expect(isAdultName(n), n).toBe(false);
+describe("adult detection", () => {
+  it("categories: words are enough, accents ignored, Adult Swim excluded", async () => {
+    const { isAdultCategory } = await import("../tags");
+    for (const n of ["|FR| ADULTES", "XXX | VOD", "|IT| FILM PORNO", "|EN| FOR ADULTS", "|FR| Films Érotiques", "|FR| +18"]) expect(isAdultCategory(n), n).toBe(true);
+    for (const n of ["|FR| Adult Swim", "|FR| ACTION", "|FR| DOCUMENTAIRES"]) expect(isAdultCategory(n), n).toBe(false);
+  });
+  it("entry names: only an explicit bracketed tag, never a word of the title", async () => {
+    const { isAdultEntryName } = await import("../tags");
+    for (const n of ["Some Title (XXX)", "Some Title [18+]", "|FR| Titre (+18)", "Titre {Adultes}"]) expect(isAdultEntryName(n), n).toBe(true);
+    for (const n of ["|FR| xXx : Reactivated", "|FR| Mention particulière : Bienvenue dans l'âge adulte", "|FR| Sex and the City", "|FR| Les 18 Jours", "|FR| Porno (2019)", "|FR| XXX"]) expect(isAdultEntryName(n), n).toBe(false);
   });
 });
 

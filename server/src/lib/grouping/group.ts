@@ -1,6 +1,6 @@
 import { db, schema, client as pg } from "@/db";
 import { and, asc, gt, inArray, sql } from "drizzle-orm";
-import { parseName, parseCategory, contentKey, defaultLanguage, isAdultName, QUALITY_RANK, DYNAMIC_RANGE_RANK, type CategoryHints, type Quality, type DynamicRange } from "./tags";
+import { parseName, parseCategory, contentKey, defaultLanguage, isAdultCategory, isAdultEntryName, QUALITY_RANK, DYNAMIC_RANGE_RANK, type CategoryHints, type Quality, type DynamicRange } from "./tags";
 import { cardFields, deaccent } from "./cardFields";
 import { getSettings } from "@/lib/settings";
 import { startLog, finishLog } from "@/lib/jobs/log";
@@ -80,7 +80,7 @@ export async function refreshVisibility() {
 async function categoryHints() {
   const cats = await db.select({ kind: schema.categories.kind, xtreamId: schema.categories.xtreamId, name: schema.categories.name }).from(schema.categories);
   const map = new Map<string, CategoryHints & { adult: boolean }>();
-  for (const c of cats) map.set(`${c.kind}:${c.xtreamId}`, { ...parseCategory(c.name), adult: isAdultName(c.name) });
+  for (const c of cats) map.set(`${c.kind}:${c.xtreamId}`, { ...parseCategory(c.name), adult: isAdultCategory(c.name) });
   return map;
 }
 
@@ -113,7 +113,7 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
       qualities.push(quality); qranks.push(quality ? QUALITY_RANK[quality] : 0); drs.push(dr);
       tags.push([...new Set([...p.tags, ...(h?.tags ?? [])])].sort().join(","));
       seasons.push(p.seasonHint ?? null);
-      adults.push(Boolean(h?.adult) || isAdultName(r.name));
+      adults.push(Boolean(h?.adult) || isAdultEntryName(r.name));
     }
     await pg`
       update items i set

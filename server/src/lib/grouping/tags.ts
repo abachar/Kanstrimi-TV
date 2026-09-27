@@ -185,8 +185,13 @@ export function parseName(raw: string, kind: Kind): ParsedName {
 }
 
 const ADULT_WORDS = /(^|[\s|\[\](){}:./-])(XXX|ADULTES?|ADULT(?!\s*SWIM)|PORN(?:O)?|\+18|18\+|EROTI(?:QUES?|CS?|K)|HENTAI|FOR ADULTS|ONLY ?FANS|BRAZZERS|PLAYBOY)(?=$|[\s|\[\](){}:./-])/i;
-/** Does a provider name (entry or category) announce adult content? */
-export function isAdultName(name: string): boolean { return ADULT_WORDS.test(name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")); }
+/** Only an explicit bracketed tag: « xXx : Reactivated » and « Bienvenue dans l'âge adulte » are films. */
+const ADULT_TAG = /[\[({]\s*(XXX|18\+|\+18|ADULTES?|PORNO?)\s*[\])}]/i;
+const deaccentUpper = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+/** Does a provider category announce adult content? Words are enough there. */
+export function isAdultCategory(name: string): boolean { return ADULT_WORDS.test(deaccentUpper(name)); }
+/** Does an entry name carry an explicit adult tag? Plain words in a title never count. */
+export function isAdultEntryName(name: string): boolean { return ADULT_TAG.test(deaccentUpper(name)); }
 
 /** Hints carried by a category name: "|FR| FILMS 4K DV" → fr, 4K, DV ; "|AR| MAGHREB VOSTFR" → ar, VOSTFR. */
 export function parseCategory(name: string): CategoryHints {
