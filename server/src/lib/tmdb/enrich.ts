@@ -2,7 +2,7 @@ import { db, schema } from "@/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import pLimit from "p-limit";
 import { TmdbClient, type TmdbDetails } from "./client";
-import { pickBest, scoreAll, similarity, MATCH_THRESHOLD, cleanTitle, type ScoredDetail } from "./match";
+import { scoreAll, bestSimilarity, namesOf, MATCH_THRESHOLD, cleanTitle, type ScoredDetail } from "./match";
 import { runGrouping, regroupItems } from "@/lib/grouping/group";
 import { getSettings } from "@/lib/settings";
 import { startLog, finishLog } from "@/lib/jobs/log";
@@ -73,7 +73,9 @@ export async function runEnrich(opts: { limit?: number; onlyVisible?: boolean } 
         const first = group[0];
         const mediaType = first.kind === "vod" ? "movie" : "tv";
         const pid = providedTmdbId(first)!;
-        const d = await getDetails(client, mediaType, pid).catch(() => null);
+        let d = await getDetails(client, mediaType, pid).catch(() => null);
+        // Cached before alternative titles were requested: one refresh before judging.
+        if (d && !d.alternative_titles && !group.every((it) => idLooksRight(d!, it))) d = await getDetails(client, mediaType, pid, true).catch(() => d);
         for (const it of group) {
           try {
             if (d && idLooksRight(d, it)) { await setMatch(it.id, pid, 1, "matched"); account(true); continue; }
@@ -105,8 +107,7 @@ function providedTmdbId(it: PendingItem): number | null {
 /** Does the TMDB document the provider pointed at look like this item? */
 export function idLooksRight(d: TmdbDetails, it: Pick<PendingItem, "name" | "cleanTitle" | "year">): boolean {
   const title = it.cleanTitle || cleanTitle(it.name).title;
-  const names = [d.title, d.name, d.original_title, d.original_name].filter(Boolean) as string[];
-  const sim = Math.max(0, ...names.map((n) => similarity(n, title)));
+  const sim = bestSimilarity(d, title);
   if (sim >= MATCH_THRESHOLD) return true;
   if (sim < ID_THRESHOLD) return false;
   // Borderline: the year settles it when both sides have one.
@@ -119,16 +120,26 @@ async function matchByTitle(client: TmdbClient, it: PendingItem): Promise<boolea
   const ct = it.cleanTitle ? { title: it.cleanTitle, year: it.year ?? undefined } : cleanTitle(it.name);
   const search = async (year?: number) => mediaType === "movie" ? client.searchMovie(ct.title, year) : client.searchTv(ct.title, year);
   let res = await search(ct.year);
-  let best = pickBest(res.results ?? [], ct.title, ct.year);
+  let best = scoreAll(res.results ?? [], ct.title, ct.year)[0];
   if ((!best || best.score < MATCH_THRESHOLD) && ct.year) {
     res = await search(undefined);
-    const b2 = pickBest(res.results ?? [], ct.title, ct.year);
+    const b2 = scoreAll(res.results ?? [], ct.title, ct.year)[0];
     if (b2 && (!best || b2.score > best.score)) best = b2;
   }
   if (best && best.score >= MATCH_THRESHOLD) {
     await getDetails(client, mediaType, best.result.id);
     await setMatch(it.id, best.result.id, best.score, "matched");
     return true;
+  }
+  // The search may have hit through an alternative title (English name of a non-English film):
+  // one details call on the best candidate settles it against every name it carries.
+  if (best) {
+    const d = await getDetails(client, mediaType, best.result.id).catch(() => null);
+    const sim = d ? bestSimilarity(d, ct.title) : 0;
+    if (d && (sim >= MATCH_THRESHOLD || (sim >= ID_THRESHOLD && (!ct.year || !best.year || Math.abs(best.year - ct.year) <= 1)))) {
+      await setMatch(it.id, best.result.id, sim, "matched");
+      return true;
+    }
   }
   await setMatch(it.id, null, best?.score ?? 0, "unmatched");
   return false;
@@ -139,7 +150,9 @@ export type MatchExplanation = {
   threshold: number; idThreshold: number;
   provided: { id: number; found: boolean; title?: string; year?: number; similarity: number; accepted: boolean } | null;
   searches: { withYear: number | undefined; candidates: ScoredDetail[] }[];
-  verdict: { status: "matched" | "unmatched"; tmdbId: number | null; score: number; via: "id" | "search" | "none" };
+  /** Best candidate re-judged against all its names (alternative titles included). */
+  alternative?: { id: number; names: string[]; similarity: number };
+  verdict: { status: "matched" | "unmatched"; tmdbId: number | null; score: number; via: "id" | "search" | "alternative" | "none" };
 };
 
 /** The matching, step by step, without writing anything: what the admin sees under "Pourquoi ?". */
@@ -149,10 +162,10 @@ export async function explainMatch(client: TmdbClient, it: PendingItem): Promise
   const out: MatchExplanation = { cleaned: ct, threshold: MATCH_THRESHOLD, idThreshold: ID_THRESHOLD, provided: null, searches: [], verdict: { status: "unmatched", tmdbId: null, score: 0, via: "none" } };
   const pid = providedTmdbId(it);
   if (pid) {
-    const d = await getDetails(client, mediaType, pid).catch(() => null);
+    let d = await getDetails(client, mediaType, pid).catch(() => null);
+    if (d && !d.alternative_titles && !idLooksRight(d, it)) d = await getDetails(client, mediaType, pid, true).catch(() => d);
     if (d) {
-      const names = [d.title, d.name, d.original_title, d.original_name].filter(Boolean) as string[];
-      const sim = Math.max(0, ...names.map((n) => similarity(n, ct.title)));
+      const sim = bestSimilarity(d, ct.title);
       const accepted = idLooksRight(d, it);
       out.provided = { id: pid, found: true, title: d.title ?? d.name, year: Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || undefined, similarity: sim, accepted };
       if (accepted) { out.verdict = { status: "matched", tmdbId: pid, score: 1, via: "id" }; return out; }
@@ -166,8 +179,16 @@ export async function explainMatch(client: TmdbClient, it: PendingItem): Promise
     if (candidates[0] && (!best || candidates[0].score > best.score)) best = candidates[0];
     if (best && best.score >= MATCH_THRESHOLD) break;
   }
-  if (best && best.score >= MATCH_THRESHOLD) out.verdict = { status: "matched", tmdbId: best.result.id, score: best.score, via: "search" };
-  else out.verdict = { status: "unmatched", tmdbId: null, score: best?.score ?? 0, via: "none" };
+  if (best && best.score >= MATCH_THRESHOLD) { out.verdict = { status: "matched", tmdbId: best.result.id, score: best.score, via: "search" }; return out; }
+  if (best) {
+    const d = await getDetails(client, mediaType, best.result.id).catch(() => null);
+    const sim = d ? bestSimilarity(d, ct.title) : 0;
+    out.alternative = { id: best.result.id, names: d ? namesOf(d) : [], similarity: sim };
+    if (d && (sim >= MATCH_THRESHOLD || (sim >= ID_THRESHOLD && (!ct.year || !best.year || Math.abs(best.year - ct.year) <= 1)))) {
+      out.verdict = { status: "matched", tmdbId: best.result.id, score: sim, via: "alternative" }; return out;
+    }
+  }
+  out.verdict = { status: "unmatched", tmdbId: null, score: best?.score ?? 0, via: "none" };
   return out;
 }
 
@@ -186,6 +207,13 @@ export async function assignManual(itemId: number, tmdbId: number | null) {
   }
   await setMatch(itemId, tmdbId, 1, tmdbId ? "manual" : "unmatched");
   await regroupItems([itemId]);
+}
+
+/** Only the failures go back to pending: what a better rule or a fresh TMDB may now find. */
+export async function retryUnmatched(): Promise<number> {
+  const rows = await db.update(schema.items).set({ matchStatus: "pending" })
+    .where(and(inArray(schema.items.kind, ["vod", "series"]), eq(schema.items.matchStatus, "unmatched"))).returning({ id: schema.items.id });
+  return rows.length;
 }
 
 /** Back to pending for automatic matches; manual ones and grouping overrides stay unless asked. */

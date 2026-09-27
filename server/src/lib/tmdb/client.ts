@@ -14,6 +14,8 @@ export type TmdbDetails = Record<string, unknown> & {
   images?: { backdrops?: { file_path: string }[]; posters?: { file_path: string }[]; logos?: { file_path: string }[] };
   release_dates?: { results?: { iso_3166_1: string; release_dates: { certification: string }[] }[] };
   content_ratings?: { results?: { iso_3166_1: string; rating: string }[] };
+  /** Movies answer `titles`, series `results`: the international English title lives here when the original is not English. */
+  alternative_titles?: { titles?: { iso_3166_1: string; title: string }[]; results?: { iso_3166_1: string; title: string }[] };
 };
 
 export class TmdbClient {
@@ -46,10 +48,10 @@ export class TmdbClient {
     return this.get<{ results: TmdbSearchResult[] }>("/search/tv", { query, first_air_date_year: year, include_adult: "false" });
   }
   movie(id: number) {
-    return this.get<TmdbDetails>(`/movie/${id}`, { append_to_response: "credits,videos,release_dates" });
+    return this.get<TmdbDetails>(`/movie/${id}`, { append_to_response: "credits,videos,release_dates,alternative_titles" });
   }
   tv(id: number) {
-    return this.get<TmdbDetails>(`/tv/${id}`, { append_to_response: "credits,videos,content_ratings" });
+    return this.get<TmdbDetails>(`/tv/${id}`, { append_to_response: "credits,videos,content_ratings,alternative_titles" });
   }
   tvSeason(id: number, season: number) {
     return this.get<{ episodes?: Record<string, unknown>[] }>(`/tv/${id}/season/${season}`);

@@ -281,6 +281,12 @@ export function SettingsView({ s }: { s: Settings }) {
           </Card>
         </div>
         <div class="col-12 col-md-6">
+          <form method="post" action="/admin/settings/retry-unmatched" class="mb-3">
+            <Card title="Retenter les introuvables">
+              <p class="text-secondary small">Remet en attente les seuls éléments que TMDB n'a pas trouvés, pour profiter d'une règle améliorée ou de nouvelles fiches. Relancer ensuite l'étape 3.</p>
+              <button class="btn btn-outline-secondary btn-sm">Retenter les introuvables</button>
+            </Card>
+          </form>
           <form method="post" action="/admin/settings/reset-matches" onsubmit="return confirm('Réinitialiser tous les matchings automatiques ?')">
             <Card title="Réinitialiser le matching TMDB">
               <p class="text-secondary small">Remet tous les éléments (sauf associations manuelles) en attente. Relancer ensuite l'étape 3.</p>

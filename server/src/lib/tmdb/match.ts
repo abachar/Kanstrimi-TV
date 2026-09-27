@@ -29,6 +29,15 @@ export function similarity(a: string, b: string): number {
 
 export type Scored = { result: TmdbSearchResult; score: number };
 
+/** Every name a TMDB document answers to: localised title, original title, alternative titles. */
+export function namesOf(d: { title?: string; name?: string; original_title?: string; original_name?: string; alternative_titles?: { titles?: { title: string }[]; results?: { title: string }[] } }): string[] {
+  const alt = [...(d.alternative_titles?.titles ?? []), ...(d.alternative_titles?.results ?? [])].map((t) => t.title);
+  return [...new Set([d.title, d.name, d.original_title, d.original_name, ...alt].filter(Boolean) as string[])];
+}
+export function bestSimilarity(d: Parameters<typeof namesOf>[0], title: string): number {
+  return Math.max(0, ...namesOf(d).map((n) => similarity(n, title)));
+}
+
 export type ScoredDetail = Scored & { similarity: number; year?: number };
 
 /** Every search result with its score: similarity, ± year, + a pinch of popularity. */

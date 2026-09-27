@@ -15,7 +15,7 @@ import { validatePattern, sanitizeFlags, type Kind } from "@/lib/filters/rules";
 import { isValidCron } from "@/lib/jobs/cron";
 import { describeError } from "@/lib/errors";
 import { start, pipeline, runningJobs, getLastError, type Job } from "@/lib/jobs/jobs";
-import { assignManual, resetMatches, getTmdbClient, getCachedDetails, explainMatch } from "@/lib/tmdb/enrich";
+import { assignManual, resetMatches, retryUnmatched, getTmdbClient, getCachedDetails, explainMatch } from "@/lib/tmdb/enrich";
 import { TmdbClient } from "@/lib/tmdb/client";
 import { groupingCounts, regroupItems } from "@/lib/grouping/group";
 import { GroupRow, GroupVariants, MergeForm, GROUPS_PAGE, type GroupsQuery } from "./groups";
@@ -136,6 +136,10 @@ admin.post("/settings/test-tmdb", async (c) => {
   const f = await form(c);
   try { await new TmdbClient(f.tmdb_api_key, f.tmdb_language || "fr-FR").ping(); return c.html(<span class="text-success">TMDB OK</span>); }
   catch (e) { return c.html(<span class="text-danger">{(e as Error).message}</span>); }
+});
+admin.post("/settings/retry-unmatched", async (c) => {
+  const n = await retryUnmatched();
+  return back(c, "/admin/settings", { ok: `${n} élément(s) introuvable(s) remis en attente — relancer l'étape 3` });
 });
 admin.post("/settings/reset-matches", async (c) => {
   await resetMatches(undefined, await checked(c, "overrides"));

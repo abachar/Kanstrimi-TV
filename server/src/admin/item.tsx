@@ -102,7 +102,8 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
           </tbody></table>}
         </div>
       ))}
-      <p class="mb-0">Verdict : <strong class={e.verdict.status === "matched" ? "text-success" : "text-danger"}>{e.verdict.status === "matched" ? `associé à #${e.verdict.tmdbId}` : "introuvable"}</strong>{e.verdict.via === "search" ? ` par recherche, score ${pct(e.verdict.score)}` : e.verdict.via === "id" ? " par l'identifiant amont" : e.verdict.score ? ` (meilleur score ${pct(e.verdict.score)})` : ""}</p>
+      {e.alternative && <p class="mb-1">Meilleur candidat <a href={url(e.alternative.id)} target="_blank" rel="noreferrer">#{e.alternative.id}</a> rejugé sur tous ses titres ({e.alternative.names.slice(0, 6).join(" · ")}{e.alternative.names.length > 6 ? " · …" : ""}) : similarité {pct(e.alternative.similarity)}</p>}
+      <p class="mb-0">Verdict : <strong class={e.verdict.status === "matched" ? "text-success" : "text-danger"}>{e.verdict.status === "matched" ? `associé à #${e.verdict.tmdbId}` : "introuvable"}</strong>{e.verdict.via === "search" ? ` par recherche, score ${pct(e.verdict.score)}` : e.verdict.via === "alternative" ? ` par un titre alternatif, similarité ${pct(e.verdict.score)}` : e.verdict.via === "id" ? " par l'identifiant amont" : e.verdict.score ? ` (meilleur score ${pct(e.verdict.score)})` : ""}</p>
     </div>
   );
 }

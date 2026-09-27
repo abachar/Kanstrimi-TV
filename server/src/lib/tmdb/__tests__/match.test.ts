@@ -31,3 +31,16 @@ describe("pickBest", () => {
     expect(best?.result.id).toBe(2);
   });
 });
+
+describe("namesOf / bestSimilarity", () => {
+  it("includes alternative titles: an English name matches a film whose original title is not English", async () => {
+    const { namesOf, bestSimilarity } = await import("../match");
+    const d = {
+      title: "Conspiration générale : Le meurtre du Brigadier J.", original_title: "Generaal Chaos",
+      alternative_titles: { titles: [{ iso_3166_1: "GB", title: "General Mayhem: The Killing of Brigadier J" }] },
+    };
+    expect(namesOf(d)).toHaveLength(3);
+    expect(bestSimilarity(d, "General Mayhem: The Killing of Brigadier J")).toBe(1);
+    expect(bestSimilarity({ title: d.title, original_title: d.original_title }, "General Mayhem: The Killing of Brigadier J")).toBeLessThan(0.5);
+  });
+});
