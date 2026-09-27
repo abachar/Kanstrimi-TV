@@ -184,7 +184,7 @@ export function parseName(raw: string, kind: Kind): ParsedName {
   };
 }
 
-const ADULT_WORDS = /(^|[\s|\[\](){}:./-])(XXX|ADULTES?|ADULT|PORN(?:O)?|\+18|18\+|EROTI(?:QUES?|CS?|K)|HENTAI|FOR ADULTS|ONLY ?FANS|BRAZZERS|PLAYBOY)(?=$|[\s|\[\](){}:./-])/i;
+const ADULT_WORDS = /(^|[\s|\[\](){}:./-])(XXX|ADULTES?|ADULT(?!\s*SWIM)|PORN(?:O)?|\+18|18\+|EROTI(?:QUES?|CS?|K)|HENTAI|FOR ADULTS|ONLY ?FANS|BRAZZERS|PLAYBOY)(?=$|[\s|\[\](){}:./-])/i;
 /** Does a provider name (entry or category) announce adult content? */
 export function isAdultName(name: string): boolean { return ADULT_WORDS.test(name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")); }
 
