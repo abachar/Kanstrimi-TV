@@ -29,12 +29,20 @@ export function similarity(a: string, b: string): number {
 
 export type Scored = { result: TmdbSearchResult; score: number };
 
-/** Every name a TMDB document answers to: localised title, original title, alternative titles. */
-export function namesOf(d: { title?: string; name?: string; original_title?: string; original_name?: string; alternative_titles?: { titles?: { title: string }[]; results?: { title: string }[] } }): string[] {
+type Named = {
+  title?: string; name?: string; original_title?: string; original_name?: string;
+  alternative_titles?: { titles?: { title: string }[]; results?: { title: string }[] };
+  translations?: { translations?: { data?: { title?: string; name?: string } }[] };
+};
+/** Every name a TMDB document answers to: localised title, original title, alternative and translated titles. */
+export function namesOf(d: Named): string[] {
   const alt = [...(d.alternative_titles?.titles ?? []), ...(d.alternative_titles?.results ?? [])].map((t) => t.title);
-  return [...new Set([d.title, d.name, d.original_title, d.original_name, ...alt].filter(Boolean) as string[])];
+  const tr = (d.translations?.translations ?? []).map((t) => t.data?.title || t.data?.name);
+  return [...new Set([d.title, d.name, d.original_title, d.original_name, ...alt, ...tr].filter(Boolean) as string[])];
 }
-export function bestSimilarity(d: Parameters<typeof namesOf>[0], title: string): number {
+/** Does the cached document carry every kind of name we compare against? Older ones need one refresh. */
+export function hasAllNames(d: Named): boolean { return Boolean(d.alternative_titles && d.translations); }
+export function bestSimilarity(d: Named, title: string): number {
   return Math.max(0, ...namesOf(d).map((n) => similarity(n, title)));
 }
 

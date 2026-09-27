@@ -2,7 +2,7 @@ import { db, schema } from "@/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import pLimit from "p-limit";
 import { TmdbClient, type TmdbDetails } from "./client";
-import { scoreAll, bestSimilarity, namesOf, MATCH_THRESHOLD, cleanTitle, type ScoredDetail } from "./match";
+import { scoreAll, bestSimilarity, namesOf, hasAllNames, MATCH_THRESHOLD, cleanTitle, type ScoredDetail } from "./match";
 import { runGrouping, regroupItems } from "@/lib/grouping/group";
 import { getSettings } from "@/lib/settings";
 import { startLog, finishLog } from "@/lib/jobs/log";
@@ -74,8 +74,8 @@ export async function runEnrich(opts: { limit?: number; onlyVisible?: boolean } 
         const mediaType = first.kind === "vod" ? "movie" : "tv";
         const pid = providedTmdbId(first)!;
         let d = await getDetails(client, mediaType, pid).catch(() => null);
-        // Cached before alternative titles were requested: one refresh before judging.
-        if (d && !d.alternative_titles && !group.every((it) => idLooksRight(d!, it))) d = await getDetails(client, mediaType, pid, true).catch(() => d);
+        // Cached before alternative and translated titles were requested: one refresh before judging.
+        if (d && !hasAllNames(d) && !group.every((it) => idLooksRight(d!, it))) d = await getDetails(client, mediaType, pid, true).catch(() => d);
         for (const it of group) {
           try {
             if (d && idLooksRight(d, it)) { await setMatch(it.id, pid, 1, "matched"); account(true); continue; }
@@ -134,7 +134,8 @@ async function matchByTitle(client: TmdbClient, it: PendingItem): Promise<boolea
   // The search may have hit through an alternative title (English name of a non-English film):
   // one details call on the best candidate settles it against every name it carries.
   if (best) {
-    const d = await getDetails(client, mediaType, best.result.id).catch(() => null);
+    let d = await getDetails(client, mediaType, best.result.id).catch(() => null);
+    if (d && !hasAllNames(d)) d = await getDetails(client, mediaType, best.result.id, true).catch(() => d);
     const sim = d ? bestSimilarity(d, ct.title) : 0;
     if (d && (sim >= MATCH_THRESHOLD || (sim >= ID_THRESHOLD && (!ct.year || !best.year || Math.abs(best.year - ct.year) <= 1)))) {
       await setMatch(it.id, best.result.id, sim, "matched");
@@ -163,7 +164,7 @@ export async function explainMatch(client: TmdbClient, it: PendingItem): Promise
   const pid = providedTmdbId(it);
   if (pid) {
     let d = await getDetails(client, mediaType, pid).catch(() => null);
-    if (d && !d.alternative_titles && !idLooksRight(d, it)) d = await getDetails(client, mediaType, pid, true).catch(() => d);
+    if (d && !hasAllNames(d) && !idLooksRight(d, it)) d = await getDetails(client, mediaType, pid, true).catch(() => d);
     if (d) {
       const sim = bestSimilarity(d, ct.title);
       const accepted = idLooksRight(d, it);
@@ -181,7 +182,8 @@ export async function explainMatch(client: TmdbClient, it: PendingItem): Promise
   }
   if (best && best.score >= MATCH_THRESHOLD) { out.verdict = { status: "matched", tmdbId: best.result.id, score: best.score, via: "search" }; return out; }
   if (best) {
-    const d = await getDetails(client, mediaType, best.result.id).catch(() => null);
+    let d = await getDetails(client, mediaType, best.result.id).catch(() => null);
+    if (d && !hasAllNames(d)) d = await getDetails(client, mediaType, best.result.id, true).catch(() => d);
     const sim = d ? bestSimilarity(d, ct.title) : 0;
     out.alternative = { id: best.result.id, names: d ? namesOf(d) : [], similarity: sim };
     if (d && (sim >= MATCH_THRESHOLD || (sim >= ID_THRESHOLD && (!ct.year || !best.year || Math.abs(best.year - ct.year) <= 1)))) {

@@ -33,6 +33,24 @@ describe("pickBest", () => {
 });
 
 describe("namesOf / bestSimilarity", () => {
+  it("includes translated titles, trimmed to titles only: the English name of an Indonesian film", async () => {
+    const { namesOf, bestSimilarity, hasAllNames } = await import("../match");
+    const { trimTranslations } = await import("../client");
+    const raw = {
+      id: 1773587, title: "Conspiration générale : Le meurtre du Brigadier J.", original_title: "Skenario Sang Jenderal",
+      alternative_titles: { titles: [] },
+      translations: { translations: [
+        { iso_639_1: "en", iso_3166_1: "US", data: { title: "General Mayhem: The Killing of Brigadier J", overview: "long text…" } },
+        { iso_639_1: "fr", iso_3166_1: "FR", data: { title: "", overview: "texte" } },
+      ] },
+    };
+    const d = trimTranslations(raw);
+    expect(JSON.stringify(d)).not.toContain("long text");
+    expect(hasAllNames(d)).toBe(true);
+    expect(hasAllNames({ title: "x" })).toBe(false);
+    expect(namesOf(d)).toContain("General Mayhem: The Killing of Brigadier J");
+    expect(bestSimilarity(d, "General Mayhem: The Killing of Brigadier J")).toBe(1);
+  });
   it("includes alternative titles: an English name matches a film whose original title is not English", async () => {
     const { namesOf, bestSimilarity } = await import("../match");
     const d = {

@@ -16,7 +16,17 @@ export type TmdbDetails = Record<string, unknown> & {
   content_ratings?: { results?: { iso_3166_1: string; rating: string }[] };
   /** Movies answer `titles`, series `results`: the international English title lives here when the original is not English. */
   alternative_titles?: { titles?: { iso_3166_1: string; title: string }[]; results?: { iso_3166_1: string; title: string }[] };
+  /** Titles per language (the English one names the TMDB URL); overviews are dropped before caching. */
+  translations?: { translations?: { iso_639_1: string; iso_3166_1?: string; data?: { title?: string; name?: string; overview?: string } }[] };
 };
+
+/** Keep the translated titles only: the full payload repeats every overview in forty languages. */
+export function trimTranslations(d: TmdbDetails): TmdbDetails {
+  const list = (d.translations?.translations ?? [])
+    .map((t) => ({ iso_639_1: t.iso_639_1, iso_3166_1: t.iso_3166_1, data: { title: t.data?.title || t.data?.name || undefined } }))
+    .filter((t) => t.data.title);
+  return { ...d, translations: { translations: list } };
+}
 
 export class TmdbClient {
   constructor(readonly apiKey: string, readonly language = "fr-FR") {}
@@ -48,10 +58,10 @@ export class TmdbClient {
     return this.get<{ results: TmdbSearchResult[] }>("/search/tv", { query, first_air_date_year: year, include_adult: "false" });
   }
   movie(id: number) {
-    return this.get<TmdbDetails>(`/movie/${id}`, { append_to_response: "credits,videos,release_dates,alternative_titles" });
+    return this.get<TmdbDetails>(`/movie/${id}`, { append_to_response: "credits,videos,release_dates,alternative_titles,translations" }).then(trimTranslations);
   }
   tv(id: number) {
-    return this.get<TmdbDetails>(`/tv/${id}`, { append_to_response: "credits,videos,content_ratings,alternative_titles" });
+    return this.get<TmdbDetails>(`/tv/${id}`, { append_to_response: "credits,videos,content_ratings,alternative_titles,translations" }).then(trimTranslations);
   }
   tvSeason(id: number, season: number) {
     return this.get<{ episodes?: Record<string, unknown>[] }>(`/tv/${id}/season/${season}`);
