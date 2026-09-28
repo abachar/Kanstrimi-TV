@@ -12,6 +12,8 @@ const sign = (src: string, code: string, exp: number) =>
   createHmac("sha256", env.sessionSecret).update(`${src}|${code}|${exp}`).digest("base64url");
 
 export function streamUrl(ctx: RestContext, sourceId: string): string {
+  // The admin reads the catalogue without a device: it never plays, so no link to sign.
+  if (!ctx.device) return "";
   const exp = Math.floor((Date.now() + STREAM_TTL_MS) / 1000);
   return `${ctx.baseUrl}/player/stream/${sourceId}?d=${ctx.device.code}&e=${exp}&s=${sign(sourceId, ctx.device.code, exp)}`;
 }

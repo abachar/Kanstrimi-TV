@@ -27,6 +27,8 @@ export function redactUrl(url: string): string {
 export function requestLogger(): MiddlewareHandler {
   return async (c, next) => {
     const u = new URL(c.req.url);
+    // The dev reload poll fires every second: keep it out of the log.
+    if (u.pathname === "/admin/dev/reload") return next();
     const path = redactUrl(u.pathname + u.search);
     const started = Date.now();
     console.log(`<-- ${c.req.method} ${path}`);

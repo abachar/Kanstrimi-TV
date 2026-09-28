@@ -5,7 +5,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { bodyLimit } from "hono/body-limit";
 import { sql } from "drizzle-orm";
 import { db, client } from "@/db";
-import { getSettings, isUnlocked, onSettingsChange } from "@/config";
+import { getSettings, isUnlocked, onSettingsChange, verify } from "@/config";
 import { player } from "@/player";
 import { imgRoute } from "@/providers/tmdb";
 import { admin } from "@/admin";
@@ -45,6 +45,17 @@ app.onError((err, c) => {
 
 const server = serve({ fetch: app.fetch, port: env.port, hostname: "0.0.0.0" }, () => {
   console.log(`Kanstrimi server → port ${env.port}`);
+  // Local development: unlock at boot so the schedule runs and the login page is skipped.
+  if (env.devPassword)
+    void verify(env.devPassword)
+      .then((ok) =>
+        console.log(
+          ok
+            ? "[boot] DEV_PASSWORD : coffre déverrouillé, connexion admin automatique"
+            : "[boot] DEV_PASSWORD ne correspond pas à ADMIN_PASSWORD_HASH",
+        ),
+      )
+      .catch((e) => console.error("[boot] DEV_PASSWORD :", describeError(e)));
   // Must never kill the process: at boot the database may not be up yet.
   void closeOrphanLogs()
     .then((n) => {

@@ -48,3 +48,10 @@ player.route("/channels", channelRoutes);
 player.route("/playback", playbackRoutes);
 player.route("/search", searchRoutes);
 player.route("/favorites", favoriteRoutes);
+
+// What the admin reads and edits of the app's own data (favourites, positions); `player` itself never imports `admin`.
+export { contextFor, type RestContext } from "./context";
+export { setFavorite } from "./favorites";
+export { gridCard } from "./cards";
+export { listProgress, deleteProgress, setFinished, setProgress, type Progress } from "./progress";
+export type { Card } from "./types";

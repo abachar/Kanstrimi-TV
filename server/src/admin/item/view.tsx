@@ -41,7 +41,7 @@ const Table = ({ title, rows, extra }: { title: string; rows: [string, unknown][
 export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmdbLang }: ItemDetail) {
   const p = parseName(it.name, it.kind);
   const h = cat ? parseCategory(cat.name) : null;
-  const qy: CatalogQuery = { kind: it.kind, q: "", cat: "", vis: "", tmdb: "", page: 1, view: "flat" };
+  const qy: CatalogQuery = { kind: it.kind, q: "", cat: "", vis: "all", tmdb: "", page: 1, view: "grouped" };
   const kindLabel = KIND_NAMES[it.kind];
   const raw = it.raw;
   const d = tmdb as {
@@ -62,7 +62,7 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
     <>
       <div class="mb-4">
         <p class="text-secondary small mb-1">
-          <a href={`/admin/catalog?kind=${it.kind}&view=flat&q=${encodeURIComponent(it.cleanTitle ?? it.name)}`}>← {kindLabel}s</a>
+          <a href={`/admin/catalog?kind=${it.kind}&vis=all&q=${encodeURIComponent(it.cleanTitle ?? it.name)}`}>← {kindLabel}s</a>
         </p>
         <h1 class="h2 mb-1">{it.name}</h1>
         <p class="text-secondary mb-0">

@@ -7,7 +7,7 @@ export type CatalogFilter = {
   kind: Kind;
   q: string;
   cat: string;
-  vis: "" | "visible" | "hidden";
+  vis: "visible" | "hidden" | "all";
   tmdb: "" | "matched" | "unmatched" | "pending";
 };
 export const CATALOG_PAGE = 100;
@@ -41,12 +41,12 @@ export async function pageItems(f: CatalogFilter, page: number, size = CATALOG_P
   return { rows: rows.slice(0, size), hasMore: rows.length > size };
 }
 
-/** Entries per category, for the badges of the grouped view. */
-export async function itemCountByCategory(kind: Kind): Promise<Map<string, number>> {
+/** Entries per category under the current filters, for the badges of the grouped view. */
+export async function itemCountByCategory(f: CatalogFilter): Promise<Map<string, number>> {
   const rows = await db
     .select({ cat: schema.items.categoryXtreamId, n: sql<number>`count(*)::int` })
     .from(schema.items)
-    .where(eq(schema.items.kind, kind))
+    .where(catalogWhere({ ...f, cat: "", q: "" }))
     .groupBy(schema.items.categoryXtreamId);
   return new Map(rows.map((r) => [r.cat ?? "", r.n]));
 }

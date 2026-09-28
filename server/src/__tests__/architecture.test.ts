@@ -40,7 +40,7 @@ const ALLOWED: Record<string, string[]> = {
   catalog: ["providers/xtream", "providers/tmdb", "config", "db", "shared"],
   devices: ["config", "db", "shared"],
   player: ["catalog", "devices", "providers/xtream", "config", "db", "shared"],
-  admin: ["catalog", "devices", "providers/xtream", "providers/tmdb", "config", "db", "shared"],
+  admin: ["player", "catalog", "devices", "providers/xtream", "providers/tmdb", "config", "db", "shared"],
   "main.ts": ["player", "admin", "catalog", "providers/tmdb", "config", "db", "shared"],
 };
 
@@ -54,8 +54,8 @@ describe("architecture", () => {
   it("shared knows nothing of the project", () => {
     expect(offenders((blk, imp) => blk === "shared" && imp.length > 0)).toEqual([]);
   });
-  it("player and admin never meet", () => {
-    expect(offenders((blk, imp) => (blk === "player" && imp === "admin") || (blk === "admin" && imp === "player"))).toEqual([]);
+  it("player ignores admin (admin may read player, never the reverse)", () => {
+    expect(offenders((blk, imp) => blk === "player" && imp === "admin")).toEqual([]);
   });
   it("player takes one pure function from the Xtream provider, and nothing from TMDB", () => {
     const fromXtream = files.filter((f) => block(f) === "player").flatMap((f) => named(f, "providers/xtream"));

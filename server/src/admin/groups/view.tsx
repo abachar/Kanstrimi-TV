@@ -152,7 +152,8 @@ export function GroupVariants({ c, items, cats }: { c: Content; items: Item[]; c
       })}
       {isFallbackKey(c.key) && (
         <div class="text-secondary mt-1">
-          Sans association TMDB : corriger le matching dans la vue « Liste » règle le groupement dans la plupart des cas.
+          Sans association TMDB : corriger le matching dans « Par catégorie » (ou via la recherche) règle le groupement dans la plupart des
+          cas.
         </div>
       )}
     </div>

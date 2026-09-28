@@ -4,6 +4,7 @@ import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db
 import { verify } from "@/config";
 import { itemById } from "@/catalog";
 import { run } from "@/catalog";
+import { setFavorite, setProgress, listProgress } from "@/player";
 import { admin } from "..";
 
 /** The admin as `server.ts` mounts it. Every page is rendered once: a JSX error surfaces as a 500 here. */
@@ -72,8 +73,10 @@ describe("admin", () => {
   it("renders every page", async () => {
     expect(await html("/admin")).toContain("Tableau de bord");
     expect(await html("/admin/catalog?kind=vod")).toContain("|FR| FILMS");
-    expect(await html("/admin/catalog?kind=vod&view=flat&q=matrix")).toContain("Matrix (VOST)");
-    expect(await html("/admin/catalog?kind=live&view=flat")).not.toContain("TMDB associé");
+    expect(await html("/admin/catalog?kind=vod&vis=hidden")).not.toContain("|FR| FILMS"); // nothing hidden under it
+    expect(await html("/admin/catalog?kind=vod&vis=all")).toContain("|FR| FILMS");
+    expect(await html("/admin/catalog?kind=vod&q=matrix")).toContain("Matrix (VOST)");
+    expect(await html("/admin/catalog?kind=live&q=tf1")).not.toContain("TMDB associé");
     const groups = await html("/admin/catalog?kind=vod&view=groups");
     expect(groups).toContain("2 variantes");
     expect(groups).toContain("Groupes");
@@ -83,17 +86,59 @@ describe("admin", () => {
     expect(await html("/admin/devices")).toContain("Aucun appareil");
     expect(await html("/admin/logs")).toContain("Groupement");
     expect(await html("/admin/settings")).toContain("Serveur Xtream");
+    expect(await html("/admin/favorites")).toContain("Aucun favori");
+    expect(await html("/admin/history")).toContain("En cours");
+    expect(await html("/admin/caches")).toContain("Fiches TMDB");
     expect(await html("/admin/pair/K7Q4MZ")).toContain("Code inconnu");
     expect(await html("/admin/jobs/status")).toContain("Aucun job en cours");
     expect((await call("/admin/item/999999")).status).toBe(404);
+    expect((await call("/admin/dev/reload?boot=x")).status, "dev reload is off without DEV_PASSWORD").toBe(404);
+    const fold = await post("/admin/menu", { next: "/admin/catalog?kind=vod" });
+    expect(fold.headers.get("set-cookie")).toContain("kanstrimi_menu=collapsed");
+    expect(fold.headers.get("location")).toBe("/admin/catalog?kind=vod");
+    expect((await post("/admin/menu", { next: "https://evil.test/" })).headers.get("location")).toBe("/admin");
+  });
+
+  it("favourites: a key the app stored shows up, then goes away by POST", async () => {
+    await setFavorite("tmdb:movie:603", true);
+    await setFavorite("tmdb:movie:1", true); // points nowhere: shown as dead, never hidden
+    const list = await html("/admin/favorites");
+    expect(list).toContain("Matrix");
+    expect(list).toContain("supprimé");
+    expect(flash(await post(`/admin/favorites/${encodeURIComponent("tmdb:movie:603")}/remove`, {}))).toContain("Favori retiré");
+    await post(`/admin/favorites/${encodeURIComponent("tmdb:movie:1")}/remove`, {});
+    expect(await html("/admin/favorites")).toContain("Aucun favori");
+  });
+
+  it("history: a position moves from « En cours » to « Vus » and back to nothing", async () => {
+    await setProgress("tmdb:movie:603", 600, 7200);
+    const ongoing = await html("/admin/history");
+    expect(ongoing).toContain("Matrix");
+    expect(ongoing).toContain("Marquer vu");
+    expect(ongoing).toContain("8 %");
+    expect(flash(await post(`/admin/history/${encodeURIComponent("tmdb:movie:603")}/finished`, {}))).toContain("Marqué vu");
+    const [p] = await listProgress();
+    expect(p).toMatchObject({ contentKey: "tmdb:movie:603", position: 7200, duration: 7200, finished: true });
+    expect(await html("/admin/history")).toContain("Marquer non vu");
+    await post(`/admin/history/${encodeURIComponent("tmdb:movie:603")}/unfinished`, {});
+    expect(await listProgress()).toEqual([]);
+    await setProgress("tmdb:movie:603", 600, 7200);
+    await post(`/admin/history/${encodeURIComponent("tmdb:movie:603")}/delete`, {});
+    expect(await listProgress()).toEqual([]);
+    const dashboard = await html("/admin");
+    expect(dashboard).toContain("0 favoris");
+  });
+
+  it("caches: counts the seeded TMDB sheet", async () => {
+    expect(await html("/admin/caches")).toMatch(/1 <small[^>]*>fiches/);
   });
 
   it("toggles visibility and answers with the row (item) or a refresh (category)", async () => {
-    const hide = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&view=flat`, {});
+    const hide = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&q=matrix`, {});
     expect(hide.status).toBe(200);
     expect(await hide.text()).toContain("<s>|FR| Matrix (4K)</s>");
     expect((await itemById(matrixId))?.hiddenManual).toBe(true);
-    const show = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&view=flat`, { visible: "on" });
+    const show = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&q=matrix`, { visible: "on" });
     expect(await show.text()).not.toContain("<s>");
     const cat = await post("/admin/catalog/category/1/visible?kind=vod", {});
     expect(cat.status).toBe(204);

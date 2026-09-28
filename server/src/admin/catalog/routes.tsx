@@ -9,6 +9,7 @@ import { KIND_TITLES } from "../labels";
 import { GroupsView } from "../groups/view";
 import { parseGroupsQuery } from "../groups/query";
 import { CatalogShell, CatalogView } from "./view";
+import { isSearch } from "./query";
 import { CategoryItems, ItemRow } from "./row";
 import { TmdbCell } from "./tmdb-cell";
 import { parseCatalogQuery } from "./query";
@@ -31,9 +32,10 @@ catalogRoutes.get("/", async (c) => {
   }
   const cats = await categoriesOfKind(qy.kind);
   const total = await countItems(qy);
-  // The grouped view lists categories only; the rows arrive later, one category at a time.
-  const rows = qy.view === "grouped" ? [] : (await pageItems(qy, qy.page)).rows;
-  const catCounts = qy.view === "grouped" ? await itemCountByCategory(qy.kind) : new Map<string, number>();
+  // The accordion lists categories only, the rows arrive later one category at a time; a search lists its hits at once.
+  const searching = isSearch(qy);
+  const rows = searching ? (await pageItems(qy, qy.page)).rows : [];
+  const catCounts = searching ? new Map<string, number>() : await itemCountByCategory(qy);
   return page(c, title, <CatalogView qy={qy} cats={cats} rows={rows} total={total} catCounts={catCounts} />);
 });
 

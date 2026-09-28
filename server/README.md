@@ -1,7 +1,7 @@
 # Kanstrimi — serveur
 
 Node 22 · Hono · TypeScript · Biome (formatage, `biome.json`, 140 colonnes) · Postgres + Drizzle · admin rendue côté serveur (Hono JSX +
-HTMX + Bootstrap 5 via CDN, **aucun CSS ni JS maison**) · Vitest · esbuild pour la production.
+HTMX + Bootstrap 5 et Bootstrap Icons via CDN, **aucun CSS ni JS maison**) · Vitest · esbuild pour la production.
 Il importe le catalogue du fournisseur, le nettoie, l'enrichit et le sert à l'app Apple (tvOS, iOS) ; la
 vidéo ne le traverse jamais (`302` vers le fournisseur).
 
@@ -14,6 +14,10 @@ npm install
 npm run db:migrate                         # applique drizzle/*.sql
 npm run dev                                # http://localhost:3000/admin
 ```
+
+En local, `DEV_PASSWORD=<mot de passe>` dans `.env` saute la page de connexion, déverrouille le coffre au
+démarrage et fait recharger les pages de l'admin après chaque redémarrage de `npm run dev` (un élément
+HTMX interroge `/admin/dev/reload` chaque seconde). La variable est refusée avec `NODE_ENV=production`.
 
 Se connecter à `/admin`, puis **Paramètres** : URL et identifiants Xtream (bouton *Tester*),
 clé TMDB, URL publique. Puis **Tableau de bord → Tout enchaîner**, et **Appareils** pour
@@ -68,8 +72,11 @@ qui n'est pas dans l'index est privé au dossier. Le graphe des dépendances est
 ```
 main.ts     composition : Hono, middlewares, montage de player, admin et /img, planification, arrêt propre
 admin/      pages (routes.tsx + view.tsx, data.ts pour les seules requêtes de présentation) ;
-            layout.tsx, ui.tsx (composants Bootstrap), format.ts (nombres, dates, cron), labels.ts,
-            http.tsx, session.ts, csrf.ts. Aucune écriture en base : l'admin appelle le domaine.
+            layout.tsx (menu latéral, offcanvas sous md), ui.tsx (composants Bootstrap), format.ts (nombres,
+            dates, cron), labels.ts, http.tsx, session.ts, csrf.ts. Aucune écriture en base : l'admin appelle
+            le domaine. catalog, groups, item = l'import brut et le groupement, ce qu'on corrige ;
+            favorites et history = ce que l'app a enregistré, lus et modifiés par les fonctions de
+            `player/` avec un contexte sans appareil ; caches n'affiche que des compteurs.
 player/     /player, un fichier par ressource (devices, stream, info, home, lists, sheets, channels,
             playback, search, favorites) ; context, auth, http, cards, versions, stream-links,
             contents (ce que l'app a le droit de voir), progress, episodes (wire), types.ts = le contrat
@@ -88,8 +95,9 @@ shared/     env, errors, http-log, crypto, text (stripAccents, slug, searchText,
 test/       base de test et jeux de données
 ```
 
-Dépendances, de bas en haut : `shared ← db ← config ← providers/* ← catalog ← devices ← player, admin`.
-`player` et `admin` ne s'importent jamais. `player` ne prend aux providers qu'une fonction pure,
+Dépendances, de bas en haut : `shared ← db ← config ← providers/* ← catalog ← devices ← player ← admin`.
+`player` ignore `admin` ; `admin` peut lire `player` par son index (Favoris et Historique appellent les
+mêmes fonctions que l'API, avec un `RestContext` sans appareil, donc sans lien de flux). `player` ne prend aux providers qu'une fonction pure,
 `upstreamStreamUrl`, pour le `302` ; il ne connaît pas TMDB. Le seul réseau au fil des requêtes
 de l'app : le cache d'images à la première demande, et `catalog/episodes` qui relit
 `get_series_info` et la saison TMDB quand l'arbre d'une série a plus de 12 h.

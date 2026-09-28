@@ -5,7 +5,8 @@ import type { Settings } from "@/config";
 export type RestContext = {
   /** Public base URL of this server, e.g. https://kanstrimi.crafters.dev */
   baseUrl: string;
-  device: Device;
+  /** The paired device asking, or `null` when the admin looks through the app's eyes (no stream links then). */
+  device: Device | null;
   tmdbLang: string;
   /** Display name of the single Xtream account (its host). */
   providerName: string;
@@ -24,7 +25,7 @@ export function publicBaseUrl(req: Request, settings: Settings) {
   return `${proto}://${host}`;
 }
 
-export function contextFor(req: Request, device: Device, s: Settings): RestContext {
+export function contextFor(req: Request, device: Device | null, s: Settings): RestContext {
   let providerName = "Fournisseur";
   try {
     providerName = new URL(s.xtream_url.startsWith("http") ? s.xtream_url : `http://${s.xtream_url}`).hostname;

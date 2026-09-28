@@ -2,7 +2,7 @@ import { Busy } from "../ui";
 import { isItemHidden, type Item } from "@/db";
 import { TmdbCell } from "./tmdb-cell";
 import { VisibilityToggle } from "./visibility";
-import { categoryItemsLink, type CatalogQuery } from "./query";
+import { categoryItemsLink, isSearch, type CatalogQuery } from "./query";
 
 /**
  * Items are a list of grid rows, not a `<table>`: a table keeps its five columns on a phone
@@ -11,7 +11,7 @@ import { categoryItemsLink, type CatalogQuery } from "./query";
  * first line, category and TMDB underneath.
  */
 function catalogGrid(qy: CatalogQuery) {
-  const flat = qy.view === "flat",
+  const flat = isSearch(qy),
     tmdb = qy.kind !== "live";
   return {
     flat,

@@ -6,8 +6,9 @@ import { verify, isUnlocked } from "@/config";
 const COOKIE = "kanstrimi_admin";
 const MAX_AGE = 60 * 60 * 24 * 30;
 
-/** Logged in = valid cookie AND vault unlocked (a restart locks it again). */
+/** Logged in = valid cookie AND vault unlocked (a restart locks it again). With `DEV_PASSWORD`, every request is. */
 export async function isLoggedIn(c: Context) {
+  if (env.devPassword) return verify(env.devPassword);
   return isUnlocked() && (await getSignedCookie(c, env.sessionSecret, COOKIE)) === "1";
 }
 export async function login(c: Context, password: string): Promise<boolean> {

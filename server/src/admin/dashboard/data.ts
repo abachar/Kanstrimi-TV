@@ -27,3 +27,18 @@ export async function counts(): Promise<{ items: ItemCount[]; categories: Catego
     .groupBy(schema.categories.kind);
   return { items, categories };
 }
+
+export type AppCount = { favorites: number; ongoing: number; finished: number };
+/** What the app stored: favourites and playback positions, for the « Application » card. */
+export async function appCounts(): Promise<AppCount> {
+  const [[f], [p]] = await Promise.all([
+    db.select({ n: sql<number>`count(*)::int` }).from(schema.favorites),
+    db
+      .select({
+        ongoing: sql<number>`count(*) filter (where not ${schema.watchProgress.finished})::int`,
+        finished: sql<number>`count(*) filter (where ${schema.watchProgress.finished})::int`,
+      })
+      .from(schema.watchProgress),
+  ]);
+  return { favorites: f.n, ongoing: p.ongoing, finished: p.finished };
+}

@@ -64,3 +64,40 @@ export const STAT_LABELS: Record<string, string> = {
   categories: "catégories",
   bytes: "", // bytes are already rendered as "x Mo"
 };
+
+/** The « Caches » page: what each cache holds, and how it fills and refreshes. */
+export const CACHE_LABELS: Record<
+  "tmdb" | "info" | "episodes" | "images" | "epg",
+  { title: string; unit: string; what: string; how: string }
+> = {
+  tmdb: {
+    title: "Fiches TMDB",
+    unit: "fiches",
+    what: "Le détail TMDB de chaque film et série (une ligne par type, identifiant et langue).",
+    how: "Rempli à l'enrichissement TMDB, une fiche par identifiant et par langue.",
+  },
+  info: {
+    title: "Infos amont",
+    unit: "réponses",
+    what: "Les réponses get_series_info du fournisseur, une par série.",
+    how: "Rempli quand l'app ouvre une série ; relu chez le fournisseur passé 12 h, gardé tel quel s'il est injoignable.",
+  },
+  episodes: {
+    title: "Arbres de séries",
+    unit: "épisodes",
+    what: "Les saisons et épisodes des séries, avec leurs sources chez le fournisseur.",
+    how: "Construit quand l'app ouvre une série ; sources amont relues passé 12 h, saisons TMDB passé 30 jours.",
+  },
+  images: {
+    title: "Images",
+    unit: "fichiers",
+    what: "Les affiches et fonds TMDB servis par /img, par taille.",
+    how: "Une image est téléchargée à sa première demande, puis servie depuis le disque.",
+  },
+  epg: {
+    title: "EPG",
+    unit: "fichier",
+    what: "Le guide XMLTV du fournisseur, téléchargé tel quel sur le disque.",
+    how: "Reconstruit par le job « EPG » selon son cron ; rien ne le sert encore.",
+  },
+};

@@ -1,6 +1,6 @@
 import type { Settings } from "@/config";
 import type { SyncLog, Kind } from "@/db";
-import type { ItemCount, CategoryCount } from "./data";
+import type { ItemCount, CategoryCount, AppCount } from "./data";
 import { describeCron, nextCronRun } from "../format";
 import { fmt, ago } from "../format";
 import { Title, Card } from "../ui";
@@ -17,6 +17,7 @@ export type DashboardData = {
   logs: SyncLog[];
   img: { files: number; bytes: number };
   epg: { exists: boolean; bytes: number; mtime: string | null };
+  app: AppCount;
 };
 
 const NO_ITEMS: Omit<ItemCount, "kind"> = { total: 0, hidden: 0, matched: 0, unmatched: 0, pending: 0 };
@@ -146,10 +147,15 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
               URL du serveur
             </label>
             <input id="cx-url" class="form-control form-control-sm mb-2" readonly value={base} />
-            <p class="text-secondary small mb-0">
+            <p class="text-secondary small">
               L'app affiche un QR code vers cette adresse ; l'approuver ici l'appaire. Les liens de lecture pointent sur ce serveur et
               redirigent vers le fournisseur.
             </p>
+            <div class="d-flex flex-wrap gap-3 small">
+              <a href="/admin/favorites">{fmt(d.app.favorites)} favoris</a>
+              <a href="/admin/history">{fmt(d.app.ongoing)} en cours</a>
+              <a href="/admin/history">{fmt(d.app.finished)} vus</a>
+            </div>
           </Card>
         </div>
       </div>

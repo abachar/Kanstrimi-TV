@@ -1,4 +1,5 @@
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
 const isProd = process.env.NODE_ENV === "production";
@@ -20,9 +21,13 @@ const schema = z
     DATABASE_URL: z.string().optional(),
     DATA_DIR: z.string().default("./data"),
     PORT: z.coerce.number().int().positive().default(3000),
+    /** Local development only: logs the admin in and unlocks the vault without the login page. */
+    DEV_PASSWORD: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     if (!isProd) return;
+    if (v.DEV_PASSWORD)
+      ctx.addIssue({ code: "custom", path: ["DEV_PASSWORD"], message: "DEV_PASSWORD est interdit en production (NODE_ENV=production)." });
     for (const name of ["SESSION_SECRET", "DATABASE_URL"] as const) {
       if (!v[name]) ctx.addIssue({ code: "custom", path: [name], message: `${name} est obligatoire en production (NODE_ENV=production).` });
     }
@@ -42,4 +47,8 @@ export const env = {
   databaseUrl: parsed.data.DATABASE_URL ?? "postgres://kanstrimi:kanstrimi@localhost:5432/kanstrimi_db",
   dataDir: path.resolve(parsed.data.DATA_DIR),
   port: parsed.data.PORT,
+  /** Set (outside production) = no login page, and the admin pages reload themselves after every restart. */
+  devPassword: isProd ? undefined : parsed.data.DEV_PASSWORD,
+  /** Changes at every start: what the dev reload poll compares. */
+  bootId: randomBytes(6).toString("hex"),
 };

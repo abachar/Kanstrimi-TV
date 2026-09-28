@@ -1,19 +1,21 @@
 import type { CatalogFilter } from "./data";
 import { kindParam, pageParam, pickEnum } from "../query";
 
-export type CatalogView = "grouped" | "flat" | "groups";
+export type CatalogView = "grouped" | "groups";
 /** The catalogue filter plus what only the page cares about: the presentation and the page number. */
 export type CatalogQuery = CatalogFilter & { page: number; view: CatalogView };
+/** A search leaves the accordion: its hits come as one flat list across categories. */
+export const isSearch = (qy: CatalogQuery) => qy.view === "grouped" && qy.q !== "";
 
 export function parseCatalogQuery(q: Record<string, string>): CatalogQuery {
   return {
     kind: kindParam(q.kind),
     q: q.q?.trim() ?? "",
     cat: q.cat ?? "",
-    vis: pickEnum(q.vis, ["", "visible", "hidden"], ""),
+    vis: pickEnum(q.vis, ["visible", "hidden", "all"], "visible"),
     tmdb: pickEnum(q.tmdb, ["", "matched", "unmatched", "pending"], ""),
     page: pageParam(q.page),
-    view: pickEnum(q.view, ["grouped", "flat", "groups"], "grouped"),
+    view: pickEnum(q.view, ["grouped", "groups"], "grouped"),
   };
 }
 

@@ -5,7 +5,7 @@ import { counts } from "../../dashboard/data";
 import { categoryByXtreamId } from "@/catalog";
 import { setCategoryHiddenManual, setItemHiddenManual } from "@/db";
 
-const vod = (over: Partial<CatalogFilter> = {}): CatalogFilter => ({ kind: "vod", q: "", cat: "", vis: "", tmdb: "", ...over });
+const vod = (over: Partial<CatalogFilter> = {}): CatalogFilter => ({ kind: "vod", q: "", cat: "", vis: "all", tmdb: "", ...over });
 
 beforeAll(async () => {
   await resetDb();
@@ -50,13 +50,16 @@ describe("admin catalogue browsing", () => {
     expect(p2.hasMore).toBe(false);
   });
 
-  it("counts entries per category for the grouped view", async () => {
-    expect(await itemCountByCategory("vod")).toEqual(
+  it("counts entries per category for the grouped view, under the current filters", async () => {
+    expect(await itemCountByCategory(vod())).toEqual(
       new Map([
         ["10", 3],
         ["11", 1],
       ]),
     );
+    // The default filter: what the app sees. The hidden category and the hand-hidden entry drop out.
+    expect(await itemCountByCategory(vod({ vis: "visible" }))).toEqual(new Map([["10", 2]]));
+    expect(await itemCountByCategory(vod({ tmdb: "unmatched", cat: "11", q: "zzz" }))).toEqual(new Map([["10", 2]]));
   });
 
   it("the manual switches write hidden_manual and nothing else", async () => {

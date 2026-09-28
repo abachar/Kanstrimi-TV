@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { getSettings } from "@/config";
-import { counts } from "./data";
+import { appCounts, counts } from "./data";
 import { recentLogs } from "@/catalog";
 import { cacheStats } from "@/providers/tmdb";
 import { epgCacheStat } from "@/providers/xtream";
@@ -18,18 +18,19 @@ export const jobRoutes = new Hono();
 const jobsState = () => ({ running: runningSteps(), lastError: getLastError() });
 
 dashboardRoutes.get("/", async (c) => {
-  const [s, cnt, logs, img, epg, groups] = await Promise.all([
+  const [s, cnt, logs, img, epg, groups, app] = await Promise.all([
     getSettings(),
     counts(),
     recentLogs(6),
     cacheStats(),
     epgCacheStat(),
     groupingCounts(),
+    appCounts(),
   ]);
   return page(
     c,
     "Tableau de bord",
-    <DashboardView d={{ s, items: cnt.items, cats: cnt.categories, logs, img, epg, groups }} jobs={jobsState()} />,
+    <DashboardView d={{ s, items: cnt.items, cats: cnt.categories, logs, img, epg, groups, app }} jobs={jobsState()} />,
   );
 });
 jobRoutes.get("/status", (c) => c.html(<JobsStatus {...jobsState()} />));

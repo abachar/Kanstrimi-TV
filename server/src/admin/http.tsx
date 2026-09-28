@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { Layout } from "./layout";
+import { isMenuCollapsed, Layout } from "./layout";
 
 /** A full page in the admin layout; flash messages travel in `?ok=` / `?err=`. */
 export const page = (c: Context, title: string, body: unknown, loggedIn = true) =>
@@ -9,6 +9,7 @@ export const page = (c: Context, title: string, body: unknown, loggedIn = true) 
       path: new URL(c.req.url).pathname + new URL(c.req.url).search,
       flash: { ok: c.req.query("ok"), err: c.req.query("err") },
       loggedIn,
+      collapsed: isMenuCollapsed(c),
       children: body as never,
     }) as never,
   );

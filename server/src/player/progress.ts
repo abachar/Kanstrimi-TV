@@ -1,5 +1,5 @@
 import { db, schema } from "@/db";
-import { desc, inArray, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 
 /** "Vu" is derived here, once, at write time: 90 % of the duration. */
 export const FINISHED_AT = 0.9;
@@ -41,4 +41,29 @@ export async function resumeKeys(limit = 20): Promise<Progress[]> {
     )
     .orderBy(desc(schema.watchProgress.updatedAt))
     .limit(limit);
+}
+
+// ---------------------------------------------------------------- history (admin)
+
+/** Every progress row, most recently watched first: the admin's « Historique ». */
+export async function listProgress(): Promise<Progress[]> {
+  return db.select().from(schema.watchProgress).orderBy(desc(schema.watchProgress.updatedAt), desc(schema.watchProgress.contentKey));
+}
+
+export async function deleteProgress(contentKey: string): Promise<void> {
+  await db.delete(schema.watchProgress).where(eq(schema.watchProgress.contentKey, contentKey));
+}
+
+/**
+ * Manual override from the admin. « Vu » sets the position to the end (or to 1/1 when the
+ * duration is unknown); « non vu » drops the row, a position at 0 meaning nothing.
+ */
+export async function setFinished(contentKey: string, finished: boolean): Promise<void> {
+  if (!finished) return deleteProgress(contentKey);
+  const [row] = await db.select().from(schema.watchProgress).where(eq(schema.watchProgress.contentKey, contentKey));
+  const duration = row?.duration || 1;
+  await db
+    .insert(schema.watchProgress)
+    .values({ contentKey, position: duration, duration, finished: true, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: schema.watchProgress.contentKey, set: { position: duration, finished: true, updatedAt: new Date() } });
 }
