@@ -3,6 +3,7 @@ import SwiftUI
 /// After 10 s without an image and the automatic attempts [20].
 struct StreamFailureDialog: View {
     @Environment(AppEnvironment.self) private var env
+    @FocusState private var focused: Bool
     private var player: PlayerService { env.player }
 
     var body: some View {
@@ -15,8 +16,9 @@ struct StreamFailureDialog: View {
                     Text("Aucune image après 10 s · \(f.attempts) tentative\(f.attempts > 1 ? "s" : "") sur \(f.sourceLabel)\(f.hadAlternativeSource ? "" : ", aucune autre source pour cette version")")
                         .font(.body).foregroundStyle(Theme.secondary)
                 }
-                HStack(spacing: 20) {
-                    Button { player.retryFromServer() } label: { Label("Réessayer", systemImage: "arrow.clockwise") }
+                // One button per row, like a tvOS alert: the version label can be long and the dialog is narrow.
+                VStack(alignment: .leading, spacing: 14) {
+                    Button { player.retryFromServer() } label: { Label("Réessayer", systemImage: "arrow.clockwise") }.focused($focused)
                     if let alt = player.alternativeVersion {
                         Button { player.playAlternative() } label: { Label("Autre version · \(alt.label)", systemImage: "square.stack.3d.up") }
                     }
@@ -26,9 +28,11 @@ struct StreamFailureDialog: View {
                     .font(.callout).foregroundStyle(Theme.secondary)
             }
             .padding(48)
-            .frame(maxWidth: 1100, alignment: .leading)
+            .frame(maxWidth: 900, alignment: .leading)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 32))
         }
+        // Takes the focus on arrival: nothing else on screen is focusable, so the remote would be dead.
+        .onAppear { focused = true }
         .onExitCommand { player.stop() }
     }
 }

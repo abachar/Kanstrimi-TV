@@ -23,7 +23,7 @@ struct CatalogView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {
-                        Text(kind == .series ? "Séries" : "Films").font(.largeTitle.weight(.bold)).padding(.horizontal, 96).padding(.top, 30)
+                        Text(kind == .series ? "Séries" : "Films").font(.largeTitle.weight(.bold)).padding(.horizontal, Theme.inset).padding(.top, 30)
                         ForEach(rows) { row in
                             ShelfRow(row: row, onSelect: { env.open($0.id) }, onSeeAll: row.total > row.cards.count ? { seeAll = row } : nil)
                         }
@@ -31,6 +31,8 @@ struct CatalogView: View {
                     }
                 }
                 .scrollClipDisabled()
+                // Like Home: the margin is Theme.inset alone, not the tvOS safe area plus the inset.
+                .ignoresSafeArea(edges: .horizontal)
             }
         }
         .background(Theme.background)
@@ -64,7 +66,7 @@ struct ShelfRow: View {
                 Text(row.name).font(.title3.weight(.bold))
                 Text(Format.count(row.total)).font(.callout).foregroundStyle(Theme.secondary)
             }
-            .padding(.horizontal, 96)
+            .padding(.horizontal, Theme.inset)
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: 36) {
                     ForEach(row.cards) { c in
@@ -82,7 +84,7 @@ struct ShelfRow: View {
                         .buttonStyle(.card)
                     }
                 }
-                .padding(.horizontal, 96)
+                .padding(.horizontal, Theme.inset)
                 .padding(.vertical, 30)
             }
             .scrollClipDisabled()
@@ -115,7 +117,7 @@ struct GenreGridView: View {
                     Text(row.name).font(.largeTitle.weight(.bold))
                     Text(Format.count(row.total)).font(.title3).foregroundStyle(Theme.secondary)
                 }
-                .padding(.horizontal, 96)
+                .padding(.horizontal, Theme.inset)
                 FilterBar(kind: kind, query: $query)
                 grid
             }
@@ -167,7 +169,7 @@ struct GenreGridView: View {
                         ProgressView().frame(width: 250, height: 375)
                     }
                 }
-                .padding(.horizontal, 96)
+                .padding(.horizontal, Theme.inset)
                 .padding(.vertical, 30)
             }
         } else {
@@ -233,7 +235,7 @@ struct FilterBar: View {
                     Button(role: .destructive) { query = ListQuery(kind: kind, genre: query.genre) } label: { Label("Tout retirer", systemImage: "xmark") }
                 }
             }
-            .padding(.horizontal, 96)
+            .padding(.horizontal, Theme.inset)
             .padding(.vertical, 20)
         }
         .scrollClipDisabled()

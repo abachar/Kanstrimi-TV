@@ -20,6 +20,8 @@ final class MockCatalogClient: CatalogClient {
     private var pairingApproved = false
     private var pairingCreatedAt: Date?
     static let pageSize = 18
+    /// Tests only: how many movies the fixtures hold, so a test never hard-codes the figure.
+    var movieCount: Int { movies.count }
     static let rowSize = 20
 
     init(scenario: MockScenario) {
@@ -31,10 +33,11 @@ final class MockCatalogClient: CatalogClient {
                   let data = try? Data(contentsOf: url) else { fatalError("Fixture \(name).json manquante") }
             do { return try decoder.decode(T.self, from: data) } catch { fatalError("Fixture \(name).json : \(error)") }
         }
-        movies = load("movies", as: [Card].self).map { $0.resolvingDemoStreams() }
-        series = load("series", as: [Card].self).map { $0.resolvingDemoStreams() }
+        // The fixtures' `demo://` stream URLs lead nowhere: the mock shows the catalogue, playback is the real server's job.
+        movies = load("movies", as: [Card].self)
+        series = load("series", as: [Card].self)
         let ch = load("channels", as: ChannelsFile.self)
-        groups = ch.groups.map { ChannelGroup(id: $0.id, name: $0.name, channels: $0.channels.map { $0.resolvingDemoStreams() }) }
+        groups = ch.groups
         epgTitles = ch.epg
         let state = load("state", as: StateFile.self)
         for e in state.progress {
@@ -330,42 +333,6 @@ final class MockCatalogClient: CatalogClient {
     func setFavorite(id: ContentID, _ favorite: Bool) async throws {
         try await gate()
         if favorite { favorites.insert(id) } else { favorites.remove(id) }
-    }
-}
-
-// MARK: - Demo stream rewriting
-
-private extension Source {
-    func resolvingDemoStreams() -> Source {
-        Source(id: id, container: container, streamURL: DemoStreams.resolve(streamURL), provider: provider, origin: origin)
-    }
-}
-private extension Version {
-    func resolvingDemoStreams() -> Version {
-        Version(id: id, language: language, quality: quality, dynamicRange: dynamicRange, sources: sources.map { $0.resolvingDemoStreams() })
-    }
-}
-private extension Episode {
-    func resolvingDemoStreams() -> Episode {
-        Episode(id: id, season: season, number: number, title: title, overview: overview, runtime: runtime, still: still, airDate: airDate,
-                versions: versions.map { $0.resolvingDemoStreams() }, progress: progress)
-    }
-}
-private extension Card {
-    func resolvingDemoStreams() -> Card {
-        Card(id: id, kind: kind, title: title, poster: poster, maxQuality: maxQuality, dynamicRange: dynamicRange, languages: languages,
-             backdrop: backdrop, progress: progress, episode: episode, year: year, rating: rating, genres: genres, hint: hint, addedAt: addedAt,
-             originalTitle: originalTitle, endYear: endYear, overview: overview, runtime: runtime, certification: certification, cast: cast,
-             director: director, trailer: trailer.map(DemoStreams.resolve), hasTMDB: hasTMDB, providerCategory: providerCategory, rawTitle: rawTitle,
-             versions: versions.map { $0.resolvingDemoStreams() }, isFavorite: isFavorite,
-             seasons: seasons?.map { Season(number: $0.number, title: $0.title, year: $0.year, episodes: $0.episodes.map { $0.resolvingDemoStreams() }) },
-             currentEpisode: currentEpisode)
-    }
-}
-private extension Channel {
-    func resolvingDemoStreams() -> Channel {
-        Channel(id: id, name: name, number: number, logo: logo, maxQuality: maxQuality, hasEPG: hasEPG, isFavorite: isFavorite,
-                versions: versions.map { $0.resolvingDemoStreams() }, now: now, next: next)
     }
 }
 

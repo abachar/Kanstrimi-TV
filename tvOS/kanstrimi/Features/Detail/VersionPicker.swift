@@ -59,9 +59,9 @@ struct VersionPicker: View {
 
                 HStack(spacing: 24) {
                     if !isSeries {
-                        Toggle("Mémoriser pour ce film", isOn: $remember).frame(width: 480)
+                        Toggle("Mémoriser pour ce film", isOn: $remember).frame(width: 420)
                     }
-                    Toggle("Par défaut pour tous", isOn: $asDefault).frame(width: 440)
+                    Toggle("Par défaut pour tous", isOn: $asDefault).frame(width: 380)
                     Spacer()
                     Button {
                         if let v = selectedVersion { onPick(v, selectedSource, remember, asDefault); dismiss() }
@@ -73,7 +73,7 @@ struct VersionPicker: View {
                 }
             }
             .padding(48)
-            .frame(width: 1500)
+            .frame(width: 1200)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 32))
         }
         .onAppear {
@@ -100,7 +100,7 @@ struct VersionPicker: View {
         } label: {
             HStack(spacing: 18) {
                 Image(systemName: selectedVersion?.id == v.id ? "largecircle.fill.circle" : "circle").foregroundStyle(Theme.accent)
-                Text(v.qualityLabel).font(.headline).lineLimit(1).frame(width: 340, alignment: .leading)
+                Text(v.qualityLabel).font(.headline).lineLimit(1).frame(width: 280, alignment: .leading)
                 Text("\(v.sources.count) source\(v.sources.count > 1 ? "s" : "") · \(v.sources.first?.container ?? "")").foregroundStyle(Theme.secondary)
                 Spacer()
                 if v.id == recommendedID {
@@ -120,7 +120,7 @@ struct VersionPicker: View {
         } label: {
             HStack(spacing: 18) {
                 Image(systemName: selectedSource?.id == s.id && selectedVersion?.id == v.id ? "largecircle.fill.circle" : "circle").foregroundStyle(Theme.secondary)
-                Text("Source \(String(Character(UnicodeScalar(65 + index)!)))").font(.callout.weight(.semibold)).frame(width: 340, alignment: .leading)
+                Text("Source \(String(Character(UnicodeScalar(65 + index)!)))").font(.callout.weight(.semibold)).frame(width: 280, alignment: .leading)
                 Text("\(s.label) · \(s.container)").font(.callout).foregroundStyle(Theme.secondary)
                 Spacer()
                 if index == 0 {

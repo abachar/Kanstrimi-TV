@@ -30,7 +30,7 @@ struct SearchView: View {
                 filters
                 Spacer()
             }
-            .padding(.horizontal, 96)
+            .padding(.horizontal, Theme.inset)
             if text.trimmingCharacters(in: .whitespaces).isEmpty {
                 StatePanel(icon: "magnifyingglass", title: "Rechercher", message: "Un titre, un acteur ou un réalisateur. La dictée Siri fonctionne depuis la télécommande.", actionTitle: nil)
             } else if let error {
@@ -100,7 +100,7 @@ struct SearchView: View {
             }
             .scrollClipDisabled()
         }
-        .padding(.leading, 96)
+        .padding(.leading, Theme.inset)
     }
 
     private func row(_ title: String, _ cards: [Card]) -> some View {

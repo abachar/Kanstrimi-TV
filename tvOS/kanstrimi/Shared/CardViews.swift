@@ -117,7 +117,7 @@ struct CardRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(title).font(.title3.weight(.bold)).padding(.horizontal, 96)
+            Text(title).font(.title3.weight(.bold)).padding(.horizontal, Theme.inset)
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: 36) {
                     ForEach(cards) { c in
@@ -128,7 +128,7 @@ struct CardRow: View {
                         }
                     }
                 }
-                .padding(.horizontal, 96)
+                .padding(.horizontal, Theme.inset)
                 .padding(.vertical, 30)
             }
             .scrollClipDisabled()

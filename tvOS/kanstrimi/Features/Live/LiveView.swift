@@ -39,12 +39,18 @@ struct LiveView: View {
             } else if isLoading && groups.isEmpty {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                HStack(alignment: .top, spacing: 30) {
-                    categories.frame(width: 360)
-                    channelList.frame(width: 640)
-                    side.frame(maxWidth: .infinity)
+                // Columns in proportion of the width left inside the margins: the channel list and
+                // the preview both grow with the screen instead of leaving the preview to absorb it all.
+                GeometryReader { geo in
+                    let width = geo.size.width - 2 * Theme.inset - 60
+                    HStack(alignment: .top, spacing: 30) {
+                        categories.frame(width: width * 0.29)
+                        channelList.frame(width: width * 0.31)
+                        side.frame(maxWidth: .infinity)
+                    }
+                    .padding(.horizontal, Theme.inset).padding(.top, 30)
                 }
-                .padding(.horizontal, 80).padding(.top, 30)
+                .ignoresSafeArea(edges: .horizontal)
             }
         }
         .background(Theme.background)
@@ -57,7 +63,13 @@ struct LiveView: View {
             }
         }
         .onChange(of: env.player.isPresented) { _, presented in
-            if presented { preview.stop() } else if isVisible, let c = focusedChannel { preview.show(c) }
+            if presented {
+                preview.stop()
+            } else if isVisible {
+                // Back from the player: on the channel that was playing, not on the first column.
+                if let id = focusedChannelID { focus = .channel(id) }
+                if let c = focusedChannel { preview.show(c) }
+            }
         }
         .onAppear {
             isVisible = true

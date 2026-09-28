@@ -25,7 +25,8 @@ révision figée dans le projet). Le fournisseur ne sert pas de HLS : VLCKit lit
   serveur répond `302` vers le fournisseur. Le choix de la version suit l'ordre de langues
   des Réglages, les préférences par titre, et bascule de source après échec.
 - Réglages › Appareil › « Client de démonstration » passe sur le mock sans relancer ; les
-  `#Preview` et les scénarios de démo forcent le mock.
+  `#Preview` et les scénarios de démo forcent le mock. Ses flux (`demo://…`) ne se lisent pas :
+  la lecture se teste contre le serveur, local ou de prod.
 
 ## Vérifier
 
@@ -37,8 +38,6 @@ Pas de `Simulator.app` sur cette installation Xcode 27, donc pas de télécomman
 - Lecteur sans télécommande : `xcrun simctl spawn <udid> defaults write dev.crafters.kanstrimi debug.autoplay live`
   (ou un identifiant de contenu, plus `debug.resumeAt` en secondes), lancer, puis
   `xcrun simctl io <udid> screenshot`.
-- Les trois URL de démo vivent dans `kanstrimi/Client/DemoStreams.local.json`, hors dépôt
-  (identifiants fournisseur).
 
 ## Contraintes mesurées
 

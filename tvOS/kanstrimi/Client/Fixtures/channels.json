@@ -1,1067 +1,838 @@
 {
  "groups": [
   {
-   "id": "generalistes",
-   "name": "Généralistes",
+   "id": "fr-generalistes",
+   "name": "France · Généralistes",
    "channels": [
     {
-     "id": "live:une",
-     "name": "Une",
-     "number": 1,
-     "logo": null,
-     "max_quality": "4K",
-     "has_epg": true,
-     "is_favorite": true,
-     "versions": [
-      {
-       "id": "fr-4k",
-       "language": "FR",
-       "quality": "4K",
-       "sources": [
-        {
-         "id": "src-0314e6dc",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Généralistes"
-        },
-        {
-         "id": "src-02308fd2",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-b",
-          "name": "Fournisseur B",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Généralistes Backup"
-        }
-       ]
-      },
-      {
-       "id": "fr-fhd",
-       "language": "FR",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-03829e70",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Généralistes"
-        }
-       ]
-      },
-      {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-038d537a",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Généralistes"
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "id": "live:deux",
-     "name": "Deux",
-     "number": 2,
-     "logo": null,
-     "max_quality": "FHD",
-     "has_epg": true,
-     "is_favorite": false,
-     "versions": [
-      {
-       "id": "fr-fhd",
-       "language": "FR",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-05d2c5a3",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Généralistes"
-        }
-       ]
-      },
-      {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-0261124c",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Généralistes"
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "id": "live:trois",
-     "name": "Trois",
-     "number": 3,
-     "logo": null,
-     "max_quality": "FHD",
-     "has_epg": true,
-     "is_favorite": false,
-     "versions": [
-      {
-       "id": "fr-fhd",
-       "language": "FR",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-0201df4a",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Généralistes"
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "id": "live:cinq",
-     "name": "Cinq",
+     "id": "live:fr-tf1",
+     "name": "TF1",
      "number": 5,
-     "logo": null,
-     "max_quality": "FHD",
+     "logo": "http://logott.firstcloud.me/logo/40043.png",
+     "max_quality": "4K",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-fhd",
-       "language": "FR",
+       "id": "vf-4k",
+       "language": "VF",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-i5",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-fhd",
+       "language": "VF",
        "quality": "FHD",
        "sources": [
         {
-         "id": "src-03914cf7",
+         "id": "src-i2",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Généralistes"
+         "origin": "FRANCE FHD | TV"
         }
        ]
       },
       {
-       "id": "fr-hd",
-       "language": "FR",
+       "id": "vf-hd",
+       "language": "VF",
        "quality": "HD",
        "sources": [
         {
-         "id": "src-05eac334",
+         "id": "src-i3",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Généralistes"
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "id": "live:six",
-     "name": "Six",
-     "number": 6,
-     "logo": null,
-     "max_quality": "FHD",
-     "has_epg": true,
-     "is_favorite": false,
-     "versions": [
-      {
-       "id": "fr-fhd",
-       "language": "FR",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-04f9f800",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Généralistes"
+         "origin": "FRANCE HD | TV"
         }
        ]
       },
       {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-0348959b",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Généralistes"
-        }
-       ]
-      },
-      {
-       "id": "fr-sd",
-       "language": "FR",
+       "id": "vf-sd",
+       "language": "VF",
        "quality": "SD",
        "sources": [
         {
-         "id": "src-03c18934",
+         "id": "src-i4",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Généralistes"
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:huit",
-     "name": "Huit",
-     "number": 8,
-     "logo": null,
-     "max_quality": "HD",
+     "id": "live:fr-france-2",
+     "name": "FRANCE 2",
+     "number": 9,
+     "logo": "http://logott.firstcloud.me/logo/55403.png",
+     "max_quality": "4K",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
+       "id": "vf-4k",
+       "language": "VF",
+       "quality": "4K",
        "sources": [
         {
-         "id": "src-025f1de7",
+         "id": "src-i9",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Généralistes"
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i6",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i7",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i8",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
      ]
-    }
-   ]
-  },
-  {
-   "id": "info",
-   "name": "Info",
-   "channels": [
+    },
     {
-     "id": "live:info-24",
-     "name": "Info 24",
+     "id": "live:fr-france-3",
+     "name": "FRANCE 3",
      "number": 10,
-     "logo": null,
+     "logo": "http://logott.firstcloud.me/logo/9287.png",
      "max_quality": "FHD",
      "has_epg": true,
-     "is_favorite": true,
-     "versions": [
-      {
-       "id": "fr-fhd",
-       "language": "FR",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-0281549d",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Info"
-        }
-       ]
-      },
-      {
-       "id": "en-fhd",
-       "language": "EN",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-01586022",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Info"
-        }
-       ]
-      },
-      {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-00d03381",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Info"
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "id": "live:monde-direct",
-     "name": "Monde Direct",
-     "number": 11,
-     "logo": null,
-     "max_quality": "HD",
-     "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
        "sources": [
         {
-         "id": "src-04e637f5",
+         "id": "src-ia",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Info"
+         "origin": "FRANCE FHD | TV"
         }
        ]
       },
       {
-       "id": "en-hd",
-       "language": "EN",
+       "id": "vf-hd",
+       "language": "VF",
        "quality": "HD",
        "sources": [
         {
-         "id": "src-046223dc",
+         "id": "src-ib",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Info"
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-ic",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:éco-live",
-     "name": "Éco Live",
-     "number": 12,
-     "logo": null,
-     "max_quality": "HD",
-     "has_epg": true,
-     "is_favorite": false,
-     "versions": [
-      {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-003ebdd0",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Info"
-        }
-       ]
-      },
-      {
-       "id": "en-hd",
-       "language": "EN",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-01a2f950",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Info"
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "id": "live:parlement",
-     "name": "Parlement",
+     "id": "live:fr-france-4",
+     "name": "FRANCE 4",
      "number": 13,
-     "logo": null,
-     "max_quality": "SD",
+     "logo": "http://logott.firstcloud.me/logo/9288.png",
+     "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-sd",
-       "language": "FR",
-       "quality": "SD",
-       "sources": [
-        {
-         "id": "src-01b4e452",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Info"
-        }
-       ]
-      },
-      {
-       "id": "en-sd",
-       "language": "EN",
-       "quality": "SD",
-       "sources": [
-        {
-         "id": "src-0597a9f2",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Info"
-        }
-       ]
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "id": "sport",
-   "name": "Sport",
-   "channels": [
-    {
-     "id": "live:arena-1",
-     "name": "Arena 1",
-     "number": 20,
-     "logo": null,
-     "max_quality": "4K",
-     "has_epg": true,
-     "is_favorite": true,
-     "versions": [
-      {
-       "id": "fr-4k",
-       "language": "FR",
-       "quality": "4K",
-       "sources": [
-        {
-         "id": "src-025b113a",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Sport"
-        },
-        {
-         "id": "src-05b3585b",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-b",
-          "name": "Fournisseur B",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Sport Backup"
-        }
-       ]
-      },
-      {
-       "id": "en-4k",
-       "language": "EN",
-       "quality": "4K",
-       "sources": [
-        {
-         "id": "src-033a1a96",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Sport"
-        }
-       ]
-      },
-      {
-       "id": "fr-fhd",
-       "language": "FR",
+       "id": "vf-fhd",
+       "language": "VF",
        "quality": "FHD",
        "sources": [
         {
-         "id": "src-01cc7d79",
+         "id": "src-id",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Sport"
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-ie",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-if",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:arena-2",
-     "name": "Arena 2",
-     "number": 21,
-     "logo": null,
-     "max_quality": "4K",
+     "id": "live:fr-france-5",
+     "name": "FRANCE 5",
+     "number": 16,
+     "logo": "http://logott.firstcloud.me/logo/9361.png",
+     "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-4k",
-       "language": "FR",
-       "quality": "4K",
-       "sources": [
-        {
-         "id": "src-0589e732",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Sport"
-        },
-        {
-         "id": "src-055149ce",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-b",
-          "name": "Fournisseur B",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Sport Backup"
-        }
-       ]
-      },
-      {
-       "id": "en-4k",
-       "language": "EN",
-       "quality": "4K",
-       "sources": [
-        {
-         "id": "src-029a7b98",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Sport"
-        }
-       ]
-      },
-      {
-       "id": "fr-fhd",
-       "language": "FR",
+       "id": "vf-fhd",
+       "language": "VF",
        "quality": "FHD",
        "sources": [
         {
-         "id": "src-0153b780",
+         "id": "src-ig",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Sport"
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-ih",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-ii",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:arena-3",
-     "name": "Arena 3",
+     "id": "live:fr-m6",
+     "name": "M6",
      "number": 22,
-     "logo": null,
-     "max_quality": "FHD",
-     "has_epg": true,
+     "logo": "http://logott.firstcloud.me/logo/52215.png",
+     "max_quality": "4K",
+     "has_epg": false,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-fhd",
-       "language": "FR",
-       "quality": "FHD",
+       "id": "vf-4k",
+       "language": "VF",
+       "quality": "4K",
        "sources": [
         {
-         "id": "src-00cfe2bc",
+         "id": "src-im",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Sport"
+         "origin": "FRANCE FHD | TV"
         }
        ]
       },
       {
-       "id": "en-fhd",
-       "language": "EN",
+       "id": "vf-fhd",
+       "language": "VF",
        "quality": "FHD",
        "sources": [
         {
-         "id": "src-01d6ba1c",
+         "id": "src-ij",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Sport"
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-ik",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-il",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:stadeplus",
-     "name": "Stade+",
+     "id": "live:fr-arte",
+     "name": "ARTE",
      "number": 23,
-     "logo": null,
+     "logo": "http://logott.firstcloud.me/logo/18485.png",
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-fhd",
-       "language": "FR",
+       "id": "vf-fhd",
+       "language": "VF",
        "quality": "FHD",
        "sources": [
         {
-         "id": "src-0314cfe3",
+         "id": "src-in",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Sport"
+         "origin": "FRANCE FHD | TV"
         }
        ]
       },
       {
-       "id": "en-fhd",
-       "language": "EN",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-0107104c",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Sport"
-        }
-       ]
-      },
-      {
-       "id": "fr-hd",
-       "language": "FR",
+       "id": "vf-hd",
+       "language": "VF",
        "quality": "HD",
        "sources": [
         {
-         "id": "src-04cffa8f",
+         "id": "src-io",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Sport"
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-ip",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:moteurs",
-     "name": "Moteurs",
-     "number": 24,
-     "logo": null,
-     "max_quality": "HD",
-     "has_epg": true,
-     "is_favorite": false,
-     "versions": [
-      {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-02ae9188",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Sport"
-        }
-       ]
-      },
-      {
-       "id": "en-hd",
-       "language": "EN",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-0528045b",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Sport"
-        }
-       ]
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "id": "cinema",
-   "name": "Cinéma",
-   "channels": [
-    {
-     "id": "live:ciné-club",
-     "name": "Ciné Club",
-     "number": 30,
-     "logo": null,
-     "max_quality": "4K",
-     "has_epg": true,
-     "is_favorite": false,
-     "versions": [
-      {
-       "id": "fr-4k",
-       "language": "FR",
-       "quality": "4K",
-       "sources": [
-        {
-         "id": "src-044abfd0",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Cinéma"
-        },
-        {
-         "id": "src-0328275f",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-b",
-          "name": "Fournisseur B",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Cinéma Backup"
-        }
-       ]
-      },
-      {
-       "id": "vostfr-4k",
-       "language": "VOSTFR",
-       "quality": "4K",
-       "sources": [
-        {
-         "id": "src-01a94c8d",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Cinéma"
-        }
-       ]
-      },
-      {
-       "id": "fr-fhd",
-       "language": "FR",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-04ee6d13",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Cinéma"
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "id": "live:ciné-frisson",
-     "name": "Ciné Frisson",
-     "number": 31,
-     "logo": null,
+     "id": "live:fr-w9",
+     "name": "W9",
+     "number": 26,
+     "logo": "http://logott.firstcloud.me/logo/1212.png",
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-fhd",
-       "language": "FR",
+       "id": "vf-fhd",
+       "language": "VF",
        "quality": "FHD",
        "sources": [
         {
-         "id": "src-04648340",
+         "id": "src-iq",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Cinéma"
+         "origin": "FRANCE FHD | TV"
         }
        ]
       },
       {
-       "id": "vostfr-fhd",
-       "language": "VOSTFR",
-       "quality": "FHD",
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
        "sources": [
         {
-         "id": "src-026c4c25",
+         "id": "src-ir",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Cinéma"
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-is",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:ciné-famille",
-     "name": "Ciné Famille",
+     "id": "live:fr-tmc",
+     "name": "TMC",
+     "number": 29,
+     "logo": "http://logott.firstcloud.me/logo/10462.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-it",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-iu",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-iv",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-tfx",
+     "name": "TFX",
      "number": 32,
-     "logo": null,
+     "logo": "http://logott.firstcloud.me/logo/9903.png",
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-fhd",
-       "language": "FR",
+       "id": "vf-fhd",
+       "language": "VF",
        "quality": "FHD",
        "sources": [
         {
-         "id": "src-0457eb11",
+         "id": "src-iw",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Cinéma"
+         "origin": "FRANCE FHD | TV"
         }
        ]
       },
       {
-       "id": "vostfr-fhd",
-       "language": "VOSTFR",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-044e4862",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Cinéma"
-        }
-       ]
-      },
-      {
-       "id": "fr-hd",
-       "language": "FR",
+       "id": "vf-hd",
+       "language": "VF",
        "quality": "HD",
        "sources": [
         {
-         "id": "src-03063803",
+         "id": "src-ix",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Cinéma"
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-iy",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:ciné-classique",
-     "name": "Ciné Classique",
-     "number": 33,
-     "logo": null,
-     "max_quality": "HD",
+     "id": "live:fr-cstar",
+     "name": "CSTAR",
+     "number": 35,
+     "logo": "http://logott.firstcloud.me/logo/9294.png",
+     "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
        "sources": [
         {
-         "id": "src-058c81bd",
+         "id": "src-iz",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Cinéma"
+         "origin": "FRANCE FHD | TV"
         }
        ]
       },
       {
-       "id": "vostfr-hd",
-       "language": "VOSTFR",
+       "id": "vf-hd",
+       "language": "VF",
        "quality": "HD",
        "sources": [
         {
-         "id": "src-021bf798",
+         "id": "src-i10",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Cinéma"
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i11",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-t18",
+     "name": "T18",
+     "number": 38,
+     "logo": "http://logott.firstcloud.me/logo/10461.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i12",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i13",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i14",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE HD | TV"
         }
        ]
       }
@@ -1070,202 +841,2142 @@
    ]
   },
   {
-   "id": "jeunesse",
-   "name": "Jeunesse",
+   "id": "fr-cinema",
+   "name": "France · Cinéma",
    "channels": [
     {
-     "id": "live:kidzo",
-     "name": "Kidzo",
-     "number": 40,
-     "logo": null,
-     "max_quality": "FHD",
-     "has_epg": false,
-     "is_favorite": false,
-     "versions": [
-      {
-       "id": "fr-fhd",
-       "language": "FR",
-       "quality": "FHD",
-       "sources": [
-        {
-         "id": "src-02c7f482",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Jeunesse"
-        }
-       ]
-      },
-      {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-039e02bb",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Jeunesse"
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "id": "live:ludik",
-     "name": "Ludik",
-     "number": 41,
-     "logo": null,
-     "max_quality": "HD",
-     "has_epg": false,
-     "is_favorite": false,
-     "versions": [
-      {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
-       "sources": [
-        {
-         "id": "src-01f0c604",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Chaînes Jeunesse"
-        }
-       ]
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "id": "decouverte",
-   "name": "Découverte",
-   "channels": [
-    {
-     "id": "live:planète-bleue",
-     "name": "Planète Bleue",
-     "number": 50,
-     "logo": null,
+     "id": "live:fr-canal",
+     "name": "CANAL+",
+     "number": 67,
+     "logo": "http://logott.firstcloud.me/logo/52207.png",
      "max_quality": "4K",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-4k",
-       "language": "FR",
+       "id": "vf-4k-hdr",
+       "language": "VF",
        "quality": "4K",
+       "dynamic_range": "HDR",
        "sources": [
         {
-         "id": "src-0167af40",
+         "id": "src-i1w",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Découverte"
-        },
-        {
-         "id": "src-0411c1e6",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream-b",
-          "name": "Fournisseur B",
-          "kind": "xtream"
-         },
-         "origin": "|FR| Découverte Backup"
+         "origin": "FRANCE FHD | TV"
         }
        ]
       },
       {
-       "id": "fr-fhd",
-       "language": "FR",
-       "quality": "FHD",
+       "id": "vf-4k",
+       "language": "VF",
+       "quality": "4K",
        "sources": [
         {
-         "id": "src-026a8be3",
+         "id": "src-i1v",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Découverte"
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i1s",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i1t",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i1u",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:histoire-tv",
-     "name": "Histoire TV",
-     "number": 51,
-     "logo": null,
+     "id": "live:fr-canal-box-office",
+     "name": "CANAL+ BOX OFFICE",
+     "number": 70,
+     "logo": "http://logott.firstcloud.me/logo/55402.png",
+     "max_quality": "4K",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-4k",
+       "language": "VF",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-i1y",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i1x",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i1z",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        },
+        {
+         "id": "src-i20",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-canal-grand-ecran",
+     "name": "CANAL+ GRAND ECRAN",
+     "number": 73,
+     "logo": "http://logott.firstcloud.me/logo/51395.png",
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-fhd",
-       "language": "FR",
+       "id": "vf-fhd",
+       "language": "VF",
        "quality": "FHD",
        "sources": [
         {
-         "id": "src-004cb184",
+         "id": "src-i21",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Découverte"
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i22",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        },
+        {
+         "id": "src-i23",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
         }
        ]
       }
      ]
     },
     {
-     "id": "live:sciences",
-     "name": "Sciences",
-     "number": 52,
-     "logo": null,
-     "max_quality": "HD",
+     "id": "live:fr-canal-cinema-s",
+     "name": "CANAL+ CINEMA(S)",
+     "number": 76,
+     "logo": "http://logott.firstcloud.me/logo/9686.png",
+     "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
      "versions": [
       {
-       "id": "fr-hd",
-       "language": "FR",
-       "quality": "HD",
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
        "sources": [
         {
-         "id": "src-05e125ec",
+         "id": "src-i24",
          "container": "TS",
          "stream_url": "demo://live",
          "provider": {
-          "id": "xtream-a",
-          "name": "Fournisseur A",
+          "id": "xtream",
+          "name": "Fournisseur",
           "kind": "xtream"
          },
-         "origin": "|FR| Chaînes Découverte"
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i25",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        },
+        {
+         "id": "src-i26",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-cine-ocs",
+     "name": "CINE+ OCS",
+     "number": 79,
+     "logo": "http://logott.firstcloud.me/logo/9524.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i27",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i28",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        },
+        {
+         "id": "src-i29",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-cine-frisson",
+     "name": "CINE+ FRISSON",
+     "number": 82,
+     "logo": "http://logott.firstcloud.me/logo/9525.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i2a",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i2b",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i2c",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "CINEMA HD | TV"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "fr-sport",
+   "name": "France · Sport",
+   "channels": [
+    {
+     "id": "live:fr-canal-sport",
+     "name": "CANAL+ SPORT",
+     "number": 457,
+     "logo": "http://logott.firstcloud.me/logo/1175.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-icp",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-icq",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-icr",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-canal-sport-360",
+     "name": "CANAL+ SPORT 360",
+     "number": 460,
+     "logo": "http://logott.firstcloud.me/logo/53152.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-ics",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-ict",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-icu",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-canal-foot",
+     "name": "CANAL+ FOOT",
+     "number": 463,
+     "logo": "http://logott.firstcloud.me/logo/52208.png",
+     "max_quality": "4K",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-4k-hdr",
+       "language": "VF",
+       "quality": "4K",
+       "dynamic_range": "HDR",
+       "sources": [
+        {
+         "id": "src-icw",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-4k",
+       "language": "VF",
+       "quality": "4K",
+       "sources": [
+        {
+         "id": "src-icv",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-icm",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-icn",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-ico",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-bein-sports-1",
+     "name": "BEIN SPORTS 1",
+     "number": 465,
+     "logo": "http://logott.firstcloud.me/logo/9913.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-icx",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-icy",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-icz",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-bein-sports-2",
+     "name": "BEIN SPORTS 2",
+     "number": 468,
+     "logo": "http://logott.firstcloud.me/logo/9914.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-id0",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-id1",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-id2",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-bein-sports-3",
+     "name": "BEIN SPORTS 3",
+     "number": 471,
+     "logo": "http://logott.firstcloud.me/logo/9915.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-id3",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-id4",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-id5",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-rmc-sport-1",
+     "name": "RMC SPORT 1",
+     "number": 474,
+     "logo": "http://logott.firstcloud.me/logo/6726.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-id6",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-id7",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-id8",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-infosport",
+     "name": "INFOSPORT+",
+     "number": 477,
+     "logo": "http://logott.firstcloud.me/logo/9298.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-id9",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-ida",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-idb",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS HD | TV"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "fr-jeunesse",
+   "name": "France · Jeunesse",
+   "channels": [
+    {
+     "id": "live:fr-canal-kids",
+     "name": "CANAL+ KIDS",
+     "number": 285,
+     "logo": "http://logott.firstcloud.me/logo/49103.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i7x",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i7y",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "JEUNESSE HD | TV"
+        },
+        {
+         "id": "src-i7z",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "JEUNESSE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-piwi",
+     "name": "PIWI+",
+     "number": 288,
+     "logo": "http://logott.firstcloud.me/logo/18449.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i80",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i81",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "JEUNESSE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i82",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "JEUNESSE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-disney-junior",
+     "name": "DISNEY JUNIOR",
+     "number": 291,
+     "logo": "http://logott.firstcloud.me/logo/20956.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i83",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i84",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "JEUNESSE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i85",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "JEUNESSE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-nickelodeon-junior",
+     "name": "NICKELODEON JUNIOR",
+     "number": 294,
+     "logo": "http://logott.firstcloud.me/logo/18786.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i86",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i87",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "JEUNESSE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i88",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "JEUNESSE HD | TV"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "fr-infos",
+   "name": "France · Infos",
+   "channels": [
+    {
+     "id": "live:fr-la-chaine-meteo",
+     "name": "LA CHAINE METEO",
+     "number": 410,
+     "logo": "http://logott.firstcloud.me/logo/22326.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-ibe",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-ibf",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "INFORMATION HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-cnews",
+     "name": "CNEWS",
+     "number": 412,
+     "logo": "http://logott.firstcloud.me/logo/9348.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-ibg",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-ibh",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "INFORMATION HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-cnews-prime",
+     "name": "CNEWS PRIME",
+     "number": 414,
+     "logo": "http://logott.firstcloud.me/logo/58030.jpg",
+     "max_quality": "FHD",
+     "has_epg": false,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-ibi",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-ibj",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "INFORMATION HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-bfm",
+     "name": "BFM",
+     "number": 416,
+     "logo": "http://logott.firstcloud.me/logo/10417.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-ibk",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-ibl",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "INFORMATION HD | TV"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "fr-decouverte",
+   "name": "France · Découverte",
+   "channels": [
+    {
+     "id": "live:fr-canal-docs",
+     "name": "CANAL+ DOCS",
+     "number": 210,
+     "logo": "http://logott.firstcloud.me/logo/49100.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i5u",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i5v",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "DOCUMENTAIRE HD | TV"
+        },
+        {
+         "id": "src-i5w",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "DOCUMENTAIRE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-planete",
+     "name": "PLANETE+",
+     "number": 213,
+     "logo": "http://logott.firstcloud.me/logo/10478.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i5x",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i5y",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "DOCUMENTAIRE HD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-sd",
+       "language": "VF",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i5z",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "DOCUMENTAIRE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-planete-crime",
+     "name": "PLANETE+ CRIME",
+     "number": 216,
+     "logo": "http://logott.firstcloud.me/logo/9521.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i60",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i61",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "DOCUMENTAIRE HD | TV"
+        },
+        {
+         "id": "src-i62",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "DOCUMENTAIRE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-planete-aventure",
+     "name": "PLANETE+ AVENTURE",
+     "number": 219,
+     "logo": "http://logott.firstcloud.me/logo/9522.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i63",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i64",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "DOCUMENTAIRE HD | TV"
+        },
+        {
+         "id": "src-i65",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "DOCUMENTAIRE HD | TV"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "fr-musique",
+   "name": "France · Musique",
+   "channels": [
+    {
+     "id": "live:fr-europe-2-pop-tv",
+     "name": "EUROPE 2 POP TV",
+     "number": 1090,
+     "logo": "http://logott.firstcloud.me/logo/29424.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-itq",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-itr",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "MUSIQUE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-m6-music",
+     "name": "M6 MUSIC",
+     "number": 1092,
+     "logo": "http://logott.firstcloud.me/logo/22396.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-its",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-itt",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "MUSIQUE HD | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:fr-nrj-hits",
+     "name": "NRJ HITS",
+     "number": 1094,
+     "logo": "http://logott.firstcloud.me/logo/18448.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-itu",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "FRANCE FHD | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-itv",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "MUSIQUE HD | TV"
+        },
+        {
+         "id": "src-i9hm",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": null
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ar-sport",
+   "name": "Monde arabe · Sport",
+   "channels": [
+    {
+     "id": "live:ar-bein-sports-1",
+     "name": "BEIN SPORTS 1",
+     "number": 2664,
+     "logo": "http://logott.firstcloud.me/logo/2757.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i40g",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i40h",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "ar-fhd",
+       "language": "AR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i3yo",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "ar-hd",
+       "language": "AR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i3yp",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "ar-sd",
+       "language": "AR",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i3yq",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:ar-bein-sports-global",
+     "name": "BEIN SPORTS GLOBAL",
+     "number": 2660,
+     "logo": "http://logott.firstcloud.me/logo/41003.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "ar-fhd",
+       "language": "AR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i3yk",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "ar-hd",
+       "language": "AR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i3yl",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:ar-bein-sports-news",
+     "name": "BEIN SPORTS NEWS",
+     "number": 2662,
+     "logo": "http://logott.firstcloud.me/logo/41002.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "ar-fhd",
+       "language": "AR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i3ym",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "ar-hd",
+       "language": "AR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i3yn",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "live:ar-bein-sports-2",
+     "name": "BEIN SPORTS 2",
+     "number": 2667,
+     "logo": "http://logott.firstcloud.me/logo/2758.png",
+     "max_quality": "FHD",
+     "has_epg": true,
+     "is_favorite": false,
+     "versions": [
+      {
+       "id": "vf-fhd",
+       "language": "VF",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i40i",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "vf-hd",
+       "language": "VF",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i40j",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "ar-fhd",
+       "language": "AR",
+       "quality": "FHD",
+       "sources": [
+        {
+         "id": "src-i3yr",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "ar-hd",
+       "language": "AR",
+       "quality": "HD",
+       "sources": [
+        {
+         "id": "src-i3ys",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
+        }
+       ]
+      },
+      {
+       "id": "ar-sd",
+       "language": "AR",
+       "quality": "SD",
+       "sources": [
+        {
+         "id": "src-i3yt",
+         "container": "TS",
+         "stream_url": "demo://live",
+         "provider": {
+          "id": "xtream",
+          "name": "Fournisseur",
+          "kind": "xtream"
+         },
+         "origin": "SPORTS ARABIC | TV"
         }
        ]
       }
@@ -1275,7 +2986,7 @@
   }
  ],
  "epg": {
-  "Généralistes": [
+  "France · Généralistes": [
    "Le Journal",
    "Météo",
    "Série du soir",
@@ -1283,39 +2994,49 @@
    "Cinéma du dimanche",
    "Magazine santé"
   ],
-  "Info": [
+  "France · Infos": [
    "Le Journal de 21 h",
    "Édition spéciale",
    "Décryptage",
    "Le Point éco",
    "Nuit de l'info"
   ],
-  "Sport": [
+  "France · Sport": [
    "Ligue · Lyon – Nantes",
    "Le Mag du foot",
    "Tennis · Quarts de finale",
    "Cyclisme · Étape 12",
    "Rugby · Top 14"
   ],
-  "Cinéma": [
-   "Orbite Basse",
-   "La Lisière",
-   "Faubourg",
-   "Court-métrage",
-   "Impasse Nord"
+  "Monde arabe · Sport": [
+   "Ligue · Lyon – Nantes",
+   "Le Mag du foot",
+   "Tennis · Quarts de finale",
+   "Cyclisme · Étape 12",
+   "Rugby · Top 14"
   ],
-  "Jeunesse": [
+  "France · Cinéma": [
+   "Downton Abbey",
+   "Dora et la Cité perdue",
+   "Parasite"
+  ],
+  "France · Jeunesse": [
    "Petit Bleu",
    "Les Aventuriers",
    "Dessins animés",
    "Quiz junior"
   ],
-  "Découverte": [
+  "France · Découverte": [
    "Sous la Glace",
    "Les Cimes",
    "Marathon",
    "Planète sauvage",
    "Archives"
+  ],
+  "France · Musique": [
+   "Clips",
+   "Concert privé",
+   "Top 50"
   ]
  }
 }

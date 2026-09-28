@@ -1,114 +1,88 @@
 {
  "progress": [
   {
-   "content_id": "tmdb:tv:20000:s02e04",
-   "position": 1140,
-   "duration": 3060
+   "content_id": "tmdb:movie:535544",
+   "position": 3660,
+   "duration": 7320
   },
   {
-   "content_id": "tmdb:movie:100002",
-   "position": 4520,
-   "duration": 8280
+   "content_id": "tmdb:movie:499701",
+   "position": 2142,
+   "duration": 6120
   },
   {
-   "content_id": "tmdb:tv:20003:s01e02",
-   "position": 600,
-   "duration": 2880
+   "content_id": "tmdb:movie:496243",
+   "position": 5670,
+   "duration": 8100
   },
   {
-   "content_id": "tmdb:movie:100007",
-   "position": 5900,
-   "duration": 6540
+   "content_id": "tmdb:movie:76600",
+   "position": 1382,
+   "duration": 11520
   },
   {
-   "content_id": "tmdb:tv:20004:s01e07",
-   "position": 300,
-   "duration": 2700
+   "content_id": "tmdb:movie:484247",
+   "position": 842,
+   "duration": 7020
   },
   {
-   "content_id": "tmdb:movie:100013",
-   "position": 7400,
-   "duration": 7440,
+   "content_id": "tmdb:movie:60304",
+   "position": 633,
+   "duration": 5280
+  },
+  {
+   "content_id": "tmdb:movie:522212",
+   "position": 4110,
+   "duration": 8220
+  },
+  {
+   "content_id": "tmdb:movie:338952",
+   "position": 964,
+   "duration": 8040
+  },
+  {
+   "content_id": "tmdb:movie:495764",
+   "position": 6450,
+   "duration": 6480,
    "finished": true
   },
   {
-   "content_id": "fallback:movie:silver-book-of-dreams:2013",
-   "position": 5600,
-   "duration": 5640,
-   "finished": true
+   "content_id": "tmdb:tv:300388:s01e01",
+   "position": 3240,
+   "duration": 8100
   },
   {
-   "content_id": "tmdb:tv:20000:s01e01",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
+   "content_id": "tmdb:tv:300388:s01e02",
+   "position": 3504,
+   "duration": 8760
   },
   {
-   "content_id": "tmdb:tv:20000:s01e02",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
+   "content_id": "tmdb:tv:300388:s02e01",
+   "position": 3432,
+   "duration": 8580
   },
   {
-   "content_id": "tmdb:tv:20000:s01e03",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
+   "content_id": "tmdb:tv:300388:s02e02",
+   "position": 3384,
+   "duration": 8460
   },
   {
-   "content_id": "tmdb:tv:20000:s01e04",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
+   "content_id": "tmdb:tv:80411:s01e01",
+   "position": 3240,
+   "duration": 8100
   },
   {
-   "content_id": "tmdb:tv:20000:s01e05",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
-  },
-  {
-   "content_id": "tmdb:tv:20000:s01e06",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
-  },
-  {
-   "content_id": "tmdb:tv:20000:s01e07",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
-  },
-  {
-   "content_id": "tmdb:tv:20000:s01e08",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
-  },
-  {
-   "content_id": "tmdb:tv:20000:s02e01",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
-  },
-  {
-   "content_id": "tmdb:tv:20000:s02e02",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
-  },
-  {
-   "content_id": "tmdb:tv:20000:s02e03",
-   "position": 3000,
-   "duration": 3060,
-   "finished": true
+   "content_id": "tmdb:tv:80411:s01e02",
+   "position": 3240,
+   "duration": 8100
   }
  ],
  "favorites": [
-  "tmdb:movie:100000",
-  "tmdb:movie:100004",
-  "tmdb:tv:20001",
-  "tmdb:movie:100018",
-  "tmdb:tv:20007"
+  "tmdb:movie:535544",
+  "tmdb:movie:76600",
+  "tmdb:movie:299534",
+  "tmdb:tv:300388",
+  "tmdb:tv:77551",
+  "live:fr-tf1"
  ]
 }

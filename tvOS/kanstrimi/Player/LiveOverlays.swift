@@ -46,7 +46,8 @@ struct LiveBanner: View {
                 .transition(.opacity)
             }
         }
-        .padding(.horizontal, 90).padding(.vertical, 60)
+        .padding(.horizontal, Theme.inset).padding(.vertical, 60)
+        .ignoresSafeArea()
         .allowsHitTesting(false)
     }
 

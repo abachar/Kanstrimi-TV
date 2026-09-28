@@ -67,9 +67,10 @@ private struct DetailContent: View {
                         if d.kind == .series { seasons(d) }
                         Spacer(minLength: 80)
                     }
-                    .padding(.horizontal, 96)
+                    .padding(.horizontal, Theme.inset)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .ignoresSafeArea(edges: .horizontal)
             }
             .onAppear { focused = .play }
         } else {

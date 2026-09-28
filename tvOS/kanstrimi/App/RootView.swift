@@ -29,7 +29,7 @@ struct RootView: View {
 }
 
 private extension RootView {
-    /// Debug only: `defaults write dev.crafters.kanstrimi debug.autoplay live|<content id>`
+    /// Debug only: `defaults write dev.crafters.kanstrimi debug.autoplay live|<content id>` (a `live:…` id picks that channel)
     /// starts playback at launch, so the player can be checked without a remote.
     func debugAutoplay() async {
         #if DEBUG
@@ -39,6 +39,11 @@ private extension RootView {
         case "live":
             guard let groups = try? await env.client.channels(), let first = groups.flatMap(\.channels).first else { return }
             env.player.play(channel: first, in: groups.flatMap(\.channels))
+        case let id where id.hasPrefix("live:"):
+            guard let groups = try? await env.client.channels() else { return }
+            let all = groups.flatMap(\.channels)
+            guard let channel = all.first(where: { $0.id == ContentID(id) }) else { return }
+            env.player.play(channel: channel, in: all)
         default:
             let id = ContentID(what)
             guard let card = try? await env.client.detail(id: id.seriesID ?? id) else { return }

@@ -48,8 +48,9 @@ struct PairingView: View {
             }
             .frame(width: 520)
         }
-        .padding(.horizontal, 96)
+        .padding(.horizontal, Theme.inset)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(edges: .horizontal)
         .background(Theme.background)
         .task { await model.run(env) }
     }

@@ -44,7 +44,7 @@ struct HomeView: View {
                         OfflineBanner(detail: "Accueil du \(Format.dayHour(home.generatedAt)) affiché · la lecture reste possible si le flux répond") {
                             Task { await model.load() }
                         }
-                        .padding(.horizontal, 96).padding(.top, 30)
+                        .padding(.horizontal, Theme.inset).padding(.top, 30)
                     }
                     if let hero = home.hero { heroView(hero, model: model) }
                     ForEach(home.rows) { row in
@@ -103,7 +103,7 @@ struct HomeView: View {
                 }
                 .padding(.top, 8)
             }
-            .padding(.horizontal, 96)
+            .padding(.horizontal, Theme.inset)
             .padding(.bottom, 40)
         }
     }

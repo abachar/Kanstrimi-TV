@@ -15,11 +15,11 @@ private struct ScreenHost<Content: View>: View {
 
 #Preview("Films") { ScreenHost { CatalogView(kind: .movie) } }
 #Preview("Séries") { ScreenHost { CatalogView(kind: .series) } }
-#Preview("Fiche film") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:movie:100000")) } } }
-#Preview("Fiche série") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:tv:20000")) } } }
-#Preview("Fiche sans TMDB") { ScreenHost { NavigationStack { DetailView(id: ContentID("fallback:movie:silver-book-of-dreams:2013")) } } }
+#Preview("Fiche film") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:movie:535544")) } } }
+#Preview("Fiche série") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } } }
+#Preview("Fiche sans TMDB") { ScreenHost { NavigationStack { DetailView(id: ContentID("fallback:movie:avant-charlie-brown-il-y-avait-schulz:-")) } } }
 #Preview("Fiche en erreur") {
-    ScreenHost(setup: { $0.scenario.failingDetail = true }) { NavigationStack { DetailView(id: ContentID("tmdb:tv:20000")) } }
+    ScreenHost(setup: { $0.scenario.failingDetail = true }) { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } }
 }
 #Preview("Page suivante en erreur") {
     ScreenHost(setup: { $0.scenario.failingSecondPage = true }) { CatalogView(kind: .movie) }
@@ -61,7 +61,7 @@ private struct HomeOfflinePreview: View {
 
 private enum Fixtures {
     static func source(_ id: String, origin: String) -> Source {
-        Source(id: id, container: "MKV", streamURL: DemoStreams.movie, provider: Provider(id: "xtream-a", name: "Fournisseur A", kind: "xtream"), origin: origin)
+        Source(id: id, container: "MKV", streamURL: URL(string: "demo://movie")!, provider: Provider(id: "xtream-a", name: "Fournisseur A", kind: "xtream"), origin: origin)
     }
     static let sevenVersions: [Version] = [
         Version(id: "vf-4k-dv", language: .vf, quality: .uhd, dynamicRange: .dolbyVision, sources: [source("a", origin: "4K DV")]),

@@ -16,8 +16,10 @@ struct PaginatorTests {
         await paginator.loadMoreIfNeeded(reaching: paginator.items.count - 1)
         await paginator.loadMoreIfNeeded(reaching: paginator.items.count - 1)
         #expect(!paginator.hasMore)
-        #expect(paginator.items.count == 44)
-        #expect(Set(paginator.items.map(\.id)).count == 44, "pas de doublon entre pages")
+        // Every movie of the fixtures, whatever their number: the count is the mock's, not a magic figure.
+        let total = client.movieCount
+        #expect(paginator.items.count == total)
+        #expect(Set(paginator.items.map(\.id)).count == total, "pas de doublon entre pages")
     }
 
     @Test("Le préchargement ne part que dans le dernier tiers")

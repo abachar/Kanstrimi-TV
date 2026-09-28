@@ -33,7 +33,9 @@ struct PlayerScreen: View {
         ZStack {
             VLCVideoView(view: player.videoView).ignoresSafeArea()
 
-            if sheet == .none {
+            // The surface steps aside while the failure dialog is up, otherwise it keeps the
+            // focus and every press lands on it instead of on the dialog's buttons.
+            if sheet == .none, player.failure == nil {
                 surface
             }
 
@@ -111,7 +113,6 @@ struct PlayerScreen: View {
 
     private func exit() {
         if sheet != .none { closeSheet(); return }
-        if player.failure != nil { player.stop(); return }
         player.stop()
     }
 
@@ -169,8 +170,11 @@ struct VODOverlay: View {
                 Spacer()
                 bottomBar
             }
-            .padding(.horizontal, 90)
+            .padding(.horizontal, Theme.inset)
             .padding(.vertical, 60)
+            // The player lives in its own hosting controller, which hands the tvOS safe area (80 pt)
+            // back to its content: without this the margin would be the safe area *plus* the inset.
+            .ignoresSafeArea()
         }
         .allowsHitTesting(false)
     }
@@ -262,7 +266,8 @@ struct LoadingBadge: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 90).padding(.vertical, 60)
+        .padding(.horizontal, Theme.inset).padding(.vertical, 60)
+        .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.2), value: player.phase)
         .allowsHitTesting(false)
     }

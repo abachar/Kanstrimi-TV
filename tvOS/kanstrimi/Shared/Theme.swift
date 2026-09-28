@@ -7,6 +7,10 @@ enum Theme {
     static let secondary = Color(red: 0xEB / 255, green: 0xEB / 255, blue: 0xF5 / 255).opacity(0.62)
     static let danger = Color(red: 0xFF / 255, green: 0x5E / 255, blue: 0x5E / 255)
     static let live = Color(red: 0xFF / 255, green: 0x3B / 255, blue: 0x30 / 255)
+    /// Side margin of every screen: the tvOS safe zone against overscan (Apple asks for 80 pt) plus a
+    /// little air. One value, so all screens line up; lists and grids fill what is left, only running
+    /// text is capped for readability.
+    static let inset: CGFloat = 96
 
     /// Deterministic gradient standing in for a poster or backdrop the mock does not have.
     static func art(for id: ContentID) -> LinearGradient {

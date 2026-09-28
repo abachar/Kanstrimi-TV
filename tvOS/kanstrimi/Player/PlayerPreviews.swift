@@ -10,11 +10,11 @@ enum PreviewData {
         return e
     }
     static func movieContext(_ env: AppEnvironment) async -> PlaybackContext {
-        try! await env.playbackContext(for: env.client.detail(id: ContentID("tmdb:movie:100000")))
+        try! await env.playbackContext(for: env.client.detail(id: ContentID("tmdb:movie:535544")))
     }
     static func episodeContext(_ env: AppEnvironment) async -> PlaybackContext {
-        let series = try! await env.client.detail(id: ContentID("tmdb:tv:20000"))
-        let ep = series.allEpisodes.first { $0.id == ContentID("tmdb:tv:20000:s02e04") }!
+        let series = try! await env.client.detail(id: ContentID("tmdb:tv:300388"))
+        let ep = series.allEpisodes.first { $0.id == ContentID("tmdb:tv:300388:s01e02") }!
         return try! await env.playbackContext(for: ep, of: series)
     }
     static func channels(_ env: AppEnvironment) async -> [Channel] {
