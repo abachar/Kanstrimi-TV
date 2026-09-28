@@ -67,7 +67,7 @@ export function SettingsView({ s }: { s: Settings }) {
           <Test url="/admin/settings/test-xtream" target="xt-result" label="Tester la connexion" />
         </Card>
         <Card
-          title="Application Apple TV"
+          title="Application Apple"
           hint="Les appareils s'appairent par QR code (page Appareils) ; les flux passent par ce serveur (302), les identifiants Xtream ne sont jamais transmis."
         >
           <div class="row g-3">
@@ -81,7 +81,7 @@ export function SettingsView({ s }: { s: Settings }) {
           <div class="form-check mt-3">
             <input class="form-check-input" type="checkbox" name="serve_adult" id="serve-adult" checked={s.serve_adult === "1"} />
             <label class="form-check-label" for="serve-adult">
-              Servir les contenus adultes à l'application tvOS
+              Servir les contenus adultes à l'application Apple
             </label>
             <div class="form-text">
               Désactivé : les contenus marqués adultes par TMDB ou par la catégorie du fournisseur disparaissent de l'accueil, des listes,

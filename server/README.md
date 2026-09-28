@@ -2,7 +2,7 @@
 
 Node 22 · Hono · TypeScript · Biome (formatage, `biome.json`, 140 colonnes) · Postgres + Drizzle · admin rendue côté serveur (Hono JSX +
 HTMX + Bootstrap 5 via CDN, **aucun CSS ni JS maison**) · Vitest · esbuild pour la production.
-Il importe le catalogue du fournisseur, le nettoie, l'enrichit et le sert à l'app tvOS ; la
+Il importe le catalogue du fournisseur, le nettoie, l'enrichit et le sert à l'app Apple (tvOS, iOS) ; la
 vidéo ne le traverse jamais (`302` vers le fournisseur).
 
 ## Démarrage
@@ -17,7 +17,7 @@ npm run dev                                # http://localhost:3000/admin
 
 Se connecter à `/admin`, puis **Paramètres** : URL et identifiants Xtream (bouton *Tester*),
 clé TMDB, URL publique. Puis **Tableau de bord → Tout enchaîner**, et **Appareils** pour
-appairer l'Apple TV.
+appairer l'Apple TV ou l'iPhone.
 
 | Script | Rôle |
 |---|---|
@@ -54,7 +54,7 @@ enregistrement des Paramètres (`onSettingsChange`) et ne font rien tant que le 
 
 | Route | Rôle |
 |---|---|
-| `/player/*` | API REST de l'app tvOS (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). |
+| `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). |
 | `/img/<size>/<file>` | images TMDB en cache (`DATA_DIR/images`), route de `providers/tmdb/img-route.ts` montée par `main.ts` ; URL portée par chaque carte |
 | `/health` | santé (base joignable ; l'état du coffre est dans le corps, pas dans le code HTTP) |
 
@@ -134,7 +134,7 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
 - **Secrets** : un seul mot de passe (hash bcrypt dans `.env`), clé AES-256-GCM dérivée en RAM
   (`config/vault.ts`), chiffrement transparent des réglages sensibles dans `config/settings.ts`. Après
   un redémarrage le serveur est **verrouillé** jusqu'à la première requête authentifiée ; le premier
-  appel d'un appareil tvOS déverrouille grâce à `devices.wrapped_key`.
+  appel d'un appareil appairé déverrouille grâce à `devices.wrapped_key`.
 - **Ne jamais journaliser une URL brute** : le mot de passe circule dans les query strings et les
   chemins de flux. Passer par `requestLogger()` de `shared/http-log.ts`.
 

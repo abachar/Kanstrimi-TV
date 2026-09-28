@@ -10,9 +10,9 @@ export function PairView({ code, state, error }: { code: string; state: PairingS
     <div class="col-12 col-sm-8 col-md-6 col-lg-4 mx-auto mt-4">
       <div class="card">
         <div class="card-body">
-          <h2 class="h4 mb-1">Ajouter cet Apple TV ?</h2>
+          <h2 class="h4 mb-1">Ajouter cet appareil ?</h2>
           <p class="text-secondary">
-            Code affiché sur la télévision : <span class="fs-4 font-monospace">{display}</span>
+            Code affiché sur l'appareil : <span class="fs-4 font-monospace">{display}</span>
           </p>
           {error && (
             <div class="alert alert-danger" role="alert">
@@ -30,17 +30,17 @@ export function PairView({ code, state, error }: { code: string; state: PairingS
           )}
           {state === "done" && (
             <div class="alert alert-success mb-0" role="status">
-              C'est fait : la télévision se connecte d'elle-même dans les secondes qui viennent.
+              C'est fait : l'appareil se connecte de lui-même dans les secondes qui viennent.
             </div>
           )}
           {state === "expired" && (
             <div class="alert alert-warning mb-0" role="alert">
-              Ce code a expiré. La télévision en affiche un nouveau toute seule : scannez-le à nouveau.
+              Ce code a expiré. L'appareil en affiche un nouveau tout seul : recommencez depuis celui-ci.
             </div>
           )}
           {state === "unknown" && (
             <div class="alert alert-warning mb-0" role="alert">
-              Code inconnu. Vérifiez le code affiché sur la télévision.
+              Code inconnu. Vérifiez le code affiché sur l'appareil.
             </div>
           )}
           <p class="small text-secondary mt-3 mb-0">
@@ -61,7 +61,7 @@ const STATUS: Record<string, [string, string]> = {
 export function DevicesView({ devices }: { devices: Device[] }) {
   return (
     <>
-      <Title t="Appareils" sub="Les Apple TV appairées à ce serveur et leurs jetons" />
+      <Title t="Appareils" sub="Les Apple TV et iPhone appairés à ce serveur et leurs jetons" />
       <div class="list-group mb-3">
         {devices.map((d) => {
           const [label, cls] = STATUS[d.status] ?? [d.status, "secondary"];
@@ -114,7 +114,7 @@ export function DevicesView({ devices }: { devices: Device[] }) {
         })}
         {devices.length === 0 && (
           <div class="list-group-item text-secondary small">
-            Aucun appareil. Ouvrez l'application sur l'Apple TV et scannez le QR code affiché.
+            Aucun appareil. Ouvrez l'application sur l'Apple TV (QR code) ou l'iPhone (lien vers l'admin).
           </div>
         )}
       </div>

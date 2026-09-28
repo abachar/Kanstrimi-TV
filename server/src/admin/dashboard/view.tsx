@@ -141,7 +141,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
           </Card>
         </div>
         <div class="col-12 col-lg-6">
-          <Card title="Application Apple TV" extra={<a href="/admin/devices">appareils</a>}>
+          <Card title="Application Apple" extra={<a href="/admin/devices">appareils</a>}>
             <label class="form-label small mb-0" for="cx-url">
               URL du serveur
             </label>

@@ -1,5 +1,5 @@
 /**
- * Wire types of `/player`: this file is the contract, `tvOS/kanstrimi/Contract/` decodes
+ * Wire types of `/player`: this file is the contract, `apple/kanstrimi/Contract/` decodes
  * exactly these shapes. snake_case, ISO dates, explicit null where the
  * app expects a value, absent where it does not.
  */

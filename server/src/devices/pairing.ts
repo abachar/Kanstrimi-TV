@@ -86,7 +86,7 @@ export async function approvePairing(code: string, name: string): Promise<Device
   const [row] = await db
     .update(schema.devices)
     .set({
-      name: name.trim() || "Apple TV",
+      name: name.trim() || "Appareil",
       status: "approved",
       approvedAt: new Date(),
       tokenHash: hash(token),
