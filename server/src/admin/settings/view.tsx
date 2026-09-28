@@ -102,7 +102,7 @@ export function SettingsView({ s }: { s: Settings }) {
           </Card>
           <Card title="Planification" hint="Cron à 5 champs : minute, heure, jour, mois, jour de la semaine.">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <F name="sync_cron" label="Traitement complet (source → filtres → TMDB)" hint={describeCron(s.sync_cron)} />
+              <F name="sync_cron" label="Traitement complet" hint={describeCron(s.sync_cron)} />
               <F name="epg_cron" label="Reconstruction EPG" hint={describeCron(s.epg_cron)} />
             </div>
           </Card>
