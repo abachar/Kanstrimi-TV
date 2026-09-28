@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, ilike, isNull, sql, type SQL } from "drizzle-orm";
 import { db, schema, hiddenItem, visibleItem, type Kind } from "@/db";
 import type { Item } from "@/db";
 
@@ -11,11 +11,14 @@ export type CatalogFilter = {
   tmdb: "" | "matched" | "unmatched" | "pending";
 };
 export const CATALOG_PAGE = 100;
+/** The `cat` value of the entries the provider sends without a category (`category_id: null`). */
+export const NO_CATEGORY = "_none";
 
 export function catalogWhere(f: CatalogFilter): SQL {
   const where: SQL[] = [eq(schema.items.kind, f.kind)];
   if (f.q) where.push(ilike(schema.items.name, `%${f.q}%`));
-  if (f.cat) where.push(eq(schema.items.categoryXtreamId, f.cat));
+  if (f.cat === NO_CATEGORY) where.push(isNull(schema.items.categoryXtreamId));
+  else if (f.cat) where.push(eq(schema.items.categoryXtreamId, f.cat));
   if (f.vis === "hidden") where.push(hiddenItem);
   if (f.vis === "visible") where.push(visibleItem);
   if (f.tmdb === "unmatched") where.push(eq(schema.items.matchStatus, "unmatched"));
@@ -48,5 +51,5 @@ export async function itemCountByCategory(f: CatalogFilter): Promise<Map<string,
     .from(schema.items)
     .where(catalogWhere({ ...f, cat: "", q: "" }))
     .groupBy(schema.items.categoryXtreamId);
-  return new Map(rows.map((r) => [r.cat ?? "", r.n]));
+  return new Map(rows.map((r) => [r.cat ?? NO_CATEGORY, r.n]));
 }

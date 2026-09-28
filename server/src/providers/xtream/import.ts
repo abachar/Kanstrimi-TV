@@ -7,6 +7,15 @@ import { XtreamClient, xtreamFromSettings, type XCategory, type XStream } from "
 const CHUNK = 500;
 
 /**
+ * Radio streams (`stream_type: "radio_streams"`) come without any category: no category rule
+ * or switch could reach them, and the admin had nowhere to list them. They get a category of
+ * ours, created at import when at least one exists; its id cannot collide with the provider's numbers.
+ */
+export const RADIO_CATEGORY_ID = "_radio";
+const RADIO_CATEGORY_NAME = "RADIOS";
+const isRadio = (x: XStream) => x.stream_type === "radio_streams";
+
+/**
  * Upstream servers list the same stream_id/category_id more than once (a channel shown in
  * two categories). Postgres refuses an ON CONFLICT DO UPDATE that touches a row twice in the
  * same statement, so keep the first occurrence of each id.
@@ -66,7 +75,9 @@ export async function runSync(): Promise<Record<string, number>> {
     const c = await cats();
     stats[`${kind}_categories`] = await upsertCategories(kind, Array.isArray(c) ? c : [], started);
     const st = await streams();
-    stats[`${kind}_items`] = await upsertItems(kind, Array.isArray(st) ? st : [], started);
+    const items = await upsertItems(kind, Array.isArray(st) ? st : [], started);
+    stats[`${kind}_items`] = items.count;
+    if (items.radios) await upsertRadioCategory(started);
   }
   // Remove entries not seen in this sync
   const dc = await db.delete(schema.categories).where(lt(schema.categories.seenAt, started)).returning({ id: schema.categories.id });
@@ -109,8 +120,17 @@ async function upsertCategories(kind: Kind, cats: XCategory[], seenAt: Date) {
   return n;
 }
 
-async function upsertItems(kind: Kind, all: XStream[], seenAt: Date) {
-  let n = 0;
+/** The synthetic « RADIOS » category, last in the list, kept alive by `seenAt` like the provider's. */
+async function upsertRadioCategory(seenAt: Date) {
+  await db
+    .insert(schema.categories)
+    .values([{ kind: "live", xtreamId: RADIO_CATEGORY_ID, name: RADIO_CATEGORY_NAME, parentId: 0, position: 1_000_000, raw: {}, seenAt }])
+    .onConflictDoUpdate({ target: [schema.categories.kind, schema.categories.xtreamId], set: { seenAt } });
+}
+
+async function upsertItems(kind: Kind, all: XStream[], seenAt: Date): Promise<{ count: number; radios: number }> {
+  let n = 0,
+    radios = 0;
   const list = dedupe(all, (x) => upstreamId(kind, x) ?? "");
   // A separator line names the section of the entries that follow it in the same category
   // (« ----|FR| SPORT |FR|---- »); it is not an entry and is never stored.
@@ -120,11 +140,14 @@ async function upsertItems(kind: Kind, all: XStream[], seenAt: Date) {
       const id = upstreamId(kind, x);
       if (!id) return [];
       const name = String(x.name ?? "");
-      const categoryXtreamId = x.category_id != null ? String(x.category_id) : null;
+      const upstreamCategory = x.category_id != null ? String(x.category_id) : null;
       if (isSeparator(name)) {
-        sections.set(categoryXtreamId ?? "", separatorText(name));
+        sections.set(upstreamCategory ?? "", separatorText(name));
         return [];
       }
+      const radio = kind === "live" && !upstreamCategory && isRadio(x);
+      if (radio) radios++;
+      const categoryXtreamId = radio ? RADIO_CATEGORY_ID : upstreamCategory;
       return [
         {
           kind,
@@ -134,7 +157,7 @@ async function upsertItems(kind: Kind, all: XStream[], seenAt: Date) {
           position: i + j,
           raw: x as Record<string, unknown>,
           seenAt,
-          section: sections.get(categoryXtreamId ?? "") ?? null,
+          section: sections.get(upstreamCategory ?? "") ?? null,
           matchStatus: (kind === "live" ? "skipped" : "pending") as "skipped" | "pending",
         },
       ];
@@ -159,7 +182,7 @@ async function upsertItems(kind: Kind, all: XStream[], seenAt: Date) {
       });
     n += rows.length;
   }
-  return n;
+  return { count: n, radios };
 }
 
 /** Test upstream credentials without touching the DB. */

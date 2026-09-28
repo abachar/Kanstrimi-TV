@@ -1,16 +1,16 @@
 import type { Category, Item } from "@/db";
-import { CATALOG_PAGE } from "./data";
+import { CATALOG_PAGE, NO_CATEGORY } from "./data";
 import { isCategoryHidden } from "@/db";
 import { fmt } from "../format";
 import { Title, Options, Pagination } from "../ui";
 import { KIND_TITLES } from "../labels";
-import { CategoryRow } from "./category";
+import { CategoryRow, NoCategoryRow } from "./category";
 import { CatalogHeader, ItemRow } from "./row";
 import { catalogLink, isSearch, type CatalogQuery, type CatalogView as ViewMode } from "./query";
 
-const VIEWS: [ViewMode, string][] = [
+const viewsOf = (kind: CatalogQuery["kind"]): [ViewMode, string][] => [
   ["grouped", "Par catégorie"],
-  ["groups", "Groupes"],
+  kind === "live" ? ["app", "Application"] : ["groups", "Groupes"],
 ];
 
 /** Title and view switch shared by the three presentations of a kind; the kind itself is chosen in the top menu. */
@@ -20,7 +20,7 @@ export function CatalogShell({ qy, children }: { qy: CatalogQuery; children?: un
       <Title t={KIND_TITLES[qy.kind]} sub="Parcourir, filtrer et corriger le contenu importé" />
       <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <div class="btn-group btn-group-sm ms-md-auto" role="group" aria-label="Présentation">
-          {VIEWS.map(([view, label]) => {
+          {viewsOf(qy.kind).map(([view, label]) => {
             const current = qy.view === view;
             return (
               <a
@@ -59,6 +59,7 @@ export function CatalogView({
   // « Visibles » (the default) or a TMDB filter narrows the list: a category with nothing to show under it is noise.
   const narrowing = qy.vis !== "all" || qy.tmdb !== "";
   const shownCats = narrowing ? cats.filter((c) => (catCounts.get(c.xtreamId) ?? 0) > 0) : cats;
+  const uncategorised = catCounts.get(NO_CATEGORY) ?? 0;
   return (
     <CatalogShell qy={qy}>
       <form method="get" action="/admin/catalog" class="row g-2 mb-3" role="search">
@@ -109,11 +110,13 @@ export function CatalogView({
         <>
           <p class="text-secondary small">
             {fmt(shownCats.length)} catégorie(s) · {fmt(total)} élément(s)
+            {uncategorised ? ` · ${fmt(uncategorised)} sans catégorie` : ""}
             {narrowing && shownCats.length < cats.length
               ? ` · ${fmt(cats.length - shownCats.length)} sans élément correspondant, voir « Visibles et masqués »`
               : ""}
           </p>
           <div class="accordion">
+            {uncategorised > 0 && <NoCategoryRow qy={qy} count={uncategorised} />}
             {shownCats.map((c) => (
               <CategoryRow c={c} qy={qy} count={catCounts.get(c.xtreamId) ?? 0} />
             ))}
@@ -131,7 +134,7 @@ export function CatalogView({
               <ItemRow
                 r={r}
                 qy={qy}
-                catLabel={catName.get(r.categoryXtreamId ?? "") ?? r.categoryXtreamId ?? ""}
+                catLabel={r.categoryXtreamId === null ? "Sans catégorie" : (catName.get(r.categoryXtreamId) ?? r.categoryXtreamId)}
                 catHidden={hiddenCats.has(r.categoryXtreamId ?? "")}
               />
             ))}

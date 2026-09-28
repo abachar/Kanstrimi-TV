@@ -42,7 +42,7 @@ de son module, exécutée seule sous le journal (`sync_logs`) et refusée si ell
 
 | Étape | Module | Rôle |
 |---|---|---|
-| `source` | `providers/xtream/import.ts` | lit le catalogue Xtream dans la base, supprime les disparus. Les lignes séparatrices du direct (`•●★---|FR| SPORT |FR|---★●•`) ne sont pas des entrées : chacune nomme la `section` de ce qui la suit. |
+| `source` | `providers/xtream/import.ts` | lit le catalogue Xtream dans la base, supprime les disparus. Les lignes séparatrices du direct (`•●★---|FR| SPORT |FR|---★●•`) ne sont pas des entrées : chacune nomme la `section` de ce qui la suit. Les radios (`stream_type: radio_streams`) arrivent sans catégorie : elles sont rangées dans une catégorie « RADIOS » à nous (`_radio`), qu'un interrupteur ou une règle masque comme les autres. |
 | `filters` | `catalog/rules/apply.ts` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau |
 | `enrich` | `providers/tmdb/enrich.ts` | matching TMDB des éléments en attente (identifiant amont vérifié par preuves, puis recherche par titre) |
 | `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; écrit aussi `clean_title`, `year`, et pour le direct le `theme` de chaque variante puis les `themes` du contenu |

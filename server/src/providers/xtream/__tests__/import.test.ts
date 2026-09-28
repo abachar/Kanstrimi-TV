@@ -40,6 +40,9 @@ const streams: XStream[] = [
   { name: "Id numérique en texte", stream_id: " 2 " as unknown as number, category_id: "10" }, // doublon de B
   { name: "Sans id", category_id: "10" },
   { name: "Id null", stream_id: null as unknown as number, category_id: "10" },
+  // Radios arrive without a category, under their own separators: they get the « RADIOS » category of ours.
+  { name: "•●★--|FR| FRANCE |FR|---★●•", stream_id: 902, category_id: null as unknown as string, stream_type: "radio_streams" },
+  { name: "|FR| BEL RTL", stream_id: 3, category_id: null as unknown as string, stream_type: "radio_streams" },
 ];
 
 vi.mock("../client", () => {
@@ -70,15 +73,17 @@ describe("sync deduplication and id hygiene", () => {
       expect(new Set(ids).size).toBe(ids.length);
     }
     const items = inserted.filter((i) => i.table === "items").flatMap((i) => i.rows);
-    expect(items.map((r) => r.xtreamId)).toEqual(["1", "2", "ab-12"]);
+    expect(items.map((r) => r.xtreamId)).toEqual(["1", "2", "ab-12", "3"]);
     expect(items[0].name).toBe("A"); // first occurrence wins
     // Separator lines are not entries; each names the section of what follows it in its category.
     expect(items.map((r) => [r.xtreamId, r.section])).toEqual([
       ["1", "|FR| FRANCE FHD |FR|"],
       ["2", null],
       ["ab-12", "|FR| SPORT |FR|"],
+      ["3", "|FR| FRANCE |FR|"],
     ]);
+    expect(items[3].categoryXtreamId).toBe("_radio");
     const categories = inserted.filter((i) => i.table === "categories").flatMap((i) => i.rows);
-    expect(categories.map((r) => r.xtreamId)).toEqual(["10", "11"]);
+    expect(categories.map((r) => r.xtreamId)).toEqual(["10", "11", "_radio"]);
   });
 });

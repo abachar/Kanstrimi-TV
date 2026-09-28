@@ -38,6 +38,7 @@ beforeAll(async () => {
     { kind: "vod", xtreamId: "1", name: "|FR| Matrix (4K)", cat: "10", tmdbId: 603, matchStatus: "matched" },
     { kind: "vod", xtreamId: "2", name: "|FR| Matrix (VOST)", cat: "10", tmdbId: 603, matchStatus: "matched" },
     { kind: "live", xtreamId: "100", name: "|FR| TF1 HD", cat: "20" },
+    { kind: "live", xtreamId: "101", name: "|IT| BELLA RADIO", section: "|IT| ITALIA |IT|" },
   ]);
   matrixId = items[0].id;
   expect(await run("group")).toBe(true); // journalled through the pipeline, so /admin/logs has a row
@@ -77,10 +78,17 @@ describe("admin", () => {
     expect(await html("/admin/catalog?kind=vod&vis=all")).toContain("|FR| FILMS");
     expect(await html("/admin/catalog?kind=vod&q=matrix")).toContain("Matrix (VOST)");
     expect(await html("/admin/catalog?kind=live&q=tf1")).not.toContain("TMDB associé");
+    expect(await html("/admin/catalog?kind=live&view=app")).toContain("France · ");
+    expect(await html("/admin/catalog?kind=live&view=groups")).toContain("Application"); // live has no variant view: falls back to app
     const groups = await html("/admin/catalog?kind=vod&view=groups");
     expect(groups).toContain("2 variantes");
     expect(groups).toContain("Groupes");
     expect(await html("/admin/catalog/items?kind=vod&cat=10&view=grouped&page=1")).toContain("Matrix (4K)");
+    const live = await html("/admin/catalog?kind=live");
+    expect(live).toContain("Sans catégorie");
+    expect(live).toContain("1 sans catégorie");
+    expect(await html("/admin/catalog/items?kind=live&cat=_none&page=1")).toContain("BELLA RADIO");
+    expect(await html("/admin/catalog?kind=live&q=bella")).toContain("Sans catégorie"); // the category column of a hit
     expect(await html(`/admin/item/${matrixId}`)).toContain("JSON amont brut");
     expect(await html("/admin/rules")).toContain("Nouvelle règle");
     expect(await html("/admin/devices")).toContain("Aucun appareil");

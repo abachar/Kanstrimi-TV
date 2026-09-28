@@ -8,7 +8,10 @@ import { page, form, checked } from "../http";
 import { KIND_TITLES } from "../labels";
 import { GroupsView } from "../groups/view";
 import { parseGroupsQuery } from "../groups/query";
+import { getSettings } from "@/config";
+import { channelGroups, contextFor } from "@/player";
 import { CatalogShell, CatalogView } from "./view";
+import { AppLiveView } from "./app-live";
 import { isSearch } from "./query";
 import { CategoryItems, ItemRow } from "./row";
 import { TmdbCell } from "./tmdb-cell";
@@ -27,6 +30,16 @@ catalogRoutes.get("/", async (c) => {
       title,
       <CatalogShell qy={qy}>
         <GroupsView qy={gq} rows={rows} total={total} />
+      </CatalogShell>,
+    );
+  }
+  if (qy.view === "app") {
+    const groups = await channelGroups(contextFor(c.req.raw, null, await getSettings()));
+    return page(
+      c,
+      title,
+      <CatalogShell qy={qy}>
+        <AppLiveView groups={groups} />
       </CatalogShell>,
     );
   }
@@ -69,7 +82,7 @@ catalogRoutes.post("/:scope{item|category}/:id/visible", async (c) => {
     <ItemRow
       r={r}
       qy={parseCatalogQuery(c.req.query())}
-      catLabel={cat?.name ?? r.categoryXtreamId ?? ""}
+      catLabel={cat?.name ?? r.categoryXtreamId ?? "Sans catégorie"}
       catHidden={isCategoryHidden(cat)}
     />,
   );
