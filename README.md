@@ -2,7 +2,7 @@
 
 Système de streaming **personnel et mono-utilisateur**. Il se branche sur **un** fournisseur
 Xtream Codes, importe son catalogue, le nettoie, l'enrichit via **TMDB** et le sert à
-l'app Apple TV maison.
+l'app Apple maison (Apple TV et iPhone, iPad à venir).
 
 Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées et
 répond `302` vers le flux d'origine ; les identifiants du fournisseur ne sortent jamais du serveur.
@@ -10,7 +10,7 @@ répond `302` vers le flux d'origine ; les identifiants du fournisseur ne sorten
 ```
 Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enrichi, groupé)
                           │
-                          ├──► API REST /player + images ──► tvOS/
+                          ├──► API REST /player + images ──► apple/
                           └──► 302 ──────────────────────► le flux vidéo, en direct
 ```
 
@@ -19,10 +19,10 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enri
 | Dossier | Rôle | Pile | Doc |
 |---|---|---|---|
 | `server/` | Import, filtrage, enrichissement, groupement des variantes, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Bootstrap 5 | [`server/README.md`](server/README.md) |
-| `tvOS/` | Client natif Apple TV 4K, consomme `/player` | SwiftUI, Swift 6, tvOS 27, VLCKit 4 | [`tvOS/README.md`](tvOS/README.md) |
+| `apple/` | Client natif Apple TV 4K et iPhone (iPad à venir), consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27, VLCKit 4, une cible et deux destinations | [`apple/README.md`](apple/README.md) |
 
 Le contrat entre les deux est le code : `server/src/player/types.ts` côté serveur,
-`tvOS/kanstrimi/Contract/` côté app, et les fixtures JSON de `tvOS/kanstrimi/Client/Fixtures/`.
+`apple/kanstrimi/Contract/` côté app, et les fixtures JSON de `apple/kanstrimi/Client/Fixtures/`.
 
 ## Conventions communes
 
@@ -35,9 +35,9 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 
 ## Décisions figées
 
-- **Un seul client : l'app tvOS.** L'API Xtream-compatible pour les players du marché
+- **Un seul client : l'app Apple** (tvOS et iOS, un seul code). L'API Xtream-compatible pour les players du marché
   (TiviMate, Smarters…) était un prototype ; elle a été retirée le 2026-09-27.
 - Pas de multi-utilisateur, pas de multi-fournisseur, un seul mot de passe (admin web et
   compte client IPTV).
-- Abandonné : Rust + Askama, SQLite, client Fire TV, AVPlayer côté tvOS (le fournisseur
+- Abandonné : Rust + Askama, SQLite, client Fire TV, AVPlayer côté app Apple (le fournisseur
   ne sert pas de HLS ; VLCKit lit tout).

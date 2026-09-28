@@ -20,7 +20,7 @@ data/
 .DS_Store
 **/.DS_Store
 
-# Xcode (tvOS/)
+# Xcode (apple/)
 xcuserdata/
 *.xcuserstate
 *.xcscmblueprint
