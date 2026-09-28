@@ -50,6 +50,13 @@
       "when": 1790545761048,
       "tag": "0006_drop_pre_vault_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790551692600,
+      "tag": "0007_live-themes",
+      "breakpoints": true
     }
   ]
 }

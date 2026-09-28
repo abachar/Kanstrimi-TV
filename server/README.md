@@ -38,10 +38,10 @@ de son module, exécutée seule sous le journal (`sync_logs`) et refusée si ell
 
 | Étape | Module | Rôle |
 |---|---|---|
-| `source` | `providers/xtream/import.ts` | lit le catalogue Xtream dans la base, supprime les disparus. Rien d'autre. |
+| `source` | `providers/xtream/import.ts` | lit le catalogue Xtream dans la base, supprime les disparus. Les lignes séparatrices du direct (`•●★---|FR| SPORT |FR|---★●•`) ne sont pas des entrées : chacune nomme la `section` de ce qui la suit. |
 | `filters` | `catalog/rules/apply.ts` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau |
 | `enrich` | `providers/tmdb/enrich.ts` | matching TMDB des éléments en attente (identifiant amont vérifié par preuves, puis recherche par titre) |
-| `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; écrit aussi `clean_title` et `year` |
+| `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; écrit aussi `clean_title`, `year`, et pour le direct le `theme` de chaque variante puis les `themes` du contenu |
 | `epg` | `providers/xtream/epg.ts` | télécharge le XMLTV amont sur disque (rien ne le sert encore) |
 
 `runAll()` = `source → filters → group`, puis `enrich → group` si une clé TMDB existe. Depuis le
@@ -119,6 +119,12 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   `visibleCategory`, `isItemHidden`), utilisé jusque dans l'agrégat SQL du groupement. Une catégorie
   masquée masque ses éléments sans toucher leurs colonnes. Côté app, `player/contents.ts` y ajoute
   le réglage « contenus adultes ».
+- **Thèmes du direct** : `/player/channels` groupe par marché × thème (« France · Sport »). Le thème d'une
+  variante vient de sa section (la ligne séparatrice qui la précède dans sa catégorie), sinon de sa
+  catégorie (« SPORTS HD ») ; `naming.ts` porte le vocabulaire (`LIVE_THEMES`, `themeOf`, `liveTheme`) dans
+  les langues du fournisseur. Une section au nom de la catégorie ou d'un pays est la liste généraliste,
+  sauf dans une région (« ARAB WORLD », « BALKANS ») où les pays sont les sections. Un libellé inconnu
+  reste un groupe à part (« Tf1+ », « Molotov ch. ») : rien n'est perdu, tout se voit dans l'admin.
 - **Groupement** : `catalog/naming.ts` est *la* grammaire des noms. Un `item` = une variante
   jouable ; `contents.key` = identité exposée aux apps, jamais `contents.id`. Les mises à jour
   massives passent par `unnest()` avec le template postgres-js (`client`), pas `sql` de Drizzle qui

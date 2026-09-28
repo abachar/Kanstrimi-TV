@@ -12,7 +12,7 @@
  */
 
 import type { Kind } from "@/db";
-import { stripAccents } from "@/shared";
+import { stripAccents, stripOrnaments } from "@/shared";
 export type Language = "VF" | "VOSTFR" | "VO" | (string & {});
 export type Quality = "SD" | "HD" | "FHD" | "4K";
 export type DynamicRange = "HDR" | "DV";
@@ -32,7 +32,7 @@ export type ParsedName = {
   seasonHint?: number;
 };
 
-export type CategoryHints = Pick<ParsedName, "market" | "language" | "quality" | "dynamicRange" | "tags">;
+export type CategoryHints = Pick<ParsedName, "market" | "language" | "quality" | "dynamicRange" | "tags"> & { title: string };
 
 export const QUALITY_RANK: Record<Quality, number> = { SD: 1, HD: 2, FHD: 3, "4K": 4 };
 export const DYNAMIC_RANGE_RANK: Record<DynamicRange, number> = { HDR: 1, DV: 2 };
@@ -179,8 +179,6 @@ const BRACKET_GROUP = new RegExp(`[\\[\\(\\{]\\s*(?:${WORDS_ALT})(?:[\\s/,+\\-|]
 const BARE_TAG = new RegExp(`(?:^|[\\s\\-|:])(${WORDS_ALT}|\\d{3,4}[pi]|4k|8k)(?=$|[\\s\\-|:,.)])`, "g");
 const MARKET_PREFIX = /^(?:[[|(]\s*([A-Za-z]{2,7}(?:-[A-Za-z]{2,3})?)\s*[\]|)]\s*[-:|]?\s*)/;
 const BARE_PREFIX = /^([A-Z]{2,7})\s*[-:|]\s+/;
-/** Ornaments around separator lines and "premium" names: any "other symbol" (♣ ★ • ● ✪), never "+" or "&". */
-const DECORATIONS = /[\p{So}•·‣▪]/gu;
 const TZ_DELAY = /\|?\s*[-+]?\d{1,2}H\s*\|?/gi;
 const SEASON_TAG = /(?:^|[\s\-(\[|])(?:S(\d{1,2})|(?:Saison|Season|Temporada|Stagione)\s*(\d{1,2}))(?=$|[\s\-)\]|])/i;
 
@@ -279,10 +277,7 @@ function tidy(s: string): string {
 
 export function parseName(raw: string, kind: Kind): ParsedName {
   const f: Found = { tags: new Set() };
-  let s = raw
-    .normalize("NFC")
-    .replace(DECORATIONS, " ")
-    .replace(/^[\s\-_=~]+|[\s\-_=~]+$/g, "");
+  let s = stripOrnaments(raw.normalize("NFC")).replace(/^[\s\-_=~]+|[\s\-_=~]+$/g, "");
   let market: string | undefined;
 
   // Market prefixes, possibly stacked: "|FR| ", "[FR] ", "(FR) ", "FR - ", "VOD FR |".
@@ -353,7 +348,7 @@ export function isAdultEntryName(name: string): boolean {
 /** Hints carried by a category name: "|FR| FILMS 4K DV" → fr, 4K, DV ; "|AR| MAGHREB VOSTFR" → ar, VOSTFR. */
 export function parseCategory(name: string): CategoryHints {
   const p = parseName(name, "vod");
-  return { market: p.market, language: p.language, quality: p.quality, dynamicRange: p.dynamicRange, tags: p.tags };
+  return { title: p.title, market: p.market, language: p.language, quality: p.quality, dynamicRange: p.dynamicRange, tags: p.tags };
 }
 
 /** The language served to the app when neither the name nor the category said one. */
@@ -363,6 +358,113 @@ export function defaultLanguage(market?: string): Language {
     return "VF";
   if (market === "en" || market === "us" || market === "uk" || market === "gb" || market === "au") return "VO";
   return market.toUpperCase();
+}
+
+// ---------------------------------------------------------------- live sections and themes
+
+/** « |FR| CINEMA FHD |FR| » (the text of a separator line, as the import stored it) → "CINEMA". */
+export function sectionLabel(section: string): string {
+  return parseName(section, "live").title;
+}
+
+/** The themes the app groups channels by, in display order. Labels are what the app shows. */
+export const LIVE_THEMES = [
+  "Généralistes",
+  "Cinéma",
+  "Séries",
+  "Sport",
+  "Jeunesse",
+  "Infos",
+  "Découverte",
+  "Musique",
+  "Régionales",
+  "Religion",
+] as const;
+export type LiveTheme = (typeof LIVE_THEMES)[number];
+const GENERAL: LiveTheme = "Généralistes";
+
+/** Whole words in any script: `\b` only knows ASCII, Cyrillic and accented labels need this. */
+const words = (list: string) => new RegExp(`(?<![\\p{L}])(?:${list})(?![\\p{L}])`, "u");
+
+/**
+ * Section or category words → theme. Matched on the accent-free upper-case label, so the
+ * provider's own languages count too: « DEPORTES », « SPOR », « FËMIJËT », « ДЕТСКИЕ » are one theme each.
+ */
+const THEME_WORDS: [RegExp, LiveTheme][] = [
+  [
+    words(
+      "SPORTS?|SPORTIVE?S?|SPORTIVNI|SPORTOWE|FOOT(BALL)?|CALCIO|FUTBOL|FUTEBOL|DEPORTES?|DESPORTO|SPOR|BEIN|ESPN|DAZN|RACING|GOLF|TENNIS|FIGHT|MMA|UFC|WRESTLING|NBA|NFL|NHL|MLB|RUGBY|LIBERTADORES|СПОРТ|СПОРТИВНЫЕ",
+    ),
+    "Sport",
+  ],
+  [
+    words("CINEMAS?|CINE|MOVIES?|FILMS?|FILMA|FILME|FILMSKI|FILMLER|FILMOVE|FILMY|KINO|PELICULAS|BOX OFFICE|КИНО|КИНОКАНАЛЫ|ФИЛЬМЫ"),
+    "Cinéma",
+  ],
+  [words("SERIES?|SERIALE|SERIEN|SERIJE|SERIALY|DIZI(LER)?|СЕРИАЛЫ"), "Séries"],
+  [
+    words(
+      "ENFANCE|ENFANTS?|JEUNESSE|KIDS?|JUNIOR|CARTOONS?|DISNEY|NICKELODEON|INFANTIL|KINDER|FEMIJET|DETSKE|DETSKIE|COCUKLAR|DJECA|DECA|CRIANCAS|DZIECI|ДЕТСКИЕ|ДЕТИ",
+    ),
+    "Jeunesse",
+  ],
+  [
+    words(
+      "INFOS?|INFORMATIONS?|NEWS|ACTUALITES?|NOTICIAS|NACHRICHTEN|HABER(LER)?|VIJESTI|VESTI|LAJME|ZPRAVY|ZPRAVODAJSKE|WIADOMOSCI|НОВОСТИ|НОВОСТНЫЕ|ИНФОРМАЦИОННЫЕ",
+    ),
+    "Infos",
+  ],
+  [words("MUSIQUES?|MUSIC|MUSICA|MUSIK|MUZIK|MUZIKA|MUZICKI|MUZYKA|HUDBA|CONCERTS?|RADIOS?|CLIPS?|МУЗЫКА|МУЗЫКАЛЬНЫЕ"), "Musique"],
+  [
+    words(
+      "DECOUVERTES?|DOCUMENTAIRES?|DOCUS?|DOCS?|DOKUS?|DOKUMENTARNI|DOKUMENTARNE|DOKUMENTY|DOCUMENTALES|DOCUMENTARIOS|BELGESEL(LER)?|DISCOVERY|NATURE|SCIENCES?|HISTOIRE|HISTORY|VOYAGES?|TRAVEL|CULTURE|CULTURA|KULTURA|KULTUR|ПОЗНАВАТЕЛЬНЫЕ|ДОКУМЕНТАЛЬНЫЕ",
+    ),
+    "Découverte",
+  ],
+  [words("REGIONS?|REGIONAL(ES?|I)?|LOCAL(ES?)?|LOKAL(NE)?|BOLGESEL|OUTRE-MER|РЕГИОНАЛЬНЫЕ"), "Régionales"],
+  [words("RELIGIONS?|RELIGIEUSES?|ISLAM(IC)?|CHRISTIAN|CHRETIENS?|CATHOLIQUES?|QURAN|CORAN|GOSPEL|DINI"), "Religion"],
+  [
+    words(
+      "GENERALISTES?|GENERAL(ES|I)?|GENEL|NATIONAL(ES)?|TNT|ENTERTAINMENT|DIVERTISSEMENT|VARIEDADES|ALLGEMEIN|VSEOBECNE|OPCI|OPSTI|ОБЩИЕ|ОСНОВНЫЕ",
+    ),
+    GENERAL,
+  ],
+];
+
+/**
+ * A section named after a country (« FRANCE », « ITALIA », « SWISS ») is the national list, unless
+ * the category is a region (« ARAB WORLD », « BALKANS », « LATIN AMERICA »): there, countries are
+ * the sections worth keeping (« Egypte », « Maroc », « Srbija »).
+ */
+const COUNTRY_WORDS = words(
+  "FRANCE|FRENCH|FRANCAIS|BELGIUM|BELGIQUE|BELGIE|SWISS|SUISSE|SWITZERLAND|SCHWEIZ|LUXEMBOURG|CANADA|QUEBEC|USA|AMERICA|UK|ENGLAND|BRITAIN|IRELAND|ITALY|ITALIA|SPAIN|ESPANA|PORTUGAL|GERMANY|DEUTSCHLAND|AUSTRIA|NETHERLANDS|HOLLAND|NEDERLAND|VLAANDEREN|TURKEY|TURKIYE|RUSSIA|ROSSIYA|UKRAINE|POLAND|POLSKA|ROMANIA|BULGARIA|GREECE|HELLAS|HUNGARY|CZECH|CZECHIA|SLOVAKIA|ALBANIA|SHQIPERIA|SERBIA|SRBIJA|CROATIA|HRVATSKA|BOSNIA|MACEDONIA|MAKEDONIJA|MONTENEGRO|CRNA GORA|SLOVENIA|SWEDEN|SVERIGE|NORWAY|NORGE|DENMARK|DANMARK|FINLAND|ICELAND|IRAN|IRAK|IRAQ|ISRAEL|ARMENIA|INDIA|PAKISTAN|CHINA|JAPAN|KOREA|BRAZIL|BRASIL|MEXICO|ARGENTINA|COLOMBIA|CHILE|PERU|BOLIVIA|VENEZUELA|EGYPT|EGYPTE|MAROC|MOROCCO|ALGERIE|ALGERIA|TUNISIE|TUNISIA|LIBAN|LEBANON|SYRIA|SYRIE|JORDAN|KUWAIT|QATAR|EMIRATES|UAE|SAOUDI|SAUDI|BAHRAIN|OMAN|YEMEN|LIBYA|SUDAN",
+);
+const REGION_WORDS = words("ARAB|ARABIC|MAGHREB|BALKANS?|LATIN|LATINO|SCANDINAVIA|BALTICS?|INTERNATIONAL|WORLD|EUROPE|AFRICA|ASIA|EX-YU");
+const norm = (s: string) => stripAccents(s).toUpperCase();
+
+/** The theme a section or category label announces, or null when its words say nothing known. */
+export function themeOf(label: string): LiveTheme | null {
+  const upper = norm(label);
+  return THEME_WORDS.find(([re]) => re.test(upper))?.[1] ?? null;
+}
+
+/**
+ * The theme of a channel: its section first (« SPORT »), else its category (« SPORTS HD »). A
+ * section named like its category or like a country is the general list; so is a category
+ * without any known word (« USA », « SKY UK »). An unknown section keeps its own label,
+ * capitalised, so nothing is lost: the app shows « Nouvelle gener. » as a group of its own.
+ */
+export function liveTheme(section: string | null, categoryTitle: string | null): string {
+  if (section) {
+    const label = sectionLabel(section);
+    const t = themeOf(label);
+    if (t) return t;
+    const upper = norm(label);
+    if (categoryTitle && upper === norm(categoryTitle)) return GENERAL;
+    if (COUNTRY_WORDS.test(upper) && !(categoryTitle && REGION_WORDS.test(norm(categoryTitle)))) return GENERAL;
+    return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
+  }
+  return (categoryTitle && themeOf(categoryTitle)) || GENERAL;
 }
 
 export type CleanResult = { title: string; year?: number };

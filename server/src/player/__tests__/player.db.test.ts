@@ -106,6 +106,7 @@ beforeAll(async () => {
       xtreamId: "100",
       name: "|FR| TF1 HD",
       cat: "20",
+      section: "|FR| FRANCE FHD |FR|",
       raw: { num: 1, stream_icon: "http://x/tf1.png", epg_channel_id: "TF1.fr" },
     },
     {
@@ -113,6 +114,7 @@ beforeAll(async () => {
       xtreamId: "101",
       name: "|FR| TF1 FHD",
       cat: "20",
+      section: "|FR| FRANCE FHD |FR|",
       raw: { num: 2, stream_icon: "http://x/tf1-fhd.png", epg_channel_id: "TF1.fr" },
     },
     { kind: "live", xtreamId: "102", name: "|FR| BEIN SPORTS 1 HD", cat: "21", raw: { num: 30 } },
@@ -461,11 +463,11 @@ describe("GET /series/{id}", () => {
 });
 
 describe("channels", () => {
-  it("GET /channels groups visible categories, one channel per content with its versions", async () => {
+  it("GET /channels groups by market and theme (section of the category, else the category), one channel per content with its versions", async () => {
     const { body } = await get("/channels");
-    expect(body.map((g: { name: string; channels: { id: string }[] }) => [g.name, g.channels.map((c) => c.id)])).toEqual([
-      ["FRANCE FHD | TV", ["live:fr-tf1"]],
-      ["SPORTS HD | TV", ["live:fr-bein-sports-1"]],
+    expect(body.map((g: { id: string; name: string; channels: { id: string }[] }) => [g.id, g.name, g.channels.map((c) => c.id)])).toEqual([
+      ["fr-generalistes", "France · Généralistes", ["live:fr-tf1"]],
+      ["fr-sport", "France · Sport", ["live:fr-bein-sports-1"]],
     ]);
     const tf1 = body[0].channels[0];
     expect(tf1).toMatchObject({

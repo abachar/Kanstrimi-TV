@@ -31,8 +31,10 @@ const cats: XCategory[] = [
   { category_id: "10", category_name: "Live FR (doublon)" },
 ];
 const streams: XStream[] = [
+  { name: "♣♦♣-----|FR| FRANCE FHD |FR|----♣♦♣", stream_id: 900, category_id: "10" },
   { name: "A", stream_id: 1, category_id: "10" },
   { name: "B", stream_id: 2, category_id: "11" },
+  { name: "•●★--|FR| SPORT |FR|---★●•", stream_id: 901, category_id: "10" },
   { name: "A (autre catégorie)", stream_id: 1, category_id: "11" },
   { name: "Id texte", stream_id: "ab-12" as unknown as number, category_id: "10" },
   { name: "Id numérique en texte", stream_id: " 2 " as unknown as number, category_id: "10" }, // doublon de B
@@ -70,6 +72,12 @@ describe("sync deduplication and id hygiene", () => {
     const items = inserted.filter((i) => i.table === "items").flatMap((i) => i.rows);
     expect(items.map((r) => r.xtreamId)).toEqual(["1", "2", "ab-12"]);
     expect(items[0].name).toBe("A"); // first occurrence wins
+    // Separator lines are not entries; each names the section of what follows it in its category.
+    expect(items.map((r) => [r.xtreamId, r.section])).toEqual([
+      ["1", "|FR| FRANCE FHD |FR|"],
+      ["2", null],
+      ["ab-12", "|FR| SPORT |FR|"],
+    ]);
     const categories = inserted.filter((i) => i.table === "categories").flatMap((i) => i.rows);
     expect(categories.map((r) => r.xtreamId)).toEqual(["10", "11"]);
   });

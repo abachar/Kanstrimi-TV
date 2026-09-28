@@ -26,6 +26,11 @@ export function similarityKey(s: string): string {
     .trim();
 }
 
+/** Ornaments around separator lines and "premium" names: any "other symbol" (♣ ★ • ● ✪), never "+" or "&". */
+export function stripOrnaments(s: string): string {
+  return s.replace(/[\p{So}•·‣▪]/gu, " ");
+}
+
 /** Accent-free lower-case tokens joined by dashes, any script, at most 100 characters. Empty → "-". */
 export function slug(s: string): string {
   return (

@@ -109,6 +109,8 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
               ["Dynamique", p.dynamicRange],
               ["Tags", p.tags],
               ["Saison", p.seasonHint],
+              ["Section (direct)", it.section],
+              ["Thème (direct)", it.theme],
               [
                 "Indices de la catégorie",
                 h

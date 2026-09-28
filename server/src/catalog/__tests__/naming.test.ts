@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import type { Kind } from "@/db";
-import { parseName, parseCategory, defaultLanguage, cleanTitle } from "../naming";
+import { parseName, parseCategory, defaultLanguage, cleanTitle, sectionLabel, themeOf, liveTheme } from "../naming";
 import { contentKey, parseKey, episodeKey } from "../keys";
 import { slug } from "@/shared";
 
@@ -205,5 +205,44 @@ describe("parseKey / episodeKey", () => {
     expect(parseKey("12345")).toBeNull();
     expect(parseKey("manual:12")).toBeNull();
     expect(episodeKey("tmdb:tv:1396", 1, 5)).toBe("tmdb:tv:1396:s01e05");
+  });
+});
+
+describe("live themes", () => {
+  it("reads the label of a separator line as a channel name", () => {
+    expect(sectionLabel("|FR| CINEMA FHD |FR|")).toBe("CINEMA");
+    expect(sectionLabel("|FR| SPORT EVENT FHD |FR|")).toBe("SPORT EVENT");
+    expect(sectionLabel("|FR| NOUVELLE GENER. FHD |FR|")).toBe("NOUVELLE GENER.");
+  });
+  it("maps section and category words to a theme, accents and case ignored", () => {
+    expect(themeOf("SPORT")).toBe("Sport");
+    expect(themeOf("SPORTS HD")).toBe("Sport");
+    expect(themeOf("CINEMA")).toBe("Cinéma");
+    expect(themeOf("ORANGE CINEMA")).toBe("Cinéma");
+    expect(themeOf("ENFANCE")).toBe("Jeunesse");
+    expect(themeOf("JEUNESSE HD")).toBe("Jeunesse");
+    expect(themeOf("INFOS")).toBe("Infos");
+    expect(themeOf("INFORMATION HD")).toBe("Infos");
+    expect(themeOf("DÉCOUVERTE")).toBe("Découverte");
+    expect(themeOf("DOCUMENTAIRE HD")).toBe("Découverte");
+    expect(themeOf("MUSIQUE")).toBe("Musique");
+    expect(themeOf("DEPORTES")).toBe("Sport");
+    expect(themeOf("FËMIJËT")).toBe("Jeunesse");
+    expect(themeOf("ZPRAVODAJSKÉ")).toBe("Infos");
+    expect(themeOf("ИНФОРМАЦИОННЫЕ")).toBe("Infos");
+    expect(themeOf("BELGESELLER")).toBe("Découverte");
+    expect(themeOf("USA")).toBeNull();
+    expect(themeOf("SKY UK")).toBeNull();
+    expect(themeOf("NOUVELLE GENER.")).toBeNull();
+  });
+  it("liveTheme: section first, then category; the category's own name is the general list; unknown sections keep their label", () => {
+    expect(liveTheme("|FR| SPORT |FR|", "FRANCE")).toBe("Sport");
+    expect(liveTheme("|FR| FRANCE FHD |FR|", "FRANCE")).toBe("Généralistes");
+    expect(liveTheme("|FR| NOUVELLE GENER. FHD |FR|", "FRANCE")).toBe("Nouvelle gener.");
+    expect(liveTheme(null, "SPORTS")).toBe("Sport");
+    expect(liveTheme(null, "USA")).toBe("Généralistes");
+    expect(liveTheme("|IT| ITALIA |IT|", "ITALY")).toBe("Généralistes");
+    expect(liveTheme("|AR| EGYPTE |AR|", "ARAB WORLD")).toBe("Egypte");
+    expect(liveTheme(null, null)).toBe("Généralistes");
   });
 });

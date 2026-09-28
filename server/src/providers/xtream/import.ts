@@ -1,5 +1,6 @@
 import { lt, sql } from "drizzle-orm";
 import { db, schema, type Kind } from "@/db";
+import { stripOrnaments } from "@/shared";
 import { getSettings, setSettings } from "@/config";
 import { XtreamClient, xtreamFromSettings, type XCategory, type XStream } from "./client";
 
@@ -21,6 +22,20 @@ function dedupe<T>(list: T[], key: (x: T) => string): T[] {
   }
   return out;
 }
+
+/**
+ * Xtream lists carry separator lines between groups of channels: « ♣♦♣-----|FR| FRANCE FHD |FR|----♣♦♣ »,
+ * « •●★-----|FR| SPORT |FR|-----★●• ». Only their shape is known here; what the text means is the
+ * catalogue's business (`liveTheme`).
+ */
+// Two dashes are enough: « •●★--|TR| BELGESELLER |TR|---★●• » exists, no channel starts with "--".
+const SEPARATOR = /^[\s\-_=~]*[-_=~]{2,}/;
+export const isSeparator = (name: string) => SEPARATOR.test(stripOrnaments(name.normalize("NFC")).trim());
+/** The text between the dashes, ornaments gone, otherwise untouched: « |FR| SPORT |FR| ». */
+export const separatorText = (name: string) =>
+  stripOrnaments(name.normalize("NFC"))
+    .replace(/^[\s\-_=~]+|[\s\-_=~]+$/g, "")
+    .trim();
 
 /** The provider's id for an entry, as an opaque trimmed string. Null when unusable. */
 export function upstreamId(kind: Kind, x: XStream): string | null {
@@ -97,20 +112,29 @@ async function upsertCategories(kind: Kind, cats: XCategory[], seenAt: Date) {
 async function upsertItems(kind: Kind, all: XStream[], seenAt: Date) {
   let n = 0;
   const list = dedupe(all, (x) => upstreamId(kind, x) ?? "");
+  // A separator line names the section of the entries that follow it in the same category
+  // (« ----|FR| SPORT |FR|---- »); it is not an entry and is never stored.
+  const sections = new Map<string, string>();
   for (let i = 0; i < list.length; i += CHUNK) {
     const rows = list.slice(i, i + CHUNK).flatMap((x, j) => {
       const id = upstreamId(kind, x);
       if (!id) return [];
       const name = String(x.name ?? "");
+      const categoryXtreamId = x.category_id != null ? String(x.category_id) : null;
+      if (isSeparator(name)) {
+        sections.set(categoryXtreamId ?? "", separatorText(name));
+        return [];
+      }
       return [
         {
           kind,
           xtreamId: id,
           name,
-          categoryXtreamId: x.category_id != null ? String(x.category_id) : null,
+          categoryXtreamId,
           position: i + j,
           raw: x as Record<string, unknown>,
           seenAt,
+          section: sections.get(categoryXtreamId ?? "") ?? null,
           matchStatus: (kind === "live" ? "skipped" : "pending") as "skipped" | "pending",
         },
       ];
@@ -128,6 +152,7 @@ async function upsertItems(kind: Kind, all: XStream[], seenAt: Date) {
           position: sql`excluded.position`,
           raw: sql`excluded.raw`,
           seenAt,
+          section: sql`excluded.section`,
           matchStatus: sql`CASE WHEN ${schema.items.name} <> excluded.name AND ${schema.items.matchStatus} <> 'manual' THEN 'pending'::match_status ELSE ${schema.items.matchStatus} END`,
           name: sql`excluded.name`,
         },

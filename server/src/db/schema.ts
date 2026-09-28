@@ -92,6 +92,10 @@ export const items = pgTable(
     seasonHint: integer("season_hint"),
     /** The provider says so: adult category or tag in the name. */
     adult: boolean("adult").default(false).notNull(),
+    /** Live: the label of the separator line preceding the entry in its category, as the provider wrote it. */
+    section: text("section"),
+    /** Live: the theme the app groups by (« Sport », « Cinéma »…), derived from the section or the category. */
+    theme: text("theme"),
   },
   (t) => [
     uniqueIndex("items_kind_xtream_idx").on(t.kind, t.xtreamId),
@@ -146,6 +150,8 @@ export const contents = pgTable(
     maxQualityRank: integer("max_quality_rank").default(0).notNull(),
     languages: text("languages").array().default([]).notNull(),
     dynamicRange: text("dynamic_range"),
+    /** Live: every theme of its variants; a channel sits in each of its groups. */
+    themes: text("themes").array().default([]).notNull(),
     visible: boolean("visible").default(false).notNull(),
     /** TMDB's adult flag, or every variant flagged by the provider. Served to the app only when `serve_adult` is on. */
     adult: boolean("adult").default(false).notNull(),

@@ -27,6 +27,7 @@ export type ItemSeed = {
   raw?: Partial<XStream>;
   addedAt?: Date;
   keyOverride?: string;
+  section?: string;
 };
 
 export async function seedCategories(rows: { kind: "live" | "vod" | "series"; xtreamId: string; name: string; hiddenManual?: boolean }[]) {
@@ -59,6 +60,7 @@ export async function seedItems(rows: ItemSeed[]) {
         hiddenManual: r.hiddenManual ?? false,
         hiddenByRule: r.hiddenByRule ?? false,
         keyOverride: r.keyOverride ?? null,
+        section: r.section ?? null,
         raw: {
           name: r.name,
           stream_id: Number(r.xtreamId) || r.xtreamId,
