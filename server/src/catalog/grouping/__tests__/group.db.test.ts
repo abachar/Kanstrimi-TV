@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
-import { runGrouping, regroupItems, refreshVisibility } from "../group";
+import { runGrouping, regroupItems, refreshVisibility, groupingCounts } from "../group";
+import { inArray } from "drizzle-orm";
 
 const content = async (key: string) => (await db.select().from(schema.contents).where(eq(schema.contents.key, key)))[0];
 const variants = (contentId: number) =>
@@ -188,6 +189,17 @@ describe("runGrouping", () => {
     await runGrouping();
     const after = await db.select({ id: schema.contents.id, key: schema.contents.key }).from(schema.contents).orderBy(schema.contents.id);
     expect(after).toEqual(before);
+  });
+
+  it("counts for the dashboard what the app sees: hidden variants neither make a content nor several variants", async () => {
+    const vod = async () => (await groupingCounts()).find((r) => r.kind === "vod")!;
+    const before = await vod();
+    const rest = inArray(schema.items.xtreamId, ["2", "3", "4"]);
+    await db.update(schema.items).set({ hiddenManual: true }).where(rest);
+    // Spider-Man keeps one visible variant: still a content, no longer « several variants ».
+    expect(await vod()).toMatchObject({ visible: before.visible, multi: before.multi - 1 });
+    await db.update(schema.items).set({ hiddenManual: false }).where(rest);
+    expect(await vod()).toEqual(before);
   });
 
   it("moves a variant to its TMDB group after a manual match, and drops the emptied fallback", async () => {

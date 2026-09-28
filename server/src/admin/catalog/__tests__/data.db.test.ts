@@ -25,10 +25,10 @@ beforeAll(async () => {
 afterAll(closeDb);
 
 describe("admin catalogue browsing", () => {
-  it("counts per kind, a hidden category hiding its items too", async () => {
+  it("counts per kind, a hidden category hiding its items too; TMDB counts visible entries only", async () => {
     const c = await counts();
     const v = c.items.find((r) => r.kind === "vod")!;
-    expect(v).toMatchObject({ total: 5, hidden: 2, matched: 1, unmatched: 3, pending: 1 });
+    expect(v).toMatchObject({ total: 5, hidden: 2, matched: 1, unmatched: 2, pending: 0 });
     expect(c.categories.find((r) => r.kind === "vod")).toMatchObject({ total: 2, hidden: 1 });
   });
 

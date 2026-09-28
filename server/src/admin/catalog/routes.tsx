@@ -45,7 +45,7 @@ catalogRoutes.get("/", async (c) => {
   }
   const cats = await categoriesOfKind(qy.kind);
   const total = await countItems(qy);
-  // The accordion lists categories only, the rows arrive later one category at a time; a search lists its hits at once.
+  // The grouped view lists categories only, the rows arrive later one category at a time; a search lists its hits at once.
   const searching = isSearch(qy);
   const rows = searching ? (await pageItems(qy, qy.page)).rows : [];
   const catCounts = searching ? new Map<string, number>() : await itemCountByCategory(qy);
@@ -100,7 +100,7 @@ catalogRoutes.post("/tmdb-assign", async (c) => {
   try {
     await assignManual(id, Number(f.tmdb_id) || null);
   } catch (e) {
-    return c.html(<span class="text-danger">{(e as Error).message}</span>);
+    return c.html(<span class="text-sm text-destructive">{(e as Error).message}</span>);
   }
   const it = await itemById(id);
   return it ? c.html(<TmdbCell it={it} />) : c.notFound();

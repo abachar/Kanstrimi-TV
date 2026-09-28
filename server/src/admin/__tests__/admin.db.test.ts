@@ -134,11 +134,11 @@ describe("admin", () => {
     await post(`/admin/history/${encodeURIComponent("tmdb:movie:603")}/delete`, {});
     expect(await listProgress()).toEqual([]);
     const dashboard = await html("/admin");
-    expect(dashboard).toContain("0 favoris");
+    expect(dashboard).toMatch(/>0<\/div><div[^>]*>favoris/);
   });
 
   it("caches: counts the seeded TMDB sheet", async () => {
-    expect(await html("/admin/caches")).toMatch(/1 <small[^>]*>fiches/);
+    expect(await html("/admin/caches")).toMatch(/1 <span[^>]*>fiches/);
   });
 
   it("toggles visibility and answers with the row (item) or a refresh (category)", async () => {

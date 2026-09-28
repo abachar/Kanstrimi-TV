@@ -1,7 +1,8 @@
 # Kanstrimi — serveur
 
 Node 22 · Hono · TypeScript · Biome (formatage, `biome.json`, 140 colonnes) · Postgres + Drizzle · admin rendue côté serveur (Hono JSX +
-HTMX + Bootstrap 5 et Bootstrap Icons via CDN, **aucun CSS ni JS maison**) · Vitest · esbuild pour la production.
+HTMX + Tailwind CSS 4 et Basecoat, le design shadcn/ui sans React, icônes Lucide inlinées en SVG ; **aucun CSS ni JS maison**) ·
+Vitest · esbuild pour la production.
 Il importe le catalogue du fournisseur, le nettoie, l'enrichit et le sert à l'app Apple (tvOS, iOS) ; la
 vidéo ne le traverse jamais (`302` vers le fournisseur).
 
@@ -25,7 +26,8 @@ appairer l'Apple TV ou l'iPhone.
 
 | Script | Rôle |
 |---|---|
-| `npm run dev` | serveur en watch (tsx) |
+| `npm run dev` | CSS de l'admin puis serveur en watch (tsx) ; Tailwind recompile en parallèle à chaque modification de `src/admin` (recharger la page) |
+| `npm run css` | compile `src/admin/assets/admin.css` (Tailwind + Basecoat) et copie le script de Basecoat dans `dist/assets/`, que `/admin/assets/*` sert ; lancé par `dev` et `build` |
 | `npm run format` · `npm run typecheck` · `npm test` · `npm run build` | à lancer après chaque modification (`format:check` vérifie sans écrire) |
 | `npm run db:generate` | migration drizzle-kit après un changement de `src/db/schema.ts` (`--custom` pour une migration de données, ex. `0006`) |
 | `npm run db:migrate` | migrateur runtime (`src/db/migrate.ts` ; en production le conteneur oneshot `kanstrimi-migrate` lance `dist/db/migrate.js`) |
@@ -72,7 +74,8 @@ qui n'est pas dans l'index est privé au dossier. Le graphe des dépendances est
 ```
 main.ts     composition : Hono, middlewares, montage de player, admin et /img, planification, arrêt propre
 admin/      pages (routes.tsx + view.tsx, data.ts pour les seules requêtes de présentation) ;
-            layout.tsx (menu latéral, offcanvas sous md), ui.tsx (composants Bootstrap), format.ts (nombres,
+            layout.tsx (menu latéral Basecoat, tiroir sous md), ui.tsx (composants partagés, couleurs des statuts), icons.tsx (les icônes Lucide autorisées),
+            assets/admin.css (point d'entrée Tailwind, sans règle à nous), format.ts (nombres,
             dates, cron), labels.ts, http.tsx, session.ts, csrf.ts. Aucune écriture en base : l'admin appelle
             le domaine. catalog, groups, item = l'import brut et le groupement, ce qu'on corrige ;
             favorites et history = ce que l'app a enregistré, lus et modifiés par les fonctions de
@@ -115,8 +118,10 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   l'environnement avec zod et arrête le processus avec un message clair. Reste maison à dessein : la
   similarité de titres (calibrée), les clients Xtream et TMDB (petits, taillés pour ce qu'on stocke),
   le logger (caviarde les mots de passe des URL).
-- Alias `@/` → `src/`. Les vues JSX rendent en HTML ; interactivité minimale via `hx-*`. Uniquement
-  des classes Bootstrap, pas d'attribut `style`.
+- Alias `@/` → `src/`. Les vues JSX rendent en HTML ; interactivité minimale via `hx-*` et le script de
+  Basecoat (menu en tiroir) ; replis en `<details>`. Uniquement des classes Tailwind et Basecoat, pas d'attribut `style`,
+  et des noms de classes écrits en entier : Tailwind les trouve en lisant `src/admin`, un `text-${x}` ne serait pas généré.
+  Les couleurs de statut passent par `Badge` et ses tons (`ui.tsx`), les icônes par `Icon` (`icons.tsx`).
 - **Une seule source pour chaque fait** : les mappages de `kind` (`tmdbMediaType`) dans `db/kind.ts` ;
   la forme des clés dans `catalog/keys.ts` (`isTmdbKey`, `hasTmdbKey`, `isEpisodeKey`…) ; la
   suppression d'accents dans `shared/text.ts` (quatre dérivés nommés par usage, dont les résultats

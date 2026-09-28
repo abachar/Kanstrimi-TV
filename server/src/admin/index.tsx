@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { env } from "@/shared";
 import { sameOriginForms } from "./csrf";
 import { isLoggedIn } from "./session";
@@ -23,6 +24,9 @@ import { settingsRoutes } from "./settings/routes";
 export const admin = new Hono();
 
 admin.use("*", sameOriginForms());
+
+/** The stylesheet and Basecoat's script, built by `npm run css`; served before the login guard, the login page needs them. */
+admin.use("/assets/*", serveStatic({ root: "./dist/assets", rewriteRequestPath: (p) => p.replace(/^\/admin\/assets/, "") }));
 
 admin.use("*", async (c, next) => {
   const p = new URL(c.req.url).pathname;

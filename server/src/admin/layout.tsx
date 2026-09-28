@@ -3,10 +3,12 @@ import type { Context } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { html, raw } from "hono/html";
 import { env } from "@/shared";
+import { Icon, type IconName } from "./icons";
 
 /**
- * The side menu folds to its icons on md+. The state lives in a cookie and the toggle is a
- * plain form: every navigation is a full page, so a client-side class swap would not survive it.
+ * The side menu hides on md+ (Basecoat's sidebar has no icon-only state). The state lives in a
+ * cookie and the toggle is a plain form: every navigation is a full page, a client-side toggle
+ * would not survive it. Below md the menu is a drawer, opened by Basecoat's script.
  */
 const MENU_COOKIE = "kanstrimi_menu";
 export const isMenuCollapsed = (c: Context) => getCookie(c, MENU_COOKIE) === "collapsed";
@@ -14,22 +16,36 @@ export function toggleMenu(c: Context) {
   setCookie(c, MENU_COOKIE, isMenuCollapsed(c) ? "open" : "collapsed", { path: "/admin", maxAge: 60 * 60 * 24 * 365, sameSite: "Lax" });
 }
 
-/** `icon` is a Bootstrap Icons name (`bi-<icon>`), loaded from the same CDN as Bootstrap. */
-type NavItem = readonly [href: string, label: string, icon: string];
+type NavItem = readonly [href: string, label: string, icon: IconName];
 
-/** The side menu, one flat list: the catalogue by kind, what the app stored, then the tools. */
-export const NAV: readonly NavItem[] = [
-  ["/admin", "Tableau de bord", "speedometer2"],
-  ["/admin/catalog?kind=live", "Live", "broadcast"],
-  ["/admin/catalog?kind=vod", "Films", "film"],
-  ["/admin/catalog?kind=series", "Séries", "collection-play"],
-  ["/admin/favorites", "Favoris", "star"],
-  ["/admin/history", "Historique", "clock-history"],
-  ["/admin/rules", "Règles", "funnel"],
-  ["/admin/devices", "Appareils", "tv"],
-  ["/admin/caches", "Caches", "hdd"],
-  ["/admin/logs", "Journaux", "journal-text"],
-  ["/admin/settings", "Paramètres", "gear"],
+/** The side menu: the dashboard, then the catalogue by kind, what the app stored, the tools. */
+export const NAV: readonly (readonly [group: string | null, items: readonly NavItem[]])[] = [
+  [null, [["/admin", "Tableau de bord", "dashboard"]]],
+  [
+    "Catalogue",
+    [
+      ["/admin/catalog?kind=live", "Live", "live"],
+      ["/admin/catalog?kind=vod", "Films", "film"],
+      ["/admin/catalog?kind=series", "Séries", "series"],
+      ["/admin/rules", "Règles", "rules"],
+    ],
+  ],
+  [
+    "Application",
+    [
+      ["/admin/devices", "Appareils", "devices"],
+      ["/admin/favorites", "Favoris", "favorites"],
+      ["/admin/history", "Historique", "history"],
+    ],
+  ],
+  [
+    "Serveur",
+    [
+      ["/admin/caches", "Caches", "caches"],
+      ["/admin/logs", "Journaux", "logs"],
+      ["/admin/settings", "Paramètres", "settings"],
+    ],
+  ],
 ];
 
 /** `path` may carry a query string: the catalogue entries differ by `kind` only. */
@@ -55,68 +71,75 @@ export function Layout({
   path: string;
   flash?: { ok?: string; err?: string };
   loggedIn?: boolean;
-  /** md+ only: icons without labels; the phone offcanvas always shows both. */
+  /** md+ only: the menu is hidden; the phone drawer is closed until opened anyway. */
   collapsed?: boolean;
   children?: Child;
 }) {
-  // Hides a label on md+ when the menu is folded; the offcanvas (below md) keeps it.
-  const label = collapsed ? "d-md-none" : "";
+  const v = env.bootId;
+  const flashes = html`${flash?.ok ? Flash({ ok: true, msg: flash.ok }) : ""}${flash?.err ? Flash({ ok: false, msg: flash.err }) : ""}`;
+  const fold = collapsed ? "Afficher le menu" : "Masquer le menu";
   return html`<!doctype html>
-<html lang="fr" data-bs-theme="dark">
+<html lang="fr" class="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title} · Kanstrimi</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
+<link href="/admin/assets/admin.css?v=${v}" rel="stylesheet">
+<script src="/admin/assets/basecoat.min.js?v=${v}" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
 </head>
-<body>
+<body class="bg-background text-foreground antialiased">
 ${env.devPassword ? html`<div hx-get="/admin/dev/reload?boot=${env.bootId}" hx-trigger="every 1s" hx-swap="none" aria-hidden="true"></div>` : ""}
 ${
   loggedIn
     ? html`
-<nav class="navbar bg-body-tertiary d-md-none">
-  <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="/admin">Kanstrimi</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu" aria-controls="menu" aria-label="Ouvrir le menu"><span class="navbar-toggler-icon"></span></button>
+<aside id="menu" class="sidebar" data-side="left" data-initial-open="${collapsed ? "false" : "true"}" aria-hidden="${collapsed ? "true" : "false"}"${collapsed ? raw(" inert") : ""}>
+  <nav aria-label="Menu">
+    <header>
+      <a href="/admin" class="btn justify-start gap-2 text-base font-semibold" data-variant="ghost">
+        <span class="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">${Icon({ name: "play", cls: "size-4" })}</span>
+        Kanstrimi
+      </a>
+    </header>
+    <section class="scrollbar">
+      ${NAV.map(
+        ([group, items], i) => html`<div role="group"${group ? raw(` aria-labelledby="menu-g${i}"`) : ""}>
+        ${group ? html`<h3 id="menu-g${i}">${group}</h3>` : ""}
+        <ul>
+          ${items.map(([href, text, icon]) => html`<li><a href="${href}"${isActive(href, path) ? raw(' aria-current="page"') : ""}>${Icon({ name: icon })}<span>${text}</span></a></li>`)}
+        </ul>
+      </div>`,
+      )}
+    </section>
+    <footer>
+      <form method="post" action="/admin/logout"><button class="btn w-full justify-start" data-variant="ghost">${Icon({ name: "logout" })}Quitter</button></form>
+    </footer>
+  </nav>
+</aside>
+<main class="min-h-screen">
+  <header class="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur md:px-6">
+    <button type="button" class="btn md:hidden" data-variant="ghost" data-size="icon" aria-label="Ouvrir le menu" aria-controls="menu" hx-on:click="document.getElementById('menu').open()">${Icon({ name: "menu" })}</button>
+    <form method="post" action="/admin/menu" class="max-md:hidden">
+      <input type="hidden" name="next" value="${path}">
+      <button class="btn" data-variant="ghost" data-size="icon" title="${fold}" aria-label="${fold}">${Icon({ name: "panel" })}</button>
+    </form>
+    <span class="text-sm font-medium">${title}</span>
+  </header>
+  <div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 pb-12 md:p-6">
+    ${flashes}
+    ${children}
   </div>
-</nav>
-<div class="container-fluid">
-  <div class="row">
-    <nav class="${collapsed ? "col-md-auto" : "col-md-3 col-lg-2"} p-0 offcanvas-md offcanvas-start" id="menu" tabindex="-1" aria-label="Menu">
-      <div class="offcanvas-body p-0 sticky-md-top">
-        <div class="d-flex flex-column w-100 p-3 bg-body-tertiary vh-100 overflow-auto">
-          <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-            <a class="navbar-brand fw-bold ${label}" href="/admin">Kanstrimi</a>
-            <button type="button" class="btn-close d-md-none" data-bs-dismiss="offcanvas" data-bs-target="#menu" aria-label="Fermer"></button>
-            <form method="post" action="/admin/menu" class="d-none d-md-block${collapsed ? " mx-auto" : ""}">
-              <input type="hidden" name="next" value="${path}">
-              <button class="btn btn-sm btn-outline-secondary border-0" title="${collapsed ? "Étendre le menu" : "Réduire le menu"}" aria-label="${collapsed ? "Étendre le menu" : "Réduire le menu"}"><i class="bi bi-chevron-double-${collapsed ? "right" : "left"}" aria-hidden="true"></i></button>
-            </form>
-          </div>
-          <ul class="nav flex-column nav-pills mb-2">
-            ${NAV.map(([href, text, icon]) => html`<li class="nav-item"><a class="nav-link d-flex align-items-center gap-2${collapsed ? " justify-content-md-center px-md-2" : ""}${isActive(href, path) ? " active" : ""}" ${isActive(href, path) ? raw('aria-current="page"') : ""} href="${href}" title="${text}"><i class="bi bi-${icon}" aria-hidden="true"></i><span class="${label}">${text}</span></a></li>`)}
-          </ul>
-          <form method="post" action="/admin/logout" class="mt-auto pt-3"><button class="btn btn-outline-secondary btn-sm w-100 d-flex align-items-center justify-content-center gap-2" title="Quitter"><i class="bi bi-box-arrow-right" aria-hidden="true"></i><span class="${label}">Quitter</span></button></form>
-        </div>
-      </div>
-    </nav>
-    <main class="col-12 col-md px-3 px-md-4 py-4 pb-5">
-      ${flash?.ok ? html`<div class="alert alert-success" role="status">${flash.ok}</div>` : ""}
-      ${flash?.err ? html`<div class="alert alert-danger" role="alert">${flash.err}</div>` : ""}
-      ${children}
-    </main>
-  </div>
-</div>`
+</main>`
     : html`
-<main class="container py-4 pb-5">
-  ${flash?.ok ? html`<div class="alert alert-success" role="status">${flash.ok}</div>` : ""}
-  ${flash?.err ? html`<div class="alert alert-danger" role="alert">${flash.err}</div>` : ""}
+<main class="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
+  ${flashes}
   ${children}
 </main>`
 }
 </body>
 </html>`;
 }
+
+/** A flash message from `?ok=` / `?err=`. */
+const Flash = ({ ok, msg }: { ok: boolean; msg: string }) =>
+  html`<div class="alert"${ok ? "" : raw(' data-variant="destructive"')} role="${ok ? "status" : "alert"}">${Icon({ name: ok ? "success" : "error" })}<h2>${msg}</h2></div>`;

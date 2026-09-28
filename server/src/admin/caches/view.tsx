@@ -9,32 +9,33 @@ export function CachesView({ rows }: { rows: CacheStat[] }) {
   return (
     <>
       <Title t="Caches" sub="Ce que le serveur garde pour ne pas redemander ; lecture seule" />
-      <div class="row g-3">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         {rows.map((r) => {
           const l = CACHE_LABELS[r.id];
           return (
-            <div class="col-12 col-md-6">
-              <div class="card h-100">
-                <div class="card-body">
-                  <div class="fw-semibold">{l.title}</div>
-                  <p class="text-secondary small mb-2">{l.what}</p>
-                  <div class="display-6 fw-bold">
-                    {fmt(r.count)} <small class="fs-6 fw-normal text-secondary">{l.unit}</small>
-                  </div>
-                  <div class="small text-secondary">
-                    {mb(r.bytes)}
-                    {r.oldest ? ` · plus ancien ${ago(r.oldest)}` : ""}
-                    {r.newest ? ` · plus récent ${ago(r.newest)}` : ""}
-                  </div>
-                  <p class="small text-secondary mt-2 mb-0">{l.how}</p>
+            <section class="card h-full">
+              <header>
+                <h2>{l.title}</h2>
+                <p>{l.what}</p>
+              </header>
+              <section class="flex flex-col gap-1">
+                <div class="text-3xl font-semibold tabular-nums tracking-tight">
+                  {fmt(r.count)} <span class="text-sm font-normal text-muted-foreground">{l.unit}</span>
                 </div>
-              </div>
-            </div>
+                <div class="text-xs text-muted-foreground">
+                  {mb(r.bytes)}
+                  {r.oldest ? ` · plus ancien ${ago(r.oldest)}` : ""}
+                  {r.newest ? ` · plus récent ${ago(r.newest)}` : ""}
+                </div>
+                <p class="mt-2 text-sm text-muted-foreground">{l.how}</p>
+              </section>
+            </section>
           );
         })}
       </div>
-      <p class="text-secondary small mt-3">
-        Les fichiers (<code>DATA_DIR</code> : images, EPG) se reconstruisent ; seule la base se sauvegarde.
+      <p class="text-sm text-muted-foreground">
+        Les fichiers (<code class="font-mono text-foreground">DATA_DIR</code> : images, EPG) se reconstruisent ; seule la base se
+        sauvegarde.
       </p>
     </>
   );

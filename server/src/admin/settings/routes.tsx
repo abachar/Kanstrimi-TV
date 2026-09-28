@@ -22,8 +22,8 @@ const settingsSchema = z.object({
   serve_adult: z.string().optional(),
 });
 
-const ok = (text: string) => <span class="text-success">{text}</span>;
-const ko = (text: string) => <span class="text-danger">{text}</span>;
+const ok = (text: string) => <span class="text-sm text-emerald-400">{text}</span>;
+const ko = (text: string) => <span class="text-sm text-destructive">{text}</span>;
 
 export const settingsRoutes = new Hono();
 

@@ -1,31 +1,31 @@
 import type { FilterRule } from "@/db";
 import type { RulePreview as Preview } from "@/catalog";
-import { Title, Card, Options, Busy } from "../ui";
+import { Title, Card, Options, Busy, Badge, Empty } from "../ui";
 import { KIND_LABELS } from "../labels";
 
 export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Preview }) {
   // Every field id carries the rule id: the same form is rendered once per rule on the page.
   const uid = rule?.id ?? "new";
   const Sel = ({ name, label, opts, cur, col }: { name: string; label: string; opts: [string, string][]; cur: string; col: string }) => (
-    <div class={col}>
-      <label class="form-label" for={`${name}-${uid}`}>
+    <div class={`field gap-2 ${col}`}>
+      <label class="label" for={`${name}-${uid}`}>
         {label}
       </label>
-      <select class="form-select" id={`${name}-${uid}`} name={name}>
+      <select class="select w-full" id={`${name}-${uid}`} name={name}>
         <Options opts={opts} cur={cur} />
       </select>
     </div>
   );
   const pid = `preview-${uid}`;
   return (
-    <form method="post" action="/admin/rules">
+    <form method="post" action="/admin/rules" class="flex flex-col gap-4">
       {rule && <input type="hidden" name="id" value={rule.id} />}
-      <div class="row g-2">
-        <div class="col-12 col-md-4">
-          <label class="form-label" for={`name-${uid}`}>
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-12">
+        <div class="field col-span-2 gap-2 md:col-span-4">
+          <label class="label" for={`name-${uid}`}>
             Nom
           </label>
-          <input class="form-control" id={`name-${uid}`} name="name" value={rule?.name ?? ""} required />
+          <input class="input" type="text" id={`name-${uid}`} name="name" value={rule?.name ?? ""} required />
         </div>
         <Sel
           name="kind"
@@ -37,7 +37,7 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
             ["series", "Séries"],
           ]}
           cur={rule?.kind ?? "all"}
-          col="col-6 col-md-2"
+          col="md:col-span-2"
         />
         <Sel
           name="target"
@@ -47,7 +47,7 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
             ["category", "Catégorie"],
           ]}
           cur={rule?.target ?? "name"}
-          col="col-6 col-md-2"
+          col="md:col-span-2"
         />
         <Sel
           name="action"
@@ -57,27 +57,21 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
             ["keep", "Ne garder que ce qui matche"],
           ]}
           cur={rule?.action ?? "hide"}
-          col="col-6 col-md-2"
+          col="md:col-span-2"
         />
-        <div class="col-6 col-md-2">
-          <label class="form-label" for={`position-${uid}`}>
+        <div class="field gap-2 md:col-span-2">
+          <label class="label" for={`position-${uid}`}>
             Position
           </label>
-          <input
-            class="form-control"
-            id={`position-${uid}`}
-            name="position"
-            type="number"
-            inputmode="numeric"
-            value={rule?.position ?? 0}
-          />
+          <input class="input" id={`position-${uid}`} name="position" type="number" inputmode="numeric" value={rule?.position ?? 0} />
         </div>
-        <div class="col-12 col-md-8">
-          <label class="form-label" for={`pattern-${uid}`}>
+        <div class="field col-span-2 gap-2 md:col-span-8">
+          <label class="label" for={`pattern-${uid}`}>
             Regex
           </label>
           <input
-            class="form-control font-monospace"
+            class="input font-mono"
+            type="text"
             id={`pattern-${uid}`}
             name="pattern"
             value={rule?.pattern ?? ""}
@@ -88,26 +82,25 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
             required
           />
         </div>
-        <div class="col-6 col-md-2">
-          <label class="form-label" for={`flags-${uid}`}>
+        <div class="field gap-2 md:col-span-2">
+          <label class="label" for={`flags-${uid}`}>
             Flags
           </label>
-          <input class="form-control font-monospace" id={`flags-${uid}`} name="flags" value={rule?.flags ?? "i"} autocapitalize="off" />
+          <input class="input font-mono" type="text" id={`flags-${uid}`} name="flags" value={rule?.flags ?? "i"} autocapitalize="off" />
         </div>
-        <div class="col-6 col-md-2 d-flex align-items-end pb-2">
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" role="switch" name="enabled" id={`en-${uid}`} checked={rule?.enabled ?? true} />
-            <label class="form-check-label" for={`en-${uid}`}>
-              Activée
-            </label>
-          </div>
-        </div>
+        <label class="label flex items-center gap-2 self-end pb-2 md:col-span-2" for={`en-${uid}`}>
+          <input class="input" type="checkbox" role="switch" name="enabled" id={`en-${uid}`} checked={rule?.enabled ?? true} />
+          Activée
+        </label>
       </div>
-      <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
-        <button class="btn btn-primary">{rule ? "Mettre à jour" : "Ajouter"}</button>
+      <div class="flex flex-wrap items-center gap-2">
+        <button class="btn" data-variant="primary">
+          {rule ? "Mettre à jour" : "Ajouter"}
+        </button>
         <button
           type="button"
-          class="btn btn-outline-secondary"
+          class="btn"
+          data-variant="outline"
           hx-post="/admin/rules/preview"
           hx-include="closest form"
           hx-target={`#${pid}`}
@@ -128,11 +121,11 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
 export function RulePreview({ preview }: { preview?: Preview }) {
   if (!preview) return <></>;
   return (
-    <div class="mt-3">
-      <div class="small fw-semibold">
+    <div class="flex flex-col gap-2">
+      <div class="text-sm font-medium">
         {preview.total} correspondance(s){preview.total > preview.matches.length ? ` (${preview.matches.length} premières)` : ""}
       </div>
-      <pre class="bg-body-tertiary p-2 rounded small overflow-auto">{preview.matches.join("\n")}</pre>
+      <pre class="max-h-80 overflow-auto rounded-md bg-muted p-3 font-mono text-xs">{preview.matches.join("\n")}</pre>
     </div>
   );
 }
@@ -150,67 +143,64 @@ export function RulesView({ rules }: { rules: FilterRule[] }) {
       <Card title={`Règles (${rules.length})`}>
         {/* Grid rows rather than an 8-column table: on a phone the name and the switch share
             the first line, the regex and the badges follow; on md+ the columns line up under a header. */}
-        <div class="list-group list-group-flush">
-          <div class="list-group-item d-none d-md-block small text-secondary">
-            <div class="row g-2">
-              <div class="col-md-1">#</div>
-              <div class="col-md-2">Nom</div>
-              <div class="col-md-4">Regex</div>
-              <div class="col-md-2">Type · cible · action</div>
-              <div class="col-md-1">Actif</div>
-            </div>
+        <div class="flex flex-col divide-y">
+          <div class="grid grid-cols-12 gap-2 pb-2 text-xs text-muted-foreground max-md:hidden">
+            <div class="col-span-1">#</div>
+            <div class="col-span-2">Nom</div>
+            <div class="col-span-4">Regex</div>
+            <div class="col-span-2">Type · cible · action</div>
+            <div class="col-span-1">Actif</div>
           </div>
-          {rules.length === 0 && <div class="list-group-item small text-secondary">Aucune règle.</div>}
+          {rules.length === 0 && <Empty title="Aucune règle." />}
           {rules.map((r) => (
-            <div class={`list-group-item ${r.enabled ? "" : "text-secondary"}`}>
-              <div class="row g-2 align-items-center">
-                <div class="col-md-1 d-none d-md-block">{r.position}</div>
-                <div class="col col-md-2 order-1 fw-semibold">{r.name}</div>
-                <div class="col-auto col-md-1 order-2 order-md-5">
-                  <div class="form-check form-switch m-0">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      role="switch"
-                      name="enabled"
-                      checked={r.enabled}
-                      aria-label={`Règle « ${r.name} » active`}
-                      hx-post={`/admin/rules/${r.id}/toggle`}
-                      hx-trigger="change"
-                      hx-swap="none"
-                    />
-                  </div>
+            <div class={`flex flex-col py-3 ${r.enabled ? "" : "text-muted-foreground"}`}>
+              <div class="grid grid-cols-[1fr_auto] items-center gap-2 md:grid-cols-12">
+                <div class="col-span-1 tabular-nums max-md:hidden">{r.position}</div>
+                <div class="order-1 font-medium md:col-span-2">{r.name}</div>
+                <div class="order-2 md:order-5 md:col-span-1">
+                  <input
+                    class="input"
+                    type="checkbox"
+                    role="switch"
+                    name="enabled"
+                    checked={r.enabled}
+                    aria-label={`Règle « ${r.name} » active`}
+                    hx-post={`/admin/rules/${r.id}/toggle`}
+                    hx-trigger="change"
+                    hx-swap="none"
+                  />
                 </div>
-                <div class="col-12 col-md-4 order-3">
-                  <code class="text-break">
+                <div class="order-3 col-span-2 md:col-span-4">
+                  <code class="font-mono text-xs break-all">
                     /{r.pattern}/{r.flags}
                   </code>
                 </div>
-                <div class="col-12 col-md-2 order-4 d-flex flex-wrap gap-1">
-                  <span class="badge text-bg-light d-md-none" title="Position">
-                    #{r.position}
+                <div class="order-4 col-span-2 flex flex-wrap gap-1">
+                  <span class="md:hidden">
+                    <Badge tone="muted" title="Position">
+                      #{r.position}
+                    </Badge>
                   </span>
-                  <span class="badge text-bg-secondary">{KIND_LABELS[r.kind ?? "all"]}</span>
-                  <span class="badge text-bg-secondary">{r.target === "category" ? "catégorie" : "nom"}</span>
-                  <span class={`badge text-bg-${r.action === "hide" ? "danger" : "success"}`}>
-                    {r.action === "hide" ? "masque" : "garde"}
-                  </span>
+                  <Badge>{KIND_LABELS[r.kind ?? "all"]}</Badge>
+                  <Badge>{r.target === "category" ? "catégorie" : "nom"}</Badge>
+                  <Badge tone={r.action === "hide" ? "bad" : "ok"}>{r.action === "hide" ? "masque" : "garde"}</Badge>
                 </div>
-                {/* Touch targets: link-buttons keep a vertical padding on a phone instead of `p-0`. */}
-                <div class="col-12 col-md-2 order-last text-md-end text-nowrap">
-                  <button
-                    type="button"
-                    class="btn btn-link btn-sm px-0 py-1 me-3"
-                    data-bs-toggle="collapse"
-                    data-bs-target={`#edit-${r.id}`}
-                    aria-expanded="false"
+                {/* "Éditer" is the label of a hidden checkbox: its `peer-checked` shows the form below, without script. */}
+                <div class="order-last col-span-2 flex gap-1 md:justify-end">
+                  <label
+                    for={`edit-toggle-${r.id}`}
+                    class="btn cursor-pointer"
+                    data-variant="ghost"
+                    data-size="sm"
                     aria-controls={`edit-${r.id}`}
                   >
                     Éditer
-                  </button>
+                  </label>
                   <button
                     type="button"
-                    class="btn btn-link btn-sm px-0 py-1 text-danger"
+                    class="btn text-destructive"
+                    data-variant="ghost"
+                    data-size="sm"
                     hx-post={`/admin/rules/${r.id}/delete`}
                     hx-confirm={`Supprimer la règle « ${r.name} » ?`}
                   >
@@ -218,7 +208,8 @@ export function RulesView({ rules }: { rules: FilterRule[] }) {
                   </button>
                 </div>
               </div>
-              <div class="collapse mt-3" id={`edit-${r.id}`}>
+              <input type="checkbox" id={`edit-toggle-${r.id}`} class="peer sr-only" aria-label={`Éditer la règle « ${r.name} »`} />
+              <div class="hidden pt-4 peer-checked:block" id={`edit-${r.id}`}>
                 <RuleForm rule={r} />
               </div>
             </div>

@@ -1,0 +1,7 @@
+/*
+ * The admin's only stylesheet: Tailwind and Basecoat, compiled by `npm run css` into dist/assets/.
+ * No rule of our own here: pages use the classes of the two libraries, nothing else.
+ * `source("../")` = Tailwind scans src/admin only for the classes it must generate.
+ */
+@import "tailwindcss" source("../");
+@import "basecoat-css";

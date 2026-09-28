@@ -2,7 +2,7 @@ import type { Category, Item } from "@/db";
 import { CATALOG_PAGE, NO_CATEGORY } from "./data";
 import { isCategoryHidden } from "@/db";
 import { fmt } from "../format";
-import { Title, Options, Pagination } from "../ui";
+import { Title, Options, Pagination, Empty } from "../ui";
 import { KIND_TITLES } from "../labels";
 import { CategoryRow, NoCategoryRow } from "./category";
 import { CatalogHeader, ItemRow } from "./row";
@@ -17,29 +17,34 @@ const viewsOf = (kind: CatalogQuery["kind"]): [ViewMode, string][] => [
 export function CatalogShell({ qy, children }: { qy: CatalogQuery; children?: unknown }) {
   return (
     <>
-      <Title t={KIND_TITLES[qy.kind]} sub="Parcourir, filtrer et corriger le contenu importé" />
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <div class="btn-group btn-group-sm ms-md-auto" role="group" aria-label="Présentation">
-          {viewsOf(qy.kind).map(([view, label]) => {
-            const current = qy.view === view;
-            return (
-              <a
-                class={`btn btn-${current ? "" : "outline-"}secondary`}
-                {...(current ? { "aria-current": "true" } : {})}
-                href={catalogLink(qy, { view, page: 1 })}
-              >
-                {label}
-              </a>
-            );
-          })}
-        </div>
-      </div>
+      <Title
+        t={KIND_TITLES[qy.kind]}
+        sub="Parcourir, filtrer et corriger le contenu importé"
+        actions={
+          <div class="button-group" role="group" aria-label="Présentation">
+            {viewsOf(qy.kind).map(([view, label]) => {
+              const current = qy.view === view;
+              return (
+                <a
+                  class="btn"
+                  data-variant={current ? "secondary" : "outline"}
+                  data-size="sm"
+                  {...(current ? { "aria-current": "true" } : {})}
+                  href={catalogLink(qy, { view, page: 1 })}
+                >
+                  {label}
+                </a>
+              );
+            })}
+          </div>
+        }
+      />
       {children}
     </>
   );
 }
 
-/** Filters, then the accordion of categories (rows loaded on demand), or the flat, paginated hits of a search. */
+/** Filters, then the foldable categories (rows loaded on demand), or the flat, paginated hits of a search. */
 export function CatalogView({
   qy,
   cats,
@@ -62,11 +67,11 @@ export function CatalogView({
   const uncategorised = catCounts.get(NO_CATEGORY) ?? 0;
   return (
     <CatalogShell qy={qy}>
-      <form method="get" action="/admin/catalog" class="row g-2 mb-3" role="search">
+      <form method="get" action="/admin/catalog" class="grid grid-cols-2 gap-2 md:grid-cols-12" role="search">
         <input type="hidden" name="kind" value={qy.kind} />
-        <div class="col-12 col-md-5">
+        <div class="col-span-2 md:col-span-5">
           <input
-            class="form-control"
+            class="input"
             type="search"
             name="q"
             value={qy.q}
@@ -75,8 +80,8 @@ export function CatalogView({
             enterkeyhint="search"
           />
         </div>
-        <div class="col-6 col-md-2">
-          <select class="form-select" name="vis" aria-label="Visibilité">
+        <div class={qy.kind !== "live" ? "md:col-span-2" : "col-span-2 md:col-span-4"}>
+          <select class="select w-full" name="vis" aria-label="Visibilité">
             <Options
               opts={[
                 ["visible", "Visibles"],
@@ -88,8 +93,8 @@ export function CatalogView({
           </select>
         </div>
         {qy.kind !== "live" && (
-          <div class="col-6 col-md-2">
-            <select class="form-select" name="tmdb" aria-label="TMDB">
+          <div class="md:col-span-2">
+            <select class="select w-full" name="tmdb" aria-label="TMDB">
               <Options
                 opts={[
                   ["", "TMDB : tous"],
@@ -102,33 +107,38 @@ export function CatalogView({
             </select>
           </div>
         )}
-        <div class={`col-12 ${qy.kind !== "live" ? "col-md-3" : "col-md-5"} d-grid`}>
-          <button class="btn btn-secondary">Filtrer</button>
+        <div class="col-span-2 grid md:col-span-3">
+          <button class="btn" data-variant="secondary">
+            Filtrer
+          </button>
         </div>
       </form>
       {!searching ? (
         <>
-          <p class="text-secondary small">
+          <p class="text-sm text-muted-foreground">
             {fmt(shownCats.length)} catégorie(s) · {fmt(total)} élément(s)
             {uncategorised ? ` · ${fmt(uncategorised)} sans catégorie` : ""}
             {narrowing && shownCats.length < cats.length
               ? ` · ${fmt(cats.length - shownCats.length)} sans élément correspondant, voir « Visibles et masqués »`
               : ""}
           </p>
-          <div class="accordion">
+          <div class="flex flex-col divide-y overflow-hidden rounded-xl border">
             {uncategorised > 0 && <NoCategoryRow qy={qy} count={uncategorised} />}
             {shownCats.map((c) => (
               <CategoryRow c={c} qy={qy} count={catCounts.get(c.xtreamId) ?? 0} />
             ))}
           </div>
-          {cats.length === 0 && <p class="text-secondary">Aucune catégorie — lancer l'étape 1.</p>}
+          {cats.length === 0 && <Empty title="Aucune catégorie" sub="Lancer l'étape 1 depuis le tableau de bord." />}
         </>
       ) : (
         <>
-          <p class="text-secondary small">
-            {fmt(total)} résultat(s) pour « {qy.q} » · <a href={catalogLink(qy, { q: "", page: 1 })}>toutes les catégories</a>
+          <p class="text-sm text-muted-foreground">
+            {fmt(total)} résultat(s) pour « {qy.q} » ·{" "}
+            <a class="underline underline-offset-4 hover:text-foreground" href={catalogLink(qy, { q: "", page: 1 })}>
+              toutes les catégories
+            </a>
           </p>
-          <div class="list-group mb-3">
+          <div class="flex flex-col divide-y overflow-hidden rounded-xl border">
             <CatalogHeader qy={qy} />
             {rows.map((r) => (
               <ItemRow
@@ -138,7 +148,7 @@ export function CatalogView({
                 catHidden={hiddenCats.has(r.categoryXtreamId ?? "")}
               />
             ))}
-            {rows.length === 0 && <div class="list-group-item small text-secondary">Aucun résultat.</div>}
+            {rows.length === 0 && <div class="px-4 py-3 text-sm text-muted-foreground">Aucun résultat.</div>}
           </div>
           <Pagination page={qy.page} total={total} size={CATALOG_PAGE} link={(page) => catalogLink(qy, { page })} />
         </>

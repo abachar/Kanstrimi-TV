@@ -1,5 +1,6 @@
 import type { MatchExplanation } from "@/providers/tmdb";
 import { tmdbMediaType } from "@/db";
+import { Table } from "../ui";
 
 const pct = (n: number) => `${Math.round(n * 100)} %`;
 
@@ -7,26 +8,26 @@ const pct = (n: number) => `${Math.round(n * 100)} %`;
 export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "series" }) {
   const url = (id: number) => `https://www.themoviedb.org/${tmdbMediaType(kind)}/${id}`;
   return (
-    <div class="small">
-      <p class="mb-1">
+    <div class="flex w-full flex-col gap-2 text-sm">
+      <p>
         Titre cherché : <strong>{e.cleaned.title}</strong>
         {e.cleaned.year ? ` (${e.cleaned.year})` : " (sans année)"} · seuil {pct(e.threshold)}
       </p>
       {e.provided && (
-        <p class="mb-1">
+        <p>
           Identifiant amont{" "}
-          <a href={url(e.provided.id)} target="_blank" rel="noreferrer">
+          <a class="underline underline-offset-4" href={url(e.provided.id)} target="_blank" rel="noreferrer">
             #{e.provided.id}
           </a>{" "}
           :{" "}
           {e.provided.found ? (
             <>
               « {e.provided.title} »{e.provided.year ? ` (${e.provided.year})` : ""}, similarité {pct(e.provided.similarity)} →{" "}
-              <span class={e.provided.accepted ? "text-success" : "text-danger"}>
+              <span class={e.provided.accepted ? "text-emerald-400" : "text-destructive"}>
                 {e.provided.accepted ? `accepté (${e.provided.evidence?.reasons.join(", ")})` : "rejeté"}
               </span>
               {e.provided.evidence && (
-                <span class="text-secondary">
+                <span class="text-muted-foreground">
                   {" "}
                   · année {e.provided.evidence.yearOk === null ? "inconnue" : e.provided.evidence.yearOk ? "compatible" : "différente"},{" "}
                   {e.provided.evidence.castOverlap} acteur(s) en commun, réalisateur{" "}
@@ -37,16 +38,17 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
               )}
             </>
           ) : (
-            <span class="text-danger">inconnu de TMDB</span>
+            <span class="text-destructive">inconnu de TMDB</span>
           )}
         </p>
       )}
       {e.searches.map((s) => (
-        <div class="mb-1">
+        <div class="flex flex-col gap-1">
           Recherche {s.withYear ? `avec l'année ${s.withYear}` : "sans année"}
-          {s.adult ? ", contenus adultes inclus" : ""} : {s.candidates.length ? "" : <span class="text-secondary">aucun résultat</span>}
+          {s.adult ? ", contenus adultes inclus" : ""} :{" "}
+          {s.candidates.length ? "" : <span class="text-muted-foreground">aucun résultat</span>}
           {s.candidates.length > 0 && (
-            <table class="table table-sm mb-1">
+            <Table>
               <thead>
                 <tr>
                   <th>Résultat</th>
@@ -57,14 +59,14 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
               </thead>
               <tbody>
                 {s.candidates.map((c) => (
-                  <tr class={c.score >= e.threshold ? "table-success" : ""}>
+                  <tr class={c.score >= e.threshold ? "bg-emerald-500/10" : ""}>
                     <td>
-                      <a href={url(c.result.id)} target="_blank" rel="noreferrer">
+                      <a class="hover:underline" href={url(c.result.id)} target="_blank" rel="noreferrer">
                         {c.result.title ?? c.result.name}
                       </a>
                       {(c.result.original_title ?? c.result.original_name) &&
                       (c.result.original_title ?? c.result.original_name) !== (c.result.title ?? c.result.name) ? (
-                        <span class="text-secondary"> ({c.result.original_title ?? c.result.original_name})</span>
+                        <span class="text-muted-foreground"> ({c.result.original_title ?? c.result.original_name})</span>
                       ) : (
                         ""
                       )}
@@ -75,14 +77,14 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           )}
         </div>
       ))}
       {e.alternative && (
-        <p class="mb-1">
+        <p>
           Meilleur candidat{" "}
-          <a href={url(e.alternative.id)} target="_blank" rel="noreferrer">
+          <a class="underline underline-offset-4" href={url(e.alternative.id)} target="_blank" rel="noreferrer">
             #{e.alternative.id}
           </a>{" "}
           rejugé sur tous ses titres ({e.alternative.names.slice(0, 6).join(" · ")}
@@ -94,9 +96,9 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
               : ""}
         </p>
       )}
-      <p class="mb-0">
+      <p>
         Verdict :{" "}
-        <strong class={e.verdict.status === "matched" ? "text-success" : "text-danger"}>
+        <strong class={e.verdict.status === "matched" ? "text-emerald-400" : "text-destructive"}>
           {e.verdict.status === "matched" ? `associé à #${e.verdict.tmdbId}` : "introuvable"}
         </strong>
         {e.verdict.via === "search"

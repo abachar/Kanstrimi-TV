@@ -1,4 +1,4 @@
-import { Title } from "../ui";
+import { Badge, Card, Empty, Title } from "../ui";
 import { fmt } from "../format";
 import type { FavoriteRow } from "./data";
 
@@ -8,39 +8,55 @@ export function FavoritesView({ rows }: { rows: FavoriteRow[] }) {
   return (
     <>
       <Title t="Favoris" sub={`« Ma liste » telle que l'app l'a enregistrée · ${fmt(rows.length)} entrées`} />
-      {rows.length === 0 && <p class="text-secondary">Aucun favori : l'app n'a encore rien ajouté à « Ma liste ».</p>}
-      <div class="list-group">
-        {rows.map((r) => (
-          <div class="list-group-item d-flex align-items-center gap-3">
-            {r.card?.poster ? (
-              <img src={r.card.poster} alt="" width="46" height="69" class="rounded object-fit-cover flex-shrink-0" loading="lazy" />
-            ) : (
-              <div class="bg-secondary-subtle rounded flex-shrink-0 p-4" aria-hidden="true"></div>
-            )}
-            <div class="flex-grow-1 overflow-hidden">
-              <div class="fw-semibold text-truncate">{r.content?.title ?? <code>{r.key}</code>}</div>
-              <div class="small text-secondary">
-                {r.content
-                  ? `${KIND[r.content.kind] ?? r.content.kind}${r.content.year ? ` · ${r.content.year}` : ""}`
-                  : "clé sans contenu"}{" "}
-                · ajouté le {r.addedAt.toLocaleDateString("fr-FR")}
-              </div>
-            </div>
-            {r.hidden && (
-              <span class="badge text-bg-warning" title="L'app ne voit pas ce favori">
-                invisible pour l'app · {r.hidden}
-              </span>
-            )}
-            <form
-              method="post"
-              action={`/admin/favorites/${encodeURIComponent(r.key)}/remove`}
-              onsubmit="return confirm('Retirer ce favori ?')"
-            >
-              <button class="btn btn-outline-danger btn-sm">Retirer</button>
-            </form>
-          </div>
-        ))}
-      </div>
+      <Card title="Ma liste" extra={fmt(rows.length)}>
+        {rows.length === 0 ? (
+          <Empty title="Aucun favori" sub="L'app n'a encore rien ajouté à « Ma liste »." />
+        ) : (
+          <ul class="flex flex-col divide-y">
+            {rows.map((r) => (
+              <li class="flex items-center gap-3 py-3">
+                {r.card?.poster ? (
+                  <img
+                    src={r.card.poster}
+                    alt=""
+                    width="46"
+                    height="69"
+                    class="h-[69px] w-[46px] shrink-0 rounded-md object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div class="h-[69px] w-[46px] shrink-0 rounded-md bg-muted" aria-hidden="true"></div>
+                )}
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <div class="truncate font-medium">{r.content?.title ?? <code class="font-mono text-xs">{r.key}</code>}</div>
+                  <div class="text-sm text-muted-foreground">
+                    {r.content
+                      ? `${KIND[r.content.kind] ?? r.content.kind}${r.content.year ? ` · ${r.content.year}` : ""}`
+                      : "clé sans contenu"}{" "}
+                    · ajouté le {r.addedAt.toLocaleDateString("fr-FR")}
+                  </div>
+                  {r.hidden && (
+                    <div>
+                      <Badge tone="warn" title="L'app ne voit pas ce favori">
+                        invisible pour l'app · {r.hidden}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+                <form
+                  method="post"
+                  action={`/admin/favorites/${encodeURIComponent(r.key)}/remove`}
+                  onsubmit="return confirm('Retirer ce favori ?')"
+                >
+                  <button class="btn" data-variant="destructive" data-size="sm">
+                    Retirer
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </>
   );
 }

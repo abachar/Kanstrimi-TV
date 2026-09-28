@@ -1,5 +1,7 @@
 import type { ChannelGroupWire, ChannelWire, Version } from "@/player";
 import { fmt } from "../format";
+import { Badge, Empty, Table } from "../ui";
+import { Icon } from "../icons";
 
 /**
  * « Application » view of the live kind: the channel groups (market · theme) exactly as
@@ -18,21 +20,29 @@ function versionsSummary(versions: Version[]): string {
 
 const ChannelRow = ({ ch }: { ch: ChannelWire }) => (
   <tr>
-    <td class="text-secondary text-end">{ch.number ?? ""}</td>
-    <td>{ch.logo ? <img src={ch.logo} alt="" width="32" height="32" class="object-fit-contain" loading="lazy" /> : ""}</td>
+    <td class="text-end text-muted-foreground tabular-nums">{ch.number ?? ""}</td>
+    <td>{ch.logo ? <img src={ch.logo} alt="" width="32" height="32" class="size-8 object-contain" loading="lazy" /> : ""}</td>
     <td>
-      {ch.is_favorite ? <span title="Favori">★ </span> : ""}
-      <a
-        class="link-body-emphasis text-decoration-none"
-        href={`/admin/catalog?kind=live&vis=all&q=${encodeURIComponent(ch.name)}`}
-        title="Retrouver les entrées"
-      >
-        {ch.name}
-      </a>
+      <span class="inline-flex items-center gap-1">
+        {ch.is_favorite ? (
+          <span title="Favori" class="text-amber-400">
+            <Icon name="favorites" cls="size-3.5 fill-current" />
+          </span>
+        ) : (
+          ""
+        )}
+        <a
+          class="font-medium hover:underline"
+          href={`/admin/catalog?kind=live&vis=all&q=${encodeURIComponent(ch.name)}`}
+          title="Retrouver les entrées"
+        >
+          {ch.name}
+        </a>
+      </span>
     </td>
-    <td>{ch.max_quality && <span class="badge text-bg-dark">{ch.max_quality}</span>}</td>
-    <td class="small text-secondary">{versionsSummary(ch.versions)}</td>
-    <td class="small">{ch.has_epg ? "EPG" : <span class="text-secondary">—</span>}</td>
+    <td>{ch.max_quality && <Badge tone="muted">{ch.max_quality}</Badge>}</td>
+    <td class="text-xs text-muted-foreground">{versionsSummary(ch.versions)}</td>
+    <td>{ch.has_epg ? <Badge tone="info">EPG</Badge> : <span class="text-muted-foreground">—</span>}</td>
   </tr>
 );
 
@@ -40,30 +50,22 @@ export function AppLiveView({ groups }: { groups: ChannelGroupWire[] }) {
   const total = groups.reduce((n, g) => n + g.channels.length, 0);
   return (
     <>
-      <p class="text-secondary small">
+      <p class="text-sm text-muted-foreground">
         Lecture seule : les {fmt(groups.length)} groupes et {fmt(total)} chaînes que l'app reçoit (contenus visibles, adultes selon le
         réglage). Cliquer une chaîne retrouve ses entrées pour les corriger.
       </p>
-      {groups.length === 0 && <p class="text-secondary">Aucun groupe : aucune chaîne visible pour l'app.</p>}
-      <div class="accordion" id="live-groups">
-        {groups.map((g) => (
-          <div class="accordion-item">
-            <h2 class="accordion-header">
-              <button
-                class="accordion-button collapsed"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target={`#grp-${g.id}`}
-                aria-expanded="false"
-                aria-controls={`grp-${g.id}`}
-              >
-                {g.name}
-                <span class="badge text-bg-secondary ms-2">{fmt(g.channels.length)}</span>
-              </button>
-            </h2>
-            <div id={`grp-${g.id}`} class="accordion-collapse collapse" data-bs-parent="#live-groups">
-              <div class="accordion-body p-0">
-                <table class="table table-sm table-hover align-middle mb-0">
+      {groups.length === 0 && <Empty title="Aucun groupe" sub="Aucune chaîne visible pour l'app." />}
+      {groups.length > 0 && (
+        <div class="flex flex-col divide-y overflow-hidden rounded-xl border" id="live-groups">
+          {/* `name` makes the groups exclusive: opening one closes the other, as the former accordion did. */}
+          {groups.map((g) => (
+            <details id={`grp-${g.id}`} name="live-groups">
+              <summary class="flex h-12 w-full min-w-0 items-center gap-2 bg-muted/30 px-4 text-sm hover:bg-muted/50">
+                <span class="truncate font-medium">{g.name}</span>
+                <Badge tone="plain">{fmt(g.channels.length)}</Badge>
+              </summary>
+              <div class="border-t px-2">
+                <Table>
                   <thead>
                     <tr>
                       <th class="text-end">N°</th>
@@ -79,12 +81,12 @@ export function AppLiveView({ groups }: { groups: ChannelGroupWire[] }) {
                       <ChannelRow ch={ch} />
                     ))}
                   </tbody>
-                </table>
+                </Table>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            </details>
+          ))}
+        </div>
+      )}
     </>
   );
 }

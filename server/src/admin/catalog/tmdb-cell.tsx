@@ -1,19 +1,22 @@
 import type { TmdbCandidate } from "@/catalog";
 import { tmdbMediaType, type Item } from "@/db";
 import { MATCH_LABELS } from "../labels";
+import { Badge, type Tone } from "../ui";
+
+const MATCH_TONES: Record<string, Tone> = { matched: "ok", manual: "ok", unmatched: "warn" };
 
 /** The TMDB association of an entry, with the search-and-assign form folded under "Corriger". */
 export function TmdbCell({ it, results }: { it: Item; results?: TmdbCandidate[] }) {
   const kind = tmdbMediaType(it.kind);
-  const cls =
-    it.matchStatus === "matched" || it.matchStatus === "manual" ? "success" : it.matchStatus === "unmatched" ? "danger" : "secondary";
   const target = `#tmdb-${it.id}`;
   const score = it.matchScore != null && it.matchStatus !== "manual" ? ` ${Math.round(it.matchScore * 100)} %` : "";
   return (
-    <div id={`tmdb-${it.id}`}>
-      <div class="d-flex align-items-center gap-2 small">
+    <details id={`tmdb-${it.id}`} class="text-sm" open={Boolean(results)}>
+      {/* The summary is the "Corriger" toggle; the TMDB link beside it stays a link (an interactive child does not toggle). */}
+      <summary class="flex flex-wrap items-center gap-2">
         {it.tmdbId ? (
           <a
+            class="font-mono text-xs hover:underline"
             href={`https://www.themoviedb.org/${kind}/${it.tmdbId}`}
             target="_blank"
             rel="noreferrer"
@@ -22,44 +25,33 @@ export function TmdbCell({ it, results }: { it: Item; results?: TmdbCandidate[] 
             #{it.tmdbId}
           </a>
         ) : (
-          <span class="text-secondary" aria-label="Sans fiche TMDB">
+          <span class="text-muted-foreground" aria-label="Sans fiche TMDB">
             —
           </span>
         )}
-        <span class={`badge text-bg-${cls}`}>
+        <Badge tone={MATCH_TONES[it.matchStatus] ?? "plain"}>
           {MATCH_LABELS[it.matchStatus] ?? it.matchStatus}
           {score}
-        </span>
-        <button
-          type="button"
-          class="btn btn-link btn-sm px-0 py-1"
-          data-bs-toggle="collapse"
-          data-bs-target={`#fix-${it.id}`}
-          aria-expanded={Boolean(results)}
-          aria-controls={`fix-${it.id}`}
-        >
-          Corriger
-        </button>
-      </div>
-      <div class={`collapse${results ? " show" : ""} mt-2`} id={`fix-${it.id}`}>
-        <form
-          hx-post="/admin/catalog/tmdb-search"
-          hx-target={target}
-          hx-swap="outerHTML"
-          hx-indicator="this"
-          class="input-group input-group-sm mb-2"
-        >
+        </Badge>
+        <span class="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Corriger</span>
+      </summary>
+      <div class="mt-2 flex flex-col gap-2">
+        <form hx-post="/admin/catalog/tmdb-search" hx-target={target} hx-swap="outerHTML" hx-indicator="this" class="flex gap-2">
           <input type="hidden" name="id" value={it.id} />
-          <input class="form-control" name="q" value={it.cleanTitle ?? it.name} aria-label="Titre à chercher sur TMDB" />
-          <button class="btn btn-outline-secondary">Chercher</button>
+          <input class="input h-8" type="text" name="q" value={it.cleanTitle ?? it.name} aria-label="Titre à chercher sur TMDB" />
+          <button class="btn" data-variant="outline" data-size="sm">
+            Chercher
+          </button>
         </form>
         {results && (
-          <ul class="list-unstyled small mb-2">
+          <ul class="flex flex-col">
             {results.map((r) => (
-              <li>
+              <li class="flex items-center gap-2">
                 <button
                   type="button"
-                  class="btn btn-link btn-sm px-0 py-1"
+                  class="btn px-0"
+                  data-variant="link"
+                  data-size="sm"
                   hx-post="/admin/catalog/tmdb-assign"
                   hx-vals={JSON.stringify({ id: it.id, tmdb_id: r.id })}
                   hx-target={target}
@@ -67,25 +59,30 @@ export function TmdbCell({ it, results }: { it: Item; results?: TmdbCandidate[] 
                   aria-label={`Associer à ${r.label}`}
                 >
                   Associer
-                </button>{" "}
-                {r.label} <span class="text-secondary">#{r.id}</span>
+                </button>
+                <span class="min-w-0 truncate">
+                  {r.label} <span class="text-muted-foreground">#{r.id}</span>
+                </span>
               </li>
             ))}
-            {!results.length && <li class="text-secondary">Aucun résultat.</li>}
+            {!results.length && <li class="text-muted-foreground">Aucun résultat.</li>}
           </ul>
         )}
-        <form hx-post="/admin/catalog/tmdb-assign" hx-target={target} hx-swap="outerHTML" class="input-group input-group-sm">
+        <form hx-post="/admin/catalog/tmdb-assign" hx-target={target} hx-swap="outerHTML" class="flex gap-2">
           <input type="hidden" name="id" value={it.id} />
           <input
-            class="form-control"
+            class="input h-8"
+            type="text"
             name="tmdb_id"
             inputmode="numeric"
             placeholder="ID TMDB (vide = retirer)"
             aria-label="Identifiant TMDB à associer"
           />
-          <button class="btn btn-outline-secondary">Associer</button>
+          <button class="btn" data-variant="outline" data-size="sm">
+            Associer
+          </button>
         </form>
       </div>
-    </div>
+    </details>
   );
 }

@@ -6,13 +6,15 @@ import { KIND_NAMES, MATCH_LABELS } from "../labels";
 import { TmdbCell } from "../catalog/tmdb-cell";
 import { VisibilityToggle } from "../catalog/visibility";
 import type { CatalogQuery } from "../catalog/query";
+import { Card } from "../ui";
+import { Icon } from "../icons";
 
 const Row = ({ k, v }: { k: string; v: unknown }) => (
   <tr>
-    <th class="text-secondary fw-normal text-nowrap pe-3 w-25">{k}</th>
-    <td class="text-break">
+    <th class="w-1/3 py-2 pe-3 text-start align-top font-normal whitespace-normal text-muted-foreground">{k}</th>
+    <td class="py-2 break-words whitespace-normal">
       {v === null || v === undefined || v === "" ? (
-        <span class="text-secondary">—</span>
+        <span class="text-muted-foreground">—</span>
       ) : Array.isArray(v) ? (
         v.join(", ")
       ) : (
@@ -21,20 +23,19 @@ const Row = ({ k, v }: { k: string; v: unknown }) => (
     </td>
   </tr>
 );
-const Table = ({ title, rows, extra }: { title: string; rows: [string, unknown][]; extra?: unknown }) => (
-  <div class="card mb-3">
-    <div class="card-header fw-semibold">
-      {title}
-      {extra && <small class="text-secondary ms-2">{extra}</small>}
-    </div>
-    <table class="table table-sm mb-0">
-      <tbody>
-        {rows.map(([k, v]) => (
-          <Row k={k} v={v} />
-        ))}
-      </tbody>
-    </table>
-  </div>
+const Rows = ({ rows }: { rows: [string, unknown][] }) => (
+  <table class="table table-fixed">
+    <tbody>
+      {rows.map(([k, v]) => (
+        <Row k={k} v={v} />
+      ))}
+    </tbody>
+  </table>
+);
+const InfoCard = ({ title, rows, extra }: { title: string; rows: [string, unknown][]; extra?: unknown }) => (
+  <Card title={title} extra={extra}>
+    <Rows rows={rows} />
+  </Card>
 );
 
 /** Everything the server knows about one entry: the row, what the parser makes of it, its category, its content, its TMDB sheet. */
@@ -60,18 +61,22 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
   } | null;
   return (
     <>
-      <div class="mb-4">
-        <p class="text-secondary small mb-1">
-          <a href={`/admin/catalog?kind=${it.kind}&vis=all&q=${encodeURIComponent(it.cleanTitle ?? it.name)}`}>← {kindLabel}s</a>
-        </p>
-        <h1 class="h2 mb-1">{it.name}</h1>
-        <p class="text-secondary mb-0">
-          {kindLabel} · identifiant amont <code>{it.xtreamId}</code> · interne #{it.id}
+      <div class="flex flex-col gap-1">
+        <a
+          class="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          href={`/admin/catalog?kind=${it.kind}&vis=all&q=${encodeURIComponent(it.cleanTitle ?? it.name)}`}
+        >
+          <Icon name="chevron-left" cls="size-4" />
+          {kindLabel}s
+        </a>
+        <h1 class="text-2xl font-semibold tracking-tight break-words">{it.name}</h1>
+        <p class="text-sm text-muted-foreground">
+          {kindLabel} · identifiant amont <code class="font-mono">{it.xtreamId}</code> · interne #{it.id}
         </p>
       </div>
-      <div class="row g-3">
-        <div class="col-12 col-lg-6">
-          <Table
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div class="flex min-w-0 flex-col gap-4">
+          <InfoCard
             title="Entrée fournisseur"
             rows={[
               ["Nom", it.name],
@@ -97,7 +102,7 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
               />
             }
           />
-          <Table
+          <InfoCard
             title="Lecture du nom"
             extra="ce que la grammaire en tire"
             rows={[
@@ -132,19 +137,14 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
             ]}
           />
           {it.kind !== "live" && (
-            <div class="card mb-3">
-              <div class="card-header fw-semibold">
-                Association TMDB{" "}
-                <small class="text-secondary ms-2">
-                  {MATCH_LABELS[it.matchStatus] ?? it.matchStatus}
-                  {it.matchScore != null ? ` · score ${Math.round(it.matchScore * 100)} %` : ""}
-                  {it.matchedAt ? ` · ${it.matchedAt.toLocaleString("fr-FR")}` : ""}
-                </small>
-              </div>
-              <div class="card-body">
+            <Card
+              title="Association TMDB"
+              hint={`${MATCH_LABELS[it.matchStatus] ?? it.matchStatus}${it.matchScore != null ? ` · score ${Math.round(it.matchScore * 100)} %` : ""}${it.matchedAt ? ` · ${it.matchedAt.toLocaleString("fr-FR")}` : ""}`}
+            >
+              <div class="flex flex-col gap-4">
                 <TmdbCell it={it} />
                 {d && (
-                  <table class="table table-sm mt-3 mb-0">
+                  <table class="table table-fixed">
                     <tbody>
                       <Row
                         k="Titre TMDB"
@@ -159,29 +159,35 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
                     </tbody>
                   </table>
                 )}
-                <div class="mt-3" id="explain">
+                <div class="flex flex-wrap items-center gap-2" id="explain">
                   <button
-                    class="btn btn-sm btn-outline-secondary"
+                    class="btn"
+                    data-variant="outline"
+                    data-size="sm"
                     hx-get={`/admin/item/${it.id}/explain`}
                     hx-target="#explain"
                     hx-swap="innerHTML"
                     hx-indicator="this"
                   >
-                    Pourquoi ce résultat ?{" "}
-                    <span class="htmx-indicator spinner-border spinner-border-sm ms-1" role="status" aria-label="Analyse en cours"></span>
+                    Pourquoi ce résultat ?
+                    <span class="htmx-indicator inline-flex" role="status" aria-label="Analyse en cours">
+                      <Icon name="loader" cls="size-4 animate-spin" />
+                    </span>
                   </button>
-                  <span class="small text-secondary ms-2">rejoue le matching sans rien écrire</span>
+                  <span class="text-sm text-muted-foreground">rejoue le matching sans rien écrire</span>
                 </div>
               </div>
-            </div>
+            </Card>
           )}
         </div>
-        <div class="col-12 col-lg-6">
-          <Table
+        <div class="flex min-w-0 flex-col gap-4">
+          <InfoCard
             title="Contenu"
             extra={
               content ? (
-                <a href={`/admin/catalog?kind=${it.kind}&view=groups&q=${encodeURIComponent(content.title)}`}>voir le groupe</a>
+                <a class="hover:text-foreground" href={`/admin/catalog?kind=${it.kind}&view=groups&q=${encodeURIComponent(content.title)}`}>
+                  voir le groupe
+                </a>
               ) : (
                 "aucun : relancer l'étape 4"
               )
@@ -212,17 +218,14 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
             }
           />
           {siblings.length > 1 && (
-            <div class="card mb-3">
-              <div class="card-header fw-semibold">
-                Variantes du même contenu <small class="text-secondary ms-2">{siblings.length}</small>
-              </div>
-              <ul class="list-group list-group-flush">
+            <Card title="Variantes du même contenu" extra={siblings.length}>
+              <ul class="flex flex-col divide-y text-sm">
                 {siblings.map((s) => (
-                  <li class={`list-group-item small d-flex gap-2 ${s.id === it.id ? "fw-semibold" : ""}`}>
-                    <a class="text-truncate" href={`/admin/item/${s.id}`}>
+                  <li class={`flex gap-2 py-2 first:pt-0 last:pb-0 ${s.id === it.id ? "font-semibold" : ""}`}>
+                    <a class="min-w-0 truncate hover:underline" href={`/admin/item/${s.id}`}>
                       {s.name}
                     </a>
-                    <span class="ms-auto text-nowrap text-secondary">
+                    <span class="ms-auto whitespace-nowrap text-muted-foreground">
                       {s.lang ?? "?"} · {s.quality ?? "?"}
                       {s.dynamicRange ? ` · ${s.dynamicRange}` : ""}
                       {isItemHidden(s) ? " · masqué" : ""}
@@ -230,27 +233,20 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
                   </li>
                 ))}
               </ul>
-            </div>
+            </Card>
           )}
           {/* Folded by default: the raw document can run to hundreds of lines. */}
-          <div class="card mb-3">
-            <div class="card-header d-flex align-items-center">
-              <span class="fw-semibold">JSON amont brut</span>
-              <button
-                type="button"
-                class="btn btn-link btn-sm ms-auto py-0"
-                data-bs-toggle="collapse"
-                data-bs-target="#raw-json"
-                aria-expanded="false"
-                aria-controls="raw-json"
-              >
-                Afficher
-              </button>
-            </div>
-            <div class="collapse" id="raw-json">
-              <pre class="card-body small mb-0 overflow-auto">{JSON.stringify(raw, null, 1)}</pre>
-            </div>
-          </div>
+          <section class="card">
+            <details class="group">
+              <summary class="flex cursor-pointer items-center justify-between gap-2 px-6 font-medium">
+                JSON amont brut
+                <span class="text-sm font-normal text-muted-foreground group-open:hidden">Afficher</span>
+              </summary>
+              <pre id="raw-json" class="mx-6 mt-4 max-h-[32rem] overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
+                {JSON.stringify(raw, null, 1)}
+              </pre>
+            </details>
+          </section>
         </div>
       </div>
     </>

@@ -8,8 +8,8 @@ import { catalogQs, type CatalogQuery } from "./query";
  *
  * An item swaps its whole row, not just the switch: the name is struck through and greyed
  * out on the row and its cells, which would otherwise keep the stale style. A category
- * lives in an accordion header with no row around it and answers `HX-Refresh` instead —
- * targeting `closest .list-group-item` there resolves to nothing and htmx drops the request silently.
+ * lives in a category header with no row around it and answers `HX-Refresh` instead —
+ * targeting `closest [data-item-row]` there resolves to nothing and htmx drops the request silently.
  * The current filters ride along in the query string so the route can rebuild the row.
  */
 export function VisibilityToggle({
@@ -38,24 +38,22 @@ export function VisibilityToggle({
       ? "Sa catégorie est masquée : réaffichez la catégorie pour le rendre visible."
       : "Afficher ou masquer cet élément pour les applications IPTV";
   return (
-    <div id={domId} class="d-flex align-items-center gap-2">
-      <div class="form-check form-switch m-0">
-        <input
-          class="form-check-input"
-          type="checkbox"
-          role="switch"
-          name="visible"
-          id={`${domId}-input`}
-          checked={visible && !forced}
-          title={title}
-          hx-post={`/admin/catalog/${scope}/${id}/visible?${catalogQs(qy)}`}
-          hx-trigger="change"
-          {...(scope === "item" ? { "hx-target": "closest .list-group-item", "hx-swap": "outerHTML" } : { "hx-swap": "none" })}
-        />
-        <label class={`form-check-label small ${forced || !visible ? "text-secondary" : ""}`} for={`${domId}-input`}>
-          {label}
-        </label>
-      </div>
+    <div id={domId} class="flex items-center gap-2">
+      <input
+        class="input"
+        type="checkbox"
+        role="switch"
+        name="visible"
+        id={`${domId}-input`}
+        checked={visible && !forced}
+        title={title}
+        hx-post={`/admin/catalog/${scope}/${id}/visible?${catalogQs(qy)}`}
+        hx-trigger="change"
+        {...(scope === "item" ? { "hx-target": "closest [data-item-row]", "hx-swap": "outerHTML" } : { "hx-swap": "none" })}
+      />
+      <label class={`text-sm ${forced || !visible ? "text-muted-foreground" : ""}`} for={`${domId}-input`}>
+        {label}
+      </label>
     </div>
   );
 }

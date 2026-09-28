@@ -351,18 +351,26 @@ async function deleteOrphans(): Promise<number> {
   return rows.length;
 }
 
-/** Counters for the dashboard. */
+/**
+ * Counters for the dashboard, over what the app sees: a content counts when one of its variants
+ * is visible, and « several variants » means several visible ones (`variant_count` counts hidden ones too).
+ */
 export async function groupingCounts() {
-  const rows = await db
+  const v = db
+    .select({ contentId: schema.items.contentId, n: sql<number>`count(*)::int`.as("n") })
+    .from(schema.items)
+    .where(visibleItem)
+    .groupBy(schema.items.contentId)
+    .as("v");
+  return db
     .select({
       kind: schema.contents.kind,
-      total: sql<number>`count(*)::int`,
-      visible: sql<number>`count(*) filter (where visible)::int`,
-      multi: sql<number>`count(*) filter (where variant_count > 1)::int`,
+      visible: sql<number>`count(*)::int`,
+      multi: sql<number>`count(*) filter (where ${v.n} > 1)::int`,
       fallback: sql<number>`count(*) filter (where ${hasFallbackKey})::int`,
-      adult: sql<number>`count(*) filter (where adult)::int`,
+      adult: sql<number>`count(*) filter (where ${schema.contents.adult})::int`,
     })
     .from(schema.contents)
+    .innerJoin(v, sql`${v.contentId} = ${schema.contents.id}`)
     .groupBy(schema.contents.kind);
-  return rows;
 }
