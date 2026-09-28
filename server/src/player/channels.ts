@@ -8,6 +8,7 @@ import { fail, json } from "./http";
 import { contentByKey, liveCategories, variantsOf, visibleContent } from "./contents";
 import { favoriteSet } from "./favorites";
 import { playableOfItem, qualityOfRank, versionsOf } from "./versions";
+import { epgOf, type ChannelEpg } from "./epg";
 import type { ChannelGroupWire, ChannelWire, Version } from "./types";
 
 /** `/channels`: every visible live category with its channels; `/channels/{id}`: one channel. */
@@ -22,16 +23,19 @@ channelRoutes.get("/:id", async (c) => {
   return json(await channelSheet(c.get("ctx"), content));
 });
 
-function channelWire(ctx: RestContext, c: Content, versions: Version[], favs: Set<string>): ChannelWire {
+/** Lists and sheets alike carry `now` / `next`: the app rolls over on `end` without asking again. */
+function channelWire(ctx: RestContext, c: Content, versions: Version[], favs: Set<string>, epg: ChannelEpg | undefined): ChannelWire {
   return {
     id: c.key,
     name: c.title,
     number: c.channelNumber,
     logo: c.logoUrl,
     ...(c.maxQualityRank ? { max_quality: qualityOfRank(c.maxQualityRank) } : {}),
-    has_epg: Boolean(c.epgChannelId),
+    has_epg: epg?.hasEpg ?? false,
     is_favorite: favs.has(c.key),
     versions,
+    now: epg?.now ?? null,
+    next: epg?.next ?? null,
   };
 }
 
@@ -100,6 +104,7 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
     favoriteSet(),
   ]);
   const catName = new Map((await liveCategories()).map((c) => [c.xtreamId, c.name]));
+  const epg = await epgOf(channels.map((c) => c.epgChannelId ?? ""));
   const byContent = new Map<number, Item[]>();
   for (const it of items) byContent.set(it.contentId!, [...(byContent.get(it.contentId!) ?? []), it]);
 
@@ -112,7 +117,7 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
       ctx,
       its.map((i) => playableOfItem(i, i.categoryXtreamId ? (catName.get(i.categoryXtreamId) ?? null) : null)),
     );
-    const wire = channelWire(ctx, c, versions, favs);
+    const wire = channelWire(ctx, c, versions, favs, epg.get(c.epgChannelId ?? ""));
     for (const theme of c.themes.length ? c.themes : [LIVE_THEMES[0]]) {
       const key = `${c.market ?? ""}|${theme}`;
       const g = groups.get(key) ?? { market: c.market, theme, channels: [] };
@@ -133,8 +138,7 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
     .map((g) => ({ id: `${g.market ?? "intl"}-${slug(g.theme)}`, name: `${marketName(g.market)} · ${g.theme}`, channels: g.channels }));
 }
 
-/** `now` / `next` stay null until the EPG lives in the database. */
 export async function channelSheet(ctx: RestContext, content: Content): Promise<ChannelWire> {
-  const { playables } = await variantsOf(content);
-  return { ...channelWire(ctx, content, versionsOf(ctx, playables), await favoriteSet()), now: null, next: null };
+  const [{ playables }, favs, epg] = await Promise.all([variantsOf(content), favoriteSet(), epgOf([content.epgChannelId ?? ""])]);
+  return channelWire(ctx, content, versionsOf(ctx, playables), favs, epg.get(content.epgChannelId ?? ""));
 }

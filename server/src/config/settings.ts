@@ -24,7 +24,7 @@ export const SECRET_KEYS: SettingKey[] = ["xtream_username", "xtream_password", 
 export const DEFAULTS: Partial<Record<SettingKey, string>> = {
   tmdb_language: "fr-FR",
   sync_cron: "0 */6 * * *",
-  epg_cron: "0 3 * * *",
+  epg_cron: "0 3 */3 * *",
   serve_adult: "0",
 };
 

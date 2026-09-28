@@ -264,6 +264,26 @@ export const episodeSources = pgTable(
   (t) => [uniqueIndex("episode_sources_episode_item_idx").on(t.episodeId, t.itemId), index("episode_sources_item_idx").on(t.itemId)],
 );
 
+/**
+ * The programme guide of the channels the app can see, from the provider's XMLTV. `channel_id`
+ * is the provider's EPG id (`contents.epg_channel_id`). Each import tags its rows with
+ * `imported_at` and drops the previous ones once it has landed, so a failed import keeps the guide.
+ */
+export const epgProgrammes = pgTable(
+  "epg_programmes",
+  {
+    id: serial("id").primaryKey(),
+    channelId: text("channel_id").notNull(),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+    title: text("title").notNull(),
+    overview: text("overview"),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("epg_programmes_channel_start_idx").on(t.channelId, t.startAt), index("epg_programmes_end_idx").on(t.endAt)],
+);
+export type EpgProgramme = typeof epgProgrammes.$inferSelect;
+
 /** Playback position per content key (movie or episode). Single user: no device column. */
 export const watchProgress = pgTable("watch_progress", {
   contentKey: text("content_key").primaryKey(),

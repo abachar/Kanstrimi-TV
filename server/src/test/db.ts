@@ -6,7 +6,7 @@ import type { XStream } from "@/providers/xtream";
 /** Empty every catalogue table between test files. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table items, contents, episodes, episode_sources, categories, tmdb_cache, info_cache, filter_rules, sync_logs, settings, watch_progress, favorites, devices restart identity cascade`,
+    sql`truncate table items, contents, episodes, episode_sources, categories, tmdb_cache, info_cache, filter_rules, sync_logs, settings, watch_progress, favorites, devices, epg_programmes restart identity cascade`,
   );
   invalidateSettings();
 }
@@ -78,4 +78,20 @@ export async function seedTmdb(mediaType: "movie" | "tv", tmdbId: number, data: 
     .insert(schema.tmdbCache)
     .values({ mediaType, tmdbId, lang, data: { id: tmdbId, ...data } })
     .onConflictDoNothing();
+}
+
+/** Programmes of the guide, `startAt` / `endAt` relative to now in minutes. */
+export async function seedProgrammes(rows: { channelId: string; start: number; end: number; title: string; overview?: string }[]) {
+  if (!rows.length) return;
+  const now = Date.now();
+  await db.insert(schema.epgProgrammes).values(
+    rows.map((r) => ({
+      channelId: r.channelId,
+      startAt: new Date(now + r.start * 60_000),
+      endAt: new Date(now + r.end * 60_000),
+      title: r.title,
+      overview: r.overview ?? null,
+      importedAt: new Date(now),
+    })),
+  );
 }

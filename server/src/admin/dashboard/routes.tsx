@@ -3,7 +3,7 @@ import { getSettings } from "@/config";
 import { appCounts, counts } from "./data";
 import { recentLogs } from "@/catalog";
 import { cacheStats } from "@/providers/tmdb";
-import { epgCacheStat } from "@/providers/xtream";
+import { epgStat } from "@/providers/xtream";
 import { groupingCounts } from "@/catalog";
 import { start, runAll, runningSteps, getLastError, type Step } from "@/catalog";
 import { page, back } from "../http";
@@ -23,7 +23,7 @@ dashboardRoutes.get("/", async (c) => {
     counts(),
     recentLogs(6),
     cacheStats(),
-    epgCacheStat(),
+    epgStat(),
     groupingCounts(),
     appCounts(),
   ]);

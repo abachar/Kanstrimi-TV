@@ -1,4 +1,5 @@
 import type { Settings } from "@/config";
+import type { EpgStat } from "@/providers/xtream";
 import type { SyncLog, Kind } from "@/db";
 import type { ItemCount, CategoryCount, AppCount } from "./data";
 import { describeCron, nextCronRun } from "../format";
@@ -16,7 +17,7 @@ export type DashboardData = {
   groups: GroupCount[];
   logs: SyncLog[];
   img: { files: number; bytes: number };
-  epg: { exists: boolean; bytes: number; mtime: string | null };
+  epg: EpgStat;
   app: AppCount;
 };
 
@@ -69,7 +70,10 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
         <JobsStatus {...jobs} />
         <div class="text-secondary small mt-2">
           Sync {ago(s.last_sync_at)} · {schedule(s.sync_cron)} — EPG{" "}
-          {d.epg.exists ? `${(d.epg.bytes / 1e6).toFixed(1)} Mo, ${ago(d.epg.mtime)}` : "non reconstruit"} · {schedule(s.epg_cron)}
+          {d.epg.programmes
+            ? `${fmt(d.epg.programmes)} programmes sur ${fmt(d.epg.channels)} chaînes jusqu'au ${new Date(d.epg.to!).toLocaleDateString("fr-FR")}, importé ${ago(d.epg.importedAt)}`
+            : "jamais importé"}{" "}
+          · {schedule(s.epg_cron)}
         </div>
       </Card>
 

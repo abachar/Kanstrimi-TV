@@ -95,9 +95,9 @@ export const CACHE_LABELS: Record<
     how: "Une image est téléchargée à sa première demande, puis servie depuis le disque.",
   },
   epg: {
-    title: "EPG",
-    unit: "fichier",
-    what: "Le guide XMLTV du fournisseur, téléchargé tel quel sur le disque.",
-    how: "Reconstruit par le job « EPG » selon son cron ; rien ne le sert encore.",
+    title: "Guide des programmes (EPG)",
+    unit: "programmes",
+    what: "Les programmes des chaînes visibles, importés du XMLTV du fournisseur (six jours devant), servis en « maintenant / ensuite ».",
+    how: "Reconstruit par le job « EPG » selon son cron ; un import vide ou en échec garde le guide précédent.",
   },
 };

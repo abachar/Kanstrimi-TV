@@ -46,7 +46,7 @@ de son module, exécutée seule sous le journal (`sync_logs`) et refusée si ell
 | `filters` | `catalog/rules/apply.ts` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau |
 | `enrich` | `providers/tmdb/enrich.ts` | matching TMDB des éléments en attente (identifiant amont vérifié par preuves, puis recherche par titre) |
 | `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; écrit aussi `clean_title`, `year`, et pour le direct le `theme` de chaque variante puis les `themes` du contenu |
-| `epg` | `providers/xtream/epg.ts` | télécharge le XMLTV amont sur disque (rien ne le sert encore) |
+| `epg` | `providers/xtream/epg.ts` | lit le XMLTV amont en flux (`saxes`) et remplit `epg_programmes` pour les seules chaînes visibles ; un import vide ou en échec garde le guide précédent. Tous les trois jours à 03:00 (`epg_cron`), le fournisseur donnant six jours |
 
 `runAll()` = `source → filters → group`, puis `enrich → group` si une clé TMDB existe. Depuis le
 tableau de bord, « Lire la source » enchaîne aussi filtres et groupement, « Enrichir » regroupe
@@ -58,7 +58,7 @@ enregistrement des Paramètres (`onSettingsChange`) et ne font rien tant que le 
 
 | Route | Rôle |
 |---|---|
-| `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). |
+| `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). `/channels` et `/channels/{id}` portent `now` / `next` (une requête `lateral` pour toute la liste) et `has_epg` = la chaîne a des programmes en base. |
 | `/img/<size>/<file>` | images TMDB en cache (`DATA_DIR/images`), route de `providers/tmdb/img-route.ts` montée par `main.ts` ; URL portée par chaque carte |
 | `/health` | santé (base joignable ; l'état du coffre est dans le corps, pas dans le code HTTP) |
 
@@ -78,7 +78,7 @@ admin/      pages (routes.tsx + view.tsx, data.ts pour les seules requêtes de p
             favorites et history = ce que l'app a enregistré, lus et modifiés par les fonctions de
             `player/` avec un contexte sans appareil ; caches n'affiche que des compteurs.
 player/     /player, un fichier par ressource (devices, stream, info, home, lists, sheets, channels,
-            playback, search, favorites) ; context, auth, http, cards, versions, stream-links,
+            playback, search, favorites) ; context, auth, http, cards, versions, stream-links, epg (maintenant / ensuite),
             contents (ce que l'app a le droit de voir), progress, episodes (wire), types.ts = le contrat
 catalog/    le domaine : naming (la grammaire des noms), keys (contentKey, parseKey, préfixes),
             queries (lectures partagées), rules/ (moteur, application, gestion), grouping/ (group,
@@ -155,5 +155,5 @@ production. Cible : Fedora CoreOS, podman rootless + systemd Quadlet, derrière 
 
 - Variables : `ADMIN_PASSWORD_HASH` (obligatoire), `DATABASE_URL` et `SESSION_SECRET`
   (obligatoires en production), `DATA_DIR`, `PORT`, `TZ`.
-- `DATA_DIR` est un cache reconstructible (images TMDB, `epg.xml`) : seule la base se sauvegarde.
+- `DATA_DIR` est un cache reconstructible (images TMDB) : seule la base se sauvegarde, guide des programmes compris.
 - Le mot de passe circule en clair dans les URL des players (protocole Xtream) : LAN ou HTTPS uniquement.

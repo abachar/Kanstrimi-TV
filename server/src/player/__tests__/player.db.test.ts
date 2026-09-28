@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { player as api } from "..";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { verify, lockForTests, isUnlocked } from "@/config";
 import { runGrouping } from "@/catalog";
 import { resetPairingState } from "@/devices";
@@ -119,6 +119,11 @@ beforeAll(async () => {
     },
     { kind: "live", xtreamId: "102", name: "|FR| BEIN SPORTS 1 HD", cat: "21", raw: { num: 30 } },
     { kind: "live", xtreamId: "103", name: "|FR| SECRET TV", cat: "22", raw: { num: 99 } },
+  ]);
+  await seedProgrammes([
+    { channelId: "TF1.fr", start: -30, end: 30, title: "Journal", overview: "Les titres" },
+    { channelId: "TF1.fr", start: 30, end: 120, title: "Film du soir" },
+    { channelId: "TF1.fr", start: -180, end: -30, title: "Avant" },
   ]);
   await seedTmdb("movie", 603, {
     title: "Matrix",
@@ -480,12 +485,19 @@ describe("channels", () => {
     });
     expect(tf1.versions.map((v: { id: string }) => v.id)).toEqual(["vf-fhd", "vf-hd"]);
     expect(tf1.versions[0].sources[0].container).toBe("TS");
-    expect(tf1.now).toBeUndefined();
+    // The guide: TF1 is on air and has a following programme; beIN has no id in the guide at all.
+    expect(tf1.now).toMatchObject({ title: "Journal", overview: "Les titres" });
+    expect(tf1.next).toMatchObject({ title: "Film du soir" });
+    expect(body[1].channels[0]).toMatchObject({ has_epg: false, now: null, next: null });
   });
-  it("GET /channels/{id} adds now/next (null until the EPG lands)", async () => {
+  it("GET /channels/{id} carries now/next too, in ISO UTC", async () => {
     const { status, body } = await get("/channels/live:fr-tf1");
     expect(status).toBe(200);
-    expect(body).toMatchObject({ id: "live:fr-tf1", now: null, next: null });
+    expect(body).toMatchObject({ id: "live:fr-tf1", has_epg: true });
+    expect(body.now.title).toBe("Journal");
+    expect(body.now.start).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    expect(Date.parse(body.now.end)).toBeGreaterThan(Date.now());
+    expect(Date.parse(body.next.start)).toBe(Date.parse(body.now.end));
     expect((await get("/channels/live:fr-secret-tv")).status).toBe(404);
     expect((await get("/channels/tmdb:movie:603")).status).toBe(404);
   });

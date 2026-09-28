@@ -57,6 +57,13 @@
       "when": 1790551692600,
       "tag": "0007_live-themes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790600156229,
+      "tag": "0008_epg-programmes",
+      "breakpoints": true
     }
   ]
 }

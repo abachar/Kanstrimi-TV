@@ -1,7 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { cacheStats } from "@/providers/tmdb";
-import { epgCacheStat } from "@/providers/xtream";
 
 /** What one cache holds right now: a count, a size, the age of its oldest and newest entries. Read-only. */
 export type CacheStat = {
@@ -23,18 +22,12 @@ async function tableStat(id: CacheStat["id"], table: string, dateColumn: string)
 }
 
 export async function cacheRows(): Promise<CacheStat[]> {
-  const [tmdb, info, episodes, img, epg] = await Promise.all([
+  const [tmdb, info, episodes, epg, img] = await Promise.all([
     tableStat("tmdb", "tmdb_cache", "fetched_at"),
     tableStat("info", "info_cache", "fetched_at"),
     tableStat("episodes", "episodes", "updated_at"),
+    tableStat("epg", "epg_programmes", "start_at"),
     cacheStats(),
-    epgCacheStat(),
   ]);
-  return [
-    tmdb,
-    info,
-    episodes,
-    { id: "images", count: img.files, bytes: img.bytes, oldest: null, newest: null },
-    { id: "epg", count: epg.exists ? 1 : 0, bytes: epg.bytes, oldest: null, newest: epg.mtime },
-  ];
+  return [tmdb, info, episodes, epg, { id: "images", count: img.files, bytes: img.bytes, oldest: null, newest: null }];
 }
