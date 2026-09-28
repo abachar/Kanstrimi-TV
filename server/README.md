@@ -131,7 +131,8 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
 - **Visibilité** : un seul jeu de prédicats, `db/visibility.ts` (`visibleItem`, `hiddenItem`,
   `visibleCategory`, `isItemHidden`), utilisé jusque dans l'agrégat SQL du groupement. Une catégorie
   masquée masque ses éléments sans toucher leurs colonnes. Côté app, `player/contents.ts` y ajoute
-  le réglage « contenus adultes ».
+  le réglage « contenus adultes ». **Toute la logique servie à l'app (tris, dates, compteurs, genres, thèmes, rangées) se calcule
+  sur les seules variantes visibles** : une variante masquée n'existe pas pour elle.
 - **Thèmes du direct** : `/player/channels` groupe par marché × thème (« France · Sport »). Le thème d'une
   variante vient de sa section (la ligne séparatrice qui la précède dans sa catégorie), sinon de sa
   catégorie (« SPORTS HD ») ; `naming.ts` porte le vocabulaire (`LIVE_THEMES`, `themeOf`, `liveTheme`) dans
