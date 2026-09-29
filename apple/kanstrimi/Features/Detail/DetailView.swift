@@ -24,6 +24,7 @@ struct DetailView: View {
                 await m.load()
             }
         }
+        .onChange(of: env.player.progressRevision) { Task { await model?.refresh() } }
         .platformSheet(isPresented: $showPicker) {
             if let model, let d = model.detail {
                 VersionPicker(title: d.title, versions: d.versions, recommendedID: model.choice?.version.id, isSeries: model.isSeries) { v, s, remember, asDefault in

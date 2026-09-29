@@ -94,6 +94,9 @@ final class PlayerService: NSObject {
     private var pendingSeek: TimeInterval?
     private var nextTriggered = false
     var onExit: (() -> Void)?
+    /// Bumped once the final report of a playback has reached the server (or the offline queue):
+    /// the screens that show progress (home, sheet) reload on it.
+    private(set) var progressRevision = 0
     /// Called after every state, time or seek change: what mirrors playback elsewhere (PiP) listens here.
     var onPlaybackChanged: (() -> Void)?
 
@@ -422,13 +425,14 @@ final class PlayerService: NSObject {
     private func sendProgress(final: Bool) {
         guard let context, !isLive, duration > 0, time > 0 else { return }
         let report = ProgressReport(contentID: context.content.id, position: time, duration: duration, sentAt: .now)
-        Task { [client, progressQueue] in
+        Task { [weak self, client, progressQueue] in
             do {
                 try await client.report(report)
                 await progressQueue.flush { try await client.report($0) }
             } catch {
                 progressQueue.enqueue(report)
             }
+            if final { self?.progressRevision += 1 }
         }
     }
 

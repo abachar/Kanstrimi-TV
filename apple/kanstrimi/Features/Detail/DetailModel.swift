@@ -35,6 +35,12 @@ final class DetailModel {
         }
     }
 
+    /// After a playback: the new progress, without moving the season shown nor flashing an error.
+    func refresh() async {
+        guard let d = try? await env.call({ try await env.client.detail(id: id) }) else { return }
+        detail = d
+    }
+
     func episodes(in season: Int) -> [Episode] {
         detail?.seasons?.first { $0.number == season }?.episodes ?? []
     }
