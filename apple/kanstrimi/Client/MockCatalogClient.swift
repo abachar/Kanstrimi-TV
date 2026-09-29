@@ -177,8 +177,8 @@ final class MockCatalogClient: CatalogClient {
         resume.sort { ($0.progress?.fraction ?? 0) > ($1.progress?.fraction ?? 0) }
         var rows: [HomeRow] = []
         if !resume.isEmpty { rows.append(HomeRow(id: "resume", kind: .resume, title: "Reprendre", cards: resume)) }
-        rows.append(HomeRow(id: "recent-movies", kind: .recentMovies, title: "Films récents", cards: recentMovies.prefix(12).map { card(for: $0) }))
-        rows.append(HomeRow(id: "recent-series", kind: .recentSeries, title: "Séries récentes", cards: recentSeries.prefix(12).map { card(for: $0) }))
+        rows.append(HomeRow(id: "recent-movies", kind: .recentMovies, title: "Nouveautés", cards: recentMovies.prefix(12).map { card(for: $0) }))
+        rows.append(HomeRow(id: "recent-series", kind: .recentSeries, title: "Derniers épisodes", cards: recentSeries.prefix(12).map { card(for: $0) }))
         let favs = allCards.filter { favorites.contains($0.id) }.map { card(for: $0) }
         if !favs.isEmpty { rows.append(HomeRow(id: "favorites", kind: .favorites, title: "Ma liste", cards: favs)) }
         let heroDetail = recentMovies.first!

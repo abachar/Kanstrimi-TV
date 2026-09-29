@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   serial,
@@ -156,14 +157,17 @@ export const contents = pgTable(
     /** TMDB's adult flag, or every variant flagged by the provider. Served to the app only when `serve_adult` is on. */
     adult: boolean("adult").default(false).notNull(),
     addedAt: timestamp("added_at", { withTimezone: true }).notNull(),
+    releaseDate: date("release_date"),
     search: tsvector("search"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     index("contents_list_idx").on(t.kind, t.visible, t.addedAt.desc(), t.id),
+    // The sort keys of `player/lists.ts`, expression for expression, or the planner cannot use them.
+    index("contents_release_idx").on(t.kind, t.visible, sql`coalesce(${t.releaseDate}, '0001-01-01'::date) desc`, t.id),
     index("contents_title_idx").on(t.kind, t.visible, t.title, t.id),
-    index("contents_rating_idx").on(t.kind, t.visible, t.rating.desc().nullsLast(), t.id),
-    index("contents_year_idx").on(t.kind, t.visible, t.year.desc().nullsLast(), t.id),
+    index("contents_rating_idx").on(t.kind, t.visible, sql`coalesce(${t.rating}, 0) desc`, t.id),
+    index("contents_year_idx").on(t.kind, t.visible, sql`coalesce(${t.year}, 0) desc`, t.id),
     index("contents_genres_idx").using("gin", t.genreIds),
     index("contents_search_idx").using("gin", t.search),
   ],

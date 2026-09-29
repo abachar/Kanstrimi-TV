@@ -4,7 +4,7 @@ import { db, schema, type Content } from "@/db";
 import { hasTmdbKey, isEpisodeKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
-import { variantsOf, visibleContent } from "./contents";
+import { isNewRelease, variantsOf, visibleContent } from "./contents";
 import { getProgress, resumeKeys, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
 import { baseCard, gridCard, progressWire, sheetCard } from "./cards";
@@ -23,7 +23,7 @@ export async function home(ctx: RestContext): Promise<Home> {
     db
       .select()
       .from(schema.contents)
-      .where(and(visibleContent(ctx, "vod"), hasTmdbKey))
+      .where(and(visibleContent(ctx, "vod"), hasTmdbKey, isNewRelease()))
       .orderBy(desc(schema.contents.addedAt), desc(schema.contents.id))
       .limit(HOME_ROW),
     db
@@ -38,18 +38,22 @@ export async function home(ctx: RestContext): Promise<Home> {
   const resumeCards = await resumeCardsOf(ctx, resume);
   if (resumeCards.length) rows.push({ id: "resume", kind: "resume", title: "Reprendre", cards: resumeCards });
   const progress = await getProgress([...recentMovies, ...recentSeries].map((c) => c.key));
-  rows.push({
-    id: "recent-movies",
-    kind: "recent_movies",
-    title: "Films récents",
-    cards: recentMovies.map((c) => gridCard(ctx, c, progress.get(c.key))),
-  });
-  rows.push({
-    id: "recent-series",
-    kind: "recent_series",
-    title: "Séries récentes",
-    cards: recentSeries.map((c) => gridCard(ctx, c, progress.get(c.key))),
-  });
+  if (recentMovies.length) {
+    rows.push({
+      id: "recent-movies",
+      kind: "recent_movies",
+      title: "Nouveautés",
+      cards: recentMovies.map((c) => gridCard(ctx, c, progress.get(c.key))),
+    });
+  }
+  if (recentSeries.length) {
+    rows.push({
+      id: "recent-series",
+      kind: "recent_series",
+      title: "Derniers épisodes",
+      cards: recentSeries.map((c) => gridCard(ctx, c, progress.get(c.key))),
+    });
+  }
   if (favKeys.length) {
     const favs = await db
       .select()

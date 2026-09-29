@@ -15,5 +15,14 @@ struct kanstrimiApp: App {
                 .preferredColorScheme(.dark)
                 .tint(Theme.text)
         }
+        #if os(macOS)
+        Settings {
+            SettingsView()
+                .environment(environment)
+                .preferredColorScheme(.dark)
+                .tint(Theme.text)
+                .frame(width: 400, height: 500)
+        }
+        #endif
     }
 }

@@ -126,7 +126,7 @@ describe("runGrouping", () => {
     expect(sm.maxQualityRank).toBe(4);
     expect(sm.dynamicRange).toBe("DV");
     expect([...sm.languages].sort()).toEqual(["IT", "VF", "VOSTFR"]);
-    expect(sm.addedAt.toISOString()).toBe("2026-09-01T00:00:00.000Z");
+    expect(sm.addedAt.toISOString()).toBe("2026-09-20T04:10:00.000Z");
 
     const v = await variants(sm.id);
     expect(v.map((x) => [x.xtreamId, x.lang, x.quality, x.dynamicRange])).toEqual([

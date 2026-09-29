@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db, schema, type Content, type Item, visibleCategory, visibleItem } from "@/db";
 import { parseKey } from "@/catalog";
 import type { RestContext } from "./context";
@@ -12,6 +12,13 @@ export const visibleContent = (ctx: RestContext, kind?: "live" | "vod" | "series
     eq(schema.contents.visible, true),
     ctx.serveAdult ? undefined : eq(schema.contents.adult, false),
   )!;
+
+/** « Nouveautés » holds the movies released in the last twelve months. */
+export const NEW_RELEASE_MONTHS = 12;
+
+/** Released within `NEW_RELEASE_MONTHS` of `today` (a parameter so tests can pin it). */
+export const isNewRelease = (today = new Date()): SQL =>
+  sql`${schema.contents.releaseDate} >= ${today.toISOString().slice(0, 10)}::date - make_interval(months => ${NEW_RELEASE_MONTHS})`;
 
 export async function contentByKey(ctx: RestContext, key: string): Promise<Content | null> {
   const [c] = await db

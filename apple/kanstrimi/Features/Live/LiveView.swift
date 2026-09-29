@@ -1,4 +1,5 @@
 import SwiftUI
+
 import VLCKit
 
 /// Direct in three columns on TV: categories with their count, the channels of the selected one,
@@ -222,7 +223,7 @@ struct LiveView: View {
     private var side: some View {
         VStack(alignment: .leading, spacing: 20) {
             ZStack {
-                PreviewSurface(view: preview.videoView)
+                VLCVideoView(view: preview.videoView)
                 if preview.channelID == nil || !preview.hasImage {
                     VStack(spacing: 10) {
                         Image(systemName: "tv").font(.system(size: 50)).foregroundStyle(Theme.secondary)
@@ -287,11 +288,7 @@ struct LiveView: View {
 final class PreviewPlayer: NSObject, VLCMediaPlayerDelegate {
     let player = VLCMediaPlayer(options: ["--network-caching=1000", "--no-video-title-show", "--no-audio"])
     /// The surface VLC draws into, attached once, before any playback.
-    let videoView: UIView = {
-        let v = UIView()
-        v.backgroundColor = .black
-        return v
-    }()
+    let videoView: PlatformView = makeBlackSurface()
     private(set) var channelID: ContentID?
     private(set) var hasImage = false
     private var debounce: Task<Void, Never>?
@@ -326,10 +323,4 @@ final class PreviewPlayer: NSObject, VLCMediaPlayerDelegate {
     nonisolated func mediaPlayerStateChanged(_ newState: VLCMediaPlayerState) {
         Task { @MainActor in self.hasImage = newState == .playing && self.player.hasVideoOut }
     }
-}
-
-struct PreviewSurface: UIViewRepresentable {
-    let view: UIView
-    func makeUIView(context: Context) -> UIView { view }
-    func updateUIView(_ uiView: UIView, context: Context) { }
 }

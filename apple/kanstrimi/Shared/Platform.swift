@@ -1,14 +1,40 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
 
-/// What differs between the television and the phone, in one place. Views stay free of
+/// The native view type VLCKit draws into.
+typealias PlatformView = NSView
+#else
+import UIKit
+
+/// The native view type VLCKit draws into.
+typealias PlatformView = UIView
+#endif
+
+/// A plain black surface for VLCKit: the player's drawable on tvOS and macOS, the live preview everywhere.
+func makeBlackSurface() -> PlatformView {
+    #if os(macOS)
+    let v = NSView()
+    v.wantsLayer = true
+    v.layer?.backgroundColor = NSColor.black.cgColor
+    #else
+    let v = UIView()
+    v.backgroundColor = .black
+    #endif
+    return v
+}
+
+/// What differs between the television, the phone and the Mac, in one place. Views stay free of
 /// `#if os(...)`: they read `Metrics` for sizes and use the modifiers below for the APIs one
 /// platform lacks.
 nonisolated enum Platform {
-    /// "Apple TV" or "iPhone": the device the app runs on, for the messages that name it.
+    /// "Apple TV", "iPhone" or "Mac": the device the app runs on, for the messages that name it.
     /// iPad will need the runtime idiom; for now the platform is enough.
     static let deviceKind: String = {
         #if os(tvOS)
         "Apple TV"
+        #elseif os(macOS)
+        "Mac"
         #else
         "iPhone"
         #endif
@@ -16,6 +42,14 @@ nonisolated enum Platform {
 
     static var isTV: Bool {
         #if os(tvOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    static var isMac: Bool {
+        #if os(macOS)
         true
         #else
         false
@@ -98,8 +132,24 @@ nonisolated struct Metrics: Sendable {
                                panelHeight: 300, panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
                                dialogTitle: 26, dialogWidth: 460, nextCard: 340, dialogMargin: 24,
                                pickerWidth: nil, toggleWidth: nil)
+    static let mac = Metrics(inset: 32, posterWidth: 160, resumeWidth: 260, cardSpacing: 16, rowPadding: 16, gridColumns: nil,
+                             artTitle: 16, badge: 14, badgeSmall: 12,
+                             heroHeight: 400, heroTitle: 40, detailTitle: 40, detailTop: 60, stillWidth: 200, textWidth: 800,
+                             stateIcon: 48, statePadding: 32, searchPoster: 200, searchColumn: nil, liveColumns: false, channelLogo: 64,
+                             pairingTitle: 32, showsQR: false, codeCell: 48, pairingColumn: nil,
+                             panelHeight: 360, panelPadding: 24, panelCard: 220, listWidth: 400, recentCard: 280,
+                             dialogTitle: 32, dialogWidth: 500, nextCard: 400, dialogMargin: 32,
+                             pickerWidth: nil, toggleWidth: nil)
 
-    static var current: Metrics { Platform.isTV ? .tv : .phone }
+    static var current: Metrics {
+        #if os(tvOS)
+        return .tv
+        #elseif os(macOS)
+        return .mac
+        #else
+        return .phone
+        #endif
+    }
 }
 
 extension EnvironmentValues {
@@ -141,7 +191,7 @@ extension View {
     /// The Back (Menu) button of the Siri Remote. iOS has no such command: its screens close
     /// with a button or a swipe, so this does nothing there.
     @ViewBuilder func onBackCommand(perform action: @escaping () -> Void) -> some View {
-        #if os(tvOS)
+        #if os(tvOS) || os(macOS)
         onExitCommand(perform: action)
         #else
         self
@@ -154,6 +204,8 @@ extension View {
     @ViewBuilder func playerChromeInsets() -> some View {
         #if os(tvOS)
         padding(.horizontal, Metrics.tv.inset).padding(.vertical, 60).ignoresSafeArea()
+        #elseif os(macOS)
+        padding(.horizontal, Metrics.mac.inset).padding(.vertical, 32).ignoresSafeArea()
         #else
         padding(.horizontal, 24).padding(.vertical, 12)
         #endif
@@ -164,12 +216,24 @@ extension View {
         #if os(iOS)
         simultaneousGesture(TapGesture().onEnded { onActivity() })
             .simultaneousGesture(DragGesture(minimumDistance: 8).onChanged { _ in onActivity() })
+        #elseif os(macOS)
+        onContinuousHover { _ in onActivity() }
         #else
         self
         #endif
     }
 
-    /// A secondary screen (version picker, genre grid): full screen on tvOS, a sheet on iOS.
+    /// A screen that takes the whole display (genre grid): a full-screen cover on tvOS and iOS,
+    /// a sheet on macOS, which has no such cover.
+    @ViewBuilder func platformCover<Item: Identifiable, Content: View>(item: Binding<Item?>, @ViewBuilder content: @escaping (Item) -> Content) -> some View {
+        #if os(macOS)
+        sheet(item: item, content: content)
+        #else
+        fullScreenCover(item: item, content: content)
+        #endif
+    }
+
+    /// A secondary screen (version picker): full screen on tvOS, a sheet on iOS.
     @ViewBuilder func platformSheet<Item: Identifiable, Content: View>(item: Binding<Item?>, @ViewBuilder content: @escaping (Item) -> Content) -> some View {
         #if os(tvOS)
         fullScreenCover(item: item, content: content)
@@ -183,6 +247,32 @@ extension View {
         fullScreenCover(isPresented: isPresented, content: content)
         #else
         sheet(isPresented: isPresented, content: content)
+        #endif
+    }
+
+    @ViewBuilder func playerPresentation<Content: View>(isPresented: Binding<Bool>, @ViewBuilder content: @escaping () -> Content) -> some View {
+        #if os(macOS)
+        self.overlay {
+            if isPresented.wrappedValue {
+                ZStack {
+                    Theme.background.ignoresSafeArea()
+                    content()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
+            }
+        }
+        #else
+        fullScreenCover(isPresented: isPresented, content: content)
+        #endif
+    }
+
+    /// The main tabs: a sidebar on the Mac, the platform's tab bar elsewhere.
+    @ViewBuilder func mainTabsStyle() -> some View {
+        #if os(macOS)
+        tabViewStyle(.sidebarAdaptable)
+        #else
+        self
         #endif
     }
 }

@@ -240,6 +240,7 @@ async function fillCardFields(onlyIds?: number[]) {
         trailer: [],
         status: [],
         search: [],
+        release_date: [],
       };
     for (const r of rows) {
       ids.push(r.id);
@@ -265,6 +266,7 @@ async function fillCardFields(onlyIds?: number[]) {
         f.trailer.push(c.trailerKey);
         f.status.push(c.status);
         f.search.push(searchText([...c.names, ...c.cast.map((p) => p.name), c.director].filter(Boolean).join(" ")));
+        f.release_date.push(c.releaseDate);
       } else {
         // Fallback and live: keep what the variants gave, index the title only.
         f.tmdb_adult.push(false);
@@ -287,23 +289,36 @@ async function fillCardFields(onlyIds?: number[]) {
         f.trailer.push(null);
         f.status.push(null);
         f.search.push(searchText(r.title));
+        f.release_date.push(null);
       }
     }
     // Fallback rows must keep the year computed from the variants: only TMDB rows overwrite it.
     await pg`
+      with u_raw as (
+        select * from unnest(${ids}::int[], ${(f.tmdb_adult as boolean[]).map(String)}::text[], ${f.title as string[]}::text[], ${f.original_title as string[]}::text[], ${f.title_en as string[]}::text[], ${f.year as number[]}::int[], ${f.end_year as number[]}::int[],
+                  ${f.poster as string[]}::text[], ${f.backdrop as string[]}::text[], ${f.overview as string[]}::text[], ${f.rating as number[]}::real[], ${f.votes as number[]}::int[],
+                  ${f.genre_ids as string[]}::text[], ${f.genres as string[]}::text[], ${f.runtime as number[]}::int[], ${f.cert as string[]}::text[],
+                  ${f.cast as string[]}::text[], ${f.director as string[]}::text[], ${f.trailer as string[]}::text[], ${f.status as string[]}::text[], ${f.search as string[]}::text[], ${f.release_date as string[]}::text[])
+        as u(id, tmdb_adult, title, original_title, title_en, year, end_year, poster, backdrop, overview, rating, votes, genre_ids, genres, runtime, cert, "cast", director, trailer, status, search, release_date)
+      ),
+      u as (
+        select u_raw.*, case when c.tmdb_id is not null and u_raw.year is not null then u_raw.year else c.year end as final_year
+        from u_raw join contents c on c.id = u_raw.id
+      )
       update contents c set
         title = u.title, original_title = u.original_title, title_en = u.title_en,
         adult = u.tmdb_adult::boolean or exists (select 1 from items i where i.content_id = c.id) and not exists (select 1 from items i where i.content_id = c.id and not i.adult),
-        year = case when c.tmdb_id is not null and u.year is not null then u.year else c.year end, end_year = u.end_year,
+        year = u.final_year, end_year = u.end_year,
         poster_path = u.poster, backdrop_path = u.backdrop, overview = u.overview, rating = u.rating, vote_count = u.votes,
         genre_ids = coalesce(string_to_array(nullif(u.genre_ids, ''), ',')::int[], '{}'), genres = coalesce(string_to_array(nullif(u.genres, ''), E'\\x1f'), '{}'),
         runtime = u.runtime, certification = u.cert, "cast" = u.cast::jsonb, director = u.director, trailer_key = u.trailer, status = u.status,
-        search = to_tsvector('simple', u.search), updated_at = now()
-      from unnest(${ids}::int[], ${(f.tmdb_adult as boolean[]).map(String)}::text[], ${f.title as string[]}::text[], ${f.original_title as string[]}::text[], ${f.title_en as string[]}::text[], ${f.year as number[]}::int[], ${f.end_year as number[]}::int[],
-                  ${f.poster as string[]}::text[], ${f.backdrop as string[]}::text[], ${f.overview as string[]}::text[], ${f.rating as number[]}::real[], ${f.votes as number[]}::int[],
-                  ${f.genre_ids as string[]}::text[], ${f.genres as string[]}::text[], ${f.runtime as number[]}::int[], ${f.cert as string[]}::text[],
-                  ${f.cast as string[]}::text[], ${f.director as string[]}::text[], ${f.trailer as string[]}::text[], ${f.status as string[]}::text[], ${f.search as string[]}::text[])
-        as u(id, tmdb_adult, title, original_title, title_en, year, end_year, poster, backdrop, overview, rating, votes, genre_ids, genres, runtime, cert, "cast", director, trailer, status, search)
+        search = to_tsvector('simple', u.search),
+        release_date = coalesce(
+          case when c.tmdb_id is not null then u.release_date::date end,
+          case when u.final_year is not null then make_date(u.final_year, 1, 1) end
+        ),
+        updated_at = now()
+      from u
       where c.id = u.id`;
     if (rows.length < CARD_CHUNK) break;
   }
@@ -321,11 +336,16 @@ async function refreshAggregates(onlyIds?: number[]) {
       market = coalesce(contents.market, a.market), logo_url = a.logo, category_xtream_id = a.cat,
       channel_number = a.num, epg_channel_id = a.epg, updated_at = now()
     from (
-      select content_id, count(*)::int as n, min(added_at) as added_at, bool_or(vis) as visible,
-        max(quality_rank)::int as max_q,
-        coalesce(array_agg(distinct lang) filter (where lang is not null), '{}') as langs,
-        coalesce(array_agg(distinct theme) filter (where theme is not null and vis), '{}') as themes,
-        case max(case dynamic_range when 'DV' then 2 when 'HDR' then 1 else 0 end) when 2 then 'DV' when 1 then 'HDR' end as dr,
+      select content_id,
+        count(*) filter (where counted)::int as n,
+        max(added_at) filter (where counted) as added_at,
+        bool_or(vis) as visible,
+        max(quality_rank) filter (where counted)::int as max_q,
+        coalesce(array_agg(distinct lang) filter (where lang is not null and counted), '{}') as langs,
+        coalesce(array_agg(distinct theme) filter (where theme is not null and counted), '{}') as themes,
+        case max(case dynamic_range when 'DV' then 2 when 'HDR' then 1 else 0 end) filter (where counted)
+          when 2 then 'DV' when 1 then 'HDR'
+        end as dr,
         (array_agg(market order by vis desc, quality_rank desc, position, id))[1] as market,
         (array_agg(nullif(raw->>'stream_icon', '') order by vis desc, quality_rank desc, position, id))[1] as logo,
         (array_agg(category_xtream_id order by vis desc, quality_rank desc, position, id))[1] as cat,
@@ -333,7 +353,8 @@ async function refreshAggregates(onlyIds?: number[]) {
         (array_agg(nullif(raw->>'epg_channel_id', '') order by vis desc, quality_rank desc, position, id))[1] as epg
       from (
         select id, content_id, added_at, quality_rank, lang, dynamic_range, market, position, category_xtream_id, raw, theme,
-          (${visibleItem}) as vis
+          (${visibleItem}) as vis,
+          (${visibleItem} or not bool_or(${visibleItem}) over (partition by content_id)) as counted
         from ${schema.items} where content_id is not null
       ) i
       group by content_id

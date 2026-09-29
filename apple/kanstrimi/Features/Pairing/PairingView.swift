@@ -101,7 +101,7 @@ struct PairingView: View {
         ZStack {
             RoundedRectangle(cornerRadius: 28).fill(.white)
             if let image = model.qrImage, model.status != .expired {
-                Image(uiImage: image).interpolation(.none).resizable().scaledToFit().padding(28)
+                Image(image, scale: 1.0, label: Text("QR Code")).interpolation(.none).resizable().scaledToFit().padding(28)
             } else {
                 ProgressView().tint(.black)
             }
@@ -158,7 +158,7 @@ final class PairingModel {
     enum Status: Equatable { case creating, waiting, expired, approved, offline }
     var status: Status = .creating
     var code: PairingCode?
-    var qrImage: UIImage?
+    var qrImage: CGImage?
     var isBusy = false
     var host: String { URL(string: Preferences.compiledServerURL)?.host() ?? "votre-serveur" }
     /// The pairing URL of the server, shown when the QR cannot be scanned.
@@ -224,13 +224,13 @@ final class PairingModel {
         await newCode(env)
     }
 
-    private static func qr(for string: String) -> UIImage? {
+    private static func qr(for string: String) -> CGImage? {
         let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(string.utf8)
         filter.correctionLevel = "M"
         guard let output = filter.outputImage else { return nil }
         let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
         guard let cg = CIContext().createCGImage(scaled, from: scaled.extent) else { return nil }
-        return UIImage(cgImage: cg)
+        return cg
     }
 }

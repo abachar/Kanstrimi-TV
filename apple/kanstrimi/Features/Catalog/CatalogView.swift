@@ -38,7 +38,7 @@ struct CatalogView: View {
         }
         .background(Theme.background)
         .task { if rows.isEmpty { await load() } }
-        .fullScreenCover(item: $seeAll) { row in
+        .platformCover(item: $seeAll) { row in
             GenreGridView(kind: kind, row: row).environment(env)
         }
     }

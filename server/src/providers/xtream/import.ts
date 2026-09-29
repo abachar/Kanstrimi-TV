@@ -55,6 +55,21 @@ export function upstreamId(kind: Kind, x: XStream): string | null {
 }
 
 /**
+ * Parses the arrival date from the upstream server: `added` for live/vod, `last_modified` for series.
+ * Both are Unix timestamps in seconds (as strings). If missing, invalid, or in the future, returns null.
+ */
+function parseAddedDate(kind: Kind, x: XStream): Date | null {
+  const rawVal = kind === "series" ? x.last_modified : x.added;
+  if (!rawVal) return null;
+  const num = Number(rawVal);
+  if (Number.isNaN(num) || num <= 0) return null;
+  // Xtream timestamps are usually in seconds
+  const d = new Date(num * 1000);
+  if (Number.isNaN(d.getTime()) || d > new Date()) return null;
+  return d;
+}
+
+/**
  * Full catalogue import from the upstream Xtream server: categories and entries upserted,
  * the ones no longer listed removed. Nothing else: the pipeline re-filters and regroups after.
  */
@@ -157,6 +172,7 @@ async function upsertItems(kind: Kind, all: XStream[], seenAt: Date): Promise<{ 
           position: i + j,
           raw: x as Record<string, unknown>,
           seenAt,
+          addedAt: parseAddedDate(kind, x) ?? seenAt,
           section: sections.get(upstreamCategory ?? "") ?? null,
           matchStatus: (kind === "live" ? "skipped" : "pending") as "skipped" | "pending",
         },
@@ -175,6 +191,7 @@ async function upsertItems(kind: Kind, all: XStream[], seenAt: Date): Promise<{ 
           position: sql`excluded.position`,
           raw: sql`excluded.raw`,
           seenAt,
+          addedAt: sql`CASE WHEN excluded.added_at = ${seenAt.toISOString()} THEN ${schema.items.addedAt} ELSE excluded.added_at END`,
           section: sql`excluded.section`,
           matchStatus: sql`CASE WHEN ${schema.items.name} <> excluded.name AND ${schema.items.matchStatus} <> 'manual' THEN 'pending'::match_status ELSE ${schema.items.matchStatus} END`,
           name: sql`excluded.name`,

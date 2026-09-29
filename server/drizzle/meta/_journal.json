@@ -64,6 +64,27 @@
       "when": 1790600156229,
       "tag": "0008_epg-programmes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790638288995,
+      "tag": "0009_release-date",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790638292439,
+      "tag": "0010_upstream-added-at",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790640799022,
+      "tag": "0011_list-sort-indexes",
+      "breakpoints": true
     }
   ]
 }

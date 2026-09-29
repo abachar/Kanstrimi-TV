@@ -7,7 +7,7 @@ import { slug } from "@/shared";
 import { QUALITY_RANK } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { BadRequest, json } from "./http";
-import { visibleContent } from "./contents";
+import { isNewRelease, visibleContent } from "./contents";
 import { getProgress } from "./progress";
 import { gridCard } from "./cards";
 import type { CatalogRow, Page } from "./types";
@@ -66,25 +66,30 @@ async function genresOf(ctx: RestContext, kind: "vod" | "series"): Promise<Genre
 
 // ---------------------------------------------------------------- rows
 
-/** "Nouveautés" then one row per TMDB genre, twenty cards each. */
+/** Release date order, undated last; the same expression as `contents_release_idx`. */
+const NO_RELEASE = "0001-01-01";
+const byRelease = sql`coalesce(${schema.contents.releaseDate}, ${sql.raw(`'${NO_RELEASE}'`)}::date)`;
+
+/** "Nouveautés" (or "Derniers épisodes") then one row per TMDB genre by release date, twenty cards each. */
 export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Promise<CatalogRow[]> {
   const genres = await genresOf(ctx, kind);
-  const [{ n: total }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.contents).where(visibleContent(ctx, kind));
+  const recentFilter = kind === "vod" ? and(visibleContent(ctx, kind), isNewRelease()) : visibleContent(ctx, kind);
+  const [{ n: totalRecent }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.contents).where(recentFilter);
   const recent = await db
     .select()
     .from(schema.contents)
-    .where(visibleContent(ctx, kind))
+    .where(recentFilter)
     .orderBy(desc(schema.contents.addedAt), desc(schema.contents.id))
     .limit(ROW_SIZE);
-  const rows: { id: string; name: string; total: number; cards: Content[] }[] = [
-    { id: "recent", name: kind === "series" ? "Derniers épisodes" : "Nouveautés", total, cards: recent },
-  ];
+  const rows: { id: string; name: string; total: number; cards: Content[] }[] = [];
+  if (recent.length)
+    rows.push({ id: "recent", name: kind === "series" ? "Derniers épisodes" : "Nouveautés", total: totalRecent, cards: recent });
   for (const g of genres) {
     const cards = await db
       .select()
       .from(schema.contents)
       .where(and(visibleContent(ctx, kind), sql`${schema.contents.genreIds} @> array[${g.id}]::int[]`))
-      .orderBy(desc(schema.contents.addedAt), desc(schema.contents.id))
+      .orderBy(desc(byRelease), desc(schema.contents.id))
       .limit(ROW_SIZE);
     rows.push({ id: g.slug, name: g.name, total: g.total, cards });
   }
@@ -110,6 +115,7 @@ const decodeCursor = (s: string): [unknown, number] | null => {
 /** `/movies?genre=…&cursor=…`: by cursor on a stable sort key. */
 export async function listContents(ctx: RestContext, kind: "vod" | "series", q: ListQuery): Promise<Page> {
   const where: SQL[] = [visibleContent(ctx, kind)];
+  if (q.genre === "recent" && kind === "vod") where.push(isNewRelease());
   if (q.genre && q.genre !== "recent") {
     const g = (await genresOf(ctx, kind)).find((x) => x.slug === q.genre);
     if (!g) return { items: [], next_cursor: null };
@@ -129,9 +135,10 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
     else throw new BadRequest("dynamic_range doit valoir HDR ou DV");
   }
   const limit = Math.min(PAGE_MAX, Math.max(1, Number(q.limit) || PAGE_DEFAULT));
-  const sort = q.sort ?? (kind === "series" ? "latest_episodes" : "recent");
+  const sort = q.sort ?? (q.genre === "recent" ? (kind === "series" ? "latest_episodes" : "recent") : "release");
   type Key = { col: SQL; dir: "asc" | "desc"; of: (c: Content) => unknown };
   const keys: Record<string, Key> = {
+    release: { col: byRelease, dir: "desc", of: (c) => c.releaseDate ?? NO_RELEASE },
     recent: { col: sql`${schema.contents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
     latest_episodes: { col: sql`${schema.contents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
     title: { col: sql`${schema.contents.title}`, dir: "asc", of: (c) => c.title },

@@ -8,6 +8,16 @@ import { runGrouping } from "@/catalog";
 import { resetPairingState } from "@/devices";
 import { setSettings } from "@/config";
 
+const daysAgo = (d: number) => new Date(Date.now() - d * 86400000);
+const monthsAgo = (m: number) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - m);
+  return d;
+};
+const ymd = (d: Date) => d.toISOString().split("T")[0];
+/** Fallback titles carry the current year: undated by TMDB, they are released on its January 1st. */
+const THIS_YEAR = new Date().getFullYear();
+
 let token = "";
 let code = "";
 const call = (path: string, init: RequestInit = {}, auth = true) =>
@@ -54,7 +64,7 @@ beforeAll(async () => {
       cat: "10",
       tmdbId: 603,
       matchStatus: "matched",
-      addedAt: new Date("2026-09-20T04:10:00Z"),
+      addedAt: daysAgo(9),
     },
     {
       kind: "vod",
@@ -63,7 +73,7 @@ beforeAll(async () => {
       cat: "11",
       tmdbId: 603,
       matchStatus: "matched",
-      addedAt: new Date("2026-09-01T00:00:00Z"),
+      addedAt: daysAgo(28),
     },
     {
       kind: "vod",
@@ -72,15 +82,15 @@ beforeAll(async () => {
       cat: "11",
       tmdbId: 949,
       matchStatus: "matched",
-      addedAt: new Date("2026-09-10T00:00:00Z"),
+      addedAt: daysAgo(19),
     },
     {
       kind: "vod",
       xtreamId: "4",
-      name: "AZ - Silver.Book.of.Dreams.2013",
+      name: `AZ - Silver.Book.of.Dreams.${THIS_YEAR}`,
       cat: "12",
       matchStatus: "unmatched",
-      addedAt: new Date("2026-09-15T00:00:00Z"),
+      addedAt: daysAgo(14),
     },
     { kind: "vod", xtreamId: "5", name: "|FR| Caché", cat: "12", matchStatus: "unmatched", hiddenManual: true },
     {
@@ -89,7 +99,7 @@ beforeAll(async () => {
       name: "|FR| Clan of Violence",
       cat: "13",
       matchStatus: "unmatched",
-      addedAt: new Date("2026-09-25T00:00:00Z"),
+      addedAt: daysAgo(4),
     },
     {
       kind: "series",
@@ -98,7 +108,7 @@ beforeAll(async () => {
       cat: "30",
       tmdbId: 1396,
       matchStatus: "matched",
-      addedAt: new Date("2026-09-18T00:00:00Z"),
+      addedAt: daysAgo(11),
     },
     { kind: "series", xtreamId: "201", name: "|FR| Vincenzo (VOST)", cat: "30", tmdbId: 1396, matchStatus: "matched" },
     {
@@ -128,7 +138,7 @@ beforeAll(async () => {
   await seedTmdb("movie", 603, {
     title: "Matrix",
     original_title: "The Matrix",
-    release_date: "1999-03-30",
+    release_date: ymd(monthsAgo(11)),
     overview: "Thomas Anderson…",
     poster_path: "/abc.jpg",
     backdrop_path: "/bd.jpg",
@@ -146,7 +156,7 @@ beforeAll(async () => {
   await seedTmdb("movie", 949, {
     title: "Heat",
     original_title: "Heat",
-    release_date: "1995-12-15",
+    release_date: ymd(monthsAgo(1)),
     poster_path: "/heat.jpg",
     backdrop_path: "/heatb.jpg",
     vote_average: 7.9,
@@ -262,7 +272,7 @@ describe("adult contents", () => {
     expect((await call(`/favorites/${key}`, { method: "PUT" })).status).toBe(404);
     expect((await get("/info")).body.counts.movies).toBe(3);
     await setSettings({ serve_adult: "1" });
-    expect((await get("/movies")).body[0].movies.map((c: { id: string }) => c.id)).toContain(key);
+    expect((await get("/movies?limit=50")).body.items.map((c: { id: string }) => c.id)).toContain(key);
     expect((await get(`/movies/${key}`)).status).toBe(200);
     expect((await get("/search?q=clan")).body.movies.map((c: { id: string }) => c.id)).toEqual([key]);
     expect((await get("/info")).body.counts.movies).toBe(4);
@@ -293,27 +303,27 @@ describe("GET /movies and /series", () => {
       ["science-fiction", "Science-Fiction", 1],
     ]);
     const recent = body[0].movies;
-    // added_at of a content is the oldest of its variants: Matrix (2026-09-01) comes last.
+    // added_at of a content is the newest of its variants: Matrix comes first.
     expect(recent.map((c: { id: string }) => c.id)).toEqual([
-      "fallback:movie:silver-book-of-dreams:2013",
-      "tmdb:movie:949",
       "tmdb:movie:603",
+      `fallback:movie:silver-book-of-dreams:${THIS_YEAR}`,
+      "tmdb:movie:949",
     ]);
-    expect(recent[2]).toMatchObject({
+    expect(recent[0]).toMatchObject({
       kind: "movie",
       title: "Matrix",
       poster: "http://kanstrimi.test/img/w500/abc.jpg",
       max_quality: "4K",
       dynamic_range: "DV",
       languages: ["VF", "VOSTFR"],
-      year: 1999,
+      year: monthsAgo(11).getFullYear(),
       rating: 8.2,
       genres: ["Action", "Science-Fiction"],
       hint: null,
-      added_at: "2026-09-01T00:00:00.000Z",
+      added_at: expect.any(String),
     });
-    expect(recent[1].hint).toBe("VOSTFR seul");
-    expect(recent[0]).toMatchObject({ title: "Silver Book of Dreams", year: 2013, poster: null, genres: [] });
+    expect(recent[2].hint).toBe("VOSTFR seul");
+    expect(recent[1]).toMatchObject({ title: "Silver Book of Dreams", year: THIS_YEAR, poster: null, genres: [] });
     const s = (await get("/series")).body;
     expect(s[0]).toMatchObject({ id: "recent", name: "Derniers épisodes", total: 1 });
     expect(s[0].series[0].id).toBe("tmdb:tv:20000".replace("20000", "1396"));
@@ -321,23 +331,26 @@ describe("GET /movies and /series", () => {
 
   it("list: cursor pagination, sort and filters", async () => {
     const p1 = (await get("/movies?genre=recent&limit=2")).body;
-    expect(p1.items.map((c: { id: string }) => c.id)).toEqual(["fallback:movie:silver-book-of-dreams:2013", "tmdb:movie:949"]);
+    expect(p1.items.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603", `fallback:movie:silver-book-of-dreams:${THIS_YEAR}`]);
     expect(p1.next_cursor).toBeTruthy();
     const p2 = (await get(`/movies?genre=recent&limit=2&cursor=${encodeURIComponent(p1.next_cursor)}`)).body;
-    expect(p2.items.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603"]);
+    expect(p2.items.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
     expect(p2.next_cursor).toBeNull();
     expect((await get("/movies?genre=action&sort=title")).body.items.map((c: { title: string }) => c.title)).toEqual(["Heat", "Matrix"]);
     expect((await get("/movies?genre=action&sort=rating")).body.items.map((c: { title: string }) => c.title)).toEqual(["Matrix", "Heat"]);
-    expect((await get("/movies?genre=action&sort=year")).body.items.map((c: { year: number }) => c.year)).toEqual([1999, 1995]);
+    expect((await get("/movies?genre=action&sort=year")).body.items.map((c: { year: number }) => c.year)).toEqual([
+      monthsAgo(1).getFullYear(),
+      monthsAgo(11).getFullYear(),
+    ]);
     expect((await get("/movies?genre=recent&vf_available=1")).body.items.map((c: { id: string }) => c.id)).toEqual([
-      "fallback:movie:silver-book-of-dreams:2013",
       "tmdb:movie:603",
+      `fallback:movie:silver-book-of-dreams:${THIS_YEAR}`,
     ]);
     expect((await get("/movies?genre=recent&min_quality=4K")).body.items.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603"]);
     expect((await get("/movies?genre=recent&dynamic_range=HDR")).body.items.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603"]);
     expect((await get("/movies?genre=recent&language=vostfr")).body.items.map((c: { id: string }) => c.id)).toEqual([
-      "tmdb:movie:949",
       "tmdb:movie:603",
+      "tmdb:movie:949",
     ]);
     expect((await get("/movies?genre=nope")).body).toEqual({ items: [], next_cursor: null });
     expect((await get("/movies?genre=recent&cursor=zzz")).status).toBe(400);
@@ -354,7 +367,7 @@ describe("GET /movies/{id}", () => {
       kind: "movie",
       title: "Matrix",
       original_title: "The Matrix",
-      year: 1999,
+      year: monthsAgo(11).getFullYear(),
       end_year: null,
       overview: "Thomas Anderson…",
       runtime: 136,
@@ -384,13 +397,13 @@ describe("GET /movies/{id}", () => {
   });
 
   it("fallback movie: has_tmdb false, provider category and raw title", async () => {
-    const { body } = await get("/movies/fallback:movie:silver-book-of-dreams:2013");
+    const { body } = await get(`/movies/fallback:movie:silver-book-of-dreams:${THIS_YEAR}`);
     expect(body).toMatchObject({
       has_tmdb: false,
       provider_category: "|FR| THRILLER",
-      raw_title: "AZ - Silver.Book.of.Dreams.2013",
+      raw_title: `AZ - Silver.Book.of.Dreams.${THIS_YEAR}`,
       title: "Silver Book of Dreams",
-      year: 2013,
+      year: THIS_YEAR,
       cast: [],
     });
   });
@@ -556,14 +569,14 @@ describe("GET /home", () => {
   it("hero, resume row (movie + episode), recent rows, favourites row", async () => {
     await call("/favorites/tmdb:movie:949", { method: "PUT" });
     const { body } = await get("/home");
-    // The newest matched movie with poster and backdrop: Heat.
+    // The newest matched movie with poster and backdrop: Matrix.
     expect(body.hero).toMatchObject({
       tagline: "FILM · NOUVEAUTÉ",
-      card: { id: "tmdb:movie:949", backdrop: "http://kanstrimi.test/img/w1280/heatb.jpg", max_quality: "HD", languages: ["VOSTFR"] },
-      runtime: 170,
-      certification: null,
+      card: { id: "tmdb:movie:603", backdrop: "http://kanstrimi.test/img/w1280/bd.jpg", max_quality: "4K", languages: ["VF", "VOSTFR"] },
+      runtime: 136,
+      certification: "12",
     });
-    expect(body.hero.versions.length).toBe(1);
+    expect(body.hero.versions.length).toBe(2);
     expect(body.rows.map((r: { id: string; kind: string }) => [r.id, r.kind])).toEqual([
       ["resume", "resume"],
       ["recent-movies", "recent_movies"],
@@ -580,7 +593,7 @@ describe("GET /home", () => {
       backdrop: "http://kanstrimi.test/img/w1280/vb.jpg",
     });
     expect(resume[0].progress.finished).toBeUndefined();
-    expect(body.rows[1].cards.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949", "tmdb:movie:603"]);
+    expect(body.rows[1].cards.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603", "tmdb:movie:949"]);
     expect(body.rows[3].cards.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
     expect(Date.parse(body.generated_at)).toBeGreaterThan(0);
   });
@@ -609,6 +622,72 @@ describe("search and favourites", () => {
     expect((await get("/movies/tmdb:movie:949")).body.is_favorite).toBe(false);
     expect((await call("/favorites/tmdb:movie:1", { method: "PUT" })).status).toBe(404);
     expect((await call("/favorites/tmdb:tv:1396:s01e01", { method: "PUT" })).status).toBe(404);
+  });
+});
+
+describe("Nouveautés, release order and visible variants", () => {
+  // Seeded after the catalogue tests, whose rows and counts must not see these movies.
+  beforeAll(async () => {
+    await seedItems([
+      { kind: "vod", xtreamId: "n1", name: "|FR| Alpha (VF)", cat: "12", tmdbId: 2001, matchStatus: "matched", addedAt: daysAgo(5) },
+      {
+        kind: "vod",
+        xtreamId: "n1-hidden",
+        name: "|FR| Alpha 4K (VOST)",
+        cat: "12",
+        tmdbId: 2001,
+        matchStatus: "matched",
+        addedAt: daysAgo(1),
+        hiddenManual: true,
+      },
+      { kind: "vod", xtreamId: "n2", name: "|FR| Beta (VF)", cat: "12", tmdbId: 2002, matchStatus: "matched", addedAt: daysAgo(6) },
+      { kind: "vod", xtreamId: "n3", name: "|FR| Gamma (VF)", cat: "12", tmdbId: 2003, matchStatus: "matched", addedAt: daysAgo(1) },
+      { kind: "vod", xtreamId: "n4", name: "|FR| Undated (VF)", cat: "12", matchStatus: "unmatched", addedAt: daysAgo(1) },
+    ]);
+    const films: [number, string, string][] = [
+      [2001, "Alpha", ymd(daysAgo(20))],
+      [2002, "Beta", ymd(daysAgo(20))],
+      [2003, "Gamma", ymd(monthsAgo(16))],
+    ];
+    for (const [id, title, release_date] of films) {
+      await seedTmdb("movie", id, {
+        title,
+        original_title: title,
+        release_date,
+        genres: [{ id: 28, name: "Action" }],
+        credits: { cast: [], crew: [] },
+      });
+    }
+    await runGrouping();
+  });
+
+  it("Nouveautés: released in the last twelve months, whatever the arrival", async () => {
+    const ids = (await get("/movies?genre=recent&limit=50")).body.items.map((c: { id: string }) => c.id);
+    expect(ids).toEqual(expect.arrayContaining(["tmdb:movie:2001", "tmdb:movie:2002"]));
+    expect(ids).not.toContain("tmdb:movie:2003"); // arrived yesterday, released 16 months ago
+    expect(ids).not.toContain("fallback:movie:undated:-");
+  });
+
+  it("aggregates ignore hidden variants: quality, languages and arrival", async () => {
+    const alpha = (await get("/movies?genre=recent&limit=50")).body.items.find((c: { id: string }) => c.id === "tmdb:movie:2001");
+    expect(alpha.max_quality).not.toBe("4K");
+    expect(alpha.languages).toEqual(["VF"]);
+    expect(Date.parse(alpha.added_at)).toBeLessThan(daysAgo(4).getTime());
+  });
+
+  it("sort=release: newest first, ties by id, undated last, stable across pages", async () => {
+    const titles: string[] = [];
+    let cursor = "";
+    do {
+      const page = (await get(`/movies?sort=release&limit=2${cursor && `&cursor=${encodeURIComponent(cursor)}`}`)).body;
+      titles.push(...page.items.map((c: { title: string }) => c.title));
+      cursor = page.next_cursor ?? "";
+    } while (cursor);
+    expect(new Set(titles).size).toBe(titles.length);
+    expect(titles.length).toBe((await get("/info")).body.counts.movies);
+    expect(titles.indexOf("Alpha")).toBe(titles.indexOf("Beta") + 1);
+    expect(titles.indexOf("Gamma")).toBeGreaterThan(titles.indexOf("Alpha"));
+    expect(titles.at(-1)).toBe("Undated");
   });
 });
 

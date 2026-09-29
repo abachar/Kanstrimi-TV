@@ -128,11 +128,17 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   sont stockés en base : ne pas les unifier davantage) ; les valeurs par défaut des réglages dans
   `config/settings.ts` (`getSettings()` les applique, aucun appelant n'a de repli) ; le client Xtream
   par `xtreamFromSettings(s)`.
-- **Visibilité** : un seul jeu de prédicats, `db/visibility.ts` (`visibleItem`, `hiddenItem`,
-  `visibleCategory`, `isItemHidden`), utilisé jusque dans l'agrégat SQL du groupement. Une catégorie
-  masquée masque ses éléments sans toucher leurs colonnes. Côté app, `player/contents.ts` y ajoute
+- **Visibilité et agrégats** : un seul jeu de prédicats, `db/visibility.ts` (`visibleItem`, `hiddenItem`,
+  `visibleCategory`, `isItemHidden`), utilisé jusque dans l'agrégat SQL du groupement (`max(added_at)`, compteurs, qualités, langues).
+  Une catégorie masquée masque ses éléments sans toucher leurs colonnes. Côté app, `player/contents.ts` y ajoute
   le réglage « contenus adultes ». **Toute la logique servie à l'app (tris, dates, compteurs, genres, thèmes, rangées) se calcule
-  sur les seules variantes visibles** : une variante masquée n'existe pas pour elle.
+  sur les seules variantes visibles** : une variante masquée n'existe pas pour elle. Si un contenu n'a aucune variante visible,
+  les agrégats se replient sur toutes les variantes pour éviter les colonnes nulles, mais l'app ne le verra pas. L'admin consulte les variantes brutes dans `items`.
+- **Dates et tris** :
+  - **Date d'arrivée** (`items.added_at`) = `raw.added` (films, direct) ou `raw.last_modified` (séries). En cas de donnée amont sale ou absente, on garde la valeur existante en base, sinon on utilise `now()`.
+  - **Date d'arrivée d'un contenu** (`contents.added_at`) = la plus récente (`max`) des dates d'arrivée de ses variantes visibles.
+  - **Date de sortie** (`contents.release_date`) = issue de TMDB, avec un repli au 1er janvier de l'année du titre s'il n'y a pas de match. C'est le tri par défaut des listes et rangées (la plus récente d'abord).
+  - **Nouveautés** : films sortis il y a moins de 12 mois, triés par date d'ajout décroissante. Pas de ligne "Ajoutés récemment". Pour les séries, "Derniers épisodes" n'a pas de contrainte de date de sortie.
 - **Thèmes du direct** : `/player/channels` groupe par marché × thème (« France · Sport »). Le thème d'une
   variante vient de sa section (la ligne séparatrice qui la précède dans sa catégorie), sinon de sa
   catégorie (« SPORTS HD ») ; `naming.ts` porte le vocabulaire (`LIVE_THEMES`, `themeOf`, `liveTheme`) dans

@@ -19,7 +19,7 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enri
 | Dossier | Rôle | Pile | Doc |
 |---|---|---|---|
 | `server/` | Import, filtrage, enrichissement, groupement des variantes, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Tailwind 4 / Basecoat | [`server/README.md`](server/README.md) |
-| `apple/` | Client natif Apple TV 4K et iPhone (iPad à venir), consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27, VLCKit 4, une cible et deux destinations | [`apple/README.md`](apple/README.md) |
+| `apple/` | Client natif Apple TV 4K, iPhone et Mac (iPad à venir), consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27 + macOS 27, VLCKit 4, une cible et trois destinations | [`apple/README.md`](apple/README.md) |
 
 Le contrat entre les deux est le code : `server/src/player/types.ts` côté serveur,
 `apple/kanstrimi/Contract/` côté app, et les fixtures JSON de `apple/kanstrimi/Client/Fixtures/`.

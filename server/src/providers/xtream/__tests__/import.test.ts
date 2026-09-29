@@ -40,6 +40,9 @@ const streams: XStream[] = [
   { name: "Id numérique en texte", stream_id: " 2 " as unknown as number, category_id: "10" }, // doublon de B
   { name: "Sans id", category_id: "10" },
   { name: "Id null", stream_id: null as unknown as number, category_id: "10" },
+  { name: "Date valide", stream_id: 4, added: "1720000000" },
+  { name: "Date sale", stream_id: 5, added: "abc" },
+  { name: "Date dans le futur", stream_id: 6, added: "4000000000" },
   // Radios arrive without a category, under their own separators: they get the « RADIOS » category of ours.
   { name: "•●★--|FR| FRANCE |FR|---★●•", stream_id: 902, category_id: null as unknown as string, stream_type: "radio_streams" },
   { name: "|FR| BEL RTL", stream_id: 3, category_id: null as unknown as string, stream_type: "radio_streams" },
@@ -72,17 +75,33 @@ describe("sync deduplication and id hygiene", () => {
       const ids = rows.map((r) => `${r.kind}:${r.xtreamId}`);
       expect(new Set(ids).size).toBe(ids.length);
     }
-    const items = inserted.filter((i) => i.table === "items").flatMap((i) => i.rows);
-    expect(items.map((r) => r.xtreamId)).toEqual(["1", "2", "ab-12", "3"]);
+    const items = inserted.filter((i) => i.table === "items").flatMap((i) => i.rows) as {
+      xtreamId: string;
+      name: string;
+      section: string | null;
+      categoryXtreamId: string;
+      addedAt: Date;
+      seenAt: Date;
+    }[];
+    expect(items.map((r) => r.xtreamId)).toEqual(["1", "2", "ab-12", "4", "5", "6", "3"]);
     expect(items[0].name).toBe("A"); // first occurrence wins
     // Separator lines are not entries; each names the section of what follows it in its category.
     expect(items.map((r) => [r.xtreamId, r.section])).toEqual([
       ["1", "|FR| FRANCE FHD |FR|"],
       ["2", null],
       ["ab-12", "|FR| SPORT |FR|"],
+      ["4", null],
+      ["5", null],
+      ["6", null],
       ["3", "|FR| FRANCE |FR|"],
     ]);
-    expect(items[3].categoryXtreamId).toBe("_radio");
+    // Radio category mapping
+    expect(items.find((r) => r.xtreamId === "3")?.categoryXtreamId).toBe("_radio");
+    // Dates
+    expect(items.find((r) => r.xtreamId === "4")!.addedAt).toEqual(new Date(1720000000 * 1000));
+    expect(items.find((r) => r.xtreamId === "5")!.addedAt).toEqual(items[0].seenAt);
+    expect(items.find((r) => r.xtreamId === "6")!.addedAt).toEqual(items[0].seenAt);
+
     const categories = inserted.filter((i) => i.table === "categories").flatMap((i) => i.rows);
     expect(categories.map((r) => r.xtreamId)).toEqual(["10", "11", "_radio"]);
   });

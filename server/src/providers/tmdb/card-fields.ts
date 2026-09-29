@@ -24,6 +24,7 @@ export type CardFields = {
   /** Every name the work is known by, for the search index: titles in all languages, capped. */
   names: string[];
   adult: boolean;
+  releaseDate: string | null;
 };
 
 const yearOf = (d?: string) => {
@@ -61,11 +62,12 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
         .join(", ")
     : createdBy.map((c) => c.name).join(", ");
   const runtime = movie ? (d.runtime ?? null) : (d.episode_run_time?.[0] ?? null);
+  const rawDate = movie ? d.release_date : d.first_air_date;
   return {
     title: (movie ? d.title : d.name) || fallbackTitle,
     originalTitle: (movie ? d.original_title : d.original_name) || null,
     titleEn: englishTitleOf(d),
-    year: yearOf(movie ? d.release_date : d.first_air_date),
+    year: yearOf(rawDate),
     endYear: !movie && ended ? yearOf(d.last_air_date) : null,
     posterPath: d.poster_path ?? null,
     backdropPath: d.backdrop_path ?? null,
@@ -82,5 +84,6 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
     status: d.status ?? null,
     names: namesOf(d).slice(0, 24),
     adult: d.adult === true,
+    releaseDate: rawDate && rawDate.length >= 10 ? rawDate.slice(0, 10) : null,
   };
 }

@@ -1,7 +1,11 @@
 import Foundation
 import Observation
 import OSLog
+#if os(macOS)
+import AppKit
+#else
 import UIKit
+#endif
 import VLCKit
 
 private let log = Logger(subsystem: "dev.crafters.kanstrimi", category: "player")
@@ -78,7 +82,7 @@ final class PlayerService: NSObject {
     /// The surface VLC draws into. Created once and attached before any playback, because a
     /// drawable set after `play()` is not always picked up by the video output. Each platform
     /// builds its own (`PlayerDrawable+iOS.swift` adds Picture-in-Picture).
-    let videoView: UIView = PlayerService.makeDrawable()
+    let videoView: PlatformView = PlayerService.makeDrawable()
     private let capabilities: VersionChooser.Capabilities
 
     private var startAttempts = 0
