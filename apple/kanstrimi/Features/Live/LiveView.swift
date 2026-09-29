@@ -259,9 +259,17 @@ struct LiveView: View {
                     }
                     HStack(spacing: 8) {
                         ForEach(c.versions) { v in
-                            Text("\(v.quality.rawValue) · \(v.language.rawValue)\(v.sources.count > 1 ? " · \(v.sources.count) sources" : "")")
-                                .font(.caption.weight(.semibold)).padding(.horizontal, 10).padding(.vertical, 5)
-                                .background(.white.opacity(0.12), in: Capsule())
+                            // "×3" = backup sources, the same mark as the version matrix of the detail page.
+                            HStack(spacing: 6) {
+                                Text("\(v.quality.rawValue) · \(v.language.rawValue)")
+                                if v.sources.count > 1 {
+                                    Text("×\(v.sources.count)").foregroundStyle(Theme.secondary)
+                                }
+                            }
+                            .font(.caption.weight(.semibold)).padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(.white.opacity(0.12), in: Capsule())
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("\(v.quality.rawValue) \(v.language.label)\(v.sources.count > 1 ? ", \(v.sources.count) sources" : "")")
                         }
                     }
                     Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
