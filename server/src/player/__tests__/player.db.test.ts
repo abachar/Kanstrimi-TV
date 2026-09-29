@@ -889,6 +889,46 @@ describe("studios and top 10", () => {
   });
 });
 
+describe("« Reprendre » cleanup and watched marks", () => {
+  const put = (path: string, body: unknown) => call(path, { method: "PUT", body: JSON.stringify(body) });
+  const resumeIds = async () =>
+    ((await get("/home")).body.rows.find((r: { id: string }) => r.id === "resume")?.cards ?? []).map((c: { id: string }) => c.id);
+
+  it("DELETE /playback/{id}/progress takes a title out of « Reprendre »", async () => {
+    await put("/playback/tmdb:movie:603/progress", { position: 4520, duration: 8280 });
+    expect(await resumeIds()).toContain("tmdb:movie:603");
+    expect((await call("/playback/tmdb:movie:603/progress", { method: "DELETE" })).status).toBe(204);
+    expect(await resumeIds()).not.toContain("tmdb:movie:603");
+    expect((await get("/playback/tmdb:movie:603")).body.resume_at).toBeNull();
+    expect((await call("/playback/tmdb:movie:999/progress", { method: "DELETE" })).status).toBe(404);
+    expect((await call("/playback/live:fr-tf1/progress", { method: "DELETE" })).status).toBe(404);
+  });
+
+  it("PUT /playback/{id}/watched marks a movie or an episode, and undoes it", async () => {
+    await put("/playback/tmdb:movie:603/progress", { position: 4520, duration: 8280 });
+    expect((await put("/playback/tmdb:movie:603/watched", { watched: true })).status).toBe(204);
+    expect((await get("/movies/tmdb:movie:603")).body.progress).toEqual({ position: 8280, duration: 8280, finished: true });
+    expect(await resumeIds()).not.toContain("tmdb:movie:603");
+    expect((await put("/playback/tmdb:movie:603/watched", { watched: false })).status).toBe(204);
+    expect((await get("/movies/tmdb:movie:603")).body.progress).toBeNull();
+    expect((await put("/playback/tmdb:movie:603/watched", { watched: "yes" })).status).toBe(400);
+    expect((await put("/playback/live:fr-tf1/watched", { watched: true })).status).toBe(404);
+  });
+
+  it("on a series id, a whole season at once", async () => {
+    expect((await put("/playback/tmdb:tv:1396/watched", { watched: true, season: 1 })).status).toBe(204);
+    let sheet = (await get("/series/tmdb:tv:1396")).body;
+    const season = (n: number) => sheet.seasons.find((s: { number: number }) => s.number === n);
+    expect(season(1).episodes.every((e: { progress: { finished: boolean } | null }) => e.progress?.finished)).toBe(true);
+    expect(season(2).episodes.every((e: { progress: unknown }) => e.progress === null)).toBe(true);
+    expect(sheet.current_episode).toMatchObject({ season: 2, number: 1 });
+    expect((await put("/playback/tmdb:tv:1396/watched", { watched: false, season: 1 })).status).toBe(204);
+    sheet = (await get("/series/tmdb:tv:1396")).body;
+    expect(season(1).episodes.every((e: { progress: unknown }) => e.progress === null)).toBe(true);
+    expect((await put("/playback/tmdb:tv:1396/watched", { watched: true, season: 9 })).status).toBe(404);
+  });
+});
+
 describe("GET /stream/{source}", () => {
   it("302 to the provider for a signed link, 401 when tampered, expired or revoked", async () => {
     const sheet = (await get("/movies/tmdb:movie:603")).body;

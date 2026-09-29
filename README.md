@@ -44,7 +44,6 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 Idées reprises des tentatives précédentes (supprimées le 2026-09-29), absentes du code actuel, par intérêt.
 
 - **Lecteur** : épisode précédent.
-- **Reprendre** : retirer un titre, marquer vu / non vu (épisode, saison).
 - **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).
 - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
 - **Filtres de séries** « Nouveaux épisodes » et « Saison complète en VF ».

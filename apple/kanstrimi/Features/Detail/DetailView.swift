@@ -55,7 +55,7 @@ private struct DetailContent: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
     @FocusState private var focused: Focus?
-    private enum Focus: Hashable { case play, restart, versions, trailer, favorite, language, season(Int), episode(ContentID) }
+    private enum Focus: Hashable { case play, restart, watched, versions, trailer, favorite, language, season(Int), episode(ContentID) }
 
     var body: some View {
         if let error = model.error, model.detail == nil {
@@ -214,6 +214,11 @@ private struct DetailContent: View {
                 .disabled(d.versions.isEmpty)
             } else {
                 Button("Versions (\(d.versions.count))") { showPicker = true }.focused($focused, equals: .versions).disabled(d.versions.isEmpty)
+                let watched = d.progress?.isWatched == true
+                Button { Task { await model.setWatched(!watched) } } label: {
+                    Label(watched ? "Vu" : "Marquer comme vu", systemImage: watched ? "checkmark.circle.fill" : "checkmark.circle")
+                }
+                .focused($focused, equals: .watched)
             }
             if d.trailer != nil {
                 Button { model.playTrailer() } label: { Label("Bande-annonce", systemImage: "film") }.focused($focused, equals: .trailer)
@@ -261,6 +266,14 @@ private struct DetailContent: View {
                     .buttonStyle(.bordered)
                     .tint(model.selectedSeason == s.number ? Theme.accent : nil)
                     .focused($focused, equals: .season(s.number))
+                    .contextMenu {
+                        Button { Task { await model.setWatched(true, season: s.number) } } label: {
+                            Label("Marquer la saison comme vue", systemImage: "checkmark.circle")
+                        }
+                        Button { Task { await model.setWatched(false, season: s.number) } } label: {
+                            Label("Marquer la saison comme non vue", systemImage: "circle")
+                        }
+                    }
                 }
             }
             if let n = model.selectedSeason {
@@ -274,6 +287,12 @@ private struct DetailContent: View {
                     ForEach(model.episodes(in: n)) { e in
                         EpisodeRow(episode: e, seriesLanguage: model.seriesChoice?.language) { Task { await model.play(episode: e) } }
                             .focused($focused, equals: .episode(e.id))
+                            .contextMenu {
+                                let watched = e.progress?.isWatched == true
+                                Button { Task { await model.setWatched(!watched, episode: e) } } label: {
+                                    Label(watched ? "Marquer comme non vu" : "Marquer comme vu", systemImage: watched ? "circle" : "checkmark.circle")
+                                }
+                            }
                     }
                 }
             }

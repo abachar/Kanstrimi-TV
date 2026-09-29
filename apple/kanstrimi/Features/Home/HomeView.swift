@@ -39,6 +39,12 @@ struct HomeView: View {
         }
     }
 
+    /// Long press on a « Reprendre » card: out of the row, or seen (it leaves the row too).
+    private func resumeActions(_ card: Card, model: HomeModel) -> [CardAction] {
+        [CardAction(title: "Retirer de « Reprendre »", systemImage: "xmark.circle") { Task { await model.removeFromResume(card) } },
+         CardAction(title: "Marquer comme vu", systemImage: "checkmark.circle") { Task { await model.markWatched(card) } }]
+    }
+
     @ViewBuilder private func content(_ model: HomeModel) -> some View {
         if let home = model.home {
             ScrollView {
@@ -51,7 +57,8 @@ struct HomeView: View {
                     }
                     if let hero = home.hero { heroView(hero, model: model) }
                     ForEach(home.rows) { row in
-                        CardRow(title: row.title, cards: row.cards, landscape: row.kind == .resume) { card in
+                        CardRow(title: row.title, cards: row.cards, landscape: row.kind == .resume,
+                                actions: row.kind == .resume ? { card in resumeActions(card, model: model) } : { _ in [] }) { card in
                             if row.kind == .resume { model.resume(card) } else { env.open(card.id) }
                         }
                     }
@@ -168,6 +175,18 @@ final class HomeModel {
                                   versions: hero.versions, resumeAt: p?.isResumable == true ? p?.position : nil,
                                   duration: p?.duration ?? hero.runtime.map { TimeInterval($0 * 60) })
         if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
+    }
+
+    func removeFromResume(_ card: Card) async {
+        env.progressQueue.drop(card.id)
+        guard (try? await env.call { try await env.client.removeFromResume(id: card.id) }) != nil else { return }
+        await load()
+    }
+
+    func markWatched(_ card: Card) async {
+        env.progressQueue.drop(card.id)
+        guard (try? await env.call { try await env.client.setWatched(id: card.id, true, season: nil) }) != nil else { return }
+        await load()
     }
 
     /// "Reprendre" launches the player directly: one call for the playback context, no sheet.

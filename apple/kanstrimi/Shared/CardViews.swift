@@ -117,11 +117,20 @@ struct ResumeCard: View {
 }
 
 /// Horizontal row with a title, used on the home screen and in search.
+/// An entry of a card's context menu (long press on tvOS and iOS, right click on the Mac).
+struct CardAction {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+}
+
 struct CardRow: View {
     @Environment(\.metrics) private var metrics
     let title: String
     let cards: [Card]
     var landscape = false
+    /// The context menu of a card; none when empty.
+    var actions: (Card) -> [CardAction] = { _ in [] }
     let onSelect: (Card) -> Void
 
     var body: some View {
@@ -130,10 +139,17 @@ struct CardRow: View {
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
                     ForEach(cards) { c in
-                        if landscape {
-                            ResumeCard(card: c) { onSelect(c) }
-                        } else {
-                            PosterCard(card: c) { onSelect(c) }
+                        Group {
+                            if landscape {
+                                ResumeCard(card: c) { onSelect(c) }
+                            } else {
+                                PosterCard(card: c) { onSelect(c) }
+                            }
+                        }
+                        .contextMenu {
+                            ForEach(Array(actions(c).enumerated()), id: \.offset) { _, a in
+                                Button(action: a.action) { Label(a.title, systemImage: a.systemImage) }
+                            }
                         }
                     }
                 }

@@ -55,6 +55,8 @@ cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Fu
 
 **Lecteur Mac** : espace = pause, flèches = ±10 s (maintenues : avance rapide) ou zapping, F = plein écran, Échap = fermer, survol = affiche les contrôles.
 
+**Reprendre et vu** : appui long sur une carte de « Reprendre » (accueil) = Retirer ou Marquer comme vu ; fiche d'un film = bouton « Marquer comme vu » / « Vu » ; appui long sur un épisode = vu / non vu, sur un bouton de saison = toute la saison. La progression en attente du titre est oubliée (`ProgressQueue.drop`) pour qu'un rejeu ne le ramène pas.
+
 **Programme du direct** : dans le lecteur, le panneau (tvOS : flèche droite ; iPhone : « Programme » ou « ⋯ ») ouvre sur l'onglet Programme, qui remplace Infos : `GET /channels/{id}/programmes`, du programme en cours jusqu'à 6 h, rechargé à chaque zapping ; un échec se lit « Programme inconnu ».
 
 **Direct** : jamais de pause, comme une télé (`PlayerService.togglePlayPause`/`pause` l'ignorent sur toutes les plateformes) ; Lecture relance seulement un flux arrêté par une coupure.

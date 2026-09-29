@@ -89,6 +89,12 @@ final class ProgressQueue {
         persist()
     }
 
+    /// Forgets a content's pending report: removed or marked by hand, a late replay must not bring it back.
+    func drop(_ id: ContentID) {
+        pending.removeAll { $0.contentID == id }
+        persist()
+    }
+
     /// Replays everything; stops at the first failure and keeps the rest.
     func flush(using send: (ProgressReport) async throws -> Void) async {
         while let first = pending.first {

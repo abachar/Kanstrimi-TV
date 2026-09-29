@@ -76,6 +76,15 @@ struct ProgressQueueTests {
         #expect(queue.pending.last?.position == 30)
     }
 
+    @Test("Un titre retiré ou marqué à la main sort de la file")
+    func dropForgetsAContent() {
+        let queue = ProgressQueue(fileURL: nil)
+        queue.enqueue(Fixtures.report("a", 10))
+        queue.enqueue(Fixtures.report("b", 20))
+        queue.drop(ContentID("a"))
+        #expect(queue.pending.map(\.contentID.rawValue) == ["b"])
+    }
+
     @Test("La file survit à un redémarrage")
     func persists() {
         let url = Fixtures.tempFile("queue")

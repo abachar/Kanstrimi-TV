@@ -86,6 +86,14 @@ final class HTTPCatalogClient: CatalogClient {
     func search(_ query: String, scope: SearchScope) async throws -> SearchResults {
         try await send("GET", "search", query: [URLQueryItem(name: "q", value: query), URLQueryItem(name: "scope", value: scope.rawValue)])
     }
+    func removeFromResume(id: ContentID) async throws {
+        try await sendNoContent("DELETE", "playback/\(id.rawValue)/progress")
+    }
+    func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws {
+        struct Body: Encodable { let watched: Bool; let season: Int? }
+        try await sendNoContent("PUT", "playback/\(id.rawValue)/watched", body: Body(watched: watched, season: season))
+    }
+
     func setFavorite(id: ContentID, _ favorite: Bool) async throws {
         try await sendNoContent(favorite ? "PUT" : "DELETE", "favorites/\(id.rawValue)")
     }

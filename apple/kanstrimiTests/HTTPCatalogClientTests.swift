@@ -231,4 +231,24 @@ struct HTTPCatalogClientTests {
         #expect(day[0].overview == "Les titres")
         #expect(try last.url?.path() == "/player/channels/live:fr-tf1/programmes")
     }
+
+    @Test("Retirer de « Reprendre » et marquer vu : DELETE …/progress, PUT …/watched")
+    func resumeCleanupTravels() async throws {
+        answer(204, "")
+        try await client.removeFromResume(id: ContentID("tmdb:movie:603"))
+        #expect(try last.httpMethod == "DELETE")
+        #expect(try last.url?.path() == "/player/playback/tmdb:movie:603/progress")
+
+        try await client.setWatched(id: ContentID("tmdb:tv:1396"), true, season: 2)
+        #expect(try last.httpMethod == "PUT")
+        #expect(try last.url?.path() == "/player/playback/tmdb:tv:1396/watched")
+        let body = try #require(JSONSerialization.jsonObject(with: StubProtocol.bodies.last ?? Data()) as? [String: Any])
+        #expect(body["watched"] as? Bool == true)
+        #expect(body["season"] as? Int == 2)
+
+        try await client.setWatched(id: ContentID("tmdb:movie:603"), false, season: nil)
+        let movieBody = try #require(JSONSerialization.jsonObject(with: StubProtocol.bodies.last ?? Data()) as? [String: Any])
+        #expect(movieBody["watched"] as? Bool == false)
+        #expect(movieBody["season"] == nil)
+    }
 }

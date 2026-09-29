@@ -365,6 +365,23 @@ final class MockCatalogClient: CatalogClient {
         return SearchResults(query: query, best: best, movies: m, series: s, live: l)
     }
 
+    func removeFromResume(id: ContentID) async throws {
+        try await gate()
+        progress[id] = nil
+    }
+
+    /// Like the server: « vu » = the position at the end, « non vu » = no progress at all.
+    func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws {
+        try await gate()
+        let ids = series.first { $0.id == id }.map { s in
+            (s.seasons ?? []).filter { season == nil || $0.number == season }.flatMap(\.episodes).map(\.id)
+        } ?? [id]
+        for id in ids {
+            let d = max(1, progress[id]?.duration ?? 1)
+            progress[id] = watched ? Progress(position: d, duration: d, finished: true) : nil
+        }
+    }
+
     func setFavorite(id: ContentID, _ favorite: Bool) async throws {
         try await gate()
         if favorite { favorites.insert(id) } else { favorites.remove(id) }

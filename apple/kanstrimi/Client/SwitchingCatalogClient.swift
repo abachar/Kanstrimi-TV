@@ -30,6 +30,8 @@ final class SwitchingCatalogClient: CatalogClient {
     func programmes(channel id: ContentID) async throws -> [Programme] { try await active.programmes(channel: id) }
     func playback(id: ContentID) async throws -> Playback { try await active.playback(id: id) }
     func report(_ progress: ProgressReport) async throws { try await active.report(progress) }
+    func removeFromResume(id: ContentID) async throws { try await active.removeFromResume(id: id) }
+    func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws { try await active.setWatched(id: id, watched, season: season) }
     func search(_ query: String, scope: SearchScope) async throws -> SearchResults { try await active.search(query, scope: scope) }
     func setFavorite(id: ContentID, _ favorite: Bool) async throws { try await active.setFavorite(id: id, favorite) }
 }

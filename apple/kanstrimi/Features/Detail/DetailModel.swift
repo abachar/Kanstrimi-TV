@@ -45,6 +45,15 @@ final class DetailModel {
         detail?.seasons?.first { $0.number == season }?.episodes ?? []
     }
 
+    /// Seen or not: the movie, one episode, or a whole season; the sheet reloads with the new progress.
+    func setWatched(_ watched: Bool, episode: Episode? = nil, season: Int? = nil) async {
+        let target = episode?.id ?? id
+        let dropped = season.map { episodes(in: $0).map(\.id) } ?? [target]
+        dropped.forEach { env.progressQueue.drop($0) }
+        guard (try? await env.call { try await env.client.setWatched(id: target, watched, season: season) }) != nil else { return }
+        await refresh()
+    }
+
     func toggleFavorite() async {
         guard var d = detail, !favoriteBusy else { return }
         favoriteBusy = true

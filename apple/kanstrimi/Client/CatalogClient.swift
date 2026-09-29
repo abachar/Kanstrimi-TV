@@ -123,6 +123,10 @@ protocol CatalogClient: AnyObject {
     func playback(id: ContentID) async throws -> Playback
     /// `PUT /playback/{id}/progress`
     func report(_ progress: ProgressReport) async throws
+    /// `DELETE /playback/{id}/progress`: out of « Reprendre », the resume point forgotten.
+    func removeFromResume(id: ContentID) async throws
+    /// `PUT /playback/{id}/watched`: a movie or an episode; on a series id with `season`, that whole season.
+    func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws
 
     // Search and favourites
     /// `GET /search?q=&scope=`
