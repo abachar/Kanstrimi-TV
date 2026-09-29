@@ -114,6 +114,10 @@ final class PlayerService: NSObject {
     static let nextEpisodeCountdown = 10
     /// Live: no new picture for this long means the source froze.
     static let freezeTimeout: TimeInterval = 4
+    /// Films and episodes: longer, a seek in a remote MKV can hold the image for a few seconds.
+    static let vodFreezeTimeout: TimeInterval = 15
+    /// Films and episodes: a stop further than this from the end is a cut, not the end of the file.
+    static let endMargin: TimeInterval = 60
     /// Fast forward / rewind speeds, one more level every 2 s of hold.
     static let scanRates: [TimeInterval] = [10, 30, 60, 120, 300]
 
@@ -394,11 +398,13 @@ final class PlayerService: NSObject {
         if let source { failedSources.clear(source.id) }
     }
 
-    /// Live: once started, a stream whose image stops moving is a failed source (next source,
-    /// retry, then the dialog): the bandwidth at home is not the bottleneck, the source is.
+    /// Once started, a stream whose image stops moving or disappears while playing is a failed source
+    /// (next source, retry at the same position, then the dialog): the bandwidth at home is not the
+    /// bottleneck, the source is. The upstream closing the connection ends in `.stopped` instead,
+    /// handled in `handle(state:)`.
     private func armWatchdog() {
         watchdog?.cancel()
-        guard isLive else { return }
+        let timeout = isLive ? Self.freezeTimeout : Self.vodFreezeTimeout
         watchdog = Task { [weak self] in
             var last: UInt64?
             var still: TimeInterval = 0
@@ -408,10 +414,11 @@ final class PlayerService: NSObject {
                 guard let self, !Task.isCancelled else { return }
                 guard isStarted, phase == .playing, let stats = player.media?.statistics else { last = nil; still = 0; continue }
                 let pictures = stats.displayedPictures
-                if let last, pictures <= last { still += tick } else { still = 0 }
+                // A lost video output (black screen) counts as a frozen image.
+                if !player.hasVideoOut || last.map({ pictures <= $0 }) == true { still += tick } else { still = 0 }
                 last = pictures
-                if still >= Self.freezeTimeout {
-                    log.info("live freeze")
+                if still >= timeout {
+                    log.info("freeze at \(self.time, format: .fixed(precision: 0))")
                     handleStreamFailure()
                     return
                 }
@@ -573,7 +580,12 @@ extension PlayerService: VLCMediaPlayerDelegate {
             refreshTracks()
         case .paused: phase = .paused
         case .stopped:
-            if phase == .playing || phase == .paused {
+            // The upstream closing the connection ends like the file does: live has no end, and a
+            // film stopping far from its end was cut.
+            if isStarted, phase == .playing, isLive || (duration > 0 && duration - time > Self.endMargin) {
+                log.info("cut at \(self.time, format: .fixed(precision: 0))")
+                handleStreamFailure()
+            } else if phase == .playing || phase == .paused {
                 phase = .ended
                 if context?.next != nil, nextContext != nil, !nextTriggered, preferences.autoPlayNext { playNextNow() }
             }

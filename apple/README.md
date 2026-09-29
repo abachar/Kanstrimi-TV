@@ -57,8 +57,14 @@ cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Fu
 
 **Direct** : jamais de pause, comme une télé (`PlayerService.togglePlayPause`/`pause` l'ignorent sur toutes les plateformes) ; Lecture relance seulement un flux arrêté par une coupure.
 Une fois l'image affichée, un chien de garde compte les images affichées (`VLCMedia.statistics`) : 4 s sans
-nouvelle image = source en cause (le débit ne l'est pas), bascule d'échec : source suivante, nouvel essai
-(nouveau jeton via le `302`), puis le dialogue.
+nouvelle image ou sans sortie vidéo = source en cause (le débit ne l'est pas), bascule d'échec : source suivante, nouvel essai
+(nouveau jeton via le `302`), puis le dialogue. Un `.stopped` en direct (connexion fermée par l'amont, VLC ne se
+reconnecte pas) prend la même bascule : un direct n'a pas de fin.
+
+**Coupure en film ou épisode** : même bascule, reprise à la position courante. Deux signaux une fois
+l'image affichée : 15 s sans nouvelle image en lecture (plus long qu'en direct, un seek dans un MKV
+distant fige l'image quelques secondes), ou un `.stopped` à plus de 60 s de la fin ; plus près, c'est la
+fin du fichier (épisode suivant).
 
 **Avance rapide** (films, épisodes ; ◀ ▶ maintenus sur la télécommande via `PressCatcher`) : la cible avance
 de 10, 30, 60, 120 puis 300 s par seconde (un palier toutes les 2 s), affichée à la place du temps
