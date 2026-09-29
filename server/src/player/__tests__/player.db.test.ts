@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import { player as api } from "..";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { verify, lockForTests, isUnlocked } from "@/config";
-import { addStudio, listStudios, moveStudio, removeStudio, runGrouping, studioSuggestions } from "@/catalog";
+import { addStudio, listStudios, moveStudio, removeStudio, runGrouping, runNaming, studioSuggestions } from "@/catalog";
 import { resetPairingState } from "@/devices";
 import { setSettings } from "@/config";
 
@@ -229,6 +229,7 @@ beforeAll(async () => {
     { kind: "series", xtreamId: multi.xtreamId, data: providerInfo({ "1": ["e11", "e12"], "2": ["e21"] }, { "2:1": "Marée haute" }) },
     { kind: "series", xtreamId: vost.xtreamId, data: providerInfo({ "1": ["e11v", "e12v"] }, {}) },
   ]);
+  await runNaming();
   await runGrouping();
 });
 afterAll(closeDb);
@@ -658,6 +659,7 @@ describe("Nouveautés, release order and visible variants", () => {
         credits: { cast: [], crew: [] },
       });
     }
+    await runNaming();
     await runGrouping();
   });
 
@@ -724,6 +726,7 @@ describe("sagas", () => {
         credits: { cast: [], crew: [] },
       });
     }
+    await runNaming();
     await runGrouping();
   });
 
@@ -803,6 +806,7 @@ describe("studios and top 10", () => {
       { mediaType: "movie", rank: 4, tmdbId: 603 },
       { mediaType: "tv", rank: 1, tmdbId: 4003 },
     ]);
+    await runNaming();
     await runGrouping();
   });
 

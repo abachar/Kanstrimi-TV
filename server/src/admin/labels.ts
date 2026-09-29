@@ -58,6 +58,7 @@ export const STAT_LABELS: Record<string, string> = {
   unmatched: "non trouvés",
   errors: "erreurs",
   ids_rejected: "ids amont rejetés",
+  items_named: "noms analysés",
   items_grouped: "variantes",
   contents: "contenus",
   multi_variant: "à plusieurs variantes",

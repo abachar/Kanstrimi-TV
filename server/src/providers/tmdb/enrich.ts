@@ -1,5 +1,5 @@
 import { getSettings } from "@/config";
-import { db, schema, tmdbMediaType, visibleItem } from "@/db";
+import { db, schema, tmdbMediaType } from "@/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import pLimit from "p-limit";
 import { TmdbClient, type TmdbDetails } from "./client";
@@ -60,15 +60,15 @@ export async function getCachedDetails(mediaType: "movie" | "tv", tmdbId: number
 }
 
 /**
- * Match every pending vod/series entry against TMDB and cache its details. Reads the
- * `clean_title` the grouping step wrote; the pipeline regroups afterwards.
+ * Match every pending vod/series entry against TMDB, hidden ones included, and cache its
+ * details. Reads the `clean_title` and `year` the naming wrote after the import; the pipeline
+ * filters and regroups afterwards.
  */
-export async function runEnrich(opts: { limit?: number; onlyVisible?: boolean } = {}) {
+export async function runEnrich(opts: { limit?: number } = {}) {
   const client = await getTmdbClient();
   if (!client) throw new Error("Clé API TMDB non configurée");
   const stats = { processed: 0, matched: 0, unmatched: 0, errors: 0, ids_rejected: 0 };
   const where = [inArray(schema.items.kind, ["vod", "series"]), eq(schema.items.matchStatus, "pending")];
-  if (opts.onlyVisible !== false) where.push(visibleItem);
   const pending = await db
     .select({
       id: schema.items.id,

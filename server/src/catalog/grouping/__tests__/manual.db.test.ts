@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
 import { itemById, contentById } from "@/catalog";
 import { pageGroups } from "@/admin/groups/data";
-import { runGrouping } from "../group";
+import { runGrouping, runNaming } from "../group";
 import { splitVariant, resetVariant, mergeVariantInto, mergeCandidates, groupVariants } from "../manual";
 
 let ids: number[] = [];
@@ -17,6 +17,7 @@ beforeAll(async () => {
       { kind: "vod", xtreamId: "3", name: "|FR| Heat", cat: "10", matchStatus: "unmatched" },
     ])
   ).map((r) => r.id);
+  await runNaming();
   await runGrouping();
 });
 afterAll(closeDb);

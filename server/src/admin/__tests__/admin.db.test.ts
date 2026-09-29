@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
 import { verify } from "@/config";
 import { itemById } from "@/catalog";
-import { run } from "@/catalog";
+import { run, runNaming } from "@/catalog";
 import { setFavorite, setProgress, listProgress } from "@/player";
 import { admin } from "..";
 
@@ -41,6 +41,7 @@ beforeAll(async () => {
     { kind: "live", xtreamId: "101", name: "|IT| BELLA RADIO", section: "|IT| ITALIA |IT|" },
   ]);
   matrixId = items[0].id;
+  await runNaming(); // what the source step does after the import
   expect(await run("group")).toBe(true); // journalled through the pipeline, so /admin/logs has a row
 });
 afterAll(closeDb);

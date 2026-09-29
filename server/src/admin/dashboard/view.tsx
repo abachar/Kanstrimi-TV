@@ -88,15 +88,15 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
         <div class="md:col-span-6 lg:col-span-4">
           <Card
             title="Traitement"
-            hint="Étapes indépendantes : lire la source → appliquer les filtres → enrichir (TMDB) → grouper les variantes"
+            hint="Étapes indépendantes : lire la source → enrichir (TMDB) → appliquer les filtres → grouper les variantes"
           >
             <div class="flex flex-col gap-4">
               {/* On a phone the one-shot action comes first, above the fold; on md+ it goes back to the right. */}
               <form method="post" class="grid gap-2 md:flex md:flex-wrap">
                 <Btn job="pipeline" label="Tout enchaîner" variant="primary" cls="md:order-last md:ms-auto" />
                 <Btn job="source" label="1. Lire la source" variant="outline" />
-                <Btn job="filters" label="2. Filtres" variant="outline" />
-                <Btn job="enrich" label="3. TMDB" variant="outline" />
+                <Btn job="enrich" label="2. TMDB" variant="outline" />
+                <Btn job="filters" label="3. Filtres" variant="outline" />
                 <Btn job="group" label="4. Grouper" variant="outline" />
                 <Btn job="trending" label="5. Tendances" variant="outline" />
                 <Btn job="epg" label="EPG" variant="outline" />

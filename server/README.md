@@ -44,16 +44,18 @@ de son module, exécutée seule sous le journal (`sync_logs`) et refusée si ell
 
 | Étape | Module | Rôle |
 |---|---|---|
-| `source` | `providers/xtream/import.ts` | lit le catalogue Xtream dans la base, supprime les disparus. Les lignes séparatrices du direct (`•●★---|FR| SPORT |FR|---★●•`) ne sont pas des entrées : chacune nomme la `section` de ce qui la suit. Les radios (`stream_type: radio_streams`) arrivent sans catégorie : elles sont rangées dans une catégorie « RADIOS » à nous (`_radio`), qu'un interrupteur ou une règle masque comme les autres. |
+| `source` | `providers/xtream/import.ts` | lit le catalogue Xtream dans la base, supprime les disparus. Les lignes séparatrices du direct (`•●★---|FR| SPORT |FR|---★●•`) ne sont pas des entrées : chacune nomme la `section` de ce qui la suit. Les radios (`stream_type: radio_streams`) arrivent sans catégorie : elles sont rangées dans une catégorie « RADIOS » à nous (`_radio`), qu'un interrupteur ou une règle masque comme les autres. Puis `runNaming` (`catalog/grouping/group.ts`, sans réseau) analyse chaque nom : `clean_title`, `year`, marché, langue, qualité, `adult`, et pour le direct le `theme` de la variante. |
+| `enrich` | `providers/tmdb/enrich.ts` | matching TMDB de tous les éléments en attente, masqués compris (identifiant amont vérifié par preuves, puis recherche par titre) ; lit `clean_title` et `year` |
 | `filters` | `catalog/rules/apply.ts` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau |
-| `enrich` | `providers/tmdb/enrich.ts` | matching TMDB des éléments en attente (identifiant amont vérifié par preuves, puis recherche par titre) |
-| `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; écrit aussi `clean_title`, `year`, et pour le direct le `theme` de chaque variante puis les `themes` du contenu |
+| `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; fiches depuis le cache TMDB, agrégats (dont les `themes` du contenu) sur les variantes visibles |
 | `trending` | `providers/tmdb/trending.ts` | remplace `trending` par les tendances TMDB de la semaine (films et séries, 100 de chaque) ; les rangées « Top 10 » les croisent avec le catalogue visible |
 | `epg` | `providers/xtream/epg.ts` | lit le XMLTV amont en flux (`saxes`) et remplit `epg_programmes` pour les seules chaînes visibles ; un import vide ou en échec garde le guide précédent. Tous les trois jours à 03:00 (`epg_cron`), le fournisseur donnant six jours |
 
-`runAll()` = `source → filters → group`, puis `enrich → group → trending` si une clé TMDB existe. Depuis le
-tableau de bord, « Lire la source » enchaîne aussi filtres et groupement, « Enrichir » regroupe
-ensuite ; « Tout enchaîner » appelle `runAll()`. Deux jobs `croner` (`protect: true`) lancent
+`runAll()` = `source → enrich → filters → group → trending`, sans les deux étapes TMDB s'il n'y a pas de clé.
+TMDB passe avant les filtres : tout est matché une fois pour toutes, et démasquer une catégorie ou
+changer une règle ne fait jamais apparaître de titres non matchés. Le groupement reste après les
+filtres, ses agrégats ne comptant que les variantes visibles. Depuis le tableau de bord, « Lire la
+source » enchaîne aussi filtres et groupement, « TMDB » regroupe ensuite ; « Tout enchaîner » appelle `runAll()`. Deux jobs `croner` (`protect: true`) lancent
 `runAll` sur `sync_cron` et `epg` sur `epg_cron`, en heure locale ; ils sont recréés à chaque
 enregistrement des Paramètres (`onSettingsChange`) et ne font rien tant que le coffre est verrouillé.
 
@@ -87,7 +89,7 @@ player/     /player, un fichier par ressource (devices, stream, info, home, list
 catalog/    le domaine : naming (la grammaire des noms), keys (contentKey, parseKey, préfixes),
             queries (lectures partagées), rules/ (moteur, application, gestion), grouping/ (group,
             split/merge manuel), matching (correction TMDB manuelle), episodes (arbre d'une série,
-            rafraîchi à la demande), journal, pipeline (les cinq étapes, le verrou, les crons)
+            rafraîchi à la demande), journal, pipeline (les six étapes, le verrou, les crons)
 devices/    appairage par code, jetons, déverrouillage du coffre au premier appel
 providers/  xtream/ (client, xtreamFromSettings, import, epg, upstreamStreamUrl), tmdb/ (client,
             match, enrich, card-fields, cache images + route /img). Un provider ne connaît pas le catalogue.

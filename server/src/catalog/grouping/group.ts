@@ -21,7 +21,7 @@ import { searchText } from "@/shared";
 /**
  * The `group` step: no network, idempotent, all set-based SQL.
  *
- *  1. items → parsed name + category hints → content_key and variant columns
+ *  1. items → content_key, from the columns `runNaming` wrote (run after each import)
  *  2. contents upserted from the keys, items linked by id
  *  3. card fields copied from tmdb_cache (or just the title for fallbacks)
  *  4. aggregates (variant count, languages, quality, visibility)
@@ -95,7 +95,12 @@ async function categoryHints() {
   return map;
 }
 
-async function assignKeys(onlyIds?: number[]): Promise<number> {
+/**
+ * Names → variant columns (clean_title, year, market, language, quality, tags, adult, theme).
+ * Depends on the name and the category only, so it runs right after the import: TMDB matching
+ * reads `clean_title` and `year`, the grouping reads them all.
+ */
+export async function runNaming(onlyIds?: number[]): Promise<{ items_named: number }> {
   const hints = await categoryHints();
   let last = 0,
     total = 0;
@@ -108,9 +113,6 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
         kind: schema.items.kind,
         name: schema.items.name,
         cat: schema.items.categoryXtreamId,
-        tmdbId: schema.items.tmdbId,
-        matchStatus: schema.items.matchStatus,
-        keyOverride: schema.items.keyOverride,
         section: schema.items.section,
       })
       .from(schema.items)
@@ -122,7 +124,6 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
     total += rows.length;
 
     const ids: number[] = [],
-      keys: string[] = [],
       titles: string[] = [],
       years: (number | null)[] = [],
       markets: (string | null)[] = [];
@@ -141,17 +142,6 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
       const quality = p.quality ?? h?.quality ?? null;
       const dr = p.dynamicRange ?? h?.dynamicRange ?? null;
       ids.push(r.id);
-      keys.push(
-        contentKey({
-          kind: r.kind,
-          title: p.title,
-          year: p.year,
-          market,
-          tmdbId: r.tmdbId,
-          matchStatus: r.matchStatus,
-          keyOverride: r.keyOverride,
-        }),
-      );
       titles.push(p.title);
       years.push(p.year ?? null);
       markets.push(market);
@@ -166,12 +156,59 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
     }
     await pg`
       update items i set
-        content_key = u.key, clean_title = u.title, year = u.year,
+        clean_title = u.title, year = u.year,
         market = u.market, lang = u.lang, quality = u.quality, quality_rank = u.qrank, dynamic_range = u.dr,
         tags = string_to_array(u.tags, ','), season_hint = u.season, adult = u.adult::boolean, theme = u.theme
-      from unnest(${ids}::int[], ${keys}::text[], ${titles}::text[], ${years}::int[], ${markets}::text[], ${langs}::text[],
+      from unnest(${ids}::int[], ${titles}::text[], ${years}::int[], ${markets}::text[], ${langs}::text[],
                   ${qualities}::text[], ${qranks}::int[], ${drs}::text[], ${tags}::text[], ${seasons}::int[], ${adults.map(String)}::text[], ${themes}::text[])
-        as u(id, key, title, year, market, lang, quality, qrank, dr, tags, season, adult, theme)
+        as u(id, title, year, market, lang, quality, qrank, dr, tags, season, adult, theme)
+      where i.id = u.id`;
+    if (rows.length < CHUNK) break;
+  }
+  return { items_named: total };
+}
+
+/** content_key from the columns `runNaming` wrote and the TMDB match. */
+async function assignKeys(onlyIds?: number[]): Promise<number> {
+  let last = 0,
+    total = 0;
+  for (;;) {
+    const where = [gt(schema.items.id, last)];
+    if (onlyIds) where.push(inArray(schema.items.id, onlyIds));
+    const rows = await db
+      .select({
+        id: schema.items.id,
+        kind: schema.items.kind,
+        name: schema.items.name,
+        cleanTitle: schema.items.cleanTitle,
+        year: schema.items.year,
+        market: schema.items.market,
+        tmdbId: schema.items.tmdbId,
+        matchStatus: schema.items.matchStatus,
+        keyOverride: schema.items.keyOverride,
+      })
+      .from(schema.items)
+      .where(and(...where))
+      .orderBy(asc(schema.items.id))
+      .limit(CHUNK);
+    if (!rows.length) break;
+    last = rows[rows.length - 1].id;
+    total += rows.length;
+    const ids = rows.map((r) => r.id);
+    const keys = rows.map((r) =>
+      contentKey({
+        kind: r.kind,
+        title: r.cleanTitle ?? r.name,
+        year: r.year,
+        market: r.market,
+        tmdbId: r.tmdbId,
+        matchStatus: r.matchStatus,
+        keyOverride: r.keyOverride,
+      }),
+    );
+    await pg`
+      update items i set content_key = u.key
+      from unnest(${ids}::int[], ${keys}::text[]) as u(id, key)
       where i.id = u.id`;
     if (rows.length < CHUNK) break;
   }

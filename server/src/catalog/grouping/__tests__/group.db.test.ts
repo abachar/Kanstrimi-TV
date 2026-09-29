@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
-import { runGrouping, regroupItems, refreshVisibility, groupingCounts } from "../group";
+import { runGrouping, runNaming, regroupItems, refreshVisibility, groupingCounts } from "../group";
 import { inArray } from "drizzle-orm";
 
 const content = async (key: string) => (await db.select().from(schema.contents).where(eq(schema.contents.key, key)))[0];
@@ -104,6 +104,7 @@ describe("runGrouping", () => {
   afterAll(closeDb);
 
   it("builds one content per work, with card fields from TMDB and aggregates from the variants", async () => {
+    await runNaming();
     const stats = await runGrouping();
     expect(stats.items_grouped).toBe(12);
     expect(stats.orphans_removed).toBe(0);
@@ -186,6 +187,7 @@ describe("runGrouping", () => {
 
   it("is idempotent", async () => {
     const before = await db.select({ id: schema.contents.id, key: schema.contents.key }).from(schema.contents).orderBy(schema.contents.id);
+    await runNaming();
     await runGrouping();
     const after = await db.select({ id: schema.contents.id, key: schema.contents.key }).from(schema.contents).orderBy(schema.contents.id);
     expect(after).toEqual(before);
@@ -233,6 +235,7 @@ describe("runGrouping", () => {
 
   it("removes a content whose last variant disappeared", async () => {
     await db.delete(schema.items).where(eq(schema.items.xtreamId, "102"));
+    await runNaming();
     const stats = await runGrouping();
     expect(stats.orphans_removed).toBe(1);
     expect(await content("live:be-tf1")).toBeUndefined();

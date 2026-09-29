@@ -1,5 +1,5 @@
 export { ensureEpisodes, seasonsOf, UpstreamUnavailable } from "./episodes";
-export { groupingCounts, runGrouping } from "./grouping/group";
+export { groupingCounts, runGrouping, runNaming } from "./grouping/group";
 export { groupVariants, type MergeCandidate, mergeCandidates, mergeVariantInto, resetVariant, splitVariant } from "./grouping/manual";
 export { closeOrphanLogs, recentLogs } from "./journal";
 export { hasFallbackKey, hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
