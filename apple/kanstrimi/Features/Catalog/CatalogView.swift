@@ -11,7 +11,8 @@ struct CatalogView: View {
     @State private var isLoading = false
     @State private var seeAll: CatalogRow?
     @State private var sagas: Page<Saga>?
-    @State private var studios: [Studio] = []
+    /// nil = not loaded yet (or the call failed): retried at the next appearance.
+    @State private var studios: [Studio]?
     @State private var openSaga: SagaRef?
     @State private var openStudio: Studio?
     @State private var allSagas = false
@@ -34,7 +35,7 @@ struct CatalogView: View {
                             ShelfRow(row: row, ranked: row.id == "top10", onSelect: { env.open($0.id) },
                                      onSeeAll: row.total > row.cards.count ? { seeAll(row) } : nil)
                             if row.id == hubsAnchor {
-                                if !studios.isEmpty { StudioShelf(studios: studios) { open($0) } }
+                                if let studios, !studios.isEmpty { StudioShelf(studios: studios) { open($0) } }
                                 if let sagas, !sagas.items.isEmpty {
                                     SagaShelf(sagas: sagas.items, total: sagas.total ?? sagas.items.count, onSelect: { open($0) },
                                               onSeeAll: sagas.nextCursor != nil ? { seeAllSagas() } : nil)
@@ -50,7 +51,8 @@ struct CatalogView: View {
             }
         }
         .background(Theme.background)
-        .task { if rows.isEmpty { await load() } }
+        // Every appearance: on tvOS, crossing the tab bar selects then leaves this tab, which cancels the load midway.
+        .task { await load() }
         .platformCover(item: $seeAll) { row in
             GenreGridView(kind: kind, row: row).environment(env)
         }
@@ -84,18 +86,22 @@ struct CatalogView: View {
         if Platform.isTV { seeAll = row } else { env.navigate(.genre(kind, row)) }
     }
 
+    /// Loads what is still missing: the shelves once, then the studios and sagas, whose failure just
+    /// leaves them out until the next appearance.
     private func load() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            rows = try await env.call { try await env.client.rows(kind: kind) }
-            error = nil
-            // A failure just leaves these shelves out.
-            studios = (try? await env.call { try await env.client.studios(kind: kind) }) ?? []
-            if kind == .movie { sagas = try? await env.call { try await env.client.sagas(cursor: nil) } }
-        } catch {
-            self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
+        if rows.isEmpty {
+            isLoading = true
+            defer { isLoading = false }
+            do {
+                rows = try await env.call { try await env.client.rows(kind: kind) }
+                error = nil
+            } catch {
+                if !Task.isCancelled { self.error = (error as? CatalogError) ?? .server(error.localizedDescription) }
+                return
+            }
         }
+        if studios == nil { studios = try? await env.call { try await env.client.studios(kind: kind) } }
+        if kind == .movie, sagas == nil { sagas = try? await env.call { try await env.client.sagas(cursor: nil) } }
     }
 }
 
