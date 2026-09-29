@@ -16,8 +16,11 @@ loginRoutes.get("/", (c) =>
 );
 loginRoutes.post("/", async (c) => {
   const next = safeNext(c.req.query("next"));
-  if (!(await login(c, (await form(c)).password ?? "")))
-    return back(c, `/admin/login${next !== "/admin" ? `?next=${encodeURIComponent(next)}` : ""}`, { err: "Mot de passe incorrect" });
+  const { email, password } = await form(c);
+  if (!(await login(c, email ?? "", password ?? "")))
+    return back(c, `/admin/login${next !== "/admin" ? `?next=${encodeURIComponent(next)}` : ""}`, {
+      err: "E-mail ou mot de passe incorrect",
+    });
   return c.redirect(next, 303);
 });
 logoutRoutes.post("/", (c) => {

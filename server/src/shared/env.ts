@@ -17,6 +17,8 @@ const schema = z
         /^\$2[aby]\$/,
         "ADMIN_PASSWORD_HASH manquant ou invalide dans l'environnement — générez-le avec : npm run hash-password -- <mot-de-passe>",
       ),
+    /** The login of the admin form, next to the password. */
+    ADMIN_EMAIL: z.email("ADMIN_EMAIL invalide").default("a.bachat@hotmail.fr"),
     SESSION_SECRET: z.string().min(32, "SESSION_SECRET doit faire au moins 32 caractères").optional(),
     DATABASE_URL: z.string().optional(),
     DATA_DIR: z.string().default("./data"),
@@ -43,6 +45,8 @@ export const env = {
   isProd,
   /** bcrypt hash of the single password (admin web + IPTV client). */
   adminPasswordHash: parsed.data.ADMIN_PASSWORD_HASH,
+  /** Required with the password by the admin login form (compared case-insensitively). */
+  adminEmail: parsed.data.ADMIN_EMAIL.toLowerCase(),
   sessionSecret: parsed.data.SESSION_SECRET ?? "dev-only-insecure-secret-change-me-please-32chars",
   databaseUrl: parsed.data.DATABASE_URL ?? "postgres://kanstrimi:kanstrimi@localhost:5432/kanstrimi_db",
   dataDir: path.resolve(parsed.data.DATA_DIR),

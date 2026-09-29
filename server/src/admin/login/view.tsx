@@ -15,10 +15,16 @@ export function LoginView({ locked, error, next }: { locked: boolean; error?: st
         )}
         <form method="post" action={next ? `/admin/login?next=${encodeURIComponent(next)}` : "/admin/login"} class="flex flex-col gap-4">
           <div class="field">
+            <label class="label" for="email">
+              E-mail
+            </label>
+            <input class="input" type="email" name="email" id="email" autocomplete="username" required autofocus />
+          </div>
+          <div class="field">
             <label class="label" for="password">
               Mot de passe
             </label>
-            <input class="input" type="password" name="password" id="password" autocomplete="current-password" required autofocus />
+            <input class="input" type="password" name="password" id="password" autocomplete="current-password" required />
           </div>
           <button class="btn" data-variant="primary">
             Se connecter

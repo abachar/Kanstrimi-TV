@@ -208,7 +208,7 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   éclate les tableaux. `regroupItems` (admin), `runGrouping`, `runMerge` et `applyRules` se sérialisent entre eux.
 - **Données amont non fiables** : `xtream_id` est du texte opaque et non unique (dédoublonnage à
   l'import), les champs manquants sont tolérés, l'identifiant TMDB fourni n'est jamais cru sur parole.
-- **Secrets** : un seul mot de passe (hash bcrypt dans `.env`), clé AES-256-GCM dérivée en RAM
+- **Secrets** : un seul mot de passe (hash bcrypt dans `.env`), demandé avec l'e-mail `ADMIN_EMAIL` sur la page de connexion de l'admin (pas pour les clients IPTV), clé AES-256-GCM dérivée en RAM
   (`config/vault.ts`), chiffrement transparent des réglages sensibles dans `config/settings.ts`. Après
   un redémarrage le serveur est **verrouillé** jusqu'à la première requête authentifiée ; le premier
   appel d'un appareil appairé déverrouille grâce à `app_devices.wrapped_key`.
@@ -223,6 +223,6 @@ du dépôt) et publiée sur `ghcr.io` ; `Containerfile` multi-stage : esbuild pr
 production. Cible : Fedora CoreOS, podman rootless + systemd Quadlet, derrière Caddy.
 
 - Variables : `ADMIN_PASSWORD_HASH` (obligatoire), `DATABASE_URL` et `SESSION_SECRET`
-  (obligatoires en production), `DATA_DIR`, `PORT`, `TZ`.
+  (obligatoires en production), `ADMIN_EMAIL` (défaut `a.bachat@hotmail.fr`), `DATA_DIR`, `PORT`, `TZ`.
 - `DATA_DIR` : les caches reconstructibles (images TMDB et logos dans `images/`, base iptv-org dans `iptv-org/`) et les fichiers de log des passages (`logs/`, perdables : 90 jours d'historique). Seule la base se sauvegarde, guide des programmes compris.
 - Le mot de passe circule en clair dans les URL des players (protocole Xtream) : LAN ou HTTPS uniquement.
