@@ -27,6 +27,9 @@ export type CardFields = {
   releaseDate: string | null;
   /** Movies: the TMDB collection it belongs to. */
   saga: { id: number; name: string; posterPath: string | null; backdropPath: string | null } | null;
+  /** Studio hubs: production companies, and the networks of a series. */
+  companyIds: number[];
+  networkIds: number[];
 };
 
 const yearOf = (d?: string) => {
@@ -88,6 +91,8 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
     adult: d.adult === true,
     releaseDate: rawDate && rawDate.length >= 10 ? rawDate.slice(0, 10) : null,
     saga: sagaOf(d),
+    companyIds: idsOf(d.production_companies),
+    networkIds: movie ? [] : idsOf(d.networks),
   };
 }
 
@@ -96,3 +101,5 @@ function sagaOf(d: TmdbDetails): CardFields["saga"] {
   if (!c || !Number.isInteger(c.id) || !c.name) return null;
   return { id: c.id, name: c.name, posterPath: c.poster_path ?? null, backdropPath: c.backdrop_path ?? null };
 }
+
+const idsOf = (list?: { id: number }[]) => [...new Set((list ?? []).map((x) => x.id).filter(Number.isInteger))];

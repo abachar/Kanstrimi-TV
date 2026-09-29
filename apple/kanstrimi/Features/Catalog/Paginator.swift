@@ -1,11 +1,16 @@
 import Foundation
 import Observation
 
+/// A query paged by an opaque cursor: `ListQuery` for titles, `SagaQuery` for sagas.
+protocol PageQuery: Hashable, Sendable {
+    var cursor: String? { get set }
+}
+
 /// Holds the loaded pages of a list, the cursor, and preloads when the focus enters the last third.
 @Observable
-final class Paginator {
-    private(set) var items: [Card] = []
-    private(set) var query: ListQuery
+final class Paginator<Item: Codable & Hashable & Identifiable & Sendable, Query: PageQuery> {
+    private(set) var items: [Item] = []
+    private(set) var query: Query
     private(set) var nextCursor: String?
     private(set) var isLoading = false
     /// Set when the first page failed: the whole grid shows a state panel.
@@ -13,12 +18,12 @@ final class Paginator {
     /// Set when a later page failed: a Retry card takes its place, loaded cards stay.
     private(set) var pageError: CatalogError?
     private(set) var loadedOnce = false
-    private let client: CatalogClient
+    private let fetch: (Query) async throws -> Page<Item>
     private var generation = 0
 
-    init(client: CatalogClient, query: ListQuery) {
-        self.client = client
+    init(query: Query, fetch: @escaping (Query) async throws -> Page<Item>) {
         self.query = query
+        self.fetch = fetch
     }
 
     var hasMore: Bool { nextCursor != nil }
@@ -36,7 +41,7 @@ final class Paginator {
         defer { if gen == generation { isLoading = false } }
         do {
             var q = query; q.cursor = nil
-            let page = try await client.list(q)
+            let page = try await fetch(q)
             guard gen == generation else { return }
             items = page.items
             nextCursor = page.nextCursor
@@ -62,8 +67,9 @@ final class Paginator {
     }
 
     /// New filters or sort: forget everything and start again.
-    func apply(_ newQuery: ListQuery) async {
-        query = newQuery.base
+    func apply(_ newQuery: Query) async {
+        query = newQuery
+        query.cursor = nil
         await loadFirstPage()
     }
 
@@ -73,7 +79,7 @@ final class Paginator {
         defer { if gen == generation { isLoading = false } }
         do {
             var q = query; q.cursor = cursor
-            let page = try await client.list(q)
+            let page = try await fetch(q)
             guard gen == generation else { return }
             let known = Set(items.map(\.id))
             items += page.items.filter { !known.contains($0.id) }
@@ -83,4 +89,18 @@ final class Paginator {
             pageError = (error as? CatalogError) ?? .server(error.localizedDescription)
         }
     }
+}
+
+extension Paginator where Item == Card, Query == ListQuery {
+    /// « Voir tout » of a genre, a studio or « Nouveautés ».
+    convenience init(client: CatalogClient, query: ListQuery) {
+        self.init(query: query) { try await client.list($0) }
+    }
+}
+
+extension ListQuery: PageQuery {}
+
+/// `GET /movies/sagas`: nothing but the cursor.
+nonisolated struct SagaQuery: PageQuery {
+    var cursor: String?
 }

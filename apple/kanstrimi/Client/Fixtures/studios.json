@@ -1,0 +1,20 @@
+[
+ {
+  "id": "company:3",
+  "name": "Pixar",
+  "logo": null,
+  "movies": [
+   "tmdb:movie:9487",
+   "tmdb:movie:354912",
+   "tmdb:movie:301528"
+  ]
+ },
+ {
+  "id": "company:420",
+  "name": "Marvel Studios",
+  "logo": null,
+  "movies": [
+   "tmdb:movie:299534"
+  ]
+ }
+]

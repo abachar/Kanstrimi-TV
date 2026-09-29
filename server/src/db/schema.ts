@@ -9,6 +9,7 @@ import {
   jsonb,
   pgEnum,
   uniqueIndex,
+  primaryKey,
   index,
   real,
   customType,
@@ -163,6 +164,9 @@ export const contents = pgTable(
     sagaName: text("saga_name"),
     sagaPosterPath: text("saga_poster_path"),
     sagaBackdropPath: text("saga_backdrop_path"),
+    /** TMDB production companies (movies and series) and networks (series): what the studio hubs filter on. */
+    companyIds: integer("company_ids").array().default([]).notNull(),
+    networkIds: integer("network_ids").array().default([]).notNull(),
     search: tsvector("search"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -171,6 +175,8 @@ export const contents = pgTable(
     // The sort keys of `player/lists.ts`, expression for expression, or the planner cannot use them.
     index("contents_release_idx").on(t.kind, t.visible, sql`coalesce(${t.releaseDate}, '0001-01-01'::date) desc`, t.id),
     index("contents_saga_idx").on(t.sagaId),
+    index("contents_companies_idx").using("gin", t.companyIds),
+    index("contents_networks_idx").using("gin", t.networkIds),
     index("contents_title_idx").on(t.kind, t.visible, t.title, t.id),
     index("contents_rating_idx").on(t.kind, t.visible, sql`coalesce(${t.rating}, 0) desc`, t.id),
     index("contents_year_idx").on(t.kind, t.visible, sql`coalesce(${t.year}, 0) desc`, t.id),
@@ -333,6 +339,36 @@ export const devices = pgTable("devices", {
   createdIp: text("created_ip"),
 });
 
+/**
+ * The studio hubs the app shows, chosen and ordered in the admin: a TMDB production company
+ * (`company`: Pixar, A24) or a TV network (`network`: HBO, Netflix). Name and logo are copied
+ * from TMDB when the studio is added.
+ */
+export const studios = pgTable(
+  "studios",
+  {
+    id: serial("id").primaryKey(),
+    kind: text("kind").$type<"company" | "network">().notNull(),
+    tmdbId: integer("tmdb_id").notNull(),
+    name: text("name").notNull(),
+    logoPath: text("logo_path"),
+    position: integer("position").default(0).notNull(),
+  },
+  (t) => [uniqueIndex("studios_kind_tmdb_idx").on(t.kind, t.tmdbId)],
+);
+
+/** TMDB's weekly trending lists, replaced by the `trending` step: the « Top 10 » rows cross them with the catalogue. */
+export const trending = pgTable(
+  "trending",
+  {
+    mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
+    rank: integer("rank").notNull(),
+    tmdbId: integer("tmdb_id").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.mediaType, t.rank] })],
+);
+
 export type Item = typeof items.$inferSelect;
 export type Episode = typeof episodes.$inferSelect;
 export type Device = typeof devices.$inferSelect;
@@ -340,3 +376,4 @@ export type Content = typeof contents.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type FilterRule = typeof filterRules.$inferSelect;
 export type SyncLog = typeof syncLogs.$inferSelect;
+export type Studio = typeof studios.$inferSelect;

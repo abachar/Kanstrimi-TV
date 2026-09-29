@@ -245,6 +245,8 @@ async function fillCardFields(onlyIds?: number[]) {
         saga_name: [],
         saga_poster: [],
         saga_backdrop: [],
+        company_ids: [],
+        network_ids: [],
       };
     for (const r of rows) {
       ids.push(r.id);
@@ -275,6 +277,8 @@ async function fillCardFields(onlyIds?: number[]) {
         f.saga_name.push(c.saga?.name ?? null);
         f.saga_poster.push(c.saga?.posterPath ?? null);
         f.saga_backdrop.push(c.saga?.backdropPath ?? null);
+        f.company_ids.push(c.companyIds.join(","));
+        f.network_ids.push(c.networkIds.join(","));
       } else {
         // Fallback and live: keep what the variants gave, index the title only.
         f.tmdb_adult.push(false);
@@ -302,6 +306,8 @@ async function fillCardFields(onlyIds?: number[]) {
         f.saga_name.push(null);
         f.saga_poster.push(null);
         f.saga_backdrop.push(null);
+        f.company_ids.push("");
+        f.network_ids.push("");
       }
     }
     // Fallback rows must keep the year computed from the variants: only TMDB rows overwrite it.
@@ -311,8 +317,9 @@ async function fillCardFields(onlyIds?: number[]) {
                   ${f.poster as string[]}::text[], ${f.backdrop as string[]}::text[], ${f.overview as string[]}::text[], ${f.rating as number[]}::real[], ${f.votes as number[]}::int[],
                   ${f.genre_ids as string[]}::text[], ${f.genres as string[]}::text[], ${f.runtime as number[]}::int[], ${f.cert as string[]}::text[],
                   ${f.cast as string[]}::text[], ${f.director as string[]}::text[], ${f.trailer as string[]}::text[], ${f.status as string[]}::text[], ${f.search as string[]}::text[], ${f.release_date as string[]}::text[],
-                  ${f.saga_id as number[]}::int[], ${f.saga_name as string[]}::text[], ${f.saga_poster as string[]}::text[], ${f.saga_backdrop as string[]}::text[])
-        as u(id, tmdb_adult, title, original_title, title_en, year, end_year, poster, backdrop, overview, rating, votes, genre_ids, genres, runtime, cert, "cast", director, trailer, status, search, release_date, saga_id, saga_name, saga_poster, saga_backdrop)
+                  ${f.saga_id as number[]}::int[], ${f.saga_name as string[]}::text[], ${f.saga_poster as string[]}::text[], ${f.saga_backdrop as string[]}::text[],
+                  ${f.company_ids as string[]}::text[], ${f.network_ids as string[]}::text[])
+        as u(id, tmdb_adult, title, original_title, title_en, year, end_year, poster, backdrop, overview, rating, votes, genre_ids, genres, runtime, cert, "cast", director, trailer, status, search, release_date, saga_id, saga_name, saga_poster, saga_backdrop, company_ids, network_ids)
       ),
       u as (
         select u_raw.*, case when c.tmdb_id is not null and u_raw.year is not null then u_raw.year else c.year end as final_year
@@ -331,6 +338,8 @@ async function fillCardFields(onlyIds?: number[]) {
           case when u.final_year is not null then make_date(u.final_year, 1, 1) end
         ),
         saga_id = u.saga_id, saga_name = u.saga_name, saga_poster_path = u.saga_poster, saga_backdrop_path = u.saga_backdrop,
+        company_ids = coalesce(string_to_array(nullif(u.company_ids, ''), ',')::int[], '{}'),
+        network_ids = coalesce(string_to_array(nullif(u.network_ids, ''), ',')::int[], '{}'),
         updated_at = now()
       from u
       where c.id = u.id`;

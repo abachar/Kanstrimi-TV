@@ -98,6 +98,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
                 <Btn job="filters" label="2. Filtres" variant="outline" />
                 <Btn job="enrich" label="3. TMDB" variant="outline" />
                 <Btn job="group" label="4. Grouper" variant="outline" />
+                <Btn job="trending" label="5. Tendances" variant="outline" />
                 <Btn job="epg" label="EPG" variant="outline" />
               </form>
               <JobsStatus {...jobs} />

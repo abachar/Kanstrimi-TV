@@ -214,9 +214,11 @@ nonisolated struct CatalogRow: Codable, Hashable, Identifiable, Sendable {
 nonisolated struct Page<Item: Codable & Hashable & Sendable>: Codable, Hashable, Sendable {
     let items: [Item]
     let nextCursor: String?
+    /// Sent by the lists that count their items (`/movies/sagas`).
+    var total: Int? = nil
 
     enum CodingKeys: String, CodingKey {
-        case items
+        case items, total
         case nextCursor = "next_cursor"
     }
 }

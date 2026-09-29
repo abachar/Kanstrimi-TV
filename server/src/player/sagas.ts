@@ -58,14 +58,16 @@ export async function listSagas(ctx: RestContext, q: { cursor?: string; limit?: 
     if (!cur || typeof cur[0] !== "string") throw new BadRequest("cursor invalide");
     after = sql`where (s.latest, s.id) < (${cur[0]}, ${cur[1]})`;
   }
-  const rows = await db.execute<SagaRow>(sql`
-    select * from (${sagasOf(ctx)}) s ${after}
-    order by s.latest desc, s.id desc limit ${limit + 1}`);
+  const [rows, [{ total }]] = await Promise.all([
+    db.execute<SagaRow>(sql`select * from (${sagasOf(ctx)}) s ${after} order by s.latest desc, s.id desc limit ${limit + 1}`),
+    db.execute<{ total: number }>(sql`select count(*)::int as total from (${sagasOf(ctx)}) s`),
+  ]);
   const page = rows.slice(0, limit);
   const last = page[page.length - 1];
   return {
     items: page.map((r) => sagaWire(ctx, r)),
     next_cursor: rows.length > limit && last ? encodeCursor(last.latest, last.id) : null,
+    total,
   };
 }
 

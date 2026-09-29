@@ -47,6 +47,8 @@ nonisolated struct ListQuery: Hashable, Sendable {
     var minQuality: Quality?
     var dynamicRange: DynamicRange?
     var vfAvailable = false
+    /// `company:3`, `network:49`: the titles of one studio hub.
+    var studio: String?
     var cursor: String?
 
     init(kind: ContentKind, genre: String? = nil) {
@@ -62,8 +64,8 @@ nonisolated struct ListQuery: Hashable, Sendable {
     }
 
     var hasFilters: Bool { language != nil || minQuality != nil || dynamicRange != nil || vfAvailable }
-    /// Same query without the cursor: identity of a list.
-    var base: ListQuery { var q = self; q.cursor = nil; return q }
+    /// The same list without the version filters, back on its default order.
+    var cleared: ListQuery { var q = ListQuery(kind: kind, genre: genre); q.studio = studio; return q }
 }
 
 nonisolated enum SearchScope: String, CaseIterable, Sendable {
@@ -101,6 +103,8 @@ protocol CatalogClient: AnyObject {
     func list(_ query: ListQuery) async throws -> Page<Card>
     /// `GET /movies/{id}` · `GET /series/{id}`: the full card, seasons and episodes included.
     func detail(id: ContentID) async throws -> Card
+    /// `GET /movies/studios` · `GET /series/studios`: the studio hubs holding titles of that kind.
+    func studios(kind: ContentKind) async throws -> [Studio]
     /// `GET /movies/sagas?cursor=`: the sagas with two visible movies or more, freshest first.
     func sagas(cursor: String?) async throws -> Page<Saga>
     /// `GET /movies/sagas/{id}`: one saga and its movies.

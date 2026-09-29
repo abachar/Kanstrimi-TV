@@ -2,34 +2,36 @@ import { Cron } from "croner";
 import { getSettings, isUnlocked, isXtreamConfigured, type Settings } from "@/config";
 import { describeError } from "@/shared";
 import { runSync, runEpgRebuild } from "@/providers/xtream";
-import { runEnrich } from "@/providers/tmdb";
+import { runEnrich, runTrending } from "@/providers/tmdb";
 import { applyRules } from "./rules/apply";
 import { runGrouping } from "./grouping/group";
 import { startLog, finishLog } from "./journal";
 
 /**
- * The catalogue pipeline. Five steps, each a plain function of its own module, run one at a
+ * The catalogue pipeline. Six steps, each a plain function of its own module, run one at a
  * time under the journal:
  *   source  — import the upstream catalogue (providers/xtream)
  *   filters — recompute hidden_by_rule from the rules (no network)
  *   enrich  — TMDB matching of pending entries (providers/tmdb)
  *   group   — variants → contents (no network)
+ *   trending — TMDB's weekly trending lists, for the « Top 10 » rows
  *   epg     — download the XMLTV guide
  * `runAll` chains them; `start` runs one with its natural follow-ups; two croner jobs fire
  * them on the schedules kept in the settings.
  */
-export type Step = "source" | "filters" | "enrich" | "group" | "epg";
-export const STEPS: readonly Step[] = ["source", "filters", "enrich", "group", "epg"];
+export type Step = "source" | "filters" | "enrich" | "group" | "trending" | "epg";
+export const STEPS: readonly Step[] = ["source", "filters", "enrich", "group", "trending", "epg"];
 
 const RUNNERS: Record<Step, () => Promise<unknown>> = {
   source: runSync,
   filters: applyRules,
   enrich: runEnrich,
   group: runGrouping,
+  trending: runTrending,
   epg: runEpgRebuild,
 };
 /** An import or an enrichment changes the groups: started by hand, they regroup too. */
-const FOLLOW_UPS: Record<Step, Step[]> = { source: ["filters", "group"], filters: [], enrich: ["group"], group: [], epg: [] };
+const FOLLOW_UPS: Record<Step, Step[]> = { source: ["filters", "group"], filters: [], enrich: ["group"], group: [], trending: [], epg: [] };
 
 const running = new Map<Step, Date>();
 let lastError: { step: Step; message: string; at: Date } | null = null;
@@ -68,11 +70,11 @@ export function start(step: Step): boolean {
   return true;
 }
 
-/** The whole chain: source → filters → group, then enrich → group when a TMDB key exists. Stops at the first failure. */
+/** The whole chain: source → filters → group, then enrich → group → trending when a TMDB key exists. Stops at the first failure. */
 export async function runAll(): Promise<void> {
   for (const step of ["source", "filters", "group"] as const) if (!(await run(step))) return;
   if (!(await getSettings()).tmdb_api_key) return;
-  if (await run("enrich")) await run("group");
+  if ((await run("enrich")) && (await run("group"))) await run("trending");
 }
 
 // ---------------------------------------------------------------- schedule

@@ -39,7 +39,7 @@ qu'ils couvrent.
 
 ## Traitement
 
-Le pipeline du catalogue (`src/catalog/pipeline.ts`) enchaîne cinq étapes, chacune une fonction
+Le pipeline du catalogue (`src/catalog/pipeline.ts`) enchaîne six étapes, chacune une fonction
 de son module, exécutée seule sous le journal (`sync_logs`) et refusée si elle tourne déjà.
 
 | Étape | Module | Rôle |
@@ -48,9 +48,10 @@ de son module, exécutée seule sous le journal (`sync_logs`) et refusée si ell
 | `filters` | `catalog/rules/apply.ts` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau |
 | `enrich` | `providers/tmdb/enrich.ts` | matching TMDB des éléments en attente (identifiant amont vérifié par preuves, puis recherche par titre) |
 | `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; écrit aussi `clean_title`, `year`, et pour le direct le `theme` de chaque variante puis les `themes` du contenu |
+| `trending` | `providers/tmdb/trending.ts` | remplace `trending` par les tendances TMDB de la semaine (films et séries, 100 de chaque) ; les rangées « Top 10 » les croisent avec le catalogue visible |
 | `epg` | `providers/xtream/epg.ts` | lit le XMLTV amont en flux (`saxes`) et remplit `epg_programmes` pour les seules chaînes visibles ; un import vide ou en échec garde le guide précédent. Tous les trois jours à 03:00 (`epg_cron`), le fournisseur donnant six jours |
 
-`runAll()` = `source → filters → group`, puis `enrich → group` si une clé TMDB existe. Depuis le
+`runAll()` = `source → filters → group`, puis `enrich → group → trending` si une clé TMDB existe. Depuis le
 tableau de bord, « Lire la source » enchaîne aussi filtres et groupement, « Enrichir » regroupe
 ensuite ; « Tout enchaîner » appelle `runAll()`. Deux jobs `croner` (`protect: true`) lancent
 `runAll` sur `sync_cron` et `epg` sur `epg_cron`, en heure locale ; ils sont recréés à chaque
@@ -60,7 +61,7 @@ enregistrement des Paramètres (`onSettingsChange`) et ne font rien tant que le 
 
 | Route | Rôle |
 |---|---|
-| `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). `/channels` et `/channels/{id}` portent `now` / `next` (une requête `lateral` pour toute la liste) et `has_epg` = la chaîne a des programmes en base. `/movies/sagas` et `/movies/sagas/{id}` servent les sagas ; la fiche d'un film porte `saga` quand la sienne est servie. |
+| `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). `/channels` et `/channels/{id}` portent `now` / `next` (une requête `lateral` pour toute la liste) et `has_epg` = la chaîne a des programmes en base. `/movies` et `/series` commencent par « Top 10 de la semaine » (si `trending` en croise) ; `/movies/studios` et `/series/studios` servent les studios, filtre `studio=company:3` des listes ; `/movies/sagas` et `/movies/sagas/{id}` servent les sagas ; la fiche d'un film porte `saga` quand la sienne est servie. |
 | `/img/<size>/<file>` | images TMDB en cache (`DATA_DIR/images`), route de `providers/tmdb/img-route.ts` montée par `main.ts` ; URL portée par chaque carte |
 | `/health` | santé (base joignable ; l'état du coffre est dans le corps, pas dans le code HTTP) |
 
@@ -78,9 +79,9 @@ admin/      pages (routes.tsx + view.tsx, data.ts pour les seules requêtes de p
             assets/admin.css (point d'entrée Tailwind, sans règle à nous), format.ts (nombres,
             dates, cron), labels.ts, http.tsx, session.ts, csrf.ts. Aucune écriture en base : l'admin appelle
             le domaine. catalog, groups, item = l'import brut et le groupement, ce qu'on corrige ;
-            favorites et history = ce que l'app a enregistré, lus et modifiés par les fonctions de
+            studios = les hubs de l'app ; favorites et history = ce que l'app a enregistré, lus et modifiés par les fonctions de
             `player/` avec un contexte sans appareil ; caches n'affiche que des compteurs.
-player/     /player, un fichier par ressource (devices, stream, info, home, lists, sagas, sheets, channels,
+player/     /player, un fichier par ressource (devices, stream, info, home, lists, sagas, studios, sheets, channels,
             playback, search, favorites) ; context, auth, http, cards, versions, stream-links, epg (maintenant / ensuite),
             contents (ce que l'app a le droit de voir), progress, episodes (wire), types.ts = le contrat
 catalog/    le domaine : naming (la grammaire des noms), keys (contentKey, parseKey, préfixes),
@@ -143,6 +144,10 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   groupement, aucun appel réseau). Elle n'existe pour l'app qu'avec au moins deux films visibles
   (`player/sagas.ts`) ; la liste va de la saga au film le plus récent à la plus ancienne, ses films par date de
   sortie croissante. Le tableau de bord les compte.
+- **Studios** : table `studios` (société de production TMDB ou chaîne), choisie et ordonnée dans l'admin
+  (`catalog/studios.ts`, suggestions tirées du cache TMDB des contenus visibles, sans réseau) ; liste par
+  défaut semée par la migration `0014`. Le groupement copie `production_companies` et `networks` dans
+  `contents.company_ids` / `network_ids`. Un studio sans titre visible du type n'est pas servi.
 - **Thèmes du direct** : `/player/channels` groupe par marché × thème (« France · Sport »). Le thème d'une
   variante vient de sa section (la ligne séparatrice qui la précède dans sa catégorie), sinon de sa
   catégorie (« SPORTS HD ») ; `naming.ts` porte le vocabulaire (`LIVE_THEMES`, `themeOf`, `liveTheme`) dans

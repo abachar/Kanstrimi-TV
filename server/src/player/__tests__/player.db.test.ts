@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import { player as api } from "..";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { verify, lockForTests, isUnlocked } from "@/config";
-import { runGrouping } from "@/catalog";
+import { addStudio, listStudios, moveStudio, removeStudio, runGrouping, studioSuggestions } from "@/catalog";
 import { resetPairingState } from "@/devices";
 import { setSettings } from "@/config";
 
@@ -761,6 +761,90 @@ describe("sagas", () => {
     expect((await get("/movies/tmdb:movie:3002")).body.saga).toEqual({ id: "saga:900", name: "Trilogie - Saga", count: 3 });
     expect((await get("/movies/tmdb:movie:3004")).body.saga).toBeUndefined();
     expect((await get("/movies/tmdb:movie:603")).body.saga).toBeUndefined();
+  });
+});
+
+describe("studios and top 10", () => {
+  // Seeded after the catalogue tests, whose rows and counts must not see these titles.
+  beforeAll(async () => {
+    await seedItems([
+      { kind: "vod", xtreamId: "p1", name: "|FR| Pixar Un (VF)", cat: "12", tmdbId: 4001, matchStatus: "matched", addedAt: daysAgo(2) },
+      { kind: "vod", xtreamId: "p2", name: "|FR| Pixar Caché (VF)", cat: "12", tmdbId: 4002, matchStatus: "matched", hiddenManual: true },
+      { kind: "series", xtreamId: "h1", name: "|FR| Série HBO (VF)", cat: "30", tmdbId: 4003, matchStatus: "matched", addedAt: daysAgo(2) },
+    ]);
+    const pixar = { id: 3, name: "Pixar", logo_path: "/pixar.png" };
+    await seedTmdb("movie", 4001, {
+      title: "Pixar Un",
+      release_date: ymd(daysAgo(30)),
+      production_companies: [pixar],
+      credits: { cast: [], crew: [] },
+    });
+    await seedTmdb("movie", 4002, {
+      title: "Pixar Caché",
+      release_date: ymd(daysAgo(30)),
+      production_companies: [pixar],
+      credits: { cast: [], crew: [] },
+    });
+    await seedTmdb("tv", 4003, {
+      name: "Série HBO",
+      first_air_date: ymd(daysAgo(30)),
+      networks: [{ id: 49, name: "HBO", logo_path: "/hbo.png" }],
+    });
+    await db.insert(schema.studios).values([
+      { kind: "network", tmdbId: 49, name: "HBO", logoPath: "/hbo.png", position: 1 },
+      { kind: "company", tmdbId: 3, name: "Pixar", logoPath: "/pixar.png", position: 2 },
+      { kind: "company", tmdbId: 999, name: "Sans titre", logoPath: null, position: 3 },
+    ]);
+    // Trending ranks: Heat, a title missing from the catalogue, the hidden Pixar, then Matrix.
+    await db.insert(schema.trending).values([
+      { mediaType: "movie", rank: 1, tmdbId: 949 },
+      { mediaType: "movie", rank: 2, tmdbId: 123456 },
+      { mediaType: "movie", rank: 3, tmdbId: 4002 },
+      { mediaType: "movie", rank: 4, tmdbId: 603 },
+      { mediaType: "tv", rank: 1, tmdbId: 4003 },
+    ]);
+    await runGrouping();
+  });
+
+  it("GET /movies/studios and /series/studios: the chosen studios holding visible titles of that kind, in order", async () => {
+    expect((await get("/movies/studios")).body).toEqual([
+      { id: "company:3", name: "Pixar", logo: "http://kanstrimi.test/img/w300/pixar.png", count: 1 },
+    ]);
+    expect((await get("/series/studios")).body.map((s: { id: string; count: number }) => [s.id, s.count])).toEqual([["network:49", 1]]);
+  });
+
+  it("GET /movies?studio=: the studio's visible titles; 400 when malformed", async () => {
+    expect((await get("/movies?studio=company:3")).body.items.map((c: { title: string }) => c.title)).toEqual(["Pixar Un"]);
+    expect((await get("/series?studio=network:49")).body.items.map((c: { title: string }) => c.title)).toEqual(["Série HBO"]);
+    expect((await get("/movies?studio=pixar")).status).toBe(400);
+  });
+
+  it("Top 10 first in the catalogue rows, in TMDB's order, visible titles of the catalogue only", async () => {
+    const movies = (await get("/movies")).body;
+    expect(movies[0]).toMatchObject({ id: "top10", name: "Top 10 de la semaine", total: 2 });
+    expect(movies[0].movies.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949", "tmdb:movie:603"]);
+    expect(movies[1].id).toBe("recent");
+    expect((await get("/series")).body[0].series.map((c: { id: string }) => c.id)).toEqual(["tmdb:tv:4003"]);
+  });
+
+  it("admin: suggestions from the catalogue, add, reorder, remove", async () => {
+    await db.delete(schema.studios).where(eq(schema.studios.tmdbId, 3));
+    const suggestions = await studioSuggestions();
+    expect(suggestions).toContainEqual({ kind: "company", tmdbId: 3, name: "Pixar", logoPath: "/pixar.png", count: 1 });
+    expect(suggestions.some((s) => s.kind === "network" && s.tmdbId === 49)).toBe(false); // already chosen
+    expect(await addStudio("company", 3)).toBe(true);
+    expect(await addStudio("company", 424242)).toBe(false);
+    let rows = await listStudios();
+    expect(rows.map((r) => [r.name, r.movies, r.series])).toEqual([
+      ["HBO", 0, 1],
+      ["Sans titre", 0, 0],
+      ["Pixar", 1, 0],
+    ]);
+    await moveStudio(rows[2].id, "up");
+    rows = await listStudios();
+    expect(rows.map((r) => r.name)).toEqual(["HBO", "Pixar", "Sans titre"]);
+    await removeStudio(rows[2].id);
+    expect((await listStudios()).map((r) => r.name)).toEqual(["HBO", "Pixar"]);
   });
 });
 

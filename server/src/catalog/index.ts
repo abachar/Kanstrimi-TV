@@ -19,4 +19,15 @@ export {
 export { getLastError, run, runAll, runningSteps, schedule, start, type Step } from "./pipeline";
 export { categoriesOfKind, categoryByXtreamId, contentById, itemById, variantsOfContent } from "./queries";
 export { validatePattern } from "./rules/engine";
+export {
+  addStudio,
+  listStudios,
+  moveStudio,
+  removeStudio,
+  studioColumn,
+  type StudioKind,
+  type StudioRow,
+  type StudioSuggestion,
+  studioSuggestions,
+} from "./studios";
 export { deleteRule, listRules, previewRule, type RulePreview, saveRule, setRuleEnabled } from "./rules/manage";

@@ -14,6 +14,8 @@ final class MockCatalogClient: CatalogClient {
     private let movies: [Card]
     /// Groupings of fixture movies standing for TMDB collections: the fixtures hold no complete saga.
     private let sagaFixtures: [SagaFixture]
+    /// Studio hubs over fixture movies.
+    private let studioFixtures: [StudioFixture]
     private let series: [Card]
     private let groups: [ChannelGroup]
     private let epgTitles: [String: [String]]
@@ -38,6 +40,7 @@ final class MockCatalogClient: CatalogClient {
         // The fixtures' `demo://` stream URLs lead nowhere: the mock shows the catalogue, playback is the real server's job.
         movies = load("movies", as: [Card].self)
         sagaFixtures = load("sagas", as: [SagaFixture].self)
+        studioFixtures = load("studios", as: [StudioFixture].self)
         series = load("series", as: [Card].self)
         let ch = load("channels", as: ChannelsFile.self)
         groups = ch.groups
@@ -217,6 +220,7 @@ final class MockCatalogClient: CatalogClient {
 
     private func filtered(_ query: ListQuery) -> [Card] {
         var cards = (query.kind == .series ? series : movies).map { card(for: $0) }
+        if let s = query.studio { cards = cards.filter { studioFixtures.first { $0.id == s }?.movies.contains($0.id) ?? false } }
         if let g = query.genre, g != "recent" { cards = cards.filter { $0.genres.contains { $0.lowercased() == g } } }
         if let l = query.language { cards = cards.filter { $0.languages.contains(l) } }
         if let q = query.minQuality { cards = cards.filter { ($0.maxQuality ?? .sd) >= q } }
@@ -238,9 +242,14 @@ final class MockCatalogClient: CatalogClient {
         throw CatalogError.notFound
     }
 
+    func studios(kind: ContentKind) async throws -> [Studio] {
+        try await gate()
+        return kind == .series ? [] : studioFixtures.map { Studio(id: $0.id, name: $0.name, logo: $0.logo, count: $0.movies.count) }
+    }
+
     func sagas(cursor: String?) async throws -> Page<Saga> {
         try await gate()
-        return Page(items: sagaFixtures.map(\.saga), nextCursor: nil)
+        return Page(items: sagaFixtures.map(\.saga), nextCursor: nil, total: sagaFixtures.count)
     }
 
     func saga(id: String) async throws -> SagaSheet {
@@ -368,4 +377,12 @@ private nonisolated struct SagaFixture: Decodable {
     let movies: [ContentID]
 
     var saga: Saga { Saga(id: id, name: name, count: movies.count, poster: poster, backdrop: backdrop) }
+}
+
+/// `Fixtures/studios.json`: a studio hub and the fixture movies it holds.
+private nonisolated struct StudioFixture: Decodable {
+    let id: String
+    let name: String
+    let logo: URL?
+    let movies: [ContentID]
 }

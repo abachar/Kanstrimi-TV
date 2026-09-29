@@ -1,5 +1,8 @@
 import { raw } from "hono/html";
 import {
+  ArrowDown,
+  ArrowUp,
+  Building2,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -40,6 +43,8 @@ import {
  * esbuild keeps just these. Add an icon here before using it: a page never imports lucide itself.
  */
 const ICONS = {
+  "arrow-down": ArrowDown,
+  "arrow-up": ArrowUp,
   alert: CircleAlert,
   check: Check,
   "chevron-left": ChevronLeft,
@@ -70,6 +75,7 @@ const ICONS = {
   search: Search,
   series: Clapperboard,
   settings: Settings,
+  studios: Building2,
   success: CircleCheck,
   trash: Trash,
   x: X,

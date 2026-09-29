@@ -63,8 +63,11 @@ cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Fu
   n'importe où dissocie l'appareil et ramène à l'appairage.
 - **Catalogue** : les rangées viennent du serveur ; « Voir tout » s'ouvre sur l'ordre du serveur (« Nouveautés »
   et « Derniers épisodes » par arrivée, les genres par date de sortie), modifiable dans la grille et jamais
-  mémorisé. L'onglet Films ajoute la rangée « Sagas » (`/movies/sagas`) après la première ; la fiche d'un film
-  mène à sa saga. Le client de démonstration tire ses sagas de `Fixtures/sagas.json`.
+  mémorisé. « Top 10 de la semaine » (rangée `top10` du serveur) affiche le rang à côté de l'affiche. Après
+  « Nouveautés » viennent les « Studios » (`/movies/studios`, `/series/studios`, grille = la liste filtrée par
+  `studio`) et, dans Films, les « Sagas » (`/movies/sagas`, « Voir tout » paginé) ; la fiche d'un film mène à
+  sa saga. `Paginator` est générique (titres par `ListQuery`, sagas par `SagaQuery`). Le client de
+  démonstration tire sagas et studios de `Fixtures/sagas.json` et `Fixtures/studios.json`.
 - **Lecture** : `stream_url` est un lien signé vers le serveur, relu à chaque lecture ; le
   serveur répond `302` vers le fournisseur. Le choix de la version suit l'ordre de langues
   des Réglages, les préférences par titre, les capacités de l'appareil, et bascule de source après échec.

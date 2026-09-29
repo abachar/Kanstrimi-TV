@@ -17,6 +17,8 @@ private struct ScreenHost<Content: View>: View {
 #Preview("Séries") { ScreenHost { CatalogView(kind: .series) } }
 #Preview("Fiche film") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:movie:535544")) } } }
 #Preview("Saga") { ScreenHost { NavigationStack { SagaView(ref: SagaRef(id: "saga:1", name: "Pixar (démo)", count: 3)) } } }
+#Preview("Sagas") { ScreenHost { NavigationStack { SagasGridView() } } }
+#Preview("Studio") { ScreenHost { NavigationStack { GenreGridView(studio: Studio(id: "company:3", name: "Pixar", logo: nil, count: 3), kind: .movie) } } }
 #Preview("Fiche série") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } } }
 #Preview("Fiche sans TMDB") { ScreenHost { NavigationStack { DetailView(id: ContentID("fallback:movie:avant-charlie-brown-il-y-avait-schulz:-")) } } }
 #Preview("Fiche en erreur") {

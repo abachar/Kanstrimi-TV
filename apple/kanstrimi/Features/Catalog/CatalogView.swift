@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Films and Séries: shelves by genre (`GET /movies`, `GET /series`), twenty cards each,
-/// « Voir tout » opening the paginated grid of a genre.
+/// Films and Séries: the server's shelves (`GET /movies`, `GET /series`: Top 10, Nouveautés, genres),
+/// then after « Nouveautés » the studio hubs and, for films, the sagas. « Voir tout » opens a paginated grid.
 struct CatalogView: View {
     let kind: ContentKind
     @Environment(AppEnvironment.self) private var env
@@ -10,8 +10,11 @@ struct CatalogView: View {
     @State private var error: CatalogError?
     @State private var isLoading = false
     @State private var seeAll: CatalogRow?
-    @State private var sagas: [Saga] = []
+    @State private var sagas: Page<Saga>?
+    @State private var studios: [Studio] = []
     @State private var openSaga: SagaRef?
+    @State private var openStudio: Studio?
+    @State private var allSagas = false
 
     var body: some View {
         Group {
@@ -28,10 +31,14 @@ struct CatalogView: View {
                     LazyVStack(alignment: .leading, spacing: 10) {
                         Text(kind == .series ? "Séries" : "Films").font(.largeTitle.weight(.bold)).padding(.horizontal, metrics.inset).padding(.top, 30)
                         ForEach(rows) { row in
-                            ShelfRow(row: row, onSelect: { env.open($0.id) }, onSeeAll: row.total > row.cards.count ? { seeAll(row) } : nil)
-                            // Sagas right after the first shelf (« Nouveautés »).
-                            if row.id == rows.first?.id, !sagas.isEmpty {
-                                SagaShelf(sagas: sagas) { open($0) }
+                            ShelfRow(row: row, ranked: row.id == "top10", onSelect: { env.open($0.id) },
+                                     onSeeAll: row.total > row.cards.count ? { seeAll(row) } : nil)
+                            if row.id == hubsAnchor {
+                                if !studios.isEmpty { StudioShelf(studios: studios) { open($0) } }
+                                if let sagas, !sagas.items.isEmpty {
+                                    SagaShelf(sagas: sagas.items, total: sagas.total ?? sagas.items.count, onSelect: { open($0) },
+                                              onSeeAll: sagas.nextCursor != nil ? { seeAllSagas() } : nil)
+                                }
                             }
                         }
                         Spacer(minLength: 60)
@@ -50,11 +57,26 @@ struct CatalogView: View {
         .platformCover(item: $openSaga) { ref in
             SagaView(ref: ref).environment(env)
         }
+        .platformCover(item: $openStudio) { studio in
+            GenreGridView(studio: studio, kind: kind).environment(env)
+        }
+        .platformCover(isPresented: $allSagas) {
+            SagasGridView().environment(env)
+        }
     }
 
-    /// Like the genre grid: a cover on tvOS, a pushed screen elsewhere.
+    /// Studios and sagas come after « Nouveautés », or after the first shelf when there is none.
+    private var hubsAnchor: String? { rows.first { $0.id == "recent" }?.id ?? rows.first?.id }
+
+    // Like the genre grid: a cover on tvOS, a pushed screen elsewhere.
     private func open(_ saga: SagaRef) {
         if Platform.isTV { openSaga = saga } else { env.navigate(.saga(saga)) }
+    }
+    private func open(_ studio: Studio) {
+        if Platform.isTV { openStudio = studio } else { env.navigate(.studio(kind, studio)) }
+    }
+    private func seeAllSagas() {
+        if Platform.isTV { allSagas = true } else { env.navigate(.sagas) }
     }
 
     /// The grid is a cover above this screen on tvOS and a pushed screen on iOS.
@@ -68,8 +90,9 @@ struct CatalogView: View {
         do {
             rows = try await env.call { try await env.client.rows(kind: kind) }
             error = nil
-            // Films only; a failure just leaves the shelf out.
-            if kind == .movie { sagas = (try? await env.call { try await env.client.sagas(cursor: nil) })?.items ?? [] }
+            // A failure just leaves these shelves out.
+            studios = (try? await env.call { try await env.client.studios(kind: kind) }) ?? []
+            if kind == .movie { sagas = try? await env.call { try await env.client.sagas(cursor: nil) } }
         } catch {
             self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
         }
@@ -77,9 +100,11 @@ struct CatalogView: View {
 }
 
 /// One shelf: title, total, the cards, and « Voir tout » at the end when the server has more.
+/// `ranked`: the Top 10, a big rank number beside each poster.
 struct ShelfRow: View {
     @Environment(\.metrics) private var metrics
     let row: CatalogRow
+    var ranked = false
     let onSelect: (Card) -> Void
     var onSeeAll: (() -> Void)?
 
@@ -92,20 +117,18 @@ struct ShelfRow: View {
             .padding(.horizontal, metrics.inset)
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
-                    ForEach(row.cards) { c in
-                        PosterCard(card: c) { onSelect(c) }
-                    }
-                    if let onSeeAll {
-                        Button(action: onSeeAll) {
-                            VStack(spacing: 12) {
-                                Image(systemName: "square.grid.3x3").font(.system(size: metrics.stateIcon * 0.7))
-                                Text("Voir tout").font(.headline)
-                                Text(Format.count(row.total)).font(.caption).foregroundStyle(Theme.secondary)
+                    ForEach(Array(row.cards.enumerated()), id: \.element.id) { index, c in
+                        HStack(alignment: .bottom, spacing: 0) {
+                            if ranked {
+                                Text("\(index + 1)")
+                                    .font(.system(size: metrics.posterWidth * 0.62, weight: .black, design: .rounded))
+                                    .foregroundStyle(Theme.secondary.opacity(0.55))
+                                    .offset(x: metrics.cardSpacing * 0.6)
                             }
-                            .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
+                            PosterCard(card: c) { onSelect(c) }
                         }
-                        .cardButtonStyle()
                     }
+                    if let onSeeAll { SeeAllCard(total: row.total, action: onSeeAll) }
                 }
                 .padding(.horizontal, metrics.inset)
                 .padding(.vertical, metrics.rowPadding)
@@ -115,27 +138,39 @@ struct ShelfRow: View {
     }
 }
 
-/// « Voir tout » of a genre: the paginated grid, six per row, version filters above [4] [5] [19].
+/// « Voir tout » of a genre or a studio: the paginated grid, six per row, version filters above [4] [5] [19].
 struct GenreGridView: View {
     let kind: ContentKind
-    let row: CatalogRow
+    let title: String
+    /// Known for a genre; a studio's comes with the tab's count.
+    let total: Int
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
-    @State private var paginator: Paginator?
+    @State private var paginator: Paginator<Card, ListQuery>?
     @State private var query: ListQuery
 
     init(kind: ContentKind, row: CatalogRow) {
         self.kind = kind
-        self.row = row
+        title = row.name
+        total = row.total
         _query = State(initialValue: ListQuery(kind: kind, genre: row.id))
+    }
+
+    init(studio: Studio, kind: ContentKind) {
+        self.kind = kind
+        title = studio.name
+        total = studio.count
+        var q = ListQuery(kind: kind)
+        q.studio = studio.id
+        _query = State(initialValue: q)
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
                 HStack(spacing: 14) {
-                    Text(row.name).font(.largeTitle.weight(.bold))
-                    Text(Format.count(row.total)).font(.title3).foregroundStyle(Theme.secondary)
+                    Text(title).font(.largeTitle.weight(.bold))
+                    Text(Format.count(total)).font(.title3).foregroundStyle(Theme.secondary)
                 }
                 .padding(.horizontal, metrics.inset)
                 FilterBar(kind: kind, query: $query)
@@ -164,9 +199,9 @@ struct GenreGridView: View {
                 }
             } else if p.isEmpty {
                 StatePanel(icon: "line.3.horizontal.decrease.circle", title: "Aucun titre",
-                           message: query.hasFilters ? "Aucun titre ne correspond à ces filtres." : "Ce genre est vide.",
+                           message: query.hasFilters ? "Aucun titre ne correspond à ces filtres." : "Cette liste est vide.",
                            actionTitle: query.hasFilters ? "Retirer les filtres" : nil) {
-                    query = ListQuery(kind: kind, genre: row.id)
+                    query = query.cleared
                 }
             } else {
                 LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
@@ -252,7 +287,7 @@ struct FilterBar: View {
                 chip("Dolby Vision", on: query.dynamicRange == .dolbyVision) { query.dynamicRange = query.dynamicRange == .dolbyVision ? nil : .dolbyVision }
                 chip("VF disponible", on: query.vfAvailable) { query.vfAvailable.toggle() }
                 if query.hasFilters {
-                    Button(role: .destructive) { query = ListQuery(kind: kind, genre: query.genre) } label: { Label("Tout retirer", systemImage: "xmark") }
+                    Button(role: .destructive) { query = query.cleared } label: { Label("Tout retirer", systemImage: "xmark") }
                 }
             }
             .padding(.horizontal, metrics.inset)

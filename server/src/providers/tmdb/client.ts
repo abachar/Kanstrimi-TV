@@ -12,6 +12,8 @@ export type TmdbSearchResult = {
 };
 export type TmdbDetails = Record<string, unknown> & {
   id: number;
+  production_companies?: { id: number; name?: string; logo_path?: string | null }[];
+  networks?: { id: number; name?: string; logo_path?: string | null }[];
   belongs_to_collection?: { id: number; name?: string; poster_path?: string | null; backdrop_path?: string | null } | null;
   title?: string;
   name?: string;
@@ -110,6 +112,10 @@ export class TmdbClient {
     return this.get<TmdbDetails>(`/tv/${id}`, {
       append_to_response: "credits,videos,content_ratings,alternative_titles,translations,images",
     }).then(trimTranslations);
+  }
+  /** One page (20 titles) of TMDB's weekly trending list. */
+  trending(mediaType: "movie" | "tv", page: number) {
+    return this.get<{ results: { id: number }[] }>(`/trending/${mediaType}/week`, { page });
   }
   tvSeason(id: number, season: number) {
     return this.get<{ episodes?: Record<string, unknown>[] }>(`/tv/${id}/season/${season}`);

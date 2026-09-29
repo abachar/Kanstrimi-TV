@@ -4,13 +4,15 @@ import SwiftUI
 struct SagaShelf: View {
     @Environment(\.metrics) private var metrics
     let sagas: [Saga]
+    let total: Int
     let onSelect: (SagaRef) -> Void
+    var onSeeAll: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
                 Text("Sagas").font(.title3.weight(.bold))
-                Text(Format.count(sagas.count)).font(.callout).foregroundStyle(Theme.secondary)
+                Text(Format.count(total)).font(.callout).foregroundStyle(Theme.secondary)
             }
             .padding(.horizontal, metrics.inset)
             ScrollView(.horizontal) {
@@ -19,6 +21,7 @@ struct SagaShelf: View {
                         Button { onSelect(saga.ref) } label: { SagaCardLabel(saga: saga) }
                             .cardButtonStyle()
                     }
+                    if let onSeeAll { SeeAllCard(total: total, action: onSeeAll) }
                 }
                 .padding(.horizontal, metrics.inset)
                 .padding(.vertical, metrics.rowPadding)
@@ -108,6 +111,145 @@ struct SagaView: View {
         } catch {
             self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
         }
+    }
+}
+
+/// « Voir tout » of the sagas: every saga, freshest first, page by page.
+struct SagasGridView: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
+    @State private var paginator: Paginator<Saga, SagaQuery>?
+    @State private var total: Int?
+    @State private var openSaga: SagaRef?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 30) {
+                HStack(spacing: 14) {
+                    Text("Sagas").font(.largeTitle.weight(.bold))
+                    if let total { Text(Format.count(total)).font(.title3).foregroundStyle(Theme.secondary) }
+                }
+                .padding(.horizontal, metrics.inset)
+                grid
+            }
+            .padding(.vertical, 40)
+        }
+        .background(Theme.background)
+        .task {
+            guard paginator == nil else { return }
+            let p = Paginator<Saga, SagaQuery>(query: SagaQuery()) { q in
+                let page = try await env.call { try await env.client.sagas(cursor: q.cursor) }
+                if q.cursor == nil { total = page.total }
+                return page
+            }
+            paginator = p
+            await p.loadFirstPage()
+        }
+        .platformCover(item: $openSaga) { ref in
+            SagaView(ref: ref).environment(env)
+        }
+    }
+
+    @ViewBuilder private var grid: some View {
+        if let p = paginator {
+            if let error = p.firstPageError {
+                StatePanel(icon: "exclamationmark.triangle", title: "Impossible de charger les sagas", message: error.localizedDescription) {
+                    Task { await p.retry() }
+                }
+            } else {
+                LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
+                    ForEach(Array(p.items.enumerated()), id: \.element.id) { index, saga in
+                        Button { open(saga.ref) } label: { SagaCardLabel(saga: saga) }
+                            .cardButtonStyle()
+                            .onAppear { Task { await p.loadMoreIfNeeded(reaching: index) } }
+                    }
+                    if let e = p.pageError {
+                        RetryCard(message: e.localizedDescription) { Task { await p.retry() } }
+                            .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
+                    } else if p.isLoading {
+                        ProgressView().frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
+                    }
+                }
+                .padding(.horizontal, metrics.inset)
+                .padding(.vertical, metrics.rowPadding)
+            }
+        } else {
+            ProgressView().frame(maxWidth: .infinity).padding(100)
+        }
+    }
+
+    private func open(_ saga: SagaRef) {
+        if Platform.isTV { openSaga = saga } else { env.navigate(.saga(saga)) }
+    }
+}
+
+/// The « Studios » shelf: one logo tile per hub chosen in the admin.
+struct StudioShelf: View {
+    @Environment(\.metrics) private var metrics
+    let studios: [Studio]
+    let onSelect: (Studio) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Studios").font(.title3.weight(.bold)).padding(.horizontal, metrics.inset)
+            ScrollView(.horizontal) {
+                LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
+                    ForEach(studios) { studio in
+                        Button { onSelect(studio) } label: { StudioTile(studio: studio) }
+                            .cardButtonStyle()
+                    }
+                }
+                .padding(.horizontal, metrics.inset)
+                .padding(.vertical, metrics.rowPadding)
+            }
+            .scrollClipDisabled()
+        }
+    }
+}
+
+/// A studio logo on a light tile (TMDB logos are drawn for a light background), its name when there is no logo.
+private struct StudioTile: View {
+    @Environment(\.metrics) private var metrics
+    let studio: Studio
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14).fill(.white)
+                if let logo = studio.logo {
+                    AsyncImage(url: logo) { image in
+                        image.resizable().scaledToFit()
+                    } placeholder: {
+                        Text(studio.name).font(.headline).foregroundStyle(.black)
+                    }
+                    .padding(metrics.posterWidth * 0.12)
+                } else {
+                    Text(studio.name).font(.headline).foregroundStyle(.black).multilineTextAlignment(.center).padding(8)
+                }
+            }
+            .frame(width: metrics.posterWidth * 1.5, height: metrics.posterWidth * 0.75)
+            Text("\(studio.name) · \(Format.count(studio.count))").font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
+        }
+        .frame(width: metrics.posterWidth * 1.5)
+    }
+}
+
+/// The last card of a shelf that has more: « Voir tout » and the total.
+struct SeeAllCard: View {
+    @Environment(\.metrics) private var metrics
+    let total: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 12) {
+                Image(systemName: "square.grid.3x3").font(.system(size: metrics.stateIcon * 0.7))
+                Text("Voir tout").font(.headline)
+                Text(Format.count(total)).font(.caption).foregroundStyle(Theme.secondary)
+            }
+            .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
+        }
+        .cardButtonStyle()
     }
 }
 

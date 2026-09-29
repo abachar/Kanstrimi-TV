@@ -49,12 +49,14 @@ final class HTTPCatalogClient: CatalogClient {
         if let m = query.minQuality { q.append(URLQueryItem(name: "min_quality", value: m.rawValue)) }
         if let d = query.dynamicRange { q.append(URLQueryItem(name: "dynamic_range", value: d.rawValue)) }
         if query.vfAvailable { q.append(URLQueryItem(name: "vf_available", value: "1")) }
+        if let s = query.studio { q.append(URLQueryItem(name: "studio", value: s)) }
         if let c = query.cursor { q.append(URLQueryItem(name: "cursor", value: c)) }
         return try await send("GET", Self.collection(query.kind), query: q)
     }
     func detail(id: ContentID) async throws -> Card {
         try await send("GET", "\(Self.collection(Self.kind(of: id)))/\(id.rawValue)")
     }
+    func studios(kind: ContentKind) async throws -> [Studio] { try await send("GET", "\(Self.collection(kind))/studios") }
     func sagas(cursor: String?) async throws -> Page<Saga> {
         try await send("GET", "movies/sagas", query: cursor.map { [URLQueryItem(name: "cursor", value: $0)] } ?? [])
     }

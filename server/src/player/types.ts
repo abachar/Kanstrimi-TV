@@ -68,7 +68,13 @@ export type Card = {
 export type SagaRef = { id: string; name: string; count: number };
 export type SagaWire = SagaRef & { poster: string | null; backdrop: string | null };
 /** `/movies/sagas`: freshest first. */
-export type SagaPage = { items: SagaWire[]; next_cursor: string | null };
+export type SagaPage = { items: SagaWire[]; next_cursor: string | null; total: number };
+/**
+ * `/movies/studios`, `/series/studios`: the studio hubs chosen in the admin that hold visible titles
+ * of that kind, in the admin's order. `id` = `company:<TMDB id>` or `network:<TMDB id>`, the
+ * `studio` filter of `/movies` and `/series`.
+ */
+export type StudioWire = { id: string; name: string; logo: string | null; count: number };
 /** `/movies/sagas/{id}`: the saga and its visible movies, oldest release first. */
 export type SagaSheet = SagaWire & { movies: Card[] };
 

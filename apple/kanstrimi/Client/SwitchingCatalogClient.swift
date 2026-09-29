@@ -22,6 +22,7 @@ final class SwitchingCatalogClient: CatalogClient {
     func rows(kind: ContentKind) async throws -> [CatalogRow] { try await active.rows(kind: kind) }
     func list(_ query: ListQuery) async throws -> Page<Card> { try await active.list(query) }
     func detail(id: ContentID) async throws -> Card { try await active.detail(id: id) }
+    func studios(kind: ContentKind) async throws -> [Studio] { try await active.studios(kind: kind) }
     func sagas(cursor: String?) async throws -> Page<Saga> { try await active.sagas(cursor: cursor) }
     func saga(id: String) async throws -> SagaSheet { try await active.saga(id: id) }
     func channels() async throws -> [ChannelGroup] { try await active.channels() }

@@ -8,6 +8,7 @@ import { QUALITY_RANK } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { BadRequest, json } from "./http";
 import { isNewRelease, visibleContent } from "./contents";
+import { studioFilter } from "./studios";
 import { getProgress } from "./progress";
 import { gridCard } from "./cards";
 import type { CatalogRow, Page } from "./types";
@@ -27,6 +28,7 @@ const listQuery = zValidator(
     min_quality: z.string().optional(),
     dynamic_range: z.string().optional(),
     vf_available: z.string().optional(),
+    studio: z.string().optional(),
     cursor: z.string().optional(),
     limit: z.string().optional(),
   }),
@@ -38,6 +40,7 @@ export type ListQuery = {
   min_quality?: string;
   dynamic_range?: string;
   vf_available?: string;
+  studio?: string;
   cursor?: string;
   limit?: string;
 };
@@ -47,7 +50,9 @@ export function listRoutes(kind: "vod" | "series") {
   const routes = new Hono<Env>();
   routes.get("/", listQuery, async (c) => {
     const q: ListQuery = c.req.valid("query");
-    const isList = Boolean(q.genre || q.cursor || q.sort || q.language || q.min_quality || q.dynamic_range || q.vf_available || q.limit);
+    const isList = Boolean(
+      q.genre || q.cursor || q.sort || q.language || q.min_quality || q.dynamic_range || q.vf_available || q.studio || q.limit,
+    );
     return json(isList ? await listContents(c.get("ctx"), kind, q) : await catalogRows(c.get("ctx"), kind));
   });
   return routes;
@@ -70,7 +75,7 @@ async function genresOf(ctx: RestContext, kind: "vod" | "series"): Promise<Genre
 const NO_RELEASE = "0001-01-01";
 const byRelease = sql`coalesce(${schema.contents.releaseDate}, ${sql.raw(`'${NO_RELEASE}'`)}::date)`;
 
-/** "Nouveautés" (or "Derniers épisodes") then one row per TMDB genre by release date, twenty cards each. */
+/** « Top 10 », « Nouveautés » (or « Derniers épisodes »), then one row per TMDB genre by release date, twenty cards each. */
 export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Promise<CatalogRow[]> {
   const genres = await genresOf(ctx, kind);
   const recentFilter = kind === "vod" ? and(visibleContent(ctx, kind), isNewRelease()) : visibleContent(ctx, kind);
@@ -82,6 +87,8 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
     .orderBy(desc(schema.contents.addedAt), desc(schema.contents.id))
     .limit(ROW_SIZE);
   const rows: { id: string; name: string; total: number; cards: Content[] }[] = [];
+  const top = await topTen(ctx, kind);
+  if (top.length) rows.push({ id: "top10", name: "Top 10 de la semaine", total: top.length, cards: top });
   if (recent.length)
     rows.push({ id: "recent", name: kind === "series" ? "Derniers épisodes" : "Nouveautés", total: totalRecent, cards: recent });
   for (const g of genres) {
@@ -98,6 +105,21 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
   return rows.map(
     (r) => ({ id: r.id, name: r.name, total: r.total, [field]: r.cards.map((c) => gridCard(ctx, c, progress.get(c.key))) }) as CatalogRow,
   );
+}
+
+/** TMDB's weekly trending order (the `trending` step), kept to what the app sees. */
+async function topTen(ctx: RestContext, kind: "vod" | "series"): Promise<Content[]> {
+  const rows = await db
+    .select({ content: schema.contents })
+    .from(schema.contents)
+    .innerJoin(
+      schema.trending,
+      and(eq(schema.trending.tmdbId, schema.contents.tmdbId), eq(schema.trending.mediaType, kind === "vod" ? "movie" : "tv")),
+    )
+    .where(visibleContent(ctx, kind))
+    .orderBy(asc(schema.trending.rank))
+    .limit(10);
+  return rows.map((r) => r.content);
 }
 
 // ---------------------------------------------------------------- one list, by cursor
@@ -120,6 +142,11 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
     const g = (await genresOf(ctx, kind)).find((x) => x.slug === q.genre);
     if (!g) return { items: [], next_cursor: null };
     where.push(sql`${schema.contents.genreIds} @> array[${g.id}]::int[]`);
+  }
+  if (q.studio) {
+    const f = studioFilter(q.studio);
+    if (!f) throw new BadRequest("studio inconnu");
+    where.push(f);
   }
   if (q.language) where.push(sql`${schema.contents.languages} @> array[${q.language.toUpperCase()}]::text[]`);
   if (q.vf_available === "1" || q.vf_available === "true") where.push(sql`${schema.contents.languages} @> array['VF']::text[]`);

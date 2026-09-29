@@ -233,6 +233,14 @@ extension View {
         #endif
     }
 
+    @ViewBuilder func platformCover<Content: View>(isPresented: Binding<Bool>, @ViewBuilder content: @escaping () -> Content) -> some View {
+        #if os(macOS)
+        sheet(isPresented: isPresented, content: content)
+        #else
+        fullScreenCover(isPresented: isPresented, content: content)
+        #endif
+    }
+
     /// A secondary screen (version picker): full screen on tvOS, a sheet on iOS.
     @ViewBuilder func platformSheet<Item: Identifiable, Content: View>(item: Binding<Item?>, @ViewBuilder content: @escaping (Item) -> Content) -> some View {
         #if os(tvOS)

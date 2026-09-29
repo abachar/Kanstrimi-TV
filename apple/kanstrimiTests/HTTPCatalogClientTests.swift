@@ -157,6 +157,7 @@ struct HTTPCatalogClientTests {
         #expect(try query(last) == ["cursor": "abc"])
         #expect(page.items[0].ref == SagaRef(id: "saga:900", name: "Trilogie - Saga", count: 3))
         #expect(page.nextCursor == "xyz")
+        #expect(page.total == nil)
 
         answer(200, #"{"id":"saga:900","name":"Trilogie - Saga","count":1,"poster":null,"backdrop":null,"movies":[{"id":"tmdb:movie:1","kind":"movie","title":"Un"}]}"#)
         let sheet = try await client.saga(id: "saga:900")
@@ -168,6 +169,22 @@ struct HTTPCatalogClientTests {
         #expect(try await client.detail(id: ContentID("tmdb:movie:1")).saga?.count == 3)
         answer(200, #"{"id":"tmdb:movie:2","kind":"movie","title":"Deux"}"#)
         #expect(try await client.detail(id: ContentID("tmdb:movie:2")).saga == nil)
+    }
+
+    @Test func studiosTravelAndFilterTheLists() async throws {
+        answer(200, #"[{"id":"network:49","name":"HBO","logo":"https://kanstrimi.test/img/w300/hbo.png","count":144}]"#)
+        let studios = try await client.studios(kind: .series)
+        #expect(try last.url?.path() == "/player/series/studios")
+        #expect(studios == [Studio(id: "network:49", name: "HBO", logo: URL(string: "https://kanstrimi.test/img/w300/hbo.png"), count: 144)])
+
+        answer(200, #"{"items":[],"next_cursor":null}"#)
+        var q = ListQuery(kind: .series)
+        q.studio = "network:49"
+        q.language = .vf
+        _ = try await client.list(q)
+        #expect(try query(last) == ["sort": "release", "studio": "network:49", "language": "VF"])
+        // Clearing the filters keeps the studio.
+        #expect(q.cleared.studio == "network:49" && q.cleared.language == nil)
     }
 
     @Test func searchScopeTravels() async throws {

@@ -30,6 +30,7 @@ export const JOB_LABELS: Record<Step, string> = {
   filters: "Filtres",
   enrich: "Enrichissement TMDB",
   group: "Groupement",
+  trending: "Tendances TMDB",
   epg: "EPG",
 };
 export const JOB_STARTED: Record<Step | "pipeline", string> = {
@@ -37,6 +38,7 @@ export const JOB_STARTED: Record<Step | "pipeline", string> = {
   filters: "Filtres appliqués",
   enrich: "Enrichissement lancé",
   group: "Groupement lancé",
+  trending: "Lecture des tendances TMDB lancée",
   epg: "Reconstruction EPG lancée",
   pipeline: "Traitement complet lancé",
 };
