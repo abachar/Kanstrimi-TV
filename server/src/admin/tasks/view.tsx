@@ -90,22 +90,18 @@ export function TaskCard({ task, cron, runs, busy, steps }: TaskState) {
         ) : (
           <Empty title="Jamais lancé" />
         )}
-        <div class="flex items-center justify-between gap-2">
-          <Dots runs={runs} />
-          <form method="post" action={`/admin/jobs/${task}`} class="flex items-center gap-2">
-            {steps.length > 1 && (
-              <select name="from" class="select w-auto" data-size="sm" aria-label="Lancer à partir de l'étape" disabled={busy}>
-                <Options
-                  opts={steps.map((s, i) => [i ? s : "", i ? `À partir de : ${jobLabel(s)}` : "Toutes les étapes"] as const)}
-                  cur=""
-                />
-              </select>
-            )}
-            <button class="btn" data-variant="outline" data-size="sm" disabled={busy}>
-              {busy ? "En cours…" : "Lancer maintenant"}
-            </button>
-          </form>
-        </div>
+        <Dots runs={runs} />
+        {/* On its own line: the step picker is as wide as its longest option. */}
+        <form method="post" action={`/admin/jobs/${task}`} class="flex items-center justify-end gap-2">
+          {steps.length > 1 && (
+            <select name="from" class="select min-w-0 flex-1" data-size="sm" aria-label="Lancer à partir de l'étape" disabled={busy}>
+              <Options opts={steps.map((s, i) => [i ? s : "", i ? `À partir de : ${jobLabel(s)}` : "Toutes les étapes"] as const)} cur="" />
+            </select>
+          )}
+          <button class="btn shrink-0" data-variant="outline" data-size="sm" disabled={busy}>
+            {busy ? "En cours…" : "Lancer maintenant"}
+          </button>
+        </form>
       </div>
     </Card>
   );

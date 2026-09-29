@@ -114,6 +114,7 @@ export function SettingsView({ s }: { s: Settings }) {
         </div>
       </form>
 
+      {/* A form around a card is the grid cell: `grid` on it stretches the card to the row's height. */}
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card title="Mot de passe">
           <p class="text-sm text-muted-foreground">
@@ -123,7 +124,7 @@ export function SettingsView({ s }: { s: Settings }) {
             ). Il chiffre les identifiants Xtream et la clé TMDB en base : en cas de changement, ressaisissez-les ici.
           </p>
         </Card>
-        <form method="post" action="/admin/settings/retry-unmatched">
+        <form method="post" action="/admin/settings/retry-unmatched" class="grid">
           <Card title="Retenter les introuvables">
             <div class="flex flex-col items-start gap-4">
               <p class="text-sm text-muted-foreground">
@@ -139,6 +140,7 @@ export function SettingsView({ s }: { s: Settings }) {
         <form
           method="post"
           action="/admin/settings/reset-matches"
+          class="grid"
           onsubmit="return confirm('Réinitialiser tous les matchings automatiques ?')"
         >
           <Card title="Réinitialiser le matching TMDB">

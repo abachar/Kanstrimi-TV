@@ -70,12 +70,24 @@ export const signed = (m: number) => {
   return `${m > 0 ? "+" : "−"}${Math.floor(a / 60)} h${a % 60 ? ` ${String(a % 60).padStart(2, "0")}` : ""}`;
 };
 
-/** Grid columns of a programme, clipped to the window. */
-function place(p: GridProgramme, from: Date) {
+/**
+ * Grid columns of a channel's programmes, clipped to the window, one line: rounded to the quarter
+ * hour, a short programme or one the provider overlaps would land on its neighbour's cells and the
+ * grid would push it onto a new line. Each starts where the previous one ended; one left without
+ * room is not drawn (the channel's panel lists them all, and its title says the whole slot).
+ */
+function placeAll(programmes: GridProgramme[], from: Date): { p: GridProgramme; cls: string }[] {
   const slot = (d: Date) => Math.round((d.getTime() - from.getTime()) / (SLOT_MIN * 60_000));
-  const a = Math.max(0, Math.min(SLOTS - 1, slot(p.startAt)));
-  const b = Math.max(a + 1, Math.min(SLOTS, slot(p.endAt)));
-  return `${COL_START[a]} ${COL_SPAN[b - a - 1]}`;
+  const placed: { p: GridProgramme; cls: string }[] = [];
+  let free = 0;
+  for (const p of [...programmes].sort((x, y) => x.startAt.getTime() - y.startAt.getTime())) {
+    const a = Math.max(free, slot(p.startAt), 0);
+    const b = Math.min(SLOTS, Math.max(a + 1, slot(p.endAt)));
+    if (a >= SLOTS || slot(p.endAt) <= a) continue;
+    placed.push({ p, cls: `${COL_START[a]} ${COL_SPAN[b - a - 1]} row-start-1` });
+    free = b;
+  }
+  return placed;
 }
 
 export type EpgPageProps = {
@@ -134,10 +146,10 @@ export function EpgView(p: EpgPageProps) {
           placeholder="Chercher une chaîne…"
           aria-label="Chaîne"
         />
-        <select class="select md:col-span-3" name="market" aria-label="Marché">
+        <select class="select w-full md:col-span-3" name="market" aria-label="Marché">
           <Options opts={[["", "Tous les marchés"], ...p.markets.map((m) => [m, m.toUpperCase()] as const)]} cur={q.market} />
         </select>
-        <select class="select md:col-span-3" name="theme" aria-label="Thème">
+        <select class="select w-full md:col-span-3" name="theme" aria-label="Thème">
           <Options opts={[["", "Tous les thèmes"], ...p.themes.map((t) => [t, t] as const)]} cur={q.theme} />
         </select>
         <button class="btn md:col-span-1" data-variant="outline">
@@ -183,11 +195,11 @@ export function EpgView(p: EpgPageProps) {
                   </div>
                 </div>
                 <div class="grid flex-1 grid-cols-24 gap-px">
-                  {c.programmes.map((pr) => {
+                  {placeAll(c.programmes, q.from).map(({ p: pr, cls }) => {
                     const live = pr.startAt <= now && pr.endAt > now;
                     return (
                       <div
-                        class={`${place(pr, q.from)} truncate rounded px-2 py-1 text-xs ${live ? "bg-primary/25 text-foreground" : "bg-secondary text-secondary-foreground"}`}
+                        class={`${cls} truncate rounded px-2 py-1 text-xs ${live ? "bg-primary/25 text-foreground" : "bg-secondary text-secondary-foreground"}`}
                         title={`${hm(pr.startAt)}–${hm(pr.endAt)} · ${pr.title}`}
                       >
                         <span class="tabular-nums opacity-70">{hm(pr.startAt)}</span> {pr.title}

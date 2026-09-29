@@ -28,7 +28,7 @@ tasksRoutes.get("/", async (c) => {
   const [s, steps, byTask, list] = await Promise.all([
     getSettings(),
     pipelineSteps(),
-    lastRunsByTask(TASKS, 10),
+    lastRunsByTask(TASKS, 5),
     recentRuns({ limit: RUNS_PER_PAGE, offset: (pageNo - 1) * RUNS_PER_PAGE, task: task || undefined, errors }),
   ]);
   const cron = { pipeline: s.sync_cron, epg: s.epg_cron };
