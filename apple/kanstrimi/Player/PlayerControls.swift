@@ -56,18 +56,18 @@ struct PlayerControls: View {
 
     private var transport: some View {
         HStack(spacing: 56) {
-            control("gobackward.10", size: 30, label: "Reculer de 10 secondes") { player.seek(by: -10) }
+            skip(forward: false)
             control(player.phase == .playing ? "pause.fill" : "play.fill", size: 44, label: player.phase == .playing ? "Pause" : "Lecture") {
                 player.togglePlayPause()
             }
-            control("goforward.10", size: 30, label: "Avancer de 10 secondes") { player.seek(by: 10) }
+            skip(forward: true)
         }
     }
 
     private var progress: some View {
         VStack(spacing: 8) {
             GeometryReader { geo in
-                let fraction = player.duration > 0 ? (scrubTime ?? player.time) / player.duration : 0
+                let fraction = player.duration > 0 ? (scrubTime ?? player.shownTime) / player.duration : 0
                 ZStack(alignment: .leading) {
                     Capsule().fill(.white.opacity(0.28)).frame(height: 6)
                     Capsule().fill(.white).frame(width: max(0, geo.size.width * fraction), height: 6)
@@ -82,7 +82,7 @@ struct PlayerControls: View {
             }
             .frame(height: 14)
             HStack {
-                Text(Format.clock(scrubTime ?? player.time)).monospacedDigit()
+                Text(scanLabel + Format.clock(scrubTime ?? player.shownTime)).monospacedDigit()
                 Spacer()
                 if player.context?.next != nil {
                     Button { player.playNextNow() } label: { Label("Épisode suivant", systemImage: "forward.end") }
@@ -99,9 +99,6 @@ struct PlayerControls: View {
     private var liveBar: some View {
         HStack(spacing: 16) {
             control("chevron.up", label: "Chaîne précédente") { player.zap(offset: -1) }
-            control(player.phase == .playing ? "pause.fill" : "play.fill", label: player.phase == .playing ? "Pause" : "Lecture") {
-                player.togglePlayPause()
-            }
             control("chevron.down", label: "Chaîne suivante") { player.zap(offset: 1) }
             Spacer()
             Group {
@@ -117,6 +114,28 @@ struct PlayerControls: View {
         guard let c = player.context?.content else { return "" }
         if let ep = c.episode, let s = c.subtitle { return "\(s) · \(ep.shortCode) · \(c.title)" }
         return c.title
+    }
+
+    /// ±10 s on a tap; held, fast forward or rewind until released.
+    private func skip(forward: Bool) -> some View {
+        Image(systemName: forward ? "goforward.10" : "gobackward.10")
+            .font(.system(size: 30, weight: .semibold))
+            .frame(width: 54, height: 54)
+            .background(.white.opacity(0.14), in: Circle())
+            .contentShape(Circle())
+            .onTapGesture { player.seek(by: forward ? 10 : -10) }
+            .onLongPressGesture(minimumDuration: 0.4) {
+                player.startScan(forward: forward)
+            } onPressingChanged: { pressing in
+                if !pressing { player.stopScan() }
+            }
+            .accessibilityLabel(forward ? "Avancer de 10 secondes, maintenir pour l'avance rapide" : "Reculer de 10 secondes, maintenir pour le retour rapide")
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private var scanLabel: String {
+        guard player.scanRate != 0 else { return "" }
+        return "\(player.scanRate > 0 ? "▶▶" : "◀◀") ×\(Int(abs(player.scanRate)))  "
     }
 
     private func control(_ symbol: String, size: CGFloat = 20, label: String, action: @escaping () -> Void) -> some View {

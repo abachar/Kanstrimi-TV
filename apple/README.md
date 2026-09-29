@@ -13,7 +13,7 @@ tout (TS en direct, MKV et MP4 en VOD), AVPlayer est écarté.
 | `App/` | `KanstrimiApp` (les seuls `#if` hors des fichiers dédiés : l'adaptateur `AppDelegate` d'iOS et la scène `Settings` de macOS), `AppEnvironment` (services partagés, onglet courant, piles de navigation), `Navigation.swift` (`MainTab`, `Route`, covers tvOS, chrome iOS), `RootView` (appairage puis onglets, cover du lecteur, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain), `OrientationLock+iOS` (paysage forcé du lecteur). |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`) : `Card` unique, `Version`, `Source`, `Season`, `Episode`, `Channel`, `Playback`… `nonisolated`, jamais sur la base. |
 | `Client/` | Protocole `CatalogClient` ; `HTTPCatalogClient` (le serveur, URL compilée dans `Preferences.compiledServerURL`, jeton d'appareil en Keychain, erreurs mappées sur `CatalogError`) ; `MockCatalogClient` sur les fixtures JSON de `Client/Fixtures/` et ses `MockScenario` ; `SwitchingCatalogClient` bascule entre les deux. |
-| `Player/` | Le lecteur, service transverse unique : `PlayerService` (VLCKit, bascule de source, échec après 10 s, épisode suivant, zapping), `VersionChooser` (langue × qualité × capacités de l'appareil), `PlayerScreen` (état, overlays et panneaux communs) avec `PlayerScreen+tvOS` (télécommande, `PressCatcher`) et `PlayerScreen+iOS` (gestes, contrôles tactiles, PiP), `PlayerDrawable+tvOS` / `+iOS` (la surface vidéo ; celle d'iOS porte le Picture-in-Picture). |
+| `Player/` | Le lecteur, service transverse unique : `PlayerService` (VLCKit, bascule de source, échec après 10 s, surveillance du direct, avance rapide, épisode suivant, zapping), `VersionChooser` (langue × qualité × capacités de l'appareil), `PlayerScreen` (état, overlays et panneaux communs) avec `PlayerScreen+tvOS` (télécommande, `PressCatcher`) et `PlayerScreen+iOS` (gestes, contrôles tactiles, PiP), `PlayerDrawable+tvOS` / `+iOS` (la surface vidéo ; celle d'iOS porte le Picture-in-Picture). |
 | `Features/` | Un dossier par écran : Appairage, Accueil, Catalogue, Fiche, Direct, Recherche, Réglages. Une seule vue par écran pour les deux plateformes. |
 | `Shared/` | `Platform.swift` (**`Metrics` et les modificateurs par plateforme**), `Theme` (couleurs, badges, panneaux d'état), `CardViews`, `Stores` (chaînes récentes, sources en échec, file de progression, caches). |
 | `../kanstrimiTests/` | Swift Testing : client HTTP (serveur simulé), moteur de choix (dont le plafond FHD de l'iPhone), curseur et file de progression. Lancés sur les trois destinations. |
@@ -47,13 +47,23 @@ un `fullScreenCover` depuis la racine sur iOS et tvOS, et une superposition plei
 rejoint par la roue dentée de l'accueil.
 
 **Lecteur iPhone** : paysage forcé pendant la lecture (`AppDelegate.orientations` +
-`requestGeometryUpdate`), tap = contrôles, double tap gauche/droite = ±10 s, glisser horizontal =
+`requestGeometryUpdate`), tap = contrôles, double tap gauche/droite = ±10 s, ±10 maintenu = avance/retour rapide, glisser horizontal =
 recherche, glisser vertical en direct = zapping, appui long = panneau. Picture-in-Picture par le
 drawable `PiPVideoView` conforme à `VLCPictureInPictureDrawable` : VLCKit rend un
 `VLCPictureInPictureWindowControlling` quand sa sortie vidéo le permet, `PlayerService.isMinimized`
 cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Full HD.
 
-**Lecteur Mac** : espace = pause, flèches = ±10 s ou zapping, F = plein écran, Échap = fermer, survol = affiche les contrôles.
+**Lecteur Mac** : espace = pause, flèches = ±10 s (maintenues : avance rapide) ou zapping, F = plein écran, Échap = fermer, survol = affiche les contrôles.
+
+**Direct** : jamais de pause, comme une télé (`PlayerService.togglePlayPause`/`pause` l'ignorent sur toutes les plateformes) ; Lecture relance seulement un flux arrêté par une coupure.
+Une fois l'image affichée, un chien de garde compte les images affichées (`VLCMedia.statistics`) : 4 s sans
+nouvelle image = source en cause (le débit ne l'est pas), bascule d'échec : source suivante, nouvel essai
+(nouveau jeton via le `302`), puis le dialogue.
+
+**Avance rapide** (films, épisodes ; ◀ ▶ maintenus sur la télécommande via `PressCatcher`) : la cible avance
+de 10, 30, 60, 120 puis 300 s par seconde (un palier toutes les 2 s), affichée à la place du temps
+(`shownTime`, « ▶▶ ×30 ») ; l'image continue, un seul seek au relâchement : un MKV distant ne suit pas un
+défilement réel.
 
 ## Fonctionnement
 

@@ -5,8 +5,17 @@ import SwiftUI
 extension PlayerScreen {
     /// Long presses on remote buttons are caught below SwiftUI, whatever has the focus.
     var host: some View {
-        PressCatcher(pressTypes: [.downArrow], onLongPress: { _ in
-            if player.isLive, sheet == .none { sheet = .channels }
+        PressCatcher(pressTypes: [.downArrow, .leftArrow, .rightArrow], onLongPress: { type in
+            guard sheet == .none else { return }
+            switch type {
+            case .downArrow: if player.isLive { sheet = .channels }
+            case .leftArrow, .rightArrow: player.startScan(forward: type == .rightArrow); showControls(autoHide: false)
+            default: break
+            }
+        }, onRelease: { type in
+            guard type == .leftArrow || type == .rightArrow, player.scanTarget != nil else { return }
+            player.stopScan()
+            showControls()
         }) {
             content.environment(env)
         }

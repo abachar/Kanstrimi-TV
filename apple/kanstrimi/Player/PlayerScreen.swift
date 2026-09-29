@@ -168,6 +168,12 @@ struct VODOverlay: View {
         return c.title
     }
 
+    /// "▶▶ ×30  " while a direction is held.
+    private var scanLabel: String {
+        guard player.scanRate != 0 else { return "" }
+        return "\(player.scanRate > 0 ? "▶▶" : "◀◀") ×\(Int(abs(player.scanRate)))  "
+    }
+
     private var bottomBar: some View {
         VStack(spacing: 14) {
             GeometryReader { geo in
@@ -179,7 +185,7 @@ struct VODOverlay: View {
                 // An overlay, not a third layer of the stack: the pill must not count in the
                 // stack's height, or the 8 pt track grows to the pill's size and spills over the hints.
                 .overlay(alignment: .bottomLeading) {
-                    Text(Format.clock(player.time))
+                    Text(scanLabel + Format.clock(player.shownTime))
                         .font(.callout.weight(.semibold))
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(.white, in: Capsule()).foregroundStyle(.black)
@@ -192,7 +198,7 @@ struct VODOverlay: View {
                 Text("−\(Format.clock(player.remaining)) · fin à \(Format.hour(player.endDate))")
                 Spacer()
                 if Platform.isTV {
-                    hint("◀ ▶", "±10 s")
+                    hint("◀ ▶", "±10 s · maintenir : avance rapide")
                     hint("▼", "Infos · Versions · Audio · Sous-titres")
                     hint("‹", "Retour · quitter")
                 }

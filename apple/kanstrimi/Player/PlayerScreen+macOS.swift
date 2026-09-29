@@ -1,7 +1,7 @@
 #if os(macOS)
 import SwiftUI
 
-/// Keyboard and mouse drive the player on macOS: space = pause, arrows = seek/zap,
+/// Keyboard and mouse drive the player on macOS: space = pause, arrows = seek (held: fast forward)/zap,
 /// F = fullscreen, Esc = close. Controls appear on hover.
 extension PlayerScreen {
     var host: some View {
@@ -18,13 +18,18 @@ extension PlayerScreen {
                 player.togglePlayPause()
                 return .handled
             }
-            .onKeyPress(.leftArrow) {
-                if !player.isLive { player.seek(by: -10); showControls(); return .handled }
-                return .ignored
-            }
-            .onKeyPress(.rightArrow) {
-                if !player.isLive { player.seek(by: 10); showControls(); return .handled }
-                return .ignored
+            // Pressed: ±10 s; held (key repeat): fast forward or rewind until the key goes up.
+            .onKeyPress(keys: [.leftArrow, .rightArrow], phases: [.down, .repeat, .up]) { press in
+                guard !player.isLive else { return .ignored }
+                let forward = press.key == .rightArrow
+                switch press.phase {
+                case .down: player.seek(by: forward ? 10 : -10)
+                case .repeat: player.startScan(forward: forward)
+                case .up: player.stopScan()
+                default: break
+                }
+                showControls()
+                return .handled
             }
             .onKeyPress(.upArrow) {
                 if player.isLive { player.zap(offset: -1); showControls(); return .handled }

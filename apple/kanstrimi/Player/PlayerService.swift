@@ -66,6 +66,10 @@ final class PlayerService: NSObject {
     private(set) var epg: EPGNow = .empty
     /// Live: banner "previous / current / next" after a zap.
     private(set) var zapBanner: Bool = false
+    /// Fast forward / rewind while a direction is held: where the seek lands on release, and the
+    /// signed rate (seconds of film per second of hold) shown next to the time.
+    private(set) var scanTarget: TimeInterval?
+    private(set) var scanRate: Double = 0
     var isPresented: Bool { context != nil }
     /// True while playback goes on with the player screen hidden (Picture-in-Picture on iOS).
     var isMinimized = false
@@ -87,6 +91,10 @@ final class PlayerService: NSObject {
 
     private var startAttempts = 0
     private var startDeadline: Task<Void, Never>?
+    /// True once the stream shows images: the start deadline hands over to the freeze watchdog.
+    private var isStarted = false
+    private var watchdog: Task<Void, Never>?
+    private var scanTask: Task<Void, Never>?
     private var progressTicker: Task<Void, Never>?
     private var toastTask: Task<Void, Never>?
     private var countdownTask: Task<Void, Never>?
@@ -104,6 +112,10 @@ final class PlayerService: NSObject {
     static let progressInterval: Duration = .seconds(30)
     static let nextEpisodeLead: TimeInterval = 30
     static let nextEpisodeCountdown = 10
+    /// Live: no new picture for this long means the source froze.
+    static let freezeTimeout: TimeInterval = 4
+    /// Fast forward / rewind speeds, one more level every 2 s of hold.
+    static let scanRates: [TimeInterval] = [10, 30, 60, 120, 300]
 
     init(client: CatalogClient, preferences: Preferences, failedSources: FailedSourcesStore, progressQueue: ProgressQueue,
          capabilities: VersionChooser.Capabilities = .current) {
@@ -189,14 +201,15 @@ final class PlayerService: NSObject {
 
     // MARK: - Controls
 
+    /// Live never pauses, like a TV: only a stall or an interruption can stop it, and Play resumes it.
     func togglePlayPause() {
         switch phase {
-        case .playing: player.pause()
+        case .playing: if !isLive { player.pause() }
         case .paused, .ended: player.play()
         default: break
         }
     }
-    func pause() { if phase == .playing { player.pause() } }
+    func pause() { if phase == .playing, !isLive { player.pause() } }
 
     func seek(by delta: TimeInterval) {
         guard !isLive, duration > 0 else { return }
@@ -216,6 +229,39 @@ final class PlayerService: NSObject {
         onPlaybackChanged?()
     }
 
+    /// Starts sweeping the film while a direction is held; the image keeps playing, one seek on release.
+    func startScan(forward: Bool) {
+        guard !isLive, duration > 0, scanTask == nil else { return }
+        let sign: Double = forward ? 1 : -1
+        scanTarget = time
+        scanTask = Task { [weak self] in
+            let began = ContinuousClock.now
+            while !Task.isCancelled {
+                guard let self else { return }
+                let level = min(Int((ContinuousClock.now - began) / .seconds(2)), Self.scanRates.count - 1)
+                scanRate = sign * Self.scanRates[level]
+                scanTarget = min(max(0, (scanTarget ?? time) + scanRate / 4), duration - 1)
+                onPlaybackChanged?()
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
+    }
+
+    /// Release: jump to where the sweep got to.
+    func stopScan() {
+        guard let target = scanTarget else { return }
+        cancelScan()
+        seek(to: target)
+    }
+
+    private func cancelScan() {
+        scanTask?.cancel(); scanTask = nil
+        scanTarget = nil; scanRate = 0
+    }
+
+    /// The time the chrome shows: the sweep's target while scanning.
+    var shownTime: TimeInterval { scanTarget ?? time }
+
     enum ResumeStrategy { case startTime, seekAfterStart }
     /// How a resume position is applied. On the simulator, both strategies leave the video output
     /// black after a deep seek into a remote MKV (audio plays, `hasVideoOut` is true), while a
@@ -223,9 +269,9 @@ final class PlayerService: NSObject {
     static var resumeStrategy: ResumeStrategy = .startTime
     static var seekByPosition = false
 
-    var remaining: TimeInterval { max(0, duration - time) }
+    var remaining: TimeInterval { max(0, duration - shownTime) }
     var endDate: Date { .now.addingTimeInterval(remaining) }
-    var fraction: Double { duration > 0 ? time / duration : 0 }
+    var fraction: Double { duration > 0 ? shownTime / duration : 0 }
 
     func select(audio track: Track) {
         guard let t = player.audioTracks.first(where: { $0.trackId == track.id }) else { return }
@@ -322,6 +368,7 @@ final class PlayerService: NSObject {
         time = position ?? 0
         duration = ctx.duration ?? 0
         pendingSeek = position
+        isStarted = false
         audioTracks = []; textTracks = []
 
         player.stop()
@@ -335,7 +382,41 @@ final class PlayerService: NSObject {
         player.media = media
         player.play()
         armStartDeadline()
+        armWatchdog()
         startProgressTicker()
+    }
+
+    private func markStarted() {
+        guard !isStarted else { return }
+        isStarted = true
+        startAttempts = 0
+        startDeadline?.cancel()
+        if let source { failedSources.clear(source.id) }
+    }
+
+    /// Live: once started, a stream whose image stops moving is a failed source (next source,
+    /// retry, then the dialog): the bandwidth at home is not the bottleneck, the source is.
+    private func armWatchdog() {
+        watchdog?.cancel()
+        guard isLive else { return }
+        watchdog = Task { [weak self] in
+            var last: UInt64?
+            var still: TimeInterval = 0
+            let tick: TimeInterval = 1
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(tick))
+                guard let self, !Task.isCancelled else { return }
+                guard isStarted, phase == .playing, let stats = player.media?.statistics else { last = nil; still = 0; continue }
+                let pictures = stats.displayedPictures
+                if let last, pictures <= last { still += tick } else { still = 0 }
+                last = pictures
+                if still >= Self.freezeTimeout {
+                    log.info("live freeze")
+                    handleStreamFailure()
+                    return
+                }
+            }
+        }
     }
 
     private func armStartDeadline() {
@@ -438,6 +519,8 @@ final class PlayerService: NSObject {
 
     private func cancelTimers(keepCountdown: Bool = false) {
         startDeadline?.cancel(); startDeadline = nil
+        watchdog?.cancel(); watchdog = nil
+        cancelScan()
         progressTicker?.cancel(); progressTicker = nil
         if !keepCountdown { countdownTask?.cancel(); countdownTask = nil }
     }
@@ -486,10 +569,7 @@ extension PlayerService: VLCMediaPlayerDelegate {
                 pendingSeek = nil
                 seek(to: pending)
             }
-            if let source, player.hasVideoOut {
-                failedSources.clear(source.id)
-                startDeadline?.cancel()
-            }
+            if player.hasVideoOut { markStarted() }
             refreshTracks()
         case .paused: phase = .paused
         case .stopped:
@@ -511,7 +591,7 @@ extension PlayerService: VLCMediaPlayerDelegate {
             pendingSeek = nil
             seek(to: pending)
         }
-        if phase == .playing, player.hasVideoOut { startDeadline?.cancel() }
+        if phase == .playing, player.hasVideoOut { markStarted() }
         maybeStartCountdown()
         onPlaybackChanged?()
     }
