@@ -6,11 +6,17 @@ import { setSettings, verify } from "@/config";
 import { run } from "@/catalog";
 import { epgStat, runEpgRebuild } from "../epg";
 
-/** A guide with programmes for our channel, one for a channel we do not serve, in a fixed window. */
+/**
+ * XMLTV time of tomorrow at `hh:mm` UTC: the import drops what is already over, so a fixed date
+ * would turn these tests red the day after it.
+ */
+const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+const at = (hhmm: string) => `${tomorrow.replace(/-/g, "")}${hhmm}00 +0000`;
+/** A guide with programmes for our channel, one for a channel we do not serve, tomorrow evening. */
 const guide = (title: string) => `<?xml version="1.0" encoding="utf-8" ?><tv>
-<programme start="20260928200000 +0200" stop="20260928213000 +0200" channel="TF1.fr"><title>${title}</title></programme>
-<programme start="20260928213000 +0200" stop="20260928230000 +0200" channel="TF1.fr"><title>Suite</title></programme>
-<programme start="20260928200000 +0200" stop="20260928210000 +0200" channel="Rai1.it"><title>Telegiornale</title></programme>
+<programme start="${at("1800")}" stop="${at("1930")}" channel="TF1.fr"><title>${title}</title></programme>
+<programme start="${at("1930")}" stop="${at("2100")}" channel="TF1.fr"><title>Suite</title></programme>
+<programme start="${at("1800")}" stop="${at("1900")}" channel="Rai1.it"><title>Telegiornale</title></programme>
 </tv>`;
 const serve = (body: string, status = 200) => vi.stubGlobal("fetch", async () => new Response(status === 200 ? body : null, { status }));
 const rows = async () =>
@@ -47,13 +53,13 @@ describe("EPG import", () => {
     expect(await rows()).toEqual(["TF1.fr:Journal", "TF1.fr:Suite"]);
     const stat = await epgStat();
     expect(stat).toMatchObject({ programmes: 2, channels: 1 });
-    expect(stat.to).toContain("2026-09-28");
+    expect(stat.to).toContain(tomorrow);
   });
 
   it("keeps the previous guide when upstream fails or serves nothing for our channels", async () => {
     serve("", 503);
     await expect(runEpgRebuild()).rejects.toThrow("HTTP 503");
-    serve(`<tv><programme start="20260928200000 +0200" stop="20260928210000 +0200" channel="Rai1.it"><title>x</title></programme></tv>`);
+    serve(`<tv><programme start="${at("1800")}" stop="${at("1900")}" channel="Rai1.it"><title>x</title></programme></tv>`);
     await expect(runEpgRebuild()).rejects.toThrow("guide précédent conservé");
     expect(await rows()).toEqual(["TF1.fr:Journal", "TF1.fr:Suite"]);
   });

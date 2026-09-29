@@ -96,8 +96,11 @@ export const items = pgTable(
     adult: boolean("adult").default(false).notNull(),
     /** Live: the label of the separator line preceding the entry in its category, as the provider wrote it. */
     section: text("section"),
-    /** Live: the theme the app groups by (« Sport », « Cinéma »…), derived from the section or the category. */
+    /** Live: the theme the app groups by (« Sport », « Cinéma »…): iptv-org's categories, else the section or the category. */
     theme: text("theme"),
+    /** Live: the iptv-org channel this variant is (`TF1.fr`), and how it was found: epg · name · name-global · manual. */
+    iptvId: text("iptv_id"),
+    iptvMatch: text("iptv_match"),
   },
   (t) => [
     uniqueIndex("items_kind_xtream_idx").on(t.kind, t.xtreamId),
@@ -143,7 +146,9 @@ export const contents = pgTable(
     status: text("status"),
     // Live
     market: text("market"),
+    /** iptv-org's logo through `/img/logos` when the channel is known there, else the provider's URL. */
     logoUrl: text("logo_url"),
+    iptvId: text("iptv_id"),
     categoryXtreamId: text("category_xtream_id"),
     channelNumber: integer("channel_number"),
     epgChannelId: text("epg_channel_id"),
@@ -225,6 +230,32 @@ export const filterRules = pgTable("filter_rules", {
   position: integer("position").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/**
+ * The channels of the iptv-org database (github.com/iptv-org/database), refreshed daily by the
+ * `channels` step: what the live variants are matched against, for their logo, theme and details.
+ */
+export const iptvChannels = pgTable(
+  "iptv_channels",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    altNames: text("alt_names").array().default([]).notNull(),
+    network: text("network"),
+    owners: text("owners").array().default([]).notNull(),
+    country: text("country").notNull(),
+    categories: text("categories").array().default([]).notNull(),
+    isNsfw: boolean("is_nsfw").default(false).notNull(),
+    launched: text("launched"),
+    closed: text("closed"),
+    replacedBy: text("replaced_by"),
+    website: text("website"),
+    /** The upstream logo, and the path it is served at by this server (`/img/logos/<id>-<hash>.<ext>`). */
+    logoUrl: text("logo_url"),
+    logoPath: text("logo_path"),
+  },
+  (t) => [index("iptv_channels_country_idx").on(t.country)],
+);
 
 /**
  * One run of a task: the full pipeline, the EPG, or a lone step. Its steps are `sync_logs`
@@ -398,4 +429,5 @@ export type Category = typeof categories.$inferSelect;
 export type FilterRule = typeof filterRules.$inferSelect;
 export type SyncLog = typeof syncLogs.$inferSelect;
 export type SyncRun = typeof syncRuns.$inferSelect;
+export type IptvChannel = typeof iptvChannels.$inferSelect;
 export type Studio = typeof studios.$inferSelect;

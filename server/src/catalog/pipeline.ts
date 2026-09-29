@@ -5,12 +5,14 @@ import { runSync, runEpgRebuild } from "@/providers/xtream";
 import { runEnrich, runTrending } from "@/providers/tmdb";
 import { applyRules } from "./rules/apply";
 import { runGrouping, runNaming } from "./grouping/group";
+import { runChannels } from "./channels";
 import { startLog, finishLog, startRun, finishRun, purgeRuns, type Trigger } from "./journal";
 import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
 
 /**
  * The catalogue pipeline. Six steps, each a plain function of its own module:
  *   source  — import the upstream catalogue (providers/xtream), then parse the names
+ *   channels — live variants matched to the iptv-org database: logo, theme, adult (providers/iptv)
  *   enrich  — TMDB matching of every pending entry, hidden ones included (providers/tmdb)
  *   filters — recompute hidden_by_rule from the rules (no network)
  *   group   — variants → contents, aggregates over the visible variants (no network)
@@ -23,19 +25,20 @@ import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
  * `epg`. A run is journalled twice: a `sync_runs` row with a `sync_logs` row per step (the
  * summary the admin lists), and a text file of everything printed meanwhile (the detail).
  */
-export type Step = "source" | "filters" | "enrich" | "group" | "trending" | "epg";
+export type Step = "source" | "channels" | "filters" | "enrich" | "group" | "trending" | "epg";
 export type Task = "pipeline" | "epg";
 export const TASKS: readonly Task[] = ["pipeline", "epg"];
 /**
- * TMDB steps: when they fail (TMDB or the DNS down), the run goes on without them and ends in
- * error. The imported catalogue still gets filtered and grouped; what is pending stays pending.
+ * Steps that only enrich (iptv-org, TMDB): when they fail (a service or the DNS down), the run
+ * goes on without them and ends in error. The imported catalogue still gets filtered and grouped.
  */
-const SKIPPABLE: ReadonlySet<Step> = new Set(["enrich", "trending"]);
+const SKIPPABLE: ReadonlySet<Step> = new Set(["channels", "enrich", "trending"]);
 /** Runs and their files are kept this long. */
 export const RETENTION_DAYS = 90;
 
 const RUNNERS: Record<Step, () => Promise<unknown>> = {
   source: async () => ({ ...(await runSync()), ...(await runNaming()) }),
+  channels: runChannels,
   enrich: runEnrich,
   filters: applyRules,
   group: runGrouping,
@@ -123,10 +126,10 @@ function purge() {
 /** The steps of the full pipeline: the TMDB ones only with a key. */
 async function pipelineSteps(): Promise<Step[]> {
   const tmdb = Boolean((await getSettings()).tmdb_api_key);
-  return tmdb ? ["source", "enrich", "filters", "group", "trending"] : ["source", "filters", "group"];
+  return tmdb ? ["source", "channels", "enrich", "filters", "group", "trending"] : ["source", "channels", "filters", "group"];
 }
 
-/** The whole chain: source → enrich → filters → group → trending. */
+/** The whole chain: source → channels → enrich → filters → group → trending. */
 export const runAll = async (trigger: Trigger = "manual") => runTask("pipeline", trigger, await pipelineSteps());
 export const runEpg = (trigger: Trigger = "manual") => runTask("epg", trigger, ["epg"]);
 /** A lone step, as a run of its own (tests, tooling). */

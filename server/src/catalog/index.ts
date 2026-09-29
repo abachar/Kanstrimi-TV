@@ -3,6 +3,7 @@ export { groupingCounts, runGrouping, runNaming } from "./grouping/group";
 export { groupVariants, type MergeCandidate, mergeCandidates, mergeVariantInto, resetVariant, splitVariant } from "./grouping/manual";
 export { closeOrphanLogs, recentRuns, runById, lastRunsByTask, type RunWithSteps } from "./journal";
 export { readRunLog, runLogPath } from "./runlog";
+export { iptvChannelById, setIptvMatch } from "./channels";
 export { hasFallbackKey, hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
 export { assignManual, resetMatches, retryUnmatched, searchCandidates, type TmdbCandidate } from "./matching";
 export {

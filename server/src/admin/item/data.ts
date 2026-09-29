@@ -1,8 +1,8 @@
-import type { Category, Content, Item } from "@/db";
+import type { Category, Content, IptvChannel, Item } from "@/db";
 import { getCachedDetails } from "@/providers/tmdb";
 import type { TmdbDetails } from "@/providers/tmdb";
 import { getSettings } from "@/config";
-import { categoryByXtreamId, itemById, contentById, variantsOfContent } from "@/catalog";
+import { categoryByXtreamId, itemById, contentById, variantsOfContent, iptvChannelById } from "@/catalog";
 import { tmdbMediaType } from "@/db";
 
 /** Everything the server knows about one entry: the row, its category, its content and the siblings, its TMDB sheet. */
@@ -13,6 +13,8 @@ export type ItemDetail = {
   siblings: Item[];
   tmdb: TmdbDetails | null;
   tmdbLang: string;
+  /** Live: the iptv-org channel the variant is matched to. */
+  iptv: IptvChannel | null;
 };
 
 export async function itemDetail(id: number): Promise<ItemDetail | null> {
@@ -25,5 +27,6 @@ export async function itemDetail(id: number): Promise<ItemDetail | null> {
   ]);
   const siblings = content ? await variantsOfContent(content.id) : [item];
   const tmdb = item.tmdbId && item.kind !== "live" ? await getCachedDetails(tmdbMediaType(item.kind), item.tmdbId, tmdbLang) : null;
-  return { item, category, content, siblings, tmdb, tmdbLang };
+  const iptv = item.kind === "live" ? await iptvChannelById(item.iptvId) : null;
+  return { item, category, content, siblings, tmdb, tmdbLang, iptv };
 }

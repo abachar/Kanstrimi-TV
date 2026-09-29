@@ -27,6 +27,7 @@ export const MATCH_LABELS: Record<string, string> = {
 
 export const JOB_LABELS: Record<Step, string> = {
   source: "Lecture source",
+  channels: "Chaînes iptv-org",
   filters: "Filtres",
   enrich: "Enrichissement TMDB",
   group: "Groupement",
@@ -61,6 +62,13 @@ export const STAT_LABELS: Record<string, string> = {
   errors: "erreurs",
   ids_rejected: "ids amont rejetés",
   items_named: "noms analysés",
+  iptv_channels: "chaînes iptv-org",
+  iptv_logos: "avec logo",
+  iptv_updated: "base mise à jour",
+  iptv_matched: "rattachées",
+  iptv_by_epg: "par EPG",
+  iptv_by_name: "par nom",
+  iptv_manual: "à la main",
   items_grouped: "variantes",
   contents: "contenus",
   multi_variant: "à plusieurs variantes",

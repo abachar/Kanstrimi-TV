@@ -39,7 +39,65 @@ const InfoCard = ({ title, rows, extra }: { title: string; rows: [string, unknow
 );
 
 /** Everything the server knows about one entry: the row, what the parser makes of it, its category, its content, its TMDB sheet. */
-export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmdbLang }: ItemDetail) {
+const IPTV_MATCH: Record<string, string> = {
+  epg: "par l'identifiant EPG du fournisseur",
+  name: "par le nom, dans le pays",
+  "name-global": "par le nom, unique au monde",
+  manual: "à la main",
+};
+
+/** Live: the iptv-org channel of the variant, and a way to pin another one, none, or go back to automatic. */
+function IptvCard({ it, ch }: { it: ItemDetail["item"]; ch: ItemDetail["iptv"] }) {
+  return (
+    <Card title="Chaîne iptv-org" hint={it.iptvMatch ? `Rattachée ${IPTV_MATCH[it.iptvMatch] ?? it.iptvMatch}` : "Non rattachée"}>
+      <div class="flex flex-col gap-4">
+        {ch && (
+          <div class="flex items-start gap-3">
+            {ch.logoPath && (
+              <img src={ch.logoPath} alt="" width="48" height="48" class="size-12 rounded bg-muted object-contain p-1" loading="lazy" />
+            )}
+            <table class="table table-fixed">
+              <tbody>
+                <Row k="Identifiant" v={ch.id} />
+                <Row k="Nom" v={[ch.name, ...ch.altNames].join(" · ")} />
+                <Row k="Pays" v={ch.country} />
+                <Row k="Catégories" v={ch.categories} />
+                <Row k="Groupe" v={[ch.network, ...ch.owners].filter(Boolean).join(" · ") || null} />
+                <Row k="Site" v={ch.website} />
+                <Row k="Lancée" v={ch.launched} />
+                <Row k="Fermée" v={ch.closed ? `${ch.closed}${ch.replacedBy ? ` → ${ch.replacedBy}` : ""}` : null} />
+                <Row k="Adulte" v={ch.isNsfw ? "oui" : null} />
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!ch && it.iptvId && <p class="text-sm text-amber-400">« {it.iptvId} » n'existe plus dans iptv-org.</p>}
+        <form method="post" action={`/admin/item/${it.id}/iptv`} class="flex flex-wrap items-center gap-2">
+          <input
+            class="input w-48 font-mono"
+            name="iptv_id"
+            placeholder="TF1.fr"
+            value={it.iptvId ?? ""}
+            aria-label="Identifiant iptv-org"
+          />
+          <button class="btn" data-variant="outline" data-size="sm" name="action" value="pin">
+            Rattacher
+          </button>
+          <button class="btn" data-variant="ghost" data-size="sm" name="action" value="none">
+            Aucune
+          </button>
+          {it.iptvMatch === "manual" && (
+            <button class="btn" data-variant="ghost" data-size="sm" name="action" value="auto">
+              Automatique
+            </button>
+          )}
+        </form>
+      </div>
+    </Card>
+  );
+}
+
+export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmdbLang, iptv }: ItemDetail) {
   const p = parseName(it.name, it.kind);
   const h = cat ? parseCategory(cat.name) : null;
   const qy: CatalogQuery = { kind: it.kind, q: "", cat: "", vis: "all", tmdb: "", page: 1, view: "grouped" };
@@ -136,6 +194,7 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
               ],
             ]}
           />
+          {it.kind === "live" && <IptvCard it={it} ch={iptv} />}
           {it.kind !== "live" && (
             <Card
               title="Association TMDB"

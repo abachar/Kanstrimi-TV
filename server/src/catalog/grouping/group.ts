@@ -393,7 +393,8 @@ async function refreshAggregates(onlyIds?: number[]) {
     update contents set
       variant_count = a.n, added_at = a.added_at, visible = a.visible,
       max_quality_rank = a.max_q, languages = a.langs, dynamic_range = a.dr, themes = a.themes,
-      market = coalesce(contents.market, a.market), logo_url = a.logo, category_xtream_id = a.cat,
+      market = coalesce(contents.market, a.market), category_xtream_id = a.cat, iptv_id = a.iptv,
+      logo_url = coalesce((select logo_path from ${schema.iptvChannels} ic where ic.id = a.iptv), a.logo),
       channel_number = a.num, epg_channel_id = a.epg, updated_at = now()
     from (
       select content_id,
@@ -408,11 +409,12 @@ async function refreshAggregates(onlyIds?: number[]) {
         end as dr,
         (array_agg(market order by vis desc, quality_rank desc, position, id))[1] as market,
         (array_agg(nullif(raw->>'stream_icon', '') order by vis desc, quality_rank desc, position, id))[1] as logo,
+        (array_agg(iptv_id order by vis desc, quality_rank desc, position, id) filter (where iptv_id is not null))[1] as iptv,
         (array_agg(category_xtream_id order by vis desc, quality_rank desc, position, id))[1] as cat,
         (array_agg(nullif(regexp_replace(coalesce(raw->>'num', ''), '\\D', '', 'g'), '')::int order by vis desc, quality_rank desc, position, id))[1] as num,
         (array_agg(nullif(raw->>'epg_channel_id', '') order by vis desc, quality_rank desc, position, id))[1] as epg
       from (
-        select id, content_id, added_at, quality_rank, lang, dynamic_range, market, position, category_xtream_id, raw, theme,
+        select id, content_id, added_at, quality_rank, lang, dynamic_range, market, position, category_xtream_id, raw, theme, iptv_id,
           (${visibleItem}) as vis,
           (${visibleItem} or not bool_or(${visibleItem}) over (partition by content_id)) as counted
         from ${schema.items} where content_id is not null
@@ -451,6 +453,7 @@ export async function groupingCounts() {
       multi: sql<number>`count(*) filter (where ${v.n} > 1)::int`,
       fallback: sql<number>`count(*) filter (where ${hasFallbackKey})::int`,
       adult: sql<number>`count(*) filter (where ${schema.contents.adult})::int`,
+      iptv: sql<number>`count(*) filter (where ${schema.contents.iptvId} is not null)::int`,
       sagas: sql<number>`(select count(*)::int from (
         select 1 from ${schema.contents} s where s.kind = ${schema.contents.kind} and s.visible and s.saga_id is not null
         group by s.saga_id having count(*) >= 2) x)`,

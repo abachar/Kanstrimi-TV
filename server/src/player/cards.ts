@@ -13,6 +13,11 @@ export function imageUrl(baseUrl: string, size: string, tmdbPath: string | null 
   return `${baseUrl}/img/${size}${tmdbPath.startsWith("/") ? "" : "/"}${tmdbPath}`;
 }
 
+/** A channel logo: iptv-org's through this server (`/img/logos/…`), else the provider's absolute URL. */
+export function channelLogo(baseUrl: string, logo: string | null): string | null {
+  return logo?.startsWith("/") ? `${baseUrl}${logo}` : logo;
+}
+
 export function progressWire(p: Progress | undefined, withFinished: boolean): ProgressWire | null {
   if (!p) return null;
   return withFinished
@@ -28,7 +33,7 @@ export function baseCard(ctx: RestContext, c: Content): Card {
     id: c.key,
     kind: kindOf(c),
     title: c.title,
-    poster: c.kind === "live" ? c.logoUrl : imageUrl(ctx.baseUrl, "w500", c.posterPath) || null,
+    poster: c.kind === "live" ? channelLogo(ctx.baseUrl, c.logoUrl) : imageUrl(ctx.baseUrl, "w500", c.posterPath) || null,
     ...(c.maxQualityRank ? { max_quality: qualityOfRank(c.maxQualityRank) } : {}),
     ...(drOf(c.dynamicRange) ? { dynamic_range: drOf(c.dynamicRange) } : {}),
     languages: sortLanguages(c.languages),

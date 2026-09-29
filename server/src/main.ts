@@ -8,6 +8,7 @@ import { db, client } from "@/db";
 import { getSettings, isUnlocked, onSettingsChange, verify } from "@/config";
 import { player } from "@/player";
 import { imgRoute } from "@/providers/tmdb";
+import { logoRoute } from "@/providers/iptv";
 import { admin } from "@/admin";
 import { schedule, closeOrphanLogs } from "@/catalog";
 import { requestLogger, describeError, env } from "@/shared";
@@ -32,6 +33,7 @@ app.get("/health", async (c) => {
   }
 });
 app.get("/", (c) => c.redirect("/admin"));
+app.route("/img/logos", logoRoute); // before /img: « logos » is no TMDB size
 app.route("/img", imgRoute);
 app.route("/player", player);
 app.route("/admin", admin);

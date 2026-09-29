@@ -45,13 +45,14 @@ de son module, refusée si elle tourne déjà.
 | Étape | Module | Rôle |
 |---|---|---|
 | `source` | `providers/xtream/import.ts` | lit le catalogue Xtream dans la base, supprime les disparus. Les lignes séparatrices du direct (`•●★---|FR| SPORT |FR|---★●•`) ne sont pas des entrées : chacune nomme la `section` de ce qui la suit. Les radios (`stream_type: radio_streams`) arrivent sans catégorie : elles sont rangées dans une catégorie « RADIOS » à nous (`_radio`), qu'un interrupteur ou une règle masque comme les autres. Puis `runNaming` (`catalog/grouping/group.ts`, sans réseau) analyse chaque nom : `clean_title`, `year`, marché, langue, qualité, `adult`, et pour le direct le `theme` de la variante. |
+| `channels` | `catalog/channels.ts`, `providers/iptv/` | la base [iptv-org](https://github.com/iptv-org/database) (`channels.json`, `logos.json` de son API, ≈ 14 Mo) gardée dans `DATA_DIR/iptv-org`, relue au plus une fois par jour et seulement si elle a changé (ETag), chargée dans `iptv_channels` ; injoignable, la copie précédente sert. Chaque variante du direct y est rattachée (`items.iptv_id`, `iptv_match`) : par l'identifiant EPG du fournisseur (`TF1.fr`), sinon par le nom nettoyé dans les pays de son marché (« ar » = monde arabe), sinon par le nom s'il est unique au monde ; un rattachement manuel (fiche de l'élément) est gardé. La chaîne donne le thème (catégories iptv-org d'abord, un thème précis du fournisseur l'emportant sur « general »), le drapeau adulte et, au groupement, le logo |
 | `enrich` | `providers/tmdb/enrich.ts` | matching TMDB de tous les éléments en attente, masqués compris (identifiant amont vérifié par preuves, puis recherche par titre) ; lit `clean_title` et `year`. Un point d'avancement toutes les 30 s (`shared/progress.ts`) ; 20 échecs d'accès d'affilée (DNS, réseau, base : `isUnreachable`) l'arrêtent en erreur, le reste restant en attente |
 | `filters` | `catalog/rules/apply.ts` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau |
 | `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; fiches depuis le cache TMDB, agrégats (dont les `themes` du contenu) sur les variantes visibles |
 | `trending` | `providers/tmdb/trending.ts` | remplace `trending` par les tendances TMDB de la semaine (films et séries, 100 de chaque) ; les rangées « Top 10 » les croisent avec le catalogue visible |
 | `epg` | `providers/xtream/epg.ts` | lit le XMLTV amont en flux (`saxes`) et remplit `epg_programmes` pour les seules chaînes visibles ; un import vide ou en échec garde le guide précédent. Tous les trois jours à 03:00 (`epg_cron`), le fournisseur donnant six jours |
 
-`runAll()` = `source → enrich → filters → group → trending`, sans les deux étapes TMDB s'il n'y a pas de clé.
+`runAll()` = `source → channels → enrich → filters → group → trending`, sans les deux étapes TMDB s'il n'y a pas de clé.
 TMDB passe avant les filtres : tout est matché une fois pour toutes, et démasquer une catégorie ou
 changer une règle ne fait jamais apparaître de titres non matchés. Le groupement reste après les
 filtres, ses agrégats ne comptant que les variantes visibles.
@@ -60,8 +61,8 @@ Deux **tâches** les lancent : `pipeline` (`runAll`) et `epg` (`runEpg`). Deux j
 les déclenchent sur `sync_cron` et `epg_cron`, en heure locale ; ils sont recréés à chaque
 enregistrement des Paramètres (`onSettingsChange`) et ne font rien tant que le coffre est verrouillé.
 À la main : **Tâches → Lancer maintenant** (`launch`) ; plus de bouton par étape.
-Un passage s'arrête à la première étape en échec, sauf `enrich` et `trending` : TMDB injoignable
-n'empêche ni les filtres ni le groupement du catalogue importé ; le passage finit alors en erreur.
+Un passage s'arrête à la première étape en échec, sauf `channels`, `enrich` et `trending` : iptv-org ou TMDB
+injoignable n'empêche ni les filtres ni le groupement du catalogue importé ; le passage finit alors en erreur.
 
 **Journal** (`catalog/journal.ts`, `catalog/runlog.ts`) : chaque passage d'une tâche est
 - une ligne `sync_runs` (tâche, `cron` ou `manual`, statut, durée) et une ligne `sync_logs` par étape
@@ -81,6 +82,7 @@ sont purgés après 90 jours (`RETENTION_DAYS`), à la fin de chaque passage. `/
 |---|---|
 | `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). `/channels` et `/channels/{id}` portent `now` / `next` (une requête `lateral` pour toute la liste) et `has_epg` = la chaîne a des programmes en base. `/movies` et `/series` commencent par « Top 10 de la semaine » (si `trending` en croise) ; `/movies/studios` et `/series/studios` servent les studios, filtre `studio=company:3` des listes ; `/movies/sagas` et `/movies/sagas/{id}` servent les sagas ; la fiche d'un film porte `saga` quand la sienne est servie. |
 | `/img/<size>/<file>` | images TMDB en cache (`DATA_DIR/images`), route de `providers/tmdb/img-route.ts` montée par `main.ts` ; URL portée par chaque carte |
+| `/img/logos/<id>-<hash>.<ext>` | logos iptv-org des chaînes en cache (`DATA_DIR/images/logos`), route de `providers/iptv/logos.ts` ; seul le logo courant d'une chaîne connue est servi (pas de proxy ouvert), le hash suit l'URL amont. `contents.logo_url` le porte en chemin relatif, préfixé par `channelLogo` ; sinon l'URL du fournisseur |
 | `/health` | santé (base joignable ; l'état du coffre est dans le corps, pas dans le code HTTP) |
 
 ## Structure
@@ -108,7 +110,8 @@ catalog/    le domaine : naming (la grammaire des noms), keys (contentKey, parse
             rafraîchi à la demande), journal et runlog (passages, fichiers de log), pipeline (étapes, tâches, crons)
 devices/    appairage par code, jetons, déverrouillage du coffre au premier appel
 providers/  xtream/ (client, xtreamFromSettings, import, epg, upstreamStreamUrl), tmdb/ (client,
-            match, enrich, card-fields, cache images + route /img). Un provider ne connaît pas le catalogue.
+            match, enrich, card-fields, cache images + route /img), iptv/ (sync de la base iptv-org, choix
+            et cache des logos + route /img/logos). Un provider ne connaît pas le catalogue.
 config/     settings (réglages chiffrés, cache mémoire, onSettingsChange), vault (mot de passe, clé AES en RAM)
 db/         client, schema, migrate, kind (le vocabulaire live/vod/series et ses mappages),
             visibility (les prédicats visibleItem / hiddenItem / visibleCategory)
@@ -167,7 +170,7 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   défaut semée par la migration `0014`. Le groupement copie `production_companies` et `networks` dans
   `contents.company_ids` / `network_ids`. Un studio sans titre visible du type n'est pas servi.
 - **Thèmes du direct** : `/player/channels` groupe par marché × thème (« France · Sport »). Le thème d'une
-  variante vient de sa section (la ligne séparatrice qui la précède dans sa catégorie), sinon de sa
+  variante vient d'abord de sa chaîne iptv-org (étape `channels`), sinon de sa section (la ligne séparatrice qui la précède dans sa catégorie), sinon de sa
   catégorie (« SPORTS HD ») ; `naming.ts` porte le vocabulaire (`LIVE_THEMES`, `themeOf`, `liveTheme`) dans
   les langues du fournisseur. Une section au nom de la catégorie ou d'un pays est la liste généraliste,
   sauf dans une région (« ARAB WORLD », « BALKANS ») où les pays sont les sections. Un libellé inconnu
@@ -194,5 +197,5 @@ production. Cible : Fedora CoreOS, podman rootless + systemd Quadlet, derrière 
 
 - Variables : `ADMIN_PASSWORD_HASH` (obligatoire), `DATABASE_URL` et `SESSION_SECRET`
   (obligatoires en production), `DATA_DIR`, `PORT`, `TZ`.
-- `DATA_DIR` : le cache d'images TMDB (reconstructible) et les fichiers de log des passages (`logs/`, perdables : 90 jours d'historique). Seule la base se sauvegarde, guide des programmes compris.
+- `DATA_DIR` : les caches reconstructibles (images TMDB et logos dans `images/`, base iptv-org dans `iptv-org/`) et les fichiers de log des passages (`logs/`, perdables : 90 jours d'historique). Seule la base se sauvegarde, guide des programmes compris.
 - Le mot de passe circule en clair dans les URL des players (protocole Xtream) : LAN ou HTTPS uniquement.

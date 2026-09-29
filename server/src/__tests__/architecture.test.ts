@@ -37,11 +37,12 @@ const ALLOWED: Record<string, string[]> = {
   config: ["db", "shared"],
   "providers/xtream": ["config", "db", "shared"],
   "providers/tmdb": ["config", "db", "shared"],
-  catalog: ["providers/xtream", "providers/tmdb", "config", "db", "shared"],
+  "providers/iptv": ["config", "db", "shared"],
+  catalog: ["providers/xtream", "providers/tmdb", "providers/iptv", "config", "db", "shared"],
   devices: ["config", "db", "shared"],
   player: ["catalog", "devices", "providers/xtream", "config", "db", "shared"],
-  admin: ["player", "catalog", "devices", "providers/xtream", "providers/tmdb", "config", "db", "shared"],
-  "main.ts": ["player", "admin", "catalog", "providers/tmdb", "config", "db", "shared"],
+  admin: ["player", "catalog", "devices", "providers/xtream", "providers/tmdb", "providers/iptv", "config", "db", "shared"],
+  "main.ts": ["player", "admin", "catalog", "providers/tmdb", "providers/iptv", "config", "db", "shared"],
 };
 
 describe("architecture", () => {

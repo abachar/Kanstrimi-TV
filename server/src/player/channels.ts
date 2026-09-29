@@ -9,6 +9,7 @@ import { contentByKey, liveCategories, variantsOf, visibleContent } from "./cont
 import { favoriteSet } from "./favorites";
 import { playableOfItem, qualityOfRank, versionsOf } from "./versions";
 import { epgOf, type ChannelEpg } from "./epg";
+import { channelLogo } from "./cards";
 import type { ChannelGroupWire, ChannelWire, Version } from "./types";
 
 /** `/channels`: every visible live category with its channels; `/channels/{id}`: one channel. */
@@ -29,7 +30,7 @@ function channelWire(ctx: RestContext, c: Content, versions: Version[], favs: Se
     id: c.key,
     name: c.title,
     number: c.channelNumber,
-    logo: c.logoUrl,
+    logo: channelLogo(ctx.baseUrl, c.logoUrl),
     ...(c.maxQualityRank ? { max_quality: qualityOfRank(c.maxQualityRank) } : {}),
     has_epg: epg?.hasEpg ?? false,
     is_favorite: favs.has(c.key),
