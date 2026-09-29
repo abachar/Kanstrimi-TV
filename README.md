@@ -29,9 +29,6 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 - **Français** dans l'interface, les messages d'erreur, les journaux, les commits et la doc ;
   **anglais** dans les commentaires de code.
 - Chaque dossier porte ses décisions structurantes dans son `README.md`.
-- `_Old/` (hors dépôt, ignoré par git) contient les tentatives précédentes du projet et la
-  sauvegarde de l'ancienne documentation (`_Old/docs-2026-09-27/` : cahier des charges,
-  backlog, flow tvOS, étude VLCKit, contrat API, maquettes UX). On y lit, on n'y écrit pas.
 
 ## Décisions figées
 
@@ -41,3 +38,19 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
   compte client IPTV).
 - Abandonné : Rust + Askama, SQLite, client Fire TV, AVPlayer côté app Apple (le fournisseur
   ne sert pas de HLS ; VLCKit lit tout).
+
+## Pistes
+
+Idées reprises des tentatives précédentes (supprimées le 2026-09-29), absentes du code actuel, par intérêt.
+
+- **Cache d'images de l'app** : `AsyncImage` sur le `URLCache` par défaut (~10 Mo disque) alors que `/img` sert un an de cache ; régler `URLCache.shared` au lancement.
+- **Réglages VLC** : tampon distinct direct / VOD et réglable (figé à 1500 ms dans `PlayerService.swift`), `http-reconnect` contre les coupures, tampon VOD plus grand pour le seek profond MKV.
+- **Lecteur** : « Lire depuis le début » quand une reprise existe, épisode précédent.
+- **Reprendre** : retirer un titre, marquer vu / non vu (épisode, saison).
+- **Guide dans l'app** : programmes du jour d'une chaîne dans le lecteur du direct, puis une grille ; chercher une émission en cours par son titre. Le guide est en base, seules maintenant / ensuite sont servies.
+- **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).
+- **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
+- **Filtres de séries** « Nouveaux épisodes » et « Saison complète en VF ».
+- **Recherche tolérante aux fautes** : `pg_trgm` en repli quand la recherche par préfixe ne trouve rien.
+- **Commandes système** (`MPNowPlayingInfoCenter`) : titre et lecture sur iPhone en arrière-plan et en PiP.
+- Plus faible : distribution avec photos, listes nommées, « Si vous avez aimé… », logos TMDB, arrêt d'une tâche en cours, nouveaux essais sur les GET de l'app, mentions « Director's Cut » / « Extended » dans le nettoyage des noms, clé du direct sur l'identifiant iptv-org (migration des favoris et de la progression), métriques serveur, sauvegarde de la configuration, image arm64.
