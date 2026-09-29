@@ -108,6 +108,9 @@ describe("admin", () => {
     expect(await html("/admin/favorites")).toContain("Aucun favori");
     expect(await html("/admin/history")).toContain("En cours");
     expect(await html("/admin/caches")).toContain("Fiches TMDB");
+    expect(await html("/admin/studios?q=zzz")).toContain("Aucun résultat");
+    expect((await call("/admin/studios/company:424242")).status).toBe(404);
+    expect((await call("/admin/studios/3")).status).toBe(404);
     expect(await html("/admin/pair/K7Q4MZ")).toContain("Code inconnu");
     expect(await html("/admin/jobs/status")).toContain("Aucun job en cours");
     expect(await html("/admin/tasks")).toContain('name="from"');

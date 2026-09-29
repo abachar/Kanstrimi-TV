@@ -4,7 +4,17 @@ import { db, schema } from "@/db";
 import { player as api } from "..";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { verify, lockForTests, isUnlocked } from "@/config";
-import { addStudio, listStudios, moveStudio, removeStudio, runGrouping, runNaming, studioSuggestions } from "@/catalog";
+import {
+  addStudio,
+  listStudios,
+  moveStudio,
+  parseStudioRef,
+  removeStudio,
+  runGrouping,
+  runNaming,
+  studioDetail,
+  studioSuggestions,
+} from "@/catalog";
 import { resetPairingState } from "@/devices";
 import { setSettings } from "@/config";
 
@@ -834,8 +844,17 @@ describe("studios and top 10", () => {
   it("admin: suggestions from the catalogue, add, reorder, remove", async () => {
     await db.delete(schema.studios).where(eq(schema.studios.tmdbId, 3));
     const suggestions = await studioSuggestions();
-    expect(suggestions).toContainEqual({ kind: "company", tmdbId: 3, name: "Pixar", logoPath: "/pixar.png", count: 1 });
+    expect(suggestions).toContainEqual({ kind: "company", tmdbId: 3, name: "Pixar", logoPath: "/pixar.png", country: null, count: 1 });
     expect(suggestions.some((s) => s.kind === "network" && s.tmdbId === 49)).toBe(false); // already chosen
+    expect((await studioSuggestions(40, "pix")).map((s) => s.name)).toEqual(["Pixar"]); // search by name, any case
+    expect(await studioSuggestions(40, "nothing like it")).toEqual([]);
+    expect(parseStudioRef("company:3")).toEqual({ kind: "company", tmdbId: 3 });
+    expect(parseStudioRef("3")).toBeNull(); // companies and networks are numbered apart
+    const pixar = await studioDetail("company", 3);
+    expect(pixar).toMatchObject({ name: "Pixar", chosenId: null });
+    expect(pixar!.titles).toHaveLength(1);
+    expect(pixar!.titles[0].itemId).toEqual(expect.any(Number));
+    expect(await studioDetail("company", 424242)).toBeNull();
     expect(await addStudio("company", 3)).toBe(true);
     expect(await addStudio("company", 424242)).toBe(false);
     let rows = await listStudios();

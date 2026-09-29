@@ -166,7 +166,7 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   (`player/sagas.ts`) ; la liste va de la saga au film le plus récent à la plus ancienne, ses films par date de
   sortie croissante. Le tableau de bord les compte.
 - **Studios** : table `studios` (société de production TMDB ou chaîne), choisie et ordonnée dans l'admin
-  (`catalog/studios.ts`, suggestions tirées du cache TMDB des contenus visibles, sans réseau) ; liste par
+  (`catalog/studios.ts`, suggestions tirées du cache TMDB des contenus visibles, sans réseau, cherchables par nom ; `/admin/studios/company:3` montre les titres visibles d'un studio, même forme que le filtre `studio=` de l'app) ; liste par
   défaut semée par la migration `0014`. Le groupement copie `production_companies` et `networks` dans
   `contents.company_ids` / `network_ids`. Un studio sans titre visible du type n'est pas servi.
 - **Thèmes du direct** : `/player/channels` groupe par marché × thème (« France · Sport »). Le thème d'une

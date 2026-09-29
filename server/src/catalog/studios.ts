@@ -1,4 +1,4 @@
-import { asc, desc, eq, gt, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { getSettings } from "@/config";
 import { db, schema, type Studio } from "@/db";
 
@@ -7,8 +7,16 @@ import { db, schema, type Studio } from "@/db";
  * logos come from the TMDB documents already cached, so adding one needs no network.
  */
 export type StudioKind = Studio["kind"];
-export type StudioRow = Studio & { movies: number; series: number };
-export type StudioSuggestion = { kind: StudioKind; tmdbId: number; name: string; logoPath: string | null; count: number };
+/** `country`: TMDB's `origin_country`, what tells apart namesakes (ARTE France, ARTE Deutschland). */
+export type StudioRow = Studio & { movies: number; series: number; country: string | null };
+export type StudioSuggestion = {
+  kind: StudioKind;
+  tmdbId: number;
+  name: string;
+  logoPath: string | null;
+  country: string | null;
+  count: number;
+};
 
 /** The column a studio filters on. */
 export const studioColumn = (kind: StudioKind) => (kind === "company" ? schema.contents.companyIds : schema.contents.networkIds);
@@ -16,20 +24,27 @@ export const studioColumn = (kind: StudioKind) => (kind === "company" ? schema.c
 /** The chosen studios in their order, with what they hold among visible contents. */
 export async function listStudios(): Promise<StudioRow[]> {
   return db.execute<StudioRow>(sql`
-    select s.id, s.kind, s.tmdb_id as "tmdbId", s.name, s.logo_path as "logoPath", s.position,
+    select s.id, s.kind, s.tmdb_id as "tmdbId", s.name, s.logo_path as "logoPath", s.position, max(k.country) as country,
       count(c.id) filter (where c.kind = 'vod')::int as movies, count(c.id) filter (where c.kind = 'series')::int as series
     from ${schema.studios} s
+    left join (select kind, "tmdbId", min(country) as country from (${cachedStudios(await tmdbLanguage())}) x group by 1, 2) k
+      on k.kind = s.kind and k."tmdbId" = s.tmdb_id
     left join ${schema.contents} c on c.visible
       and case s.kind when 'company' then c.company_ids @> array[s.tmdb_id] else c.network_ids @> array[s.tmdb_id] end
     group by s.id order by s.position, s.id`);
 }
 
-/** Companies and networks of the visible catalogue, most represented first, not chosen yet. */
-export async function studioSuggestions(limit = 40): Promise<StudioSuggestion[]> {
+/**
+ * Companies and networks of the visible catalogue, most represented first, not chosen yet; those
+ * whose name holds `q` (any case) when given, so that one outside the first `limit` can be found.
+ */
+export async function studioSuggestions(limit = 40, q = ""): Promise<StudioSuggestion[]> {
+  const needle = q.trim().toLowerCase();
   return db.execute<StudioSuggestion>(sql`
-    select kind, "tmdbId", min(name) as name, min("logoPath") as "logoPath", count(*)::int as count
+    select kind, "tmdbId", min(name) as name, min("logoPath") as "logoPath", min(country) as country, count(*)::int as count
     from (${cachedStudios(await tmdbLanguage())}) x
     where not exists (select 1 from ${schema.studios} s where s.kind = x.kind and s.tmdb_id = x."tmdbId")
+      ${needle ? sql`and strpos(lower(x.name), ${needle}) > 0` : sql``}
     group by kind, "tmdbId" order by count desc, name limit ${limit}`);
 }
 
@@ -45,6 +60,56 @@ export async function addStudio(kind: StudioKind, tmdbId: number): Promise<boole
     .values({ kind, tmdbId, name: found.name, logoPath: found.logoPath, position: last + 1 })
     .onConflictDoNothing();
   return true;
+}
+
+export type StudioTitle = {
+  id: number;
+  kind: "vod" | "series";
+  title: string;
+  year: number | null;
+  posterPath: string | null;
+  /** A variant to open in the admin: a visible one first, the best quality. */
+  itemId: number | null;
+};
+export type StudioDetail = {
+  kind: StudioKind;
+  tmdbId: number;
+  name: string;
+  logoPath: string | null;
+  country: string | null;
+  /** Its row when it is shown in the app. */
+  chosenId: number | null;
+  titles: StudioTitle[];
+};
+
+/**
+ * `company:3` or `network:49`: TMDB numbers companies and networks apart, so the kind is part of
+ * the id (the same form as the app's `studio=` filter). Null when malformed.
+ */
+export function parseStudioRef(ref: string): { kind: StudioKind; tmdbId: number } | null {
+  const m = /^(company|network):(\d+)$/.exec(ref);
+  return m ? { kind: m[1] as StudioKind, tmdbId: Number(m[2]) } : null;
+}
+
+/** A studio and the visible contents it holds, newest first; null when no visible content carries it. */
+export async function studioDetail(kind: StudioKind, tmdbId: number): Promise<StudioDetail | null> {
+  const [found] = await db.execute<{ name: string; logoPath: string | null; country: string | null }>(sql`
+    select min(name) as name, min("logoPath") as "logoPath", min(country) as country
+    from (${cachedStudios(await tmdbLanguage())}) x where kind = ${kind} and "tmdbId" = ${tmdbId} having count(*) > 0`);
+  if (!found) return null;
+  const [chosen] = await db
+    .select({ id: schema.studios.id })
+    .from(schema.studios)
+    .where(and(eq(schema.studios.kind, kind), eq(schema.studios.tmdbId, tmdbId)));
+  const titles = await db.execute<StudioTitle>(sql`
+    select ${schema.contents.id}, ${schema.contents.kind}, ${schema.contents.title}, ${schema.contents.year},
+      ${schema.contents.posterPath} as "posterPath",
+      (select i.id from ${schema.items} i where i.content_id = ${schema.contents.id}
+        order by (not i.hidden_by_rule and not i.hidden_manual) desc, i.quality_rank desc nulls last, i.id limit 1) as "itemId"
+    from ${schema.contents}
+    where ${schema.contents.visible} and ${studioColumn(kind)} @> array[${tmdbId}]::int[]
+    order by ${schema.contents.year} desc nulls last, ${schema.contents.title}`);
+  return { kind, tmdbId, name: found.name, logoPath: found.logoPath, country: found.country, chosenId: chosen?.id ?? null, titles };
 }
 
 export async function removeStudio(id: number) {
@@ -72,13 +137,14 @@ const tmdbLanguage = async () => (await getSettings()).tmdb_language;
 
 /** One row per (visible content, company or network) from the cached TMDB documents. */
 const cachedStudios = (lang: string) => sql`
-  select 'company' as kind, (x->>'id')::int as "tmdbId", x->>'name' as name, x->>'logo_path' as "logoPath"
+  select 'company' as kind, (x->>'id')::int as "tmdbId", x->>'name' as name, x->>'logo_path' as "logoPath",
+    nullif(x->>'origin_country', '') as country
   from ${schema.contents} c
   join ${schema.tmdbCache} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = case c.kind when 'vod' then 'movie' else 'tv' end
   cross join jsonb_array_elements(coalesce(t.data->'production_companies', '[]'::jsonb)) x
   where c.visible
   union all
-  select 'network', (x->>'id')::int, x->>'name', x->>'logo_path'
+  select 'network', (x->>'id')::int, x->>'name', x->>'logo_path', nullif(x->>'origin_country', '')
   from ${schema.contents} c
   join ${schema.tmdbCache} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = 'tv'
   cross join jsonb_array_elements(coalesce(t.data->'networks', '[]'::jsonb)) x

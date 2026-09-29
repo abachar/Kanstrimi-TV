@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { studioColumn, type StudioKind } from "@/catalog";
+import { parseStudioRef, studioColumn, type StudioKind } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
 import { visibleContent } from "./contents";
@@ -35,7 +35,6 @@ export async function studiosOf(ctx: RestContext, kind: "vod" | "series"): Promi
 
 /** `company:3` → the filter of `/movies?studio=…`; null when malformed. */
 export function studioFilter(id: string) {
-  const m = /^(company|network):(\d+)$/.exec(id);
-  if (!m) return null;
-  return sql`${studioColumn(m[1] as StudioKind)} @> array[${Number(m[2])}]::int[]`;
+  const ref = parseStudioRef(id);
+  return ref ? sql`${studioColumn(ref.kind)} @> array[${ref.tmdbId}]::int[]` : null;
 }
