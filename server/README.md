@@ -95,7 +95,7 @@ qui n'est pas dans l'index est privé au dossier. Le graphe des dépendances est
 ```
 main.ts     composition : Hono, middlewares, montage de player, admin et /img, planification, arrêt propre
 admin/      pages (routes.tsx + view.tsx, data.ts pour les seules requêtes de présentation) ;
-            layout.tsx (menu latéral Basecoat, tiroir sous md), ui.tsx (composants partagés, couleurs des statuts), icons.tsx (les icônes Lucide autorisées),
+            layout.tsx (menu latéral Basecoat réductible à ses icônes sur md+, tiroir sous md), ui.tsx (composants partagés, couleurs des statuts), icons.tsx (les icônes Lucide autorisées),
             assets/admin.css (point d'entrée Tailwind, sans règle à nous), format.ts (nombres,
             dates, cron), labels.ts, http.tsx, session.ts, csrf.ts. Aucune écriture en base : l'admin appelle
             le domaine. catalog, groups, item = l'import brut et le groupement, ce qu'on corrige ;

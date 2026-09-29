@@ -6,9 +6,11 @@ import { env } from "@/shared";
 import { Icon, type IconName } from "./icons";
 
 /**
- * The side menu hides on md+ (Basecoat's sidebar has no icon-only state). The state lives in a
- * cookie and the toggle is a plain form: every navigation is a full page, a client-side toggle
- * would not survive it. Below md the menu is a drawer, opened by Basecoat's script.
+ * On md+ the side menu folds to its icons. Basecoat's sidebar has no icon-only state: it stays
+ * "open" for Basecoat and md: utilities (which win over its component layer) narrow it and hide
+ * the labels. The state lives in a cookie and the toggle is a plain form: every navigation is a
+ * full page, a client-side toggle would not survive it. Below md the menu is a drawer, opened by
+ * Basecoat's script, always with its labels.
  */
 const MENU_COOKIE = "kanstrimi_menu";
 export const isMenuCollapsed = (c: Context) => getCookie(c, MENU_COOKIE) === "collapsed";
@@ -72,13 +74,15 @@ export function Layout({
   path: string;
   flash?: { ok?: string; err?: string };
   loggedIn?: boolean;
-  /** md+ only: the menu is hidden; the phone drawer is closed until opened anyway. */
+  /** md+ only: the menu shows its icons alone; the phone drawer keeps its labels. */
   collapsed?: boolean;
   children?: Child;
 }) {
   const v = env.bootId;
   const flashes = html`${flash?.ok ? Flash({ ok: true, msg: flash.ok }) : ""}${flash?.err ? Flash({ ok: false, msg: flash.err }) : ""}`;
-  const fold = collapsed ? "Afficher le menu" : "Masquer le menu";
+  const fold = collapsed ? "Déplier le menu" : "Réduire le menu";
+  /** md+ classes of the icon rail, empty when the menu is unfolded. */
+  const rail = (cls: string) => (collapsed ? ` ${cls}` : "");
   return html`<!doctype html>
 <html lang="fr" class="dark">
 <head>
@@ -94,30 +98,30 @@ ${env.devPassword ? html`<div hx-get="/admin/dev/reload?boot=${env.bootId}" hx-t
 ${
   loggedIn
     ? html`
-<aside id="menu" class="sidebar" data-side="left" data-initial-open="${collapsed ? "false" : "true"}" aria-hidden="${collapsed ? "true" : "false"}"${collapsed ? raw(" inert") : ""}>
-  <nav aria-label="Menu">
+<aside id="menu" class="sidebar" data-side="left" aria-hidden="false">
+  <nav aria-label="Menu" class="${rail("md:w-13")}">
     <header>
-      <a href="/admin" class="btn justify-start gap-2 text-base font-semibold" data-variant="ghost">
-        <span class="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">${Icon({ name: "play", cls: "size-4" })}</span>
-        Kanstrimi
+      <a href="/admin" class="btn justify-start gap-2 text-base font-semibold${rail("md:justify-center md:px-0")}" data-variant="ghost" title="Kanstrimi">
+        <span class="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">${Icon({ name: "play", cls: "size-4" })}</span>
+        <span class="${rail("md:hidden")}">Kanstrimi</span>
       </a>
     </header>
     <section class="scrollbar">
       ${NAV.map(
         ([group, items], i) => html`<div role="group"${group ? raw(` aria-labelledby="menu-g${i}"`) : ""}>
-        ${group ? html`<h3 id="menu-g${i}">${group}</h3>` : ""}
+        ${group ? html`<h3 id="menu-g${i}" class="${rail("md:hidden")}">${group}</h3>` : ""}
         <ul>
-          ${items.map(([href, text, icon]) => html`<li><a href="${href}"${isActive(href, path) ? raw(' aria-current="page"') : ""}>${Icon({ name: icon })}<span>${text}</span></a></li>`)}
+          ${items.map(([href, text, icon]) => html`<li><a href="${href}" class="${rail("md:justify-center")}"${collapsed ? html` title="${text}"` : ""}${isActive(href, path) ? raw(' aria-current="page"') : ""}>${Icon({ name: icon })}<span class="${rail("md:hidden")}">${text}</span></a></li>`)}
         </ul>
       </div>`,
       )}
     </section>
     <footer>
-      <form method="post" action="/admin/logout"><button class="btn w-full justify-start" data-variant="ghost">${Icon({ name: "logout" })}Quitter</button></form>
+      <form method="post" action="/admin/logout"><button class="btn w-full justify-start${rail("md:justify-center md:px-0")}" data-variant="ghost" title="Quitter">${Icon({ name: "logout" })}<span class="${rail("md:hidden")}">Quitter</span></button></form>
     </footer>
   </nav>
 </aside>
-<main class="min-h-screen">
+<main class="min-h-screen${rail("md:ml-13")}">
   <header class="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur md:px-6">
     <button type="button" class="btn md:hidden" data-variant="ghost" data-size="icon" aria-label="Ouvrir le menu" aria-controls="menu" hx-on:click="document.getElementById('menu').open()">${Icon({ name: "menu" })}</button>
     <form method="post" action="/admin/menu" class="max-md:hidden">
