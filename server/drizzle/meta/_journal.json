@@ -127,6 +127,13 @@
       "when": 1790689082914,
       "tag": "0017_epg-mismatch",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790690770533,
+      "tag": "0018_epg-offsets",
+      "breakpoints": true
     }
   ]
 }

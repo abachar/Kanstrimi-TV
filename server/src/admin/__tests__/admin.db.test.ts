@@ -101,6 +101,9 @@ describe("admin", () => {
     expect(await html(`/admin/tasks/${runId}`)).toContain("── group : terminé");
     expect((await call(`/admin/tasks/${runId}/raw`)).headers.get("content-disposition")).toContain(".log");
     expect((await call("/admin/tasks/999999")).status).toBe(404);
+    expect(await html("/admin/epg")).toContain("Corrections du guide");
+    expect(await html("/admin/epg?channel=TF1.fr")).toContain("Décalage à appliquer");
+    expect(await html("/admin/epg/preview/TF1.fr?minutes=-180&pattern=*.fr")).toContain("Aperçu avec −3 h");
     expect(await html("/admin/settings")).toContain("Serveur Xtream");
     expect(await html("/admin/favorites")).toContain("Aucun favori");
     expect(await html("/admin/history")).toContain("En cours");

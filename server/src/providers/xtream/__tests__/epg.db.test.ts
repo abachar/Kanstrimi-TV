@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { setSettings, verify } from "@/config";
 import { run } from "@/catalog";
 import { epgStat, runEpgRebuild } from "../epg";
+import { compile, offsetOf, setOffset } from "../epg-offsets";
 
 /**
  * XMLTV time of tomorrow at `hh:mm` UTC: the import drops what is already over, so a fixed date
@@ -68,5 +69,50 @@ describe("EPG import", () => {
     serve(guide("Journal du soir"));
     expect(await runEpgRebuild()).toEqual({ channels: 1, programmes: 2 });
     expect(await rows()).toEqual(["TF1.fr:Journal du soir", "TF1.fr:Suite"]);
+  });
+});
+
+describe("EPG time corrections", () => {
+  it("prefers the channel's own rule to its suffix's, the longest suffix first", () => {
+    const rules = compile([
+      { pattern: "*.qa", minutes: -180 },
+      { pattern: "beINSports3.qa", minutes: -120 },
+    ]);
+    expect(offsetOf(rules, "beinsports3.QA")).toBe(-120);
+    expect(offsetOf(rules, "beINSports1.qa")).toBe(-180);
+    expect(offsetOf(rules, "TF1.fr")).toBe(0);
+  });
+
+  it("shifts the stored guide at once, then at every import; a duplicate programme is kept once", async () => {
+    const times = async () =>
+      (await db.select().from(schema.epgProgrammes).orderBy(schema.epgProgrammes.startAt)).map((r) => [
+        r.startAt.toISOString().slice(11, 16),
+        r.offsetMinutes,
+      ]);
+    expect(await times()).toEqual([
+      ["18:00", 0],
+      ["19:30", 0],
+    ]);
+    expect(await setOffset("*.fr", -180)).toBe(2);
+    expect(await times()).toEqual([
+      ["15:00", -180],
+      ["16:30", -180],
+    ]);
+    // The provider lists the first programme twice.
+    serve(
+      guide("Journal").replace(
+        "</tv>",
+        `<programme start="${at("1800")}" stop="${at("1930")}" channel="TF1.fr"><title>Journal</title></programme></tv>`,
+      ),
+    );
+    expect(await runEpgRebuild()).toEqual({ channels: 1, programmes: 2 });
+    expect(await times()).toEqual([
+      ["15:00", -180],
+      ["16:30", -180],
+    ]);
+    await setOffset("*.fr", 0);
+    expect((await times())[0]).toEqual(["18:00", 0]);
+    await expect(setOffset("*.fr", 7)).rejects.toThrow("Décalage invalide");
+    await expect(setOffset("pas un id", 60)).rejects.toThrow("Règle invalide");
   });
 });

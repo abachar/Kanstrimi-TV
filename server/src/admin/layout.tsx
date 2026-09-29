@@ -31,6 +31,7 @@ export const NAV: readonly (readonly [group: string | null, items: readonly NavI
       ["/admin/catalog?kind=series", "Séries", "series"],
       ["/admin/studios", "Studios", "studios"],
       ["/admin/rules", "Règles", "rules"],
+      ["/admin/epg", "EPG", "epg"],
     ],
   ],
   [

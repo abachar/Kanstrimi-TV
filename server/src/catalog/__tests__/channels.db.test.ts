@@ -113,15 +113,13 @@ describe("runChannels", () => {
     const [ertu] = await db.select().from(schema.contents).where(eq(schema.contents.iptvId, "ERTU1.eg"));
     expect(ertu.epgChannelId).toBe("ERTU1.eg");
     // …unless the provider files programmes under its own id: then its guide stays.
-    await db
-      .insert(schema.epgProgrammes)
-      .values({
-        channelId: "DubaiAlOula.ae",
-        startAt: new Date(),
-        endAt: new Date(Date.now() + 3600_000),
-        title: "x",
-        importedAt: new Date(),
-      });
+    await db.insert(schema.epgProgrammes).values({
+      channelId: "DubaiAlOula.ae",
+      startAt: new Date(),
+      endAt: new Date(Date.now() + 3600_000),
+      title: "x",
+      importedAt: new Date(),
+    });
     await runGrouping();
     const [again] = await db.select().from(schema.contents).where(eq(schema.contents.id, ertu.id));
     expect(again.epgChannelId).toBe("DubaiAlOula.ae");

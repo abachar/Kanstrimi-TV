@@ -349,10 +349,23 @@ export const epgProgrammes = pgTable(
     title: text("title").notNull(),
     overview: text("overview"),
     importedAt: timestamp("imported_at", { withTimezone: true }).notNull(),
+    /** The correction applied to the provider's times (`epg_offsets`), so a new rule shifts by the difference. */
+    offsetMinutes: integer("offset_minutes").default(0).notNull(),
   },
   (t) => [index("epg_programmes_channel_start_idx").on(t.channelId, t.startAt), index("epg_programmes_end_idx").on(t.endAt)],
 );
 export type EpgProgramme = typeof epgProgrammes.$inferSelect;
+
+/**
+ * Corrections of the provider's guide times: a guide id (`beINSports3.qa`) or every id of a
+ * suffix (`*.qa`), shifted by `minutes`. The exact id wins over a suffix; set from the EPG page.
+ */
+export const epgOffsets = pgTable("epg_offsets", {
+  pattern: text("pattern").primaryKey(),
+  minutes: integer("minutes").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export type EpgOffset = typeof epgOffsets.$inferSelect;
 
 /** Playback position per content key (movie or episode). Single user: no device column. */
 export const watchProgress = pgTable("watch_progress", {

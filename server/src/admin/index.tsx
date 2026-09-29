@@ -16,6 +16,7 @@ import { rulesRoutes } from "./rules/routes";
 import { studiosRoutes } from "./studios/routes";
 import { devicesRoutes, pairRoutes } from "./devices/routes";
 import { tasksRoutes } from "./tasks/routes";
+import { epgRoutes } from "./epg/routes";
 import { settingsRoutes } from "./settings/routes";
 
 /**
@@ -60,6 +61,7 @@ admin.route("/history", historyRoutes);
 admin.route("/catalog/groups", groupsRoutes);
 admin.route("/item", itemRoutes);
 admin.route("/rules", rulesRoutes);
+admin.route("/epg", epgRoutes);
 admin.route("/studios", studiosRoutes);
 admin.route("/pair", pairRoutes);
 admin.route("/devices", devicesRoutes);

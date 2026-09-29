@@ -3,6 +3,7 @@ import { and, eq, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { db, schema, visibleItem } from "@/db";
 import { getSettings, setSettings } from "@/config";
 import { xtreamFromSettings } from "./client";
+import { offsetOf, offsetRules } from "./epg-offsets";
 
 /**
  * The XMLTV guide of the provider, imported into `epg_programmes` for the channels the app can
@@ -108,13 +109,29 @@ export async function runEpgRebuild(): Promise<{ channels: number; programmes: n
   const res = await fetch(client.xmltvUrl(), { redirect: "follow", signal: AbortSignal.timeout(600_000) });
   if (!res.ok || !res.body) throw new Error(`EPG amont indisponible (HTTP ${res.status})`);
   const importedAt = new Date();
+  const rules = await offsetRules();
   const seen = new Set<string>();
+  // The provider lists some programmes twice (beIN MAX): one row per channel and start.
+  const keys = new Set<string>();
   let programmes = 0;
+  let duplicates = 0;
   for await (const batch of parseXmltv(res.body.pipeThrough(new TextDecoderStream()), wanted)) {
-    await db.insert(schema.epgProgrammes).values(batch.map((r) => ({ ...r, importedAt })));
-    for (const r of batch) seen.add(r.channelId);
-    programmes += batch.length;
+    const rows = batch.flatMap((r) => {
+      const key = `${r.channelId}|${r.startAt.getTime()}`;
+      if (keys.has(key)) {
+        duplicates++;
+        return [];
+      }
+      keys.add(key);
+      const offsetMinutes = offsetOf(rules, r.channelId);
+      const shift = (d: Date) => new Date(d.getTime() + offsetMinutes * 60_000);
+      return [{ ...r, startAt: shift(r.startAt), endAt: shift(r.endAt), offsetMinutes, importedAt }];
+    });
+    if (rows.length) await db.insert(schema.epgProgrammes).values(rows);
+    for (const r of rows) seen.add(r.channelId);
+    programmes += rows.length;
   }
+  if (duplicates) console.log(`[epg] ${duplicates} programmes en double ignorés`);
   if (!programmes) throw new Error("EPG amont sans aucun programme pour nos chaînes : guide précédent conservé");
   await db.delete(schema.epgProgrammes).where(lt(schema.epgProgrammes.importedAt, importedAt));
   await db.delete(schema.epgProgrammes).where(lt(schema.epgProgrammes.endAt, new Date(Date.now() - KEEP_PAST_MS)));
