@@ -29,6 +29,12 @@ struct SettingsView: View {
                 Toggle("Épisode suivant automatique · 10 s", isOn: $prefs.autoPlayNext)
                 Toggle("Mémoriser la version par titre", isOn: $prefs.rememberVersionPerTitle)
                 Toggle("Changer de source en cas de panne", isOn: $prefs.switchSourceOnFailure)
+                Picker("Tampon du direct", selection: $prefs.liveBufferMs) {
+                    ForEach(Preferences.liveBufferChoices, id: \.self) { Text(Format.seconds(ms: $0)).tag($0) }
+                }
+                Picker("Tampon des films et séries", selection: $prefs.vodBufferMs) {
+                    ForEach(Preferences.vodBufferChoices, id: \.self) { Text(Format.seconds(ms: $0)).tag($0) }
+                }
                 LabeledContent("Ordre utilisé par Lecture", value: "Un choix fait dans le sélecteur de versions est mémorisé pour le titre et prime sur ces réglages.")
                     .font(.callout)
             }

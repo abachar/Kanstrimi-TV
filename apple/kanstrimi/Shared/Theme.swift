@@ -170,6 +170,10 @@ enum Format {
         if s < 86400 { return "il y a \(Int(s / 3600)) h" }
         return "il y a \(Int(s / 86400)) j"
     }
+    /// "1,5 s", "3 s".
+    static func seconds(ms: Int) -> String {
+        (Double(ms) / 1000).formatted(.number.precision(.fractionLength(0...1)).locale(Locale(identifier: "fr_FR"))) + " s"
+    }
     /// "35 219".
     static func count(_ n: Int) -> String { n.formatted(.number.grouping(.automatic)) }
 }

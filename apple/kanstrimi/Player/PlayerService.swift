@@ -128,7 +128,7 @@ final class PlayerService: NSObject {
         self.failedSources = failedSources
         self.progressQueue = progressQueue
         self.capabilities = capabilities
-        self.player = VLCMediaPlayer(options: ["--network-caching=1500", "--no-video-title-show"])
+        self.player = VLCMediaPlayer(options: ["--no-video-title-show"])
         super.init()
         player.delegate = self
         player.drawable = videoView
@@ -377,6 +377,10 @@ final class PlayerService: NSObject {
 
         player.stop()
         let media = VLCMedia(url: s.streamURL)
+        // Per media: the live keeps a short buffer for the zap, VOD a longer one (Réglages › Lecture).
+        media?.addOption(":network-caching=\(isLive ? preferences.liveBufferMs : preferences.vodBufferMs)")
+        // A dropped HTTP connection is reopened by VLC (with a Range on VOD) before the watchdog steps in.
+        media?.addOption(":http-reconnect")
         // Resume through the demuxer rather than a seek after `play()`: on a remote MKV the
         // early seek leaves the video output black while the Cues are fetched.
         if let position, position > 1, !isLive, Self.resumeStrategy == .startTime {
