@@ -46,7 +46,6 @@ Idées reprises des tentatives précédentes (supprimées le 2026-09-29), absent
 - **Lecteur** : épisode précédent.
 - **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).
 - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
-- **Filtres de séries** « Nouveaux épisodes » et « Saison complète en VF ».
 - **Commandes système** (`MPNowPlayingInfoCenter`) : titre et lecture sur iPhone en arrière-plan et en PiP.
 - Plus faible :
   - **Distribution avec photos** : photos des acteurs sur la fiche, un acteur ouvre ses autres titres du catalogue.
