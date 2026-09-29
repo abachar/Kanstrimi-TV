@@ -51,4 +51,15 @@ Idées reprises des tentatives précédentes (supprimées le 2026-09-29), absent
 - **Filtres de séries** « Nouveaux épisodes » et « Saison complète en VF ».
 - **Recherche tolérante aux fautes** : `pg_trgm` en repli quand la recherche par préfixe ne trouve rien.
 - **Commandes système** (`MPNowPlayingInfoCenter`) : titre et lecture sur iPhone en arrière-plan et en PiP.
-- Plus faible : distribution avec photos, listes nommées, « Si vous avez aimé… », logos TMDB, arrêt d'une tâche en cours, nouveaux essais sur les GET de l'app, mentions « Director's Cut » / « Extended » dans le nettoyage des noms, clé du direct sur l'identifiant iptv-org (migration des favoris et de la progression), métriques serveur, sauvegarde de la configuration, image arm64.
+- Plus faible :
+  - **Distribution avec photos** : photos des acteurs sur la fiche, un acteur ouvre ses autres titres du catalogue.
+  - **Listes nommées** : plusieurs listes au lieu de la seule « Ma liste ».
+  - **« Si vous avez aimé… »** : rangée de titres proches sur la fiche, recommandations TMDB croisées avec le catalogue.
+  - **Logos TMDB** : le logo du titre en tête de fiche à la place du texte.
+  - **Arrêt d'une tâche en cours** : interrompre depuis l'admin une étape du pipeline qui traîne.
+  - **Nouveaux essais sur les GET de l'app** : réessayer une ou deux fois avant d'afficher une erreur réseau.
+  - **« Director's Cut » / « Extended »** : reconnaître ces mentions dans le nettoyage des noms, pour ne pas gêner le rapprochement TMDB et le regroupement.
+  - **Clé du direct sur l'identifiant iptv-org** : une clé stable quand le fournisseur renomme une chaîne ; demande de migrer favoris et progression.
+  - **Métriques serveur** : durée des étapes, erreurs du fournisseur, lectures, sans fouiller les logs.
+  - **Sauvegarde de la configuration** : exporter et réimporter règles, studios et identifiants du fournisseur.
+  - **Image arm64** : en plus de `linux/amd64`, pour un Raspberry Pi ou un Mac.
