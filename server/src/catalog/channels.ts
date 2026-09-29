@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import { db, schema, client as pg } from "@/db";
-import { stripAccents } from "@/shared";
+import { similarity, stripAccents } from "@/shared";
 import { syncIptv } from "@/providers/iptv";
 import { regroupItems } from "./grouping/group";
-import type { LiveTheme } from "./naming";
+import { LIVE_THEMES, type LiveTheme } from "./naming";
 
 /**
  * The `channels` step: the iptv-org database refreshed (providers/iptv), then every live
@@ -50,16 +50,35 @@ export function iptvTheme(categories: string[]): LiveTheme | null {
 
 /**
  * iptv-org first; but « general » says less than a provider's specific theme (France 3 Bretagne
- * is « general » there and « Régionales » here), so a specific provider theme survives it.
+ * is « general » there and « Régionales » here), so one of our themes survives it. A label of the
+ * provider's own (« Tf1+ », « Tele-realite ») does not.
  */
 export function mergedTheme(iptv: LiveTheme | null, provider: string | null): string | null {
   if (!iptv) return provider;
-  if (iptv === "Généralistes" && provider && provider !== "Généralistes") return provider;
+  if (iptv === "Généralistes" && provider && provider !== iptv && (LIVE_THEMES as readonly string[]).includes(provider)) return provider;
   return iptv;
 }
 
+/** Country tags the provider appends to a name: « AL OULA EGY », « MBC KSA ». */
+const COUNTRY_TAG = /\s+(EGY|KSA|UAE|QAT|KWT|IRQ|SYR|JOR|LBN|MAR|ALG|TUN|LBY|OMN|BHR|YEM|SDN|PAL)\s*$/i;
+
+/**
+ * The names a channel may go by, as keys: the whole cleaned name, without what is in brackets,
+ * what is in brackets (« AL OULA (ERTU 1) EGY » is also « ERTU 1 »), without a country tag.
+ */
+export function nameKeys(title: string): string[] {
+  const bare = title
+    .replace(/\([^)]*\)|\[[^\]]*\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const inside = [...title.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]);
+  const names = [title, bare, bare.replace(COUNTRY_TAG, ""), ...inside];
+  return [...new Set(names.map(channelKey).filter((k) => k.length > 1))];
+}
+
+type IndexedChannel = { id: string; country: string; categories: string[]; isNsfw: boolean; keys: string[]; names: string[] };
 type Index = {
-  byId: Map<string, { id: string; categories: string[]; isNsfw: boolean }>;
+  byId: Map<string, IndexedChannel>;
   byNameCountry: Map<string, Set<string>>;
   byName: Map<string, Set<string>>;
 };
@@ -78,10 +97,9 @@ async function loadIndex(): Promise<Index> {
   const idx: Index = { byId: new Map(), byNameCountry: new Map(), byName: new Map() };
   const add = (m: Map<string, Set<string>>, k: string, id: string) => m.set(k, (m.get(k) ?? new Set()).add(id));
   for (const r of rows) {
-    idx.byId.set(r.id.toLowerCase(), r);
-    for (const n of [r.name, ...r.altNames]) {
-      const k = channelKey(n);
-      if (!k) continue;
+    const keys = [...new Set([r.name, ...r.altNames].map(channelKey).filter(Boolean))];
+    idx.byId.set(r.id.toLowerCase(), { ...r, keys, names: [r.name, ...r.altNames] });
+    for (const k of keys) {
       add(idx.byNameCountry, `${k}|${r.country}`, r.id);
       add(idx.byName, k, r.id);
     }
@@ -91,22 +109,81 @@ async function loadIndex(): Promise<Index> {
 
 export type IptvMatch = { id: string; how: "epg" | "name" | "name-global" } | null;
 
+/** A name that differs only by spelling (« AL RESALA » / « Al Resalah », « VIRGIN MEDIA 1 » / « One »). */
+export const FIT_THRESHOLD = 0.7;
+const compact = (s: string) =>
+  stripAccents(s)
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "");
+
 /**
- * Which iptv-org channel a variant is: the provider's EPG id when iptv-org knows it (`TF1.fr`,
- * feed suffix `@HD` dropped), else its cleaned name in its market's countries, else its name
- * anywhere in the world; a name counts only when it designates a single channel.
+ * Does the variant's name fit this channel? Its own name inside the variant's (« AL AOULA INTER »
+ * is Al Aoula's feed), or close enough to one of its names: « CNBC » is not BBC Parliament.
  */
-export function matchChannel(idx: Index, v: { epgId: string | null; title: string; market: string | null }): IptvMatch {
-  const epg = v.epgId?.split("@")[0].toLowerCase();
+export function nameFits(ch: Pick<IndexedChannel, "keys" | "names">, title: string, keys: string[]): boolean {
+  if (keys.some((k) => ch.keys.some((n) => n.length > 2 && k.includes(n)))) return true;
+  const variants = [...new Set([compact(title), ...keys])];
+  return ch.names.some((n) => variants.some((v) => similarity(v, compact(n)) >= FIT_THRESHOLD));
+}
+
+/**
+ * Which iptv-org channel a variant is, and whether the provider's EPG id is to be ignored.
+ * The EPG id (`TF1.fr`, feed suffix `@HD` dropped) wins when iptv-org knows it and the name fits;
+ * else the name keys in the market's countries, else anywhere in the world; a name counts only
+ * when it designates a single channel. The provider's EPG id gives way only to a channel found by
+ * name, and only when it surely names another channel (`epgContradicts`). A guide is never lost for nothing.
+ */
+export function matchChannel(
+  idx: Index,
+  v: { epgId: string | null; title: string; market: string | null },
+): { match: IptvMatch; epgMismatch: boolean } {
+  const epg = v.epgId?.split("@")[0].toLowerCase() || null;
+  const keys = nameKeys(v.title);
   const byEpg = epg ? idx.byId.get(epg) : undefined;
-  if (byEpg) return { id: byEpg.id, how: "epg" };
-  const k = channelKey(v.title);
-  if (!k) return null;
-  const local = new Set(countriesOf(v.market).flatMap((c) => [...(idx.byNameCountry.get(`${k}|${c}`) ?? [])]));
-  if (local.size === 1) return { id: [...local][0], how: "name" };
-  if (local.size > 1) return null;
-  const world = idx.byName.get(k);
-  return world?.size === 1 ? { id: [...world][0], how: "name-global" } : null;
+  if (byEpg && nameFits(byEpg, v.title, keys)) return { match: { id: byEpg.id, how: "epg" }, epgMismatch: false };
+  const byName = matchByName(idx, keys, v.market);
+  if (!byName) return { match: null, epgMismatch: false };
+  const contradicts = Boolean(epg) && epg !== byName.id.toLowerCase() && epgContradicts(v.epgId!, v.title, keys, byEpg, byName);
+  return { match: { id: byName.id, how: byName.how }, epgMismatch: contradicts };
+}
+
+/** An id shaped like iptv-org's (`TF1.fr`), not one of the provider's own (`samsungtv_reuters`, a hash, Hebrew). */
+const IPTV_STYLE = /^[a-z0-9+]+\.([a-z]{2})$/i;
+
+/**
+ * The provider's EPG id names another channel than the one found by name: iptv-org knows it and
+ * its name did not fit; or, unknown there, it is shaped like an iptv-org id of another country than
+ * the channel found in the market, and does not read like the name (`DubaiAlOula.ae` for « AL OULA
+ * (ERTU 1) EGY », Egyptian). The provider's own ids and renamed channels (`BBC4.uk` for « BBC FOUR »)
+ * keep their guide: the provider files it under them.
+ */
+function epgContradicts(
+  epgId: string,
+  title: string,
+  keys: string[],
+  known: IndexedChannel | undefined,
+  found: IndexedChannel & { how: string },
+): boolean {
+  if (known) return true;
+  const id = epgId.split("@")[0];
+  const m = IPTV_STYLE.exec(id);
+  if (!m || found.how !== "name" || m[1].toLowerCase() === found.country.toLowerCase()) return false;
+  const stem = id.slice(0, id.lastIndexOf("."));
+  return !nameFits({ keys: [channelKey(stem)].filter(Boolean), names: [stem] }, title, keys);
+}
+
+function matchByName(idx: Index, keys: string[], market: string | null): (IndexedChannel & { how: "name" | "name-global" }) | null {
+  const countries = countriesOf(market);
+  for (const k of keys) {
+    const local = new Set(countries.flatMap((c) => [...(idx.byNameCountry.get(`${k}|${c}`) ?? [])]));
+    if (local.size === 1) return { ...idx.byId.get([...local][0].toLowerCase())!, how: "name" };
+  }
+  for (const k of keys) {
+    const world = idx.byName.get(k);
+    if (world?.size === 1) return { ...idx.byId.get([...world][0].toLowerCase())!, how: "name-global" };
+  }
+  return null;
 }
 
 const CHUNK = 5000;
@@ -122,27 +199,39 @@ type LiveRow = {
   iptvId: string | null;
   iptvMatch: string | null;
 };
-type Resolved = { id: number; iptv: string | null; how: string | null; theme: string | null; adult: boolean };
+type Resolved = { id: number; iptv: string | null; how: string | null; theme: string | null; adult: boolean; epgMismatch: boolean };
 
-/** What a live variant becomes: its channel (kept when pinned by hand), theme and adult flag. */
+/** A pinned channel: the provider's EPG id is wrong when it names another channel. */
+function pinnedMismatch(idx: Index, epgId: string | null, pinned: IndexedChannel | undefined, title: string): boolean {
+  const epg = epgId?.split("@")[0].toLowerCase();
+  if (!epg || !pinned || epg === pinned.id.toLowerCase()) return false;
+  return epgContradicts(epgId!, title, nameKeys(title), idx.byId.get(epg), { ...pinned, how: "name" });
+}
+
+/** What a live variant becomes: its channel (kept when pinned by hand), theme, adult flag, and whether its EPG id is to be ignored. */
 function resolve(idx: Index, it: LiveRow): Resolved {
+  const epgId = (it.raw as { epg_channel_id?: string }).epg_channel_id ?? null;
   const manual = it.iptvMatch === "manual";
-  const m: IptvMatch = manual
-    ? it.iptvId
-      ? { id: it.iptvId, how: "epg" }
-      : null
-    : matchChannel(idx, {
-        epgId: (it.raw as { epg_channel_id?: string }).epg_channel_id ?? null,
-        title: it.title || it.name,
-        market: it.market,
-      });
-  const ch = m ? idx.byId.get(m.id.toLowerCase()) : undefined;
+  let ch: IndexedChannel | undefined;
+  let how: string | null = null;
+  let epgMismatch: boolean;
+  if (manual) {
+    ch = it.iptvId ? idx.byId.get(it.iptvId.toLowerCase()) : undefined;
+    how = "manual";
+    epgMismatch = pinnedMismatch(idx, epgId, ch, it.title || it.name);
+  } else {
+    const r = matchChannel(idx, { epgId, title: it.title || it.name, market: it.market });
+    ch = r.match ? idx.byId.get(r.match.id.toLowerCase()) : undefined;
+    how = ch ? r.match!.how : null;
+    epgMismatch = r.epgMismatch;
+  }
   return {
     id: it.id,
     iptv: ch?.id ?? (manual ? it.iptvId : null),
-    how: manual ? "manual" : ch ? m!.how : null,
+    how,
     theme: ch ? mergedTheme(iptvTheme(ch.categories), it.theme) : it.theme,
     adult: it.adult || Boolean(ch?.isNsfw || ch?.categories.includes("xxx")),
+    epgMismatch,
   };
 }
 
@@ -166,10 +255,10 @@ async function write(rows: Resolved[]) {
   for (let i = 0; i < rows.length; i += CHUNK) {
     const part = rows.slice(i, i + CHUNK);
     await pg`
-      update items i set iptv_id = u.iptv, iptv_match = u.how, theme = u.theme, adult = u.adult::boolean
+      update items i set iptv_id = u.iptv, iptv_match = u.how, theme = u.theme, adult = u.adult::boolean, epg_mismatch = u.mismatch::boolean
       from unnest(${part.map((r) => r.id)}::int[], ${part.map((r) => r.iptv)}::text[], ${part.map((r) => r.how)}::text[],
-                  ${part.map((r) => r.theme)}::text[], ${part.map((r) => String(r.adult))}::text[])
-        as u(id, iptv, how, theme, adult)
+                  ${part.map((r) => r.theme)}::text[], ${part.map((r) => String(r.adult))}::text[], ${part.map((r) => String(r.epgMismatch))}::text[])
+        as u(id, iptv, how, theme, adult, mismatch)
       where i.id = u.id`;
   }
 }
@@ -186,9 +275,10 @@ export async function runChannels() {
     iptv_by_epg: count(["epg"]),
     iptv_by_name: count(["name", "name-global"]),
     iptv_manual: count(["manual"]),
+    epg_mismatch: rows.filter((r) => r.epgMismatch).length,
   };
   console.log(
-    `[channels] ${stats.iptv_matched} / ${stats.live_items} variantes du direct rattachées (${stats.iptv_by_epg} par l'identifiant EPG, ${stats.iptv_by_name} par le nom, ${stats.iptv_manual} à la main)`,
+    `[channels] ${stats.iptv_matched} / ${stats.live_items} variantes du direct rattachées (${stats.iptv_by_epg} par l'identifiant EPG, ${stats.iptv_by_name} par le nom, ${stats.iptv_manual} à la main), ${stats.epg_mismatch} identifiants EPG du fournisseur écartés`,
   );
   return { ...sync, ...stats };
 }

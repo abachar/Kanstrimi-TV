@@ -69,6 +69,7 @@ export const STAT_LABELS: Record<string, string> = {
   iptv_by_epg: "par EPG",
   iptv_by_name: "par nom",
   iptv_manual: "à la main",
+  epg_mismatch: "EPG fournisseur écartés",
   items_grouped: "variantes",
   contents: "contenus",
   multi_variant: "à plusieurs variantes",

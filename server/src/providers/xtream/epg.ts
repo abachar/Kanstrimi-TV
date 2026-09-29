@@ -1,6 +1,6 @@
 import { SaxesParser } from "saxes";
 import { and, eq, isNotNull, lt, ne, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, visibleItem } from "@/db";
 import { getSettings, setSettings } from "@/config";
 import { xtreamFromSettings } from "./client";
 
@@ -71,7 +71,11 @@ export async function* parseXmltv(chunks: AsyncIterable<string>, wanted: Set<str
   if (out.length) yield out;
 }
 
-/** The EPG ids of the channels the app can see: the only ones worth storing. */
+/**
+ * The EPG ids of the channels the app can see: the only ones worth storing. A visible variant
+ * whose provider id names another channel (`epg_mismatch`) brings both ids, its own and iptv-org's:
+ * the grouping then keeps whichever the guide has programmes for.
+ */
 async function wantedChannelIds(): Promise<Set<string>> {
   const rows = await db
     .selectDistinct({ id: schema.contents.epgChannelId })
@@ -84,7 +88,11 @@ async function wantedChannelIds(): Promise<Set<string>> {
         ne(schema.contents.epgChannelId, ""),
       ),
     );
-  return new Set(rows.map((r) => r.id!));
+  const disputed = await db
+    .select({ own: sql<string>`${schema.items.raw}->>'epg_channel_id'`, iptv: schema.items.iptvId })
+    .from(schema.items)
+    .where(and(eq(schema.items.kind, "live"), eq(schema.items.epgMismatch, true), visibleItem));
+  return new Set([...rows.map((r) => r.id!), ...disputed.flatMap((d) => [d.own, d.iptv]).filter((x): x is string => Boolean(x))]);
 }
 
 /**

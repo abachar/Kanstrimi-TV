@@ -1,26 +1,7 @@
 import type { TmdbSearchResult } from "./client";
-import { similarityKey } from "@/shared";
+import { similarity } from "@/shared";
 
-/** Dice coefficient on bigrams — good enough for title similarity. */
-export function similarity(a: string, b: string): number {
-  const na = similarityKey(a),
-    nb = similarityKey(b);
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  const bg = (s: string) => {
-    const m = new Map<string, number>();
-    for (let i = 0; i < s.length - 1; i++) {
-      const k = s.slice(i, i + 2);
-      m.set(k, (m.get(k) ?? 0) + 1);
-    }
-    return m;
-  };
-  const A = bg(na),
-    B = bg(nb);
-  let inter = 0;
-  for (const [k, v] of A) inter += Math.min(v, B.get(k) ?? 0);
-  return (2 * inter) / (na.length - 1 + (nb.length - 1));
-}
+export { similarity };
 
 export type Scored = { result: TmdbSearchResult; score: number };
 

@@ -199,8 +199,6 @@ struct LiveView: View {
                     Text(c.name).font(.headline)
                     if let now = env.channelCache.cached(c.id)?.now {
                         Text(now.title).font(.callout).foregroundStyle(Theme.secondary).lineLimit(1)
-                    } else if let n = c.number {
-                        Text("Chaîne \(n)").font(.callout).foregroundStyle(Theme.secondary)
                     }
                     HStack(spacing: 6) {
                         if let q = c.maxQuality { Badge(q.rawValue, small: true) }

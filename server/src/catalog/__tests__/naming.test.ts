@@ -242,7 +242,12 @@ describe("live themes", () => {
     expect(liveTheme(null, "SPORTS")).toBe("Sport");
     expect(liveTheme(null, "USA")).toBe("Généralistes");
     expect(liveTheme("|IT| ITALIA |IT|", "ITALY")).toBe("Généralistes");
-    expect(liveTheme("|AR| EGYPTE |AR|", "ARAB WORLD")).toBe("Egypte");
+    // The Arab world is grouped by theme, the channel's name telling it; other regions keep their countries.
+    expect(liveTheme("|AR| EGYPTE |AR|", "ARAB WORLD")).toBe("Généralistes");
+    expect(liveTheme("|AR| MAROC |AR|", "MAGHREB", "ARRYADIA SPORT")).toBe("Sport");
+    expect(liveTheme("|SR| SRBIJA |SR|", "BALKANS")).toBe("Srbija");
+    expect(liveTheme("|AR| LIBYE |AR|", "ARAB WORLD")).toBe("Généralistes"); // country names in French too
+    expect(liveTheme("|AR| E.A.U. |AR|", "ARAB WORLD")).toBe("Généralistes");
     expect(liveTheme(null, null)).toBe("Généralistes");
   });
 });

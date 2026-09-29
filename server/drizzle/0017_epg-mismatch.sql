@@ -1,0 +1,1 @@
+ALTER TABLE "items" ADD COLUMN "epg_mismatch" boolean DEFAULT false NOT NULL;

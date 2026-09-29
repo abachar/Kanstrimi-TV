@@ -433,13 +433,15 @@ const THEME_WORDS: [RegExp, LiveTheme][] = [
 
 /**
  * A section named after a country (« FRANCE », « ITALIA », « SWISS ») is the national list, unless
- * the category is a region (« ARAB WORLD », « BALKANS », « LATIN AMERICA »): there, countries are
- * the sections worth keeping (« Egypte », « Maroc », « Srbija »).
+ * the category is a region (« BALKANS », « LATIN AMERICA »): there, countries are the sections worth
+ * keeping (« Srbija »). Not in the Arab world (« ARAB WORLD », « MAGHREB »): its channels are grouped
+ * by theme like the others, the channel's own name telling it when iptv-org does not know it.
  */
 const COUNTRY_WORDS = words(
-  "FRANCE|FRENCH|FRANCAIS|BELGIUM|BELGIQUE|BELGIE|SWISS|SUISSE|SWITZERLAND|SCHWEIZ|LUXEMBOURG|CANADA|QUEBEC|USA|AMERICA|UK|ENGLAND|BRITAIN|IRELAND|ITALY|ITALIA|SPAIN|ESPANA|PORTUGAL|GERMANY|DEUTSCHLAND|AUSTRIA|NETHERLANDS|HOLLAND|NEDERLAND|VLAANDEREN|TURKEY|TURKIYE|RUSSIA|ROSSIYA|UKRAINE|POLAND|POLSKA|ROMANIA|BULGARIA|GREECE|HELLAS|HUNGARY|CZECH|CZECHIA|SLOVAKIA|ALBANIA|SHQIPERIA|SERBIA|SRBIJA|CROATIA|HRVATSKA|BOSNIA|MACEDONIA|MAKEDONIJA|MONTENEGRO|CRNA GORA|SLOVENIA|SWEDEN|SVERIGE|NORWAY|NORGE|DENMARK|DANMARK|FINLAND|ICELAND|IRAN|IRAK|IRAQ|ISRAEL|ARMENIA|INDIA|PAKISTAN|CHINA|JAPAN|KOREA|BRAZIL|BRASIL|MEXICO|ARGENTINA|COLOMBIA|CHILE|PERU|BOLIVIA|VENEZUELA|EGYPT|EGYPTE|MAROC|MOROCCO|ALGERIE|ALGERIA|TUNISIE|TUNISIA|LIBAN|LEBANON|SYRIA|SYRIE|JORDAN|KUWAIT|QATAR|EMIRATES|UAE|SAOUDI|SAUDI|BAHRAIN|OMAN|YEMEN|LIBYA|SUDAN",
+  "FRANCE|FRENCH|FRANCAIS|BELGIUM|BELGIQUE|BELGIE|SWISS|SUISSE|SWITZERLAND|SCHWEIZ|LUXEMBOURG|CANADA|QUEBEC|USA|AMERICA|UK|ENGLAND|BRITAIN|IRELAND|ITALY|ITALIA|SPAIN|ESPANA|PORTUGAL|GERMANY|DEUTSCHLAND|AUSTRIA|NETHERLANDS|HOLLAND|NEDERLAND|VLAANDEREN|TURKEY|TURKIYE|RUSSIA|ROSSIYA|UKRAINE|POLAND|POLSKA|ROMANIA|BULGARIA|GREECE|HELLAS|HUNGARY|CZECH|CZECHIA|SLOVAKIA|ALBANIA|SHQIPERIA|SERBIA|SRBIJA|CROATIA|HRVATSKA|BOSNIA|MACEDONIA|MAKEDONIJA|MONTENEGRO|CRNA GORA|SLOVENIA|SWEDEN|SVERIGE|NORWAY|NORGE|DENMARK|DANMARK|FINLAND|ICELAND|IRAN|IRAK|IRAQ|ISRAEL|ARMENIA|INDIA|PAKISTAN|CHINA|JAPAN|KOREA|BRAZIL|BRASIL|MEXICO|ARGENTINA|COLOMBIA|CHILE|PERU|BOLIVIA|VENEZUELA|EGYPT|EGYPTE|MAROC|MOROCCO|ALGERIE|ALGERIA|TUNISIE|TUNISIA|LIBAN|LEBANON|SYRIA|SYRIE|JORDAN|KUWAIT|QATAR|EMIRATES|UAE|SAOUDI|SAUDI|BAHRAIN|OMAN|YEMEN|LIBYA|SUDAN|LIBYE|JORDANIE|PALESTINE|KOWEIT|EMIRATS|E\\.?A\\.?U\\.?|DUBAI|ABU DHABI|ROYAUME[- ]UNI|ARABIE|SOUDAN|MAURITANIE|BAHREIN|SOMALIE|DJIBOUTI|INDEFINI",
 );
 const REGION_WORDS = words("ARAB|ARABIC|MAGHREB|BALKANS?|LATIN|LATINO|SCANDINAVIA|BALTICS?|INTERNATIONAL|WORLD|EUROPE|AFRICA|ASIA|EX-YU");
+const ARAB_WORDS = words("ARAB|ARABIC|MAGHREB");
 const norm = (s: string) => stripAccents(s).toUpperCase();
 
 /** The theme a section or category label announces, or null when its words say nothing known. */
@@ -454,14 +456,16 @@ export function themeOf(label: string): LiveTheme | null {
  * without any known word (« USA », « SKY UK »). An unknown section keeps its own label,
  * capitalised, so nothing is lost: the app shows « Nouvelle gener. » as a group of its own.
  */
-export function liveTheme(section: string | null, categoryTitle: string | null): string {
+export function liveTheme(section: string | null, categoryTitle: string | null, name: string | null = null): string {
   if (section) {
     const label = sectionLabel(section);
     const t = themeOf(label);
     if (t) return t;
     const upper = norm(label);
     if (categoryTitle && upper === norm(categoryTitle)) return GENERAL;
-    if (COUNTRY_WORDS.test(upper) && !(categoryTitle && REGION_WORDS.test(norm(categoryTitle)))) return GENERAL;
+    const region = categoryTitle ? norm(categoryTitle) : "";
+    if (COUNTRY_WORDS.test(upper) && ARAB_WORDS.test(region)) return (name && themeOf(name)) || GENERAL;
+    if (COUNTRY_WORDS.test(upper) && !REGION_WORDS.test(region)) return GENERAL;
     return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
   }
   return (categoryTitle && themeOf(categoryTitle)) || GENERAL;

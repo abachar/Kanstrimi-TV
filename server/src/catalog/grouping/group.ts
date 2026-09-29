@@ -152,7 +152,7 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       tags.push([...new Set([...p.tags, ...(h?.tags ?? [])])].sort().join(","));
       seasons.push(p.seasonHint ?? null);
       adults.push(Boolean(h?.adult) || isAdultEntryName(r.name));
-      themes.push(r.kind === "live" ? liveTheme(r.section, h?.title ?? null) : null);
+      themes.push(r.kind === "live" ? liveTheme(r.section, h?.title ?? null, p.title) : null);
     }
     await pg`
       update items i set
@@ -412,9 +412,14 @@ async function refreshAggregates(onlyIds?: number[]) {
         (array_agg(iptv_id order by vis desc, quality_rank desc, position, id) filter (where iptv_id is not null))[1] as iptv,
         (array_agg(category_xtream_id order by vis desc, quality_rank desc, position, id))[1] as cat,
         (array_agg(nullif(regexp_replace(coalesce(raw->>'num', ''), '\\D', '', 'g'), '')::int order by vis desc, quality_rank desc, position, id))[1] as num,
-        (array_agg(nullif(raw->>'epg_channel_id', '') order by vis desc, quality_rank desc, position, id))[1] as epg
+        -- A provider EPG id naming another channel gives way to the iptv-org id of the channel found by
+        -- name, but only when the provider files no programme under it: a guide is never lost for nothing.
+        (array_agg(case
+            when epg_mismatch and not exists (select 1 from ${schema.epgProgrammes} p where p.channel_id = raw->>'epg_channel_id')
+            then iptv_id else nullif(raw->>'epg_channel_id', '') end
+          order by vis desc, quality_rank desc, position, id))[1] as epg
       from (
-        select id, content_id, added_at, quality_rank, lang, dynamic_range, market, position, category_xtream_id, raw, theme, iptv_id,
+        select id, content_id, added_at, quality_rank, lang, dynamic_range, market, position, category_xtream_id, raw, theme, iptv_id, epg_mismatch,
           (${visibleItem}) as vis,
           (${visibleItem} or not bool_or(${visibleItem}) over (partition by content_id)) as counted
         from ${schema.items} where content_id is not null

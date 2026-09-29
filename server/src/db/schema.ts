@@ -101,6 +101,8 @@ export const items = pgTable(
     /** Live: the iptv-org channel this variant is (`TF1.fr`), and how it was found: epg · name · name-global · manual. */
     iptvId: text("iptv_id"),
     iptvMatch: text("iptv_match"),
+    /** Live: the provider's EPG id names another channel (iptv-org says so): its guide is not this channel's. */
+    epgMismatch: boolean("epg_mismatch").default(false).notNull(),
   },
   (t) => [
     uniqueIndex("items_kind_xtream_idx").on(t.kind, t.xtreamId),

@@ -64,7 +64,7 @@ struct LiveBanner: View {
     private func zapRow(_ c: Channel, current: Bool, arrow: String) -> some View {
         HStack(spacing: 12) {
             Text(arrow).font(.caption).foregroundStyle(Theme.secondary).frame(width: 20)
-            if let n = c.number { Text("\(n)").font(.callout.monospacedDigit()).foregroundStyle(Theme.secondary) }
+            ChannelLogo(channel: c, size: 32)
             Text(c.name).font(current ? .headline : .callout).foregroundStyle(current ? Theme.text : Theme.secondary)
             if let q = c.maxQuality { Badge(q.rawValue) }
         }
@@ -100,7 +100,7 @@ struct ChannelListOverlay: View {
                             onClose()
                         } label: {
                             HStack(spacing: 14) {
-                                Text(c.number.map(String.init) ?? "").frame(width: 44, alignment: .trailing).foregroundStyle(Theme.secondary).monospacedDigit()
+                                ChannelLogo(channel: c, size: 44)
                                 Text(c.name).frame(maxWidth: .infinity, alignment: .leading)
                                 if let q = c.maxQuality { Badge(q.rawValue) }
                                 if c.id == player.channel?.id { Image(systemName: "play.fill").foregroundStyle(Theme.accent) }
@@ -212,15 +212,36 @@ struct RecentChannelCard: View {
 }
 
 /// Logo placeholder: the mock has none, so initials on the channel's colour.
+/// The channel's logo (iptv-org's, served by our server, else the provider's) on a light tile:
+/// most logos are drawn for a light background. Initials on the channel's colour meanwhile or without one.
 struct ChannelLogo: View {
     let channel: Channel
     var size: CGFloat = 64
     var body: some View {
         ZStack {
+            if let url = channel.logo {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: size * 0.22).fill(.white.opacity(0.92))
+                            image.resizable().scaledToFit().padding(size * 0.12)
+                        }
+                    } else {
+                        initialsTile
+                    }
+                }
+            } else {
+                initialsTile
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.22))
+    }
+    private var initialsTile: some View {
+        ZStack {
             RoundedRectangle(cornerRadius: size * 0.22).fill(Theme.art(for: channel.id))
             Text(initials).font(.system(size: size * 0.36, weight: .heavy)).foregroundStyle(.white)
         }
-        .frame(width: size, height: size)
     }
     private var initials: String {
         let words = channel.name.split(separator: " ")
