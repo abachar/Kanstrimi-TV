@@ -18,7 +18,7 @@ export const isOffsetMinutes = (m: number) => Number.isInteger(m) && Math.abs(m)
 export type OffsetRules = { exact: Map<string, number>; suffixes: [string, number][] };
 
 export async function offsetRules(): Promise<OffsetRules> {
-  return compile(await db.select().from(schema.epgOffsets));
+  return compile(await db.select().from(schema.curationEpgOffsets));
 }
 
 export function compile(rows: Pick<EpgOffset, "pattern" | "minutes">[]): OffsetRules {
@@ -37,18 +37,18 @@ export function offsetOf(rules: OffsetRules, channelId: string): number {
   return rules.exact.get(id) ?? rules.suffixes.find(([s]) => id.endsWith(s))?.[1] ?? 0;
 }
 
-export const listOffsets = () => db.select().from(schema.epgOffsets).orderBy(schema.epgOffsets.pattern);
+export const listOffsets = () => db.select().from(schema.curationEpgOffsets).orderBy(schema.curationEpgOffsets.pattern);
 
 /** Sets a rule (0 minutes removes it) and shifts the stored guide by the difference. */
 export async function setOffset(pattern: string, minutes: number) {
   if (!isOffsetPattern(pattern)) throw new Error(`Règle invalide : ${pattern}`);
   if (!isOffsetMinutes(minutes)) throw new Error("Décalage invalide : ± 12 h par pas de 5 min");
-  if (minutes === 0) await db.delete(schema.epgOffsets).where(eq(schema.epgOffsets.pattern, pattern));
+  if (minutes === 0) await db.delete(schema.curationEpgOffsets).where(eq(schema.curationEpgOffsets.pattern, pattern));
   else
     await db
-      .insert(schema.epgOffsets)
+      .insert(schema.curationEpgOffsets)
       .values({ pattern, minutes })
-      .onConflictDoUpdate({ target: schema.epgOffsets.pattern, set: { minutes, updatedAt: new Date() } });
+      .onConflictDoUpdate({ target: schema.curationEpgOffsets.pattern, set: { minutes, updatedAt: new Date() } });
   return reapplyOffsets();
 }
 
@@ -56,15 +56,15 @@ export async function setOffset(pattern: string, minutes: number) {
 export async function reapplyOffsets(): Promise<number> {
   const rules = await offsetRules();
   const groups = await db
-    .selectDistinct({ channelId: schema.epgProgrammes.channelId, offset: schema.epgProgrammes.offsetMinutes })
-    .from(schema.epgProgrammes);
+    .selectDistinct({ channelId: schema.catalogEpgProgrammes.channelId, offset: schema.catalogEpgProgrammes.offsetMinutes })
+    .from(schema.catalogEpgProgrammes);
   let moved = 0;
   for (const g of groups) {
     const want = offsetOf(rules, g.channelId);
     if (want === g.offset) continue;
     const delta = want - g.offset;
     const rows = await db.execute(sql`
-      update epg_programmes set
+      update catalog_epg_programmes set
         start_at = start_at + make_interval(mins => ${delta}),
         end_at = end_at + make_interval(mins => ${delta}),
         offset_minutes = ${want}

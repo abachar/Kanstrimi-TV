@@ -15,10 +15,10 @@ export type FavoriteRow = {
 /** Every favourite, newest first, whatever its visibility: a dead favourite is exactly what the admin wants to see. */
 export async function favoriteRows(ctx: RestContext): Promise<FavoriteRow[]> {
   const rows = await db
-    .select({ key: schema.favorites.contentKey, addedAt: schema.favorites.createdAt, content: schema.contents })
-    .from(schema.favorites)
-    .leftJoin(schema.contents, eq(schema.contents.key, schema.favorites.contentKey))
-    .orderBy(desc(schema.favorites.createdAt), desc(schema.favorites.contentKey));
+    .select({ key: schema.appFavorites.contentKey, addedAt: schema.appFavorites.createdAt, content: schema.catalogContents })
+    .from(schema.appFavorites)
+    .leftJoin(schema.catalogContents, eq(schema.catalogContents.key, schema.appFavorites.contentKey))
+    .orderBy(desc(schema.appFavorites.createdAt), desc(schema.appFavorites.contentKey));
   return rows.map(({ key, addedAt, content }) => ({
     key,
     addedAt,

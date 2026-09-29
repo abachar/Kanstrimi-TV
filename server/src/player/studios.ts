@@ -18,9 +18,9 @@ export function studioRoutes(kind: "vod" | "series") {
 export async function studiosOf(ctx: RestContext, kind: "vod" | "series"): Promise<StudioWire[]> {
   const rows = await db.execute<{ kind: StudioKind; tmdb_id: number; name: string; logo_path: string | null; n: number }>(sql`
     select s.kind, s.tmdb_id, s.name, s.logo_path, n.n
-    from ${schema.studios} s
+    from ${schema.curationStudios} s
     cross join lateral (
-      select count(*)::int as n from ${schema.contents}
+      select count(*)::int as n from ${schema.catalogContents}
       where ${visibleContent(ctx, kind)}
         and case s.kind when 'company' then company_ids @> array[s.tmdb_id] else network_ids @> array[s.tmdb_id] end
     ) n

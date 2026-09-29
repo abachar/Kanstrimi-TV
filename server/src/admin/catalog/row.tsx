@@ -1,5 +1,5 @@
 import { Busy } from "../ui";
-import { isItemHidden, type Item } from "@/db";
+import { isItemHidden, type Variant } from "@/db";
 import { TmdbCell } from "./tmdb-cell";
 import { VisibilityToggle } from "./visibility";
 import { categoryItemsLink, isSearch, type CatalogQuery } from "./query";
@@ -43,7 +43,7 @@ export function CatalogHeader({ qy }: { qy: CatalogQuery }) {
   );
 }
 
-export function ItemRow({ r, qy, catLabel, catHidden = false }: { r: Item; qy: CatalogQuery; catLabel: string; catHidden?: boolean }) {
+export function ItemRow({ r, qy, catLabel, catHidden = false }: { r: Variant; qy: CatalogQuery; catLabel: string; catHidden?: boolean }) {
   const hidden = isItemHidden(r) || catHidden;
   const g = catalogGrid(qy);
   return (
@@ -101,7 +101,7 @@ export function CategoryItems({
 }: {
   qy: CatalogQuery;
   cat: string;
-  rows: Item[];
+  rows: Variant[];
   catHidden: boolean;
   hasMore: boolean;
 }) {

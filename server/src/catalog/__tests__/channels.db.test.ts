@@ -94,7 +94,7 @@ describe("runChannels", () => {
       iptv_by_name: 3,
       epg_mismatch: 1,
     });
-    const items = await db.select().from(schema.items).orderBy(schema.items.xtreamId);
+    const items = await db.select().from(schema.catalogVariants).orderBy(schema.catalogVariants.xtreamId);
     const by = (x: string) => items.find((i) => i.xtreamId === x)!;
     expect(by("1")).toMatchObject({ iptvId: "TF1.fr", iptvMatch: "epg" });
     expect(by("2")).toMatchObject({ iptvId: "BFMTV.fr", iptvMatch: "name", theme: "Infos" }); // iptv-org first
@@ -109,13 +109,13 @@ describe("runChannels", () => {
 
   it("gives the content iptv-org's logo through this server, the provider's otherwise", async () => {
     await runGrouping();
-    const [tf1] = await db.select().from(schema.contents).where(eq(schema.contents.iptvId, "TF1.fr"));
+    const [tf1] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.iptvId, "TF1.fr"));
     expect(tf1.logoUrl).toMatch(/^\/img\/logos\/TF1\.fr-[0-9a-f]{10}\.png$/);
     // A contradicted EPG id gives way to the iptv-org id for the guide.
-    const [ertu] = await db.select().from(schema.contents).where(eq(schema.contents.iptvId, "ERTU1.eg"));
+    const [ertu] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.iptvId, "ERTU1.eg"));
     expect(ertu.epgChannelId).toBe("ERTU1.eg");
     // …unless the provider files programmes under its own id: then its guide stays.
-    await db.insert(schema.epgProgrammes).values({
+    await db.insert(schema.catalogEpgProgrammes).values({
       channelId: "DubaiAlOula.ae",
       startAt: new Date(),
       endAt: new Date(Date.now() + 3600_000),
@@ -123,21 +123,24 @@ describe("runChannels", () => {
       importedAt: new Date(),
     });
     await runGrouping();
-    const [again] = await db.select().from(schema.contents).where(eq(schema.contents.id, ertu.id));
+    const [again] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.id, ertu.id));
     expect(again.epgChannelId).toBe("DubaiAlOula.ae");
   });
 
   it("keeps a manual pin across runs, and goes back to automatic on demand", async () => {
-    const [ligue] = await db.select().from(schema.items).where(eq(schema.items.xtreamId, "5"));
+    const [ligue] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "5"));
     await setIptvMatch(ligue.id, "Canal1.fr");
     serve();
     await runChannels();
-    expect((await db.select().from(schema.items).where(eq(schema.items.id, ligue.id)))[0]).toMatchObject({
+    expect((await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, ligue.id)))[0]).toMatchObject({
       iptvId: "Canal1.fr",
       iptvMatch: "manual",
     });
     await setIptvMatch(ligue.id, "auto");
-    expect((await db.select().from(schema.items).where(eq(schema.items.id, ligue.id)))[0]).toMatchObject({ iptvId: null, iptvMatch: null });
+    expect((await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, ligue.id)))[0]).toMatchObject({
+      iptvId: null,
+      iptvMatch: null,
+    });
     await expect(setIptvMatch(ligue.id, "Nope.xx")).rejects.toThrow(/inconnue/);
   });
 });

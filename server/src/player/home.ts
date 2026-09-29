@@ -22,15 +22,15 @@ export async function home(ctx: RestContext): Promise<Home> {
     resumeKeys(20),
     db
       .select()
-      .from(schema.contents)
+      .from(schema.catalogContents)
       .where(and(visibleContent(ctx, "vod"), hasTmdbKey, isNewRelease()))
-      .orderBy(desc(schema.contents.addedAt), desc(schema.contents.id))
+      .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
       .limit(HOME_ROW),
     db
       .select()
-      .from(schema.contents)
+      .from(schema.catalogContents)
       .where(visibleContent(ctx, "series"))
-      .orderBy(desc(schema.contents.addedAt), desc(schema.contents.id))
+      .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
       .limit(HOME_ROW),
     favoriteKeys(),
   ]);
@@ -57,8 +57,8 @@ export async function home(ctx: RestContext): Promise<Home> {
   if (favKeys.length) {
     const favs = await db
       .select()
-      .from(schema.contents)
-      .where(and(visibleContent(ctx), inArray(schema.contents.key, favKeys)));
+      .from(schema.catalogContents)
+      .where(and(visibleContent(ctx), inArray(schema.catalogContents.key, favKeys)));
     const order = new Map(favKeys.map((k, i) => [k, i]));
     favs.sort((a, b) => order.get(a.key)! - order.get(b.key)!);
     if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => gridCard(ctx, c)) });
@@ -91,15 +91,15 @@ async function resumeCardsOf(ctx: RestContext, resume: Progress[]): Promise<Card
   const movies = movieKeys.length
     ? await db
         .select()
-        .from(schema.contents)
-        .where(and(visibleContent(ctx, "vod"), inArray(schema.contents.key, movieKeys)))
+        .from(schema.catalogContents)
+        .where(and(visibleContent(ctx, "vod"), inArray(schema.catalogContents.key, movieKeys)))
     : [];
   const episodes = episodeKeys.length
     ? await db
-        .select({ e: schema.episodes, c: schema.contents })
-        .from(schema.episodes)
-        .innerJoin(schema.contents, eq(schema.contents.id, schema.episodes.contentId))
-        .where(and(inArray(schema.episodes.key, episodeKeys), visibleContent(ctx)))
+        .select({ e: schema.catalogEpisodes, c: schema.catalogContents })
+        .from(schema.catalogEpisodes)
+        .innerJoin(schema.catalogContents, eq(schema.catalogContents.id, schema.catalogEpisodes.contentId))
+        .where(and(inArray(schema.catalogEpisodes.key, episodeKeys), visibleContent(ctx)))
     : [];
   const byKey = new Map<string, Card>();
   for (const c of movies) byKey.set(c.key, { ...baseCard(ctx, c), backdrop: backdropOf(ctx, c), progress: null });

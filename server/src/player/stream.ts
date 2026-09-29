@@ -37,8 +37,8 @@ async function upstreamOf(src: {
   if (src.kind === "item") {
     const [it] = await db
       .select()
-      .from(schema.items)
-      .where(and(eq(schema.items.id, src.id), visibleItem));
+      .from(schema.catalogVariants)
+      .where(and(eq(schema.catalogVariants.id, src.id), visibleItem));
     if (!it || it.kind === "series") return null;
     return {
       kind: it.kind === "live" ? "live" : "movie",
@@ -47,9 +47,9 @@ async function upstreamOf(src: {
     };
   }
   const [row] = await db
-    .select({ s: schema.episodeSources })
-    .from(schema.episodeSources)
-    .innerJoin(schema.items, eq(schema.items.id, schema.episodeSources.itemId))
-    .where(and(eq(schema.episodeSources.id, src.id), visibleItem));
+    .select({ s: schema.catalogEpisodeVariants })
+    .from(schema.catalogEpisodeVariants)
+    .innerJoin(schema.catalogVariants, eq(schema.catalogVariants.id, schema.catalogEpisodeVariants.itemId))
+    .where(and(eq(schema.catalogEpisodeVariants.id, src.id), visibleItem));
   return row ? { kind: "series", id: row.s.xtreamId, ext: row.s.container ?? "mp4" } : null;
 }

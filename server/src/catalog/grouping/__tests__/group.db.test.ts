@@ -5,9 +5,9 @@ import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db
 import { runGrouping, runNaming, regroupItems, refreshVisibility, groupingCounts } from "../group";
 import { inArray } from "drizzle-orm";
 
-const content = async (key: string) => (await db.select().from(schema.contents).where(eq(schema.contents.key, key)))[0];
+const content = async (key: string) => (await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, key)))[0];
 const variants = (contentId: number) =>
-  db.select().from(schema.items).where(eq(schema.items.contentId, contentId)).orderBy(schema.items.id);
+  db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.contentId, contentId)).orderBy(schema.catalogVariants.id);
 
 describe("runGrouping", () => {
   beforeAll(async () => {
@@ -174,9 +174,12 @@ describe("runGrouping", () => {
 
   it("indexes the title, the original title, the cast and the director without accents", async () => {
     const hit = async (q: string) =>
-      (await db.select({ key: schema.contents.key }).from(schema.contents).where(sql`search @@ plainto_tsquery('simple', ${q})`)).map(
-        (r) => r.key,
-      );
+      (
+        await db
+          .select({ key: schema.catalogContents.key })
+          .from(schema.catalogContents)
+          .where(sql`search @@ plainto_tsquery('simple', ${q})`)
+      ).map((r) => r.key);
     expect(await hit("tobey maguire")).toEqual(["tmdb:movie:557"]);
     expect(await hit("homme araignee")).toEqual(["tmdb:movie:557"]);
     expect((await content("tmdb:movie:557")).titleEn).toBe("Spider-Man");
@@ -186,27 +189,68 @@ describe("runGrouping", () => {
   });
 
   it("is idempotent", async () => {
-    const before = await db.select({ id: schema.contents.id, key: schema.contents.key }).from(schema.contents).orderBy(schema.contents.id);
+    const before = await db
+      .select({ id: schema.catalogContents.id, key: schema.catalogContents.key })
+      .from(schema.catalogContents)
+      .orderBy(schema.catalogContents.id);
     await runNaming();
     await runGrouping();
-    const after = await db.select({ id: schema.contents.id, key: schema.contents.key }).from(schema.contents).orderBy(schema.contents.id);
+    const after = await db
+      .select({ id: schema.catalogContents.id, key: schema.catalogContents.key })
+      .from(schema.catalogContents)
+      .orderBy(schema.catalogContents.id);
     expect(after).toEqual(before);
+  });
+
+  it("keeps the TMDB card's title when the variants' names change, and copies the card again when TMDB's is newer", async () => {
+    const rename = (xtreamId: string, name: string) =>
+      db.update(schema.catalogVariants).set({ name }).where(eq(schema.catalogVariants.xtreamId, xtreamId));
+    await rename("1", "|FR| Spidey (4K)");
+    await rename("2", "|FR| Spidey (DV)");
+    await runNaming();
+    await runGrouping();
+    expect((await content("tmdb:movie:557")).title).toBe("Spider-Man"); // the card is current and not copied again: the upsert must leave the title alone
+
+    await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{title}', '"Spider-Man, le film"'), fetched_at = now() + interval '1 minute'
+      where tmdb_id = 557 and media_type = 'movie'`);
+    await runGrouping();
+    expect((await content("tmdb:movie:557")).title).toBe("Spider-Man, le film");
+
+    await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{title}', '"Spider-Man"'), fetched_at = now() + interval '2 minutes'
+      where tmdb_id = 557 and media_type = 'movie'`);
+    await rename("1", "|FR| Spider-Man (4K)");
+    await rename("2", "|FR| Spider-Man (DV)");
+    await runNaming();
+    await runGrouping();
+    expect((await content("tmdb:movie:557")).title).toBe("Spider-Man");
+  });
+
+  it("keeps iptv-org's adult flag and theme when the names are parsed again", async () => {
+    const tf1 = eq(schema.catalogVariants.xtreamId, "100");
+    await db.update(schema.catalogVariants).set({ iptvAdult: true, iptvTheme: "Sport" }).where(tf1);
+    await runNaming(); // what `merge` does at every import, `channels` failing afterwards
+    const [v] = await db.select().from(schema.catalogVariants).where(tf1);
+    expect(v).toMatchObject({ nameAdult: false, adult: true, theme: "Sport" });
+    await db.update(schema.catalogVariants).set({ iptvAdult: false, iptvTheme: null }).where(tf1);
+    const [back] = await db.select().from(schema.catalogVariants).where(tf1);
+    expect(back.adult).toBe(false);
+    expect(back.theme).toBe(back.nameTheme);
   });
 
   it("counts for the dashboard what the app sees: hidden variants neither make a content nor several variants", async () => {
     const vod = async () => (await groupingCounts()).find((r) => r.kind === "vod")!;
     const before = await vod();
-    const rest = inArray(schema.items.xtreamId, ["2", "3", "4"]);
-    await db.update(schema.items).set({ hiddenManual: true }).where(rest);
+    const rest = inArray(schema.catalogVariants.xtreamId, ["2", "3", "4"]);
+    await db.update(schema.catalogVariants).set({ hiddenManual: true }).where(rest);
     // Spider-Man keeps one visible variant: still a content, no longer « several variants ».
     expect(await vod()).toMatchObject({ visible: before.visible, multi: before.multi - 1 });
-    await db.update(schema.items).set({ hiddenManual: false }).where(rest);
+    await db.update(schema.catalogVariants).set({ hiddenManual: false }).where(rest);
     expect(await vod()).toEqual(before);
   });
 
   it("moves a variant to its TMDB group after a manual match, and drops the emptied fallback", async () => {
-    const [it] = await db.select().from(schema.items).where(eq(schema.items.xtreamId, "5"));
-    await db.update(schema.items).set({ tmdbId: 557, matchStatus: "manual" }).where(eq(schema.items.id, it.id));
+    const [it] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "5"));
+    await db.update(schema.catalogVariants).set({ tmdbId: 557, matchStatus: "manual" }).where(eq(schema.catalogVariants.id, it.id));
     await regroupItems([it.id]);
     expect(await content("fallback:movie:spider-man:2002")).toBeUndefined();
     const sm = await content("tmdb:movie:557");
@@ -215,11 +259,11 @@ describe("runGrouping", () => {
   });
 
   it("honours a manual split through key_override", async () => {
-    const [it] = await db.select().from(schema.items).where(eq(schema.items.xtreamId, "4"));
+    const [it] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "4"));
     await db
-      .update(schema.items)
+      .update(schema.catalogVariants)
       .set({ keyOverride: `manual:${it.id}` })
-      .where(eq(schema.items.id, it.id));
+      .where(eq(schema.catalogVariants.id, it.id));
     await regroupItems([it.id]);
     expect((await content("tmdb:movie:557")).variantCount).toBe(4);
     const split = await content(`manual:${it.id}`);
@@ -228,13 +272,13 @@ describe("runGrouping", () => {
   });
 
   it("follows the admin visibility switches", async () => {
-    await db.update(schema.items).set({ hiddenManual: false }).where(eq(schema.items.xtreamId, "7"));
+    await db.update(schema.catalogVariants).set({ hiddenManual: false }).where(eq(schema.catalogVariants.xtreamId, "7"));
     await refreshVisibility();
     expect((await content("fallback:movie:dune:-")).visible).toBe(true);
   });
 
   it("removes a content whose last variant disappeared", async () => {
-    await db.delete(schema.items).where(eq(schema.items.xtreamId, "102"));
+    await db.delete(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "102"));
     await runNaming();
     const stats = await runGrouping();
     expect(stats.orphans_removed).toBe(1);

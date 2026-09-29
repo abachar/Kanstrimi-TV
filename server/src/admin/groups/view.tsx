@@ -1,4 +1,4 @@
-import type { Content, Item, Category } from "@/db";
+import type { Content, Variant, Category } from "@/db";
 import { GROUPS_PAGE } from "./data";
 import type { MergeCandidate } from "@/catalog";
 import { isItemHidden } from "@/db";
@@ -96,7 +96,7 @@ export function GroupRow({ c }: { c: Content }) {
 }
 
 /** The variants of one content, with the split / merge actions. */
-export function GroupVariants({ c, items, cats }: { c: Content; items: Item[]; cats: Map<string, Category> }) {
+export function GroupVariants({ c, items, cats }: { c: Content; items: Variant[]; cats: Map<string, Category> }) {
   return (
     <div class="mt-2 flex flex-col text-sm">
       {items.map((it) => {

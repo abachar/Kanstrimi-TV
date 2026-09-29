@@ -1,5 +1,5 @@
 import { QUALITY_RANK, DYNAMIC_RANGE_RANK, qualityOfRank as knownQualityOfRank } from "@/catalog";
-import type { Item } from "@/db";
+import type { Variant } from "@/db";
 import type { DynamicRange, Quality, Version } from "./types";
 import type { RestContext } from "./context";
 import { sourceId, streamUrl } from "./stream-links";
@@ -32,7 +32,7 @@ export type Playable = {
   id: number;
 };
 
-export function playableOfItem(it: Item, categoryName: string | null): Playable {
+export function playableOfItem(it: Variant, categoryName: string | null): Playable {
   return {
     sourceId: sourceId("item", it.id),
     container: String(it.raw.container_extension ?? (it.kind === "live" ? "ts" : "mp4")).toUpperCase(),

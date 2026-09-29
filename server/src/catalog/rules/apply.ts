@@ -2,22 +2,31 @@ import { inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { compileRules, isHidden } from "./engine";
 import { refreshVisibility } from "../grouping/group";
+import { withCatalogLock } from "../lock";
 
 const CHUNK = 500;
 
-/** Recompute hidden_by_rule for all categories and items from the current rule set. */
-export async function applyRules() {
-  const rules = await db.select().from(schema.filterRules);
+/**
+ * Recompute hidden_by_rule for all categories and items from the current rule set, under the
+ * catalogue lock (the admin changes rules while a run may be grouping). The contents' visibility
+ * follows when something changed, unless `refresh` is off: in the pipeline, `group` recomputes it next.
+ */
+export function applyRules(opts: { refresh?: boolean } = {}) {
+  return withCatalogLock(() => apply(opts.refresh ?? true));
+}
+
+async function apply(refresh: boolean) {
+  const rules = await db.select().from(schema.curationFilterRules);
   const compiled = compileRules(rules);
   const cats = await db
     .select({
-      id: schema.categories.id,
-      kind: schema.categories.kind,
-      name: schema.categories.name,
-      xtreamId: schema.categories.xtreamId,
-      hidden: schema.categories.hiddenByRule,
+      id: schema.catalogCategories.id,
+      kind: schema.catalogCategories.kind,
+      name: schema.catalogCategories.name,
+      xtreamId: schema.catalogCategories.xtreamId,
+      hidden: schema.catalogCategories.hiddenByRule,
     })
-    .from(schema.categories);
+    .from(schema.catalogCategories);
   const hiddenCatKeys = new Set<string>();
   const catName = new Map<string, string>();
   const catUpdates: { ids: number[]; hidden: boolean }[] = [
@@ -33,19 +42,19 @@ export async function applyRules() {
   for (const u of catUpdates)
     for (let i = 0; i < u.ids.length; i += CHUNK)
       await db
-        .update(schema.categories)
+        .update(schema.catalogCategories)
         .set({ hiddenByRule: u.hidden })
-        .where(inArray(schema.categories.id, u.ids.slice(i, i + CHUNK)));
+        .where(inArray(schema.catalogCategories.id, u.ids.slice(i, i + CHUNK)));
 
   const its = await db
     .select({
-      id: schema.items.id,
-      kind: schema.items.kind,
-      name: schema.items.name,
-      cat: schema.items.categoryXtreamId,
-      hidden: schema.items.hiddenByRule,
+      id: schema.catalogVariants.id,
+      kind: schema.catalogVariants.kind,
+      name: schema.catalogVariants.name,
+      cat: schema.catalogVariants.categoryXtreamId,
+      hidden: schema.catalogVariants.hiddenByRule,
     })
-    .from(schema.items);
+    .from(schema.catalogVariants);
   const itemUpdates: { ids: number[]; hidden: boolean }[] = [
     { ids: [], hidden: true },
     { ids: [], hidden: false },
@@ -58,9 +67,10 @@ export async function applyRules() {
   for (const u of itemUpdates)
     for (let i = 0; i < u.ids.length; i += CHUNK)
       await db
-        .update(schema.items)
+        .update(schema.catalogVariants)
         .set({ hiddenByRule: u.hidden })
-        .where(inArray(schema.items.id, u.ids.slice(i, i + CHUNK)));
-  await refreshVisibility();
+        .where(inArray(schema.catalogVariants.id, u.ids.slice(i, i + CHUNK)));
+  const changed = catUpdates.some((u) => u.ids.length) || itemUpdates.some((u) => u.ids.length);
+  if (refresh && changed) await refreshVisibility();
   return { categories: catUpdates[0].ids.length + catUpdates[1].ids.length, items: itemUpdates[0].ids.length + itemUpdates[1].ids.length };
 }

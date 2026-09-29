@@ -23,9 +23,9 @@ const serve = (body: string, status = 200) => vi.stubGlobal("fetch", async () =>
 const rows = async () =>
   (
     await db
-      .select({ title: schema.epgProgrammes.title, channel: schema.epgProgrammes.channelId })
-      .from(schema.epgProgrammes)
-      .orderBy(schema.epgProgrammes.startAt)
+      .select({ title: schema.catalogEpgProgrammes.title, channel: schema.catalogEpgProgrammes.channelId })
+      .from(schema.catalogEpgProgrammes)
+      .orderBy(schema.catalogEpgProgrammes.startAt)
   ).map((r) => `${r.channel}:${r.title}`);
 
 beforeAll(async () => {
@@ -39,7 +39,7 @@ beforeAll(async () => {
   ]);
   expect(await run("group")).toBe(true);
   // Rows the pruning must drop: a programme long over, from an older import.
-  await db.execute(sql`insert into epg_programmes (channel_id, start_at, end_at, title, imported_at)
+  await db.execute(sql`insert into catalog_epg_programmes (channel_id, start_at, end_at, title, imported_at)
     values ('TF1.fr', now() - interval '2 days', now() - interval '47 hours', 'Vieux', now() - interval '3 days')`);
 });
 afterAll(async () => {
@@ -65,6 +65,23 @@ describe("EPG import", () => {
     expect(await rows()).toEqual(["TF1.fr:Journal", "TF1.fr:Suite"]);
   });
 
+  it("keeps the previous guide whole when the download breaks midway", async () => {
+    // More than one batch of programmes lands before the cut: none of them may stay.
+    const many = Array.from({ length: 1500 }, (_, i) => {
+      const t = (m: number) => new Date(Date.now() + 86_400_000 + m * 60_000).toISOString().replace(/[-:T]/g, "").slice(0, 14);
+      return `<programme start="${t(i)} +0000" stop="${t(i + 1)} +0000" channel="TF1.fr"><title>Flash ${i}</title></programme>`;
+    }).join("");
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(new TextEncoder().encode(`<?xml version="1.0"?><tv>${many}`));
+        c.error(new Error("connexion coupée"));
+      },
+    });
+    vi.stubGlobal("fetch", async () => new Response(body, { status: 200 }));
+    await expect(runEpgRebuild()).rejects.toThrow("connexion coupée");
+    expect(await rows()).toEqual(["TF1.fr:Journal", "TF1.fr:Suite"]);
+  });
+
   it("replaces the guide on the next successful import", async () => {
     serve(guide("Journal du soir"));
     expect(await runEpgRebuild()).toEqual({ channels: 1, programmes: 2 });
@@ -85,7 +102,7 @@ describe("EPG time corrections", () => {
 
   it("shifts the stored guide at once, then at every import; a duplicate programme is kept once", async () => {
     const times = async () =>
-      (await db.select().from(schema.epgProgrammes).orderBy(schema.epgProgrammes.startAt)).map((r) => [
+      (await db.select().from(schema.catalogEpgProgrammes).orderBy(schema.catalogEpgProgrammes.startAt)).map((r) => [
         r.startAt.toISOString().slice(11, 16),
         r.offsetMinutes,
       ]);

@@ -1,4 +1,4 @@
-import type { Category, Content, IptvChannel, Item } from "@/db";
+import type { Category, Content, IptvorgChannel, Variant } from "@/db";
 import { getCachedDetails } from "@/providers/tmdb";
 import type { TmdbDetails } from "@/providers/tmdb";
 import { getSettings } from "@/config";
@@ -7,14 +7,14 @@ import { tmdbMediaType } from "@/db";
 
 /** Everything the server knows about one entry: the row, its category, its content and the siblings, its TMDB sheet. */
 export type ItemDetail = {
-  item: Item;
+  item: Variant;
   category: Category | null;
   content: Content | null;
-  siblings: Item[];
+  siblings: Variant[];
   tmdb: TmdbDetails | null;
   tmdbLang: string;
   /** Live: the iptv-org channel the variant is matched to. */
-  iptv: IptvChannel | null;
+  iptv: IptvorgChannel | null;
 };
 
 export async function itemDetail(id: number): Promise<ItemDetail | null> {

@@ -1,12 +1,12 @@
 import type { TmdbCandidate } from "@/catalog";
-import { tmdbMediaType, type Item } from "@/db";
+import { tmdbMediaType, type Variant } from "@/db";
 import { MATCH_LABELS } from "../labels";
 import { Badge, type Tone } from "../ui";
 
 const MATCH_TONES: Record<string, Tone> = { matched: "ok", manual: "ok", unmatched: "warn" };
 
 /** The TMDB association of an entry, with the search-and-assign form folded under "Corriger". */
-export function TmdbCell({ it, results }: { it: Item; results?: TmdbCandidate[] }) {
+export function TmdbCell({ it, results }: { it: Variant; results?: TmdbCandidate[] }) {
   const kind = tmdbMediaType(it.kind);
   const target = `#tmdb-${it.id}`;
   const score = it.matchScore != null && it.matchStatus !== "manual" ? ` ${Math.round(it.matchScore * 100)} %` : "";

@@ -1,5 +1,6 @@
 export { ensureEpisodes, seasonsOf, UpstreamUnavailable } from "./episodes";
 export { groupingCounts, runGrouping, runNaming } from "./grouping/group";
+export { runMerge } from "./merge";
 export { groupVariants, type MergeCandidate, mergeCandidates, mergeVariantInto, resetVariant, splitVariant } from "./grouping/manual";
 export { closeOrphanLogs, recentRuns, runById, lastRunsByTask, type RunWithSteps } from "./journal";
 export { readRunLog, runLogPath } from "./runlog";

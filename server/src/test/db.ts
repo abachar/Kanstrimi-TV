@@ -6,7 +6,7 @@ import type { XStream } from "@/providers/xtream";
 /** Empty every catalogue table between test files. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table items, contents, episodes, episode_sources, categories, tmdb_cache, info_cache, filter_rules, sync_logs, sync_runs, iptv_channels, settings, watch_progress, favorites, devices, epg_programmes, epg_offsets, studios, trending restart identity cascade`,
+    sql`truncate table xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, curation_filter_rules, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_favorites, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_studios, tmdb_trending restart identity cascade`,
   );
   invalidateSettings();
 }
@@ -32,7 +32,7 @@ export type ItemSeed = {
 
 export async function seedCategories(rows: { kind: "live" | "vod" | "series"; xtreamId: string; name: string; hiddenManual?: boolean }[]) {
   if (!rows.length) return;
-  await db.insert(schema.categories).values(
+  await db.insert(schema.catalogCategories).values(
     rows.map((c, i) => ({
       kind: c.kind,
       xtreamId: c.xtreamId,
@@ -47,7 +47,7 @@ export async function seedCategories(rows: { kind: "live" | "vod" | "series"; xt
 export async function seedItems(rows: ItemSeed[]) {
   if (!rows.length) return [];
   return db
-    .insert(schema.items)
+    .insert(schema.catalogVariants)
     .values(
       rows.map((r, i) => ({
         kind: r.kind,
@@ -70,7 +70,7 @@ export async function seedItems(rows: ItemSeed[]) {
         addedAt: r.addedAt ?? new Date("2026-09-20T04:10:00Z"),
       })),
     )
-    .returning({ id: schema.items.id, xtreamId: schema.items.xtreamId });
+    .returning({ id: schema.catalogVariants.id, xtreamId: schema.catalogVariants.xtreamId });
 }
 
 export async function seedTmdb(mediaType: "movie" | "tv", tmdbId: number, data: Record<string, unknown>, lang = "fr-FR") {
@@ -84,7 +84,7 @@ export async function seedTmdb(mediaType: "movie" | "tv", tmdbId: number, data: 
 export async function seedProgrammes(rows: { channelId: string; start: number; end: number; title: string; overview?: string }[]) {
   if (!rows.length) return;
   const now = Date.now();
-  await db.insert(schema.epgProgrammes).values(
+  await db.insert(schema.catalogEpgProgrammes).values(
     rows.map((r) => ({
       channelId: r.channelId,
       startAt: new Date(now + r.start * 60_000),

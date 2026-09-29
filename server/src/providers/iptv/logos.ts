@@ -19,9 +19,9 @@ async function ensureLogo(file: string): Promise<{ path: string; type: string } 
   const local = path.join(dir, file.replace(/[^\w.-]/g, "_"));
   if (fs.existsSync(local)) return { path: local, type: TYPES[ext] };
   const [ch] = await db
-    .select({ url: schema.iptvChannels.logoUrl, path: schema.iptvChannels.logoPath })
-    .from(schema.iptvChannels)
-    .where(eq(schema.iptvChannels.id, decodeURIComponent(id)));
+    .select({ url: schema.iptvorgChannels.logoUrl, path: schema.iptvorgChannels.logoPath })
+    .from(schema.iptvorgChannels)
+    .where(eq(schema.iptvorgChannels.id, decodeURIComponent(id)));
   // Only the current logo of a known channel: the route is not an open proxy.
   if (!ch?.url || ch.path !== `/img/logos/${file}`) return null;
   const res = await fetch(ch.url, { signal: AbortSignal.timeout(20_000), headers: { "User-Agent": "Kanstrimi (logos iptv-org)" } });

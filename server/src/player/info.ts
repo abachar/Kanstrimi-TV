@@ -15,20 +15,26 @@ infoRoutes.get("/", async (c) => json(await serverInfo(c.get("ctx"))));
 export async function serverInfo(ctx: RestContext): Promise<ServerInfo> {
   const [counts, s, rate, langs] = await Promise.all([
     db
-      .select({ kind: schema.contents.kind, n: sql<number>`count(*)::int` })
-      .from(schema.contents)
+      .select({ kind: schema.catalogContents.kind, n: sql<number>`count(*)::int` })
+      .from(schema.catalogContents)
       .where(visibleContent(ctx))
-      .groupBy(schema.contents.kind),
+      .groupBy(schema.catalogContents.kind),
     getSettings(),
     db
       .select({
-        matched: sql<number>`count(*) filter (where ${schema.items.matchStatus} in ('matched','manual'))::int`,
-        decided: sql<number>`count(*) filter (where ${schema.items.matchStatus} in ('matched','manual','unmatched'))::int`,
+        matched: sql<number>`count(*) filter (where ${schema.catalogVariants.matchStatus} in ('matched','manual'))::int`,
+        decided: sql<number>`count(*) filter (where ${schema.catalogVariants.matchStatus} in ('matched','manual','unmatched'))::int`,
       })
-      .from(schema.items)
-      .where(and(inArray(schema.items.kind, ["vod", "series"]), visibleItem, ctx.serveAdult ? undefined : eq(schema.items.adult, false))),
+      .from(schema.catalogVariants)
+      .where(
+        and(
+          inArray(schema.catalogVariants.kind, ["vod", "series"]),
+          visibleItem,
+          ctx.serveAdult ? undefined : eq(schema.catalogVariants.adult, false),
+        ),
+      ),
     db.execute<{ l: string }>(
-      sql`select distinct unnest(languages) as l from ${schema.contents} where ${visibleContent(ctx)} and kind <> 'live'`,
+      sql`select distinct unnest(languages) as l from ${schema.catalogContents} where ${visibleContent(ctx)} and kind <> 'live'`,
     ),
   ]);
   const n = (k: string) => counts.find((c) => c.kind === k)?.n ?? 0;

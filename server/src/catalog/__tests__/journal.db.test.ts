@@ -1,12 +1,24 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { db, schema } from "@/db";
 import { resetDb, closeDb } from "@/test/db";
 import { verify } from "@/config";
-import { startLog, finishLog, closeOrphanLogs, startRun, runById, recentRuns } from "../journal";
+import { startStep, finishStep, closeOrphanLogs, startRun, runById, recentRuns } from "../journal";
 import { logDir, readRunLog, withRunLog, withStep } from "../runlog";
 import { run, runAll } from "../pipeline";
+
+let channelsFail = false;
+vi.mock("../channels", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../channels")>();
+  return {
+    ...mod,
+    runChannels: async () => {
+      if (channelsFail) throw new Error("iptv-org injoignable");
+      return mod.runChannels();
+    },
+  };
+});
 
 beforeAll(async () => {
   await resetDb();
@@ -17,11 +29,11 @@ afterAll(closeDb);
 describe("closeOrphanLogs", () => {
   it("closes every running step and run as an error, leaves the others alone", async () => {
     const r = await startRun("pipeline", "cron");
-    const a = await startLog("enrich", r.id);
-    const b = await startLog("source", r.id);
-    await finishLog(b, "success");
+    const a = await startStep("enrich", r.id);
+    const b = await startStep("source", r.id);
+    await finishStep(b, "success");
     expect(await closeOrphanLogs()).toBe(1);
-    const rows = await db.select().from(schema.syncLogs).orderBy(schema.syncLogs.id);
+    const rows = await db.select().from(schema.taskSteps).orderBy(schema.taskSteps.id);
     expect(rows.find((x) => x.id === a)).toMatchObject({ status: "error", message: "Interrompu par un redémarrage du serveur" });
     expect(rows.find((x) => x.id === a)?.finishedAt).not.toBeNull();
     expect(rows.find((x) => x.id === b)?.status).toBe("success");
@@ -57,16 +69,39 @@ describe("run log file", () => {
     expect(await run("group")).toBe(true);
     const [r] = (await recentRuns({ limit: 1 })).runs;
     expect(r).toMatchObject({ task: "group", trigger: "manual", status: "success" });
-    expect(r.steps.map((s) => [s.job, s.status])).toEqual([["group", "success"]]);
+    expect(r.steps.map((s) => [s.step, s.status])).toEqual([["group", "success"]]);
     const text = readRunLog(r.logFile!)!.text;
     expect(text).toContain("── group : terminé");
     expect(text).toContain("Terminé");
+  });
+
+  it("goes on without an enrichment step that fails, and ends in error", async () => {
+    // iptv-org unreachable: `channels` fails, the catalogue is still filtered and grouped.
+    channelsFail = true;
+    try {
+      expect(await runAll("manual", "channels")).toBe(false);
+    } finally {
+      channelsFail = false;
+    }
+    const [r] = (await recentRuns({ limit: 1 })).runs;
+    expect(r).toMatchObject({ task: "pipeline", status: "error" });
+    expect(r.steps.map((s) => [s.step, s.status])).toEqual([
+      ["channels", "error"],
+      ["filters", "success"],
+      ["group", "success"],
+    ]);
+  });
+
+  it("stops at a step the others depend on", async () => {
+    expect(await runAll("manual")).toBe(false); // no provider configured: `source` fails
+    const [r] = (await recentRuns({ limit: 1 })).runs;
+    expect(r.steps.map((s) => [s.step, s.status])).toEqual([["source", "error"]]);
   });
 
   it("runs the pipeline from a given step on, as one pipeline run", async () => {
     expect(await runAll("manual", "filters")).toBe(true); // no TMDB key: filters → group, no network
     const [r] = (await recentRuns({ limit: 1 })).runs;
     expect(r).toMatchObject({ task: "pipeline", status: "success" });
-    expect(r.steps.map((s) => s.job)).toEqual(["filters", "group"]);
+    expect(r.steps.map((s) => s.step)).toEqual(["filters", "group"]);
   });
 });

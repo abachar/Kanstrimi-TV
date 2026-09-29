@@ -40,10 +40,12 @@ jobRoutes.get("/status", (c) => c.html(<JobsStatus {...jobsState()} />));
 jobRoutes.post("/:task", async (c) => {
   const task = c.req.param("task") as Task;
   if (!TASKS.includes(task)) return c.notFound();
-  const from = String((await c.req.parseBody()).from ?? "");
+  const body = await c.req.parseBody();
+  const from = String(body.from ?? "");
+  const acceptShrink = task === "pipeline" && body.accept_shrink === "1";
   const step = task === "pipeline" ? (await pipelineSteps()).find((s) => s === from) : undefined;
   const referer = c.req.header("referer");
   const to = referer && new URL(referer).pathname.startsWith("/admin") ? new URL(referer).pathname : "/admin/tasks";
   const ok = step ? `Traitement lancé à partir de « ${jobLabel(step)} »` : JOB_STARTED[task];
-  return back(c, to, launch(task, step) ? { ok } : { err: "Déjà en cours" });
+  return back(c, to, launch(task, step, { acceptShrink }) ? { ok } : { err: "Déjà en cours" });
 });

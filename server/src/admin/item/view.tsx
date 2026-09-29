@@ -176,7 +176,7 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
               ["Position", it.position],
               ["Conteneur", raw.container_extension],
               ["Ajouté", it.addedAt],
-              ["Vu à l'import", it.seenAt],
+              ["Changé chez le fournisseur", it.changedAt],
               ["Masqué par une règle", it.hiddenByRule ? "oui" : "non"],
               ["Masqué à la main", it.hiddenManual ? "oui" : "non"],
               ["tmdb_id amont", raw.tmdb ?? raw.tmdb_id],

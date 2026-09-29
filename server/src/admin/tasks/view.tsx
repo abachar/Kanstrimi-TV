@@ -1,5 +1,6 @@
-import type { SyncLog } from "@/db";
+import type { TaskStep } from "@/db";
 import type { RunWithSteps, Step, Task } from "@/catalog";
+import { SHRINK_HINT } from "@/providers/xtream";
 import { fmt, duration, ago, describeCron, nextCronRun } from "../format";
 import { Badge, Card, Empty, Options, Pagination, Status, Table, Title } from "../ui";
 import { STAT_LABELS, TRIGGER_LABELS, jobLabel, taskLabel } from "../labels";
@@ -51,12 +52,12 @@ function Dots({ runs }: { runs: RunWithSteps[] }) {
 }
 
 /** The step badges of a run: its path through the pipeline, the failed one in red. */
-function StepBadges({ steps }: { steps: SyncLog[] }) {
+function StepBadges({ steps }: { steps: TaskStep[] }) {
   return (
     <span class="inline-flex flex-wrap gap-1">
       {steps.map((s) => (
         <Badge tone={s.status === "error" ? "bad" : s.status === "running" ? "info" : "muted"}>
-          {jobLabel(s.job)} <span class="font-normal tabular-nums opacity-75">{took(s)}</span>
+          {jobLabel(s.step)} <span class="font-normal tabular-nums opacity-75">{took(s)}</span>
         </Badge>
       ))}
     </span>
@@ -92,7 +93,7 @@ export function TaskCard({ task, cron, runs, busy, steps }: TaskState) {
         )}
         <Dots runs={runs} />
         {/* On its own line: the step picker is as wide as its longest option. */}
-        <form method="post" action={`/admin/jobs/${task}`} class="flex items-center justify-end gap-2">
+        <form method="post" action={`/admin/jobs/${task}`} id={`launch-${task}`} class="flex items-center justify-end gap-2">
           {steps.length > 1 && (
             <select name="from" class="select min-w-0 flex-1" data-size="sm" aria-label="Lancer à partir de l'étape" disabled={busy}>
               <Options opts={steps.map((s, i) => [i ? s : "", i ? `À partir de : ${jobLabel(s)}` : "Toutes les étapes"] as const)} cur="" />
@@ -102,6 +103,13 @@ export function TaskCard({ task, cron, runs, busy, steps }: TaskState) {
             {busy ? "En cours…" : "Lancer maintenant"}
           </button>
         </form>
+        {/* Offered only after a run refused a catalogue that shrank by half: a real cleanup goes through by hand. */}
+        {task === "pipeline" && last?.status === "error" && last.message?.includes(SHRINK_HINT) && (
+          <label class="label justify-end gap-2 text-xs font-normal">
+            <input type="checkbox" class="input" name="accept_shrink" value="1" form={`launch-${task}`} disabled={busy} />
+            Accepter la baisse du catalogue au prochain lancement
+          </label>
+        )}
       </div>
     </Card>
   );
@@ -287,7 +295,7 @@ export function RunView({ run, log }: { run: RunWithSteps; log: { text: string; 
             <tbody>
               {run.steps.map((s) => (
                 <tr>
-                  <td class="font-medium">{jobLabel(s.job)}</td>
+                  <td class="font-medium">{jobLabel(s.step)}</td>
                   <td>
                     <Status status={s.status} />
                   </td>

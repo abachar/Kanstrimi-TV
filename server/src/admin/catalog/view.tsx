@@ -1,4 +1,4 @@
-import type { Category, Item } from "@/db";
+import type { Category, Variant } from "@/db";
 import { CATALOG_PAGE, NO_CATEGORY } from "./data";
 import { isCategoryHidden } from "@/db";
 import { fmt } from "../format";
@@ -54,7 +54,7 @@ export function CatalogView({
 }: {
   qy: CatalogQuery;
   cats: Category[];
-  rows: Item[];
+  rows: Variant[];
   total: number;
   catCounts: Map<string, number>;
 }) {

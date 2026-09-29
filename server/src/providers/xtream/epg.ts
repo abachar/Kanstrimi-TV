@@ -6,7 +6,7 @@ import { xtreamFromSettings } from "./client";
 import { offsetOf, offsetRules } from "./epg-offsets";
 
 /**
- * The XMLTV guide of the provider, imported into `epg_programmes` for the channels the app can
+ * The XMLTV guide of the provider, imported into `catalog_epg_programmes` for the channels the app can
  * see, and nothing else: 100 MB upstream, a few tens of thousands of rows here. Parsed as a
  * stream (saxes), the file never sits in memory nor on disk.
  */
@@ -79,27 +79,28 @@ export async function* parseXmltv(chunks: AsyncIterable<string>, wanted: Set<str
  */
 async function wantedChannelIds(): Promise<Set<string>> {
   const rows = await db
-    .selectDistinct({ id: schema.contents.epgChannelId })
-    .from(schema.contents)
+    .selectDistinct({ id: schema.catalogContents.epgChannelId })
+    .from(schema.catalogContents)
     .where(
       and(
-        eq(schema.contents.kind, "live"),
-        eq(schema.contents.visible, true),
-        isNotNull(schema.contents.epgChannelId),
-        ne(schema.contents.epgChannelId, ""),
+        eq(schema.catalogContents.kind, "live"),
+        eq(schema.catalogContents.visible, true),
+        isNotNull(schema.catalogContents.epgChannelId),
+        ne(schema.catalogContents.epgChannelId, ""),
       ),
     );
   const disputed = await db
-    .select({ own: sql<string>`${schema.items.raw}->>'epg_channel_id'`, iptv: schema.items.iptvId })
-    .from(schema.items)
-    .where(and(eq(schema.items.kind, "live"), eq(schema.items.epgMismatch, true), visibleItem));
+    .select({ own: sql<string>`${schema.catalogVariants.raw}->>'epg_channel_id'`, iptv: schema.catalogVariants.iptvId })
+    .from(schema.catalogVariants)
+    .where(and(eq(schema.catalogVariants.kind, "live"), eq(schema.catalogVariants.epgMismatch, true), visibleItem));
   return new Set([...rows.map((r) => r.id!), ...disputed.flatMap((d) => [d.own, d.iptv]).filter((x): x is string => Boolean(x))]);
 }
 
 /**
- * Download the upstream XMLTV and replace the guide of our channels. The previous rows go only
- * once the new ones are in: an upstream failure, or a guide empty for our channels, keeps the
- * old guide (the cron runs every three days, the provider gives six).
+ * Download the upstream XMLTV and replace the guide of our channels, in one transaction: the app
+ * reads the old guide until the new one is whole, then the new one only. An upstream failure
+ * midway, or a guide empty for our channels, rolls back and keeps the old guide (the cron runs
+ * every three days, the provider gives six).
  */
 export async function runEpgRebuild(): Promise<{ channels: number; programmes: number }> {
   const client = xtreamFromSettings(await getSettings());
@@ -108,6 +109,7 @@ export async function runEpgRebuild(): Promise<{ channels: number; programmes: n
   if (!wanted.size) return { channels: 0, programmes: 0 };
   const res = await fetch(client.xmltvUrl(), { redirect: "follow", signal: AbortSignal.timeout(600_000) });
   if (!res.ok || !res.body) throw new Error(`EPG amont indisponible (HTTP ${res.status})`);
+  const body = res.body;
   const importedAt = new Date();
   const rules = await offsetRules();
   const seen = new Set<string>();
@@ -115,26 +117,28 @@ export async function runEpgRebuild(): Promise<{ channels: number; programmes: n
   const keys = new Set<string>();
   let programmes = 0;
   let duplicates = 0;
-  for await (const batch of parseXmltv(res.body.pipeThrough(new TextDecoderStream()), wanted)) {
-    const rows = batch.flatMap((r) => {
-      const key = `${r.channelId}|${r.startAt.getTime()}`;
-      if (keys.has(key)) {
-        duplicates++;
-        return [];
-      }
-      keys.add(key);
-      const offsetMinutes = offsetOf(rules, r.channelId);
-      const shift = (d: Date) => new Date(d.getTime() + offsetMinutes * 60_000);
-      return [{ ...r, startAt: shift(r.startAt), endAt: shift(r.endAt), offsetMinutes, importedAt }];
-    });
-    if (rows.length) await db.insert(schema.epgProgrammes).values(rows);
-    for (const r of rows) seen.add(r.channelId);
-    programmes += rows.length;
-  }
-  if (duplicates) console.log(`[epg] ${duplicates} programmes en double ignorés`);
-  if (!programmes) throw new Error("EPG amont sans aucun programme pour nos chaînes : guide précédent conservé");
-  await db.delete(schema.epgProgrammes).where(lt(schema.epgProgrammes.importedAt, importedAt));
-  await db.delete(schema.epgProgrammes).where(lt(schema.epgProgrammes.endAt, new Date(Date.now() - KEEP_PAST_MS)));
+  await db.transaction(async (tx) => {
+    for await (const batch of parseXmltv(body.pipeThrough(new TextDecoderStream()), wanted)) {
+      const rows = batch.flatMap((r) => {
+        const key = `${r.channelId}|${r.startAt.getTime()}`;
+        if (keys.has(key)) {
+          duplicates++;
+          return [];
+        }
+        keys.add(key);
+        const offsetMinutes = offsetOf(rules, r.channelId);
+        const shift = (d: Date) => new Date(d.getTime() + offsetMinutes * 60_000);
+        return [{ ...r, startAt: shift(r.startAt), endAt: shift(r.endAt), offsetMinutes, importedAt }];
+      });
+      if (rows.length) await tx.insert(schema.catalogEpgProgrammes).values(rows);
+      for (const r of rows) seen.add(r.channelId);
+      programmes += rows.length;
+    }
+    if (duplicates) console.log(`[epg] ${duplicates} programmes en double ignorés`);
+    if (!programmes) throw new Error("EPG amont sans aucun programme pour nos chaînes : guide précédent conservé");
+    await tx.delete(schema.catalogEpgProgrammes).where(lt(schema.catalogEpgProgrammes.importedAt, importedAt));
+    await tx.delete(schema.catalogEpgProgrammes).where(lt(schema.catalogEpgProgrammes.endAt, new Date(Date.now() - KEEP_PAST_MS)));
+  });
   await setSettings({ last_epg_at: importedAt.toISOString() });
   return { channels: seen.size, programmes };
 }
@@ -151,6 +155,6 @@ export async function epgStat(): Promise<EpgStat> {
   }>(sql`
     select count(*)::int as programmes, count(distinct channel_id)::int as channels,
            min(start_at)::text as "from", max(end_at)::text as "to", max(imported_at)::text as imported_at
-    from epg_programmes`);
+    from catalog_epg_programmes`);
   return { programmes: r.programmes, channels: r.channels, from: r.from, to: r.to, importedAt: r.imported_at };
 }

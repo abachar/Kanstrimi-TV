@@ -18,36 +18,36 @@ export type GridChannel = {
 export type GridQuery = { from: Date; to: Date; q: string; market: string; theme: string; page: number };
 export const CHANNELS_PER_PAGE = 40;
 
-const withGuide = sql`exists (select 1 from ${schema.epgProgrammes} p where p.channel_id = ${schema.contents.epgChannelId})`;
+const withGuide = sql`exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = ${schema.catalogContents.epgChannelId})`;
 
 export async function epgGrid(g: GridQuery): Promise<{ channels: GridChannel[]; total: number }> {
   const where: SQL[] = [
-    eq(schema.contents.kind, "live"),
-    eq(schema.contents.visible, true),
-    isNotNull(schema.contents.epgChannelId),
-    ne(schema.contents.epgChannelId, ""),
+    eq(schema.catalogContents.kind, "live"),
+    eq(schema.catalogContents.visible, true),
+    isNotNull(schema.catalogContents.epgChannelId),
+    ne(schema.catalogContents.epgChannelId, ""),
     withGuide,
   ];
-  if (g.q) where.push(ilike(schema.contents.title, `%${g.q}%`));
-  if (g.market) where.push(eq(schema.contents.market, g.market));
-  if (g.theme) where.push(sql`${g.theme} = any(${schema.contents.themes})`);
+  if (g.q) where.push(ilike(schema.catalogContents.title, `%${g.q}%`));
+  if (g.market) where.push(eq(schema.catalogContents.market, g.market));
+  if (g.theme) where.push(sql`${g.theme} = any(${schema.catalogContents.themes})`);
   const cond = and(...where);
   const [rows, [{ n }]] = await Promise.all([
     db
       .select({
-        contentId: schema.contents.id,
-        title: schema.contents.title,
-        logo: schema.contents.logoUrl,
-        market: schema.contents.market,
-        themes: schema.contents.themes,
-        epgId: schema.contents.epgChannelId,
+        contentId: schema.catalogContents.id,
+        title: schema.catalogContents.title,
+        logo: schema.catalogContents.logoUrl,
+        market: schema.catalogContents.market,
+        themes: schema.catalogContents.themes,
+        epgId: schema.catalogContents.epgChannelId,
       })
-      .from(schema.contents)
+      .from(schema.catalogContents)
       .where(cond)
-      .orderBy(asc(schema.contents.market), asc(schema.contents.title))
+      .orderBy(asc(schema.catalogContents.market), asc(schema.catalogContents.title))
       .limit(CHANNELS_PER_PAGE)
       .offset((g.page - 1) * CHANNELS_PER_PAGE),
-    db.select({ n: sql<number>`count(*)::int` }).from(schema.contents).where(cond),
+    db.select({ n: sql<number>`count(*)::int` }).from(schema.catalogContents).where(cond),
   ]);
   const ids = [...new Set(rows.map((r) => r.epgId!))];
   const progs = ids.length ? await programmesOf(ids, g.from, g.to) : [];
@@ -66,27 +66,38 @@ export async function epgGrid(g: GridQuery): Promise<{ channels: GridChannel[]; 
 /** Programmes overlapping [from, to), each once, in order. */
 export async function programmesOf(channelIds: string[], from: Date, to: Date) {
   return db
-    .selectDistinctOn([schema.epgProgrammes.channelId, schema.epgProgrammes.startAt], {
-      id: schema.epgProgrammes.id,
-      channelId: schema.epgProgrammes.channelId,
-      startAt: schema.epgProgrammes.startAt,
-      endAt: schema.epgProgrammes.endAt,
-      title: schema.epgProgrammes.title,
-      overview: schema.epgProgrammes.overview,
+    .selectDistinctOn([schema.catalogEpgProgrammes.channelId, schema.catalogEpgProgrammes.startAt], {
+      id: schema.catalogEpgProgrammes.id,
+      channelId: schema.catalogEpgProgrammes.channelId,
+      startAt: schema.catalogEpgProgrammes.startAt,
+      endAt: schema.catalogEpgProgrammes.endAt,
+      title: schema.catalogEpgProgrammes.title,
+      overview: schema.catalogEpgProgrammes.overview,
     })
-    .from(schema.epgProgrammes)
+    .from(schema.catalogEpgProgrammes)
     .where(
-      and(inArray(schema.epgProgrammes.channelId, channelIds), lt(schema.epgProgrammes.startAt, to), gt(schema.epgProgrammes.endAt, from)),
+      and(
+        inArray(schema.catalogEpgProgrammes.channelId, channelIds),
+        lt(schema.catalogEpgProgrammes.startAt, to),
+        gt(schema.catalogEpgProgrammes.endAt, from),
+      ),
     )
-    .orderBy(asc(schema.epgProgrammes.channelId), asc(schema.epgProgrammes.startAt));
+    .orderBy(asc(schema.catalogEpgProgrammes.channelId), asc(schema.catalogEpgProgrammes.startAt));
 }
 
 /** The markets and themes of the channels with a guide, for the filters. */
 export async function gridFilters() {
   const rows = await db
-    .select({ market: schema.contents.market, themes: schema.contents.themes })
-    .from(schema.contents)
-    .where(and(eq(schema.contents.kind, "live"), eq(schema.contents.visible, true), isNotNull(schema.contents.epgChannelId), withGuide));
+    .select({ market: schema.catalogContents.market, themes: schema.catalogContents.themes })
+    .from(schema.catalogContents)
+    .where(
+      and(
+        eq(schema.catalogContents.kind, "live"),
+        eq(schema.catalogContents.visible, true),
+        isNotNull(schema.catalogContents.epgChannelId),
+        withGuide,
+      ),
+    );
   return {
     markets: [...new Set(rows.map((r) => r.market).filter((m): m is string => Boolean(m)))].sort(),
     themes: [...new Set(rows.flatMap((r) => r.themes))].sort((a, b) => a.localeCompare(b, "fr")),
@@ -96,8 +107,14 @@ export async function gridFilters() {
 /** One guide id: the channels showing it (name, logo), for the correction panel. */
 export async function channelsOfGuide(epgId: string) {
   return db
-    .select({ title: schema.contents.title, logo: schema.contents.logoUrl, market: schema.contents.market })
-    .from(schema.contents)
-    .where(and(eq(schema.contents.kind, "live"), eq(schema.contents.visible, true), eq(schema.contents.epgChannelId, epgId)))
-    .orderBy(asc(schema.contents.title));
+    .select({ title: schema.catalogContents.title, logo: schema.catalogContents.logoUrl, market: schema.catalogContents.market })
+    .from(schema.catalogContents)
+    .where(
+      and(
+        eq(schema.catalogContents.kind, "live"),
+        eq(schema.catalogContents.visible, true),
+        eq(schema.catalogContents.epgChannelId, epgId),
+      ),
+    )
+    .orderBy(asc(schema.catalogContents.title));
 }

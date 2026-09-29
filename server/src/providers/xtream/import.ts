@@ -1,26 +1,28 @@
-import { lt, sql } from "drizzle-orm";
-import { db, schema, type Kind } from "@/db";
+import { sql } from "drizzle-orm";
+import { db, schema, KINDS, type Kind } from "@/db";
 import { stripOrnaments } from "@/shared";
 import { getSettings, setSettings } from "@/config";
 import { XtreamClient, xtreamFromSettings, type XCategory, type XStream } from "./client";
 
-const CHUNK = 500;
+const CHUNK = 1000;
 
 /**
- * Radio streams (`stream_type: "radio_streams"`) come without any category: no category rule
- * or switch could reach them, and the admin had nowhere to list them. They get a category of
- * ours, created at import when at least one exists; its id cannot collide with the provider's numbers.
+ * A list that shrinks under this share of what the catalogue holds is taken for a provider
+ * failure (a backend answering `[]`), not for a cleanup: the import stops, the catalogue stays.
+ * Below `SHRINK_FLOOR` entries the check says nothing (a new or tiny account).
  */
-export const RADIO_CATEGORY_ID = "_radio";
-const RADIO_CATEGORY_NAME = "RADIOS";
-const isRadio = (x: XStream) => x.stream_type === "radio_streams";
+export const SHRINK_RATIO = 0.5;
+const SHRINK_FLOOR = 50;
+
+export class ShrinkError extends Error {}
+/** Ends every refusal of a shrinking catalogue (here and in `merge`): the admin offers to accept it. */
+export const SHRINK_HINT = "relancer à la main en acceptant la baisse si elle est réelle";
 
 /**
  * Upstream servers list the same stream_id/category_id more than once (a channel shown in
- * two categories). Postgres refuses an ON CONFLICT DO UPDATE that touches a row twice in the
- * same statement, so keep the first occurrence of each id.
+ * two categories): keep the first occurrence of each id.
  */
-function dedupe<T>(list: T[], key: (x: T) => string): T[] {
+function dedupe<T>(list: T[], key: (x: T) => string | null): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const x of list) {
@@ -54,152 +56,82 @@ export function upstreamId(kind: Kind, x: XStream): string | null {
   return id && id !== "null" && id !== "undefined" ? id : null;
 }
 
-/**
- * Parses the arrival date from the upstream server: `added` for live/vod, `last_modified` for series.
- * Both are Unix timestamps in seconds (as strings). If missing, invalid, or in the future, returns null.
- */
-function parseAddedDate(kind: Kind, x: XStream): Date | null {
-  const rawVal = kind === "series" ? x.last_modified : x.added;
-  if (!rawVal) return null;
-  const num = Number(rawVal);
-  if (Number.isNaN(num) || num <= 0) return null;
-  // Xtream timestamps are usually in seconds
-  const d = new Date(num * 1000);
-  if (Number.isNaN(d.getTime()) || d > new Date()) return null;
-  return d;
+/** A list the provider sent, or an error: an object or an error page is never taken for an empty list. */
+function asList<T>(what: string, v: unknown): T[] {
+  if (!Array.isArray(v)) throw new Error(`Réponse Xtream inattendue pour ${what} : pas une liste`);
+  return v as T[];
+}
+
+/** The entries of one kind, deduplicated, each with its id, in the provider's order. */
+export function prepareStreams(kind: Kind, list: XStream[]): { xtreamId: string; raw: XStream }[] {
+  return dedupe(list, (x) => upstreamId(kind, x)).map((x) => ({ xtreamId: upstreamId(kind, x)!, raw: x }));
+}
+export function prepareCategories(list: XCategory[]): { xtreamId: string; raw: XCategory }[] {
+  const id = (c: XCategory) => (c.category_id === null || c.category_id === undefined ? null : String(c.category_id));
+  return dedupe(list, id).map((c) => ({ xtreamId: id(c)!, raw: c }));
 }
 
 /**
- * Full catalogue import from the upstream Xtream server: categories and entries upserted,
- * the ones no longer listed removed. Nothing else: the pipeline re-filters and regroups after.
+ * Throws when a kind lost more than half of what the catalogue holds: a provider failure far more
+ * often than a real cleanup. `acceptShrink` (a manual run from the admin) lets a real one through.
  */
-export async function runSync(): Promise<Record<string, number>> {
+export function checkShrink(received: Record<Kind, number>, current: Record<Kind, number>, acceptShrink = false) {
+  if (acceptShrink) return;
+  for (const kind of KINDS) {
+    const had = current[kind] ?? 0;
+    if (had >= SHRINK_FLOOR && received[kind] < had * SHRINK_RATIO)
+      throw new ShrinkError(
+        `Liste ${kind} du fournisseur réduite à ${received[kind]} entrées pour ${had} au catalogue : import refusé, catalogue conservé (${SHRINK_HINT})`,
+      );
+  }
+}
+
+/**
+ * The `source` step: reads the provider's lists and, once they pass the checks, replaces the raw
+ * copy (`xtream_categories`, `xtream_streams`) in one transaction. Never touches the catalogue:
+ * `merge` derives it from the copy.
+ */
+export async function runSync(opts: { acceptShrink?: boolean } = {}): Promise<Record<string, number>> {
   const client = xtreamFromSettings(await getSettings());
   if (!client) throw new Error("Serveur Xtream non configuré");
-  const started = new Date();
-  const stats: Record<string, number> = {};
   const acct = await client.account();
   if (!acct?.user_info || Number(acct.user_info.auth) !== 1) throw new Error("Authentification Xtream refusée");
 
-  const kinds: [Kind, () => Promise<XCategory[]>, () => Promise<XStream[]>][] = [
-    ["live", () => client.liveCategories(), () => client.liveStreams()],
-    ["vod", () => client.vodCategories(), () => client.vodStreams()],
-    ["series", () => client.seriesCategories(), () => client.series()],
-  ];
-  for (const [kind, cats, streams] of kinds) {
-    const c = await cats();
-    stats[`${kind}_categories`] = await upsertCategories(kind, Array.isArray(c) ? c : [], started);
-    const st = await streams();
-    const items = await upsertItems(kind, Array.isArray(st) ? st : [], started);
-    stats[`${kind}_items`] = items.count;
-    if (items.radios) await upsertRadioCategory(started);
+  const fetchers: Record<Kind, [() => Promise<XCategory[]>, () => Promise<XStream[]>]> = {
+    live: [() => client.liveCategories(), () => client.liveStreams()],
+    vod: [() => client.vodCategories(), () => client.vodStreams()],
+    series: [() => client.seriesCategories(), () => client.series()],
+  };
+  const cats: { kind: Kind; xtreamId: string; position: number; raw: Record<string, unknown> }[] = [];
+  const streams: typeof cats = [];
+  const received = { live: 0, vod: 0, series: 0 } as Record<Kind, number>;
+  const stats: Record<string, number> = {};
+  for (const kind of KINDS) {
+    const [getCats, getStreams] = fetchers[kind];
+    const c = prepareCategories(asList(`${kind}_categories`, await getCats()));
+    const s = prepareStreams(kind, asList(`${kind}_streams`, await getStreams()));
+    c.forEach((x, i) => cats.push({ kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> }));
+    s.forEach((x, i) => streams.push({ kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> }));
+    received[kind] = s.length;
+    stats[`${kind}_categories`] = c.length;
+    stats[`${kind}_items`] = s.length;
   }
-  // Remove entries not seen in this sync
-  const dc = await db.delete(schema.categories).where(lt(schema.categories.seenAt, started)).returning({ id: schema.categories.id });
-  const di = await db.delete(schema.items).where(lt(schema.items.seenAt, started)).returning({ id: schema.items.id });
-  stats.removed_categories = dc.length;
-  stats.removed_items = di.length;
+
+  const current = { live: 0, vod: 0, series: 0 } as Record<Kind, number>;
+  const rows = await db
+    .select({ kind: schema.catalogVariants.kind, n: sql<number>`count(*)::int` })
+    .from(schema.catalogVariants)
+    .groupBy(schema.catalogVariants.kind);
+  for (const r of rows) current[r.kind] = r.n;
+  checkShrink(received, current, opts.acceptShrink);
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`truncate table ${schema.xtreamCategories}, ${schema.xtreamStreams}`);
+    for (let i = 0; i < cats.length; i += CHUNK) await tx.insert(schema.xtreamCategories).values(cats.slice(i, i + CHUNK));
+    for (let i = 0; i < streams.length; i += CHUNK) await tx.insert(schema.xtreamStreams).values(streams.slice(i, i + CHUNK));
+  });
   await setSettings({ last_sync_at: new Date().toISOString() });
   return stats;
-}
-
-async function upsertCategories(kind: Kind, cats: XCategory[], seenAt: Date) {
-  let n = 0;
-  const list = dedupe(cats, (c) => String(c.category_id));
-  for (let i = 0; i < list.length; i += CHUNK) {
-    const rows = list.slice(i, i + CHUNK).map((c, j) => ({
-      kind,
-      xtreamId: String(c.category_id),
-      name: String(c.category_name ?? ""),
-      parentId: Number(c.parent_id ?? 0) || 0,
-      position: i + j,
-      raw: c as Record<string, unknown>,
-      seenAt,
-    }));
-    if (!rows.length) continue;
-    await db
-      .insert(schema.categories)
-      .values(rows)
-      .onConflictDoUpdate({
-        target: [schema.categories.kind, schema.categories.xtreamId],
-        set: {
-          name: sql`excluded.name`,
-          parentId: sql`excluded.parent_id`,
-          position: sql`excluded.position`,
-          raw: sql`excluded.raw`,
-          seenAt,
-        },
-      });
-    n += rows.length;
-  }
-  return n;
-}
-
-/** The synthetic « RADIOS » category, last in the list, kept alive by `seenAt` like the provider's. */
-async function upsertRadioCategory(seenAt: Date) {
-  await db
-    .insert(schema.categories)
-    .values([{ kind: "live", xtreamId: RADIO_CATEGORY_ID, name: RADIO_CATEGORY_NAME, parentId: 0, position: 1_000_000, raw: {}, seenAt }])
-    .onConflictDoUpdate({ target: [schema.categories.kind, schema.categories.xtreamId], set: { seenAt } });
-}
-
-async function upsertItems(kind: Kind, all: XStream[], seenAt: Date): Promise<{ count: number; radios: number }> {
-  let n = 0,
-    radios = 0;
-  const list = dedupe(all, (x) => upstreamId(kind, x) ?? "");
-  // A separator line names the section of the entries that follow it in the same category
-  // (« ----|FR| SPORT |FR|---- »); it is not an entry and is never stored.
-  const sections = new Map<string, string>();
-  for (let i = 0; i < list.length; i += CHUNK) {
-    const rows = list.slice(i, i + CHUNK).flatMap((x, j) => {
-      const id = upstreamId(kind, x);
-      if (!id) return [];
-      const name = String(x.name ?? "");
-      const upstreamCategory = x.category_id != null ? String(x.category_id) : null;
-      if (isSeparator(name)) {
-        sections.set(upstreamCategory ?? "", separatorText(name));
-        return [];
-      }
-      const radio = kind === "live" && !upstreamCategory && isRadio(x);
-      if (radio) radios++;
-      const categoryXtreamId = radio ? RADIO_CATEGORY_ID : upstreamCategory;
-      return [
-        {
-          kind,
-          xtreamId: id,
-          name,
-          categoryXtreamId,
-          position: i + j,
-          raw: x as Record<string, unknown>,
-          seenAt,
-          addedAt: parseAddedDate(kind, x) ?? seenAt,
-          section: sections.get(upstreamCategory ?? "") ?? null,
-          matchStatus: (kind === "live" ? "skipped" : "pending") as "skipped" | "pending",
-        },
-      ];
-    });
-    if (!rows.length) continue;
-    // On conflict keep the TMDB match unless the name changed. `clean_title` and `year` are the
-    // grouping step's to write: it re-reads every name anyway.
-    await db
-      .insert(schema.items)
-      .values(rows)
-      .onConflictDoUpdate({
-        target: [schema.items.kind, schema.items.xtreamId],
-        set: {
-          categoryXtreamId: sql`excluded.category_xtream_id`,
-          position: sql`excluded.position`,
-          raw: sql`excluded.raw`,
-          seenAt,
-          addedAt: sql`CASE WHEN excluded.added_at = ${seenAt.toISOString()} THEN ${schema.items.addedAt} ELSE excluded.added_at END`,
-          section: sql`excluded.section`,
-          matchStatus: sql`CASE WHEN ${schema.items.name} <> excluded.name AND ${schema.items.matchStatus} <> 'manual' THEN 'pending'::match_status ELSE ${schema.items.matchStatus} END`,
-          name: sql`excluded.name`,
-        },
-      });
-    n += rows.length;
-  }
-  return { count: n, radios };
 }
 
 /** Test upstream credentials without touching the DB. */

@@ -1,4 +1,4 @@
-import { db, schema, type SyncLog, type SyncRun } from "@/db";
+import { db, schema, type TaskStep, type TaskRun } from "@/db";
 import { and, desc, eq, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { logFileName } from "./runlog";
 
@@ -16,74 +16,74 @@ export type Trigger = "cron" | "manual";
  */
 export async function closeOrphanLogs(): Promise<number> {
   const closed = { status: "error" as const, message: "Interrompu par un redémarrage du serveur", finishedAt: new Date() };
-  await db.update(schema.syncRuns).set(closed).where(eq(schema.syncRuns.status, "running"));
+  await db.update(schema.taskRuns).set(closed).where(eq(schema.taskRuns.status, "running"));
   const rows = await db
-    .update(schema.syncLogs)
+    .update(schema.taskSteps)
     .set(closed)
-    .where(eq(schema.syncLogs.status, "running"))
-    .returning({ id: schema.syncLogs.id });
+    .where(eq(schema.taskSteps.status, "running"))
+    .returning({ id: schema.taskSteps.id });
   return rows.length;
 }
 
 export async function startRun(task: string, trigger: Trigger): Promise<{ id: number; logFile: string }> {
   const [row] = await db
-    .insert(schema.syncRuns)
+    .insert(schema.taskRuns)
     .values({ task, trigger })
-    .returning({ id: schema.syncRuns.id, at: schema.syncRuns.startedAt });
+    .returning({ id: schema.taskRuns.id, at: schema.taskRuns.startedAt });
   const logFile = logFileName(task, row.id, row.at);
-  await db.update(schema.syncRuns).set({ logFile }).where(eq(schema.syncRuns.id, row.id));
+  await db.update(schema.taskRuns).set({ logFile }).where(eq(schema.taskRuns.id, row.id));
   return { id: row.id, logFile };
 }
 export async function finishRun(id: number, status: "success" | "error", message?: string) {
-  await db.update(schema.syncRuns).set({ status, message, finishedAt: new Date() }).where(eq(schema.syncRuns.id, id));
+  await db.update(schema.taskRuns).set({ status, message, finishedAt: new Date() }).where(eq(schema.taskRuns.id, id));
 }
 
-export async function startLog(job: string, runId?: number) {
-  const [row] = await db.insert(schema.syncLogs).values({ job, runId }).returning();
+export async function startStep(step: string, runId?: number) {
+  const [row] = await db.insert(schema.taskSteps).values({ step, runId }).returning();
   return row.id;
 }
-export async function finishLog(id: number, status: "success" | "error", message?: string, stats?: Record<string, unknown>) {
-  await db.update(schema.syncLogs).set({ status, message, stats, finishedAt: new Date() }).where(eq(schema.syncLogs.id, id));
+export async function finishStep(id: number, status: "success" | "error", message?: string, stats?: Record<string, unknown>) {
+  await db.update(schema.taskSteps).set({ status, message, stats, finishedAt: new Date() }).where(eq(schema.taskSteps.id, id));
 }
 
-export type RunWithSteps = SyncRun & { steps: SyncLog[] };
+export type RunWithSteps = TaskRun & { steps: TaskStep[] };
 
-async function withSteps(runs: SyncRun[]): Promise<RunWithSteps[]> {
+async function withSteps(runs: TaskRun[]): Promise<RunWithSteps[]> {
   if (!runs.length) return [];
   const steps = await db
     .select()
-    .from(schema.syncLogs)
+    .from(schema.taskSteps)
     .where(
       inArray(
-        schema.syncLogs.runId,
+        schema.taskSteps.runId,
         runs.map((r) => r.id),
       ),
     )
-    .orderBy(schema.syncLogs.id);
+    .orderBy(schema.taskSteps.id);
   return runs.map((r) => ({ ...r, steps: steps.filter((s) => s.runId === r.id) }));
 }
 
 /** The runs, most recent first, with their steps; `task` and `errors` filter them. */
 export async function recentRuns(opts: { limit: number; offset?: number; task?: string; errors?: boolean }) {
   const where: SQL[] = [];
-  if (opts.task) where.push(eq(schema.syncRuns.task, opts.task));
-  if (opts.errors) where.push(eq(schema.syncRuns.status, "error"));
+  if (opts.task) where.push(eq(schema.taskRuns.task, opts.task));
+  if (opts.errors) where.push(eq(schema.taskRuns.status, "error"));
   const cond = where.length ? and(...where) : undefined;
   const [runs, [{ n }]] = await Promise.all([
     db
       .select()
-      .from(schema.syncRuns)
+      .from(schema.taskRuns)
       .where(cond)
-      .orderBy(desc(schema.syncRuns.startedAt))
+      .orderBy(desc(schema.taskRuns.startedAt))
       .limit(opts.limit)
       .offset(opts.offset ?? 0),
-    db.select({ n: sql<number>`count(*)::int` }).from(schema.syncRuns).where(cond),
+    db.select({ n: sql<number>`count(*)::int` }).from(schema.taskRuns).where(cond),
   ]);
   return { runs: await withSteps(runs), total: n };
 }
 
 export async function runById(id: number): Promise<RunWithSteps | null> {
-  const [run] = await db.select().from(schema.syncRuns).where(eq(schema.syncRuns.id, id));
+  const [run] = await db.select().from(schema.taskRuns).where(eq(schema.taskRuns.id, id));
   return run ? (await withSteps([run]))[0] : null;
 }
 
@@ -97,8 +97,8 @@ export async function lastRunsByTask(tasks: readonly string[], n: number): Promi
 /** Deletes the runs (and their steps) older than `days`. */
 export async function purgeRuns(days: number): Promise<number> {
   const rows = await db
-    .delete(schema.syncRuns)
-    .where(lt(schema.syncRuns.startedAt, new Date(Date.now() - days * 86_400_000)))
-    .returning({ id: schema.syncRuns.id });
+    .delete(schema.taskRuns)
+    .where(lt(schema.taskRuns.startedAt, new Date(Date.now() - days * 86_400_000)))
+    .returning({ id: schema.taskRuns.id });
   return rows.length;
 }

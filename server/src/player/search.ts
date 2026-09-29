@@ -32,13 +32,13 @@ export async function search(ctx: RestContext, query: string, scope: "all" | "mo
   const terms = q.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   if (!terms.length) return { query, best: null, movies: [], series: [], live: [] };
   const tsq = terms.map((t) => `${t.replace(/'/g, "''")}:*`).join(" & ");
-  const rank = sql`ts_rank(${schema.contents.search}, to_tsquery('simple', ${tsq}))`;
+  const rank = sql`ts_rank(${schema.catalogContents.search}, to_tsquery('simple', ${tsq}))`;
   const find = (kind: "vod" | "series" | "live") =>
     db
       .select()
-      .from(schema.contents)
-      .where(and(visibleContent(ctx, kind), sql`${schema.contents.search} @@ to_tsquery('simple', ${tsq})`))
-      .orderBy(desc(rank), desc(schema.contents.voteCount), asc(schema.contents.title))
+      .from(schema.catalogContents)
+      .where(and(visibleContent(ctx, kind), sql`${schema.catalogContents.search} @@ to_tsquery('simple', ${tsq})`))
+      .orderBy(desc(rank), desc(schema.catalogContents.voteCount), asc(schema.catalogContents.title))
       .limit(20);
   const [movies, series, live] = await Promise.all([
     scope === "all" || scope === "movies" ? find("vod") : [],

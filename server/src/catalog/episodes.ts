@@ -1,5 +1,5 @@
 import { and, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
-import { db, schema, type Content, type Item } from "@/db";
+import { db, schema, type Content, type Variant } from "@/db";
 import { getSettings } from "@/config";
 import { XtreamClient, XtreamError, xtreamFromSettings } from "@/providers/xtream";
 import { getCachedDetails, getTmdbClient } from "@/providers/tmdb";
@@ -42,16 +42,16 @@ type Meta = { title: string | null; overview: string | null; runtime: number | n
 async function upstreamInfo(client: XtreamClient | null, xtreamId: string): Promise<UpstreamInfo> {
   const [cached] = await db
     .select()
-    .from(schema.infoCache)
-    .where(and(eq(schema.infoCache.kind, "series"), eq(schema.infoCache.xtreamId, xtreamId)));
+    .from(schema.xtreamInfoCache)
+    .where(and(eq(schema.xtreamInfoCache.kind, "series"), eq(schema.xtreamInfoCache.xtreamId, xtreamId)));
   if (cached && Date.now() - cached.fetchedAt.getTime() < INFO_TTL_MS) return cached.data as UpstreamInfo;
   if (!client) return (cached?.data as UpstreamInfo) ?? {};
   try {
     const data = await client.seriesInfo(xtreamId);
     await db
-      .insert(schema.infoCache)
+      .insert(schema.xtreamInfoCache)
       .values({ kind: "series", xtreamId, data })
-      .onConflictDoUpdate({ target: [schema.infoCache.kind, schema.infoCache.xtreamId], set: { data, fetchedAt: new Date() } });
+      .onConflictDoUpdate({ target: [schema.xtreamInfoCache.kind, schema.xtreamInfoCache.xtreamId], set: { data, fetchedAt: new Date() } });
     return data as UpstreamInfo;
   } catch (e) {
     if (cached) return cached.data as UpstreamInfo;
@@ -107,17 +107,17 @@ function titleFromProvider(title: unknown): string | null {
  * Titles, stills and runtimes come from TMDB when the series is matched, else from the
  * provider's own TMDB-like `seasons[].episodes[]`, else from the provider episode title.
  */
-export async function ensureEpisodes(content: Content, variants: Item[], tmdbLang: string, force = false) {
+export async function ensureEpisodes(content: Content, variants: Variant[], tmdbLang: string, force = false) {
   const client = xtreamFromSettings(await getSettings());
   const [fresh] = await db
-    .select({ at: sql<Date | null>`max(${schema.episodes.updatedAt})` })
-    .from(schema.episodes)
-    .where(eq(schema.episodes.contentId, content.id));
+    .select({ at: sql<Date | null>`max(${schema.catalogEpisodes.updatedAt})` })
+    .from(schema.catalogEpisodes)
+    .where(eq(schema.catalogEpisodes.contentId, content.id));
   const [{ n: sources }] = await db
     .select({ n: sql<number>`count(*)::int` })
-    .from(schema.episodeSources)
-    .innerJoin(schema.episodes, eq(schema.episodes.id, schema.episodeSources.episodeId))
-    .where(eq(schema.episodes.contentId, content.id));
+    .from(schema.catalogEpisodeVariants)
+    .innerJoin(schema.catalogEpisodes, eq(schema.catalogEpisodes.id, schema.catalogEpisodeVariants.episodeId))
+    .where(eq(schema.catalogEpisodes.contentId, content.id));
   if (!force && fresh.at && sources > 0 && Date.now() - new Date(fresh.at).getTime() < INFO_TTL_MS) return;
 
   type Found = { season: number; number: number; sources: { itemId: number; xtreamId: string; container: string | null }[]; meta: Meta };
@@ -205,10 +205,10 @@ export async function ensureEpisodes(content: Content, variants: Item[], tmdbLan
   const ids = new Map<string, number>();
   for (let i = 0; i < rows.length; i += 500) {
     const inserted = await db
-      .insert(schema.episodes)
+      .insert(schema.catalogEpisodes)
       .values(rows.slice(i, i + 500))
       .onConflictDoUpdate({
-        target: [schema.episodes.contentId, schema.episodes.season, schema.episodes.number],
+        target: [schema.catalogEpisodes.contentId, schema.catalogEpisodes.season, schema.catalogEpisodes.number],
         set: {
           key: sql`excluded.key`,
           title: sql`excluded.title`,
@@ -219,7 +219,7 @@ export async function ensureEpisodes(content: Content, variants: Item[], tmdbLan
           updatedAt: now,
         },
       })
-      .returning({ id: schema.episodes.id, season: schema.episodes.season, number: schema.episodes.number });
+      .returning({ id: schema.catalogEpisodes.id, season: schema.catalogEpisodes.season, number: schema.catalogEpisodes.number });
     for (const r of inserted) ids.set(`${r.season}:${r.number}`, r.id);
   }
   const srcRows = [...found.values()].flatMap((f) =>
@@ -234,10 +234,10 @@ export async function ensureEpisodes(content: Content, variants: Item[], tmdbLan
   for (let i = 0; i < srcRows.length; i += 500) {
     if (!srcRows.length) break;
     await db
-      .insert(schema.episodeSources)
+      .insert(schema.catalogEpisodeVariants)
       .values(srcRows.slice(i, i + 500))
       .onConflictDoUpdate({
-        target: [schema.episodeSources.episodeId, schema.episodeSources.itemId],
+        target: [schema.catalogEpisodeVariants.episodeId, schema.catalogEpisodeVariants.itemId],
         set: { xtreamId: sql`excluded.xtream_id`, container: sql`excluded.container`, seenAt: now },
       });
   }
@@ -245,17 +245,17 @@ export async function ensureEpisodes(content: Content, variants: Item[], tmdbLan
   const epIds = [...ids.values()];
   if (epIds.length)
     await db
-      .delete(schema.episodeSources)
-      .where(and(inArray(schema.episodeSources.episodeId, epIds), lt(schema.episodeSources.seenAt, now)));
+      .delete(schema.catalogEpisodeVariants)
+      .where(and(inArray(schema.catalogEpisodeVariants.episodeId, epIds), lt(schema.catalogEpisodeVariants.seenAt, now)));
   await db
-    .delete(schema.episodes)
-    .where(and(eq(schema.episodes.contentId, content.id), epIds.length ? notInArray(schema.episodes.id, epIds) : sql`true`));
+    .delete(schema.catalogEpisodes)
+    .where(and(eq(schema.catalogEpisodes.contentId, content.id), epIds.length ? notInArray(schema.catalogEpisodes.id, epIds) : sql`true`));
   await db
-    .delete(schema.episodes)
+    .delete(schema.catalogEpisodes)
     .where(
       and(
-        eq(schema.episodes.contentId, content.id),
-        sql`not exists (select 1 from ${schema.episodeSources} s where s.episode_id = ${schema.episodes.id})`,
+        eq(schema.catalogEpisodes.contentId, content.id),
+        sql`not exists (select 1 from ${schema.catalogEpisodeVariants} s where s.episode_id = ${schema.catalogEpisodes.id})`,
       ),
     );
 }

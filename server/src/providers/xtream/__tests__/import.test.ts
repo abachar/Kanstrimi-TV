@@ -1,108 +1,55 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { XStream, XCategory } from "../client";
+import { describe, it, expect } from "vitest";
+import type { XStream } from "../client";
+import { checkShrink, prepareCategories, prepareStreams, ShrinkError } from "../import";
 
-/** Capture the rows Drizzle would insert, to assert no batch carries the same id twice. */
-const inserted: { table: string; rows: Record<string, unknown>[] }[] = [];
-
-vi.mock("@/db", () => {
-  const tables = { categories: "categories", items: "items", settings: "settings", filterRules: "filter_rules", syncLogs: "sync_logs" };
-  return {
-    schema: tables,
-    db: {
-      insert: (table: string) => ({
-        values(rows: Record<string, unknown>[]) {
-          inserted.push({ table, rows });
-          return { onConflictDoUpdate: async () => undefined, onConflictDoNothing: async () => undefined };
-        },
-      }),
-      select: () => ({ from: async () => [] }),
-      update: () => ({ set: () => ({ where: async () => undefined }) }),
-      delete: () => ({ where: () => ({ returning: async () => [] }) }),
-    },
-    getSettings: async () => ({ xtream_url: "http://x", xtream_username: "u", xtream_password: "p", tmdb_language: "fr-FR" }),
-    isXtreamConfigured: () => true,
-    setSettings: async () => undefined,
-  };
-});
-
-const cats: XCategory[] = [
-  { category_id: "10", category_name: "Live FR" },
-  { category_id: "11", category_name: "Live IT" },
-  { category_id: "10", category_name: "Live FR (doublon)" },
-];
 const streams: XStream[] = [
   { name: "♣♦♣-----|FR| FRANCE FHD |FR|----♣♦♣", stream_id: 900, category_id: "10" },
   { name: "A", stream_id: 1, category_id: "10" },
   { name: "B", stream_id: 2, category_id: "11" },
-  { name: "•●★--|FR| SPORT |FR|---★●•", stream_id: 901, category_id: "10" },
   { name: "A (autre catégorie)", stream_id: 1, category_id: "11" },
   { name: "Id texte", stream_id: "ab-12" as unknown as number, category_id: "10" },
   { name: "Id numérique en texte", stream_id: " 2 " as unknown as number, category_id: "10" }, // doublon de B
   { name: "Sans id", category_id: "10" },
   { name: "Id null", stream_id: null as unknown as number, category_id: "10" },
-  { name: "Date valide", stream_id: 4, added: "1720000000" },
-  { name: "Date sale", stream_id: 5, added: "abc" },
-  { name: "Date dans le futur", stream_id: 6, added: "4000000000" },
-  // Radios arrive without a category, under their own separators: they get the « RADIOS » category of ours.
-  { name: "•●★--|FR| FRANCE |FR|---★●•", stream_id: 902, category_id: null as unknown as string, stream_type: "radio_streams" },
-  { name: "|FR| BEL RTL", stream_id: 3, category_id: null as unknown as string, stream_type: "radio_streams" },
 ];
 
-vi.mock("../client", () => {
-  class XtreamClient {
-    base = "http://x";
-    account = async () => ({ user_info: { auth: 1 } });
-    liveCategories = async () => cats;
-    vodCategories = async () => [];
-    seriesCategories = async () => [];
-    liveStreams = async () => streams;
-    vodStreams = async () => [];
-    series = async () => [];
-  }
-  return { XtreamError: class extends Error {}, XtreamClient, xtreamFromSettings: () => new XtreamClient() };
-});
-
-describe("sync deduplication and id hygiene", () => {
-  beforeEach(() => {
-    inserted.length = 0;
+describe("prepareStreams", () => {
+  it("keeps opaque ids, drops entries without one, keeps the first occurrence of each id", () => {
+    const out = prepareStreams("live", streams);
+    expect(out.map((s) => s.xtreamId)).toEqual(["900", "1", "2", "ab-12"]);
+    expect(out[1].raw.name).toBe("A"); // first occurrence wins
+    // Separator lines are kept as the provider sent them: the catalogue reads them (`merge`).
+    expect(out[0].raw.name).toContain("FRANCE FHD");
   });
 
-  it("keeps opaque ids, drops entries without one, never repeats an id in one insert", async () => {
-    const { runSync } = await import("../import");
-    await runSync();
-    expect(inserted.length).toBeGreaterThan(0);
-    for (const { rows } of inserted) {
-      const ids = rows.map((r) => `${r.kind}:${r.xtreamId}`);
-      expect(new Set(ids).size).toBe(ids.length);
-    }
-    const items = inserted.filter((i) => i.table === "items").flatMap((i) => i.rows) as {
-      xtreamId: string;
-      name: string;
-      section: string | null;
-      categoryXtreamId: string;
-      addedAt: Date;
-      seenAt: Date;
-    }[];
-    expect(items.map((r) => r.xtreamId)).toEqual(["1", "2", "ab-12", "4", "5", "6", "3"]);
-    expect(items[0].name).toBe("A"); // first occurrence wins
-    // Separator lines are not entries; each names the section of what follows it in its category.
-    expect(items.map((r) => [r.xtreamId, r.section])).toEqual([
-      ["1", "|FR| FRANCE FHD |FR|"],
-      ["2", null],
-      ["ab-12", "|FR| SPORT |FR|"],
-      ["4", null],
-      ["5", null],
-      ["6", null],
-      ["3", "|FR| FRANCE |FR|"],
-    ]);
-    // Radio category mapping
-    expect(items.find((r) => r.xtreamId === "3")?.categoryXtreamId).toBe("_radio");
-    // Dates
-    expect(items.find((r) => r.xtreamId === "4")!.addedAt).toEqual(new Date(1720000000 * 1000));
-    expect(items.find((r) => r.xtreamId === "5")!.addedAt).toEqual(items[0].seenAt);
-    expect(items.find((r) => r.xtreamId === "6")!.addedAt).toEqual(items[0].seenAt);
+  it("reads series by series_id", () => {
+    expect(prepareStreams("series", [{ name: "S", series_id: 7 }]).map((s) => s.xtreamId)).toEqual(["7"]);
+  });
+});
 
-    const categories = inserted.filter((i) => i.table === "categories").flatMap((i) => i.rows);
-    expect(categories.map((r) => r.xtreamId)).toEqual(["10", "11", "_radio"]);
+describe("prepareCategories", () => {
+  it("keeps the first occurrence of each category id", () => {
+    const out = prepareCategories([
+      { category_id: "10", category_name: "Live FR" },
+      { category_id: 11, category_name: "Live IT" },
+      { category_id: "10", category_name: "Live FR (doublon)" },
+    ]);
+    expect(out.map((c) => [c.xtreamId, c.raw.category_name])).toEqual([
+      ["10", "Live FR"],
+      ["11", "Live IT"],
+    ]);
+  });
+});
+
+describe("checkShrink", () => {
+  const current = { live: 1000, vod: 1000, series: 10 };
+  it("refuses a kind that lost more than half of the catalogue", () => {
+    expect(() => checkShrink({ live: 1000, vod: 400, series: 10 }, current)).toThrow(ShrinkError);
+    expect(() => checkShrink({ live: 0, vod: 1000, series: 10 }, current)).toThrow(/live .* 0 entrées pour 1000/);
+  });
+  it("lets a normal variation, a tiny catalogue or an accepted shrink through", () => {
+    expect(() => checkShrink({ live: 600, vod: 1000, series: 10 }, current)).not.toThrow();
+    expect(() => checkShrink({ live: 1000, vod: 1000, series: 0 }, current)).not.toThrow(); // under the floor
+    expect(() => checkShrink({ live: 0, vod: 0, series: 0 }, current, true)).not.toThrow();
   });
 });

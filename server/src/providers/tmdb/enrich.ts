@@ -1,6 +1,6 @@
 import { getSettings } from "@/config";
 import { db, schema, tmdbMediaType } from "@/db";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import pLimit from "p-limit";
 import { TmdbClient, type TmdbDetails } from "./client";
 import { scoreAll, bestSimilarity, namesOf, hasAllNames, MATCH_THRESHOLD, type ScoredDetail } from "./match";
@@ -11,6 +11,15 @@ const TTL_MS = 30 * 24 * 3600 * 1000;
 const CONCURRENCY = 20;
 /** This many outages in a row (DNS, network, database) and the step stops: the rest stays pending. */
 const MAX_UNREACHABLE = 20;
+/** An entry that fails this many times in a row for another reason (a title TMDB rejects) is given up: `unmatched`. */
+const MAX_ATTEMPTS = 3;
+/** Unmatched entries are tried again after this long: TMDB may have the title by then. */
+const RETRY_UNMATCHED_MS = 7 * 24 * 3600 * 1000;
+/**
+ * Cache entries older than the TTL refreshed per run, the oldest first: ratings, a series' status,
+ * a new saga reach the cards without a burst (four runs a day cover ~60 000 entries in a month).
+ */
+const REFRESH_PER_RUN = 500;
 /**
  * A provider-supplied TMDB id is a hint, not a fact: it is accepted only when the title of
  * the TMDB document resembles the cleaned name. Looser than the search threshold because the
@@ -37,19 +46,24 @@ export async function getDetails(
     .where(and(eq(schema.tmdbCache.mediaType, mediaType), eq(schema.tmdbCache.tmdbId, tmdbId), eq(schema.tmdbCache.lang, client.language)));
   if (cached && !force && Date.now() - cached.fetchedAt.getTime() < TTL_MS) return cached.data as TmdbDetails;
   try {
-    const data = mediaType === "movie" ? await client.movie(tmdbId) : await client.tv(tmdbId);
-    await db
-      .insert(schema.tmdbCache)
-      .values({ mediaType, tmdbId, lang: client.language, data })
-      .onConflictDoUpdate({
-        target: [schema.tmdbCache.mediaType, schema.tmdbCache.tmdbId, schema.tmdbCache.lang],
-        set: { data, fetchedAt: new Date() },
-      });
-    return data;
+    return await fetchDetails(client, mediaType, tmdbId);
   } catch (e) {
     if (cached) return cached.data as TmdbDetails;
     throw e;
   }
+}
+
+/** Fetches the details and stores them; throws when TMDB does. */
+async function fetchDetails(client: TmdbClient, mediaType: "movie" | "tv", tmdbId: number): Promise<TmdbDetails> {
+  const data = mediaType === "movie" ? await client.movie(tmdbId) : await client.tv(tmdbId);
+  await db
+    .insert(schema.tmdbCache)
+    .values({ mediaType, tmdbId, lang: client.language, data })
+    .onConflictDoUpdate({
+      target: [schema.tmdbCache.mediaType, schema.tmdbCache.tmdbId, schema.tmdbCache.lang],
+      set: { data, fetchedAt: new Date() },
+    });
+  return data;
 }
 
 /** Read-only cached lookup (no network). */
@@ -64,23 +78,36 @@ export async function getCachedDetails(mediaType: "movie" | "tv", tmdbId: number
 /**
  * Match every pending vod/series entry against TMDB, hidden ones included, and cache its
  * details. Reads the `clean_title` and `year` the naming wrote after the import; the pipeline
- * filters and regroups afterwards.
+ * filters and regroups afterwards. Before: the week-old failures go back to pending. After: a
+ * share of the stale cache is fetched again, which `group` then copies into the cards.
  */
 export async function runEnrich(opts: { limit?: number } = {}) {
   const client = await getTmdbClient();
   if (!client) throw new Error("Clé API TMDB non configurée");
-  const stats = { processed: 0, matched: 0, unmatched: 0, errors: 0, ids_rejected: 0 };
-  const where = [inArray(schema.items.kind, ["vod", "series"]), eq(schema.items.matchStatus, "pending")];
+  const stats = { processed: 0, matched: 0, unmatched: 0, errors: 0, ids_rejected: 0, retried: 0, refreshed: 0 };
+  const retried = await db
+    .update(schema.catalogVariants)
+    .set({ matchStatus: "pending", matchAttempts: 0 })
+    .where(
+      and(
+        inArray(schema.catalogVariants.kind, ["vod", "series"]),
+        eq(schema.catalogVariants.matchStatus, "unmatched"),
+        or(isNull(schema.catalogVariants.matchedAt), lt(schema.catalogVariants.matchedAt, new Date(Date.now() - RETRY_UNMATCHED_MS))),
+      ),
+    )
+    .returning({ id: schema.catalogVariants.id });
+  stats.retried = retried.length;
+  const where = [inArray(schema.catalogVariants.kind, ["vod", "series"]), eq(schema.catalogVariants.matchStatus, "pending")];
   const pending = await db
     .select({
-      id: schema.items.id,
-      kind: schema.items.kind,
-      name: schema.items.name,
-      cleanTitle: schema.items.cleanTitle,
-      year: schema.items.year,
-      raw: schema.items.raw,
+      id: schema.catalogVariants.id,
+      kind: schema.catalogVariants.kind,
+      name: schema.catalogVariants.name,
+      cleanTitle: schema.catalogVariants.cleanTitle,
+      year: schema.catalogVariants.year,
+      raw: schema.catalogVariants.raw,
     })
-    .from(schema.items)
+    .from(schema.catalogVariants)
     .where(and(...where))
     .limit(opts.limit ?? 100_000);
   // One details call per distinct provider id: 70 000 items carry ~45 000 ids.
@@ -112,16 +139,29 @@ export async function runEnrich(opts: { limit?: number } = {}) {
     if (r) stats.matched++;
     else stats.unmatched++;
   };
-  const fail = (it: PendingItem, e: unknown) => {
+  const fail = async (it: PendingItem, e: unknown) => {
     beat.tick();
     stats.errors++;
     const pid = providedTmdbId(it);
     console.error(`[enrich] ${it.kind} élément ${it.id}${pid ? ` (TMDB fourni ${pid})` : ""} « ${it.name} » : ${describeError(e)}`);
-    if (!isUnreachable(e)) unreachable = 0;
-    else if (++unreachable >= MAX_UNREACHABLE && !halted) {
-      halted = describeError(e);
-      console.error(`[enrich] ${MAX_UNREACHABLE} échecs d'accès d'affilée : arrêt, le reste reste en attente`);
+    if (isUnreachable(e)) {
+      if (++unreachable >= MAX_UNREACHABLE && !halted) {
+        halted = describeError(e);
+        console.error(`[enrich] ${MAX_UNREACHABLE} échecs d'accès d'affilée : arrêt, le reste reste en attente`);
+      }
+      return;
     }
+    unreachable = 0;
+    // The entry itself fails (not the way to TMDB): after MAX_ATTEMPTS runs it is given up until the weekly retry.
+    await db
+      .update(schema.catalogVariants)
+      .set({
+        matchAttempts: sql`${schema.catalogVariants.matchAttempts} + 1`,
+        matchStatus: sql`case when ${schema.catalogVariants.matchAttempts} + 1 >= ${MAX_ATTEMPTS} then 'unmatched'::match_status else ${schema.catalogVariants.matchStatus} end`,
+        matchedAt: new Date(),
+      })
+      .where(eq(schema.catalogVariants.id, it.id))
+      .catch(() => {});
   };
   try {
     await Promise.all([
@@ -146,7 +186,7 @@ export async function runEnrich(opts: { limit?: number } = {}) {
               if (d) stats.ids_rejected++;
               account(await matchByTitle(client, it));
             } catch (e) {
-              fail(it, e);
+              await fail(it, e);
             }
           }
         }),
@@ -157,7 +197,7 @@ export async function runEnrich(opts: { limit?: number } = {}) {
           try {
             account(await matchByTitle(client, it));
           } catch (e) {
-            fail(it, e);
+            await fail(it, e);
           }
         }),
       ),
@@ -165,14 +205,49 @@ export async function runEnrich(opts: { limit?: number } = {}) {
   } finally {
     beat.stop();
   }
+  if (!halted) stats.refreshed = await refreshStale(client, limit);
   console.log(
-    `[enrich] ${n(stats.processed)} traités : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ids_rejected)} identifiants fournis rejetés`,
+    `[enrich] ${n(stats.processed)} traités : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ids_rejected)} identifiants fournis rejetés, ${n(stats.retried)} non trouvés retentés, ${n(stats.refreshed)} fiches rafraîchies`,
   );
   if (halted)
     throw new Error(
       `TMDB injoignable (${halted}) : arrêt après ${n(stats.processed)} traités, ${n(pending.length - stats.processed)} restent en attente`,
     );
   return stats;
+}
+
+/**
+ * The oldest cache entries past the TTL that a content still uses, fetched again: at most
+ * REFRESH_PER_RUN. A failure keeps the old entry (tried again next run). Returns how many landed.
+ */
+async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>): Promise<number> {
+  const stale = await db
+    .select({ mediaType: schema.tmdbCache.mediaType, tmdbId: schema.tmdbCache.tmdbId })
+    .from(schema.tmdbCache)
+    .where(
+      and(
+        eq(schema.tmdbCache.lang, client.language),
+        lt(schema.tmdbCache.fetchedAt, new Date(Date.now() - TTL_MS)),
+        sql`exists (select 1 from ${schema.catalogContents} c where c.tmdb_id = ${schema.tmdbCache.tmdbId}
+          and case c.kind when 'vod' then 'movie' else 'tv' end = ${schema.tmdbCache.mediaType})`,
+      ),
+    )
+    .orderBy(asc(schema.tmdbCache.fetchedAt))
+    .limit(REFRESH_PER_RUN);
+  let done = 0;
+  await Promise.all(
+    stale.map((r) =>
+      limit(async () => {
+        try {
+          await fetchDetails(client, r.mediaType as "movie" | "tv", r.tmdbId);
+          done++;
+        } catch (e) {
+          console.error(`[enrich] rafraîchissement TMDB ${r.mediaType} ${r.tmdbId} : ${describeError(e)}`);
+        }
+      }),
+    ),
+  );
+  return done;
 }
 
 export type PendingItem = {
@@ -405,7 +480,7 @@ export async function setMatch(
   status: "matched" | "unmatched" | "manual" | "pending",
 ) {
   await db
-    .update(schema.items)
-    .set({ tmdbId, matchScore: score, matchStatus: status, matchedAt: new Date() })
-    .where(eq(schema.items.id, itemId));
+    .update(schema.catalogVariants)
+    .set({ tmdbId, matchScore: score, matchStatus: status, matchAttempts: 0, matchedAt: new Date() })
+    .where(eq(schema.catalogVariants.id, itemId));
 }

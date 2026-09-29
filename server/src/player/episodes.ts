@@ -1,5 +1,5 @@
 import { asc, eq, inArray } from "drizzle-orm";
-import { db, schema, type Content, type Episode, type Item } from "@/db";
+import { db, schema, type Content, type Episode, type Variant } from "@/db";
 import { seasonsOf } from "@/catalog";
 import { versionsOf, type Playable } from "./versions";
 import { imageUrl, progressWire } from "./cards";
@@ -10,20 +10,24 @@ import type { EpisodeWire, SeasonWire, Version } from "./types";
 export type EpisodeRow = Episode & { playables: Playable[] };
 
 /** Episodes of a content in (season, number) order, each with its playable sources (visible variants only). */
-export async function loadEpisodes(content: Content, variants: Item[], categoryName: (it: Item) => string | null): Promise<EpisodeRow[]> {
+export async function loadEpisodes(
+  content: Content,
+  variants: Variant[],
+  categoryName: (it: Variant) => string | null,
+): Promise<EpisodeRow[]> {
   const eps = await db
     .select()
-    .from(schema.episodes)
-    .where(eq(schema.episodes.contentId, content.id))
-    .orderBy(asc(schema.episodes.season), asc(schema.episodes.number));
+    .from(schema.catalogEpisodes)
+    .where(eq(schema.catalogEpisodes.contentId, content.id))
+    .orderBy(asc(schema.catalogEpisodes.season), asc(schema.catalogEpisodes.number));
   if (!eps.length) return [];
   const byItem = new Map(variants.map((v) => [v.id, v]));
   const srcs = await db
     .select()
-    .from(schema.episodeSources)
+    .from(schema.catalogEpisodeVariants)
     .where(
       inArray(
-        schema.episodeSources.episodeId,
+        schema.catalogEpisodeVariants.episodeId,
         eps.map((e) => e.id),
       ),
     );

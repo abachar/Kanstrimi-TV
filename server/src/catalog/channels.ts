@@ -89,14 +89,14 @@ type Index = {
 async function loadIndex(): Promise<Index> {
   const rows = await db
     .select({
-      id: schema.iptvChannels.id,
-      name: schema.iptvChannels.name,
-      altNames: schema.iptvChannels.altNames,
-      country: schema.iptvChannels.country,
-      categories: schema.iptvChannels.categories,
-      isNsfw: schema.iptvChannels.isNsfw,
+      id: schema.iptvorgChannels.id,
+      name: schema.iptvorgChannels.name,
+      altNames: schema.iptvorgChannels.altNames,
+      country: schema.iptvorgChannels.country,
+      categories: schema.iptvorgChannels.categories,
+      isNsfw: schema.iptvorgChannels.isNsfw,
     })
-    .from(schema.iptvChannels);
+    .from(schema.iptvorgChannels);
   const idx: Index = { byId: new Map(), byNameCountry: new Map(), byName: new Map() };
   const add = (m: Map<string, Set<string>>, k: string, id: string) => m.set(k, (m.get(k) ?? new Set()).add(id));
   for (const r of rows) {
@@ -197,8 +197,7 @@ type LiveRow = {
   name: string;
   title: string | null;
   market: string | null;
-  theme: string | null;
-  adult: boolean;
+  nameTheme: string | null;
   iptvId: string | null;
   iptvMatch: string | null;
 };
@@ -211,7 +210,11 @@ function pinnedMismatch(idx: Index, epgId: string | null, pinned: IndexedChannel
   return epgContradicts(epgId!, title, nameKeys(title), idx.byId.get(epg), { ...pinned, how: "name" });
 }
 
-/** What a live variant becomes: its channel (kept when pinned by hand), theme, adult flag, and whether its EPG id is to be ignored. */
+/**
+ * What a live variant becomes: its channel (kept when pinned by hand), the theme and adult flag the
+ * channel gives (`iptv_theme`, `iptv_adult`: the name's own stay in `name_*`, the final values are
+ * derived), and whether its EPG id is to be ignored. `theme` stays null when it would only repeat the name's.
+ */
 function resolve(idx: Index, it: LiveRow): Resolved {
   const epgId = (it.raw as { epg_channel_id?: string }).epg_channel_id ?? null;
   const manual = it.iptvMatch === "manual";
@@ -232,37 +235,43 @@ function resolve(idx: Index, it: LiveRow): Resolved {
     id: it.id,
     iptv: ch?.id ?? (manual ? it.iptvId : null),
     how,
-    theme: ch ? mergedTheme(iptvTheme(ch.categories), it.theme) : it.theme,
-    adult: it.adult || Boolean(ch?.isNsfw || ch?.categories.includes("xxx")),
+    theme: ch ? nullIfSame(mergedTheme(iptvTheme(ch.categories), it.nameTheme), it.nameTheme) : null,
+    adult: Boolean(ch?.isNsfw || ch?.categories.includes("xxx")),
     epgMismatch,
   };
 }
 
-const liveRows = (where = eq(schema.items.kind, "live")) =>
+const nullIfSame = (v: string | null, same: string | null) => (v === same ? null : v);
+
+const liveRows = (where = eq(schema.catalogVariants.kind, "live")) =>
   db
     .select({
-      id: schema.items.id,
-      raw: schema.items.raw,
-      name: schema.items.name,
-      title: schema.items.cleanTitle,
-      market: schema.items.market,
-      theme: schema.items.theme,
-      adult: schema.items.adult,
-      iptvId: schema.items.iptvId,
-      iptvMatch: schema.items.iptvMatch,
+      id: schema.catalogVariants.id,
+      raw: schema.catalogVariants.raw,
+      name: schema.catalogVariants.name,
+      title: schema.catalogVariants.cleanTitle,
+      market: schema.catalogVariants.market,
+      nameTheme: schema.catalogVariants.nameTheme,
+      iptvId: schema.catalogVariants.iptvId,
+      iptvMatch: schema.catalogVariants.iptvMatch,
     })
-    .from(schema.items)
+    .from(schema.catalogVariants)
     .where(where);
 
+/** Only the variants whose channel, theme, flag or EPG verdict moved are written. */
 async function write(rows: Resolved[]) {
   for (let i = 0; i < rows.length; i += CHUNK) {
     const part = rows.slice(i, i + CHUNK);
     await pg`
-      update items i set iptv_id = u.iptv, iptv_match = u.how, theme = u.theme, adult = u.adult::boolean, epg_mismatch = u.mismatch::boolean
-      from unnest(${part.map((r) => r.id)}::int[], ${part.map((r) => r.iptv)}::text[], ${part.map((r) => r.how)}::text[],
-                  ${part.map((r) => r.theme)}::text[], ${part.map((r) => String(r.adult))}::text[], ${part.map((r) => String(r.epgMismatch))}::text[])
-        as u(id, iptv, how, theme, adult, mismatch)
-      where i.id = u.id`;
+      update catalog_variants i set iptv_id = u.iptv, iptv_match = u.how, iptv_theme = u.theme, iptv_adult = u.adult, epg_mismatch = u.mismatch
+      from (
+        select id, iptv, how, theme, adult::boolean as adult, mismatch::boolean as mismatch
+        from unnest(${part.map((r) => r.id)}::int[], ${part.map((r) => r.iptv)}::text[], ${part.map((r) => r.how)}::text[],
+                    ${part.map((r) => r.theme)}::text[], ${part.map((r) => String(r.adult))}::text[], ${part.map((r) => String(r.epgMismatch))}::text[])
+          as x(id, iptv, how, theme, adult, mismatch)
+      ) u
+      where i.id = u.id
+        and (i.iptv_id, i.iptv_match, i.iptv_theme, i.iptv_adult, i.epg_mismatch) is distinct from (u.iptv, u.how, u.theme, u.adult, u.mismatch)`;
   }
 }
 
@@ -292,10 +301,13 @@ export async function runChannels() {
  */
 export async function setIptvMatch(itemId: number, iptvId: string | null | "auto") {
   if (iptvId && iptvId !== "auto") {
-    const [known] = await db.select({ id: schema.iptvChannels.id }).from(schema.iptvChannels).where(eq(schema.iptvChannels.id, iptvId));
+    const [known] = await db
+      .select({ id: schema.iptvorgChannels.id })
+      .from(schema.iptvorgChannels)
+      .where(eq(schema.iptvorgChannels.id, iptvId));
     if (!known) throw new Error(`Chaîne iptv-org inconnue : ${iptvId}`);
   }
-  const [it] = await liveRows(and(eq(schema.items.kind, "live"), eq(schema.items.id, itemId)));
+  const [it] = await liveRows(and(eq(schema.catalogVariants.kind, "live"), eq(schema.catalogVariants.id, itemId)));
   if (!it) throw new Error("Chaîne introuvable");
   const pinned = iptvId === "auto" ? { ...it, iptvMatch: null } : { ...it, iptvId, iptvMatch: "manual" };
   await write([resolve(await loadIndex(), pinned)]);
@@ -305,6 +317,6 @@ export async function setIptvMatch(itemId: number, iptvId: string | null | "auto
 /** The iptv-org channel of a variant, for the admin. */
 export async function iptvChannelById(id: string | null) {
   if (!id) return null;
-  const [ch] = await db.select().from(schema.iptvChannels).where(eq(schema.iptvChannels.id, id));
+  const [ch] = await db.select().from(schema.iptvorgChannels).where(eq(schema.iptvorgChannels.id, id));
   return ch ?? null;
 }

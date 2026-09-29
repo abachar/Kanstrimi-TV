@@ -44,7 +44,7 @@ describe("device pairing", () => {
     // A second poll must not leak the token again.
     expect(await pollPairing(code)).toEqual({ status: "expired" });
     // The token is stored hashed only.
-    const [row] = await db.select().from(schema.devices).where(eq(schema.devices.code, code));
+    const [row] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, code));
     expect(row.tokenHash).not.toContain(r.token.slice(4, 20));
     expect(row.wrappedKey).toMatch(/^enc:v1:/);
 
@@ -61,7 +61,7 @@ describe("device pairing", () => {
     // Revoked: 401 from now on, and the wrap is gone.
     expect(await revokeDevice(code)).toBe(true);
     expect(await authenticateToken(r.token)).toBeNull();
-    const [after] = await db.select().from(schema.devices).where(eq(schema.devices.code, code));
+    const [after] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, code));
     expect(after.wrappedKey).toBeNull();
     expect(after.tokenHash).toBeNull();
     expect(await revokeDevice(code)).toBe(false);
@@ -71,9 +71,9 @@ describe("device pairing", () => {
   it("refuses to approve an expired or unknown code", async () => {
     const { code } = await createPairing("10.0.0.1");
     await db
-      .update(schema.devices)
+      .update(schema.appDevices)
       .set({ expiresAt: new Date(Date.now() - 1000) })
-      .where(eq(schema.devices.code, code));
+      .where(eq(schema.appDevices.code, code));
     await expect(approvePairing(code, "x")).rejects.toThrow(/expiré/);
     expect(await pollPairing(code)).toEqual({ status: "expired" });
     await expect(approvePairing("ZZZZZZ", "x")).rejects.toThrow(/inconnu/);

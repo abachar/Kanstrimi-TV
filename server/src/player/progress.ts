@@ -13,9 +13,9 @@ export async function setProgress(contentKey: string, position: number, duration
     d = Math.max(0, Math.round(duration));
   const finished = d > 0 && p / d >= FINISHED_AT;
   const [row] = await db
-    .insert(schema.watchProgress)
+    .insert(schema.appWatchProgress)
     .values({ contentKey, position: p, duration: d, finished, updatedAt: new Date() })
-    .onConflictDoUpdate({ target: schema.watchProgress.contentKey, set: { position: p, duration: d, finished, updatedAt: new Date() } })
+    .onConflictDoUpdate({ target: schema.appWatchProgress.contentKey, set: { position: p, duration: d, finished, updatedAt: new Date() } })
     .returning();
   return row;
 }
@@ -23,7 +23,7 @@ export async function setProgress(contentKey: string, position: number, duration
 /** Progress rows for a set of keys, as a map. */
 export async function getProgress(keys: string[]): Promise<Map<string, Progress>> {
   if (!keys.length) return new Map();
-  const rows = await db.select().from(schema.watchProgress).where(inArray(schema.watchProgress.contentKey, keys));
+  const rows = await db.select().from(schema.appWatchProgress).where(inArray(schema.appWatchProgress.contentKey, keys));
   return new Map(rows.map((r) => [r.contentKey, r]));
 }
 
@@ -35,11 +35,11 @@ export function isResumable(p: Progress | undefined): p is Progress {
 export async function resumeKeys(limit = 20): Promise<Progress[]> {
   return db
     .select()
-    .from(schema.watchProgress)
+    .from(schema.appWatchProgress)
     .where(
-      sql`not ${schema.watchProgress.finished} and ${schema.watchProgress.duration} > 0 and ${schema.watchProgress.position}::real / ${schema.watchProgress.duration} >= ${RESUMABLE_FROM}`,
+      sql`not ${schema.appWatchProgress.finished} and ${schema.appWatchProgress.duration} > 0 and ${schema.appWatchProgress.position}::real / ${schema.appWatchProgress.duration} >= ${RESUMABLE_FROM}`,
     )
-    .orderBy(desc(schema.watchProgress.updatedAt))
+    .orderBy(desc(schema.appWatchProgress.updatedAt))
     .limit(limit);
 }
 
@@ -47,11 +47,14 @@ export async function resumeKeys(limit = 20): Promise<Progress[]> {
 
 /** Every progress row, most recently watched first: the admin's « Historique ». */
 export async function listProgress(): Promise<Progress[]> {
-  return db.select().from(schema.watchProgress).orderBy(desc(schema.watchProgress.updatedAt), desc(schema.watchProgress.contentKey));
+  return db
+    .select()
+    .from(schema.appWatchProgress)
+    .orderBy(desc(schema.appWatchProgress.updatedAt), desc(schema.appWatchProgress.contentKey));
 }
 
 export async function deleteProgress(contentKey: string): Promise<void> {
-  await db.delete(schema.watchProgress).where(eq(schema.watchProgress.contentKey, contentKey));
+  await db.delete(schema.appWatchProgress).where(eq(schema.appWatchProgress.contentKey, contentKey));
 }
 
 /**
@@ -60,10 +63,10 @@ export async function deleteProgress(contentKey: string): Promise<void> {
  */
 export async function setFinished(contentKey: string, finished: boolean): Promise<void> {
   if (!finished) return deleteProgress(contentKey);
-  const [row] = await db.select().from(schema.watchProgress).where(eq(schema.watchProgress.contentKey, contentKey));
+  const [row] = await db.select().from(schema.appWatchProgress).where(eq(schema.appWatchProgress.contentKey, contentKey));
   const duration = row?.duration || 1;
   await db
-    .insert(schema.watchProgress)
+    .insert(schema.appWatchProgress)
     .values({ contentKey, position: duration, duration, finished: true, updatedAt: new Date() })
-    .onConflictDoUpdate({ target: schema.watchProgress.contentKey, set: { position: duration, finished: true, updatedAt: new Date() } });
+    .onConflictDoUpdate({ target: schema.appWatchProgress.contentKey, set: { position: duration, finished: true, updatedAt: new Date() } });
 }

@@ -1,16 +1,16 @@
 import { and, asc, desc, eq } from "drizzle-orm";
-import { db, schema, type Category, type Content, type Item } from "@/db";
+import { db, schema, type Category, type Content, type Variant } from "@/db";
 import type { Kind } from "@/db";
 
 /** Single-row lookups shared by the admin pages, the grouping actions and the TMDB correction. */
 
-export async function itemById(id: number): Promise<Item | null> {
-  const [it] = await db.select().from(schema.items).where(eq(schema.items.id, id));
+export async function itemById(id: number): Promise<Variant | null> {
+  const [it] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, id));
   return it ?? null;
 }
 
 export async function contentById(id: number): Promise<Content | null> {
-  const [c] = await db.select().from(schema.contents).where(eq(schema.contents.id, id));
+  const [c] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.id, id));
   return c ?? null;
 }
 
@@ -18,20 +18,24 @@ export async function categoryByXtreamId(kind: Kind, xtreamId: string | null): P
   if (!xtreamId) return null;
   const [c] = await db
     .select()
-    .from(schema.categories)
-    .where(and(eq(schema.categories.kind, kind), eq(schema.categories.xtreamId, xtreamId)));
+    .from(schema.catalogCategories)
+    .where(and(eq(schema.catalogCategories.kind, kind), eq(schema.catalogCategories.xtreamId, xtreamId)));
   return c ?? null;
 }
 
 export async function categoriesOfKind(kind: Kind): Promise<Category[]> {
-  return db.select().from(schema.categories).where(eq(schema.categories.kind, kind)).orderBy(asc(schema.categories.position));
+  return db
+    .select()
+    .from(schema.catalogCategories)
+    .where(eq(schema.catalogCategories.kind, kind))
+    .orderBy(asc(schema.catalogCategories.position));
 }
 
 /** The variants of a content, best quality first, hidden ones included: the admin shows them all. */
-export async function variantsOfContent(contentId: number): Promise<Item[]> {
+export async function variantsOfContent(contentId: number): Promise<Variant[]> {
   return db
     .select()
-    .from(schema.items)
-    .where(eq(schema.items.contentId, contentId))
-    .orderBy(desc(schema.items.qualityRank), asc(schema.items.id));
+    .from(schema.catalogVariants)
+    .where(eq(schema.catalogVariants.contentId, contentId))
+    .orderBy(desc(schema.catalogVariants.qualityRank), asc(schema.catalogVariants.id));
 }

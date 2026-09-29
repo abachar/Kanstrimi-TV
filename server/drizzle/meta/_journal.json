@@ -134,6 +134,20 @@
       "when": 1790690770533,
       "tag": "0018_epg-offsets",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790711213223,
+      "tag": "0019_rename-tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790711455180,
+      "tag": "0020_xtream-copy",
+      "breakpoints": true
     }
   ]
 }

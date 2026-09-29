@@ -21,13 +21,13 @@ export async function historyRows(ctx: RestContext): Promise<{ ongoing: HistoryR
   const episodeKeys = progress.map((p) => p.contentKey).filter((k) => parseKey(k)?.episode !== undefined);
   const movieKeys = progress.map((p) => p.contentKey).filter((k) => !episodeKeys.includes(k));
   const [movies, episodes] = await Promise.all([
-    movieKeys.length ? db.select().from(schema.contents).where(inArray(schema.contents.key, movieKeys)) : [],
+    movieKeys.length ? db.select().from(schema.catalogContents).where(inArray(schema.catalogContents.key, movieKeys)) : [],
     episodeKeys.length
       ? db
-          .select({ episode: schema.episodes, series: schema.contents })
-          .from(schema.episodes)
-          .innerJoin(schema.contents, eq(schema.contents.id, schema.episodes.contentId))
-          .where(inArray(schema.episodes.key, episodeKeys))
+          .select({ episode: schema.catalogEpisodes, series: schema.catalogContents })
+          .from(schema.catalogEpisodes)
+          .innerJoin(schema.catalogContents, eq(schema.catalogContents.id, schema.catalogEpisodes.contentId))
+          .where(inArray(schema.catalogEpisodes.key, episodeKeys))
       : [],
   ]);
   const movieByKey = new Map(movies.map((c) => [c.key, c]));

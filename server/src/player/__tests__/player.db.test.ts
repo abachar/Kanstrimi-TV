@@ -235,7 +235,7 @@ beforeAll(async () => {
   });
   const multi = items.find((i) => i.xtreamId === "200")!,
     vost = items.find((i) => i.xtreamId === "201")!;
-  await db.insert(schema.infoCache).values([
+  await db.insert(schema.xtreamInfoCache).values([
     { kind: "series", xtreamId: multi.xtreamId, data: providerInfo({ "1": ["e11", "e12"], "2": ["e21"] }, { "2:1": "Marée haute" }) },
     { kind: "series", xtreamId: vost.xtreamId, data: providerInfo({ "1": ["e11v", "e12v"] }, {}) },
   ]);
@@ -803,13 +803,13 @@ describe("studios and top 10", () => {
       first_air_date: ymd(daysAgo(30)),
       networks: [{ id: 49, name: "HBO", logo_path: "/hbo.png" }],
     });
-    await db.insert(schema.studios).values([
+    await db.insert(schema.curationStudios).values([
       { kind: "network", tmdbId: 49, name: "HBO", logoPath: "/hbo.png", position: 1 },
       { kind: "company", tmdbId: 3, name: "Pixar", logoPath: "/pixar.png", position: 2 },
       { kind: "company", tmdbId: 999, name: "Sans titre", logoPath: null, position: 3 },
     ]);
     // Trending ranks: Heat, a title missing from the catalogue, the hidden Pixar, then Matrix.
-    await db.insert(schema.trending).values([
+    await db.insert(schema.tmdbTrending).values([
       { mediaType: "movie", rank: 1, tmdbId: 949 },
       { mediaType: "movie", rank: 2, tmdbId: 123456 },
       { mediaType: "movie", rank: 3, tmdbId: 4002 },
@@ -842,7 +842,7 @@ describe("studios and top 10", () => {
   });
 
   it("admin: suggestions from the catalogue, add, reorder, remove", async () => {
-    await db.delete(schema.studios).where(eq(schema.studios.tmdbId, 3));
+    await db.delete(schema.curationStudios).where(eq(schema.curationStudios.tmdbId, 3));
     const suggestions = await studioSuggestions();
     expect(suggestions).toContainEqual({ kind: "company", tmdbId: 3, name: "Pixar", logoPath: "/pixar.png", country: null, count: 1 });
     expect(suggestions.some((s) => s.kind === "network" && s.tmdbId === 49)).toBe(false); // already chosen
@@ -916,7 +916,7 @@ describe("vault", () => {
     const r = await api.request("/info", { headers: { authorization: `Bearer ${t2}` } });
     expect(r.status).toBe(200);
     expect(isUnlocked()).toBe(true);
-    const [d] = await db.select().from(schema.devices).where(eq(schema.devices.code, c2));
+    const [d] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, c2));
     expect(d.lastIp).toBe("local");
   });
 });

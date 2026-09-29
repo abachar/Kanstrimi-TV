@@ -11,7 +11,7 @@ const PAGES = 5;
 export async function runTrending() {
   const client = await getTmdbClient();
   if (!client) throw new Error("Clé API TMDB non configurée");
-  const rows: (typeof schema.trending.$inferInsert)[] = [];
+  const rows: (typeof schema.tmdbTrending.$inferInsert)[] = [];
   for (const mediaType of ["movie", "tv"] as const) {
     const seen = new Set<number>();
     for (let page = 1; page <= PAGES; page++) {
@@ -23,8 +23,8 @@ export async function runTrending() {
     }
   }
   await db.transaction(async (tx) => {
-    await tx.delete(schema.trending);
-    if (rows.length) await tx.insert(schema.trending).values(rows);
+    await tx.delete(schema.tmdbTrending);
+    if (rows.length) await tx.insert(schema.tmdbTrending).values(rows);
   });
   return { movies: rows.filter((r) => r.mediaType === "movie").length, series: rows.filter((r) => r.mediaType === "tv").length };
 }

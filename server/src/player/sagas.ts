@@ -30,7 +30,7 @@ type SagaRow = { id: number; name: string; poster: string | null; backdrop: stri
 const sagasOf = (ctx: RestContext, only?: number) => sql`
   select saga_id as id, min(saga_name) as name, min(saga_poster_path) as poster, min(saga_backdrop_path) as backdrop,
     count(*)::int as n, max(coalesce(release_date, ${NO_RELEASE}::date))::text as latest
-  from ${schema.contents}
+  from ${schema.catalogContents}
   where ${visibleContent(ctx, "vod")} and saga_id is not null ${only === undefined ? sql`` : sql`and saga_id = ${only}`}
   group by saga_id having count(*) >= ${MIN_MOVIES}`;
 
@@ -78,9 +78,9 @@ export async function sagaSheet(ctx: RestContext, key: string): Promise<SagaShee
   if (!saga) return null;
   const movies = await db
     .select()
-    .from(schema.contents)
-    .where(and(visibleContent(ctx, "vod"), eq(schema.contents.sagaId, id)))
-    .orderBy(asc(sql`coalesce(${schema.contents.releaseDate}, ${NO_RELEASE}::date)`), asc(schema.contents.id));
+    .from(schema.catalogContents)
+    .where(and(visibleContent(ctx, "vod"), eq(schema.catalogContents.sagaId, id)))
+    .orderBy(asc(sql`coalesce(${schema.catalogContents.releaseDate}, ${NO_RELEASE}::date)`), asc(schema.catalogContents.id));
   const progress = await getProgress(movies.map((m) => m.key));
   return { ...sagaWire(ctx, saga), movies: movies.map((m) => gridCard(ctx, m, progress.get(m.key))) };
 }

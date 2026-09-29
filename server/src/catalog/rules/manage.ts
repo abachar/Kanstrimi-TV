@@ -19,7 +19,7 @@ export type RulePreview = { matches: string[]; total: number };
 export const PREVIEW_LIMIT = 50;
 
 export async function listRules(): Promise<FilterRule[]> {
-  return db.select().from(schema.filterRules).orderBy(asc(schema.filterRules.position), asc(schema.filterRules.id));
+  return db.select().from(schema.curationFilterRules).orderBy(asc(schema.curationFilterRules.position), asc(schema.curationFilterRules.id));
 }
 
 /** Insert or update, then reapply every rule: the catalogue never lags behind the rule set. */
@@ -34,18 +34,18 @@ export async function saveRule(input: RuleInput) {
     enabled: input.enabled,
     position: input.position,
   };
-  if (input.id) await db.update(schema.filterRules).set(row).where(eq(schema.filterRules.id, input.id));
-  else await db.insert(schema.filterRules).values(row);
+  if (input.id) await db.update(schema.curationFilterRules).set(row).where(eq(schema.curationFilterRules.id, input.id));
+  else await db.insert(schema.curationFilterRules).values(row);
   return applyRules();
 }
 
 export async function deleteRule(id: number) {
-  await db.delete(schema.filterRules).where(eq(schema.filterRules.id, id));
+  await db.delete(schema.curationFilterRules).where(eq(schema.curationFilterRules.id, id));
   return applyRules();
 }
 
 export async function setRuleEnabled(id: number, enabled: boolean) {
-  await db.update(schema.filterRules).set({ enabled }).where(eq(schema.filterRules.id, id));
+  await db.update(schema.curationFilterRules).set({ enabled }).where(eq(schema.curationFilterRules.id, id));
   return applyRules();
 }
 
@@ -57,7 +57,7 @@ export async function setRuleEnabled(id: number, enabled: boolean) {
 export async function previewRule(r: Pick<RuleInput, "pattern" | "flags" | "kind" | "target">): Promise<RulePreview> {
   if (validatePattern(r.pattern, r.flags)) return { matches: [], total: 0 };
   const re = new RegExp(r.pattern, sanitizeFlags(r.flags).replace("g", ""));
-  const t = r.target === "category" ? schema.categories : schema.items;
+  const t = r.target === "category" ? schema.catalogCategories : schema.catalogVariants;
   const rows = await db
     .select({ name: t.name, kind: t.kind })
     .from(t)

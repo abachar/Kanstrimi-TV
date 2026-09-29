@@ -31,8 +31,38 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const categories = pgTable(
-  "categories",
+/**
+ * The provider's lists as the `source` step last read them, untouched: categories and entries
+ * (separator lines included), one row per id, replaced as a whole at each import once they pass
+ * the sanity checks. The `merge` step derives the catalogue from them. Created UNLOGGED by the
+ * migration: a crash loses them, the next import rewrites them.
+ */
+export const xtreamCategories = pgTable(
+  "xtream_categories",
+  {
+    kind: kindEnum("kind").notNull(),
+    xtreamId: text("xtream_id").notNull(),
+    position: integer("position").notNull(),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.kind, t.xtreamId] })],
+);
+export const xtreamStreams = pgTable(
+  "xtream_streams",
+  {
+    kind: kindEnum("kind").notNull(),
+    /** stream_id (live, vod) or series_id (series), trimmed: an opaque string. */
+    xtreamId: text("xtream_id").notNull(),
+    /** Rank in the provider's list: separators name the section of what follows them. */
+    position: integer("position").notNull(),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.kind, t.xtreamId] })],
+);
+
+/** The provider's categories in the catalogue, where the admin hides them (by rule or by hand). */
+export const catalogCategories = pgTable(
+  "catalog_categories",
   {
     id: serial("id").primaryKey(),
     kind: kindEnum("kind").notNull(),
@@ -43,14 +73,20 @@ export const categories = pgTable(
     hiddenByRule: boolean("hidden_by_rule").default(false).notNull(),
     hiddenManual: boolean("hidden_manual").default(false).notNull(),
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
-    seenAt: timestamp("seen_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Last time the provider's copy of this row changed (`merge`). */
+    changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("categories_kind_xtream_idx").on(t.kind, t.xtreamId)],
+  (t) => [uniqueIndex("catalog_categories_kind_xtream_idx").on(t.kind, t.xtreamId)],
 );
 
-/** Live channels, VOD movies and series (list-level entries) share one table. */
-export const items = pgTable(
-  "items",
+/**
+ * One variant = one entry of the provider's lists: a live channel or a movie (a playable stream),
+ * a series (its episodes are `catalog_episode_variants`). Written by `merge` (provider fields), the
+ * naming (`name_*` and parsed fields), `channels` (`iptv_*`), `enrich` (`match_*`, `tmdb_id`),
+ * `filters` (`hidden_by_rule`) and `group` (`content_key`, `content_id`).
+ */
+export const catalogVariants = pgTable(
+  "catalog_variants",
   {
     id: serial("id").primaryKey(),
     kind: kindEnum("kind").notNull(),
@@ -73,12 +109,15 @@ export const items = pgTable(
     matchStatus: matchStatusEnum("match_status").default("pending").notNull(),
     matchScore: real("match_score"),
     matchedAt: timestamp("matched_at", { withTimezone: true }),
+    /** Failed matching attempts in a row (errors other than an outage): three and it is `unmatched`. */
+    matchAttempts: integer("match_attempts").default(0).notNull(),
     addedAt: timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
-    seenAt: timestamp("seen_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Last time the provider's copy of this row changed (`merge`). */
+    changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
     // Grouping (block 1): one item is one playable variant of a content.
-    /** Computed key, joins `contents.key`; the row it currently belongs to is `content_id`. */
+    /** Computed key, joins `catalog_contents.key`; the row it currently belongs to is `content_id`. */
     contentKey: text("content_key"),
-    contentId: integer("content_id").references(() => contents.id, { onDelete: "set null" }),
+    contentId: integer("content_id").references(() => catalogContents.id, { onDelete: "set null" }),
     /** Manual merge / split from the admin: wins over the computed key. */
     keyOverride: text("key_override"),
     /** Market code from the prefix or the category ("fr", "it"…). */
@@ -92,12 +131,19 @@ export const items = pgTable(
     dynamicRange: text("dynamic_range"),
     tags: text("tags").array().default([]).notNull(),
     seasonHint: integer("season_hint"),
-    /** The provider says so: adult category or tag in the name. */
-    adult: boolean("adult").default(false).notNull(),
+    /** The name says so: adult category or tag in the name (naming). */
+    nameAdult: boolean("name_adult").default(false).notNull(),
     /** Live: the label of the separator line preceding the entry in its category, as the provider wrote it. */
     section: text("section"),
-    /** Live: the theme the app groups by (« Sport », « Cinéma »…): iptv-org's categories, else the section or the category. */
-    theme: text("theme"),
+    /** Live: the theme the name gives (section, category, name), written by the naming. */
+    nameTheme: text("name_theme"),
+    /** Live: iptv-org's channel says so (`is_nsfw`, `xxx`), and the theme it gives merged with the name's; written by `channels`, kept when it fails. */
+    iptvAdult: boolean("iptv_adult").default(false).notNull(),
+    iptvTheme: text("iptv_theme"),
+    /** Derived, never written: each source keeps its own column, so one step failing cannot undo another's. */
+    adult: boolean("adult").generatedAlwaysAs(sql`name_adult or iptv_adult`).notNull(),
+    /** Live: the theme the app groups by (« Sport », « Cinéma »…): iptv-org's, else the name's. */
+    theme: text("theme").generatedAlwaysAs(sql`coalesce(iptv_theme, name_theme)`),
     /** Live: the iptv-org channel this variant is (`TF1.fr`), and how it was found: epg · name · name-global · manual. */
     iptvId: text("iptv_id"),
     iptvMatch: text("iptv_match"),
@@ -105,11 +151,11 @@ export const items = pgTable(
     epgMismatch: boolean("epg_mismatch").default(false).notNull(),
   },
   (t) => [
-    uniqueIndex("items_kind_xtream_idx").on(t.kind, t.xtreamId),
-    index("items_kind_cat_idx").on(t.kind, t.categoryXtreamId),
-    index("items_match_idx").on(t.kind, t.matchStatus),
-    index("items_content_idx").on(t.contentId),
-    index("items_content_key_idx").on(t.contentKey),
+    uniqueIndex("catalog_variants_kind_xtream_idx").on(t.kind, t.xtreamId),
+    index("catalog_variants_kind_cat_idx").on(t.kind, t.categoryXtreamId),
+    index("catalog_variants_match_idx").on(t.kind, t.matchStatus),
+    index("catalog_variants_content_idx").on(t.contentId),
+    index("catalog_variants_content_key_idx").on(t.contentKey),
   ],
 );
 
@@ -119,8 +165,8 @@ export const items = pgTable(
  * column is derived and rewritten in place at each run. External references (favourites,
  * progress) use `key`, never `id`: a row may vanish and come back with a new id.
  */
-export const contents = pgTable(
-  "contents",
+export const catalogContents = pgTable(
+  "catalog_contents",
   {
     id: serial("id").primaryKey(),
     key: text("key").notNull().unique(),
@@ -162,8 +208,13 @@ export const contents = pgTable(
     /** Live: every theme of its variants; a channel sits in each of its groups. */
     themes: text("themes").array().default([]).notNull(),
     visible: boolean("visible").default(false).notNull(),
-    /** TMDB's adult flag, or every variant flagged by the provider. Served to the app only when `serve_adult` is on. */
+    /** TMDB's adult flag, or every variant flagged adult. Served to the app only when `serve_adult` is on. */
     adult: boolean("adult").default(false).notNull(),
+    /** TMDB's own adult flag, copied with the card: `adult` is computed from it and the variants. */
+    tmdbAdult: boolean("tmdb_adult").default(false).notNull(),
+    /** When and in which language the card fields were last copied from `tmdb_cache`: older than the cache entry = copied again. */
+    cardsAt: timestamp("cards_at", { withTimezone: true }),
+    cardsLang: text("cards_lang"),
     addedAt: timestamp("added_at", { withTimezone: true }).notNull(),
     releaseDate: date("release_date"),
     /** Movies: the TMDB collection (« Harry Potter - Saga »), served as a saga once two of its movies are visible. */
@@ -178,17 +229,17 @@ export const contents = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    index("contents_list_idx").on(t.kind, t.visible, t.addedAt.desc(), t.id),
+    index("catalog_contents_list_idx").on(t.kind, t.visible, t.addedAt.desc(), t.id),
     // The sort keys of `player/lists.ts`, expression for expression, or the planner cannot use them.
-    index("contents_release_idx").on(t.kind, t.visible, sql`coalesce(${t.releaseDate}, '0001-01-01'::date) desc`, t.id),
-    index("contents_saga_idx").on(t.sagaId),
-    index("contents_companies_idx").using("gin", t.companyIds),
-    index("contents_networks_idx").using("gin", t.networkIds),
-    index("contents_title_idx").on(t.kind, t.visible, t.title, t.id),
-    index("contents_rating_idx").on(t.kind, t.visible, sql`coalesce(${t.rating}, 0) desc`, t.id),
-    index("contents_year_idx").on(t.kind, t.visible, sql`coalesce(${t.year}, 0) desc`, t.id),
-    index("contents_genres_idx").using("gin", t.genreIds),
-    index("contents_search_idx").using("gin", t.search),
+    index("catalog_contents_release_idx").on(t.kind, t.visible, sql`coalesce(${t.releaseDate}, '0001-01-01'::date) desc`, t.id),
+    index("catalog_contents_saga_idx").on(t.sagaId),
+    index("catalog_contents_companies_idx").using("gin", t.companyIds),
+    index("catalog_contents_networks_idx").using("gin", t.networkIds),
+    index("catalog_contents_title_idx").on(t.kind, t.visible, t.title, t.id),
+    index("catalog_contents_rating_idx").on(t.kind, t.visible, sql`coalesce(${t.rating}, 0) desc`, t.id),
+    index("catalog_contents_year_idx").on(t.kind, t.visible, sql`coalesce(${t.year}, 0) desc`, t.id),
+    index("catalog_contents_genres_idx").using("gin", t.genreIds),
+    index("catalog_contents_search_idx").using("gin", t.search),
   ],
 );
 
@@ -207,8 +258,8 @@ export const tmdbCache = pgTable(
 );
 
 /** Cached upstream get_vod_info / get_series_info responses. */
-export const infoCache = pgTable(
-  "info_cache",
+export const xtreamInfoCache = pgTable(
+  "xtream_info_cache",
   {
     id: serial("id").primaryKey(),
     kind: kindEnum("kind").notNull(),
@@ -216,10 +267,10 @@ export const infoCache = pgTable(
     data: jsonb("data").$type<Record<string, unknown>>().notNull(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("info_cache_idx").on(t.kind, t.xtreamId)],
+  (t) => [uniqueIndex("xtream_info_cache_idx").on(t.kind, t.xtreamId)],
 );
 
-export const filterRules = pgTable("filter_rules", {
+export const curationFilterRules = pgTable("curation_filter_rules", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   /** null = all kinds */
@@ -237,8 +288,8 @@ export const filterRules = pgTable("filter_rules", {
  * The channels of the iptv-org database (github.com/iptv-org/database), refreshed daily by the
  * `channels` step: what the live variants are matched against, for their logo, theme and details.
  */
-export const iptvChannels = pgTable(
-  "iptv_channels",
+export const iptvorgChannels = pgTable(
+  "iptvorg_channels",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
@@ -256,7 +307,7 @@ export const iptvChannels = pgTable(
     logoUrl: text("logo_url"),
     logoPath: text("logo_path"),
   },
-  (t) => [index("iptv_channels_country_idx").on(t.country)],
+  (t) => [index("iptvorg_channels_country_idx").on(t.country)],
 );
 
 /**
@@ -264,8 +315,8 @@ export const iptvChannels = pgTable(
  * rows; its detail is a text file under DATA_DIR/logs (`log_file`), written even when the
  * database is down.
  */
-export const syncRuns = pgTable(
-  "sync_runs",
+export const taskRuns = pgTable(
+  "task_runs",
   {
     id: serial("id").primaryKey(),
     task: text("task").notNull(), // pipeline | epg | a lone step
@@ -276,13 +327,13 @@ export const syncRuns = pgTable(
     message: text("message"),
     logFile: text("log_file"),
   },
-  (t) => [index("sync_runs_task_started_idx").on(t.task, t.startedAt)],
+  (t) => [index("task_runs_task_started_idx").on(t.task, t.startedAt)],
 );
 
-export const syncLogs = pgTable("sync_logs", {
+export const taskSteps = pgTable("task_steps", {
   id: serial("id").primaryKey(),
-  runId: integer("run_id").references(() => syncRuns.id, { onDelete: "cascade" }),
-  job: text("job").notNull(), // a pipeline step
+  runId: integer("run_id").references(() => taskRuns.id, { onDelete: "cascade" }),
+  step: text("step").notNull(), // a pipeline step
   status: syncStatusEnum("status").default("running").notNull(),
   startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
@@ -295,13 +346,13 @@ export const syncLogs = pgTable("sync_logs", {
  * from the provider's get_series_info (one call per variant, cached) and TMDB season data
  * when a series sheet is opened. `key` is the REST id: `tmdb:tv:1396:s01e05`.
  */
-export const episodes = pgTable(
-  "episodes",
+export const catalogEpisodes = pgTable(
+  "catalog_episodes",
   {
     id: serial("id").primaryKey(),
     contentId: integer("content_id")
       .notNull()
-      .references(() => contents.id, { onDelete: "cascade" }),
+      .references(() => catalogContents.id, { onDelete: "cascade" }),
     key: text("key").notNull().unique(),
     season: integer("season").notNull(),
     number: integer("number").notNull(),
@@ -312,35 +363,38 @@ export const episodes = pgTable(
     airDate: date("air_date"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("episodes_content_season_number_idx").on(t.contentId, t.season, t.number)],
+  (t) => [uniqueIndex("catalog_episodes_content_season_number_idx").on(t.contentId, t.season, t.number)],
 );
 
 /** One playable stream of an episode: the provider's episode id under one series variant (item). */
-export const episodeSources = pgTable(
-  "episode_sources",
+export const catalogEpisodeVariants = pgTable(
+  "catalog_episode_variants",
   {
     id: serial("id").primaryKey(),
     episodeId: integer("episode_id")
       .notNull()
-      .references(() => episodes.id, { onDelete: "cascade" }),
+      .references(() => catalogEpisodes.id, { onDelete: "cascade" }),
     itemId: integer("item_id")
       .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
+      .references(() => catalogVariants.id, { onDelete: "cascade" }),
     /** Provider episode id, an opaque string, never exposed. */
     xtreamId: text("xtream_id").notNull(),
     container: text("container"),
     seenAt: timestamp("seen_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("episode_sources_episode_item_idx").on(t.episodeId, t.itemId), index("episode_sources_item_idx").on(t.itemId)],
+  (t) => [
+    uniqueIndex("catalog_episode_variants_episode_item_idx").on(t.episodeId, t.itemId),
+    index("catalog_episode_variants_item_idx").on(t.itemId),
+  ],
 );
 
 /**
  * The programme guide of the channels the app can see, from the provider's XMLTV. `channel_id`
- * is the provider's EPG id (`contents.epg_channel_id`). Each import tags its rows with
+ * is the provider's EPG id (`catalog_contents.epg_channel_id`). Each import tags its rows with
  * `imported_at` and drops the previous ones once it has landed, so a failed import keeps the guide.
  */
-export const epgProgrammes = pgTable(
-  "epg_programmes",
+export const catalogEpgProgrammes = pgTable(
+  "catalog_epg_programmes",
   {
     id: serial("id").primaryKey(),
     channelId: text("channel_id").notNull(),
@@ -352,23 +406,26 @@ export const epgProgrammes = pgTable(
     /** The correction applied to the provider's times (`epg_offsets`), so a new rule shifts by the difference. */
     offsetMinutes: integer("offset_minutes").default(0).notNull(),
   },
-  (t) => [index("epg_programmes_channel_start_idx").on(t.channelId, t.startAt), index("epg_programmes_end_idx").on(t.endAt)],
+  (t) => [
+    index("catalog_epg_programmes_channel_start_idx").on(t.channelId, t.startAt),
+    index("catalog_epg_programmes_end_idx").on(t.endAt),
+  ],
 );
-export type EpgProgramme = typeof epgProgrammes.$inferSelect;
+export type EpgProgramme = typeof catalogEpgProgrammes.$inferSelect;
 
 /**
  * Corrections of the provider's guide times: a guide id (`beINSports3.qa`) or every id of a
  * suffix (`*.qa`), shifted by `minutes`. The exact id wins over a suffix; set from the EPG page.
  */
-export const epgOffsets = pgTable("epg_offsets", {
+export const curationEpgOffsets = pgTable("curation_epg_offsets", {
   pattern: text("pattern").primaryKey(),
   minutes: integer("minutes").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type EpgOffset = typeof epgOffsets.$inferSelect;
+export type EpgOffset = typeof curationEpgOffsets.$inferSelect;
 
 /** Playback position per content key (movie or episode). Single user: no device column. */
-export const watchProgress = pgTable("watch_progress", {
+export const appWatchProgress = pgTable("app_watch_progress", {
   contentKey: text("content_key").primaryKey(),
   /** Seconds. */
   position: integer("position").notNull(),
@@ -379,7 +436,7 @@ export const watchProgress = pgTable("watch_progress", {
 });
 
 /** "Ma liste": movies, series and channels by content key. */
-export const favorites = pgTable("favorites", {
+export const appFavorites = pgTable("app_favorites", {
   contentKey: text("content_key").primaryKey(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -391,7 +448,7 @@ export const deviceStatusEnum = pgEnum("device_status", ["pending", "approved", 
  * hashed) authenticates every REST call; `wrapped_key` is the vault key encrypted with a
  * key derived from the token, so the first call after a restart unlocks the vault.
  */
-export const devices = pgTable("devices", {
+export const appDevices = pgTable("app_devices", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),
   name: text("name"),
@@ -411,8 +468,8 @@ export const devices = pgTable("devices", {
  * (`company`: Pixar, A24) or a TV network (`network`: HBO, Netflix). Name and logo are copied
  * from TMDB when the studio is added.
  */
-export const studios = pgTable(
-  "studios",
+export const curationStudios = pgTable(
+  "curation_studios",
   {
     id: serial("id").primaryKey(),
     kind: text("kind").$type<"company" | "network">().notNull(),
@@ -421,12 +478,12 @@ export const studios = pgTable(
     logoPath: text("logo_path"),
     position: integer("position").default(0).notNull(),
   },
-  (t) => [uniqueIndex("studios_kind_tmdb_idx").on(t.kind, t.tmdbId)],
+  (t) => [uniqueIndex("curation_studios_kind_tmdb_idx").on(t.kind, t.tmdbId)],
 );
 
 /** TMDB's weekly trending lists, replaced by the `trending` step: the « Top 10 » rows cross them with the catalogue. */
-export const trending = pgTable(
-  "trending",
+export const tmdbTrending = pgTable(
+  "tmdb_trending",
   {
     mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
     rank: integer("rank").notNull(),
@@ -436,13 +493,13 @@ export const trending = pgTable(
   (t) => [primaryKey({ columns: [t.mediaType, t.rank] })],
 );
 
-export type Item = typeof items.$inferSelect;
-export type Episode = typeof episodes.$inferSelect;
-export type Device = typeof devices.$inferSelect;
-export type Content = typeof contents.$inferSelect;
-export type Category = typeof categories.$inferSelect;
-export type FilterRule = typeof filterRules.$inferSelect;
-export type SyncLog = typeof syncLogs.$inferSelect;
-export type SyncRun = typeof syncRuns.$inferSelect;
-export type IptvChannel = typeof iptvChannels.$inferSelect;
-export type Studio = typeof studios.$inferSelect;
+export type Variant = typeof catalogVariants.$inferSelect;
+export type Episode = typeof catalogEpisodes.$inferSelect;
+export type Device = typeof appDevices.$inferSelect;
+export type Content = typeof catalogContents.$inferSelect;
+export type Category = typeof catalogCategories.$inferSelect;
+export type FilterRule = typeof curationFilterRules.$inferSelect;
+export type TaskStep = typeof taskSteps.$inferSelect;
+export type TaskRun = typeof taskRuns.$inferSelect;
+export type IptvorgChannel = typeof iptvorgChannels.$inferSelect;
+export type Studio = typeof curationStudios.$inferSelect;

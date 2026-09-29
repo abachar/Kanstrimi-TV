@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db, schema, type Content, type Item, visibleItem } from "@/db";
+import { db, schema, type Content, type Variant, visibleItem } from "@/db";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { slug } from "@/shared";
 import { LIVE_THEMES, parseKey } from "@/catalog";
@@ -95,18 +95,18 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
   const [channels, items, favs] = await Promise.all([
     db
       .select()
-      .from(schema.contents)
+      .from(schema.catalogContents)
       .where(visibleContent(ctx, "live"))
-      .orderBy(asc(schema.contents.channelNumber), asc(schema.contents.title), asc(schema.contents.id)),
+      .orderBy(asc(schema.catalogContents.channelNumber), asc(schema.catalogContents.title), asc(schema.catalogContents.id)),
     db
       .select()
-      .from(schema.items)
-      .where(and(eq(schema.items.kind, "live"), visibleItem, sql`${schema.items.contentId} is not null`)),
+      .from(schema.catalogVariants)
+      .where(and(eq(schema.catalogVariants.kind, "live"), visibleItem, sql`${schema.catalogVariants.contentId} is not null`)),
     favoriteSet(),
   ]);
   const catName = new Map((await liveCategories()).map((c) => [c.xtreamId, c.name]));
   const epg = await epgOf(channels.map((c) => c.epgChannelId ?? ""));
-  const byContent = new Map<number, Item[]>();
+  const byContent = new Map<number, Variant[]>();
   for (const it of items) byContent.set(it.contentId!, [...(byContent.get(it.contentId!) ?? []), it]);
 
   type Group = { market: string | null; theme: string; channels: ChannelWire[] };

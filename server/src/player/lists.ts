@@ -64,7 +64,7 @@ type Genre = { id: number; slug: string; name: string; total: number };
 async function genresOf(ctx: RestContext, kind: "vod" | "series"): Promise<Genre[]> {
   const rows = await db.execute<{ id: number; name: string; n: number }>(sql`
     select g.id, g.name, count(*)::int as n
-    from ${schema.contents}, unnest(genre_ids, genres) as g(id, name)
+    from ${schema.catalogContents}, unnest(genre_ids, genres) as g(id, name)
     where ${visibleContent(ctx, kind)} group by g.id, g.name order by n desc, g.name`);
   return rows.map((r) => ({ id: r.id, slug: slug(r.name), name: r.name, total: r.n }));
 }
@@ -73,18 +73,18 @@ async function genresOf(ctx: RestContext, kind: "vod" | "series"): Promise<Genre
 
 /** Release date order, undated last; the same expression as `contents_release_idx`. */
 const NO_RELEASE = "0001-01-01";
-const byRelease = sql`coalesce(${schema.contents.releaseDate}, ${sql.raw(`'${NO_RELEASE}'`)}::date)`;
+const byRelease = sql`coalesce(${schema.catalogContents.releaseDate}, ${sql.raw(`'${NO_RELEASE}'`)}::date)`;
 
 /** « Top 10 », « Nouveautés » (or « Derniers épisodes »), then one row per TMDB genre by release date, twenty cards each. */
 export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Promise<CatalogRow[]> {
   const genres = await genresOf(ctx, kind);
   const recentFilter = kind === "vod" ? and(visibleContent(ctx, kind), isNewRelease()) : visibleContent(ctx, kind);
-  const [{ n: totalRecent }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.contents).where(recentFilter);
+  const [{ n: totalRecent }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.catalogContents).where(recentFilter);
   const recent = await db
     .select()
-    .from(schema.contents)
+    .from(schema.catalogContents)
     .where(recentFilter)
-    .orderBy(desc(schema.contents.addedAt), desc(schema.contents.id))
+    .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
     .limit(ROW_SIZE);
   const rows: { id: string; name: string; total: number; cards: Content[] }[] = [];
   const top = await topTen(ctx, kind);
@@ -94,9 +94,9 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
   for (const g of genres) {
     const cards = await db
       .select()
-      .from(schema.contents)
-      .where(and(visibleContent(ctx, kind), sql`${schema.contents.genreIds} @> array[${g.id}]::int[]`))
-      .orderBy(desc(byRelease), desc(schema.contents.id))
+      .from(schema.catalogContents)
+      .where(and(visibleContent(ctx, kind), sql`${schema.catalogContents.genreIds} @> array[${g.id}]::int[]`))
+      .orderBy(desc(byRelease), desc(schema.catalogContents.id))
       .limit(ROW_SIZE);
     rows.push({ id: g.slug, name: g.name, total: g.total, cards });
   }
@@ -110,14 +110,17 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
 /** TMDB's weekly trending order (the `trending` step), kept to what the app sees. */
 async function topTen(ctx: RestContext, kind: "vod" | "series"): Promise<Content[]> {
   const rows = await db
-    .select({ content: schema.contents })
-    .from(schema.contents)
+    .select({ content: schema.catalogContents })
+    .from(schema.catalogContents)
     .innerJoin(
-      schema.trending,
-      and(eq(schema.trending.tmdbId, schema.contents.tmdbId), eq(schema.trending.mediaType, kind === "vod" ? "movie" : "tv")),
+      schema.tmdbTrending,
+      and(
+        eq(schema.tmdbTrending.tmdbId, schema.catalogContents.tmdbId),
+        eq(schema.tmdbTrending.mediaType, kind === "vod" ? "movie" : "tv"),
+      ),
     )
     .where(visibleContent(ctx, kind))
-    .orderBy(asc(schema.trending.rank))
+    .orderBy(asc(schema.tmdbTrending.rank))
     .limit(10);
   return rows.map((r) => r.content);
 }
@@ -141,24 +144,24 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
   if (q.genre && q.genre !== "recent") {
     const g = (await genresOf(ctx, kind)).find((x) => x.slug === q.genre);
     if (!g) return { items: [], next_cursor: null };
-    where.push(sql`${schema.contents.genreIds} @> array[${g.id}]::int[]`);
+    where.push(sql`${schema.catalogContents.genreIds} @> array[${g.id}]::int[]`);
   }
   if (q.studio) {
     const f = studioFilter(q.studio);
     if (!f) throw new BadRequest("studio inconnu");
     where.push(f);
   }
-  if (q.language) where.push(sql`${schema.contents.languages} @> array[${q.language.toUpperCase()}]::text[]`);
-  if (q.vf_available === "1" || q.vf_available === "true") where.push(sql`${schema.contents.languages} @> array['VF']::text[]`);
+  if (q.language) where.push(sql`${schema.catalogContents.languages} @> array[${q.language.toUpperCase()}]::text[]`);
+  if (q.vf_available === "1" || q.vf_available === "true") where.push(sql`${schema.catalogContents.languages} @> array['VF']::text[]`);
   if (q.min_quality) {
     const r = QUALITY_RANK[q.min_quality.toUpperCase() as keyof typeof QUALITY_RANK];
     if (!r) throw new BadRequest("min_quality doit valoir SD, HD, FHD ou 4K");
-    where.push(sql`${schema.contents.maxQualityRank} >= ${r}`);
+    where.push(sql`${schema.catalogContents.maxQualityRank} >= ${r}`);
   }
   if (q.dynamic_range) {
     const d = q.dynamic_range.toUpperCase();
-    if (d === "DV") where.push(eq(schema.contents.dynamicRange, "DV"));
-    else if (d === "HDR") where.push(inArray(schema.contents.dynamicRange, ["HDR", "DV"]));
+    if (d === "DV") where.push(eq(schema.catalogContents.dynamicRange, "DV"));
+    else if (d === "HDR") where.push(inArray(schema.catalogContents.dynamicRange, ["HDR", "DV"]));
     else throw new BadRequest("dynamic_range doit valoir HDR ou DV");
   }
   const limit = Math.min(PAGE_MAX, Math.max(1, Number(q.limit) || PAGE_DEFAULT));
@@ -166,11 +169,11 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
   type Key = { col: SQL; dir: "asc" | "desc"; of: (c: Content) => unknown };
   const keys: Record<string, Key> = {
     release: { col: byRelease, dir: "desc", of: (c) => c.releaseDate ?? NO_RELEASE },
-    recent: { col: sql`${schema.contents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
-    latest_episodes: { col: sql`${schema.contents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
-    title: { col: sql`${schema.contents.title}`, dir: "asc", of: (c) => c.title },
-    year: { col: sql`coalesce(${schema.contents.year}, 0)`, dir: "desc", of: (c) => c.year ?? 0 },
-    rating: { col: sql`coalesce(${schema.contents.rating}, 0)`, dir: "desc", of: (c) => c.rating ?? 0 },
+    recent: { col: sql`${schema.catalogContents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
+    latest_episodes: { col: sql`${schema.catalogContents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
+    title: { col: sql`${schema.catalogContents.title}`, dir: "asc", of: (c) => c.title },
+    year: { col: sql`coalesce(${schema.catalogContents.year}, 0)`, dir: "desc", of: (c) => c.year ?? 0 },
+    rating: { col: sql`coalesce(${schema.catalogContents.rating}, 0)`, dir: "desc", of: (c) => c.rating ?? 0 },
   };
   const k = keys[sort];
   if (!k) throw new BadRequest("sort inconnu");
@@ -181,14 +184,14 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
     const val = sort === "recent" || sort === "latest_episodes" ? sql`${String(v)}::timestamptz` : sql`${v}`;
     where.push(
       k.dir === "desc"
-        ? sql`(${k.col}, ${schema.contents.id}) < (${val}, ${id})`
-        : sql`(${k.col}, ${schema.contents.id}) > (${val}, ${id})`,
+        ? sql`(${k.col}, ${schema.catalogContents.id}) < (${val}, ${id})`
+        : sql`(${k.col}, ${schema.catalogContents.id}) > (${val}, ${id})`,
     );
   }
-  const order = k.dir === "desc" ? [desc(k.col), desc(schema.contents.id)] : [asc(k.col), asc(schema.contents.id)];
+  const order = k.dir === "desc" ? [desc(k.col), desc(schema.catalogContents.id)] : [asc(k.col), asc(schema.catalogContents.id)];
   const rows = await db
     .select()
-    .from(schema.contents)
+    .from(schema.catalogContents)
     .where(and(...where))
     .orderBy(...order)
     .limit(limit + 1);

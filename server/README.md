@@ -39,20 +39,22 @@ qu'ils couvrent.
 
 ## Traitement
 
-Le pipeline du catalogue (`src/catalog/pipeline.ts`) connaît six étapes, chacune une fonction
-de son module, refusée si elle tourne déjà.
+Le pipeline du catalogue (`src/catalog/pipeline.ts`) connaît sept étapes, chacune une fonction
+de son module, refusée si elle tourne déjà. Chaque étape n'écrit que les lignes qui changent
+(`is distinct from`) : un passage sans nouveauté ne réécrit rien.
 
 | Étape | Module | Rôle |
 |---|---|---|
-| `source` | `providers/xtream/import.ts` | lit le catalogue Xtream dans la base, supprime les disparus. Les lignes séparatrices du direct (`•●★---|FR| SPORT |FR|---★●•`) ne sont pas des entrées : chacune nomme la `section` de ce qui la suit. Les radios (`stream_type: radio_streams`) arrivent sans catégorie : elles sont rangées dans une catégorie « RADIOS » à nous (`_radio`), qu'un interrupteur ou une règle masque comme les autres. Puis `runNaming` (`catalog/grouping/group.ts`, sans réseau) analyse chaque nom : `clean_title`, `year`, marché, langue, qualité, `adult`, et pour le direct le `theme` de la variante. |
-| `channels` | `catalog/channels.ts`, `providers/iptv/` | la base [iptv-org](https://github.com/iptv-org/database) (`channels.json`, `logos.json` de son API, ≈ 14 Mo) gardée dans `DATA_DIR/iptv-org`, relue au plus une fois par jour et seulement si elle a changé (ETag), chargée dans `iptv_channels` ; injoignable, la copie précédente sert. Chaque variante du direct y est rattachée (`items.iptv_id`, `iptv_match`) : par l'identifiant EPG du fournisseur (`TF1.fr`) si le nom concorde (inclusion ou similarité ≥ 0,7), sinon par le nom dans les pays de son marché (« ar » = monde arabe), sinon par le nom s'il est unique au monde ; les noms essayés sont le nom nettoyé, sans parenthèses, sans suffixe pays (« EGY »), et le contenu des parenthèses (« AL OULA (ERTU 1) » est aussi « ERTU 1 »). Un rattachement manuel (fiche de l'élément) est gardé. `epg_mismatch` marque un identifiant EPG du fournisseur qui désigne sûrement une autre chaîne (connu d'iptv-org sous un nom qui ne concorde pas, ou au format iptv-org d'un autre pays sans ressemblance) : l'import EPG garde alors les deux identifiants, et le groupement prend celui d'iptv-org seulement si le fournisseur n'a aucun programme sous le sien. La chaîne donne le thème (catégories iptv-org d'abord, un thème précis du fournisseur l'emportant sur « general »), le drapeau adulte et, au groupement, le logo |
-| `enrich` | `providers/tmdb/enrich.ts` | matching TMDB de tous les éléments en attente, masqués compris (identifiant amont vérifié par preuves, puis recherche par titre) ; lit `clean_title` et `year`. Un point d'avancement toutes les 30 s (`shared/progress.ts`) ; 20 échecs d'accès d'affilée (DNS, réseau, base : `isUnreachable`) l'arrêtent en erreur, le reste restant en attente |
-| `filters` | `catalog/rules/apply.ts` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau |
-| `group` | `catalog/grouping/group.ts` | variantes → `contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; fiches depuis le cache TMDB, agrégats (dont les `themes` du contenu) sur les variantes visibles |
-| `trending` | `providers/tmdb/trending.ts` | remplace `trending` par les tendances TMDB de la semaine (films et séries, 100 de chaque) ; les rangées « Top 10 » les croisent avec le catalogue visible |
-| `epg` | `providers/xtream/epg.ts` | lit le XMLTV amont en flux (`saxes`) et remplit `epg_programmes` pour les seules chaînes visibles ; un import vide ou en échec garde le guide précédent ; un programme en double (même chaîne, même début) n'est gardé qu'une fois. Les heures passent par les corrections `epg_offsets` (`epg-offsets.ts`) : certains guides du fournisseur sont décalés d'heures rondes (beIN MENA : heure du Qatar prise pour de l'UTC, +3 h). Une règle vise un identifiant (`beINSports3.qa`) ou un suffixe (`*.qa`), l'identifiant l'emportant ; chaque programme garde le décalage qu'il porte (`offset_minutes`), si bien qu'une règle changée déplace aussitôt le guide stocké de la différence. Réglées depuis **Catalogue → EPG** (`/admin/epg`) : la grille des chaînes sur six heures, un clic sur une chaîne ouvre ses programmes du jour et l'aperçu du décalage avant enregistrement. Tous les trois jours à 03:00 (`epg_cron`), le fournisseur donnant six jours |
+| `source` | `providers/xtream/import.ts` | lit les listes Xtream dans leur copie brute (`xtream_categories`, `xtream_streams`, tables `UNLOGGED` remplacées en une transaction), dédoublonnées, sans rien interpréter. Avant d'écrire, deux garde-fous : une réponse qui n'est pas une liste est une erreur ; un type (direct, films, séries) réduit à moins de la moitié de ce que tient le catalogue (`SHRINK_RATIO`, au-delà de 50 entrées) est pris pour une panne du fournisseur, et l'import est refusé, catalogue intact. Une baisse réelle passe par un lancement manuel, case « Accepter la baisse du catalogue » (proposée par la page Tâches après un tel refus). Ne touche jamais le catalogue. |
+| `merge` | `catalog/merge.ts` | copie brute → `catalog_categories` et `catalog_variants` par différence, sans réseau : insère les nouvelles, met à jour celles dont le brut a changé (`changed_at` ; pour un film ou une série, le rang dans la liste et `num` ne comptent pas, un titre ajouté en tête les décalant tous), supprime les disparues sous le même garde-fou (une copie vide après un déploiement est refusée). Les lignes séparatrices du direct (`•●★---|FR| SPORT |FR|---★●•`) ne sont pas des entrées : chacune nomme la `section` de ce qui la suit. Les radios (`stream_type: radio_streams`) arrivent sans catégorie : elles sont rangées dans une catégorie « RADIOS » à nous (`_radio`), qu'un interrupteur ou une règle masque comme les autres. Un nom changé renvoie le match TMDB en attente (sauf match manuel). Puis `runNaming` (`catalog/grouping/group.ts`) analyse chaque nom : `clean_title`, `year`, marché, langue, qualité, `name_adult`, et pour le direct `name_theme`. |
+| `channels` | `catalog/channels.ts`, `providers/iptv/` | la base [iptv-org](https://github.com/iptv-org/database) (`channels.json`, `logos.json` de son API, ≈ 14 Mo) gardée dans `DATA_DIR/iptv-org`, relue au plus une fois par jour et seulement si elle a changé (ETag), chargée dans `iptvorg_channels` ; injoignable, la copie précédente sert. Chaque variante du direct y est rattachée (`catalog_variants.iptv_id`, `iptv_match`) : par l'identifiant EPG du fournisseur (`TF1.fr`) si le nom concorde (inclusion ou similarité ≥ 0,7), sinon par le nom dans les pays de son marché (« ar » = monde arabe), sinon par le nom s'il est unique au monde ; les noms essayés sont le nom nettoyé, sans parenthèses, sans suffixe pays (« EGY »), et le contenu des parenthèses (« AL OULA (ERTU 1) » est aussi « ERTU 1 »). Un rattachement manuel (fiche de l'élément) est gardé. `epg_mismatch` marque un identifiant EPG du fournisseur qui désigne sûrement une autre chaîne (connu d'iptv-org sous un nom qui ne concorde pas, ou au format iptv-org d'un autre pays sans ressemblance) : l'import EPG garde alors les deux identifiants, et le groupement prend celui d'iptv-org seulement si le fournisseur n'a aucun programme sous le sien. La chaîne donne le thème (catégories iptv-org d'abord, un thème précis du fournisseur l'emportant sur « general »), le drapeau adulte et, au groupement, le logo. L'étape n'écrit que ses colonnes, `iptv_theme` et `iptv_adult` ; `theme` et `adult` en sont dérivés par Postgres (`coalesce(iptv_theme, name_theme)`, `name_adult or iptv_adult`) : un échec de `channels` ne défait jamais ce qu'il avait établi |
+| `enrich` | `providers/tmdb/enrich.ts` | matching TMDB de tous les éléments en attente, masqués compris (identifiant amont vérifié par preuves, puis recherche par titre) ; lit `clean_title` et `year`. Un point d'avancement toutes les 30 s (`shared/progress.ts`) ; 20 échecs d'accès d'affilée (DNS, réseau, base : `isUnreachable`) l'arrêtent en erreur, le reste restant en attente ; un élément qui échoue trois fois pour une autre raison passe `unmatched` (`match_attempts`). Les `unmatched` de plus de 7 jours sont retentés, et 500 entrées du cache TMDB plus vieilles que 30 jours (les plus anciennes d'abord, parmi celles qu'un contenu utilise) sont relues à chaque passage |
+| `filters` | `catalog/rules/apply.ts` | recalcule `hidden_by_rule` depuis les règles regex, sans réseau ; dans le pipeline, laisse la visibilité des contenus à `group` qui suit |
+| `group` | `catalog/grouping/group.ts` | variantes → `catalog_contents`, sans réseau : clé stable `tmdb:movie:603`, `fallback:movie:<slug>:<année>`, `live:<marché>-<slug>` ; fiches depuis le cache TMDB, recopiées seulement pour un contenu nouveau, une entrée de cache plus récente que la fiche (`cards_at`) ou une langue changée ; un contenu TMDB garde toujours le titre de sa fiche. Agrégats (dont les `themes` et le drapeau adulte du contenu) sur les variantes visibles |
+| `trending` | `providers/tmdb/trending.ts` | remplace `tmdb_trending` par les tendances TMDB de la semaine (films et séries, 100 de chaque) ; les rangées « Top 10 » les croisent avec le catalogue visible |
+| `epg` | `providers/xtream/epg.ts` | lit le XMLTV amont en flux (`saxes`) et remplit `catalog_epg_programmes` pour les seules chaînes visibles, en une transaction : l'app lit l'ancien guide jusqu'à ce que le nouveau soit entier ; un import vide ou en échec, même au milieu du téléchargement, garde le guide précédent ; un programme en double (même chaîne, même début) n'est gardé qu'une fois. Les heures passent par les corrections `curation_epg_offsets` (`epg-offsets.ts`) : certains guides du fournisseur sont décalés d'heures rondes (beIN MENA : heure du Qatar prise pour de l'UTC, +3 h). Une règle vise un identifiant (`beINSports3.qa`) ou un suffixe (`*.qa`), l'identifiant l'emportant ; chaque programme garde le décalage qu'il porte (`offset_minutes`), si bien qu'une règle changée déplace aussitôt le guide stocké de la différence. Réglées depuis **Catalogue → EPG** (`/admin/epg`) : la grille des chaînes sur six heures, un clic sur une chaîne ouvre ses programmes du jour et l'aperçu du décalage avant enregistrement. Tous les trois jours à 03:00 (`epg_cron`), le fournisseur donnant six jours |
 
-`runAll()` = `source → channels → enrich → filters → group → trending`, sans les deux étapes TMDB s'il n'y a pas de clé.
+`runAll()` = `source → merge → channels → enrich → filters → group → trending`, sans les deux étapes TMDB s'il n'y a pas de clé.
 TMDB passe avant les filtres : tout est matché une fois pour toutes, et démasquer une catégorie ou
 changer une règle ne fait jamais apparaître de titres non matchés. Le groupement reste après les
 filtres, ses agrégats ne comptant que les variantes visibles.
@@ -63,9 +65,11 @@ enregistrement des Paramètres (`onSettingsChange`) et ne font rien tant que le 
 À la main : **Tâches → Lancer maintenant** (`launch`), tout le traitement ou à partir d'une étape choisie dans la liste (`runAll(trigger, from)`, pour reprendre après un échec sans relire la source).
 Un passage s'arrête à la première étape en échec, sauf `channels`, `enrich` et `trending` : iptv-org ou TMDB
 injoignable n'empêche ni les filtres ni le groupement du catalogue importé ; le passage finit alors en erreur.
+`merge`, les règles, le groupement et les regroupements de l'admin écrivent les mêmes lignes : ils passent
+l'un après l'autre (`withCatalogLock`, `catalog/lock.ts`).
 
 **Journal** (`catalog/journal.ts`, `catalog/runlog.ts`) : chaque passage d'une tâche est
-- une ligne `sync_runs` (tâche, `cron` ou `manual`, statut, durée) et une ligne `sync_logs` par étape
+- une ligne `task_runs` (tâche, `cron` ou `manual`, statut, durée) et une ligne `task_steps` par étape
   (statut, chiffres) : le résumé que listent la page Tâches et le tableau de bord ;
 - un fichier texte `DATA_DIR/logs/<date>T<heure>_<tâche>_<id>.log` : tout ce que les étapes écrivent
   sur la console pendant le passage (horodaté, étiqueté par étape, URL caviardées par `redactText`),
@@ -76,13 +80,34 @@ Un passage resté « en cours » au démarrage est clos en erreur (`closeOrphanL
 sont purgés après 90 jours (`RETENTION_DAYS`), à la fin de chaque passage. `/admin/tasks/:id` affiche les
 étapes et la fin du fichier (1 Mo, rafraîchie toutes les 2 s tant que ça tourne), `/raw` le télécharge.
 
+## Tables
+
+Le préfixe dit qui écrit la table. Une copie ou un cache pur d'une source porte le nom de la source ;
+ce que le pipeline construit ou annote est `catalog_` ; les choix de l'admin `curation_` ; ce que l'app
+enregistre `app_` ; le journal `task_`.
+
+| Préfixe | Tables |
+|---|---|
+| `xtream_` | `xtream_categories`, `xtream_streams` (copie brute, `source`), `xtream_info_cache` (`get_series_info` / `get_vod_info`) |
+| `tmdb_` · `iptvorg_` | `tmdb_cache`, `tmdb_trending` · `iptvorg_channels` |
+| `catalog_` | `catalog_categories`, `catalog_variants`, `catalog_contents`, `catalog_episodes`, `catalog_episode_variants`, `catalog_epg_programmes` |
+| `curation_` | `curation_filter_rules`, `curation_epg_offsets`, `curation_studios` |
+| `app_` | `app_favorites`, `app_watch_progress`, `app_devices` |
+| `task_` | `task_runs`, `task_steps` |
+| — | `settings` |
+
+Deux niveaux se répondent : variantes (`catalog_variants`, `catalog_episode_variants`) et contenus
+(`catalog_contents`, `catalog_episodes`). `catalog_variants` a plusieurs écrivains, chacun ses colonnes :
+`merge` (champs du fournisseur, `changed_at`), le naming (`clean_title`… `name_*`), `channels` (`iptv_*`),
+`enrich` (`match_*`, `tmdb_id`), `filters` (`hidden_by_rule`), `group` (`content_key`, `content_id`).
+
 ## APIs exposées
 
 | Route | Rôle |
 |---|---|
-| `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). `/channels` et `/channels/{id}` portent `now` / `next` (une requête `lateral` pour toute la liste) et `has_epg` = la chaîne a des programmes en base. `/movies` et `/series` commencent par « Top 10 de la semaine » (si `trending` en croise) ; `/movies/studios` et `/series/studios` servent les studios, filtre `studio=company:3` des listes ; `/movies/sagas` et `/movies/sagas/{id}` servent les sagas ; la fiche d'un film porte `saga` quand la sienne est servie. |
+| `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). `/channels` et `/channels/{id}` portent `now` / `next` (une requête `lateral` pour toute la liste) et `has_epg` = la chaîne a des programmes en base. `/movies` et `/series` commencent par « Top 10 de la semaine » (si `tmdb_trending` en croise) ; `/movies/studios` et `/series/studios` servent les studios, filtre `studio=company:3` des listes ; `/movies/sagas` et `/movies/sagas/{id}` servent les sagas ; la fiche d'un film porte `saga` quand la sienne est servie. |
 | `/img/<size>/<file>` | images TMDB en cache (`DATA_DIR/images`), route de `providers/tmdb/img-route.ts` montée par `main.ts` ; URL portée par chaque carte |
-| `/img/logos/<id>-<hash>.<ext>` | logos iptv-org des chaînes en cache (`DATA_DIR/images/logos`), route de `providers/iptv/logos.ts` ; seul le logo courant d'une chaîne connue est servi (pas de proxy ouvert), le hash suit l'URL amont. `contents.logo_url` le porte en chemin relatif, préfixé par `channelLogo` ; sinon l'URL du fournisseur |
+| `/img/logos/<id>-<hash>.<ext>` | logos iptv-org des chaînes en cache (`DATA_DIR/images/logos`), route de `providers/iptv/logos.ts` ; seul le logo courant d'une chaîne connue est servi (pas de proxy ouvert), le hash suit l'URL amont. `catalog_contents.logo_url` le porte en chemin relatif, préfixé par `channelLogo` ; sinon l'URL du fournisseur |
 | `/health` | santé (base joignable ; l'état du coffre est dans le corps, pas dans le code HTTP) |
 
 ## Structure
@@ -155,20 +180,20 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   Une catégorie masquée masque ses éléments sans toucher leurs colonnes. Côté app, `player/contents.ts` y ajoute
   le réglage « contenus adultes ». **Toute la logique servie à l'app (tris, dates, compteurs, genres, thèmes, rangées) se calcule
   sur les seules variantes visibles** : une variante masquée n'existe pas pour elle. Si un contenu n'a aucune variante visible,
-  les agrégats se replient sur toutes les variantes pour éviter les colonnes nulles, mais l'app ne le verra pas. L'admin consulte les variantes brutes dans `items`.
+  les agrégats se replient sur toutes les variantes pour éviter les colonnes nulles, mais l'app ne le verra pas. L'admin consulte les variantes brutes dans `catalog_variants`.
 - **Dates et tris** :
-  - **Date d'arrivée** (`items.added_at`) = `raw.added` (films, direct) ou `raw.last_modified` (séries). En cas de donnée amont sale ou absente, on garde la valeur existante en base, sinon on utilise `now()`.
-  - **Date d'arrivée d'un contenu** (`contents.added_at`) = la plus récente (`max`) des dates d'arrivée de ses variantes visibles.
-  - **Date de sortie** (`contents.release_date`) = issue de TMDB, avec un repli au 1er janvier de l'année du titre s'il n'y a pas de match. C'est le tri par défaut des listes et rangées (la plus récente d'abord).
+  - **Date d'arrivée** (`catalog_variants.added_at`) = `raw.added` (films, direct) ou `raw.last_modified` (séries). En cas de donnée amont sale ou absente, on garde la valeur existante en base, sinon on utilise `now()`.
+  - **Date d'arrivée d'un contenu** (`catalog_contents.added_at`) = la plus récente (`max`) des dates d'arrivée de ses variantes visibles.
+  - **Date de sortie** (`catalog_contents.release_date`) = issue de TMDB, avec un repli au 1er janvier de l'année du titre s'il n'y a pas de match. C'est le tri par défaut des listes et rangées (la plus récente d'abord).
   - **Nouveautés** : films sortis il y a moins de 12 mois, triés par date d'ajout décroissante. Pas de ligne "Ajoutés récemment". Pour les séries, "Derniers épisodes" n'a pas de contrainte de date de sortie.
-- **Sagas** : une saga = une collection TMDB (`belongs_to_collection`, copiée dans `contents.saga_*` par le
+- **Sagas** : une saga = une collection TMDB (`belongs_to_collection`, copiée dans `catalog_contents.saga_*` par le
   groupement, aucun appel réseau). Elle n'existe pour l'app qu'avec au moins deux films visibles
   (`player/sagas.ts`) ; la liste va de la saga au film le plus récent à la plus ancienne, ses films par date de
   sortie croissante. Le tableau de bord les compte.
-- **Studios** : table `studios` (société de production TMDB ou chaîne), choisie et ordonnée dans l'admin
+- **Studios** : table `curation_studios` (société de production TMDB ou chaîne), choisie et ordonnée dans l'admin
   (`catalog/studios.ts`, suggestions tirées du cache TMDB des contenus visibles, sans réseau, cherchables par nom ; `/admin/studios/company:3` montre les titres visibles d'un studio, même forme que le filtre `studio=` de l'app) ; liste par
   défaut semée par la migration `0014`. Le groupement copie `production_companies` et `networks` dans
-  `contents.company_ids` / `network_ids`. Un studio sans titre visible du type n'est pas servi.
+  `catalog_contents.company_ids` / `network_ids`. Un studio sans titre visible du type n'est pas servi.
 - **Thèmes du direct** : `/player/channels` groupe par marché × thème (« France · Sport »). Le thème d'une
   variante vient d'abord de sa chaîne iptv-org (étape `channels`), sinon de sa section (la ligne séparatrice qui la précède dans sa catégorie), sinon de sa
   catégorie (« SPORTS HD ») ; `naming.ts` porte le vocabulaire (`LIVE_THEMES`, `themeOf`, `liveTheme`) dans
@@ -176,16 +201,17 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   sauf dans une région (« BALKANS ») où les pays sont les sections ; le monde arabe (« ARAB WORLD »,
   « MAGHREB ») est rangé par thème comme le reste, le nom de la chaîne le disant à défaut d'iptv-org. Un libellé inconnu
   reste un groupe à part (« Tf1+ », « Molotov ch. ») : rien n'est perdu, tout se voit dans l'admin.
-- **Groupement** : `catalog/naming.ts` est *la* grammaire des noms. Un `item` = une variante
-  jouable ; `contents.key` = identité exposée aux apps, jamais `contents.id`. Les mises à jour
+- **Groupement** : `catalog/naming.ts` est *la* grammaire des noms. Une variante (`catalog_variants`) = une
+  entrée du fournisseur : un flux jouable pour un film ou une chaîne, une fiche série dont les épisodes jouables sont
+  `catalog_episode_variants` ; `catalog_contents.key` = identité exposée aux apps, jamais `catalog_contents.id`. Les mises à jour
   massives passent par `unnest()` avec le template postgres-js (`client`), pas `sql` de Drizzle qui
-  éclate les tableaux. `regroupItems` (admin) et `runGrouping` (pipeline) se sérialisent entre eux.
+  éclate les tableaux. `regroupItems` (admin), `runGrouping`, `runMerge` et `applyRules` se sérialisent entre eux.
 - **Données amont non fiables** : `xtream_id` est du texte opaque et non unique (dédoublonnage à
   l'import), les champs manquants sont tolérés, l'identifiant TMDB fourni n'est jamais cru sur parole.
 - **Secrets** : un seul mot de passe (hash bcrypt dans `.env`), clé AES-256-GCM dérivée en RAM
   (`config/vault.ts`), chiffrement transparent des réglages sensibles dans `config/settings.ts`. Après
   un redémarrage le serveur est **verrouillé** jusqu'à la première requête authentifiée ; le premier
-  appel d'un appareil appairé déverrouille grâce à `devices.wrapped_key`.
+  appel d'un appareil appairé déverrouille grâce à `app_devices.wrapped_key`.
 - **Ne jamais journaliser une URL brute** : le mot de passe circule dans les query strings et les
   chemins de flux. Passer par `requestLogger()` de `shared/http-log.ts`.
 
