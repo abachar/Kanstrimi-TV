@@ -55,6 +55,8 @@ cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Fu
 
 **Lecteur Mac** : espace = pause, flèches = ±10 s (maintenues : avance rapide) ou zapping, F = plein écran, Échap = fermer, survol = affiche les contrôles.
 
+**Programme du direct** : dans le lecteur, le panneau (tvOS : flèche droite ; iPhone : « Programme » ou « ⋯ ») ouvre sur l'onglet Programme, qui remplace Infos : `GET /channels/{id}/programmes`, du programme en cours jusqu'à 6 h, rechargé à chaque zapping ; un échec se lit « Programme inconnu ».
+
 **Direct** : jamais de pause, comme une télé (`PlayerService.togglePlayPause`/`pause` l'ignorent sur toutes les plateformes) ; Lecture relance seulement un flux arrêté par une coupure.
 Une fois l'image affichée, un chien de garde compte les images affichées (`VLCMedia.statistics`) : 4 s sans
 nouvelle image ou sans sortie vidéo = source en cause (le débit ne l'est pas), bascule d'échec : source suivante, nouvel essai

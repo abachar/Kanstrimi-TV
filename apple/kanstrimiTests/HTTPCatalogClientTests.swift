@@ -222,4 +222,13 @@ struct HTTPCatalogClientTests {
         await #expect(throws: CatalogError.self) { try await client.setFavorite(id: ContentID("tmdb:movie:603"), true) }
         #expect(StubProtocol.requests.count == 1)
     }
+
+    @Test("Les programmes d'une chaîne passent par /channels/{id}/programmes")
+    func channelProgrammesTravel() async throws {
+        answer(200, #"[{"title":"Journal","start":"2026-09-30T18:00:00.000Z","end":"2026-09-30T18:40:00.000Z","overview":"Les titres"},{"title":"Film","start":"2026-09-30T18:40:00.000Z","end":"2026-09-30T20:30:00.000Z","overview":null}]"#)
+        let day = try await client.programmes(channel: ContentID("live:fr-tf1"))
+        #expect(day.map(\.title) == ["Journal", "Film"])
+        #expect(day[0].overview == "Les titres")
+        #expect(try last.url?.path() == "/player/channels/live:fr-tf1/programmes")
+    }
 }

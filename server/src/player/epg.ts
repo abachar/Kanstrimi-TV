@@ -49,3 +49,20 @@ export async function epgOf(channelIds: string[]): Promise<Map<string, ChannelEp
     ]),
   );
 }
+
+/** The broadcast day ends at 6:00, server time (`TZ`): the next 6:00 after `now`. */
+export function nightEnd(now = new Date()): Date {
+  const end = new Date(now);
+  end.setHours(6, 0, 0, 0);
+  if (end <= now) end.setDate(end.getDate() + 1);
+  return end;
+}
+
+/** A channel's programmes from the one on air until the end of the broadcast day, in order. */
+export async function dayProgrammes(channelId: string, now = new Date()): Promise<Programme[]> {
+  const rows = await client<{ title: string; start_at: string; end_at: string; overview: string | null }[]>`
+    select title, start_at::text, end_at::text, overview from catalog_epg_programmes
+    where channel_id = ${channelId} and end_at > ${now.toISOString()}::timestamptz and start_at < ${nightEnd(now).toISOString()}::timestamptz
+    order by start_at`;
+  return rows.map((r) => programme(r.title, r.start_at, r.end_at, r.overview)!);
+}

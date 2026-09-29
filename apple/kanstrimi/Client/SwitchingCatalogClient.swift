@@ -27,6 +27,7 @@ final class SwitchingCatalogClient: CatalogClient {
     func saga(id: String) async throws -> SagaSheet { try await active.saga(id: id) }
     func channels() async throws -> [ChannelGroup] { try await active.channels() }
     func channel(id: ContentID) async throws -> Channel { try await active.channel(id: id) }
+    func programmes(channel id: ContentID) async throws -> [Programme] { try await active.programmes(channel: id) }
     func playback(id: ContentID) async throws -> Playback { try await active.playback(id: id) }
     func report(_ progress: ProgressReport) async throws { try await active.report(progress) }
     func search(_ query: String, scope: SearchScope) async throws -> SearchResults { try await active.search(query, scope: scope) }

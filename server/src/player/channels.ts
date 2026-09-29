@@ -8,11 +8,14 @@ import { fail, json } from "./http";
 import { contentByKey, liveCategories, variantsOf, visibleContent } from "./contents";
 import { favoriteSet } from "./favorites";
 import { playableOfItem, qualityOfRank, versionsOf } from "./versions";
-import { epgOf, type ChannelEpg } from "./epg";
+import { dayProgrammes, epgOf, type ChannelEpg } from "./epg";
 import { channelLogo } from "./cards";
 import type { ChannelGroupWire, ChannelWire, Version } from "./types";
 
-/** `/channels`: every visible live category with its channels; `/channels/{id}`: one channel. */
+/**
+ * `/channels`: every visible live category with its channels; `/channels/{id}`: one channel;
+ * `/channels/{id}/programmes`: its programmes until 6:00, for the live player.
+ */
 export const channelRoutes = new Hono<Env>();
 
 channelRoutes.get("/", async (c) => json(await channelGroups(c.get("ctx"))));
@@ -22,6 +25,13 @@ channelRoutes.get("/:id", async (c) => {
   const content = await contentByKey(c.get("ctx"), key);
   if (!content) return fail("not_found", "Chaîne introuvable");
   return json(await channelSheet(c.get("ctx"), content));
+});
+channelRoutes.get("/:id/programmes", async (c) => {
+  const key = c.req.param("id");
+  if (parseKey(key)?.kind !== "live") return fail("not_found", "Chaîne introuvable");
+  const content = await contentByKey(c.get("ctx"), key);
+  if (!content) return fail("not_found", "Chaîne introuvable");
+  return json(content.epgChannelId ? await dayProgrammes(content.epgChannelId) : []);
 });
 
 /** Lists and sheets alike carry `now` / `next`: the app rolls over on `end` without asking again. */

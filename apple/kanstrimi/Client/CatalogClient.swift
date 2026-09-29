@@ -115,6 +115,8 @@ protocol CatalogClient: AnyObject {
     func channels() async throws -> [ChannelGroup]
     /// `GET /channels/{id}`: one channel with `now` and `next`.
     func channel(id: ContentID) async throws -> Channel
+    /// `GET /channels/{id}/programmes`: the programme on air, then the following ones until 6:00.
+    func programmes(channel id: ContentID) async throws -> [Programme]
 
     // Playback
     /// `GET /playback/{id}`: movie, episode or channel.

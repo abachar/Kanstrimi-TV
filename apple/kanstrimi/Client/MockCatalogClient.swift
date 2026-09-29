@@ -269,7 +269,8 @@ final class MockCatalogClient: CatalogClient {
     func channel(id: ContentID) async throws -> Channel {
         try await gate()
         guard let c = rawChannel(id) else { throw CatalogError.notFound }
-        let (now, next) = scenario.emptyEPG || c.hasEPG == false ? (nil, nil) : schedule(for: c)
+        let day = scenario.emptyEPG || c.hasEPG == false ? [] : schedule(for: c)
+        let (now, next) = (day.first, day.dropFirst().first)
         return Channel(id: c.id, name: c.name, number: c.number, logo: c.logo, maxQuality: c.maxQuality, hasEPG: c.hasEPG,
                        isFavorite: favorites.contains(c.id) || c.isFavorite == true, versions: c.versions, now: now, next: next)
     }
@@ -280,19 +281,29 @@ final class MockCatalogClient: CatalogClient {
         return c
     }
 
-    /// Deterministic schedule: slots of 45 to 120 minutes anchored on the hour, seeded by the channel.
-    private func schedule(for c: Channel) -> (Programme?, Programme?) {
+    func programmes(channel id: ContentID) async throws -> [Programme] {
+        try await gate()
+        guard let c = rawChannel(id) else { throw CatalogError.notFound }
+        return scenario.emptyEPG || c.hasEPG == false ? [] : schedule(for: c)
+    }
+
+    /// Deterministic schedule: slots of 45 to 120 minutes anchored on the hour, seeded by the channel,
+    /// from the one on air until the next 6:00 (the end of the broadcast day, as the server cuts it).
+    private func schedule(for c: Channel) -> [Programme] {
         let group = groups.first { $0.channels.contains { $0.id == c.id } }
-        guard let titles = group.flatMap({ epgTitles[$0.name] }), !titles.isEmpty else { return (nil, nil) }
+        guard let titles = group.flatMap({ epgTitles[$0.name] }), !titles.isEmpty else { return [] }
         let seed = c.name.unicodeScalars.reduce(0) { $0 + Int($1.value) }
         let slot = TimeInterval([45, 60, 90, 120][seed % 4] * 60)
         let anchor = Calendar.current.startOfDay(for: .now)
-        let index = Int(Date.now.timeIntervalSince(anchor) / slot)
-        let start = anchor.addingTimeInterval(TimeInterval(index) * slot)
-        let now = Programme(title: titles[(index + seed) % titles.count], start: start, end: start.addingTimeInterval(slot),
-                            overview: "Programme de démonstration généré par le client mock.")
-        let next = Programme(title: titles[(index + seed + 1) % titles.count], start: now.end, end: now.end.addingTimeInterval(slot), overview: nil)
-        return (now, next)
+        let first = Int(Date.now.timeIntervalSince(anchor) / slot)
+        var sixAM = Calendar.current.date(bySettingHour: 6, minute: 0, second: 0, of: .now)!
+        if sixAM <= .now { sixAM = Calendar.current.date(byAdding: .day, value: 1, to: sixAM)! }
+        return Array((first...).lazy.map { index in
+            let start = anchor.addingTimeInterval(TimeInterval(index) * slot)
+            return Programme(title: titles[(index + seed) % titles.count], start: start, end: start.addingTimeInterval(slot),
+                             overview: index == first ? "Programme de démonstration généré par le client mock." : nil)
+        }
+        .prefix { $0.start < sixAM })
     }
 
     // MARK: - Playback

@@ -1,31 +1,36 @@
 import SwiftUI
 
-/// Swipe down: Infos · Versions · Audio · Sous-titres [11].
+/// Swipe down: Infos · Versions · Audio · Sous-titres [11]; in live, Programme replaces Infos.
 struct PlayerPanel: View {
-    enum Tab: String, CaseIterable { case infos = "Infos", versions = "Versions", audio = "Audio", subtitles = "Sous-titres" }
+    enum Tab: String, CaseIterable { case programme = "Programme", infos = "Infos", versions = "Versions", audio = "Audio", subtitles = "Sous-titres" }
 
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
     @State private var tab: Tab = .versions
     @FocusState private var focusedTab: Tab?
     @FocusState private var focusedItem: String?
+    /// The channel's programmes until 6:00, fetched when the panel opens; nil while loading.
+    @State private var programmes: [Programme]?
     let onClose: () -> Void
     var onActivity: () -> Void = { }
     private var player: PlayerService { env.player }
+    private var tabs: [Tab] { player.isLive ? [.programme, .versions, .audio, .subtitles] : [.infos, .versions, .audio, .subtitles] }
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
             VStack(alignment: .leading, spacing: 26) {
                 HStack(spacing: 12) {
-                    ForEach(Tab.allCases, id: \.self) { t in
+                    ForEach(tabs, id: \.self) { t in
                         Button(t.rawValue) { tab = t; onActivity() }
                             .buttonStyle(.bordered)
                             .opacity(tab == t ? 1 : 0.6)
                             .focused($focusedTab, equals: t)
                     }
                     Spacer()
-                    Text("Reprise au même instant · \(Format.clock(player.time))").font(.callout).foregroundStyle(Theme.secondary)
+                    if !player.isLive {
+                        Text("Reprise au même instant · \(Format.clock(player.time))").font(.callout).foregroundStyle(Theme.secondary)
+                    }
                 }
                 .onChange(of: focusedTab) { _, f in
                     if let f { tab = f }
@@ -35,6 +40,7 @@ struct PlayerPanel: View {
 
                 Group {
                     switch tab {
+                    case .programme: programme
                     case .infos: infos
                     case .versions: versions
                     case .audio: audio
@@ -51,7 +57,58 @@ struct PlayerPanel: View {
         }
         .ignoresSafeArea()
         .touchActivity(onActivity)
-        .onAppear { focusedTab = tab }
+        .onAppear {
+            if player.isLive { tab = .programme }
+            focusedTab = tab
+        }
+        .task(id: player.channel?.id) { await loadProgrammes() }
+    }
+
+    private func loadProgrammes() async {
+        guard player.isLive, let id = player.channel?.id else { return }
+        programmes = nil
+        // An unreliable guide is no reason for an error screen: a failure reads as an unknown programme.
+        programmes = (try? await env.call { try await env.client.programmes(channel: id) }) ?? []
+    }
+
+    /// From the programme on air until 6:00, one card each; the current one marked.
+    @ViewBuilder private var programme: some View {
+        if let programmes {
+            if programmes.isEmpty {
+                Text("Programme inconnu pour cette chaîne").foregroundStyle(Theme.secondary)
+            } else {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 20) {
+                        ForEach(programmes, id: \.start) { p in
+                            // Focusable so the remote can scroll the day; nothing to do on select.
+                            Button { onActivity() } label: { programmeCard(p) }
+                                .cardButtonStyle()
+                                .focused($focusedItem, equals: "programme-\(p.start.timeIntervalSince1970)")
+                        }
+                    }
+                    .padding(.vertical, 20)
+                }
+            }
+        } else {
+            ProgressView()
+        }
+    }
+
+    private func programmeCard(_ p: Programme) -> some View {
+        let onAir = p.start <= .now && p.end > .now
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("\(Format.hour(p.start)) – \(Format.hour(p.end))").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondary)
+            Text(p.title).font(.title3.weight(.bold)).lineLimit(2)
+            if let o = p.overview { Text(o).font(.caption).foregroundStyle(Theme.secondary).lineLimit(3) }
+            Spacer(minLength: 0)
+            if onAir {
+                Text("EN COURS").font(.caption.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
+                ProgressBar(fraction: p.fraction(), height: 4)
+            }
+        }
+        .frame(width: metrics.panelCard * 1.2, alignment: .leading)
+        .frame(minHeight: metrics.panelCard * 0.6, alignment: .topLeading)
+        .padding(20)
     }
 
     private var infos: some View {
@@ -81,7 +138,7 @@ struct PlayerPanel: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(v.qualityLabel).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7)
                             Text(v.language.label).font(.callout)
-                            Text("\(v.sources.count) source\(v.sources.count > 1 ? "s" : "") · \(v.sources.first?.container ?? "")").font(.caption).foregroundStyle(Theme.secondary)
+                            Text((v.sources.first?.container ?? "") + (v.sources.count > 1 ? " · ×\(v.sources.count)" : "")).font(.caption).foregroundStyle(Theme.secondary)
                             if v.id == player.version?.id {
                                 Text("EN COURS").font(.caption.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
                             } else {

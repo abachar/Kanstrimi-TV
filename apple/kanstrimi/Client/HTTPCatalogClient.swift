@@ -70,6 +70,7 @@ final class HTTPCatalogClient: CatalogClient {
 
     func channels() async throws -> [ChannelGroup] { try await send("GET", "channels") }
     func channel(id: ContentID) async throws -> Channel { try await send("GET", "channels/\(id.rawValue)") }
+    func programmes(channel id: ContentID) async throws -> [Programme] { try await send("GET", "channels/\(id.rawValue)/programmes") }
 
     // MARK: - Playback
 

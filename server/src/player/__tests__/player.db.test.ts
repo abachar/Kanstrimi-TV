@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { player as api } from "..";
+import { nightEnd } from "../epg";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { verify, lockForTests, isUnlocked } from "@/config";
 import {
@@ -144,6 +145,8 @@ beforeAll(async () => {
     { channelId: "TF1.fr", start: -30, end: 30, title: "Journal", overview: "Les titres" },
     { channelId: "TF1.fr", start: 30, end: 120, title: "Film du soir" },
     { channelId: "TF1.fr", start: -180, end: -30, title: "Avant" },
+    // More than a day ahead: always past the next 6:00.
+    { channelId: "TF1.fr", start: 1500, end: 1560, title: "Après-demain" },
   ]);
   await seedTmdb("movie", 603, {
     title: "Matrix",
@@ -524,6 +527,21 @@ describe("channels", () => {
     expect(Date.parse(body.next.start)).toBe(Date.parse(body.now.end));
     expect((await get("/channels/live:fr-secret-tv")).status).toBe(404);
     expect((await get("/channels/tmdb:movie:603")).status).toBe(404);
+  });
+  it("GET /channels/{id}/programmes: from the programme on air until 6:00, in order", async () => {
+    const { status, body } = await get("/channels/live:fr-tf1/programmes");
+    expect(status).toBe(200);
+    expect(body.map((p: { title: string }) => p.title)).toEqual(["Journal", "Film du soir"]);
+    expect(body[0]).toMatchObject({ overview: "Les titres" });
+    // A channel the guide does not know answers an empty day, an unknown one a 404.
+    expect((await get("/channels/live:fr-bein-sports-1/programmes")).body).toEqual([]);
+    expect((await get("/channels/live:fr-secret-tv/programmes")).status).toBe(404);
+  });
+  it("the broadcast day ends at the next 6:00", () => {
+    const at = (h: number, m = 0) => new Date(2026, 8, 30, h, m);
+    expect(nightEnd(at(23))).toEqual(new Date(2026, 9, 1, 6));
+    expect(nightEnd(at(3))).toEqual(at(6));
+    expect(nightEnd(at(6))).toEqual(new Date(2026, 9, 1, 6));
   });
 });
 
