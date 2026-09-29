@@ -60,7 +60,7 @@ filtres, ses agrégats ne comptant que les variantes visibles.
 Deux **tâches** les lancent : `pipeline` (`runAll`) et `epg` (`runEpg`). Deux jobs `croner` (`protect: true`)
 les déclenchent sur `sync_cron` et `epg_cron`, en heure locale ; ils sont recréés à chaque
 enregistrement des Paramètres (`onSettingsChange`) et ne font rien tant que le coffre est verrouillé.
-À la main : **Tâches → Lancer maintenant** (`launch`) ; plus de bouton par étape.
+À la main : **Tâches → Lancer maintenant** (`launch`), tout le traitement ou à partir d'une étape choisie dans la liste (`runAll(trigger, from)`, pour reprendre après un échec sans relire la source).
 Un passage s'arrête à la première étape en échec, sauf `channels`, `enrich` et `trending` : iptv-org ou TMDB
 injoignable n'empêche ni les filtres ni le groupement du catalogue importé ; le passage finit alors en erreur.
 

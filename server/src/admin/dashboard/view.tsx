@@ -59,12 +59,12 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
         </div>
       )}
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-6">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
         {(["live", "vod", "series"] as const).map((k) => {
           const i = item(k),
             c = cat(k);
           return (
-            <a href={`/admin/catalog?kind=${k}`} class="md:col-span-2">
+            <a href={`/admin/catalog?kind=${k}`}>
               <Stat
                 label={KIND_TITLES[k]}
                 value={fmt(i.total - i.hidden)}
@@ -80,8 +80,11 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
             </a>
           );
         })}
+      </div>
 
-        <div class="md:col-span-6 lg:col-span-4">
+      {/* One height per row of cards on lg+, where they sit side by side: `grid` wrappers stretch the card to their cell. */}
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-6 lg:auto-rows-fr">
+        <div class="grid md:col-span-6 lg:col-span-4">
           <Card
             title="Traitement"
             extra={
@@ -132,7 +135,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
           </Card>
         </div>
 
-        <div class="md:col-span-6 lg:col-span-2">
+        <div class="grid md:col-span-6 lg:col-span-2">
           <Card
             title="Application Apple"
             extra={
@@ -170,7 +173,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
           </Card>
         </div>
 
-        <div class="md:col-span-3">
+        <div class="grid md:col-span-3">
           <Card title="Enrichissement TMDB" extra={s.tmdb_api_key ? s.tmdb_language : <Badge tone="warn">clé absente</Badge>}>
             <div class="flex flex-col gap-4">
               {(["vod", "series"] as const).map((k) => {
@@ -197,7 +200,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
           </Card>
         </div>
 
-        <div class="md:col-span-3">
+        <div class="grid md:col-span-3">
           <Card
             title="Groupement des variantes"
             extra={

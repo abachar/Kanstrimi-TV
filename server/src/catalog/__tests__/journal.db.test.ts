@@ -6,7 +6,7 @@ import { resetDb, closeDb } from "@/test/db";
 import { verify } from "@/config";
 import { startLog, finishLog, closeOrphanLogs, startRun, runById, recentRuns } from "../journal";
 import { logDir, readRunLog, withRunLog, withStep } from "../runlog";
-import { run } from "../pipeline";
+import { run, runAll } from "../pipeline";
 
 beforeAll(async () => {
   await resetDb();
@@ -61,5 +61,12 @@ describe("run log file", () => {
     const text = readRunLog(r.logFile!)!.text;
     expect(text).toContain("── group : terminé");
     expect(text).toContain("Terminé");
+  });
+
+  it("runs the pipeline from a given step on, as one pipeline run", async () => {
+    expect(await runAll("manual", "filters")).toBe(true); // no TMDB key: filters → group, no network
+    const [r] = (await recentRuns({ limit: 1 })).runs;
+    expect(r).toMatchObject({ task: "pipeline", status: "success" });
+    expect(r.steps.map((s) => s.job)).toEqual(["filters", "group"]);
   });
 });

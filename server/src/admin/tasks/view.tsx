@@ -1,5 +1,5 @@
 import type { SyncLog } from "@/db";
-import type { RunWithSteps, Task } from "@/catalog";
+import type { RunWithSteps, Step, Task } from "@/catalog";
 import { fmt, duration, ago, describeCron, nextCronRun } from "../format";
 import { Badge, Card, Empty, Options, Pagination, Status, Table, Title } from "../ui";
 import { STAT_LABELS, TRIGGER_LABELS, jobLabel, taskLabel } from "../labels";
@@ -63,8 +63,11 @@ function StepBadges({ steps }: { steps: SyncLog[] }) {
   );
 }
 
+/** `steps`: those a run may start from, the first being the whole task. */
+type TaskState = { task: Task; cron: string; runs: RunWithSteps[]; busy: boolean; steps: readonly Step[] };
+
 /** A scheduled task: its schedule, its last run, its recent history, and a way to run it now. */
-export function TaskCard({ task, cron, runs, busy }: { task: Task; cron: string; runs: RunWithSteps[]; busy: boolean }) {
+export function TaskCard({ task, cron, runs, busy, steps }: TaskState) {
   const last = runs[0];
   const next = nextCronRun(cron);
   return (
@@ -89,7 +92,15 @@ export function TaskCard({ task, cron, runs, busy }: { task: Task; cron: string;
         )}
         <div class="flex items-center justify-between gap-2">
           <Dots runs={runs} />
-          <form method="post" action={`/admin/jobs/${task}`}>
+          <form method="post" action={`/admin/jobs/${task}`} class="flex items-center gap-2">
+            {steps.length > 1 && (
+              <select name="from" class="select w-auto" data-size="sm" aria-label="Lancer à partir de l'étape" disabled={busy}>
+                <Options
+                  opts={steps.map((s, i) => [i ? s : "", i ? `À partir de : ${jobLabel(s)}` : "Toutes les étapes"] as const)}
+                  cur=""
+                />
+              </select>
+            )}
             <button class="btn" data-variant="outline" data-size="sm" disabled={busy}>
               {busy ? "En cours…" : "Lancer maintenant"}
             </button>
@@ -171,7 +182,7 @@ export type TasksFilter = { task: string; errors: boolean; page: number };
 export const RUNS_PER_PAGE = 30;
 
 export function TasksView(p: {
-  tasks: { task: Task; cron: string; runs: RunWithSteps[]; busy: boolean }[];
+  tasks: TaskState[];
   runs: RunWithSteps[];
   total: number;
   filter: TasksFilter;
@@ -185,7 +196,7 @@ export function TasksView(p: {
     <>
       <Title t="Tâches" sub={`Tâches planifiées, leurs passages et leurs logs, gardés ${p.retentionDays} jours`} />
       <JobsStatus {...p.jobs} />
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         {p.tasks.map((t) => (
           <TaskCard {...t} />
         ))}

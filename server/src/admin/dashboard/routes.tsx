@@ -4,9 +4,9 @@ import { appCounts, counts } from "./data";
 import { cacheStats } from "@/providers/tmdb";
 import { epgStat } from "@/providers/xtream";
 import { groupingCounts } from "@/catalog";
-import { launch, runningSteps, getLastError, lastRunsByTask, TASKS, type Task } from "@/catalog";
+import { launch, pipelineSteps, runningSteps, getLastError, lastRunsByTask, TASKS, type Task } from "@/catalog";
 import { page, back } from "../http";
-import { JOB_STARTED } from "../labels";
+import { JOB_STARTED, jobLabel } from "../labels";
 import { DashboardView } from "./view";
 import { JobsStatus } from "./jobs";
 
@@ -33,11 +33,17 @@ dashboardRoutes.get("/", async (c) => {
   );
 });
 jobRoutes.get("/status", (c) => c.html(<JobsStatus {...jobsState()} />));
-/** Launches a task, then back to the page the button was on (the journal or the dashboard). */
-jobRoutes.post("/:task", (c) => {
+/**
+ * Launches a task, the pipeline from the `from` step on when the form names one, then back to
+ * the page the button was on (the journal or the dashboard).
+ */
+jobRoutes.post("/:task", async (c) => {
   const task = c.req.param("task") as Task;
   if (!TASKS.includes(task)) return c.notFound();
-  const from = c.req.header("referer");
-  const to = from && new URL(from).pathname.startsWith("/admin") ? new URL(from).pathname : "/admin/tasks";
-  return back(c, to, launch(task) ? { ok: JOB_STARTED[task] } : { err: "Déjà en cours" });
+  const from = String((await c.req.parseBody()).from ?? "");
+  const step = task === "pipeline" ? (await pipelineSteps()).find((s) => s === from) : undefined;
+  const referer = c.req.header("referer");
+  const to = referer && new URL(referer).pathname.startsWith("/admin") ? new URL(referer).pathname : "/admin/tasks";
+  const ok = step ? `Traitement lancé à partir de « ${jobLabel(step)} »` : JOB_STARTED[task];
+  return back(c, to, launch(task, step) ? { ok } : { err: "Déjà en cours" });
 });

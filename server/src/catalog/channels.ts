@@ -12,8 +12,11 @@ import { LIVE_THEMES, type LiveTheme } from "./naming";
  * grouping (which aggregates `theme` and the logo). A manual match (`iptv_match = manual`) is kept.
  */
 
-/** Words that tell nothing about which channel it is. */
-const NOISE = /\b(tv|hd|fhd|uhd|4k|sd|channel|chaine|television)\b/g;
+/**
+ * Words that tell nothing about which channel it is; a quality stuck to a number too, the way
+ * iptv-org writes some feeds: « Arryadia HD1 » is the provider's « ARRYADIA 1 HD ».
+ */
+const NOISE = /\b(tv|hd|fhd|uhd|4k|sd|channel|chaine|television)\b|\b(hd|fhd|uhd|sd)(?=\d)/g;
 export const channelKey = (name: string) =>
   stripAccents(name)
     .toLowerCase()

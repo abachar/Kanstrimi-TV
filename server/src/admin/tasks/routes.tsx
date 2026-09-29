@@ -11,6 +11,7 @@ import {
   isTaskRunning,
   runningSteps,
   getLastError,
+  pipelineSteps,
   TASKS,
   RETENTION_DAYS,
 } from "@/catalog";
@@ -24,8 +25,9 @@ tasksRoutes.get("/", async (c) => {
   const task = c.req.query("task") ?? "";
   const errors = c.req.query("errors") === "1";
   const pageNo = Math.max(1, Number(c.req.query("page")) || 1);
-  const [s, byTask, list] = await Promise.all([
+  const [s, steps, byTask, list] = await Promise.all([
     getSettings(),
+    pipelineSteps(),
     lastRunsByTask(TASKS, 10),
     recentRuns({ limit: RUNS_PER_PAGE, offset: (pageNo - 1) * RUNS_PER_PAGE, task: task || undefined, errors }),
   ]);
@@ -34,7 +36,7 @@ tasksRoutes.get("/", async (c) => {
     c,
     "Tâches",
     <TasksView
-      tasks={TASKS.map((t) => ({ task: t, cron: cron[t], runs: byTask[t], busy: isTaskRunning(t) }))}
+      tasks={TASKS.map((t) => ({ task: t, cron: cron[t], runs: byTask[t], busy: isTaskRunning(t), steps: t === "pipeline" ? steps : [] }))}
       runs={list.runs}
       total={list.total}
       filter={{ task, errors, page: pageNo }}

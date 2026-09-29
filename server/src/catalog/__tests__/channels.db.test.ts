@@ -61,6 +61,8 @@ afterAll(closeDb);
 describe("iptv-org helpers", () => {
   it("keys names without the noise, maps markets to countries", () => {
     expect(channelKey("BFM TV HD")).toBe(channelKey("bfm"));
+    expect(channelKey("ARRYADIA 1 HD")).toBe(channelKey("Arryadia HD1"));
+    expect(channelKey("HD1")).toBe("1");
     expect(nameKeys("AL OULA (ERTU 1) EGY")).toEqual(expect.arrayContaining([channelKey("AL OULA"), channelKey("ERTU 1")]));
     expect(countriesOf("ar")).toContain("AE");
     expect(countriesOf("uk")).toContain("GB");

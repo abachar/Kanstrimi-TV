@@ -9,7 +9,7 @@ export function CachesView({ rows }: { rows: CacheStat[] }) {
   return (
     <>
       <Title t="Caches" sub="Ce que le serveur garde pour ne pas redemander ; lecture seule" />
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         {rows.map((r) => {
           const l = CACHE_LABELS[r.id];
           return (

@@ -124,21 +124,30 @@ function purge() {
 }
 
 /** The steps of the full pipeline: the TMDB ones only with a key. */
-async function pipelineSteps(): Promise<Step[]> {
+export async function pipelineSteps(): Promise<Step[]> {
   const tmdb = Boolean((await getSettings()).tmdb_api_key);
   return tmdb ? ["source", "channels", "enrich", "filters", "group", "trending"] : ["source", "channels", "filters", "group"];
 }
 
-/** The whole chain: source → channels → enrich → filters → group → trending. */
-export const runAll = async (trigger: Trigger = "manual") => runTask("pipeline", trigger, await pipelineSteps());
+/**
+ * The whole chain: source → channels → enrich → filters → group → trending; from `from` on
+ * when given (a step the chain does not hold, a TMDB one without a key, runs the whole chain).
+ */
+export async function runAll(trigger: Trigger = "manual", from?: Step) {
+  const steps = await pipelineSteps();
+  return runTask("pipeline", trigger, steps.slice(Math.max(0, from ? steps.indexOf(from) : 0)));
+}
 export const runEpg = (trigger: Trigger = "manual") => runTask("epg", trigger, ["epg"]);
 /** A lone step, as a run of its own (tests, tooling). */
 export const run = (step: Step, trigger: Trigger = "manual") => runTask(step, trigger, [step]);
 
-/** Start a task in the background from the admin. False if it is already running or the vault is locked. */
-export function launch(task: Task): boolean {
+/**
+ * Start a task in the background from the admin, the pipeline from `from` on when given.
+ * False if it is already running or the vault is locked.
+ */
+export function launch(task: Task, from?: Step): boolean {
   if (runningTasks.has(task) || !isUnlocked()) return false;
-  void (task === "pipeline" ? runAll("manual") : runEpg("manual"));
+  void (task === "pipeline" ? runAll("manual", from) : runEpg("manual"));
   return true;
 }
 

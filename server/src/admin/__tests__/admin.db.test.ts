@@ -90,7 +90,7 @@ describe("admin", () => {
     expect(live).toContain("1 sans catégorie");
     expect(await html("/admin/catalog/items?kind=live&cat=_none&page=1")).toContain("BELLA RADIO");
     expect(await html("/admin/catalog?kind=live&q=bella")).toContain("Sans catégorie"); // the category column of a hit
-    expect(await html(`/admin/item/${matrixId}`)).toContain("JSON amont brut");
+    expect(await html(`/admin/item/${matrixId}`)).toContain("Afficher le JSON brut");
     expect(await html("/admin/rules")).toContain("Nouvelle règle");
     expect(await html("/admin/devices")).toContain("Aucun appareil");
     const logs = await html("/admin/tasks");
@@ -110,6 +110,7 @@ describe("admin", () => {
     expect(await html("/admin/caches")).toContain("Fiches TMDB");
     expect(await html("/admin/pair/K7Q4MZ")).toContain("Code inconnu");
     expect(await html("/admin/jobs/status")).toContain("Aucun job en cours");
+    expect(await html("/admin/tasks")).toContain('name="from"');
     expect((await call("/admin/item/999999")).status).toBe(404);
     expect((await call("/admin/dev/reload?boot=x")).status, "dev reload is off without DEV_PASSWORD").toBe(404);
     const fold = await post("/admin/menu", { next: "/admin/catalog?kind=vod" });

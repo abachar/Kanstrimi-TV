@@ -17,10 +17,11 @@ export const Title = ({ t, sub, actions }: { t: string; sub: string; actions?: u
 
 /**
  * `extra` is a short complement at the right of the header (a link, a language code); `hint`
- * is a sentence under the title. `h-full`: side by side in a grid, cards of a row share its height.
+ * is a sentence under the title. No `h-full`: a card only fills a row when its grid cell is itself
+ * a `grid` (see the dashboard).
  */
 export const Card = ({ title, extra, hint, children }: { title: string; extra?: unknown; hint?: string; children?: unknown }) => (
-  <section class="card h-full">
+  <section class="card">
     <header>
       <h2>{title}</h2>
       {hint && <p>{hint}</p>}

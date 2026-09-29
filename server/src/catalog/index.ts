@@ -22,6 +22,7 @@ export {
   getLastError,
   isTaskRunning,
   launch,
+  pipelineSteps,
   run,
   runAll,
   runEpg,
