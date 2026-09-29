@@ -43,7 +43,6 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 
 Idées reprises des tentatives précédentes (supprimées le 2026-09-29), absentes du code actuel, par intérêt.
 
-- **Cache d'images de l'app** : `AsyncImage` sur le `URLCache` par défaut (~10 Mo disque) alors que `/img` sert un an de cache ; régler `URLCache.shared` au lancement.
 - **Réglages VLC** : tampon distinct direct / VOD et réglable (figé à 1500 ms dans `PlayerService.swift`), `http-reconnect` contre les coupures, tampon VOD plus grand pour le seek profond MKV.
 - **Lecteur** : « Lire depuis le début » quand une reprise existe, épisode précédent.
 - **Reprendre** : retirer un titre, marquer vu / non vu (épisode, saison).
