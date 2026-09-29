@@ -1,11 +1,10 @@
 import { Hono } from "hono";
 import { getSettings } from "@/config";
 import { appCounts, counts } from "./data";
-import { recentLogs } from "@/catalog";
 import { cacheStats } from "@/providers/tmdb";
 import { epgStat } from "@/providers/xtream";
 import { groupingCounts } from "@/catalog";
-import { start, runAll, runningSteps, getLastError, type Step } from "@/catalog";
+import { launch, runningSteps, getLastError, lastRunsByTask, TASKS, type Task } from "@/catalog";
 import { page, back } from "../http";
 import { JOB_STARTED } from "../labels";
 import { DashboardView } from "./view";
@@ -18,10 +17,10 @@ export const jobRoutes = new Hono();
 const jobsState = () => ({ running: runningSteps(), lastError: getLastError() });
 
 dashboardRoutes.get("/", async (c) => {
-  const [s, cnt, logs, img, epg, groups, app] = await Promise.all([
+  const [s, cnt, last, img, epg, groups, app] = await Promise.all([
     getSettings(),
     counts(),
-    recentLogs(6),
+    lastRunsByTask(TASKS, 1),
     cacheStats(),
     epgStat(),
     groupingCounts(),
@@ -30,17 +29,15 @@ dashboardRoutes.get("/", async (c) => {
   return page(
     c,
     "Tableau de bord",
-    <DashboardView d={{ s, items: cnt.items, cats: cnt.categories, logs, img, epg, groups, app }} jobs={jobsState()} />,
+    <DashboardView d={{ s, items: cnt.items, cats: cnt.categories, last, img, epg, groups, app }} jobs={jobsState()} />,
   );
 });
 jobRoutes.get("/status", (c) => c.html(<JobsStatus {...jobsState()} />));
-jobRoutes.post("/:job", async (c) => {
-  const job = c.req.param("job");
-  if (!(job in JOB_STARTED)) return c.notFound();
-  if (job === "pipeline") {
-    void runAll();
-    return back(c, "/admin", { ok: JOB_STARTED.pipeline });
-  }
-  if (job === "enrich" && !(await getSettings()).tmdb_api_key) return back(c, "/admin", { err: "Clé TMDB absente" });
-  return back(c, "/admin", start(job as Step) ? { ok: JOB_STARTED[job as Step] } : { err: "Déjà en cours" });
+/** Launches a task, then back to the page the button was on (the journal or the dashboard). */
+jobRoutes.post("/:task", (c) => {
+  const task = c.req.param("task") as Task;
+  if (!TASKS.includes(task)) return c.notFound();
+  const from = c.req.header("referer");
+  const to = from && new URL(from).pathname.startsWith("/admin") ? new URL(from).pathname : "/admin/tasks";
+  return back(c, to, launch(task) ? { ok: JOB_STARTED[task] } : { err: "Déjà en cours" });
 });

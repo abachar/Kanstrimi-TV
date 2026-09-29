@@ -14,3 +14,25 @@ export function describeError(e: unknown): string {
   if (cause?.code) msg = `[${cause.code}] ${msg}`;
   return msg.length > MAX ? `${msg.slice(0, MAX)}…` : msg;
 }
+
+/** Codes of a network or database outage: the next item would fail the same way. */
+const UNREACHABLE = new Set([
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_SOCKET",
+  "CONNECTION_ENDED",
+  "CONNECTION_DESTROYED",
+  "CONNECT_TIMEOUT",
+]);
+
+/** A failure of the way to the service (DNS, network, database), not of the thing asked. */
+export function isUnreachable(e: unknown): boolean {
+  const err = e as { code?: string; name?: string; cause?: { code?: string } } | undefined;
+  return UNREACHABLE.has(err?.code ?? "") || UNREACHABLE.has(err?.cause?.code ?? "") || err?.name === "TimeoutError";
+}

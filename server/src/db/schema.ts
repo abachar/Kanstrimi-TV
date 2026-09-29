@@ -226,9 +226,30 @@ export const filterRules = pgTable("filter_rules", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * One run of a task: the full pipeline, the EPG, or a lone step. Its steps are `sync_logs`
+ * rows; its detail is a text file under DATA_DIR/logs (`log_file`), written even when the
+ * database is down.
+ */
+export const syncRuns = pgTable(
+  "sync_runs",
+  {
+    id: serial("id").primaryKey(),
+    task: text("task").notNull(), // pipeline | epg | a lone step
+    trigger: text("trigger").notNull(), // cron | manual (unknown for the runs before this table)
+    status: syncStatusEnum("status").default("running").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    message: text("message"),
+    logFile: text("log_file"),
+  },
+  (t) => [index("sync_runs_task_started_idx").on(t.task, t.startedAt)],
+);
+
 export const syncLogs = pgTable("sync_logs", {
   id: serial("id").primaryKey(),
-  job: text("job").notNull(), // sync | enrich
+  runId: integer("run_id").references(() => syncRuns.id, { onDelete: "cascade" }),
+  job: text("job").notNull(), // a pipeline step
   status: syncStatusEnum("status").default("running").notNull(),
   startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
@@ -376,4 +397,5 @@ export type Content = typeof contents.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type FilterRule = typeof filterRules.$inferSelect;
 export type SyncLog = typeof syncLogs.$inferSelect;
+export type SyncRun = typeof syncRuns.$inferSelect;
 export type Studio = typeof studios.$inferSelect;

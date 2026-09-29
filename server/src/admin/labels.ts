@@ -1,5 +1,5 @@
 import type { Kind } from "@/db";
-import type { Step, KeyKind } from "@/catalog";
+import type { Step, KeyKind, Task } from "@/catalog";
 
 /** French vocabulary of the admin, in one place. */
 
@@ -33,16 +33,18 @@ export const JOB_LABELS: Record<Step, string> = {
   trending: "Tendances TMDB",
   epg: "EPG",
 };
-export const JOB_STARTED: Record<Step | "pipeline", string> = {
-  source: "Lecture de la source lancée",
-  filters: "Filtres appliqués",
-  enrich: "Enrichissement lancé",
-  group: "Groupement lancé",
-  trending: "Lecture des tendances TMDB lancée",
-  epg: "Reconstruction EPG lancée",
+export const JOB_STARTED: Record<Task, string> = {
   pipeline: "Traitement complet lancé",
+  epg: "Reconstruction EPG lancée",
 };
+export const TASK_LABELS: Record<Task, string> = {
+  pipeline: "Traitement complet",
+  epg: "Guide des programmes",
+};
+export const TRIGGER_LABELS: Record<string, string> = { cron: "planifié", manual: "manuel" };
 export const jobLabel = (job: string) => (JOB_LABELS as Record<string, string>)[job] ?? job;
+/** A run's task: one of the two scheduled ones, or a lone step. */
+export const taskLabel = (task: string) => (TASK_LABELS as Record<string, string>)[task] ?? jobLabel(task);
 
 export const STAT_LABELS: Record<string, string> = {
   live_items: "chaînes",

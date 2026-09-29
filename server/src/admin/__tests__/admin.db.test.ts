@@ -42,7 +42,7 @@ beforeAll(async () => {
   ]);
   matrixId = items[0].id;
   await runNaming(); // what the source step does after the import
-  expect(await run("group")).toBe(true); // journalled through the pipeline, so /admin/logs has a row
+  expect(await run("group")).toBe(true); // journalled through the pipeline, so /admin/tasks has a row
 });
 afterAll(closeDb);
 
@@ -93,7 +93,14 @@ describe("admin", () => {
     expect(await html(`/admin/item/${matrixId}`)).toContain("JSON amont brut");
     expect(await html("/admin/rules")).toContain("Nouvelle règle");
     expect(await html("/admin/devices")).toContain("Aucun appareil");
-    expect(await html("/admin/logs")).toContain("Groupement");
+    const logs = await html("/admin/tasks");
+    expect(logs).toContain("Groupement"); // the lone step run of beforeAll
+    expect(logs).toContain("Traitement complet");
+    expect(logs).toContain("Jamais lancé");
+    const runId = /href="\/admin\/tasks\/(\d+)"/.exec(logs)![1];
+    expect(await html(`/admin/tasks/${runId}`)).toContain("── group : terminé");
+    expect((await call(`/admin/tasks/${runId}/raw`)).headers.get("content-disposition")).toContain(".log");
+    expect((await call("/admin/tasks/999999")).status).toBe(404);
     expect(await html("/admin/settings")).toContain("Serveur Xtream");
     expect(await html("/admin/favorites")).toContain("Aucun favori");
     expect(await html("/admin/history")).toContain("En cours");

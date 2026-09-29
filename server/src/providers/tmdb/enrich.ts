@@ -4,11 +4,13 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import pLimit from "p-limit";
 import { TmdbClient, type TmdbDetails } from "./client";
 import { scoreAll, bestSimilarity, namesOf, hasAllNames, MATCH_THRESHOLD, type ScoredDetail } from "./match";
-import { describeError, similarityKey } from "@/shared";
+import { describeError, isUnreachable, progress, similarityKey } from "@/shared";
 
 const TTL_MS = 30 * 24 * 3600 * 1000;
 /** TMDB allows ~50 requests per second; stay well under with the retry on 429 as a safety net. */
 const CONCURRENCY = 20;
+/** This many outages in a row (DNS, network, database) and the step stops: the rest stays pending. */
+const MAX_UNREACHABLE = 20;
 /**
  * A provider-supplied TMDB id is a hint, not a fact: it is accepted only when the title of
  * the TMDB document resembles the cleaned name. Looser than the search threshold because the
@@ -91,51 +93,85 @@ export async function runEnrich(opts: { limit?: number } = {}) {
       byProvidedId.set(k, [...(byProvidedId.get(k) ?? []), it]);
     } else noId.push(it);
   }
+  const n = (x: number) => x.toLocaleString("fr-FR");
+  console.log(
+    `[enrich] ${n(pending.length)} en attente : ${n(byProvidedId.size)} identifiants TMDB fournis par la source, ${n(noId.length)} sans`,
+  );
+  const beat = progress(
+    "enrich",
+    pending.length,
+    () => `${n(stats.matched)} associés · ${n(stats.unmatched)} non trouvés · ${n(stats.errors)} erreurs`,
+  );
   const limit = pLimit(CONCURRENCY);
+  let unreachable = 0;
+  let halted: string | null = null;
   const account = (r: boolean) => {
+    unreachable = 0;
+    beat.tick();
     stats.processed++;
     if (r) stats.matched++;
     else stats.unmatched++;
   };
   const fail = (it: PendingItem, e: unknown) => {
+    beat.tick();
     stats.errors++;
-    console.error(`[enrich] ${it.kind} ${it.id} "${it.name}":`, describeError(e));
+    const pid = providedTmdbId(it);
+    console.error(`[enrich] ${it.kind} élément ${it.id}${pid ? ` (TMDB fourni ${pid})` : ""} « ${it.name} » : ${describeError(e)}`);
+    if (!isUnreachable(e)) unreachable = 0;
+    else if (++unreachable >= MAX_UNREACHABLE && !halted) {
+      halted = describeError(e);
+      console.error(`[enrich] ${MAX_UNREACHABLE} échecs d'accès d'affilée : arrêt, le reste reste en attente`);
+    }
   };
-  await Promise.all([
-    ...[...byProvidedId.values()].map((group) =>
-      limit(async () => {
-        const first = group[0];
-        const mediaType = tmdbMediaType(first.kind);
-        const pid = providedTmdbId(first)!;
-        let d = await getDetails(client, mediaType, pid).catch(() => null);
-        // Cached before alternative and translated titles were requested: one refresh before judging.
-        if (d && !hasAllNames(d) && !group.every((it) => idLooksRight(d!, it)))
-          d = await getDetails(client, mediaType, pid, true).catch(() => d);
-        for (const it of group) {
-          try {
-            if (d && idLooksRight(d, it)) {
-              await setMatch(it.id, pid, 1, "matched");
-              account(true);
-              continue;
+  try {
+    await Promise.all([
+      ...[...byProvidedId.values()].map((group) =>
+        limit(async () => {
+          if (halted) return;
+          const first = group[0];
+          const mediaType = tmdbMediaType(first.kind);
+          const pid = providedTmdbId(first)!;
+          let d = await getDetails(client, mediaType, pid).catch(() => null);
+          // Cached before alternative and translated titles were requested: one refresh before judging.
+          if (d && !hasAllNames(d) && !group.every((it) => idLooksRight(d!, it)))
+            d = await getDetails(client, mediaType, pid, true).catch(() => d);
+          for (const it of group) {
+            if (halted) return;
+            try {
+              if (d && idLooksRight(d, it)) {
+                await setMatch(it.id, pid, 1, "matched");
+                account(true);
+                continue;
+              }
+              if (d) stats.ids_rejected++;
+              account(await matchByTitle(client, it));
+            } catch (e) {
+              fail(it, e);
             }
-            if (d) stats.ids_rejected++;
+          }
+        }),
+      ),
+      ...noId.map((it) =>
+        limit(async () => {
+          if (halted) return;
+          try {
             account(await matchByTitle(client, it));
           } catch (e) {
             fail(it, e);
           }
-        }
-      }),
-    ),
-    ...noId.map((it) =>
-      limit(async () => {
-        try {
-          account(await matchByTitle(client, it));
-        } catch (e) {
-          fail(it, e);
-        }
-      }),
-    ),
-  ]);
+        }),
+      ),
+    ]);
+  } finally {
+    beat.stop();
+  }
+  console.log(
+    `[enrich] ${n(stats.processed)} traités : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ids_rejected)} identifiants fournis rejetés`,
+  );
+  if (halted)
+    throw new Error(
+      `TMDB injoignable (${halted}) : arrêt après ${n(stats.processed)} traités, ${n(pending.length - stats.processed)} restent en attente`,
+    );
   return stats;
 }
 

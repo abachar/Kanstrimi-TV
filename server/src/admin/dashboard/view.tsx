@@ -1,13 +1,13 @@
 import type { Settings } from "@/config";
 import type { EpgStat } from "@/providers/xtream";
-import type { SyncLog, Kind } from "@/db";
+import type { Kind } from "@/db";
+import type { RunWithSteps } from "@/catalog";
 import type { ItemCount, CategoryCount, AppCount } from "./data";
 import { describeCron, nextCronRun } from "../format";
 import { fmt, ago } from "../format";
-import { Title, Card, Stat, Badge, Meter } from "../ui";
+import { Title, Card, Stat, Badge, Meter, Status } from "../ui";
 import { Icon } from "../icons";
-import { KIND_TITLES } from "../labels";
-import { LogsTable } from "../logs/view";
+import { KIND_TITLES, taskLabel } from "../labels";
 import { JobsStatus, type JobsState } from "./jobs";
 
 export type GroupCount = { kind: string; visible: number; multi: number; fallback: number; adult: number; sagas: number };
@@ -16,7 +16,8 @@ export type DashboardData = {
   items: ItemCount[];
   cats: CategoryCount[];
   groups: GroupCount[];
-  logs: SyncLog[];
+  /** The last run of each task, for « Traitement ». */
+  last: Record<string, RunWithSteps[]>;
   img: { files: number; bytes: number };
   epg: EpgStat;
   app: AppCount;
@@ -37,11 +38,6 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
     const next = nextCronRun(expr);
     return `${describeCron(expr)}${next ? `, prochain passage ${next.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}` : ""}`;
   };
-  const Btn = ({ job, label, variant, cls = "" }: { job: string; label: string; variant: string; cls?: string }) => (
-    <button formaction={`/admin/jobs/${job}`} class={`btn ${cls}`} data-variant={variant}>
-      {label}
-    </button>
-  );
   const Row = ({ label, children }: { label: string; children?: unknown }) => (
     <div class="flex items-baseline justify-between gap-4 text-sm">
       <span class="text-muted-foreground">{label}</span>
@@ -88,32 +84,50 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
         <div class="md:col-span-6 lg:col-span-4">
           <Card
             title="Traitement"
-            hint="Étapes indépendantes : lire la source → enrichir (TMDB) → appliquer les filtres → grouper les variantes"
+            extra={
+              <a href="/admin/tasks" class="hover:text-foreground">
+                tâches
+              </a>
+            }
           >
             <div class="flex flex-col gap-4">
-              {/* On a phone the one-shot action comes first, above the fold; on md+ it goes back to the right. */}
-              <form method="post" class="grid gap-2 md:flex md:flex-wrap">
-                <Btn job="pipeline" label="Tout enchaîner" variant="primary" cls="md:order-last md:ms-auto" />
-                <Btn job="source" label="1. Lire la source" variant="outline" />
-                <Btn job="enrich" label="2. TMDB" variant="outline" />
-                <Btn job="filters" label="3. Filtres" variant="outline" />
-                <Btn job="group" label="4. Grouper" variant="outline" />
-                <Btn job="trending" label="5. Tendances" variant="outline" />
-                <Btn job="epg" label="EPG" variant="outline" />
-              </form>
-              <JobsStatus {...jobs} />
-              <div class="flex flex-col gap-1 border-t pt-4 text-xs text-muted-foreground">
-                <span>
-                  Sync {ago(s.last_sync_at)} · {schedule(s.sync_cron)}
-                </span>
-                <span>
-                  EPG{" "}
-                  {d.epg.programmes
-                    ? `${fmt(d.epg.programmes)} programmes sur ${fmt(d.epg.channels)} chaînes jusqu'au ${new Date(d.epg.to!).toLocaleDateString("fr-FR")}, importé ${ago(d.epg.importedAt)}`
-                    : "jamais importé"}{" "}
-                  · {schedule(s.epg_cron)}
-                </span>
+              {(
+                [
+                  ["pipeline", s.sync_cron],
+                  ["epg", s.epg_cron],
+                ] as const
+              ).map(([task, cron]) => {
+                const run = d.last[task]?.[0];
+                return (
+                  <div class="flex flex-col gap-1">
+                    <div class="flex items-center justify-between gap-2 text-sm">
+                      <span class="font-medium">{taskLabel(task)}</span>
+                      {run ? (
+                        <a
+                          href={`/admin/tasks/${run.id}`}
+                          class="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                        >
+                          {ago(run.startedAt.toISOString())} <Status status={run.status} />
+                        </a>
+                      ) : (
+                        <span class="text-muted-foreground">jamais</span>
+                      )}
+                    </div>
+                    <span class="text-xs text-muted-foreground">{schedule(cron)}</span>
+                  </div>
+                );
+              })}
+              <div class="border-t pt-4">
+                <JobsStatus {...jobs} />
               </div>
+              {d.epg.programmes ? (
+                <p class="text-xs text-muted-foreground">
+                  Guide : {fmt(d.epg.programmes)} programmes sur {fmt(d.epg.channels)} chaînes jusqu'au{" "}
+                  {new Date(d.epg.to!).toLocaleDateString("fr-FR")}
+                </p>
+              ) : (
+                ""
+              )}
             </div>
           </Card>
         </div>
@@ -211,19 +225,6 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
                 );
               })}
             </div>
-          </Card>
-        </div>
-
-        <div class="md:col-span-6">
-          <Card
-            title="Activité récente"
-            extra={
-              <a href="/admin/logs" class="hover:text-foreground">
-                tout voir
-              </a>
-            }
-          >
-            <LogsTable logs={d.logs} />
           </Card>
         </div>
       </div>

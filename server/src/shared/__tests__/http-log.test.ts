@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { redactUrl } from "../http-log";
+import { redactText, redactUrl } from "../http-log";
 
 describe("redactUrl", () => {
   it("masks the password query parameter", () => {
@@ -25,5 +25,15 @@ describe("redactUrl", () => {
     for (const u of ["/player_api.php?password=s3cret", "/live/u/s3cret/1.ts", "/get.php?PassWord=s3cret"]) {
       expect(redactUrl(u)).not.toContain("s3cret");
     }
+  });
+});
+
+describe("redactText", () => {
+  it("masks every URL of a line, stream paths included, and leaves the rest", () => {
+    const line = "fetch http://h.test:8080/live/u/s3cret/1.ts failed, then https://h.test/get.php?username=u&password=s3cret (retry)";
+    const out = redactText(line);
+    expect(out).not.toContain("s3cret");
+    expect(out).toContain("http://h.test:8080/live/u/***/1.ts failed");
+    expect(out).toContain("(retry)");
   });
 });

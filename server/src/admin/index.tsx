@@ -15,7 +15,7 @@ import { itemRoutes } from "./item/routes";
 import { rulesRoutes } from "./rules/routes";
 import { studiosRoutes } from "./studios/routes";
 import { devicesRoutes, pairRoutes } from "./devices/routes";
-import { logsRoutes } from "./logs/routes";
+import { tasksRoutes } from "./tasks/routes";
 import { settingsRoutes } from "./settings/routes";
 
 /**
@@ -64,5 +64,5 @@ admin.route("/studios", studiosRoutes);
 admin.route("/pair", pairRoutes);
 admin.route("/devices", devicesRoutes);
 admin.route("/caches", cachesRoutes);
-admin.route("/logs", logsRoutes);
+admin.route("/tasks", tasksRoutes);
 admin.route("/settings", settingsRoutes);

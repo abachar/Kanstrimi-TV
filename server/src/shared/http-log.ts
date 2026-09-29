@@ -23,6 +23,18 @@ export function redactUrl(url: string): string {
   return query ? `${path}?${decodeURIComponent(query)}` : path;
 }
 
+/** Every URL of a free text, redacted: what the run logs write to disk. */
+export function redactText(text: string): string {
+  return text.replace(/https?:\/\/[^\s"'<>]+/g, (u) => {
+    try {
+      const url = new URL(u);
+      return url.origin + redactUrl(url.pathname + url.search);
+    } catch {
+      return u;
+    }
+  });
+}
+
 /** Same shape as hono's logger, minus the secrets. */
 export function requestLogger(): MiddlewareHandler {
   return async (c, next) => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { describeError } from "../errors";
+import { describeError, isUnreachable } from "../errors";
 
 describe("describeError", () => {
   it("prefers the driver cause over Drizzle's SQL dump", () => {
@@ -24,5 +24,15 @@ describe("describeError", () => {
   });
   it("handles non-Error throws", () => {
     expect(describeError("plain string")).toBe("plain string");
+  });
+});
+
+describe("isUnreachable", () => {
+  it("tells an outage (DNS, network, database, timeout) from a failure of the thing asked", () => {
+    const dns = Object.assign(new TypeError("fetch failed"), { cause: { code: "ENOTFOUND" } });
+    const pg = Object.assign(new Error("write CONNECTION_ENDED"), { code: "CONNECTION_ENDED" });
+    const timeout = Object.assign(new Error("timed out"), { name: "TimeoutError" });
+    for (const e of [dns, pg, timeout]) expect(isUnreachable(e)).toBe(true);
+    expect(isUnreachable(new Error("TMDB 404"))).toBe(false);
   });
 });
