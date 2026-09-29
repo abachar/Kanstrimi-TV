@@ -40,7 +40,8 @@ struct HTTPCatalogClientTests {
         device.store(token: "dvc_test", code: "K7Q4MZ")
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubProtocol.self]
-        client = HTTPCatalogClient(baseURL: URL(string: "https://kanstrimi.test")!, device: device, session: URLSession(configuration: config))
+        client = HTTPCatalogClient(baseURL: URL(string: "https://kanstrimi.test")!, device: device, session: URLSession(configuration: config),
+                                    retryDelays: [.zero, .zero])
         StubProtocol.requests = []
         StubProtocol.bodies = []
         StubProtocol.handler = nil
@@ -191,5 +192,34 @@ struct HTTPCatalogClientTests {
         answer(200, #"{"query":"heures","best":null,"movies":[],"series":[],"live":[]}"#)
         _ = try await client.search("heures", scope: .live)
         #expect(try query(last) == ["q": "heures", "scope": "live"])
+    }
+
+    @Test("Un GET retente deux fois un 502 du proxy, puis réussit")
+    func getRetriesProxyErrors() async throws {
+        // The request is recorded before the handler runs: the count is the attempt number.
+        StubProtocol.handler = { _ in StubProtocol.requests.count < 3 ? (502, Data()) : (200, Data(#"[]"#.utf8)) }
+        _ = try await client.studios(kind: .movie)
+        #expect(StubProtocol.requests.count == 3)
+    }
+
+    @Test("Au-delà de deux nouveaux essais, l'erreur remonte")
+    func getGivesUpAfterTwoRetries() async throws {
+        StubProtocol.handler = { _ in (503, Data()) }
+        await #expect(throws: CatalogError.server("Erreur serveur (503)")) { try await client.studios(kind: .movie) }
+        #expect(StubProtocol.requests.count == 3)
+    }
+
+    @Test("Une erreur du serveur lui-même n'est pas retentée")
+    func serverErrorsAreAnswers() async throws {
+        answer(502, #"{"error":{"code":"upstream","message":"Le fournisseur n'a pas répondu"}}"#)
+        await #expect(throws: CatalogError.server("Le fournisseur n'a pas répondu")) { try await client.studios(kind: .movie) }
+        #expect(StubProtocol.requests.count == 1)
+    }
+
+    @Test("Une écriture n'est jamais rejouée")
+    func writesAreNotRetried() async throws {
+        StubProtocol.handler = { _ in (502, Data()) }
+        await #expect(throws: CatalogError.self) { try await client.setFavorite(id: ContentID("tmdb:movie:603"), true) }
+        #expect(StubProtocol.requests.count == 1)
     }
 }

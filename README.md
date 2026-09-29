@@ -57,7 +57,6 @@ Idées reprises des tentatives précédentes (supprimées le 2026-09-29), absent
   - **« Si vous avez aimé… »** : rangée de titres proches sur la fiche, recommandations TMDB croisées avec le catalogue.
   - **Logos TMDB** : le logo du titre en tête de fiche à la place du texte.
   - **Arrêt d'une tâche en cours** : interrompre depuis l'admin une étape du pipeline qui traîne.
-  - **Nouveaux essais sur les GET de l'app** : réessayer une ou deux fois avant d'afficher une erreur réseau.
   - **« Director's Cut » / « Extended »** : reconnaître ces mentions dans le nettoyage des noms, pour ne pas gêner le rapprochement TMDB et le regroupement.
   - **Clé du direct sur l'identifiant iptv-org** : une clé stable quand le fournisseur renomme une chaîne ; demande de migrer favoris et progression.
   - **Métriques serveur** : durée des étapes, erreurs du fournisseur, lectures, sans fouiller les logs.

@@ -8,9 +8,13 @@ final class HTTPCatalogClient: CatalogClient {
     private let device: DeviceStore
     private let session: URLSession
     private let decoder = HTTPCatalogClient.makeDecoder()
+    /// Pauses before each new try of a GET that failed on a passing hiccup; one entry per retry.
+    private let retryDelays: [Duration]
 
     /// - Parameter baseURL: the server root, e.g. `https://kanstrimi.crafters.dev`; `/player` is appended here.
-    init(baseURL: URL, device: DeviceStore, session: URLSession? = nil) {
+    init(baseURL: URL, device: DeviceStore, session: URLSession? = nil,
+         retryDelays: [Duration] = [.milliseconds(500), .milliseconds(1500)]) {
+        self.retryDelays = retryDelays
         self.baseURL = baseURL.appending(path: "player")
         self.device = device
         self.session = session ?? {
@@ -110,14 +114,34 @@ final class HTTPCatalogClient: CatalogClient {
         return req
     }
 
+    /// A GET that fails on a passing hiccup is tried again after each of `retryDelays`; any other
+    /// method goes once, a write is never repeated behind the user's back.
     private func perform(_ req: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        let data: Data, response: URLResponse
-        do { (data, response) = try await session.data(for: req) }
-        catch let e as URLError { throw Self.map(e) }
-        catch { throw CatalogError.server(error.localizedDescription) }
-        guard let http = response as? HTTPURLResponse else { throw CatalogError.server("Réponse invalide") }
-        if (200..<300).contains(http.statusCode) { return (data, http) }
-        throw Self.error(status: http.statusCode, data: data)
+        var delays = req.httpMethod == "GET" ? retryDelays[...] : []
+        while true {
+            let data: Data, response: URLResponse
+            do { (data, response) = try await session.data(for: req) }
+            catch let e as URLError {
+                if Self.isTransient(e), let delay = delays.popFirst() { try await Task.sleep(for: delay); continue }
+                throw Self.map(e)
+            }
+            catch { throw CatalogError.server(error.localizedDescription) }
+            guard let http = response as? HTTPURLResponse else { throw CatalogError.server("Réponse invalide") }
+            if (200..<300).contains(http.statusCode) { return (data, http) }
+            if Self.isTransient(status: http.statusCode, data: data), let delay = delays.popFirst() { try await Task.sleep(for: delay); continue }
+            throw Self.error(status: http.statusCode, data: data)
+        }
+    }
+
+    /// A connection dropped or refused, a name not resolved: worth another try. Not a timeout
+    /// (20 s already spent), not the device being offline, not a cancellation.
+    static func isTransient(_ e: URLError) -> Bool {
+        [.networkConnectionLost, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed].contains(e.code)
+    }
+    /// 502-504 without the server's JSON error: the reverse proxy answering while the server
+    /// restarts. The server's own errors (`upstream`, `locked`) are answers, not hiccups.
+    static func isTransient(status: Int, data: Data) -> Bool {
+        (502...504).contains(status) && (try? JSONDecoder().decode(ErrorBody.self, from: data)) == nil
     }
 
     private func send<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = [], auth: Bool = true, body: (any Encodable)? = nil) async throws -> T {
