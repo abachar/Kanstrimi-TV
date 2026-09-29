@@ -148,6 +148,13 @@
       "when": 1790711455180,
       "tag": "0020_xtream-copy",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790720846717,
+      "tag": "0021_search-trigrams",
+      "breakpoints": true
     }
   ]
 }

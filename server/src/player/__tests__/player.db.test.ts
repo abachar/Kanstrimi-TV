@@ -641,6 +641,15 @@ describe("search and favourites", () => {
     r = (await get("/search?q=vincenzo&scope=movies")).body;
     expect(r).toEqual({ query: "vincenzo", best: null, movies: [], series: [], live: [] });
     expect((await get("/search?q=")).body.best).toBeNull();
+    // Nothing on the prefixes: the titles that look like the query, typos forgiven.
+    r = (await get("/search?q=vincenso")).body;
+    expect(r.series.map((c: { id: string }) => c.id)).toEqual(["tmdb:tv:1396"]);
+    expect(r.best.id).toBe("tmdb:tv:1396");
+    r = (await get("/search?q=matrixx")).body;
+    expect(r.movies.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603"]);
+    // Nonsense and too short a query find nothing.
+    expect((await get("/search?q=xyzqw")).body.best).toBeNull();
+    expect((await get("/search?q=hx")).body.best).toBeNull();
     expect((await get("/search?q=a&scope=x")).status).toBe(400);
   });
   it("PUT/DELETE /favorites/{id}: 204, reflected in sheets and channels", async () => {

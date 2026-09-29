@@ -240,6 +240,9 @@ export const catalogContents = pgTable(
     index("catalog_contents_year_idx").on(t.kind, t.visible, sql`coalesce(${t.year}, 0) desc`, t.id),
     index("catalog_contents_genres_idx").using("gin", t.genreIds),
     index("catalog_contents_search_idx").using("gin", t.search),
+    // Typo-tolerant fallback of the search: trigrams of the accent-free titles. `search_titles()`
+    // (unaccent, lower) is created by migration 0021; the query must repeat this expression.
+    index("catalog_contents_titles_trgm_idx").using("gin", sql`search_titles(${t.title}, ${t.originalTitle}, ${t.titleEn}) gin_trgm_ops`),
   ],
 );
 
