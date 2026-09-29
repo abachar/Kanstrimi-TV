@@ -18,7 +18,7 @@ const schema = z
         "ADMIN_PASSWORD_HASH manquant ou invalide dans l'environnement — générez-le avec : npm run hash-password -- <mot-de-passe>",
       ),
     /** The login of the admin form, next to the password. */
-    ADMIN_EMAIL: z.email("ADMIN_EMAIL invalide").default("a.bachat@hotmail.fr"),
+    ADMIN_EMAIL: z.email("ADMIN_EMAIL invalide").default("a.bachar@hotmail.fr"),
     SESSION_SECRET: z.string().min(32, "SESSION_SECRET doit faire au moins 32 caractères").optional(),
     DATABASE_URL: z.string().optional(),
     DATA_DIR: z.string().default("./data"),
