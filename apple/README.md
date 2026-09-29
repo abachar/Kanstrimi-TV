@@ -42,7 +42,7 @@ partagé au plus spécifique :
 
 **Navigation** : `env.open(id)` est l'unique point d'entrée vers une fiche. Sur tvOS c'est un
 `fullScreenCover` au-dessus des onglets ; sur iOS un push dans la `NavigationStack` de l'onglet
-courant (`AppEnvironment.paths`, `Route`). La grille d'un genre suit la même règle. Le lecteur est
+courant (`AppEnvironment.paths`, `Route`). La grille d'un genre et l'écran d'une saga suivent la même règle. Le lecteur est
 un `fullScreenCover` depuis la racine sur iOS et tvOS, et une superposition plein cadre dans la fenêtre (`overlay`/`ZStack`) sur Mac. L'iPhone garde cinq onglets : Réglages se
 rejoint par la roue dentée de l'accueil.
 
@@ -61,6 +61,10 @@ cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Fu
   l'approbation, jeton en Keychain. L'Apple TV affiche un QR vers `/admin/pair/{code}` ; l'iPhone
   affiche un lien « Ouvrir l'admin » (Safari), la validation se fait sur le même téléphone. Un `401`
   n'importe où dissocie l'appareil et ramène à l'appairage.
+- **Catalogue** : les rangées viennent du serveur ; « Voir tout » s'ouvre sur l'ordre du serveur (« Nouveautés »
+  et « Derniers épisodes » par arrivée, les genres par date de sortie), modifiable dans la grille et jamais
+  mémorisé. L'onglet Films ajoute la rangée « Sagas » (`/movies/sagas`) après la première ; la fiche d'un film
+  mène à sa saga. Le client de démonstration tire ses sagas de `Fixtures/sagas.json`.
 - **Lecture** : `stream_url` est un lien signé vers le serveur, relu à chaque lecture ; le
   serveur répond `302` vers le fournisseur. Le choix de la version suit l'ordre de langues
   des Réglages, les préférences par titre, les capacités de l'appareil, et bascule de source après échec.

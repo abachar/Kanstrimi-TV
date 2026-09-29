@@ -9,6 +9,7 @@ import { streamRoutes } from "./stream";
 import { infoRoutes } from "./info";
 import { homeRoutes } from "./home";
 import { listRoutes } from "./lists";
+import { sagaRoutes } from "./sagas";
 import { sheetRoutes } from "./sheets";
 import { channelRoutes } from "./channels";
 import { playbackRoutes } from "./playback";
@@ -40,6 +41,8 @@ player.use("*", bearer());
 player.route("/devices", deviceRoutes);
 player.route("/info", infoRoutes);
 player.route("/home", homeRoutes);
+// Before the sheets: `/movies/{id}` would take « sagas » for an id.
+player.route("/movies/sagas", sagaRoutes);
 player.route("/movies", listRoutes("vod"));
 player.route("/movies", sheetRoutes("vod"));
 player.route("/series", listRoutes("series"));

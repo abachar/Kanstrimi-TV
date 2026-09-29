@@ -98,10 +98,12 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
     var isFavorite: Bool?
     let seasons: [Season]?
     let currentEpisode: EpisodeRef?
+    /// Movie sheet: its saga, when the server lists it.
+    let saga: SagaRef?
 
     enum CodingKeys: String, CodingKey {
         case id, kind, title, poster, languages, backdrop, progress, episode, year, rating, genres, hint
-        case overview, runtime, certification, cast, director, trailer, versions, seasons
+        case overview, runtime, certification, cast, director, trailer, versions, seasons, saga
         case maxQuality = "max_quality"
         case dynamicRange = "dynamic_range"
         case addedAt = "added_at"
@@ -119,13 +121,15 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
          year: Int? = nil, rating: Double? = nil, genres: [String] = [], hint: String? = nil, addedAt: Date? = nil,
          originalTitle: String? = nil, endYear: Int? = nil, overview: String? = nil, runtime: Int? = nil, certification: String? = nil,
          cast: [Person] = [], director: String? = nil, trailer: URL? = nil, hasTMDB: Bool? = nil, providerCategory: String? = nil,
-         rawTitle: String? = nil, versions: [Version] = [], isFavorite: Bool? = nil, seasons: [Season]? = nil, currentEpisode: EpisodeRef? = nil) {
+         rawTitle: String? = nil, versions: [Version] = [], isFavorite: Bool? = nil, seasons: [Season]? = nil, currentEpisode: EpisodeRef? = nil,
+         saga: SagaRef? = nil) {
         self.id = id; self.kind = kind; self.title = title; self.poster = poster; self.maxQuality = maxQuality; self.dynamicRange = dynamicRange
         self.languages = languages; self.backdrop = backdrop; self.progress = progress; self.episode = episode
         self.year = year; self.rating = rating; self.genres = genres; self.hint = hint; self.addedAt = addedAt
         self.originalTitle = originalTitle; self.endYear = endYear; self.overview = overview; self.runtime = runtime; self.certification = certification
         self.cast = cast; self.director = director; self.trailer = trailer; self.hasTMDB = hasTMDB; self.providerCategory = providerCategory
         self.rawTitle = rawTitle; self.versions = versions; self.isFavorite = isFavorite; self.seasons = seasons; self.currentEpisode = currentEpisode
+        self.saga = saga
     }
 
     init(from decoder: Decoder) throws {
@@ -160,6 +164,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
         isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite)
         seasons = try c.decodeIfPresent([Season].self, forKey: .seasons)
         currentEpisode = try c.decodeIfPresent(EpisodeRef.self, forKey: .currentEpisode)
+        saga = try c.decodeIfPresent(SagaRef.self, forKey: .saga)
     }
 
     /// "4K DV" or nil.

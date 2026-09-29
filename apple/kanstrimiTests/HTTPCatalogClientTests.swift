@@ -103,7 +103,12 @@ struct HTTPCatalogClientTests {
         q.language = .vostfr; q.minQuality = .fhd; q.dynamicRange = .hdr; q.vfAvailable = true; q.cursor = "abc=="
         _ = try await client.list(q)
         #expect(try last.url?.path() == "/player/series")
-        #expect(try query(last) == ["sort": "latest_episodes", "genre": "thriller", "language": "VOSTFR", "min_quality": "FHD", "dynamic_range": "HDR", "vf_available": "1", "cursor": "abc=="])
+        #expect(try query(last) == ["sort": "release", "genre": "thriller", "language": "VOSTFR", "min_quality": "FHD", "dynamic_range": "HDR", "vf_available": "1", "cursor": "abc=="])
+
+        // « Nouveautés » / « Derniers épisodes » keep the arrival order; every other row is by release date.
+        #expect(ListQuery(kind: .series, genre: "recent").sort == .latestEpisodes)
+        #expect(ListQuery(kind: .movie, genre: "recent").sort == .recent)
+        #expect(ListQuery(kind: .movie, genre: "action").sort == .release)
 
         answer(200, "[]")
         _ = try await client.rows(kind: .movie)
@@ -143,6 +148,26 @@ struct HTTPCatalogClientTests {
         #expect(home.rows[0].cards[0].addedAt == HTTPCatalogClient.parseISO8601("2026-09-01T00:00:00Z"))
         #expect(abs(home.generatedAt.timeIntervalSince1970 - 1790457240.512) < 0.001)
         #expect(home.hero == nil)
+    }
+
+    @Test func sagasTravelAndDecode() async throws {
+        answer(200, #"{"items":[{"id":"saga:900","name":"Trilogie - Saga","count":3,"poster":null,"backdrop":"https://kanstrimi.test/img/w1280/b.jpg"}],"next_cursor":"xyz"}"#)
+        let page = try await client.sagas(cursor: "abc")
+        #expect(try last.url?.path() == "/player/movies/sagas")
+        #expect(try query(last) == ["cursor": "abc"])
+        #expect(page.items[0].ref == SagaRef(id: "saga:900", name: "Trilogie - Saga", count: 3))
+        #expect(page.nextCursor == "xyz")
+
+        answer(200, #"{"id":"saga:900","name":"Trilogie - Saga","count":1,"poster":null,"backdrop":null,"movies":[{"id":"tmdb:movie:1","kind":"movie","title":"Un"}]}"#)
+        let sheet = try await client.saga(id: "saga:900")
+        #expect(try last.url?.path() == "/player/movies/sagas/saga:900")
+        #expect(sheet.movies.map(\.title) == ["Un"])
+
+        // The sheet carries its saga when it has one, and decodes without it.
+        answer(200, #"{"id":"tmdb:movie:1","kind":"movie","title":"Un","saga":{"id":"saga:900","name":"Trilogie - Saga","count":3}}"#)
+        #expect(try await client.detail(id: ContentID("tmdb:movie:1")).saga?.count == 3)
+        answer(200, #"{"id":"tmdb:movie:2","kind":"movie","title":"Deux"}"#)
+        #expect(try await client.detail(id: ContentID("tmdb:movie:2")).saga == nil)
     }
 
     @Test func searchScopeTravels() async throws {

@@ -16,6 +16,7 @@ private struct ScreenHost<Content: View>: View {
 #Preview("Films") { ScreenHost { CatalogView(kind: .movie) } }
 #Preview("Séries") { ScreenHost { CatalogView(kind: .series) } }
 #Preview("Fiche film") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:movie:535544")) } } }
+#Preview("Saga") { ScreenHost { NavigationStack { SagaView(ref: SagaRef(id: "saga:1", name: "Pixar (démo)", count: 3)) } } }
 #Preview("Fiche série") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } } }
 #Preview("Fiche sans TMDB") { ScreenHost { NavigationStack { DetailView(id: ContentID("fallback:movie:avant-charlie-brown-il-y-avait-schulz:-")) } } }
 #Preview("Fiche en erreur") {

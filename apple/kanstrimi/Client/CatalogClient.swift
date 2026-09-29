@@ -21,10 +21,11 @@ nonisolated enum CatalogError: Error, LocalizedError, Equatable {
 }
 
 nonisolated enum CatalogSort: String, CaseIterable, Codable, Sendable {
-    case recent, title, year, rating, latestEpisodes = "latest_episodes"
+    case release, recent, title, year, rating, latestEpisodes = "latest_episodes"
 
     var label: String {
         switch self {
+        case .release: "Date de sortie"
         case .recent: "Nouveautés"
         case .title: "Titre"
         case .year: "Année"
@@ -33,7 +34,7 @@ nonisolated enum CatalogSort: String, CaseIterable, Codable, Sendable {
         }
     }
     static func options(for kind: ContentKind) -> [CatalogSort] {
-        kind == .series ? [.latestEpisodes, .recent, .title, .year, .rating] : [.recent, .title, .year, .rating]
+        kind == .series ? [.release, .latestEpisodes, .title, .year, .rating] : [.release, .recent, .title, .year, .rating]
     }
 }
 
@@ -51,7 +52,13 @@ nonisolated struct ListQuery: Hashable, Sendable {
     init(kind: ContentKind, genre: String? = nil) {
         self.kind = kind
         self.genre = genre
-        self.sort = kind == .series ? .latestEpisodes : .recent
+        self.sort = Self.defaultSort(kind: kind, genre: genre)
+    }
+
+    /// The server's order: « Nouveautés » / « Derniers épisodes » by arrival, every other row by release date.
+    static func defaultSort(kind: ContentKind, genre: String?) -> CatalogSort {
+        guard genre == "recent" else { return .release }
+        return kind == .series ? .latestEpisodes : .recent
     }
 
     var hasFilters: Bool { language != nil || minQuality != nil || dynamicRange != nil || vfAvailable }
@@ -94,6 +101,10 @@ protocol CatalogClient: AnyObject {
     func list(_ query: ListQuery) async throws -> Page<Card>
     /// `GET /movies/{id}` · `GET /series/{id}`: the full card, seasons and episodes included.
     func detail(id: ContentID) async throws -> Card
+    /// `GET /movies/sagas?cursor=`: the sagas with two visible movies or more, freshest first.
+    func sagas(cursor: String?) async throws -> Page<Saga>
+    /// `GET /movies/sagas/{id}`: one saga and its movies.
+    func saga(id: String) async throws -> SagaSheet
 
     // Live
     /// `GET /channels`: every category with its channels.

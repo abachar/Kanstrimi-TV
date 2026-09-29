@@ -158,6 +158,11 @@ export const contents = pgTable(
     adult: boolean("adult").default(false).notNull(),
     addedAt: timestamp("added_at", { withTimezone: true }).notNull(),
     releaseDate: date("release_date"),
+    /** Movies: the TMDB collection (« Harry Potter - Saga »), served as a saga once two of its movies are visible. */
+    sagaId: integer("saga_id"),
+    sagaName: text("saga_name"),
+    sagaPosterPath: text("saga_poster_path"),
+    sagaBackdropPath: text("saga_backdrop_path"),
     search: tsvector("search"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -165,6 +170,7 @@ export const contents = pgTable(
     index("contents_list_idx").on(t.kind, t.visible, t.addedAt.desc(), t.id),
     // The sort keys of `player/lists.ts`, expression for expression, or the planner cannot use them.
     index("contents_release_idx").on(t.kind, t.visible, sql`coalesce(${t.releaseDate}, '0001-01-01'::date) desc`, t.id),
+    index("contents_saga_idx").on(t.sagaId),
     index("contents_title_idx").on(t.kind, t.visible, t.title, t.id),
     index("contents_rating_idx").on(t.kind, t.visible, sql`coalesce(${t.rating}, 0) desc`, t.id),
     index("contents_year_idx").on(t.kind, t.visible, sql`coalesce(${t.year}, 0) desc`, t.id),

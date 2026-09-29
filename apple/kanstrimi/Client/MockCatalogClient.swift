@@ -12,6 +12,8 @@ final class MockCatalogClient: CatalogClient {
 
     let scenario: MockScenario
     private let movies: [Card]
+    /// Groupings of fixture movies standing for TMDB collections: the fixtures hold no complete saga.
+    private let sagaFixtures: [SagaFixture]
     private let series: [Card]
     private let groups: [ChannelGroup]
     private let epgTitles: [String: [String]]
@@ -35,6 +37,7 @@ final class MockCatalogClient: CatalogClient {
         }
         // The fixtures' `demo://` stream URLs lead nowhere: the mock shows the catalogue, playback is the real server's job.
         movies = load("movies", as: [Card].self)
+        sagaFixtures = load("sagas", as: [SagaFixture].self)
         series = load("series", as: [Card].self)
         let ch = load("channels", as: ChannelsFile.self)
         groups = ch.groups
@@ -112,7 +115,7 @@ final class MockCatalogClient: CatalogClient {
                     genres: d.genres, hint: hint(for: d), addedAt: d.addedAt, originalTitle: d.originalTitle, endYear: d.endYear,
                     overview: d.overview, runtime: d.runtime, certification: d.certification, cast: d.cast, director: d.director,
                     trailer: d.trailer, hasTMDB: d.hasTMDB, providerCategory: d.providerCategory, rawTitle: d.rawTitle,
-                    versions: d.versions, isFavorite: favorites.contains(d.id))
+                    versions: d.versions, isFavorite: favorites.contains(d.id), saga: sagaFixtures.first { $0.movies.contains(d.id) }?.saga.ref)
     }
 
     private func episode(_ id: ContentID) -> (series: Card, episode: Episode)? {
@@ -220,9 +223,9 @@ final class MockCatalogClient: CatalogClient {
         if let dr = query.dynamicRange { cards = cards.filter { ($0.dynamicRange ?? .sdr) >= dr } }
         if query.vfAvailable { cards = cards.filter { $0.languages.contains(.vf) } }
         switch query.sort {
+        case .release, .year: cards.sort { ($0.year ?? 0) > ($1.year ?? 0) }
         case .recent, .latestEpisodes: cards.sort { ($0.addedAt ?? .distantPast) > ($1.addedAt ?? .distantPast) }
         case .title: cards.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        case .year: cards.sort { ($0.year ?? 0) > ($1.year ?? 0) }
         case .rating: cards.sort { ($0.rating ?? 0) > ($1.rating ?? 0) }
         }
         return cards
@@ -233,6 +236,18 @@ final class MockCatalogClient: CatalogClient {
         if scenario.failingDetail { throw CatalogError.server("Le fournisseur n'a pas répondu.") }
         if let d = allCards.first(where: { $0.id == id }) { return merged(d) }
         throw CatalogError.notFound
+    }
+
+    func sagas(cursor: String?) async throws -> Page<Saga> {
+        try await gate()
+        return Page(items: sagaFixtures.map(\.saga), nextCursor: nil)
+    }
+
+    func saga(id: String) async throws -> SagaSheet {
+        try await gate()
+        guard let f = sagaFixtures.first(where: { $0.id == id }) else { throw CatalogError.notFound }
+        let cards = movies.filter { f.movies.contains($0.id) }.sorted { ($0.year ?? 0) < ($1.year ?? 0) }.map { card(for: $0) }
+        return SagaSheet(id: f.id, name: f.name, count: cards.count, poster: f.poster, backdrop: f.backdrop, movies: cards)
     }
 
     // MARK: - Live
@@ -342,4 +357,15 @@ nonisolated extension Array where Element == Version {
         var seen = Set<String>()
         return filter { seen.insert("\($0.language.rawValue)/\($0.quality.rawValue)/\($0.dynamicRange?.rawValue ?? "")").inserted }
     }
+}
+
+/// `Fixtures/sagas.json`: a saga and the fixture movies it groups.
+private nonisolated struct SagaFixture: Decodable {
+    let id: String
+    let name: String
+    let poster: URL?
+    let backdrop: URL?
+    let movies: [ContentID]
+
+    var saga: Saga { Saga(id: id, name: name, count: movies.count, poster: poster, backdrop: backdrop) }
 }

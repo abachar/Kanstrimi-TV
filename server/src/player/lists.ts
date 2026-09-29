@@ -102,8 +102,8 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
 
 // ---------------------------------------------------------------- one list, by cursor
 
-const encodeCursor = (v: unknown, id: number) => Buffer.from(JSON.stringify([v, id])).toString("base64url");
-const decodeCursor = (s: string): [unknown, number] | null => {
+export const encodeCursor = (v: unknown, id: number) => Buffer.from(JSON.stringify([v, id])).toString("base64url");
+export const decodeCursor = (s: string): [unknown, number] | null => {
   try {
     const v = JSON.parse(Buffer.from(s, "base64url").toString());
     return Array.isArray(v) && v.length === 2 && Number.isInteger(v[1]) ? [v[0], v[1]] : null;

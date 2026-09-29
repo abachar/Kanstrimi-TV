@@ -60,7 +60,17 @@ export type Card = {
   is_favorite?: boolean;
   seasons?: SeasonWire[];
   current_episode?: EpisodeRef | null;
+  /** Movie sheet: its saga, present only when two of its movies are visible. */
+  saga?: SagaRef;
 };
+
+/** A TMDB collection with at least two visible movies. `id` = `saga:<TMDB collection id>`. */
+export type SagaRef = { id: string; name: string; count: number };
+export type SagaWire = SagaRef & { poster: string | null; backdrop: string | null };
+/** `/movies/sagas`: freshest first. */
+export type SagaPage = { items: SagaWire[]; next_cursor: string | null };
+/** `/movies/sagas/{id}`: the saga and its visible movies, oldest release first. */
+export type SagaSheet = SagaWire & { movies: Card[] };
 
 export type Programme = { title: string; start: string; end: string; overview?: string | null };
 export type ChannelWire = {

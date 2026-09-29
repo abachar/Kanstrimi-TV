@@ -18,8 +18,6 @@ final class Preferences {
         deviceName = defaults.string(forKey: Keys.deviceName) ?? ""
         rememberedVersions = Self.decode([String: String].self, defaults.string(forKey: Keys.rememberedVersions)) ?? [:]
         seriesLanguages = Self.decode([String: String].self, defaults.string(forKey: Keys.seriesLanguages)) ?? [:]
-        catalogSortMovies = CatalogSort(rawValue: defaults.string(forKey: Keys.sortMovies) ?? "") ?? .recent
-        catalogSortSeries = CatalogSort(rawValue: defaults.string(forKey: Keys.sortSeries) ?? "") ?? .latestEpisodes
     }
 
     private enum Keys {
@@ -33,8 +31,6 @@ final class Preferences {
         static let deviceName = "pref.deviceName"
         static let rememberedVersions = "pref.rememberedVersions"
         static let seriesLanguages = "pref.seriesLanguages"
-        static let sortMovies = "pref.sortMovies"
-        static let sortSeries = "pref.sortSeries"
     }
 
     /// Build setting: the app is personal, the URL ships with it.
@@ -49,8 +45,6 @@ final class Preferences {
     /// Réglages › Démo: the embedded fixtures instead of the server. Off by default; previews force it.
     var useMockClient: Bool { didSet { defaults.set(useMockClient, forKey: Keys.useMock) } }
     var deviceName: String { didSet { defaults.set(deviceName, forKey: Keys.deviceName) } }
-    var catalogSortMovies: CatalogSort { didSet { defaults.set(catalogSortMovies.rawValue, forKey: Keys.sortMovies) } }
-    var catalogSortSeries: CatalogSort { didSet { defaults.set(catalogSortSeries.rawValue, forKey: Keys.sortSeries) } }
 
     /// Version id remembered per content id (movies), set from the version picker.
     private(set) var rememberedVersions: [String: String] { didSet { defaults.set(Self.encode(rememberedVersions), forKey: Keys.rememberedVersions) } }

@@ -25,6 +25,8 @@ export type CardFields = {
   names: string[];
   adult: boolean;
   releaseDate: string | null;
+  /** Movies: the TMDB collection it belongs to. */
+  saga: { id: number; name: string; posterPath: string | null; backdropPath: string | null } | null;
 };
 
 const yearOf = (d?: string) => {
@@ -85,5 +87,12 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
     names: namesOf(d).slice(0, 24),
     adult: d.adult === true,
     releaseDate: rawDate && rawDate.length >= 10 ? rawDate.slice(0, 10) : null,
+    saga: sagaOf(d),
   };
+}
+
+function sagaOf(d: TmdbDetails): CardFields["saga"] {
+  const c = d.belongs_to_collection;
+  if (!c || !Number.isInteger(c.id) || !c.name) return null;
+  return { id: c.id, name: c.name, posterPath: c.poster_path ?? null, backdropPath: c.backdrop_path ?? null };
 }

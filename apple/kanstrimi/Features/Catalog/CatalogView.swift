@@ -10,6 +10,8 @@ struct CatalogView: View {
     @State private var error: CatalogError?
     @State private var isLoading = false
     @State private var seeAll: CatalogRow?
+    @State private var sagas: [Saga] = []
+    @State private var openSaga: SagaRef?
 
     var body: some View {
         Group {
@@ -27,6 +29,10 @@ struct CatalogView: View {
                         Text(kind == .series ? "Séries" : "Films").font(.largeTitle.weight(.bold)).padding(.horizontal, metrics.inset).padding(.top, 30)
                         ForEach(rows) { row in
                             ShelfRow(row: row, onSelect: { env.open($0.id) }, onSeeAll: row.total > row.cards.count ? { seeAll(row) } : nil)
+                            // Sagas right after the first shelf (« Nouveautés »).
+                            if row.id == rows.first?.id, !sagas.isEmpty {
+                                SagaShelf(sagas: sagas) { open($0) }
+                            }
                         }
                         Spacer(minLength: 60)
                     }
@@ -41,6 +47,14 @@ struct CatalogView: View {
         .platformCover(item: $seeAll) { row in
             GenreGridView(kind: kind, row: row).environment(env)
         }
+        .platformCover(item: $openSaga) { ref in
+            SagaView(ref: ref).environment(env)
+        }
+    }
+
+    /// Like the genre grid: a cover on tvOS, a pushed screen elsewhere.
+    private func open(_ saga: SagaRef) {
+        if Platform.isTV { openSaga = saga } else { env.navigate(.saga(saga)) }
     }
 
     /// The grid is a cover above this screen on tvOS and a pushed screen on iOS.
@@ -54,6 +68,8 @@ struct CatalogView: View {
         do {
             rows = try await env.call { try await env.client.rows(kind: kind) }
             error = nil
+            // Films only; a failure just leaves the shelf out.
+            if kind == .movie { sagas = (try? await env.call { try await env.client.sagas(cursor: nil) })?.items ?? [] }
         } catch {
             self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
         }
@@ -108,14 +124,6 @@ struct GenreGridView: View {
     @State private var paginator: Paginator?
     @State private var query: ListQuery
 
-    /// Six fixed columns on TV; on a phone as many posters as fit.
-    private var columns: [GridItem] {
-        if let n = metrics.gridColumns {
-            return Array(repeating: GridItem(.fixed(metrics.posterWidth), spacing: metrics.cardSpacing, alignment: .top), count: n)
-        }
-        return [GridItem(.adaptive(minimum: metrics.posterWidth), spacing: metrics.cardSpacing, alignment: .top)]
-    }
-
     init(kind: ContentKind, row: CatalogRow) {
         self.kind = kind
         self.row = row
@@ -138,14 +146,12 @@ struct GenreGridView: View {
         .background(Theme.background)
         .task {
             if paginator == nil {
-                query.sort = kind == .series ? env.preferences.catalogSortSeries : env.preferences.catalogSortMovies
                 let p = Paginator(client: env.client, query: query)
                 paginator = p
                 await p.loadFirstPage()
             }
         }
         .onChange(of: query) { _, q in
-            if kind == .series { env.preferences.catalogSortSeries = q.sort } else { env.preferences.catalogSortMovies = q.sort }
             Task { await paginator?.apply(q) }
         }
     }
@@ -163,7 +169,7 @@ struct GenreGridView: View {
                     query = ListQuery(kind: kind, genre: row.id)
                 }
             } else {
-                LazyVGrid(columns: columns, alignment: .leading, spacing: metrics.cardSpacing) {
+                LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
                     ForEach(Array(p.items.enumerated()), id: \.element.id) { index, card in
                         Button { env.open(card.id) } label: {
                             PosterCardLabel(card: card)
@@ -264,5 +270,15 @@ struct FilterBar: View {
             }
         }
         .tint(on ? Theme.accent : nil)
+    }
+}
+
+extension Metrics {
+    /// Poster grid: fixed columns on TV, as many posters as fit elsewhere.
+    var posterColumns: [GridItem] {
+        if let n = gridColumns {
+            return Array(repeating: GridItem(.fixed(posterWidth), spacing: cardSpacing, alignment: .top), count: n)
+        }
+        return [GridItem(.adaptive(minimum: posterWidth), spacing: cardSpacing, alignment: .top)]
     }
 }

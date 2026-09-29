@@ -6,11 +6,12 @@ struct DetailView: View {
     @Environment(AppEnvironment.self) private var env
     @State private var model: DetailModel?
     @State private var showPicker = false
+    @State private var saga: SagaRef?
 
     var body: some View {
         Group {
             if let model {
-                DetailContent(model: model, showPicker: $showPicker)
+                DetailContent(model: model, showPicker: $showPicker, openSaga: openSaga)
             } else {
                 Color.clear
             }
@@ -35,12 +36,21 @@ struct DetailView: View {
                 .environment(env)
             }
         }
+        .platformCover(item: $saga) { ref in
+            // On tvOS the saga covers this sheet: close it before the chosen movie replaces the sheet.
+            SagaView(ref: ref, onSelect: { id in saga = nil; env.open(id) }).environment(env)
+        }
+    }
+
+    private func openSaga(_ ref: SagaRef) {
+        if Platform.isTV { saga = ref } else { env.navigate(.saga(ref)) }
     }
 }
 
 private struct DetailContent: View {
     @Bindable var model: DetailModel
     @Binding var showPicker: Bool
+    let openSaga: (SagaRef) -> Void
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
     @FocusState private var focused: Focus?
@@ -115,6 +125,12 @@ private struct DetailContent: View {
             .font(.title3)
             VersionBadges(quality: d.versions.maxQuality.map { q in d.versions.maxDynamicRange.map { $0 == .sdr ? q.rawValue : "\(q.rawValue) \($0.label)" } ?? q.rawValue },
                           languages: d.versions.languages)
+            if let s = d.saga {
+                Button { openSaga(s) } label: {
+                    Label("\(s.name) · \(s.count) films", systemImage: "square.stack")
+                }
+                .buttonStyle(.bordered)
+            }
             if d.isMatched {
                 if let o = d.overview { Text(o).font(.body).foregroundStyle(Theme.text.opacity(0.9)).frame(maxWidth: metrics.textWidth, alignment: .leading).lineLimit(4) }
                 if !d.cast.isEmpty || d.director != nil {

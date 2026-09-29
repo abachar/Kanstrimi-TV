@@ -1,0 +1,23 @@
+[
+ {
+  "id": "saga:1",
+  "name": "Pixar (démo)",
+  "poster": "https://kanstrimi.crafters.dev/img/w500/wtGgCxW4TylnDAXtIf3yuXixipC.jpg",
+  "backdrop": "https://kanstrimi.crafters.dev/img/w1280/hwwFyowfcbLRVmRBOkvnABBNIOs.jpg",
+  "movies": [
+   "tmdb:movie:9487",
+   "tmdb:movie:354912",
+   "tmdb:movie:301528"
+  ]
+ },
+ {
+  "id": "saga:2",
+  "name": "DC (démo)",
+  "poster": "https://kanstrimi.crafters.dev/img/w500/14DRJrjIzUE1ZtExRwTP0wOhPwG.jpg",
+  "backdrop": "https://kanstrimi.crafters.dev/img/w1280/3zBjU7mXlzxJKAStRzlNDZRGT0m.jpg",
+  "movies": [
+   "tmdb:movie:495764",
+   "tmdb:movie:791373"
+  ]
+ }
+]

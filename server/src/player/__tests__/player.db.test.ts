@@ -691,6 +691,79 @@ describe("Nouveautés, release order and visible variants", () => {
   });
 });
 
+describe("sagas", () => {
+  // Seeded after the catalogue tests, whose rows and counts must not see these movies.
+  beforeAll(async () => {
+    const movie = (xtreamId: string, name: string, tmdbId: number, hiddenManual = false) =>
+      ({ kind: "vod", xtreamId, name, cat: "12", tmdbId, matchStatus: "matched", addedAt: daysAgo(3), hiddenManual }) as const;
+    await seedItems([
+      movie("s1", "|FR| Trilogie Un (VF)", 3001),
+      movie("s2", "|FR| Trilogie Deux (VF)", 3002),
+      movie("s3", "|FR| Trilogie Trois (VF)", 3003),
+      movie("s4", "|FR| Duo Visible (VF)", 3004),
+      movie("s5", "|FR| Duo Caché (VF)", 3005, true),
+      movie("s6", "|FR| Ancien Un (VF)", 3006),
+      movie("s7", "|FR| Ancien Deux (VF)", 3007),
+    ]);
+    const saga = (id: number, name: string) => ({ id, name, poster_path: `/saga${id}.jpg`, backdrop_path: `/sagab${id}.jpg` });
+    const films: [number, string, Date, ReturnType<typeof saga>][] = [
+      [3001, "Trilogie Un", monthsAgo(40), saga(900, "Trilogie - Saga")],
+      [3002, "Trilogie Deux", monthsAgo(20), saga(900, "Trilogie - Saga")],
+      [3003, "Trilogie Trois", daysAgo(10), saga(900, "Trilogie - Saga")],
+      [3004, "Duo Visible", daysAgo(5), saga(901, "Duo - Saga")],
+      [3005, "Duo Caché", daysAgo(5), saga(901, "Duo - Saga")],
+      [3006, "Ancien Un", monthsAgo(60), saga(902, "Ancien - Saga")],
+      [3007, "Ancien Deux", monthsAgo(30), saga(902, "Ancien - Saga")],
+    ];
+    for (const [id, title, released, belongs_to_collection] of films) {
+      await seedTmdb("movie", id, {
+        title,
+        original_title: title,
+        release_date: ymd(released),
+        belongs_to_collection,
+        credits: { cast: [], crew: [] },
+      });
+    }
+    await runGrouping();
+  });
+
+  it("GET /movies/sagas: two visible movies or more, freshest first, by cursor", async () => {
+    const items: { id: string }[] = [];
+    let cursor = "";
+    do {
+      const page = (await get(`/movies/sagas?limit=1${cursor && `&cursor=${encodeURIComponent(cursor)}`}`)).body;
+      items.push(...page.items);
+      cursor = page.next_cursor ?? "";
+    } while (cursor);
+    expect(items).toEqual([
+      {
+        id: "saga:900",
+        name: "Trilogie - Saga",
+        count: 3,
+        poster: "http://kanstrimi.test/img/w500/saga900.jpg",
+        backdrop: "http://kanstrimi.test/img/w1280/sagab900.jpg",
+      },
+      expect.objectContaining({ id: "saga:902", count: 2 }),
+    ]);
+    expect((await get("/movies/sagas?cursor=zzz")).status).toBe(400);
+  });
+
+  it("GET /movies/sagas/{id}: its visible movies, oldest release first; 404 below two", async () => {
+    const { status, body } = await get("/movies/sagas/saga:900");
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ id: "saga:900", name: "Trilogie - Saga", count: 3 });
+    expect(body.movies.map((c: { title: string }) => c.title)).toEqual(["Trilogie Un", "Trilogie Deux", "Trilogie Trois"]);
+    expect((await get("/movies/sagas/saga:901")).status).toBe(404);
+    expect((await get("/movies/sagas/nope")).status).toBe(404);
+  });
+
+  it("movie sheet: its saga when shown, nothing otherwise", async () => {
+    expect((await get("/movies/tmdb:movie:3002")).body.saga).toEqual({ id: "saga:900", name: "Trilogie - Saga", count: 3 });
+    expect((await get("/movies/tmdb:movie:3004")).body.saga).toBeUndefined();
+    expect((await get("/movies/tmdb:movie:603")).body.saga).toBeUndefined();
+  });
+});
+
 describe("GET /stream/{source}", () => {
   it("302 to the provider for a signed link, 401 when tampered, expired or revoked", async () => {
     const sheet = (await get("/movies/tmdb:movie:603")).body;

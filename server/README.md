@@ -60,7 +60,7 @@ enregistrement des Paramètres (`onSettingsChange`) et ne font rien tant que le 
 
 | Route | Rôle |
 |---|---|
-| `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). `/channels` et `/channels/{id}` portent `now` / `next` (une requête `lateral` pour toute la liste) et `has_epg` = la chaîne a des programmes en base. |
+| `/player/*` | API REST de l'app Apple (`src/player/`). Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer dvc_…` sauf `/devices` (appairage par code) et `/stream/{source}` (lien signé HMAC lié à l'appareil, 24 h, `302`). `/channels` et `/channels/{id}` portent `now` / `next` (une requête `lateral` pour toute la liste) et `has_epg` = la chaîne a des programmes en base. `/movies/sagas` et `/movies/sagas/{id}` servent les sagas ; la fiche d'un film porte `saga` quand la sienne est servie. |
 | `/img/<size>/<file>` | images TMDB en cache (`DATA_DIR/images`), route de `providers/tmdb/img-route.ts` montée par `main.ts` ; URL portée par chaque carte |
 | `/health` | santé (base joignable ; l'état du coffre est dans le corps, pas dans le code HTTP) |
 
@@ -80,7 +80,7 @@ admin/      pages (routes.tsx + view.tsx, data.ts pour les seules requêtes de p
             le domaine. catalog, groups, item = l'import brut et le groupement, ce qu'on corrige ;
             favorites et history = ce que l'app a enregistré, lus et modifiés par les fonctions de
             `player/` avec un contexte sans appareil ; caches n'affiche que des compteurs.
-player/     /player, un fichier par ressource (devices, stream, info, home, lists, sheets, channels,
+player/     /player, un fichier par ressource (devices, stream, info, home, lists, sagas, sheets, channels,
             playback, search, favorites) ; context, auth, http, cards, versions, stream-links, epg (maintenant / ensuite),
             contents (ce que l'app a le droit de voir), progress, episodes (wire), types.ts = le contrat
 catalog/    le domaine : naming (la grammaire des noms), keys (contentKey, parseKey, préfixes),
@@ -139,6 +139,10 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   - **Date d'arrivée d'un contenu** (`contents.added_at`) = la plus récente (`max`) des dates d'arrivée de ses variantes visibles.
   - **Date de sortie** (`contents.release_date`) = issue de TMDB, avec un repli au 1er janvier de l'année du titre s'il n'y a pas de match. C'est le tri par défaut des listes et rangées (la plus récente d'abord).
   - **Nouveautés** : films sortis il y a moins de 12 mois, triés par date d'ajout décroissante. Pas de ligne "Ajoutés récemment". Pour les séries, "Derniers épisodes" n'a pas de contrainte de date de sortie.
+- **Sagas** : une saga = une collection TMDB (`belongs_to_collection`, copiée dans `contents.saga_*` par le
+  groupement, aucun appel réseau). Elle n'existe pour l'app qu'avec au moins deux films visibles
+  (`player/sagas.ts`) ; la liste va de la saga au film le plus récent à la plus ancienne, ses films par date de
+  sortie croissante. Le tableau de bord les compte.
 - **Thèmes du direct** : `/player/channels` groupe par marché × thème (« France · Sport »). Le thème d'une
   variante vient de sa section (la ligne séparatrice qui la précède dans sa catégorie), sinon de sa
   catégorie (« SPORTS HD ») ; `naming.ts` porte le vocabulaire (`LIVE_THEMES`, `themeOf`, `liveTheme`) dans

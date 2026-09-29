@@ -10,7 +10,7 @@ import { KIND_TITLES } from "../labels";
 import { LogsTable } from "../logs/view";
 import { JobsStatus, type JobsState } from "./jobs";
 
-export type GroupCount = { kind: string; visible: number; multi: number; fallback: number; adult: number };
+export type GroupCount = { kind: string; visible: number; multi: number; fallback: number; adult: number; sagas: number };
 export type DashboardData = {
   s: Settings;
   items: ItemCount[];
@@ -23,7 +23,7 @@ export type DashboardData = {
 };
 
 const NO_ITEMS: Omit<ItemCount, "kind"> = { total: 0, hidden: 0, matched: 0, unmatched: 0, pending: 0 };
-const NO_GROUPS: Omit<GroupCount, "kind"> = { visible: 0, multi: 0, fallback: 0, adult: 0 };
+const NO_GROUPS: Omit<GroupCount, "kind"> = { visible: 0, multi: 0, fallback: 0, adult: 0, sagas: 0 };
 
 export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }) {
   const { s } = d;
@@ -204,6 +204,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
                       <Badge tone="plain">{fmt(g.multi)} à plusieurs variantes</Badge>
                       {k !== "live" && <Badge tone={g.fallback ? "warn" : "muted"}>{fmt(g.fallback)} sans TMDB</Badge>}
                       {g.adult ? <Badge tone="muted">{fmt(g.adult)} adultes</Badge> : ""}
+                      {g.sagas ? <Badge tone="plain">{fmt(g.sagas)} sagas</Badge> : ""}
                     </div>
                   </div>
                 );

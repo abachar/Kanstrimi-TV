@@ -55,6 +55,10 @@ final class HTTPCatalogClient: CatalogClient {
     func detail(id: ContentID) async throws -> Card {
         try await send("GET", "\(Self.collection(Self.kind(of: id)))/\(id.rawValue)")
     }
+    func sagas(cursor: String?) async throws -> Page<Saga> {
+        try await send("GET", "movies/sagas", query: cursor.map { [URLQueryItem(name: "cursor", value: $0)] } ?? [])
+    }
+    func saga(id: String) async throws -> SagaSheet { try await send("GET", "movies/sagas/\(id)") }
 
     // MARK: - Live
 

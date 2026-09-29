@@ -8,6 +8,7 @@ import { getProgress, isResumable } from "./progress";
 import { favoriteSet } from "./favorites";
 import { progressWire, hintOf, sheetCard } from "./cards";
 import { versionsOf, versionsSummary } from "./versions";
+import { sagaRefOf } from "./sagas";
 import { loadEpisodes, seasonsWire, seriesVersions, type EpisodeRow } from "./episodes";
 import type { Card, EpisodeRef, Version } from "./types";
 
@@ -29,13 +30,14 @@ export async function movieSheet(ctx: RestContext, content: Content): Promise<Ca
   const { items, playables, categoryName } = await variantsOf(content);
   const best = items[0];
   const versions = versionsOf(ctx, playables);
-  const [progress, favs] = await Promise.all([getProgress([content.key]), favoriteSet()]);
+  const [progress, favs, saga] = await Promise.all([getProgress([content.key]), favoriteSet(), sagaRefOf(ctx, content.sagaId)]);
   return {
     ...sheetCard(ctx, content, { providerCategory: best ? categoryName(best) : null, rawTitle: best?.name ?? null }),
     ...versionsSummary(versions),
     progress: progressWire(progress.get(content.key), true),
     versions,
     is_favorite: favs.has(content.key),
+    ...(saga ? { saga } : {}),
   };
 }
 
