@@ -56,6 +56,10 @@ describe("parseName", () => {
     ["|EX-YU| NOVA CINEMA 2 FHD", "live", { title: "NOVA CINEMA 2", market: "ex-yu", quality: "FHD" }],
     ["|RU| СЕРИАЛ UHD", "live", { title: "СЕРИАЛ", market: "ru", quality: "4K" }],
     ["|UK| TBN UK", "live", { title: "TBN UK", language: undefined }],
+    ["|AR| ARRYADIA TNT", "live", { title: "ARRYADIA", market: "ar", tags: ["tnt"] }],
+    ["|AR| AL AOULA HD TNT", "live", { title: "AL AOULA", quality: "HD", tags: ["tnt"] }],
+    ["|US| TNT", "live", { title: "TNT", tags: [] }],
+    ["|ARG| TNT SPORTS", "live", { title: "TNT SPORTS" }],
     // Scene-style names behind a technical prefix.
     ["AZ - Silver.Book.of.Dreams.2013", "vod", { title: "Silver Book of Dreams", year: 2013, market: undefined }],
     ["FR - Karate.Kid.Legends.2025.MULTI", "vod", { title: "Karate Kid Legends", year: 2025, market: "fr", language: "VF" }],

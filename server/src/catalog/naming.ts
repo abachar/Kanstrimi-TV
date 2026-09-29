@@ -318,6 +318,13 @@ export function parseName(raw: string, kind: Kind): ParsedName {
   s = extractTags(s, f);
   // Provider labels on live channels: "[P.TV]", "[TF1+]", "(Niger)" stay for the last, go for the first.
   if (kind === "live") s = s.replace(/\[[A-Z0-9.+ -]{1,8}\]/g, " ");
+  // A trailing « TNT » is the terrestrial feed of the channel named before it: « ARRYADIA TNT » is
+  // Arryadia. Alone or leading (« TNT », « TNT SPORTS »), it is the channel's name.
+  if (kind === "live")
+    s = s.replace(/(\S)\s+TNT\s*$/, (_, last: string) => {
+      f.tags.add("tnt");
+      return last;
+    });
   s = tidy(s);
 
   return {
