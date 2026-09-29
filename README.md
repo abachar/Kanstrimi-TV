@@ -43,7 +43,7 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 
 Idées reprises des tentatives précédentes (supprimées le 2026-09-29), absentes du code actuel, par intérêt.
 
-- **Lecteur** : « Lire depuis le début » quand une reprise existe, épisode précédent.
+- **Lecteur** : épisode précédent.
 - **Reprendre** : retirer un titre, marquer vu / non vu (épisode, saison).
 - **Guide dans l'app** : programmes du jour d'une chaîne dans le lecteur du direct, puis une grille ; chercher une émission en cours par son titre. Le guide est en base, seules maintenant / ensuite sont servies.
 - **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).

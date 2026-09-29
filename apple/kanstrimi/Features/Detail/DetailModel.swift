@@ -93,34 +93,40 @@ final class DetailModel {
         return "Lecture"
     }
 
+    /// « Depuis le début » is offered when the main button resumes: the movie, or the current episode.
+    var canRestart: Bool {
+        guard let d = detail else { return false }
+        return d.kind == .series ? currentEpisode?.progress?.isResumable == true : d.progress?.isResumable == true
+    }
+
     // MARK: - Playback
 
-    func playPrimary() async {
+    func playPrimary(fromStart: Bool = false) async {
         guard let d = detail else { return }
         if d.kind == .series {
-            if let ep = currentEpisode { await play(episode: ep) }
+            if let ep = currentEpisode { await play(episode: ep, fromStart: fromStart) }
             return
         }
-        play(movie: d, version: nil, source: nil)
+        play(movie: d, version: nil, source: nil, fromStart: fromStart)
     }
 
     /// The sheet already carries the versions: no call.
-    func play(movie d: Card, version: Version?, source: Source?) {
-        let resume = d.progress?.isResumable == true ? d.progress?.position : nil
+    func play(movie d: Card, version: Version?, source: Source?, fromStart: Bool = false) {
+        let resume = !fromStart && d.progress?.isResumable == true ? d.progress?.position : nil
         let ctx = PlaybackContext(content: PlaybackContent(id: d.id, kind: .movie, title: d.title, subtitle: nil, episode: nil, backdrop: d.backdrop),
                                   versions: d.versions, resumeAt: resume, duration: d.progress?.duration ?? d.runtime.map { TimeInterval($0 * 60) })
         if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
     }
 
     /// The season carries the versions too; `next` is computed locally from the loaded seasons.
-    func play(episode: Episode) async {
+    func play(episode: Episode, fromStart: Bool = false) async {
         guard let d = detail else { return }
         let all = d.allEpisodes
         let next = all.firstIndex(of: episode).flatMap { i in i + 1 < all.count ? all[i + 1] : nil }.map {
             NextEpisode(id: $0.id, title: $0.title, season: $0.season, number: $0.number, runtime: $0.runtime, languages: $0.languages,
                         maxQuality: $0.versions.maxQuality, dynamicRange: $0.versions.maxDynamicRange, still: $0.still)
         }
-        let resume = episode.progress?.isResumable == true ? episode.progress?.position : nil
+        let resume = !fromStart && episode.progress?.isResumable == true ? episode.progress?.position : nil
         let ctx = PlaybackContext(content: PlaybackContent(id: episode.id, kind: .episode, title: episode.title, subtitle: d.title, episode: episode.ref, backdrop: d.backdrop),
                                   versions: episode.versions, resumeAt: resume,
                                   duration: episode.progress?.duration ?? episode.runtime.map { TimeInterval($0 * 60) }, next: next)

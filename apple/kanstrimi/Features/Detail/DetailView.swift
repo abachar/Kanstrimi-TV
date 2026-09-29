@@ -55,7 +55,7 @@ private struct DetailContent: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
     @FocusState private var focused: Focus?
-    private enum Focus: Hashable { case play, versions, trailer, favorite, language, season(Int), episode(ContentID) }
+    private enum Focus: Hashable { case play, restart, versions, trailer, favorite, language, season(Int), episode(ContentID) }
 
     var body: some View {
         if let error = model.error, model.detail == nil {
@@ -196,6 +196,13 @@ private struct DetailContent: View {
             .disabled(d.versions.isEmpty)
         }
         if !primaryOnly {
+            if model.canRestart {
+                Button { Task { await model.playPrimary(fromStart: true) } } label: {
+                    Label("Depuis le début", systemImage: "arrow.counterclockwise")
+                }
+                .focused($focused, equals: .restart)
+                .disabled(d.versions.isEmpty)
+            }
             if d.kind == .series {
                 Button { showPicker = true } label: {
                     HStack(spacing: 8) {
