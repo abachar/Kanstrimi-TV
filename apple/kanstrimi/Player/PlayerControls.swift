@@ -1,7 +1,7 @@
-#if os(iOS) || os(macOS)
+#if os(iOS)
 import SwiftUI
 
-/// Shared player controls for touch (iOS) and mouse (macOS) interfaces.
+/// The player controls of the touch screen (iOS).
 struct PlayerControls: View {
     @Environment(AppEnvironment.self) private var env
     let scrubTime: TimeInterval?
@@ -38,17 +38,9 @@ struct PlayerControls: View {
             }
             Spacer()
             
-            #if os(iOS)
             if player.isPictureInPictureAvailable {
                 control("pip.enter", label: "Image dans l'image") { player.startPictureInPicture() }
             }
-            #elseif os(macOS)
-            control("arrow.up.left.and.arrow.down.right", label: "Plein écran") {
-                if let window = NSApp.keyWindow {
-                    window.toggleFullScreen(nil)
-                }
-            }
-            #endif
             
             control("ellipsis.circle", label: "Infos, versions, audio et sous-titres") { onSheet(.panel) }
         }

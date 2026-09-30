@@ -150,7 +150,7 @@ struct ResumeCard: View {
 }
 
 /// Horizontal row with a title, used on the home screen and in search.
-/// An entry of a card's context menu (long press on tvOS and iOS, right click on the Mac).
+/// An entry of a card's context menu (long press on tvOS and iOS).
 struct CardAction {
     let title: String
     let systemImage: String

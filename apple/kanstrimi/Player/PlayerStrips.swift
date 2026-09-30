@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The channel's programmes from the one on air until 6:00, one card each, the current one marked.
-/// Shared by the panel (iOS, macOS) and the tvOS bar.
+/// Shared by the panel (iOS) and the tvOS bar.
 struct ProgrammeStrip: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
@@ -64,7 +64,7 @@ struct ProgrammeStrip: View {
 }
 
 /// The 8 last channels, most recent first; a click switches at once. Shared by the ▲ overlay
-/// (iOS, macOS) and the Récentes panel of the tvOS bar.
+/// (iOS) and the Récentes panel of the tvOS bar.
 struct RecentChannelsStrip: View {
     @Environment(AppEnvironment.self) private var env
     @FocusState private var focused: ContentID?

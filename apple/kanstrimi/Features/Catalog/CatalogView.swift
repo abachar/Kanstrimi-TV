@@ -53,16 +53,16 @@ struct CatalogView: View {
         .background(Theme.background)
         // Every appearance: on tvOS, crossing the tab bar selects then leaves this tab, which cancels the load midway.
         .task { await load() }
-        .platformCover(item: $seeAll) { row in
+        .fullScreenCover(item: $seeAll) { row in
             GenreGridView(kind: kind, row: row).environment(env)
         }
-        .platformCover(item: $openSaga) { ref in
+        .fullScreenCover(item: $openSaga) { ref in
             SagaView(ref: ref).environment(env)
         }
-        .platformCover(item: $openStudio) { studio in
+        .fullScreenCover(item: $openStudio) { studio in
             GenreGridView(studio: studio, kind: kind).environment(env)
         }
-        .platformCover(isPresented: $allSagas) {
+        .fullScreenCover(isPresented: $allSagas) {
             SagasGridView().environment(env)
         }
     }

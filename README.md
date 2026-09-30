@@ -19,7 +19,7 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enri
 | Dossier | Rôle | Pile | Doc |
 |---|---|---|---|
 | `server/` | Import, filtrage, enrichissement, groupement des variantes, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Tailwind 4 / Basecoat | [`server/README.md`](server/README.md) |
-| `apple/` | Client natif Apple TV 4K, iPhone et Mac (iPad à venir), consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27 + macOS 27, VLCKit 4, une cible et trois destinations | [`apple/README.md`](apple/README.md) |
+| `apple/` | Client natif Apple TV 4K et iPhone (iPad à venir), consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27, VLCKit 4, une cible et deux destinations | [`apple/README.md`](apple/README.md) |
 
 Le contrat entre les deux est le code : `server/src/player/types.ts` côté serveur,
 `apple/kanstrimi/Contract/` côté app, et les fixtures JSON de `apple/kanstrimi/Client/Fixtures/`.
@@ -41,14 +41,16 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 
 ## Pistes
 
-Idées reprises des tentatives précédentes (supprimées le 2026-09-29), absentes du code actuel, par intérêt.
+Ce qui vient après la V1 (tvOS), par version, puis les idées non planifiées.
 
-- **Lecteur** : épisode précédent.
-- **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).
-- **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
-- **Commandes système** (`MPNowPlayingInfoCenter`) : titre et lecture sur iPhone en arrière-plan et en PiP.
-- Plus faible :
+- **V1.1 · iPhone** : revue UI de l'app iPhone, comme la passe tvOS ; **commandes système**
+  (`MPNowPlayingInfoCenter`) : titre et lecture en arrière-plan et en PiP.
+- **V1.2** :
+  - **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).
   - **Distribution avec photos** : photos des acteurs sur la fiche, un acteur ouvre ses autres titres du catalogue.
-  - **« Si vous avez aimé… »** : rangée de titres proches sur la fiche, recommandations TMDB croisées avec le catalogue.
+- **V1.3** :
+  - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
+  - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la
+    fiche d'un film ou d'une série, et proposés à la fin d'un film ou du dernier épisode connu d'une série.
+- Non planifiées :
   - **« Director's Cut » / « Extended »** : reconnaître ces mentions dans le nettoyage des noms, pour ne pas gêner le rapprochement TMDB et le regroupement.
-  - **Clé du direct sur l'identifiant iptv-org** : une clé stable quand le fournisseur renomme une chaîne ; demande de migrer favoris et progression.

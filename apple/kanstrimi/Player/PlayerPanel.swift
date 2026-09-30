@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// iOS and macOS: Infos · Versions · Audio · Sous-titres [11]; in live, Programme replaces Infos.
+/// iOS: Infos · Versions · Audio · Sous-titres [11]; in live, Programme replaces Infos.
 /// Opens on Versions, or on the tab asked for (the live programme). tvOS has its bar (`PlayerBar`).
 struct PlayerPanel: View {
     enum Tab: String, CaseIterable { case programme = "Programme", infos = "Infos", versions = "Versions", audio = "Audio", subtitles = "Sous-titres" }

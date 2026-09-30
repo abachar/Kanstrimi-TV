@@ -37,7 +37,7 @@ struct DetailView: View {
                 .environment(env)
             }
         }
-        .platformCover(item: $saga) { ref in
+        .fullScreenCover(item: $saga) { ref in
             // On tvOS the saga covers this sheet: close it before the chosen movie replaces the sheet.
             SagaView(ref: ref, onSelect: { id in saga = nil; env.open(id) }).environment(env)
         }

@@ -150,7 +150,7 @@ struct SagasGridView: View {
             paginator = p
             await p.loadFirstPage()
         }
-        .platformCover(item: $openSaga) { ref in
+        .fullScreenCover(item: $openSaga) { ref in
             SagaView(ref: ref).environment(env)
         }
     }

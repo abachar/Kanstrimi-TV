@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// iOS and macOS: "EN DIRECT · 4K · FR · Source A", programme and the zapping banner [16].
+/// iOS: "EN DIRECT · 4K · FR · Source A", programme and the zapping banner [16].
 /// tvOS shows its bar instead (`PlayerBar`).
 struct LiveBanner: View {
     @Environment(AppEnvironment.self) private var env
@@ -142,7 +142,7 @@ private struct ChannelListRow: View {
     }
 }
 
-/// iOS and macOS: the 8 last channels, most recent first; the previous one is focused [22].
+/// iOS: the 8 last channels, most recent first; the previous one is focused [22].
 struct RecentChannelsOverlay: View {
     @Environment(\.metrics) private var metrics
     let onClose: () -> Void

@@ -1,25 +1,25 @@
-# Kanstrimi — app Apple (Apple TV, iPhone, Mac ; iPad à venir)
+# Kanstrimi — app Apple (Apple TV, iPhone ; iPad à venir)
 
-`kanstrimi.xcodeproj` : **une cible `kanstrimi`, trois destinations** (tvOS 27, iOS 27, et macOS 27,
+`kanstrimi.xcodeproj` : **une cible `kanstrimi`, deux destinations** (tvOS 27 et iOS 27,
 `TARGETED_DEVICE_FAMILY = 1,3` ; l'iPad ajoutera `2`). SwiftUI en français (`developmentRegion = fr` : les contrôles système suivent), Swift 6 (isolation `MainActor`
 par défaut), Swift Testing, **VLCKit 4 en SPM** (miroir GitHub `videolan/vlckit`, révision figée
-dans le projet ; le xcframework couvre iOS, tvOS et macOS). Le fournisseur ne sert pas de HLS : VLCKit lit
+dans le projet ; le xcframework couvre iOS et tvOS). Le fournisseur ne sert pas de HLS : VLCKit lit
 tout (TS en direct, MKV et MP4 en VOD), AVPlayer est écarté.
 
 ## Structure
 
 | Dossier | Rôle |
 |---|---|
-| `App/` | `KanstrimiApp` (les seuls `#if` hors des fichiers dédiés : l'adaptateur `AppDelegate` d'iOS et la scène `Settings` de macOS), `AppEnvironment` (services partagés, onglet courant, piles de navigation), `Navigation.swift` (`MainTab`, `Route`, covers tvOS, chrome iOS), `RootView` (appairage puis onglets, cover du lecteur, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain), `OrientationLock+iOS` (paysage forcé du lecteur). |
+| `App/` | `KanstrimiApp` (les seuls `#if` hors des fichiers dédiés : l'adaptateur `AppDelegate` d'iOS), `AppEnvironment` (services partagés, onglet courant, piles de navigation), `Navigation.swift` (`MainTab`, `Route`, covers tvOS, chrome iOS), `RootView` (appairage puis onglets, cover du lecteur, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain), `OrientationLock+iOS` (paysage forcé du lecteur). |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`) : `Card` unique, `Version`, `Source`, `Season`, `Episode`, `Channel`, `Playback`… `nonisolated`, jamais sur la base. |
 | `Client/` | Protocole `CatalogClient` ; `HTTPCatalogClient` (le serveur, URL compilée dans `Preferences.compiledServerURL`, jeton d'appareil en Keychain, erreurs mappées sur `CatalogError`, un GET retenté deux fois après 0,5 s puis 1,5 s sur une connexion tombée ou un 502-504 du proxy sans erreur JSON du serveur ; jamais une écriture, ni un délai dépassé) ; `MockCatalogClient` sur les fixtures JSON de `Client/Fixtures/` et ses `MockScenario` ; `SwitchingCatalogClient` bascule entre les deux. |
 | `Player/` | Le lecteur, service transverse unique : `PlayerService` (VLCKit, bascule de source, échec après 10 s, surveillance du direct, avance rapide, épisode suivant, zapping), `VersionChooser` (langue × qualité × capacités de l'appareil), `PlayerScreen` (état, overlays et panneaux communs) avec `PlayerScreen+tvOS` (télécommande, `PressCatcher`) et `PlayerScreen+iOS` (gestes, contrôles tactiles, PiP), `PlayerDrawable+tvOS` / `+iOS` (la surface vidéo ; celle d'iOS porte le Picture-in-Picture). |
 | `Features/` | Un dossier par écran : Appairage, Accueil, Catalogue, Fiche, Direct, Recherche, Réglages. Une seule vue par écran pour les deux plateformes. |
 | `Shared/` | `Platform.swift` (**`Metrics` et les modificateurs par plateforme**), `Theme` (couleurs, badges, panneaux d'état), `CardViews`, `Stores` (chaînes récentes, sources en échec, file de progression, caches). |
 | `scripts/` | `shot.sh <écran> <tvos\|iphone>` et `shot-all.sh <tvos\|iphone>` : captures du client de démo pour la revue UI, dans `ui-review/<écran>/<horodatage>-<cible>.png` (hors git). |
-| `../kanstrimiTests/` | Swift Testing : client HTTP (serveur simulé), moteur de choix (dont le plafond FHD de l'iPhone), curseur et file de progression. Lancés sur les trois destinations. |
+| `../kanstrimiTests/` | Swift Testing : client HTTP (serveur simulé), moteur de choix (dont le plafond FHD de l'iPhone), curseur et file de progression. Lancés sur les deux destinations. |
 
-## Une vue, trois plateformes
+## Une vue, deux plateformes
 
 Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois niveaux, du plus
 partagé au plus spécifique :
@@ -32,11 +32,11 @@ partagé au plus spécifique :
 2. **Modificateurs qui cachent une API absente d'une plateforme**, tous dans `Platform.swift` :
    `cardButtonStyle()` (`.card` sur tvOS, retour tactile sur iOS), `prominentButtonStyle()` (libellé
    sombre sur iOS, la teinte de l'app étant blanche), `onBackCommand` (`onExitCommand` sur tvOS,
-   rien sur iOS), `platformSheet` (cover sur tvOS, feuille sur iOS et Mac), `platformCover` (cover sur tvOS et iOS, feuille sur Mac), `playerPresentation`, `playerChromeInsets()`,
+   rien sur iOS), `platformSheet` (cover sur tvOS, feuille sur iOS), `playerChromeInsets()`,
    `touchActivity()`. `Platform.isTV` et `Platform.deviceKind` servent aux rares présences ou
    absences d'un contrôle (bouton Fermer d'une feuille, QR code) et aux textes qui nomment l'appareil.
 3. **Un fichier par plateforme** seulement là où l'entrée diffère vraiment : suffixe `+tvOS.swift`
-   ou `+iOS.swift`, le fichier entier sous `#if os(...)`. Le lecteur (télécommande, gestes, clavier/souris),
+   ou `+iOS.swift`, le fichier entier sous `#if os(...)`. Le lecteur (télécommande, gestes),
    la surface vidéo (PiP), l'orientation. Aucune exception de membre dans le groupe synchronisé
    du projet, sauf l'`Info.plist` partiel (`UIBackgroundModes` pour le PiP) que Xcode exclut des
    ressources.
@@ -44,7 +44,7 @@ partagé au plus spécifique :
 **Navigation** : `env.open(id)` est l'unique point d'entrée vers une fiche. Sur tvOS c'est un
 `fullScreenCover` au-dessus des onglets ; sur iOS un push dans la `NavigationStack` de l'onglet
 courant (`AppEnvironment.paths`, `Route`). La grille d'un genre et l'écran d'une saga suivent la même règle. Le lecteur est
-un `fullScreenCover` depuis la racine sur iOS et tvOS, et une superposition plein cadre dans la fenêtre (`overlay`/`ZStack`) sur Mac. L'iPhone garde cinq onglets : Réglages se
+un `fullScreenCover` depuis la racine. L'iPhone garde cinq onglets : Réglages se
 rejoint par la roue dentée de l'accueil.
 
 **Lecteur iPhone** : paysage forcé pendant la lecture (`AppDelegate.orientations` +
@@ -54,10 +54,8 @@ drawable `PiPVideoView` conforme à `VLCPictureInPictureDrawable` : VLCKit rend 
 `VLCPictureInPictureWindowControlling` quand sa sortie vidéo le permet, `PlayerService.isMinimized`
 cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Full HD.
 
-**Lecteur Mac** : espace = pause, flèches = ±10 s (maintenues : avance rapide) ou zapping, F = plein écran, Échap = fermer, survol = affiche les contrôles.
-
 **Fiche** : Lecture/Reprendre en bouton plein, les autres actions en pastilles rondes (`IconAction`) : sur tvOS le
-libellé n'apparaît que sous la pastille focalisée, sur iPhone et Mac il est toujours affiché. Ma liste = cœur
+libellé n'apparaît que sous la pastille focalisée, sur iPhone il est toujours affiché. Ma liste = cœur
 (favori, comme dans le Direct). La bande-annonce (YouTube, que VLC ne lit pas) s'ouvre par `openURL` : l'app
 YouTube sur tvOS (`youtube://`, `LSApplicationQueriesSchemes`), bouton masqué si elle manque ; la page web ailleurs.
 Sous le titre, les tags de version montrent en plein celle que Lecture joue (qualité et langue),
@@ -75,8 +73,8 @@ qui ouvrent un panneau (direct : Programme · Récentes · Infos ; film : Infos 
 à droite les icônes Versions · Audio · Sous-titres, chacune un menu déroulant. Panneau ouvert : titre et progression
 s'effacent, les boutons remontent et le détail s'affiche dessous (▼), sur un voile sombre. Pas d'aide de télécommande à l'écran.
 **Télécommande en direct** (tvOS) : ◀ chaînes du groupe (avec l'émission en cours), ▼ la barre ; ▲ et ▶ ne font rien ;
-pas de zapping sur les flèches (sans numéros de chaîne, l'ordre ne s'apprend pas). L'iPhone et le Mac gardent le zapping
-(glisser vertical, flèches), le bandeau du direct et le panneau à onglets (`PlayerPanel`). Le dialogue d'échec y propose « Réessayer · <version en cours> », puis « ou essayer une autre
+pas de zapping sur les flèches (sans numéros de chaîne, l'ordre ne s'apprend pas). L'iPhone garde le zapping
+(glisser vertical), le bandeau du direct et le panneau à onglets (`PlayerPanel`). Le dialogue d'échec y propose « Réessayer · <version en cours> », puis « ou essayer une autre
 version » et les autres versions sur une ligne (`playInstead`, sans la mémoriser), puis « Quitter » à part.
 Le sélecteur de version de la fiche (`VersionPicker`, toutes plateformes) est une simple liste : un bouton par source de chaque
 version (la recommandée d'abord, puis par langue et qualité décroissante ; la source sous la version sur iPhone),
@@ -141,11 +139,11 @@ défilement réel.
 ## Vérifier
 
 Pas de `Simulator.app` sur cette installation Xcode 27, donc ni télécommande ni doigt à piloter ;
-les trois destinations se vérifient quand même, à chaque modification. À froid, le premier lancement du runner échoue.
+les deux destinations se vérifient quand même, à chaque modification. À froid, le premier lancement du runner échoue.
 
-- Compiler et tester sur les trois : `BuildProject` puis `RunAllTests` après `XcodeSwitchRunDestination`
-  (« Apple TV 4K (3rd generation) », « iPhone 17 Pro » puis « Mac », runtimes 27), ou en ligne de commande
-  `xcodebuild -scheme kanstrimi -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' test` (et `-destination 'platform=macOS' test` pour le Mac).
+- Compiler et tester sur les deux : `BuildProject` puis `RunAllTests` après `XcodeSwitchRunDestination`
+  (« Apple TV 4K (3rd generation) » puis « iPhone 17 Pro », runtimes 27), ou en ligne de commande
+  `xcodebuild -scheme kanstrimi -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' test`.
   Démarrer le simulateur iPhone avant (`xcrun simctl boot`).
 - Visite pilotée (tvOS) : la cible `kanstrimiUITests` (`ScreenTour`, schéma `ScreenTour`) appuie sur la
   télécommande (`XCUIRemote`) et enregistre une capture par étape : focus, défilement, panneaux du lecteur.
@@ -176,4 +174,3 @@ les trois destinations se vérifient quand même, à chaque modification. À fro
   tactiles rendus dans chaque état du lecteur. Non vérifié faute de flux et de doigt : les gestes
   eux-mêmes, le PiP de bout en bout (`pictureInPictureReady` doit être appelé par VLCKit sur un vrai
   flux), la lecture en arrière-plan. À faire sur un iPhone réel contre le serveur.
-- Mac : non vérifié faute de flux réel, les raccourcis clavier, le plein écran, le sandbox et le Keychain. À faire sur un vrai Mac.

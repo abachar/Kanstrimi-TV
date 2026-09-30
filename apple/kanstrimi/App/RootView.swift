@@ -16,7 +16,7 @@ struct RootView: View {
         .task { await debugHooks() }
         .background(Theme.background.ignoresSafeArea())
         .detailCover(env)
-        .playerPresentation(isPresented: Binding(get: { env.player.isPresented && !env.player.isMinimized && env.presentedDetail == nil },
+        .fullScreenCover(isPresented: Binding(get: { env.player.isPresented && !env.player.isMinimized && env.presentedDetail == nil },
                                               set: { if !$0 { env.player.stop() } })) {
             PlayerScreen().environment(env).interactiveDismissDisabled()
         }
@@ -94,7 +94,7 @@ private extension RootView {
 extension View {
     /// Presents the player above this view when playback starts from it.
     func playerCover(_ env: AppEnvironment) -> some View {
-        playerPresentation(isPresented: Binding(get: { env.player.isPresented }, set: { if !$0 { env.player.stop() } })) {
+        fullScreenCover(isPresented: Binding(get: { env.player.isPresented }, set: { if !$0 { env.player.stop() } })) {
             PlayerScreen().environment(env).interactiveDismissDisabled()
         }
     }
@@ -115,13 +115,12 @@ struct MainTabsView: View {
                 Image(systemName: "magnifyingglass").accessibilityLabel("Recherche")
             }
             // iPhone keeps five tabs: Réglages is reached from the home screen (`settingsToolbar`).
-            if Platform.isTV || Platform.isMac {
+            if Platform.isTV {
                 Tab(value: .settings) { stack(.settings) { SettingsView() } } label: {
                     Image(systemName: "gearshape").accessibilityLabel("Réglages")
                 }
             }
         }
-        .mainTabsStyle()
     }
 
     /// Each tab owns a navigation stack: `env.navigate` pushes onto it on iOS. On tvOS the stack

@@ -1,11 +1,7 @@
 import Foundation
 import Observation
 import OSLog
-#if os(macOS)
-import AppKit
-#else
 import UIKit
-#endif
 import VLCKit
 
 private let log = Logger(subsystem: "dev.crafters.kanstrimi", category: "player")
@@ -658,7 +654,7 @@ extension PlayerService {
             let start = Date.now.addingTimeInterval(-3200)
             epg = EPGNow(now: Programme(title: "Ligue · Lyon – Nantes", start: start, end: start.addingTimeInterval(7200), overview: nil),
                          next: Programme(title: "Le Mag du foot", start: start.addingTimeInterval(7200), end: start.addingTimeInterval(9000), overview: nil))
-            // tvOS has no zapping: only the iPhone and the Mac show the channel column.
+            // tvOS has no zapping: only the iPhone shows the channel column.
             zapBanner = !Platform.isTV
         case .panel: phase = .playing
         case .opening: phase = .buffering; bufferingProgress = 42
