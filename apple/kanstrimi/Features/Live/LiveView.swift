@@ -47,8 +47,8 @@ struct LiveView: View {
                 GeometryReader { geo in
                     let width = geo.size.width - 2 * metrics.inset - 60
                     HStack(alignment: .top, spacing: 30) {
-                        categories.frame(width: width * 0.29)
-                        channelList.frame(width: width * 0.31)
+                        categories.frame(width: width * 0.28)
+                        channelList.frame(width: width * 0.38)
                         side.frame(maxWidth: .infinity)
                     }
                     .padding(.horizontal, metrics.inset).padding(.top, 30)
