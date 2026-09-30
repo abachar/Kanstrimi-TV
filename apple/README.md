@@ -16,6 +16,7 @@ tout (TS en direct, MKV et MP4 en VOD), AVPlayer est écarté.
 | `Player/` | Le lecteur, service transverse unique : `PlayerService` (VLCKit, bascule de source, échec après 10 s, surveillance du direct, avance rapide, épisode suivant, zapping), `VersionChooser` (langue × qualité × capacités de l'appareil), `PlayerScreen` (état, overlays et panneaux communs) avec `PlayerScreen+tvOS` (télécommande, `PressCatcher`) et `PlayerScreen+iOS` (gestes, contrôles tactiles, PiP), `PlayerDrawable+tvOS` / `+iOS` (la surface vidéo ; celle d'iOS porte le Picture-in-Picture). |
 | `Features/` | Un dossier par écran : Appairage, Accueil, Catalogue, Fiche, Direct, Recherche, Réglages. Une seule vue par écran pour les deux plateformes. |
 | `Shared/` | `Platform.swift` (**`Metrics` et les modificateurs par plateforme**), `Theme` (couleurs, badges, panneaux d'état), `CardViews`, `Stores` (chaînes récentes, sources en échec, file de progression, caches). |
+| `scripts/` | `shot.sh <écran> <tvos\|iphone>` et `shot-all.sh <tvos\|iphone>` : captures du client de démo pour la revue UI, dans `ui-review/<écran>/<horodatage>-<cible>.png` (hors git). |
 | `../kanstrimiTests/` | Swift Testing : client HTTP (serveur simulé), moteur de choix (dont le plafond FHD de l'iPhone), curseur et file de progression. Lancés sur les trois destinations. |
 
 ## Une vue, trois plateformes
@@ -130,6 +131,10 @@ les trois destinations se vérifient quand même, à chaque modification. À fro
   `debug.open` (identifiant de contenu), `debug.autoplay` (`live`, `live:<id>` ou un identifiant,
   plus `debug.resumeAt`), `debug.playerState` (`vodPaused`, `livePlaying`, `failure`, `nextEpisode`,
   `panel`, `opening` : met le lecteur dans cet état sans flux). Puis `xcrun simctl io <udid> screenshot`.
+- Captures pour la revue UI : `scripts/shot-all.sh tvos` (puis `iphone`) compile en Debug, installe et capture
+  les 15 écrans atteignables par ces clés, avec le même horodatage (`NOBUILD=1` pour sauter la compilation) ;
+  `scripts/shot.sh <écran> <cible>` pour un seul écran. Sortie dans `ui-review/`, ignoré par git. Ce qui demande
+  focus ou défilement (résultats de recherche, grilles, panneau du lecteur, Programme du direct) passe par `ScreenTour`.
 
 ## Contraintes mesurées
 

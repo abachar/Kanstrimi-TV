@@ -31,3 +31,6 @@ xcuserdata/
 DerivedData/
 
 # Flux de démo avec identifiants fournisseur, hors dépôt
+
+# Captures de revue UI (apple/scripts/shot*.sh)
+apple/ui-review/
