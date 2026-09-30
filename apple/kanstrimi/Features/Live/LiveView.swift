@@ -162,7 +162,7 @@ struct LiveView: View {
             HStack(spacing: 14) {
                 if let icon { Image(systemName: icon).frame(width: 30) }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(on ? .headline : .body)
+                    Text(name).font(on ? .callout.weight(.semibold) : .callout)
                     Text("\(count) chaîne\(count > 1 ? "s" : "")").font(.caption).foregroundStyle(Theme.secondary)
                 }
                 Spacer()
@@ -196,9 +196,9 @@ struct LiveView: View {
             HStack(spacing: 18) {
                 ChannelLogo(channel: c, size: metrics.channelLogo)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(c.name).font(.headline)
+                    Text(c.name).font(.callout.weight(.semibold)).lineLimit(1)
                     if let now = env.channelCache.cached(c.id)?.now {
-                        Text(now.title).font(.callout).foregroundStyle(Theme.secondary).lineLimit(1)
+                        Text(now.title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
                     }
                     HStack(spacing: 6) {
                         if let q = c.maxQuality { Badge(q.rawValue, small: true) }
@@ -236,21 +236,21 @@ struct LiveView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {
                         Text("EN DIRECT").font(.caption.weight(.bold)).tracking(1.5).padding(.horizontal, 8).padding(.vertical, 3).background(Theme.live, in: RoundedRectangle(cornerRadius: 5))
-                        Text(c.name).font(.title3.weight(.bold))
+                        Text(c.name).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
                         if let q = c.maxQuality { Badge(q.rawValue) }
                         ForEach(c.versions.languages, id: \.self) { Badge($0.rawValue) }
                     }
                     if let now = focusedDetail?.now {
                         Text("En ce moment").font(.caption).foregroundStyle(Theme.secondary)
-                        Text(now.title).font(.title2.weight(.bold))
-                        if let o = now.overview { Text(o).font(.callout).foregroundStyle(Theme.secondary).lineLimit(4) }
+                        Text(now.title).font(.title3.weight(.bold)).lineLimit(2)
+                        if let o = now.overview { Text(o).font(.caption).foregroundStyle(Theme.secondary).lineLimit(3) }
                         ProgressBar(fraction: now.fraction(), height: 5)
                         HStack {
                             Text(Format.hour(now.start)); Spacer(); Text(Format.hour(now.end))
                         }
                         .font(.caption).foregroundStyle(Theme.secondary)
                         if let next = focusedDetail?.next {
-                            Text("Ensuite : \(next.title) · \(Format.hour(next.start))").font(.callout).foregroundStyle(Theme.secondary)
+                            Text("Ensuite : \(next.title) · \(Format.hour(next.start))").font(.caption).foregroundStyle(Theme.secondary)
                         }
                     } else if focusedDetail == nil {
                         ProgressView().padding(.vertical, 10)

@@ -131,7 +131,7 @@ nonisolated struct Metrics: Sendable {
 
     static let tv = Metrics(inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,
-                            heroHeight: 640, heroTitle: 88, detailTitle: 76, detailTop: 160, stillWidth: 260, textWidth: 1000,
+                            heroHeight: 600, heroTitle: 64, detailTitle: 76, detailTop: 160, stillWidth: 260, textWidth: 1000,
                             stateIcon: 56, statePadding: 60, searchPoster: 360, searchColumn: 400, liveColumns: true, channelLogo: 96,
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
                             panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 360,

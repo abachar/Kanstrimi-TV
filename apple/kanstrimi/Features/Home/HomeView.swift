@@ -66,7 +66,8 @@ struct HomeView: View {
                 }
                 .padding(.bottom, 20)
             }
-            .ignoresSafeArea(edges: .horizontal)
+            // tvOS: the hero runs under the floating tab bar instead of leaving a black band above it.
+            .ignoresSafeArea(edges: Platform.isTV ? [.horizontal, .top] : .horizontal)
         } else if let error = model.error {
             StatePanel(icon: "wifi.exclamationmark", title: "Serveur injoignable",
                        message: "\(error.localizedDescription). Aucun accueil en cache sur cet appareil.") {
@@ -84,10 +85,14 @@ struct HomeView: View {
                 .overlay {
                     LinearGradient(colors: [Theme.background.opacity(0.95), Theme.background.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing)
                     LinearGradient(colors: [.clear, Theme.background.opacity(0.6), Theme.background], startPoint: .center, endPoint: .bottom)
+                    // Keeps the tab bar readable over a bright backdrop.
+                    if Platform.isTV { LinearGradient(colors: [Theme.background.opacity(0.7), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.3)) }
                 }
             VStack(alignment: .leading, spacing: 16) {
                 Text(hero.tagline).font(.caption.weight(.bold)).tracking(2.5).foregroundStyle(Theme.accent)
-                Text(hero.card.title).font(.system(size: metrics.heroTitle, weight: .heavy)).lineLimit(2).frame(maxWidth: metrics.textWidth, alignment: .leading)
+                // Wider than running text: a long title keeps two lines instead of being cut.
+                Text(hero.card.title).font(.system(size: metrics.heroTitle, weight: .heavy)).lineLimit(2).minimumScaleFactor(0.85)
+                    .frame(maxWidth: metrics.textWidth * 1.4, alignment: .leading)
                 HStack(spacing: 12) {
                     Text([hero.card.year.map(String.init), hero.card.genres.first, hero.runtime.map(Format.runtime(minutes:))].compactMap { $0 }.joined(separator: " · "))
                         .foregroundStyle(Theme.secondary)
@@ -118,7 +123,7 @@ struct HomeView: View {
 private extension HomeView {
     @ViewBuilder func heroButtons(_ hero: HomeHero, model: HomeModel) -> some View {
         Button { model.playHero(version: nil, source: nil) } label: {
-            Label(hero.card.progress?.isResumable == true ? "Reprendre" : "Lecture", systemImage: "play.fill").font(.title3.weight(.bold))
+            Label(hero.card.progress?.isResumable == true ? "Reprendre" : "Lecture", systemImage: "play.fill").font(.headline)
         }
         .prominentButtonStyle()
         .onLongPressGesture(minimumDuration: 0.5) { showPicker = true }

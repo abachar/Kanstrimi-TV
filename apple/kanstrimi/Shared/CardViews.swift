@@ -58,18 +58,23 @@ struct PosterCard: View {
                 .frame(width: width, height: width * 1.5)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 Text(card.title).font(.callout.weight(.semibold)).lineLimit(1)
-                Text(subtitle).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
+                // The genre goes first when the whole line does not fit: year and rating stay whole.
+                ViewThatFits(in: .horizontal) {
+                    Text(subtitle(withGenre: true))
+                    Text(subtitle(withGenre: false))
+                }
+                .font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
             }
             .frame(width: width)
         }
         .cardButtonStyle()
     }
 
-    private var subtitle: String {
+    private func subtitle(withGenre: Bool) -> String {
         var parts: [String] = []
         if let y = card.year { parts.append(String(y)) }
-        if let g = card.genres.first { parts.append(g) }
-        if let r = card.rating { parts.append(String(format: "★ %.1f", r)) }
+        if withGenre, let g = card.genres.first { parts.append(g) }
+        if let r = card.rating { parts.append(String(format: "%.1f", r)) }
         return parts.joined(separator: " · ")
     }
 }
