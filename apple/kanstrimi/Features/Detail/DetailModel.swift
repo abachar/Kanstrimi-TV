@@ -142,15 +142,6 @@ final class DetailModel {
         env.player.play(ctx)
     }
 
-    func playTrailer() {
-        guard let d = detail, let url = d.trailer else { return }
-        let v = Version(id: "trailer", language: .vo, quality: .hd, dynamicRange: nil,
-                        sources: [Source(id: "trailer", container: "MP4", streamURL: url, provider: nil, origin: "Bande-annonce")])
-        let ctx = PlaybackContext(content: PlaybackContent(id: ContentID("\(d.id.rawValue):trailer"), kind: .movie, title: "Bande-annonce · \(d.title)", subtitle: nil, episode: nil, backdrop: d.backdrop),
-                                  versions: [v])
-        env.player.play(ctx, version: v)
-    }
-
     /// Picker result: remember (or not) and play.
     func chose(version: Version, source: Source?, remember: Bool, asDefault: Bool) {
         guard let d = detail else { return }

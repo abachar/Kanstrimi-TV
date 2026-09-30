@@ -48,6 +48,19 @@ nonisolated enum Platform {
         #endif
     }
 
+    /// Where a YouTube trailer opens: the YouTube app on tvOS, which has no browser (nil when it
+    /// is not installed, and the button hides), the web page elsewhere. VLC cannot read a YouTube page.
+    @MainActor static func trailerURL(_ web: URL) -> URL? {
+        #if os(tvOS)
+        guard var c = URLComponents(url: web, resolvingAgainstBaseURL: false) else { return nil }
+        c.scheme = "youtube"
+        guard let app = c.url, UIApplication.shared.canOpenURL(app) else { return nil }
+        return app
+        #else
+        web
+        #endif
+    }
+
     static var isMac: Bool {
         #if os(macOS)
         true

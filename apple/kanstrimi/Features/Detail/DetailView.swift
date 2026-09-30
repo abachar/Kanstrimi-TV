@@ -54,6 +54,7 @@ private struct DetailContent: View {
     let openSaga: (SagaRef) -> Void
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
+    @Environment(\.openURL) private var openURL
     @FocusState private var focused: Focus?
     private enum Focus: Hashable { case play, restart, watched, versions, trailer, favorite, language, season(Int), episode(ContentID) }
 
@@ -146,24 +147,21 @@ private struct DetailContent: View {
 
     private func tagline(_ d: Card) -> String {
         if d.kind == .series { return "SÉRIE · \(d.seasons?.count ?? 0) SAISON\((d.seasons?.count ?? 0) > 1 ? "S" : "")" }
-        return d.isMatched ? "FILM" : "FILM · SANS FICHE TMDB"
+        return "FILM"
     }
 
     private func meta(_ d: Card) -> String {
         var parts: [String] = []
         if let y = d.year { parts.append(d.endYear.map { "\(y) – \($0)" } ?? String(y)) }
         if !d.genres.isEmpty { parts.append(d.genres.prefix(2).joined(separator: ", ")) }
-        else if let c = d.providerCategory { parts.append(c) }
         if let r = d.runtime { parts.append(Format.runtime(minutes: r)) }
         return parts.joined(separator: " · ")
     }
 
     private func noTMDB(_ d: Card) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Pas de fiche TMDB pour ce titre : ni synopsis, ni casting, ni bande-annonce.", systemImage: "questionmark.square.dashed").font(.headline)
-            Text("Titre nettoyé depuis « \(d.rawTitle ?? "") » · catégorie fournisseur « \(d.providerCategory ?? "—") ». L'association se corrige depuis l'admin du serveur.")
-                .font(.callout).foregroundStyle(Theme.secondary)
-            Text("Favoris et reprise fonctionnent sans TMDB : l'identité vient du titre nettoyé et de l'année.").font(.caption).foregroundStyle(Theme.secondary)
+            Label("Pas encore de fiche détaillée pour ce titre : ni résumé, ni distribution.", systemImage: "info.circle").font(.headline)
+            Text("La lecture, la reprise et Ma liste fonctionnent normalement.").font(.callout).foregroundStyle(Theme.secondary)
         }
         .padding(20)
         .frame(maxWidth: metrics.textWidth, alignment: .leading)
@@ -173,7 +171,7 @@ private struct DetailContent: View {
     /// One row on TV; on a phone Lecture takes a line and the others scroll below it.
     private func buttons(_ d: Card) -> some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 20) { buttonSet(d) }.fixedSize()
+            HStack(alignment: .top, spacing: 20) { buttonSet(d) }.fixedSize()
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) { buttonSet(d, primaryOnly: true) }.fixedSize()
                 ScrollView(.horizontal) {
@@ -188,7 +186,7 @@ private struct DetailContent: View {
     @ViewBuilder private func buttonSet(_ d: Card, primaryOnly: Bool = false, secondaryOnly: Bool = false) -> some View {
         if !secondaryOnly {
             Button { Task { await model.playPrimary() } } label: {
-                Label(model.primaryLabel, systemImage: "play.fill").font(.title3.weight(.bold))
+                Label(model.primaryLabel, systemImage: "play.fill").font(.headline)
             }
             .prominentButtonStyle()
             .focused($focused, equals: .play)
@@ -197,34 +195,33 @@ private struct DetailContent: View {
         }
         if !primaryOnly {
             if model.canRestart {
-                Button { Task { await model.playPrimary(fromStart: true) } } label: {
-                    Label("Depuis le début", systemImage: "arrow.counterclockwise")
+                IconAction(title: "Depuis le début", systemImage: "arrow.counterclockwise", focused: focused == .restart) {
+                    Task { await model.playPrimary(fromStart: true) }
                 }
                 .focused($focused, equals: .restart)
                 .disabled(d.versions.isEmpty)
             }
             if d.kind == .series {
-                Button { showPicker = true } label: {
-                    HStack(spacing: 8) {
-                        Text("Langue de la série :").foregroundStyle(Theme.secondary)
-                        Text(model.seriesChoice?.label ?? "—").fontWeight(.semibold)
-                    }
-                }
-                .focused($focused, equals: .language)
-                .disabled(d.versions.isEmpty)
+                IconAction(title: "Langue · \(model.seriesChoice?.label ?? "—")", systemImage: "globe", focused: focused == .language) { showPicker = true }
+                    .focused($focused, equals: .language)
+                    .disabled(d.versions.isEmpty)
             } else {
-                Button("Versions (\(d.versions.count))") { showPicker = true }.focused($focused, equals: .versions).disabled(d.versions.isEmpty)
+                IconAction(title: "Versions (\(d.versions.count))", systemImage: "square.stack", focused: focused == .versions) { showPicker = true }
+                    .focused($focused, equals: .versions)
+                    .disabled(d.versions.isEmpty)
                 let watched = d.progress?.isWatched == true
-                Button { Task { await model.setWatched(!watched) } } label: {
-                    Label(watched ? "Vu" : "Marquer comme vu", systemImage: watched ? "checkmark.circle.fill" : "checkmark.circle")
+                IconAction(title: watched ? "Vu" : "Marquer comme vu", systemImage: watched ? "checkmark.circle.fill" : "checkmark.circle", focused: focused == .watched) {
+                    Task { await model.setWatched(!watched) }
                 }
                 .focused($focused, equals: .watched)
             }
-            if d.trailer != nil {
-                Button { model.playTrailer() } label: { Label("Bande-annonce", systemImage: "film") }.focused($focused, equals: .trailer)
+            if let trailer = d.trailer.flatMap(Platform.trailerURL) {
+                IconAction(title: "Bande-annonce", systemImage: "film", focused: focused == .trailer) { openURL(trailer) }
+                    .focused($focused, equals: .trailer)
             }
-            Button { Task { await model.toggleFavorite() } } label: {
-                Label(d.isFavorite == true ? "Dans ma liste" : "Ma liste", systemImage: d.isFavorite == true ? "checkmark" : "plus")
+            let favorite = d.isFavorite == true
+            IconAction(title: favorite ? "Dans ma liste" : "Ma liste", systemImage: favorite ? "heart.fill" : "heart", focused: focused == .favorite) {
+                Task { await model.toggleFavorite() }
             }
             .focused($focused, equals: .favorite)
         }
@@ -349,5 +346,38 @@ struct EpisodeRow: View {
         }
         .cardButtonStyle()
         .disabled(episode.versions.isEmpty)
+    }
+}
+
+/// A secondary action of the sheet: a round icon, its label under it. On tvOS the label shows
+/// only on the focused one, so the row stays light; touch and pointer screens always show it.
+struct IconAction: View {
+    let title: String
+    let systemImage: String
+    let focused: Bool
+    let action: () -> Void
+
+    var body: some View {
+        if Platform.isTV {
+            // An overlay: the label of the focused one must not push its neighbours apart.
+            button
+                .padding(.bottom, 44)
+                .overlay(alignment: .bottom) { label.opacity(focused ? 1 : 0) }
+        } else {
+            VStack(spacing: 6) { button; label }
+        }
+    }
+
+    private var button: some View {
+        Button(action: action) {
+            Image(systemName: systemImage).font(.title3).frame(width: 36, height: 36)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.circle)
+        .accessibilityLabel(title)
+    }
+
+    private var label: some View {
+        Text(title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1).fixedSize()
     }
 }

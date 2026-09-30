@@ -145,7 +145,7 @@ struct LiveView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Direct").font(.largeTitle.weight(.bold)).padding(.bottom, 16)
                 if !recents.isEmpty { categoryRow(.recent, name: "Récentes", count: recents.count, icon: "clock") }
-                if !favorites.isEmpty { categoryRow(.favorites, name: "Favoris", count: favorites.count, icon: "star") }
+                if !favorites.isEmpty { categoryRow(.favorites, name: "Favoris", count: favorites.count, icon: "heart") }
                 ForEach(groups) { g in categoryRow(.group(g.id), name: g.name, count: g.channels.count, icon: nil) }
             }
             .padding(.trailing, 10)
@@ -207,7 +207,7 @@ struct LiveView: View {
                     }
                 }
                 Spacer()
-                if c.isFavorite == true { Image(systemName: "star.fill").foregroundStyle(Theme.accent) }
+                if c.isFavorite == true { Image(systemName: "heart.fill").foregroundStyle(Theme.accent) }
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
