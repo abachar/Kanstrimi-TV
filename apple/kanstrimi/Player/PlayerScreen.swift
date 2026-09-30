@@ -37,7 +37,8 @@ struct PlayerScreen: View {
 
             // The surface steps aside while the failure dialog is up, otherwise it keeps the
             // focus and every press lands on it instead of on the dialog's buttons.
-            if sheet == .none, player.failure == nil {
+            // Same while the next-episode card asks for the focus.
+            if sheet == .none, player.failure == nil, player.nextCountdown == nil {
                 surface
             }
 
@@ -148,12 +149,7 @@ struct VODOverlay: View {
 
     private var statusPill: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
-                if player.phase == .paused {
-                    Text("PAUSE").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.accent)
-                }
-                Text(title).font(.title3.weight(.bold))
-            }
+            Text(title).font(.title3.weight(.bold))
             if let v = player.version { Text(v.longLabel).font(.callout).foregroundStyle(Theme.secondary) }
             Text("Audio \(player.selectedAudioLabel) · Sous-titres \(player.selectedTextLabel)")
                 .font(.callout).foregroundStyle(Theme.secondary)
@@ -184,26 +180,35 @@ struct VODOverlay: View {
                 }
                 // An overlay, not a third layer of the stack: the pill must not count in the
                 // stack's height, or the 8 pt track grows to the pill's size and spills over the hints.
+                // Only while the target moves (fast forward): at rest the time sits under the bar.
                 .overlay(alignment: .bottomLeading) {
+                    if player.scanRate != 0 {
                     Text(scanLabel + Format.clock(player.shownTime))
                         .font(.callout.weight(.semibold))
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(.white, in: Capsule()).foregroundStyle(.black)
                         .offset(x: min(max(0, x - 40), geo.size.width - 90), y: -16)
+                    }
                 }
             }
             .frame(height: 8)
             .padding(.top, 40)
             HStack {
-                Text("−\(Format.clock(player.remaining)) · fin à \(Format.hour(player.endDate))")
+                Text(Format.clock(player.shownTime)).foregroundStyle(Theme.text)
                 Spacer()
-                if Platform.isTV {
+                Text("−\(Format.clock(player.remaining)) · fin à \(Format.hour(player.endDate))")
+            }
+            .font(.callout.monospacedDigit()).foregroundStyle(Theme.secondary)
+            // The remote hints only at pause: while playing the bar shows a few seconds and goes.
+            if Platform.isTV, player.phase == .paused {
+                HStack {
+                    Spacer()
                     hint("◀ ▶", "±10 s · maintenir : avance rapide")
                     hint("▼", "Infos · Versions · Audio · Sous-titres")
                     hint("‹", "Retour · quitter")
                 }
+                .font(.callout).foregroundStyle(Theme.secondary)
             }
-            .font(.callout).foregroundStyle(Theme.secondary)
         }
     }
 

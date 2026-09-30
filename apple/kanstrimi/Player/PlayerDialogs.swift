@@ -14,7 +14,7 @@ struct StreamFailureDialog: View {
                 Text(player.context?.content.title ?? "").font(.title3).foregroundStyle(Theme.secondary)
                 Text("Le flux ne démarre pas").font(.system(size: metrics.dialogTitle, weight: .bold))
                 if let f = player.failure {
-                    Text("Aucune image après 10 s · \(f.attempts) tentative\(f.attempts > 1 ? "s" : "") sur \(f.sourceLabel)\(f.hadAlternativeSource ? "" : ", aucune autre source pour cette version")")
+                    Text("La vidéo n'a pas démarré après \(f.attempts) tentative\(f.attempts > 1 ? "s" : "").")
                         .font(.body).foregroundStyle(Theme.secondary)
                 }
                 // One button per row, like a tvOS alert: the version label can be long and the dialog is narrow.
@@ -25,7 +25,7 @@ struct StreamFailureDialog: View {
                     }
                     Button("Quitter", role: .cancel) { player.stop() }
                 }
-                Text("Le serveur ne relaie pas la vidéo : réessayer redemande l'URL et obtient un jeton amont frais, souvent sur un autre backend.")
+                Text("Réessayer suffit souvent : la source change d'une tentative à l'autre.")
                     .font(.callout).foregroundStyle(Theme.secondary)
             }
             .padding(metrics.panelPadding)
@@ -72,7 +72,9 @@ struct NextEpisodeCard: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 26))
                 }
             }
+            // Above the progress bar and its times, which stay visible under the card.
             .padding(metrics.dialogMargin)
+            .padding(.bottom, metrics.dialogMargin * 2)
         }
         .onAppear { focused = true }
         .transition(.move(edge: .trailing).combined(with: .opacity))

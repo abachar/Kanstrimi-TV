@@ -28,9 +28,6 @@ struct PlayerPanel: View {
                             .focused($focusedTab, equals: t)
                     }
                     Spacer()
-                    if !player.isLive {
-                        Text("Reprise au même instant · \(Format.clock(player.time))").font(.callout).foregroundStyle(Theme.secondary)
-                    }
                 }
                 .onChange(of: focusedTab) { _, f in
                     if let f { tab = f }
@@ -141,8 +138,6 @@ struct PlayerPanel: View {
                             Text((v.sources.first?.container ?? "") + (v.sources.count > 1 ? " · ×\(v.sources.count)" : "")).font(.caption).foregroundStyle(Theme.secondary)
                             if v.id == player.version?.id {
                                 Text("EN COURS").font(.caption.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
-                            } else {
-                                Text("Reprise au même instant").font(.caption).foregroundStyle(Theme.secondary)
                             }
                         }
                         .frame(width: metrics.panelCard, alignment: .leading)
