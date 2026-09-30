@@ -195,12 +195,13 @@ dans `db/visibility.ts` quand se tromper casserait une règle métier.
   convient = le titre reste en texte.
 - **Sagas** : une saga = une collection TMDB (`belongs_to_collection`, copiée dans `catalog_contents.saga_*` par le
   groupement, aucun appel réseau). Elle n'existe pour l'app qu'avec au moins deux films visibles
-  (`player/sagas.ts`) ; la liste va de la saga au film le plus récent à la plus ancienne, ses films par date de
-  sortie croissante. Le tableau de bord les compte.
+  (`player/sagas.ts`) ; la liste va de la saga au film le plus récent à la plus ancienne, ses films du plus
+  récent au plus ancien, comme les titres d'un studio. Le tableau de bord les compte.
 - **Studios** : table `curation_studios` (société de production TMDB ou chaîne), choisie et ordonnée dans l'admin
   (`catalog/studios.ts`, suggestions tirées du cache TMDB des contenus visibles, sans réseau, cherchables par nom ; `/admin/studios/company:3` montre les titres visibles d'un studio, même forme que le filtre `studio=` de l'app) ; liste par
   défaut semée par la migration `0014`. Le groupement copie `production_companies` et `networks` dans
-  `catalog_contents.company_ids` / `network_ids`. Un studio sans titre visible du type n'est pas servi.
+  `catalog_contents.company_ids` / `network_ids`. Un studio sans titre visible du type n'est pas servi. Son `backdrop` est celui de son titre
+  visible le plus récent qui en a un : le fond de son écran dans l'app.
 - **Thèmes du direct** : `/player/channels` groupe par marché × thème (« France · Sport »). Le thème d'une
   variante vient d'abord de sa chaîne iptv-org (étape `channels`), sinon de sa section (la ligne séparatrice qui la précède dans sa catégorie), sinon de sa
   catégorie (« SPORTS HD ») ; `naming.ts` porte le vocabulaire (`LIVE_THEMES`, `themeOf`, `liveTheme`) dans

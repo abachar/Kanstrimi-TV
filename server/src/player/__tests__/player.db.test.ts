@@ -796,11 +796,11 @@ describe("sagas", () => {
     expect((await get("/movies/sagas?cursor=zzz")).status).toBe(400);
   });
 
-  it("GET /movies/sagas/{id}: its visible movies, oldest release first; 404 below two", async () => {
+  it("GET /movies/sagas/{id}: its visible movies, latest release first; 404 below two", async () => {
     const { status, body } = await get("/movies/sagas/saga:900");
     expect(status).toBe(200);
     expect(body).toMatchObject({ id: "saga:900", name: "Trilogie - Saga", count: 3 });
-    expect(body.movies.map((c: { title: string }) => c.title)).toEqual(["Trilogie Un", "Trilogie Deux", "Trilogie Trois"]);
+    expect(body.movies.map((c: { title: string }) => c.title)).toEqual(["Trilogie Trois", "Trilogie Deux", "Trilogie Un"]);
     expect((await get("/movies/sagas/saga:901")).status).toBe(404);
     expect((await get("/movies/sagas/nope")).status).toBe(404);
   });
@@ -824,6 +824,7 @@ describe("studios and top 10", () => {
     await seedTmdb("movie", 4001, {
       title: "Pixar Un",
       release_date: ymd(daysAgo(30)),
+      backdrop_path: "/pixar-un.jpg",
       production_companies: [pixar],
       credits: { cast: [], crew: [] },
     });
@@ -857,7 +858,13 @@ describe("studios and top 10", () => {
 
   it("GET /movies/studios and /series/studios: the chosen studios holding visible titles of that kind, in order", async () => {
     expect((await get("/movies/studios")).body).toEqual([
-      { id: "company:3", name: "Pixar", logo: "http://kanstrimi.test/img/w300/pixar.png", count: 1 },
+      {
+        id: "company:3",
+        name: "Pixar",
+        logo: "http://kanstrimi.test/img/w300/pixar.png",
+        count: 1,
+        backdrop: "http://kanstrimi.test/img/w1280/pixar-un.jpg",
+      },
     ]);
     expect((await get("/series/studios")).body.map((s: { id: string; count: number }) => [s.id, s.count])).toEqual([["network:49", 1]]);
   });

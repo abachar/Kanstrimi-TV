@@ -15,20 +15,35 @@ export function studioRoutes(kind: "vod" | "series") {
   return routes;
 }
 
+/** The row of `curation_studios` aliased `s` owns this content. */
+const ofStudio = sql`case s.kind when 'company' then company_ids @> array[s.tmdb_id] else network_ids @> array[s.tmdb_id] end`;
+
 export async function studiosOf(ctx: RestContext, kind: "vod" | "series"): Promise<StudioWire[]> {
-  const rows = await db.execute<{ kind: StudioKind; tmdb_id: number; name: string; logo_path: string | null; n: number }>(sql`
-    select s.kind, s.tmdb_id, s.name, s.logo_path, n.n
+  const rows = await db.execute<{
+    kind: StudioKind;
+    tmdb_id: number;
+    name: string;
+    logo_path: string | null;
+    n: number;
+    backdrop_path: string | null;
+  }>(sql`
+    select s.kind, s.tmdb_id, s.name, s.logo_path, n.n, b.backdrop_path
     from ${schema.curationStudios} s
     cross join lateral (
       select count(*)::int as n from ${schema.catalogContents}
-      where ${visibleContent(ctx, kind)}
-        and case s.kind when 'company' then company_ids @> array[s.tmdb_id] else network_ids @> array[s.tmdb_id] end
+      where ${visibleContent(ctx, kind)} and ${ofStudio}
     ) n
+    left join lateral (
+      select backdrop_path from ${schema.catalogContents}
+      where ${visibleContent(ctx, kind)} and ${ofStudio} and backdrop_path is not null
+      order by coalesce(release_date, '0001-01-01'::date) desc, id desc limit 1
+    ) b on true
     where n.n > 0 order by s.position, s.id`);
   return rows.map((r) => ({
     id: `${r.kind}:${r.tmdb_id}`,
     name: r.name,
     logo: imageUrl(ctx.baseUrl, "w300", r.logo_path) || null,
+    backdrop: imageUrl(ctx.baseUrl, "w1280", r.backdrop_path) || null,
     count: r.n,
   }));
 }

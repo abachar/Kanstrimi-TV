@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Env, RestContext } from "./context";
 import { BadRequest, fail, json } from "./http";
@@ -80,7 +80,7 @@ export async function sagaSheet(ctx: RestContext, key: string): Promise<SagaShee
     .select()
     .from(schema.catalogContents)
     .where(and(visibleContent(ctx, "vod"), eq(schema.catalogContents.sagaId, id)))
-    .orderBy(asc(sql`coalesce(${schema.catalogContents.releaseDate}, ${NO_RELEASE}::date)`), asc(schema.catalogContents.id));
+    .orderBy(desc(sql`coalesce(${schema.catalogContents.releaseDate}, ${NO_RELEASE}::date)`), desc(schema.catalogContents.id));
   const progress = await getProgress(movies.map((m) => m.key));
   return { ...sagaWire(ctx, saga), movies: movies.map((m) => gridCard(ctx, m, progress.get(m.key))) };
 }

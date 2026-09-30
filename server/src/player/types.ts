@@ -74,10 +74,11 @@ export type SagaPage = { items: SagaWire[]; next_cursor: string | null; total: n
 /**
  * `/movies/studios`, `/series/studios`: the studio hubs chosen in the admin that hold visible titles
  * of that kind, in the admin's order. `id` = `company:<TMDB id>` or `network:<TMDB id>`, the
- * `studio` filter of `/movies` and `/series`.
+ * `studio` filter of `/movies` and `/series`. `backdrop`: that of its latest visible title, the
+ * background of the studio's screen.
  */
-export type StudioWire = { id: string; name: string; logo: string | null; count: number };
-/** `/movies/sagas/{id}`: the saga and its visible movies, oldest release first. */
+export type StudioWire = { id: string; name: string; logo: string | null; count: number; backdrop: string | null };
+/** `/movies/sagas/{id}`: the saga and its visible movies, latest release first. */
 export type SagaSheet = SagaWire & { movies: Card[] };
 
 export type Programme = { title: string; start: string; end: string; overview?: string | null };
