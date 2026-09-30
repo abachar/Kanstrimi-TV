@@ -128,6 +128,8 @@ nonisolated struct Metrics: Sendable {
     /// same for its toggles, which need a width only in a row.
     var pickerWidth: CGFloat?
     var toggleWidth: CGFloat?
+    /// Diameter of a round icon button (detail sheet), the height of the play button beside it.
+    var iconButton: CGFloat
 
     static let tv = Metrics(inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,
@@ -136,7 +138,7 @@ nonisolated struct Metrics: Sendable {
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
                             panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 360,
                             dialogTitle: 48, dialogWidth: 900, nextCard: 620, dialogMargin: 70,
-                            pickerWidth: 1200, toggleWidth: 420)
+                            pickerWidth: 1200, toggleWidth: 420, iconButton: 76)
     static let phone = Metrics(inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,
                                artTitle: 14, badge: 12, badgeSmall: 10,
                                heroHeight: 300, heroTitle: 32, detailTitle: 30, detailTop: 40, stillWidth: 140, textWidth: .infinity,
@@ -144,7 +146,7 @@ nonisolated struct Metrics: Sendable {
                                pairingTitle: 28, showsQR: false, codeCell: 40, pairingColumn: nil,
                                panelHeight: 300, panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
                                dialogTitle: 26, dialogWidth: 460, nextCard: 340, dialogMargin: 24,
-                               pickerWidth: nil, toggleWidth: nil)
+                               pickerWidth: nil, toggleWidth: nil, iconButton: 44)
     static let mac = Metrics(inset: 32, posterWidth: 160, resumeWidth: 260, cardSpacing: 16, rowPadding: 16, gridColumns: nil,
                              artTitle: 16, badge: 14, badgeSmall: 12,
                              heroHeight: 400, heroTitle: 40, detailTitle: 40, detailTop: 60, stillWidth: 200, textWidth: 800,
@@ -152,7 +154,7 @@ nonisolated struct Metrics: Sendable {
                              pairingTitle: 32, showsQR: false, codeCell: 48, pairingColumn: nil,
                              panelHeight: 360, panelPadding: 24, panelCard: 220, listWidth: 400, recentCard: 280,
                              dialogTitle: 32, dialogWidth: 500, nextCard: 400, dialogMargin: 32,
-                             pickerWidth: nil, toggleWidth: nil)
+                             pickerWidth: nil, toggleWidth: nil, iconButton: 34)
 
     static var current: Metrics {
         #if os(tvOS)

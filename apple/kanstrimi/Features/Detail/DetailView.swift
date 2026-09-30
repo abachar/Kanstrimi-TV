@@ -206,11 +206,11 @@ private struct DetailContent: View {
                     .focused($focused, equals: .language)
                     .disabled(d.versions.isEmpty)
             } else {
-                IconAction(title: "Versions (\(d.versions.count))", systemImage: "square.stack", focused: focused == .versions) { showPicker = true }
+                IconAction(title: "Versions (\(d.versions.count))", systemImage: "rectangle.stack", focused: focused == .versions) { showPicker = true }
                     .focused($focused, equals: .versions)
                     .disabled(d.versions.isEmpty)
                 let watched = d.progress?.isWatched == true
-                IconAction(title: watched ? "Vu" : "Marquer comme vu", systemImage: watched ? "checkmark.circle.fill" : "checkmark.circle", focused: focused == .watched) {
+                IconAction(title: watched ? "Vu" : "Marquer comme vu", systemImage: watched ? "eye.fill" : "eye", focused: focused == .watched) {
                     Task { await model.setWatched(!watched) }
                 }
                 .focused($focused, equals: .watched)
@@ -352,6 +352,7 @@ struct EpisodeRow: View {
 /// A secondary action of the sheet: a round icon, its label under it. On tvOS the label shows
 /// only on the focused one, so the row stays light; touch and pointer screens always show it.
 struct IconAction: View {
+    @Environment(\.metrics) private var metrics
     let title: String
     let systemImage: String
     let focused: Bool
@@ -369,15 +370,43 @@ struct IconAction: View {
     }
 
     private var button: some View {
-        Button(action: action) {
-            Image(systemName: systemImage).font(.title3).frame(width: 36, height: 36)
-        }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.circle)
-        .accessibilityLabel(title)
+        Button(action: action) { Image(systemName: systemImage) }
+            .buttonStyle(RoundIconStyle(diameter: metrics.iconButton))
+            .accessibilityLabel(title)
     }
 
     private var label: some View {
         Text(title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1).fixedSize()
+    }
+}
+
+/// A round icon button drawn by hand: `.bordered` is shaped for text and makes an uneven capsule
+/// around a glyph. Focused on tvOS it turns white and grows, without the system's focus halo.
+private struct RoundIconStyle: ButtonStyle {
+    let diameter: CGFloat
+
+    func makeBody(configuration: Configuration) -> some View {
+        RoundIcon(configuration: configuration, diameter: diameter)
+    }
+
+    private struct RoundIcon: View {
+        let configuration: Configuration
+        let diameter: CGFloat
+        @Environment(\.isFocused) private var focused
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            configuration.label
+                .font(.system(size: diameter * 0.4, weight: .semibold))
+                .foregroundStyle(focused ? Color.black : Theme.text)
+                .frame(width: diameter, height: diameter)
+                .background(Circle().fill(focused ? Color.white : Color.white.opacity(0.16)))
+                .contentShape(Circle())
+                .scaleEffect(focused ? 1.12 : configuration.isPressed ? 0.92 : 1)
+                .shadow(color: .black.opacity(focused ? 0.45 : 0), radius: 14, y: 8)
+                .opacity(enabled ? 1 : 0.4)
+                .animation(.easeOut(duration: 0.15), value: focused)
+                .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        }
     }
 }
