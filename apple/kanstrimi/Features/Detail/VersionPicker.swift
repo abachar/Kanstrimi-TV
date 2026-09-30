@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The sheet behind "Versions" and the long press on Lecture [8]: language tabs, a row per quality,
-/// sources unfolded when there are several, and the two memory options.
+/// The sheet behind "Versions" and the long press on Lecture [8]: one button per source of every
+/// version, which plays it at once. No language tabs, no memory options, no play button: nothing is
+/// remembered, the best version stays the automatic choice.
 struct VersionPicker: View {
     let title: String
     let versions: [Version]
@@ -10,19 +11,6 @@ struct VersionPicker: View {
     let onPick: (_ version: Version, _ source: Source?, _ remember: Bool, _ asDefault: Bool) -> Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.metrics) private var metrics
-    @State private var language: Language?
-    @State private var selectedVersion: Version?
-    @State private var selectedSource: Source?
-    @State private var remember = true
-    @State private var asDefault = false
-    @State private var expanded: String?
-
-    private var languages: [Language] { versions.languages }
-    private var rows: [Version] {
-        versions.filter { $0.language == language }.sorted { a, b in
-            a.quality != b.quality ? a.quality > b.quality : (a.dynamicRange ?? .sdr) > (b.dynamicRange ?? .sdr)
-        }
-    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -31,126 +19,89 @@ struct VersionPicker: View {
             VStack(alignment: .leading, spacing: 26) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(isSeries ? "Langue de la série" : "Choisir une version").font(.title2.weight(.bold))
-                    Text("\(title) · \(versions.sourceCount) flux · \(languages.count) langue\(languages.count > 1 ? "s" : "") · \(versions.qualities.count) qualité\(versions.qualities.count > 1 ? "s" : "")")
-                        .font(.callout).foregroundStyle(Theme.secondary)
+                    Text(title).font(.callout).foregroundStyle(Theme.secondary)
                 }
-
-                HStack(spacing: 12) {
-                    ForEach(languages, id: \.self) { l in
-                        let n = versions.filter { $0.language == l }.count
-                        Button("\(l.rawValue) · \(n)") { language = l }
-                            .buttonStyle(.bordered)
-                            .tint(language == l ? Theme.accent : nil)
-                    }
-                }
-
                 ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(rows) { v in
-                            versionRow(v)
-                            if expanded == v.id, v.sources.count > 1 {
-                                ForEach(Array(v.sources.enumerated()), id: \.element.id) { i, s in
-                                    sourceRow(v, s, index: i)
-                                }
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(rows, id: \.source.id) { row in
+                            Button {
+                                onPick(row.version, row.source, false, false)
+                                dismiss()
+                            } label: {
+                                label(row).frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
                     }
-                    .padding(.vertical, 8)
+                    // tvOS enlarges the focused button: room for it inside the scroll view, which clips.
+                    .padding(.vertical, Platform.isTV ? 20 : 8)
+                    .padding(.horizontal, Platform.isTV ? 40 : 0)
                 }
-                .frame(maxHeight: 420)
-
-                // Options and the action in a row when they fit, stacked on a phone.
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 24) {
-                        options
-                        Spacer()
-                        playButton
-                    }
-                    VStack(alignment: .leading, spacing: 14) {
-                        options
-                        playButton
-                    }
-                }
+                .padding(.horizontal, Platform.isTV ? -40 : 0)
+                .frame(maxHeight: Platform.isTV ? 560 : .infinity)
             }
             .padding(metrics.panelPadding)
-            .frame(width: metrics.pickerWidth)
+            .frame(maxWidth: metrics.pickerWidth ?? .infinity, alignment: .leading)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 32))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             if !Platform.isTV {
                 Button { dismiss() } label: { Image(systemName: "xmark.circle.fill").font(.title2) }
                     .buttonStyle(.plain).foregroundStyle(Theme.secondary).padding(16)
                     .accessibilityLabel("Fermer")
             }
         }
-        .onAppear {
-            let rec = versions.first { $0.id == recommendedID } ?? versions.first
-            language = rec?.language ?? languages.first
-            selectedVersion = rec
-            selectedSource = rec?.sources.first
-        }
         .onBackCommand { dismiss() }
     }
 
-    @ViewBuilder private var options: some View {
-        if !isSeries {
-            Toggle("Mémoriser pour ce film", isOn: $remember).frame(width: metrics.toggleWidth)
-        }
-        Toggle("Par défaut pour tous", isOn: $asDefault).frame(width: metrics.toggleWidth.map { $0 - 40 })
-    }
-
-    private var playButton: some View {
-        Button {
-            if let v = selectedVersion { onPick(v, selectedSource, remember, asDefault); dismiss() }
-        } label: {
-            Label(playLabel, systemImage: "play.fill")
-        }
-        .prominentButtonStyle()
-        .disabled(selectedVersion == nil)
-    }
-
-    private var playLabel: String {
-        guard let v = selectedVersion else { return "Lire" }
-        var s = isSeries ? "Appliquer · \(v.label)" : "Lire · \(v.label)"
-        if let src = selectedSource, v.sources.count > 1, let i = v.sources.firstIndex(of: src) { s += " · Source \(Character(UnicodeScalar(65 + i)!))" }
-        return s
-    }
-
-    private func versionRow(_ v: Version) -> some View {
-        Button {
-            selectedVersion = v
-            selectedSource = v.sources.first
-            expanded = v.sources.count > 1 ? (expanded == v.id ? nil : v.id) : nil
-        } label: {
+    /// The version and its source side by side on TV; stacked on a phone, where they do not fit.
+    @ViewBuilder private func label(_ row: Row) -> some View {
+        let recommended = row.version.id == recommendedID && row.index == 0
+        if Platform.isTV {
             HStack(spacing: 18) {
-                Image(systemName: selectedVersion?.id == v.id ? "largecircle.fill.circle" : "circle").foregroundStyle(Theme.accent)
-                Text(v.qualityLabel).font(.headline).lineLimit(1).frame(width: 280, alignment: .leading)
-                Text("\(v.sources.count) source\(v.sources.count > 1 ? "s" : "") · \(v.sources.first?.container ?? "")").foregroundStyle(Theme.secondary)
+                Text(row.title).font(.headline)
+                Text(row.source.label).foregroundStyle(Theme.secondary)
                 Spacer()
-                if v.id == recommendedID {
-                    Text("RECOMMANDÉ").font(.caption2.weight(.bold)).tracking(1).padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
-                }
-                if v.sources.count > 1 { Image(systemName: expanded == v.id ? "chevron.up" : "chevron.down").foregroundStyle(Theme.secondary) }
+                if recommended { recommendedBadge }
             }
             .padding(.horizontal, 10)
+        } else {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(row.title).font(.headline)
+                    Text(row.source.label).font(.footnote).foregroundStyle(Theme.secondary)
+                }
+                Spacer(minLength: 0)
+                if recommended { recommendedBadge }
+            }
+            .multilineTextAlignment(.leading)
         }
     }
 
-    private func sourceRow(_ v: Version, _ s: Source, index: Int) -> some View {
-        Button {
-            selectedVersion = v
-            selectedSource = s
-        } label: {
-            HStack(spacing: 18) {
-                Image(systemName: selectedSource?.id == s.id && selectedVersion?.id == v.id ? "largecircle.fill.circle" : "circle").foregroundStyle(Theme.secondary)
-                Text("Source \(String(Character(UnicodeScalar(65 + index)!)))").font(.callout.weight(.semibold)).frame(width: 280, alignment: .leading)
-                Text("\(s.label) · \(s.container)").font(.callout).foregroundStyle(Theme.secondary)
-                Spacer()
-                if index == 0 {
-                    Text("PAR DÉFAUT").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(Theme.secondary)
-                }
-            }
-            .padding(.horizontal, 10).padding(.leading, 50)
+    private var recommendedBadge: some View {
+        Text("RECOMMANDÉ").font(.caption2.weight(.bold)).tracking(1).padding(.horizontal, 8).padding(.vertical, 4)
+            .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
+    }
+
+    private struct Row {
+        let version: Version
+        let source: Source
+        let index: Int
+        let title: String
+    }
+
+    /// One row per source: the recommended version first, then by language and descending quality.
+    private var rows: [Row] {
+        let order = versions.languages
+        let sorted = versions.sorted { a, b in
+            if (a.id == recommendedID) != (b.id == recommendedID) { return a.id == recommendedID }
+            let la = order.firstIndex(of: a.language) ?? 0, lb = order.firstIndex(of: b.language) ?? 0
+            if la != lb { return la < lb }
+            return a.quality != b.quality ? a.quality > b.quality : (a.dynamicRange ?? .sdr) > (b.dynamicRange ?? .sdr)
         }
-        .buttonStyle(.plain)
+        return sorted.flatMap { v in
+            v.sources.enumerated().map { i, src in
+                Row(version: v, source: src, index: i,
+                    title: v.sources.count > 1 ? "\(v.label) · Source \(Character(UnicodeScalar(65 + i)!))" : v.label)
+            }
+        }
     }
 }

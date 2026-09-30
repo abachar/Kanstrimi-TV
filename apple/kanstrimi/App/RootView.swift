@@ -24,7 +24,7 @@ struct RootView: View {
 }
 
 private extension RootView {
-    /// Debug only. Read from UserDefaults so the app can be driven without a remote or a finger
+    /// Debug only, read once then erased. From UserDefaults so the app can be driven without a remote or a finger
     /// (`xcrun simctl spawn <udid> defaults write dev.crafters.kanstrimi <key> <value>`):
     ///   debug.autopair  — with the mock client (`pref.useMock`), pairs at once
     ///   debug.unpair    — forgets the token, back to the pairing screen
@@ -36,6 +36,12 @@ private extension RootView {
     func debugHooks() async {
         #if DEBUG
         let defaults = UserDefaults.standard
+        // One launch only: a key left behind (by scripts/shot.sh) would unpair or replay on every start.
+        defer {
+            for key in ["debug.unpair", "debug.autopair", "debug.tab", "debug.open", "debug.autoplay", "debug.playerState", "debug.resumeAt"] {
+                defaults.removeObject(forKey: key)
+            }
+        }
         if defaults.bool(forKey: "debug.unpair"), env.device.isPaired { env.device.forget(reason: nil) }
         if defaults.bool(forKey: "debug.autopair"), env.client.isMock, !env.device.isPaired {
             env.device.store(token: "mock-debug", code: "DEBUG0")

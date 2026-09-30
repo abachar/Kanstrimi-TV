@@ -13,40 +13,44 @@ private struct ScreenHost<Content: View>: View {
     }
 }
 
-#Preview("Films") { ScreenHost { CatalogView(kind: .movie) } }
-#Preview("Séries") { ScreenHost { CatalogView(kind: .series) } }
-#Preview("Fiche film") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:movie:535544")) } } }
-#Preview("Saga") { ScreenHost { NavigationStack { SagaView(ref: SagaRef(id: "saga:1", name: "Pixar (démo)", count: 3)) } } }
-#Preview("Sagas") { ScreenHost { NavigationStack { SagasGridView() } } }
-#Preview("Studio") { ScreenHost { NavigationStack { GenreGridView(studio: Studio(id: "company:3", name: "Pixar", logo: nil, count: 3), kind: .movie) } } }
-#Preview("Fiche série") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } } }
-#Preview("Fiche sans TMDB") { ScreenHost { NavigationStack { DetailView(id: ContentID("fallback:movie:avant-charlie-brown-il-y-avait-schulz:-")) } } }
-#Preview("Fiche en erreur") {
-    ScreenHost(setup: { $0.scenario.failingDetail = true }) { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } }
-}
-#Preview("Page suivante en erreur") {
-    ScreenHost(setup: { $0.scenario.failingSecondPage = true }) { CatalogView(kind: .movie) }
-}
-#Preview("Sélecteur") {
-    ScreenHost {
-        VersionPicker(title: "La Lisière", versions: Fixtures.sevenVersions, recommendedID: "vf-4k-dv") { _, _, _, _ in }
-    }
-}
-#Preview("Accueil") { ScreenHost { HomeView() } }
-#Preview("Accueil hors ligne") {
-    ScreenHost(setup: { env in
-        env.scenario.offline = true
-        let cached = HomeScreen(hero: nil, rows: [], generatedAt: .now.addingTimeInterval(-3600 * 5))
-        _ = cached
-    }) { HomeOfflinePreview() }
-}
+// Grouped by screen, in the order of the tabs; a shared prefix keeps a screen's states together in the canvas.
+#Preview("App · onglets") { ScreenHost { MainTabsView() } }
 #Preview("Appairage") { ScreenHost { PairingView() } }
 #Preview("Appairage · code expiré") { ScreenHost(setup: { $0.scenario.pairingExpires = true }) { PairingView() } }
 #Preview("Appairage · jeton révoqué") {
     ScreenHost(setup: { $0.device.forget(reason: "L'appareil « Salon » a été retiré depuis l'admin du serveur. Vos favoris et vos reprises sont conservés côté serveur ; il suffit de l'ajouter à nouveau.") }) { PairingView() }
 }
+#Preview("Accueil") { ScreenHost { HomeView() } }
+#Preview("Accueil · hors ligne") { ScreenHost { HomeOfflinePreview() } }
+#Preview("Films") { ScreenHost { CatalogView(kind: .movie) } }
+#Preview("Séries") { ScreenHost { CatalogView(kind: .series) } }
+#Preview("Sagas") { ScreenHost { NavigationStack { SagasGridView() } } }
+#Preview("Saga") { ScreenHost { NavigationStack { SagaView(ref: SagaRef(id: "saga:1", name: "Pixar (démo)", count: 3)) } } }
+#Preview("Studio · titres") {
+    ScreenHost {
+        NavigationStack {
+            GenreGridView(studio: Studio(id: "company:3", name: "Pixar", logo: nil, count: 3,
+                                         backdrop: URL(string: "https://kanstrimi.crafters.dev/img/w1280/q62bpQ67qaXY0u6b2wFEnQYIbPd.jpg")),
+                          kind: .movie)
+        }
+    }
+}
+#Preview("Fiche · film") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:movie:535544")) } } }
+#Preview("Fiche · série") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } } }
+#Preview("Fiche · sans TMDB") { ScreenHost { NavigationStack { DetailView(id: ContentID("fallback:movie:avant-charlie-brown-il-y-avait-schulz:-")) } } }
+#Preview("Fiche · erreur") {
+    ScreenHost(setup: { $0.scenario.failingDetail = true }) { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } }
+}
+#Preview("Sélecteur de version") {
+    ScreenHost {
+        VersionPicker(title: "La Lisière", versions: Fixtures.sevenVersions, recommendedID: "vf-4k-dv") { _, _, _, _ in }
+    }
+}
+#Preview("Direct") { ScreenHost { LiveView() } }
+#Preview("Recherche") { ScreenHost { SearchView() } }
+#Preview("Recherche · résultats") { ScreenHost { SearchView(initialQuery: "le") } }
+#Preview("Recherche · vide") { ScreenHost { SearchView(initialQuery: "interstellar xyz") } }
 #Preview("Réglages") { ScreenHost { SettingsView() } }
-#Preview("Onglets") { ScreenHost { MainTabsView() } }
 
 /// Loads the home online once to fill the cache, then goes offline and reloads from it.
 private struct HomeOfflinePreview: View {
@@ -76,10 +80,4 @@ private enum Fixtures {
         Version(id: "vo-fhd", language: .vo, quality: .fhd, dynamicRange: nil, sources: [source("g", origin: "VO")]),
     ]
 }
-#endif
-#if DEBUG
-#Preview("Direct") { ScreenHost { LiveView() } }
-#Preview("Recherche") { ScreenHost { SearchView() } }
-#Preview("Recherche · résultats") { ScreenHost { SearchView(initialQuery: "le") } }
-#Preview("Recherche · vide") { ScreenHost { SearchView(initialQuery: "interstellar xyz") } }
 #endif

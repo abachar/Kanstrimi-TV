@@ -7,4 +7,10 @@ nonisolated struct Studio: Codable, Hashable, Identifiable, Sendable {
     let name: String
     let logo: URL?
     let count: Int
+    /// The backdrop of its latest visible title: the background of its screen.
+    let backdrop: URL?
+
+    init(id: String, name: String, logo: URL?, count: Int, backdrop: URL? = nil) {
+        self.id = id; self.name = name; self.logo = logo; self.count = count; self.backdrop = backdrop
+    }
 }

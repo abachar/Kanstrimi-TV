@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// "EN DIRECT · 4K · FR · Source A", programme and the zapping banner [16].
+/// iOS and macOS: "EN DIRECT · 4K · FR · Source A", programme and the zapping banner [16].
+/// tvOS shows its bar instead (`PlayerBar`).
 struct LiveBanner: View {
     @Environment(AppEnvironment.self) private var env
     let visible: Bool
@@ -34,17 +35,6 @@ struct LiveBanner: View {
                 if player.zapBanner { zapColumn.transition(.move(edge: .trailing).combined(with: .opacity)) }
             }
             Spacer()
-            if visible, Platform.isTV {
-                HStack(spacing: 30) {
-                    hint("◀", "Chaînes du groupe")
-                    hint("▶", "Programme")
-                    hint("▲", "Dernières chaînes")
-                    hint("▼", "Qualité · Audio · Sous-titres")
-                    hint("‹", "Retour · quitter")
-                }
-                .font(.callout).foregroundStyle(Theme.secondary)
-                .transition(.opacity)
-            }
         }
         .playerChromeInsets()
         .allowsHitTesting(false)
@@ -69,17 +59,9 @@ struct LiveBanner: View {
             if let q = c.maxQuality { Badge(q.rawValue) }
         }
     }
-
-    private func hint(_ key: String, _ text: String) -> some View {
-        HStack(spacing: 8) {
-            Text(key).font(.callout.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 2)
-                .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.14)))
-            Text(text)
-        }
-    }
 }
 
-/// ◀ on tvOS: the channels of the group the live started from.
+/// ◀ on tvOS: the channels of the group the live started from, each with what it shows now.
 struct ChannelListOverlay: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
@@ -89,32 +71,29 @@ struct ChannelListOverlay: View {
     private var player: PlayerService { env.player }
 
     var body: some View {
-        HStack {
+        HStack(spacing: 0) {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    Text("Chaînes").font(.title2.weight(.bold)).padding(.bottom, 10)
+                LazyVStack(alignment: .leading, spacing: 14) {
+                    Text("Chaînes").font(.title2.weight(.bold)).padding(.bottom, 6)
                     ForEach(player.channels) { c in
-                        Button {
+                        ChannelListRow(channel: c, isCurrent: c.id == player.channel?.id) {
                             player.play(channel: c, in: player.channels)
                             env.recentChannels.record(c.id)
                             onClose()
-                        } label: {
-                            HStack(spacing: 14) {
-                                ChannelLogo(channel: c, size: 44)
-                                Text(c.name).frame(maxWidth: .infinity, alignment: .leading)
-                                if let q = c.maxQuality { Badge(q.rawValue) }
-                                if c.id == player.channel?.id { Image(systemName: "play.fill").foregroundStyle(Theme.accent) }
-                            }
-                            .padding(.horizontal, 10)
                         }
                         .focused($focusedID, equals: c.id)
                     }
                 }
                 .padding(metrics.panelPadding)
             }
+            .scrollClipDisabled()
             .frame(width: metrics.listWidth)
-            .background(.thinMaterial.opacity(0.9))
-            Spacer()
+            .background(.ultraThinMaterial)
+            .background(.black.opacity(0.35))
+            // The video stays readable on the right, darkened towards the list.
+            LinearGradient(colors: [.black.opacity(0.35), .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: 160)
+            Spacer(minLength: 0)
         }
         .ignoresSafeArea()
         .touchActivity(onActivity)
@@ -123,46 +102,58 @@ struct ChannelListOverlay: View {
     }
 }
 
-/// ▲ on tvOS: the 8 last channels, most recent first; the previous one is focused [22].
-struct RecentChannelsOverlay: View {
+/// A channel of the ◀ list: logo, name, the programme on air and its progress; the one playing marked.
+private struct ChannelListRow: View {
     @Environment(AppEnvironment.self) private var env
-    @Environment(\.metrics) private var metrics
-    @FocusState private var focusedID: ContentID?
-    let onClose: () -> Void
-    var onActivity: () -> Void = { }
-    private var player: PlayerService { env.player }
+    let channel: Channel
+    let isCurrent: Bool
+    let action: () -> Void
+    /// The list's own, else the guide asked at display (kept a minute by the cache).
+    private var now: Programme? { channel.now ?? env.channelCache.cached(channel.id)?.now }
 
-    private var recents: [(entry: RecentChannelsStore.Entry, channel: Channel)] {
-        env.recentChannels.entries.compactMap { e in
-            player.channels.first { $0.id == e.channelID }.map { (e, $0) }
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 18) {
+                ChannelLogo(channel: channel, size: 64)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 10) {
+                        Text(channel.name).font(.callout.weight(.semibold)).lineLimit(1)
+                        if isCurrent {
+                            Text("EN COURS").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
+                        }
+                    }
+                    if let now {
+                        Text(now.title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
+                        ProgressBar(fraction: now.fraction(), height: 4).frame(maxWidth: 260)
+                    } else {
+                        Text(channel.hasEPG == false ? "Pas de programme" : " ").font(.caption).foregroundStyle(Theme.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+                if let q = channel.maxQuality { Badge(q.rawValue, small: true) }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .cardButtonStyle()
+        .task {
+            if now == nil, channel.hasEPG != false { _ = await env.channelCache.channel(channel.id) }
         }
     }
+}
+
+/// iOS and macOS: the 8 last channels, most recent first; the previous one is focused [22].
+struct RecentChannelsOverlay: View {
+    @Environment(\.metrics) private var metrics
+    let onClose: () -> Void
+    var onActivity: () -> Void = { }
 
     var body: some View {
         VStack {
             Spacer()
             VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("Chaînes récentes").font(.title2.weight(.bold))
-                    Text("clic = bascule immédiate").font(.callout).foregroundStyle(Theme.secondary)
-                }
-                if recents.isEmpty {
-                    Text("Aucune chaîne regardée récemment.").foregroundStyle(Theme.secondary).padding(.vertical, 30)
-                } else {
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 20) {
-                            ForEach(recents, id: \.entry.channelID) { r in
-                                RecentChannelCard(channel: r.channel, watchedAt: r.entry.watchedAt, isCurrent: r.channel.id == player.channel?.id) {
-                                    player.play(channel: r.channel, in: player.channels)
-                                    env.recentChannels.record(r.channel.id)
-                                    onClose()
-                                }
-                                .focused($focusedID, equals: r.channel.id)
-                            }
-                        }
-                        .padding(.vertical, 24).padding(.horizontal, 8)
-                    }
-                }
+                Text("Chaînes récentes").font(.title2.weight(.bold))
+                RecentChannelsStrip(onActivity: onActivity, onPick: onClose)
             }
             .padding(metrics.panelPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -170,8 +161,6 @@ struct RecentChannelsOverlay: View {
         }
         .ignoresSafeArea()
         .touchActivity(onActivity)
-        .onAppear { focusedID = env.recentChannels.previous(excluding: player.channel?.id) ?? recents.first?.channel.id }
-        .onChange(of: focusedID) { _, _ in onActivity() }
     }
 }
 
@@ -190,8 +179,8 @@ struct RecentChannelCard: View {
                 HStack {
                     ChannelLogo(channel: channel, size: 56)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(channel.name).font(.headline)
-                        Text(isCurrent ? "en cours" : Format.ago(watchedAt)).font(.caption).foregroundStyle(Theme.secondary)
+                        Text(channel.name).font(.headline).lineLimit(1)
+                        Text(isCurrent ? "en cours" : Format.ago(watchedAt)).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
                     }
                     Spacer()
                     if let q = channel.maxQuality { Badge(q.rawValue) }

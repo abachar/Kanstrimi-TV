@@ -31,20 +31,25 @@ struct SagaShelf: View {
     }
 }
 
-/// A saga poster with its name and its number of movies.
+/// A saga poster with its number of movies drawn on it, like a movie's year on its poster. No text
+/// under it: the poster names the saga (`ArtView` draws the name until it loads, or instead of it).
 struct SagaCardLabel: View {
     @Environment(\.metrics) private var metrics
     let saga: Saga
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        ZStack(alignment: .bottomLeading) {
             ArtView(id: ContentID(saga.id), url: saga.poster, title: saga.name)
                 .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-            Text(saga.name).font(.callout.weight(.semibold)).lineLimit(1)
-            Text(filmCount(saga.count)).font(.caption).foregroundStyle(Theme.secondary)
+            LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
+            Text(filmCount(saga.count)).font(.system(size: metrics.badge, weight: .semibold)).foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.6), radius: 3)
+                .padding(12)
         }
-        .frame(width: metrics.posterWidth)
+        .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(saga.name), \(filmCount(saga.count))")
     }
 }
 
@@ -207,30 +212,36 @@ struct StudioShelf: View {
     }
 }
 
-/// A studio logo on a light tile (TMDB logos are drawn for a light background), its name when there is no logo.
-private struct StudioTile: View {
+/// A studio logo on a light tile (TMDB logos are drawn for a light background), its name when there
+/// is no logo. Nothing else, on it or under it.
+struct StudioTile: View {
     @Environment(\.metrics) private var metrics
     let studio: Studio
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14).fill(.white)
+        ZStack {
+            RoundedRectangle(cornerRadius: 14).fill(.white)
+            Group {
                 if let logo = studio.logo {
                     AsyncImage(url: logo) { image in
                         image.resizable().scaledToFit()
                     } placeholder: {
-                        Text(studio.name).font(.headline).foregroundStyle(.black)
+                        name
                     }
                     .padding(metrics.posterWidth * 0.12)
                 } else {
-                    Text(studio.name).font(.headline).foregroundStyle(.black).multilineTextAlignment(.center).padding(8)
+                    name
                 }
             }
-            .frame(width: metrics.posterWidth * 1.5, height: metrics.posterWidth * 0.75)
-            Text("\(studio.name) · \(Format.count(studio.count))").font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: metrics.posterWidth * 1.5)
+        .frame(width: metrics.posterWidth * 1.5, height: metrics.posterWidth * 0.75)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(studio.name)
+    }
+
+    private var name: some View {
+        Text(studio.name).font(.headline).foregroundStyle(.black).multilineTextAlignment(.center).padding(8)
     }
 }
 

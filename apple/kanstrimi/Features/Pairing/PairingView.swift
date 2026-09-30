@@ -38,6 +38,11 @@ struct PairingView: View {
                 step(1, metrics.showsQR ? "Scannez le QR code avec l'appareil photo" : "Ouvrez l'admin avec le bouton ci-dessous")
                 step(2, "Connectez-vous à l'admin et nommez cet appareil")
                 step(3, "L'appareil est ajouté, sans rien saisir ici")
+                if metrics.showsQR {
+                    // The fallback without a camera lives with the steps; the right column keeps the QR and the code.
+                    Text("Sans appareil photo : ouvrez \(Text(model.host + "/admin/pair/…").foregroundStyle(Theme.accent)) en remplaçant les points par le code.")
+                        .font(.callout).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                }
 
                 if let message = env.device.lastRevocationMessage {
                     revokedNotice(message)
@@ -66,23 +71,36 @@ struct PairingView: View {
         }
     }
 
-    private func step(_ n: Int, _ text: String) -> some View {
-        HStack(spacing: 18) {
-            Text("\(n)").font(.title3.weight(.bold))
-                .frame(width: 44, height: 44)
-                .background(Circle().fill(.white.opacity(0.12)))
-            Text(text).font(.title3).fixedSize(horizontal: false, vertical: true)
+    @ViewBuilder private func step(_ n: Int, _ text: String) -> some View {
+        if Platform.isTV {
+            // "1." in its own column, on the first line of its step.
+            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                Text("\(n).").font(.title3.weight(.bold)).monospacedDigit().fixedSize().frame(minWidth: 48, alignment: .leading)
+                Text(text).font(.title3).fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            HStack(spacing: 18) {
+                Text("\(n)").font(.title3.weight(.bold))
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(.white.opacity(0.12)))
+                Text(text).font(.title3).fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
-    private func revokedNotice(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    @ViewBuilder private func revokedNotice(_ message: String) -> some View {
+        if Platform.isTV {
+            // The title alone: the explanation pushed the whole column around.
             Label("Cet appareil a été dissocié", systemImage: "exclamationmark.triangle").font(.headline).foregroundStyle(Theme.accent)
-            Text(message).font(.callout).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
-            Text("Réponse 401 du serveur · jeton effacé du trousseau, cache de l'accueil vidé").font(.caption).foregroundStyle(Theme.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Cet appareil a été dissocié", systemImage: "exclamationmark.triangle").font(.headline).foregroundStyle(Theme.accent)
+                Text(message).font(.callout).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                Text("Réponse 401 du serveur · jeton effacé du trousseau, cache de l'accueil vidé").font(.caption).foregroundStyle(Theme.secondary)
+            }
+            .padding(22)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
         }
-        .padding(22)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
     }
 
     @ViewBuilder private var qrPanel: some View {
@@ -104,16 +122,18 @@ struct PairingView: View {
             }
         }
         .frame(width: 400, height: 400)
-        Text("Scannez pour vous connecter").font(.headline).foregroundStyle(Theme.secondary)
     }
 
     private var codePanel: some View {
         VStack(spacing: 12) {
-            VStack(spacing: 2) {
-                Text("Ou ouvrez \(Text(model.host + "/admin/pair/…").foregroundStyle(Theme.accent))").foregroundStyle(Theme.secondary)
-                Text("en remplaçant les points par ce code :").foregroundStyle(Theme.secondary)
+            // With a QR (TV), the URL is told on the left, with the steps.
+            if !metrics.showsQR {
+                VStack(spacing: 2) {
+                    Text("Ou ouvrez \(Text(model.host + "/admin/pair/…").foregroundStyle(Theme.accent))").foregroundStyle(Theme.secondary)
+                    Text("en remplaçant les points par ce code :").foregroundStyle(Theme.secondary)
+                }
+                .font(.callout)
             }
-            .font(.callout)
             HStack(spacing: 10) {
                 ForEach(Array((model.code?.code ?? "······").enumerated()), id: \.offset) { _, ch in
                     Text(String(ch)).font(.system(size: metrics.codeCell * 0.73, weight: .bold, design: .rounded))
@@ -129,7 +149,7 @@ struct PairingView: View {
         HStack(spacing: 10) {
             switch model.status {
             case .creating: ProgressView(); Text("Demande d'un code au serveur…")
-            case .waiting: ProgressView(); Text("En attente de la confirmation dans l'admin")
+            case .waiting: ProgressView(); Text(metrics.showsQR ? "En attente de confirmation" : "En attente de la confirmation dans l'admin")
             case .expired: Image(systemName: "clock.arrow.circlepath"); Text("Expiré · renouvellement…")
             case .approved: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text("Appareil ajouté")
             case .offline: Image(systemName: "wifi.exclamationmark").foregroundStyle(Theme.accent); Text("Serveur injoignable · nouvel essai dans quelques secondes")

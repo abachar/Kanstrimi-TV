@@ -59,6 +59,10 @@ final class PlayerService: NSObject {
     private(set) var failure: Failure?
     /// Set when the next-episode card is showing; counts down to 0.
     private(set) var nextCountdown: Int?
+    #if DEBUG
+    /// Previews and debug states: a fake picture stands in for the video, so the overlays' transparency shows.
+    private(set) var debugFrame = false
+    #endif
     private(set) var nextContext: PlaybackContext?
     /// Live: the ordered channel list to zap through, and the current one.
     private(set) var channels: [Channel] = []
@@ -328,10 +332,21 @@ final class PlayerService: NSObject {
     }
 
     func playAlternative() {
-        guard let context, let alt = alternativeVersion else { return }
+        if let alt = alternativeVersion { playInstead(alt) }
+    }
+
+    /// Every other version, the chooser's best first: the failure dialog offers each (tvOS).
+    var alternativeVersions: [Version] {
+        guard let context, let version else { return [] }
+        return chooser.alternatives(to: version, in: context.versions)
+    }
+
+    /// From the failure dialog: another version, without remembering it as the title's choice.
+    func playInstead(_ v: Version) {
+        guard let context else { return }
         failure = nil
         startAttempts = 0
-        play(context, version: alt)
+        play(context, version: v)
     }
 
     // MARK: - Next episode
@@ -619,6 +634,7 @@ extension PlayerService {
     enum PreviewState: String { case vodPaused, failure, nextEpisode, livePlaying, panel, opening }
 
     func debugPut(_ ctx: PlaybackContext, state: PreviewState, channels list: [Channel] = []) {
+        debugFrame = true
         context = ctx
         version = ctx.versions.first
         source = ctx.versions.first?.sources.first
@@ -642,7 +658,8 @@ extension PlayerService {
             let start = Date.now.addingTimeInterval(-3200)
             epg = EPGNow(now: Programme(title: "Ligue · Lyon – Nantes", start: start, end: start.addingTimeInterval(7200), overview: nil),
                          next: Programme(title: "Le Mag du foot", start: start.addingTimeInterval(7200), end: start.addingTimeInterval(9000), overview: nil))
-            zapBanner = true
+            // tvOS has no zapping: only the iPhone and the Mac show the channel column.
+            zapBanner = !Platform.isTV
         case .panel: phase = .playing
         case .opening: phase = .buffering; bufferingProgress = 42
         }

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Swipe down: Infos · Versions · Audio · Sous-titres [11]; in live, Programme replaces Infos.
-/// Opens on Versions, or on the tab asked for (the live programme).
+/// iOS and macOS: Infos · Versions · Audio · Sous-titres [11]; in live, Programme replaces Infos.
+/// Opens on Versions, or on the tab asked for (the live programme). tvOS has its bar (`PlayerBar`).
 struct PlayerPanel: View {
     enum Tab: String, CaseIterable { case programme = "Programme", infos = "Infos", versions = "Versions", audio = "Audio", subtitles = "Sous-titres" }
 
@@ -10,8 +10,6 @@ struct PlayerPanel: View {
     @State private var tab: Tab = .versions
     @FocusState private var focusedTab: Tab?
     @FocusState private var focusedItem: String?
-    /// The channel's programmes until 6:00, fetched when the panel opens; nil while loading.
-    @State private var programmes: [Programme]?
     var opening: Tab? = nil
     let onClose: () -> Void
     var onActivity: () -> Void = { }
@@ -39,7 +37,7 @@ struct PlayerPanel: View {
 
                 Group {
                     switch tab {
-                    case .programme: programme
+                    case .programme: ProgrammeStrip(onActivity: onActivity)
                     case .infos: infos
                     case .versions: versions
                     case .audio: audio
@@ -60,54 +58,6 @@ struct PlayerPanel: View {
             if let opening, tabs.contains(opening) { tab = opening }
             focusedTab = tab
         }
-        .task(id: player.channel?.id) { await loadProgrammes() }
-    }
-
-    private func loadProgrammes() async {
-        guard player.isLive, let id = player.channel?.id else { return }
-        programmes = nil
-        // An unreliable guide is no reason for an error screen: a failure reads as an unknown programme.
-        programmes = (try? await env.call { try await env.client.programmes(channel: id) }) ?? []
-    }
-
-    /// From the programme on air until 6:00, one card each; the current one marked.
-    @ViewBuilder private var programme: some View {
-        if let programmes {
-            if programmes.isEmpty {
-                Text("Programme inconnu pour cette chaîne").foregroundStyle(Theme.secondary)
-            } else {
-                ScrollView(.horizontal) {
-                    HStack(spacing: 20) {
-                        ForEach(programmes, id: \.start) { p in
-                            // Focusable so the remote can scroll the day; nothing to do on select.
-                            Button { onActivity() } label: { programmeCard(p) }
-                                .cardButtonStyle()
-                                .focused($focusedItem, equals: "programme-\(p.start.timeIntervalSince1970)")
-                        }
-                    }
-                    .padding(.vertical, 20)
-                }
-            }
-        } else {
-            ProgressView()
-        }
-    }
-
-    private func programmeCard(_ p: Programme) -> some View {
-        let onAir = p.start <= .now && p.end > .now
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("\(Format.hour(p.start)) – \(Format.hour(p.end))").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondary)
-            Text(p.title).font(.title3.weight(.bold)).lineLimit(2)
-            if let o = p.overview { Text(o).font(.caption).foregroundStyle(Theme.secondary).lineLimit(3) }
-            Spacer(minLength: 0)
-            if onAir {
-                Text("EN COURS").font(.caption.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
-                ProgressBar(fraction: p.fraction(), height: 4)
-            }
-        }
-        .frame(width: metrics.panelCard * 1.2, alignment: .leading)
-        .frame(minHeight: metrics.panelCard * 0.6, alignment: .topLeading)
-        .padding(20)
     }
 
     private var infos: some View {

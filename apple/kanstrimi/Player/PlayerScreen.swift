@@ -11,6 +11,8 @@ struct PlayerScreen: View {
     @Environment(AppEnvironment.self) var env
     @State var controlsVisible = true
     @State var sheet: Sheet = .none
+    /// tvOS: the bar's buttons hold the focus (after ▼).
+    @State var barFocused = false
     @State private var hideTask: Task<Void, Never>?
     @State private var sheetTimer: Task<Void, Never>?
     @FocusState var surfaceFocused: Bool
@@ -34,18 +36,22 @@ struct PlayerScreen: View {
     var content: some View {
         ZStack {
             VLCVideoView(view: player.videoView).ignoresSafeArea()
+            #if DEBUG
+            if player.debugFrame { PreviewFrame().ignoresSafeArea() }
+            #endif
 
             // The surface steps aside while the failure dialog is up, otherwise it keeps the
             // focus and every press lands on it instead of on the dialog's buttons.
             // Same while the next-episode card asks for the focus.
-            if sheet == .none, player.failure == nil, player.nextCountdown == nil {
+            // Same while the tvOS bar's buttons hold it.
+            if sheet == .none, !barFocused, player.failure == nil, player.nextCountdown == nil {
                 surface
             }
 
-            // On iOS the touch top bar (close, panel) sits above the banner.
-            if player.isLive { LiveBanner(visible: controlsVisible || player.zapBanner).padding(.top, Platform.isTV ? 0 : 64) }
+            // On iOS the touch top bar (close, panel) sits above the banner. tvOS has its bar.
+            if player.isLive, !Platform.isTV { LiveBanner(visible: controlsVisible || player.zapBanner).padding(.top, 64) }
 
-            if controlsVisible, sheet == .none, player.failure == nil {
+            if controlsVisible || barFocused, sheet == .none, player.failure == nil {
                 controls.transition(.opacity)
             }
 
@@ -68,6 +74,9 @@ struct PlayerScreen: View {
         .onChange(of: sheet) { _, s in
             if s == .none { sheetTimer?.cancel() } else { armSheetTimer() }
         }
+        .onChange(of: barFocused) { _, focused in
+            if focused { armSheetTimer() } else { sheetTimer?.cancel() }
+        }
         .onChange(of: player.phase) { _, phase in
             if phase == .playing { scheduleHide() } else { showControls(autoHide: false) }
         }
@@ -85,7 +94,22 @@ struct PlayerScreen: View {
 
     func exit() {
         if sheet != .none { closeSheet(); return }
+        if barFocused { leaveBar(hide: true); return }
         player.stop()
+    }
+
+    /// tvOS: ▼ hands the focus to the bar's buttons; it stays up until they let it go.
+    func focusBar() {
+        hideTask?.cancel()
+        controlsVisible = true
+        barFocused = true
+    }
+
+    /// tvOS: the focus goes back to the video, the bar with it when `hide`, else a few seconds more.
+    func leaveBar(hide: Bool) {
+        barFocused = false
+        surfaceFocused = true
+        if hide { hideTask?.cancel(); controlsVisible = false } else { showControls() }
     }
 
     func closeSheet() {
@@ -95,12 +119,13 @@ struct PlayerScreen: View {
         showControls()
     }
 
-    /// (Re)starts the inactivity countdown of the open panel.
+    /// (Re)starts the inactivity countdown of the open panel, or of the tvOS bar holding the focus.
     func armSheetTimer() {
         sheetTimer?.cancel()
         sheetTimer = Task {
             try? await Task.sleep(for: Self.sheetTimeout)
-            if !Task.isCancelled, sheet != .none { closeSheet() }
+            guard !Task.isCancelled else { return }
+            if sheet != .none { closeSheet() } else if barFocused { leaveBar(hide: true) }
         }
     }
 
@@ -115,111 +140,6 @@ struct PlayerScreen: View {
             try? await Task.sleep(for: .seconds(4))
             if !Task.isCancelled, player.phase == .playing { controlsVisible = false }
         }
-    }
-}
-
-// MARK: - VOD overlay at rest [15]
-
-struct VODOverlay: View {
-    @Environment(AppEnvironment.self) private var env
-    @Environment(\.metrics) private var metrics
-    private var player: PlayerService { env.player }
-
-    var body: some View {
-        ZStack {
-            LinearGradient(colors: [.black.opacity(0.55), .clear, .clear, .black.opacity(0.7)], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
-
-            VStack {
-                HStack {
-                    statusPill
-                    Spacer()
-                }
-                Spacer()
-                if player.phase == .paused {
-                    Image(systemName: "play.fill").font(.system(size: 64)).foregroundStyle(.white)
-                        .padding(36).background(Circle().fill(.white.opacity(0.18)))
-                }
-                Spacer()
-                bottomBar
-            }
-            .playerChromeInsets()
-        }
-        .allowsHitTesting(false)
-    }
-
-    private var statusPill: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.title3.weight(.bold))
-            if let v = player.version { Text(v.longLabel).font(.callout).foregroundStyle(Theme.secondary) }
-            Text("Audio \(player.selectedAudioLabel) · Sous-titres \(player.selectedTextLabel)")
-                .font(.callout).foregroundStyle(Theme.secondary)
-        }
-        .padding(.horizontal, 24).padding(.vertical, 16)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-    }
-
-    private var title: String {
-        guard let c = player.context?.content else { return "" }
-        if let ep = c.episode, let s = c.subtitle { return "\(s) · \(ep.shortCode) · \(c.title)" }
-        return c.title
-    }
-
-    /// "▶▶ ×30  " while a direction is held.
-    private var scanLabel: String {
-        guard player.scanRate != 0 else { return "" }
-        return "\(player.scanRate > 0 ? "▶▶" : "◀◀") ×\(Int(abs(player.scanRate)))  "
-    }
-
-    private var bottomBar: some View {
-        VStack(spacing: 14) {
-            GeometryReader { geo in
-                let x = geo.size.width * player.fraction
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.white.opacity(0.28)).frame(height: 8)
-                    Capsule().fill(.white).frame(width: max(0, x), height: 8)
-                }
-                // An overlay, not a third layer of the stack: the pill must not count in the
-                // stack's height, or the 8 pt track grows to the pill's size and spills over the hints.
-                // Only while the target moves (fast forward): at rest the time sits under the bar.
-                .overlay(alignment: .bottomLeading) {
-                    if player.scanRate != 0 {
-                    Text(scanLabel + Format.clock(player.shownTime))
-                        .font(.callout.weight(.semibold))
-                        .padding(.horizontal, 12).padding(.vertical, 6)
-                        .background(.white, in: Capsule()).foregroundStyle(.black)
-                        .offset(x: min(max(0, x - 40), geo.size.width - 90), y: -16)
-                    }
-                }
-            }
-            .frame(height: 8)
-            .padding(.top, 40)
-            HStack {
-                Text(Format.clock(player.shownTime)).foregroundStyle(Theme.text)
-                Spacer()
-                Text("−\(Format.clock(player.remaining)) · fin à \(Format.hour(player.endDate))")
-            }
-            .font(.callout.monospacedDigit()).foregroundStyle(Theme.secondary)
-            // The remote hints only at pause: while playing the bar shows a few seconds and goes.
-            if Platform.isTV, player.phase == .paused {
-                HStack {
-                    Spacer()
-                    hint("◀ ▶", "±10 s · maintenir : avance rapide")
-                    hint("▼", "Infos · Versions · Audio · Sous-titres")
-                    hint("‹", "Retour · quitter")
-                }
-                .font(.callout).foregroundStyle(Theme.secondary)
-            }
-        }
-    }
-
-    private func hint(_ key: String, _ text: String) -> some View {
-        HStack(spacing: 8) {
-            Text(key).font(.callout.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 2)
-                .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.14)))
-            Text(text)
-        }
-        .padding(.leading, 24)
     }
 }
 

@@ -60,14 +60,31 @@ cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Fu
 libellé n'apparaît que sous la pastille focalisée, sur iPhone et Mac il est toujours affiché. Ma liste = cœur
 (favori, comme dans le Direct). La bande-annonce (YouTube, que VLC ne lit pas) s'ouvre par `openURL` : l'app
 YouTube sur tvOS (`youtube://`, `LSApplicationQueriesSchemes`), bouton masqué si elle manque ; la page web ailleurs.
+Sous le titre, les tags de version montrent en plein celle que Lecture joue (qualité et langue),
+les autres langues en contour ; pas de note « version choisie » ni de tableau des versions.
 Le titre est dessiné par son logo TMDB (`logo`, `TitleLogo`) quand le serveur en sert un, dans la boîte
 `Metrics.detailLogo` ; le texte le remplace pendant le chargement et en cas d'échec.
 
 **Reprendre et vu** : appui long sur une carte de « Reprendre » (accueil) = Retirer ou Marquer comme vu ; fiche d'un film = bouton « Marquer comme vu » / « Vu » ; appui long sur un épisode = vu / non vu, sur un bouton de saison = toute la saison. La progression en attente du titre est oubliée (`ProgressQueue.drop`) pour qu'un rejeu ne le ramène pas.
 
-**Télécommande en direct** (tvOS) : ◀ chaînes du groupe, ▶ programme, ▲ dernières chaînes, ▼ qualité, audio et sous-titres ; pas de zapping sur les flèches (sans numéros de chaîne, l'ordre ne s'apprend pas). L'iPhone et le Mac gardent le zapping (glisser vertical, flèches).
+**Barre du lecteur** (tvOS, `PlayerBar`) : un seul calque pour film, épisode et direct. Un appui (ouverture, changement de
+chaîne, clic, ◀/▶, Lecture/Pause) l'affiche 4 s ; ▼ (ou appui long) donne le focus à ses boutons, ▲ le rend à la vidéo,
+Retour ferme le panneau puis la barre puis le lecteur, 10 s sans geste la ferment. En haut le titre (en direct : EN DIRECT,
+chaîne, émission) et la progression (en direct celle de l'émission, pleine sans guide) ; en bas à gauche les boutons texte
+qui ouvrent un panneau (direct : Programme · Récentes · Infos ; film : Infos ; série : Épisodes de la saison · Infos),
+à droite les icônes Versions · Audio · Sous-titres, chacune un menu déroulant. Panneau ouvert : titre et progression
+s'effacent, les boutons remontent et le détail s'affiche dessous (▼), sur un voile sombre. Pas d'aide de télécommande à l'écran.
+**Télécommande en direct** (tvOS) : ◀ chaînes du groupe (avec l'émission en cours), ▼ la barre ; ▲ et ▶ ne font rien ;
+pas de zapping sur les flèches (sans numéros de chaîne, l'ordre ne s'apprend pas). L'iPhone et le Mac gardent le zapping
+(glisser vertical, flèches), le bandeau du direct et le panneau à onglets (`PlayerPanel`). Le dialogue d'échec y propose « Réessayer · <version en cours> », puis « ou essayer une autre
+version » et les autres versions sur une ligne (`playInstead`, sans la mémoriser), puis « Quitter » à part.
+Le sélecteur de version de la fiche (`VersionPicker`, toutes plateformes) est une simple liste : un bouton par source de chaque
+version (la recommandée d'abord, puis par langue et qualité décroissante ; la source sous la version sur iPhone),
+qui lance la lecture aussitôt. Pas d'onglets
+de langue, pas d'options « mémoriser » ni « par défaut », pas de bouton Lire : la meilleure version reste le choix
+automatique.
 
-**Programme du direct** : dans le lecteur, le panneau (tvOS : flèche droite ; iPhone : « Programme ») ouvre sur l'onglet Programme, qui remplace Infos : `GET /channels/{id}/programmes`, du programme en cours jusqu'à 6 h, rechargé à chaque zapping ; un échec se lit « Programme inconnu ».
+**Programme du direct** : dans le lecteur, le bouton Programme (tvOS : dans la barre ; iPhone : « Programme ») ouvre le programme, qui remplace Infos : `GET /channels/{id}/programmes`, du programme en cours jusqu'à 6 h, rechargé à chaque zapping ; un échec se lit « Programme inconnu ».
 
 **Direct** : jamais de pause, comme une télé (`PlayerService.togglePlayPause`/`pause` l'ignorent sur toutes les plateformes) ; Lecture relance seulement un flux arrêté par une coupure.
 Une fois l'image affichée, un chien de garde compte les images affichées (`VLCMedia.statistics`) : 4 s sans
@@ -98,10 +115,16 @@ défilement réel.
 ## Fonctionnement
 
 - **Appairage** : l'app demande un code à `POST /devices` et sonde `GET /devices/{code}` jusqu'à
-  l'approbation, jeton en Keychain. L'Apple TV affiche un QR vers `/admin/pair/{code}` ; l'iPhone
+  l'approbation, jeton en Keychain. L'Apple TV affiche un QR vers `/admin/pair/{code}` (à gauche
+  les étapes et l'adresse de repli, à droite seulement le QR, le code et l'attente) ; l'iPhone
   affiche un lien « Ouvrir l'admin » (Safari), la validation se fait sur le même téléphone. Un `401`
   n'importe où dissocie l'appareil et ramène à l'appairage.
-- **Catalogue** : les rangées viennent du serveur ; « Voir tout » s'ouvre sur l'ordre du serveur (« Nouveautés »
+- **Catalogue** : une affiche ne porte aucun texte dessous ; l'année, la note et les pastilles qualité et
+  langue sont dessinées dessus (pas de genre : un titre en a plusieurs, la rangée dit déjà lequel) ; une seule
+  carte pour les rangées et les grilles (`PosterCard` / `PosterCardLabel`). Même règle pour une saga (nombre de films
+  sur l'affiche) et un studio (son logo seul, ou son nom sans logo). L'écran d'un studio
+  (`GenreGridView(studio:)`) a sa tuile en tête et, en fond, le backdrop de son titre le plus récent (`Studio.backdrop`),
+  comme une saga ; les films d'une saga vont du plus récent au plus ancien. Les rangées viennent du serveur ; « Voir tout » s'ouvre sur l'ordre du serveur (« Nouveautés »
   et « Derniers épisodes » par arrivée, les genres par date de sortie), modifiable dans la grille et jamais
   mémorisé. « Top 10 de la semaine » (rangée `top10` du serveur) affiche le rang à côté de l'affiche. Après
   « Nouveautés » viennent les « Studios » (`/movies/studios`, `/series/studios`, grille = la liste filtrée par
@@ -136,10 +159,11 @@ les trois destinations se vérifient quand même, à chaque modification. À fro
   `pref.useMock` (mock), `debug.autopair` / `debug.unpair`, `debug.tab` (`home` … `settings`),
   `debug.open` (identifiant de contenu), `debug.autoplay` (`live`, `live:<id>` ou un identifiant,
   plus `debug.resumeAt`), `debug.playerState` (`vodPaused`, `livePlaying`, `failure`, `nextEpisode`,
-  `panel`, `opening` : met le lecteur dans cet état sans flux). Puis `xcrun simctl io <udid> screenshot`.
+  `panel`, `opening` : met le lecteur dans cet état sans flux, une fausse image `PreviewFrame` à la place de la vidéo pour juger la transparence des overlays ; les previews du lecteur aussi). Puis `xcrun simctl io <udid> screenshot`.
 - Captures pour la revue UI : `scripts/shot-all.sh tvos` (puis `iphone`) compile en Debug, installe et capture
   les 15 écrans atteignables par ces clés, avec le même horodatage (`NOBUILD=1` pour sauter la compilation) ;
-  `scripts/shot.sh <écran> <cible>` pour un seul écran. Sortie dans `ui-review/`, ignoré par git. Ce qui demande
+  `scripts/shot.sh <écran> <cible>` pour un seul écran. Sortie dans `ui-review/`, ignoré par git. Les clés `debug.*` s'effacent au lancement qui les lit, et le script
+  remet `pref.useMock` comme il l'a trouvé : un lancement suivant depuis Xcode repart normalement. Ce qui demande
   focus ou défilement (résultats de recherche, grilles, panneau du lecteur, Programme du direct) passe par `ScreenTour`.
 
 ## Contraintes mesurées

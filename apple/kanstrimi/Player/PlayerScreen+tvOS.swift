@@ -18,9 +18,9 @@ extension PlayerScreen {
         }
     }
 
-    /// At rest, the VOD overlay shows the state and the remote hints; live has its banner.
-    @ViewBuilder var controls: some View {
-        if !player.isLive { VODOverlay() }
+    /// The one bar, for a film, an episode or a channel.
+    var controls: some View {
+        PlayerBar(interactive: barFocused, onActivity: { armSheetTimer() }, onLeave: { leaveBar(hide: $0) })
     }
 
     /// Invisible focus surface that receives the remote when nothing else is focused.
@@ -33,27 +33,21 @@ extension PlayerScreen {
             .onTapGesture { select() }
             .onPlayPauseCommand { player.togglePlayPause(); showControls() }
             .onMoveCommand { direction in handleMove(direction) }
-            .onLongPressGesture(minimumDuration: 0.6) { if !player.isLive { sheet = .panel } }
+            .onLongPressGesture(minimumDuration: 0.6) { focusBar() }
     }
 
     private func handleMove(_ direction: MoveCommandDirection) {
+        if direction == .down { focusBar(); return }
         showControls()
         if player.isLive {
-            switch direction {
             // No zapping on the arrows: without channel numbers to learn, the order means nothing.
-            case .up: sheet = .recents
-            case .down: sheet = .panel
-            case .left: sheet = .channels
-            case .right: sheet = .programme
-            @unknown default: break
-            }
+            // ▲ and ▶ do nothing: the recent channels and the programme are in the bar (▼).
+            if direction == .left { sheet = .channels }
         } else {
             switch direction {
             case .left: player.seek(by: -10)
             case .right: player.seek(by: 10)
-            case .down: sheet = .panel
-            case .up: sheet = .panel
-            @unknown default: break
+            default: break
             }
         }
     }

@@ -150,6 +150,8 @@ struct GenreGridView: View {
     let title: String
     /// Known for a genre; a studio's comes with the tab's count.
     let total: Int
+    /// A studio's grid: its logo in place of the title, its latest title's backdrop behind.
+    private var studio: Studio?
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
     @State private var paginator: Paginator<Card, ListQuery>?
@@ -166,6 +168,7 @@ struct GenreGridView: View {
         self.kind = kind
         title = studio.name
         total = studio.count
+        self.studio = studio
         var q = ListQuery(kind: kind)
         q.studio = studio.id
         _query = State(initialValue: q)
@@ -174,17 +177,27 @@ struct GenreGridView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
-                HStack(spacing: 14) {
-                    Text(title).font(.largeTitle.weight(.bold))
-                    Text(Format.count(total)).font(.title3).foregroundStyle(Theme.secondary)
-                }
-                .padding(.horizontal, metrics.inset)
+                header.padding(.horizontal, metrics.inset)
                 FilterBar(kind: kind, query: $query)
                 grid
             }
             .padding(.vertical, 40)
+            .padding(.top, studio == nil ? 0 : metrics.detailTop - 40)
         }
-        .background(Theme.background)
+        .background {
+            ZStack(alignment: .top) {
+                Theme.background
+                // Like a saga's screen: the backdrop fades into the background under the header.
+                if let studio, let backdrop = studio.backdrop {
+                    ZStack {
+                        ArtView(id: ContentID(studio.id), url: backdrop)
+                        LinearGradient(colors: [.clear, Theme.background.opacity(0.9), Theme.background], startPoint: .top, endPoint: .bottom)
+                    }
+                    .frame(height: metrics.heroHeight * 1.2)
+                }
+            }
+            .ignoresSafeArea()
+        }
         .task {
             if paginator == nil {
                 let p = Paginator(client: env.client, query: query)
@@ -194,6 +207,17 @@ struct GenreGridView: View {
         }
         .onChange(of: query) { _, q in
             Task { await paginator?.apply(q) }
+        }
+    }
+
+    @ViewBuilder private var header: some View {
+        if let studio {
+            StudioTile(studio: studio)
+        } else {
+            HStack(spacing: 14) {
+                Text(title).font(.largeTitle.weight(.bold))
+                Text(Format.count(total)).font(.title3).foregroundStyle(Theme.secondary)
+            }
         }
     }
 
@@ -233,39 +257,6 @@ struct GenreGridView: View {
         } else {
             ProgressView().frame(maxWidth: .infinity).padding(100)
         }
-    }
-}
-
-/// The poster card content, without a button, for grid buttons.
-struct PosterCardLabel: View {
-    @Environment(\.metrics) private var metrics
-    let card: Card
-    var width: CGFloat? = nil
-    var body: some View {
-        let width = width ?? metrics.posterWidth
-        VStack(alignment: .leading, spacing: 10) {
-            ZStack(alignment: .bottomLeading) {
-                ArtView(id: card.id, url: card.poster, title: card.title).frame(width: width, height: width * 1.5)
-                LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-                VStack(alignment: .leading, spacing: 6) {
-                    if let hint = card.hint {
-                        Text(hint).font(.caption2.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
-                    }
-                    VersionBadges(quality: card.qualityBadge, languages: card.languages, compact: true)
-                }
-                .padding(12)
-                if let p = card.progress, p.isResumable {
-                    ProgressBar(fraction: p.fraction, height: 5).padding(.horizontal, 12).padding(.bottom, 6)
-                }
-            }
-            .frame(width: width, height: width * 1.5)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            Text(card.title).font(.callout.weight(.semibold)).lineLimit(1)
-            Text([card.year.map(String.init), card.genres.first].compactMap { $0 }.joined(separator: " · "))
-                .font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-        }
-        .frame(width: width)
     }
 }
 

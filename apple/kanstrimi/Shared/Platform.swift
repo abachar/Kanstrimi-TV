@@ -138,7 +138,7 @@ nonisolated struct Metrics: Sendable {
                             heroHeight: 600, heroTitle: 64, detailTitle: 76, detailTop: 160, detailLogo: CGSize(width: 640, height: 200), stillWidth: 260, textWidth: 1000,
                             stateIcon: 56, statePadding: 60, searchPoster: 360, searchColumn: 400, liveColumns: true, channelLogo: 96,
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
-                            panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 360,
+                            panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 460,
                             dialogTitle: 48, dialogWidth: 900, nextCard: 620, dialogMargin: 70,
                             pickerWidth: 1200, toggleWidth: 420, iconButton: 76)
     static let phone = Metrics(inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,

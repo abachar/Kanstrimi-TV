@@ -241,7 +241,11 @@ final class MockCatalogClient: CatalogClient {
 
     func studios(kind: ContentKind) async throws -> [Studio] {
         try await gate()
-        return kind == .series ? [] : studioFixtures.map { Studio(id: $0.id, name: $0.name, logo: $0.logo, count: $0.movies.count) }
+        guard kind == .movie else { return [] }
+        return studioFixtures.map { f in
+            let latest = movies.filter { f.movies.contains($0.id) && $0.backdrop != nil }.max { ($0.year ?? 0) < ($1.year ?? 0) }
+            return Studio(id: f.id, name: f.name, logo: f.logo, count: f.movies.count, backdrop: latest?.backdrop)
+        }
     }
 
     func sagas(cursor: String?) async throws -> Page<Saga> {
@@ -252,7 +256,7 @@ final class MockCatalogClient: CatalogClient {
     func saga(id: String) async throws -> SagaSheet {
         try await gate()
         guard let f = sagaFixtures.first(where: { $0.id == id }) else { throw CatalogError.notFound }
-        let cards = movies.filter { f.movies.contains($0.id) }.sorted { ($0.year ?? 0) < ($1.year ?? 0) }.map { card(for: $0) }
+        let cards = movies.filter { f.movies.contains($0.id) }.sorted { ($0.year ?? 0) > ($1.year ?? 0) }.map { card(for: $0) }  // latest first, like the server
         return SagaSheet(id: f.id, name: f.name, count: cards.count, poster: f.poster, backdrop: f.backdrop, movies: cards)
     }
 

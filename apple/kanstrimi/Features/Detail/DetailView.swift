@@ -70,18 +70,6 @@ private struct DetailContent: View {
                     VStack(alignment: .leading, spacing: 34) {
                         header(d).padding(.top, metrics.detailTop)
                         buttons(d)
-                        // Note and matrix side by side when they fit, stacked on a phone.
-                        ViewThatFits(in: .horizontal) {
-                            HStack(alignment: .top, spacing: 40) {
-                                chosenVersionNote(d)
-                                Spacer()
-                                matrix(d)
-                            }
-                            VStack(alignment: .leading, spacing: 20) {
-                                chosenVersionNote(d)
-                                matrix(d)
-                            }
-                        }
                         if d.kind == .series { seasons(d) }
                         Spacer(minLength: 80)
                     }
@@ -93,12 +81,6 @@ private struct DetailContent: View {
             .onAppear { focused = .play }
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    @ViewBuilder private func matrix(_ d: Card) -> some View {
-        if d.kind == .movie, !d.versions.isEmpty {
-            VersionMatrix(versions: d.versions, autoID: model.choice?.version.id)
         }
     }
 
@@ -115,6 +97,24 @@ private struct DetailContent: View {
         .ignoresSafeArea()
     }
 
+    /// The version Lecture plays, filled: its quality and its language; the other languages outlined.
+    /// Without a choice yet, the best quality and every language, all outlined.
+    private func versionTags(_ d: Card) -> some View {
+        let chosen = model.choice?.version
+        let quality = chosen.map(Self.qualityTag) ?? d.versions.maxQuality.map { q in
+            d.versions.maxDynamicRange.map { $0 == .sdr ? q.rawValue : "\(q.rawValue) \($0.label)" } ?? q.rawValue
+        }
+        return HStack(spacing: 6) {
+            if let quality { Badge(quality, filled: chosen != nil) }
+            ForEach(d.versions.languages, id: \.self) { l in Badge(l.rawValue, filled: l == chosen?.language) }
+        }
+    }
+
+    private static func qualityTag(_ v: Version) -> String {
+        guard let dr = v.dynamicRange, dr != .sdr else { return v.quality.rawValue }
+        return "\(v.quality.rawValue) \(dr.label)"
+    }
+
     private func header(_ d: Card) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(tagline(d)).font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
@@ -125,8 +125,7 @@ private struct DetailContent: View {
                 if let r = d.rating { Text(String(format: "★ %.1f", r)).foregroundStyle(Theme.accent) }
             }
             .font(.title3)
-            VersionBadges(quality: d.versions.maxQuality.map { q in d.versions.maxDynamicRange.map { $0 == .sdr ? q.rawValue : "\(q.rawValue) \($0.label)" } ?? q.rawValue },
-                          languages: d.versions.languages)
+            versionTags(d)
             if let s = d.saga {
                 Button { openSaga(s) } label: {
                     Label("\(s.name) · \(s.count) films", systemImage: "square.stack")
@@ -202,15 +201,15 @@ private struct DetailContent: View {
                 .disabled(d.versions.isEmpty)
             }
             if d.kind == .series {
-                IconAction(title: "Langue · \(model.seriesChoice?.label ?? "—")", systemImage: "globe", focused: focused == .language) { showPicker = true }
+                IconAction(title: "Langue · \(model.seriesChoice?.label ?? "—")", systemImage: "waveform", focused: focused == .language) { showPicker = true }
                     .focused($focused, equals: .language)
                     .disabled(d.versions.isEmpty)
             } else {
-                IconAction(title: "Versions (\(d.versions.count))", systemImage: "rectangle.stack", focused: focused == .versions) { showPicker = true }
+                IconAction(title: "Versions (\(d.versions.count))", systemImage: "rectangle.stack.badge.play", focused: focused == .versions) { showPicker = true }
                     .focused($focused, equals: .versions)
                     .disabled(d.versions.isEmpty)
                 let watched = d.progress?.isWatched == true
-                IconAction(title: watched ? "Vu" : "Marquer comme vu", systemImage: watched ? "eye.fill" : "eye", focused: focused == .watched) {
+                IconAction(title: watched ? "Vu" : "Marquer comme vu", systemImage: "checkmark", focused: focused == .watched) {
                     Task { await model.setWatched(!watched) }
                 }
                 .focused($focused, equals: .watched)
@@ -224,32 +223,6 @@ private struct DetailContent: View {
                 Task { await model.toggleFavorite() }
             }
             .focused($focused, equals: .favorite)
-        }
-    }
-
-    @ViewBuilder private func chosenVersionNote(_ d: Card) -> some View {
-        if let c = model.choice {
-            HStack(spacing: 12) {
-                Image(systemName: "sparkles").foregroundStyle(Theme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    if d.kind == .series {
-                        Text("\(c.version.longLabel) · \(c.reasonLabel) · appliquée à tous les épisodes").font(.callout.weight(.semibold))
-                        if let p = d.progress, p.isResumable, let e = d.currentEpisode {
-                            Text("« \(e.title ?? "") » · \(Format.remaining(p.remaining))").font(.caption).foregroundStyle(Theme.secondary)
-                        }
-                    } else {
-                        Text(c.version.longLabel).font(.callout.weight(.semibold))
-                        Text("\(c.reasonLabel.prefix(1).uppercased() + c.reasonLabel.dropFirst()) · Versions pour changer").font(.caption).foregroundStyle(Theme.secondary)
-                    }
-                    if let p = d.progress, p.isWatched, d.kind == .movie {
-                        Text("Vu en entier").font(.caption).foregroundStyle(Theme.secondary)
-                    }
-                }
-            }
-            .padding(.horizontal, 20).padding(.vertical, 12)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        } else if d.versions.isEmpty {
-            Label("Aucune version jouable pour ce titre.", systemImage: "exclamationmark.triangle").foregroundStyle(Theme.accent)
         }
     }
 

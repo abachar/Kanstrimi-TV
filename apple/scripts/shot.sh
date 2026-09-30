@@ -49,6 +49,8 @@ xcrun simctl terminate $UDID $B >/dev/null 2>&1 || true
 for k in debug.tab debug.open debug.autoplay debug.playerState debug.resumeAt debug.unpair debug.autopair; do
   xcrun simctl spawn $UDID defaults delete $B $k >/dev/null 2>&1 || true
 done
+# The demo client for the capture, then the user's own choice back (the debug.* keys erase themselves at launch).
+mock_before=$(xcrun simctl spawn $UDID defaults read $B pref.useMock 2>/dev/null || echo absent)
 xcrun simctl spawn $UDID defaults write $B pref.useMock -bool YES
 for k v in ${(kv)kv}; do
   if [[ $v == YES ]]; then xcrun simctl spawn $UDID defaults write $B $k -bool YES
@@ -58,4 +60,9 @@ xcrun simctl launch $UDID $B >/dev/null
 sleep ${WAIT:-5}
 mkdir -p ../ui-review/$screen
 xcrun simctl io $UDID screenshot --type=png "../ui-review/$screen/$stamp-$target.png" >/dev/null 2>&1
+case $mock_before in
+  absent) xcrun simctl spawn $UDID defaults delete $B pref.useMock >/dev/null 2>&1 || true ;;
+  1) ;;
+  *) xcrun simctl spawn $UDID defaults write $B pref.useMock -bool NO ;;
+esac
 echo "ok ui-review/$screen/$stamp-$target.png"

@@ -19,14 +19,37 @@ struct StreamFailureDialog: View {
                 }
                 // One button per row, like a tvOS alert: the version label can be long and the dialog is narrow.
                 VStack(alignment: .leading, spacing: 14) {
-                    Button { player.retryFromServer() } label: { Label("Réessayer", systemImage: "arrow.clockwise") }.focused($focused)
-                    if let alt = player.alternativeVersion {
-                        Button { player.playAlternative() } label: { Label("Autre version · \(alt.label)", systemImage: "square.stack.3d.up") }
+                    if Platform.isTV {
+                        // The current version retries; every other one, on a single line, plays instead.
+                        if let v = player.version {
+                            Button { player.retryFromServer() } label: { Label("Réessayer · \(v.label)", systemImage: "arrow.clockwise") }
+                                .focused($focused)
+                        }
+                        let others = player.alternativeVersions
+                        if !others.isEmpty {
+                            Text("ou essayer une autre version").font(.callout).foregroundStyle(Theme.secondary).padding(.top, 8)
+                            ScrollView(.horizontal) {
+                                HStack(spacing: 14) {
+                                    ForEach(others) { v in
+                                        Button(v.label) { player.playInstead(v) }
+                                    }
+                                }
+                                .padding(.vertical, 12)
+                            }
+                            .scrollClipDisabled()
+                        }
+                    } else {
+                        Button { player.retryFromServer() } label: { Label("Réessayer", systemImage: "arrow.clockwise") }.focused($focused)
+                        if let alt = player.alternativeVersion {
+                            Button { player.playAlternative() } label: { Label("Autre version · \(alt.label)", systemImage: "rectangle.stack.badge.play") }
+                        }
                     }
                     Button("Quitter", role: .cancel) { player.stop() }
                 }
-                Text("Réessayer suffit souvent : la source change d'une tentative à l'autre.")
-                    .font(.callout).foregroundStyle(Theme.secondary)
+                if !Platform.isTV {
+                    Text("Réessayer suffit souvent : la source change d'une tentative à l'autre.")
+                        .font(.callout).foregroundStyle(Theme.secondary)
+                }
             }
             .padding(metrics.panelPadding)
             .frame(maxWidth: metrics.dialogWidth, alignment: .leading)
