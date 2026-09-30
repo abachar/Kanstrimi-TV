@@ -75,6 +75,12 @@ nouvelle image ou sans sortie vidéo = source en cause (le débit ne l'est pas),
 (nouveau jeton via le `302`), puis le dialogue. Un `.stopped` en direct (connexion fermée par l'amont, que `:http-reconnect`
 n'a pas pu rouvrir) prend la même bascule : un direct n'a pas de fin.
 
+**Réglages** (tvOS) : à gauche le nom de l'app et ce qui se lit sans se régler (appareil et code, serveur et version,
+volumes du catalogue, langues, dernier import) ; à droite la liste des réglages seulement. Interrupteurs et choix y sont
+des lignes dessinées par l'app (`FocusRow`, `ChoiceRow`) : le `Toggle` système laisse son titre clair sur le fond blanc de
+focus, et sous tvOS 27 (Xcode 27A266a) la liste poussée par un `Picker` par défaut s'ouvre noire, même seule dans un
+`NavigationStack` nu ; `ChoiceRow` ouvre un menu à la place. À retester à chaque version de tvOS.
+
 **Tampons VLC** : `:network-caching` par média, réglable dans Réglages › Lecture : 1,5 s en direct (zapping rapide),
 3 s en film ou épisode ; plafonné à 5 s, VLC remplissant le tampon avant la première image et une source
 ayant 10 s pour démarrer. `:http-reconnect` rouvre une connexion HTTP tombée avant que le chien de garde n'intervienne.
