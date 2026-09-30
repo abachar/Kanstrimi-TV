@@ -145,9 +145,6 @@ final class MockCatalogClient: CatalogClient {
                            url: URL(string: "https://kanstrimi.crafters.dev/admin/pair/\(code)")!)
     }
 
-    /// Réglages › Démo and the pairing screen call this to stand in for the admin.
-    func approvePairing() { pairingApproved = true }
-
     func pollDevice(code: String) async throws -> PairingStatus {
         try await gate(authenticated: false)
         if scenario.pairingExpires, let created = pairingCreatedAt, Date.now.timeIntervalSince(created) > 6 { return .expired }

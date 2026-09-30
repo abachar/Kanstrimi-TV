@@ -20,6 +20,6 @@ final class MockScenario {
     var emptyEPG = false
     /// Simulated latency, in seconds.
     var latency: Double = 0.6
-    /// Seconds before the mock approves the pairing (0 = never, wait for the button).
-    var pairingApprovalDelay: Double = 0
+    /// Seconds before the mock approves the pairing, standing in for the admin (0 = never).
+    var pairingApprovalDelay: Double = 8
 }

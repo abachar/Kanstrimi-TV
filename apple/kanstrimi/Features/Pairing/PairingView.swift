@@ -44,21 +44,9 @@ struct PairingView: View {
                 }
 
                 Spacer().frame(height: 10)
-                HStack(spacing: 24) {
-                    Button("Nouveau code") { Task { await model.newCode(env) } }
-                    if env.client.isMock {
-                        Button {
-                            env.mock.approvePairing()
-                        } label: {
-                            Label("Simuler la validation dans l'admin", systemImage: "checkmark.seal")
-                        }
-                    }
-                }
-                .disabled(model.isBusy)
-                if env.client.isMock {
-                    Text("Maquette : le bouton remplace la confirmation depuis l'admin. Aucun appel réseau.")
-                        .font(.callout).foregroundStyle(Theme.secondary)
-                } else {
+                Button("Nouveau code") { Task { await model.newCode(env) } }
+                    .disabled(model.isBusy)
+                if !env.client.isMock {
                     Text("Serveur : \(model.host)").font(.callout).foregroundStyle(Theme.secondary)
                 }
             }

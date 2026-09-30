@@ -6,6 +6,29 @@ struct SettingsView: View {
     @State private var confirmUnpair = false
 
     var body: some View {
+        if Platform.isTV {
+            // Like the Réglages of the Apple TV: the app's name centred on the left, the list on the right half.
+            HStack(spacing: 0) {
+                brand.frame(maxWidth: .infinity)
+                form.frame(maxWidth: .infinity)
+            }
+            .background(Theme.background)
+        } else {
+            form
+                .navigationTitle("Réglages")
+                .background(Theme.background)
+        }
+    }
+
+    private var brand: some View {
+        VStack(spacing: 18) {
+            Text("Kanstrimi").font(.system(size: 64, weight: .bold)).tracking(6).foregroundStyle(Theme.accent)
+            Text("Réglages").font(.title2.weight(.semibold))
+            Text("Version \(appVersion)").font(.callout).foregroundStyle(Theme.secondary)
+        }
+    }
+
+    @ViewBuilder private var form: some View {
         @Bindable var prefs = env.preferences
         @Bindable var scenario = env.scenario
         Form {
@@ -102,8 +125,6 @@ struct SettingsView: View {
             }
             }
         }
-        .navigationTitle("Réglages")
-        .background(Theme.background)
     }
 
     private var languageOrders: [[Language]] {
