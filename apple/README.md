@@ -108,6 +108,11 @@ les trois destinations se vérifient quand même, à chaque modification. À fro
   (« Apple TV 4K (3rd generation) », « iPhone 17 Pro » puis « Mac », runtimes 27), ou en ligne de commande
   `xcodebuild -scheme kanstrimi -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' test` (et `-destination 'platform=macOS' test` pour le Mac).
   Démarrer le simulateur iPhone avant (`xcrun simctl boot`).
+- Visite pilotée (tvOS) : la cible `kanstrimiUITests` (`ScreenTour`, schéma `ScreenTour`) appuie sur la
+  télécommande (`XCUIRemote`) et enregistre une capture par étape : focus, défilement, panneaux du lecteur.
+  Ignorée sans `CAPTURE_DIR` : `TEST_RUNNER_CAPTURE_DIR=/chemin xcodebuild -scheme ScreenTour -destination
+  'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' test`. Les booléens passés en argument de lancement
+  s'écrivent `<true/>` (l'app lit `as? Bool`).
 - Écrans : `#Preview` de `Features/ScreenPreviews.swift` et `Player/PlayerPreviews.swift`
   (`RenderPreview` ; index et noms parfois décalés), sur chaque destination.
 - Sans main ni télécommande, l'app se pilote par `UserDefaults` (`xcrun simctl spawn <udid>
