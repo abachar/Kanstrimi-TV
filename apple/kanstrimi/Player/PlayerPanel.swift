@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Swipe down: Infos · Versions · Audio · Sous-titres [11]; in live, Programme replaces Infos.
+/// Opens on Versions, or on the tab asked for (the live programme).
 struct PlayerPanel: View {
     enum Tab: String, CaseIterable { case programme = "Programme", infos = "Infos", versions = "Versions", audio = "Audio", subtitles = "Sous-titres" }
 
@@ -11,6 +12,7 @@ struct PlayerPanel: View {
     @FocusState private var focusedItem: String?
     /// The channel's programmes until 6:00, fetched when the panel opens; nil while loading.
     @State private var programmes: [Programme]?
+    var opening: Tab? = nil
     let onClose: () -> Void
     var onActivity: () -> Void = { }
     private var player: PlayerService { env.player }
@@ -55,7 +57,7 @@ struct PlayerPanel: View {
         .ignoresSafeArea()
         .touchActivity(onActivity)
         .onAppear {
-            if player.isLive { tab = .programme }
+            if let opening, tabs.contains(opening) { tab = opening }
             focusedTab = tab
         }
         .task(id: player.channel?.id) { await loadProgrammes() }

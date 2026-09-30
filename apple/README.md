@@ -62,7 +62,9 @@ YouTube sur tvOS (`youtube://`, `LSApplicationQueriesSchemes`), bouton masqué s
 
 **Reprendre et vu** : appui long sur une carte de « Reprendre » (accueil) = Retirer ou Marquer comme vu ; fiche d'un film = bouton « Marquer comme vu » / « Vu » ; appui long sur un épisode = vu / non vu, sur un bouton de saison = toute la saison. La progression en attente du titre est oubliée (`ProgressQueue.drop`) pour qu'un rejeu ne le ramène pas.
 
-**Programme du direct** : dans le lecteur, le panneau (tvOS : flèche droite ; iPhone : « Programme » ou « ⋯ ») ouvre sur l'onglet Programme, qui remplace Infos : `GET /channels/{id}/programmes`, du programme en cours jusqu'à 6 h, rechargé à chaque zapping ; un échec se lit « Programme inconnu ».
+**Télécommande en direct** (tvOS) : ◀ chaînes du groupe, ▶ programme, ▲ dernières chaînes, ▼ qualité, audio et sous-titres ; pas de zapping sur les flèches (sans numéros de chaîne, l'ordre ne s'apprend pas). L'iPhone et le Mac gardent le zapping (glisser vertical, flèches).
+
+**Programme du direct** : dans le lecteur, le panneau (tvOS : flèche droite ; iPhone : « Programme ») ouvre sur l'onglet Programme, qui remplace Infos : `GET /channels/{id}/programmes`, du programme en cours jusqu'à 6 h, rechargé à chaque zapping ; un échec se lit « Programme inconnu ».
 
 **Direct** : jamais de pause, comme une télé (`PlayerService.togglePlayPause`/`pause` l'ignorent sur toutes les plateformes) ; Lecture relance seulement un flux arrêté par une coupure.
 Une fois l'image affichée, un chien de garde compte les images affichées (`VLCMedia.statistics`) : 4 s sans

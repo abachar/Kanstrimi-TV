@@ -104,7 +104,7 @@ struct PlayerControls: View {
             Group {
                 Button { onSheet(.channels) } label: { Label("Chaînes", systemImage: "list.bullet") }
                 Button { onSheet(.recents) } label: { Label("Récentes", systemImage: "clock") }
-                Button { onSheet(.panel) } label: { Label("Programme", systemImage: "list.bullet.rectangle") }
+                Button { onSheet(.programme) } label: { Label("Programme", systemImage: "list.bullet.rectangle") }
             }
             .font(.footnote.weight(.semibold))
             .buttonStyle(.bordered)

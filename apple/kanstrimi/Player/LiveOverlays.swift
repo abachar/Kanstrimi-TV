@@ -36,10 +36,10 @@ struct LiveBanner: View {
             Spacer()
             if visible, Platform.isTV {
                 HStack(spacing: 30) {
-                    hint("▲ ▼", "Chaîne précédente / suivante")
-                    hint("▼ long", "Liste des chaînes")
-                    hint("◀", "Chaînes récentes")
-                    hint("▶", "Options · Qualité · Audio · Sous-titres")
+                    hint("◀", "Chaînes du groupe")
+                    hint("▶", "Programme")
+                    hint("▲", "Dernières chaînes")
+                    hint("▼", "Qualité · Audio · Sous-titres")
                     hint("‹", "Retour · quitter")
                 }
                 .font(.callout).foregroundStyle(Theme.secondary)
@@ -79,7 +79,7 @@ struct LiveBanner: View {
     }
 }
 
-/// ▼ long: the channel list, in the order used for zapping.
+/// ◀ on tvOS: the channels of the group the live started from.
 struct ChannelListOverlay: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
@@ -123,7 +123,7 @@ struct ChannelListOverlay: View {
     }
 }
 
-/// ◀ : the 8 last channels, most recent first; the previous one is focused [22].
+/// ▲ on tvOS: the 8 last channels, most recent first; the previous one is focused [22].
 struct RecentChannelsOverlay: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics

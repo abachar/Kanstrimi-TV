@@ -6,7 +6,7 @@ import SwiftUI
 /// Each provides `host` (the wrapper around `content`) and `surface` (the invisible layer
 /// that receives the input when no panel is open).
 struct PlayerScreen: View {
-    enum Sheet: Equatable { case none, panel, channels, recents }
+    enum Sheet: Equatable { case none, panel, programme, channels, recents }
 
     @Environment(AppEnvironment.self) var env
     @State var controlsVisible = true
@@ -51,6 +51,7 @@ struct PlayerScreen: View {
 
             switch sheet {
             case .panel: PlayerPanel(onClose: { closeSheet() }, onActivity: { armSheetTimer() })
+            case .programme: PlayerPanel(opening: .programme, onClose: { closeSheet() }, onActivity: { armSheetTimer() })
             case .channels: ChannelListOverlay(onClose: { closeSheet() }, onActivity: { armSheetTimer() })
             case .recents: RecentChannelsOverlay(onClose: { closeSheet() }, onActivity: { armSheetTimer() })
             case .none: EmptyView()

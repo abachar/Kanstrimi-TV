@@ -5,13 +5,10 @@ import SwiftUI
 extension PlayerScreen {
     /// Long presses on remote buttons are caught below SwiftUI, whatever has the focus.
     var host: some View {
-        PressCatcher(pressTypes: [.downArrow, .leftArrow, .rightArrow], onLongPress: { type in
-            guard sheet == .none else { return }
-            switch type {
-            case .downArrow: if player.isLive { sheet = .channels }
-            case .leftArrow, .rightArrow: player.startScan(forward: type == .rightArrow); showControls(autoHide: false)
-            default: break
-            }
+        PressCatcher(pressTypes: [.leftArrow, .rightArrow], onLongPress: { type in
+            guard sheet == .none, !player.isLive else { return }
+            player.startScan(forward: type == .rightArrow)
+            showControls(autoHide: false)
         }, onRelease: { type in
             guard type == .leftArrow || type == .rightArrow, player.scanTarget != nil else { return }
             player.stopScan()
@@ -43,10 +40,11 @@ extension PlayerScreen {
         showControls()
         if player.isLive {
             switch direction {
-            case .up: player.zap(offset: -1)
-            case .down: player.zap(offset: 1)
-            case .left: sheet = .recents
-            case .right: sheet = .panel
+            // No zapping on the arrows: without channel numbers to learn, the order means nothing.
+            case .up: sheet = .recents
+            case .down: sheet = .panel
+            case .left: sheet = .channels
+            case .right: sheet = .programme
             @unknown default: break
             }
         } else {
