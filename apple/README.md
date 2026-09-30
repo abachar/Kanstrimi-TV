@@ -1,7 +1,7 @@
 # Kanstrimi — app Apple (Apple TV, iPhone, Mac ; iPad à venir)
 
 `kanstrimi.xcodeproj` : **une cible `kanstrimi`, trois destinations** (tvOS 27, iOS 27, et macOS 27,
-`TARGETED_DEVICE_FAMILY = 1,3` ; l'iPad ajoutera `2`). SwiftUI, Swift 6 (isolation `MainActor`
+`TARGETED_DEVICE_FAMILY = 1,3` ; l'iPad ajoutera `2`). SwiftUI en français (`developmentRegion = fr` : les contrôles système suivent), Swift 6 (isolation `MainActor`
 par défaut), Swift Testing, **VLCKit 4 en SPM** (miroir GitHub `videolan/vlckit`, révision figée
 dans le projet ; le xcframework couvre iOS, tvOS et macOS). Le fournisseur ne sert pas de HLS : VLCKit lit
 tout (TS en direct, MKV et MP4 en VOD), AVPlayer est écarté.

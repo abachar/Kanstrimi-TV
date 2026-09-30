@@ -178,14 +178,10 @@ extension View {
         #endif
     }
 
-    /// The filled button. The app tint is white: on iOS the label would be white too, so it is
-    /// drawn dark there. tvOS already inverts the label of a focused or prominent button.
-    @ViewBuilder func prominentButtonStyle() -> some View {
-        #if os(tvOS)
-        buttonStyle(.borderedProminent)
-        #else
+    /// The filled button. The app tint is white, and so would be its label, focused on tvOS
+    /// included (white on white): the label is drawn dark everywhere.
+    func prominentButtonStyle() -> some View {
         buttonStyle(.borderedProminent).foregroundStyle(.black)
-        #endif
     }
 
     /// The Back (Menu) button of the Siri Remote. iOS has no such command: its screens close

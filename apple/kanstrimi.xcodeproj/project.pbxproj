@@ -183,10 +183,10 @@
 				};
 			};
 			buildConfigurationList = 158194DD3067306A00A28BEA /* Build configuration list for PBXProject "kanstrimi" */;
-			developmentRegion = en;
+			developmentRegion = fr;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				fr,
 				Base,
 			);
 			mainGroup = 158194D93067306A00A28BEA;
