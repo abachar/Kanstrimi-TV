@@ -1,3 +1,4 @@
+import { similarityKey } from "@/shared";
 import type { TmdbDetails } from "./client";
 import { englishTitleOf, namesOf } from "./match";
 
@@ -10,6 +11,8 @@ export type CardFields = {
   endYear: number | null;
   posterPath: string | null;
   backdropPath: string | null;
+  /** The title's logo, drawn in place of the title on the sheet; null = the title as text. */
+  logoPath: string | null;
   overview: string | null;
   rating: number | null;
   voteCount: number | null;
@@ -68,14 +71,16 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
     : createdBy.map((c) => c.name).join(", ");
   const runtime = movie ? (d.runtime ?? null) : (d.episode_run_time?.[0] ?? null);
   const rawDate = movie ? d.release_date : d.first_air_date;
+  const title = (movie ? d.title : d.name) || fallbackTitle;
   return {
-    title: (movie ? d.title : d.name) || fallbackTitle,
+    title,
     originalTitle: (movie ? d.original_title : d.original_name) || null,
     titleEn: englishTitleOf(d),
     year: yearOf(rawDate),
     endYear: !movie && ended ? yearOf(d.last_air_date) : null,
     posterPath: d.poster_path ?? null,
     backdropPath: d.backdrop_path ?? null,
+    logoPath: logoOf(d, lang, title),
     overview: d.overview || null,
     rating: d.vote_average ? Math.round(d.vote_average * 10) / 10 : null,
     voteCount: d.vote_count ?? null,
@@ -94,6 +99,23 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
     companyIds: idsOf(d.production_companies),
     networkIds: movie ? [] : idsOf(d.networks),
   };
+}
+
+/**
+ * The logo that reads as the displayed title: one in the card's language, else an English one
+ * when the title is the English title (« Inception »), else one without language. Best voted
+ * first; PNG only (an SVG does not draw on the Apple TV). None fits = the title stays text.
+ */
+export function logoOf(d: TmdbDetails, lang: string, title: string): string | null {
+  const logos = (d.images?.logos ?? []).filter((l) => /\.png$/i.test(l.file_path));
+  const code = lang.split("-")[0];
+  const english = englishTitleOf(d);
+  const sameAsEnglish = english !== null && similarityKey(english) === similarityKey(title);
+  for (const fits of [code, ...(sameAsEnglish && code !== "en" ? ["en"] : []), null]) {
+    const best = logos.filter((l) => (l.iso_639_1 ?? null) === fits).sort((a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0))[0];
+    if (best) return best.file_path;
+  }
+  return null;
 }
 
 function sagaOf(d: TmdbDetails): CardFields["saga"] {

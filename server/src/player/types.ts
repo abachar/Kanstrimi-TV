@@ -38,6 +38,8 @@ export type Card = {
   dynamic_range?: DynamicRange;
   languages?: string[];
   backdrop?: string | null;
+  /** Sheet: the title's logo (transparent PNG), drawn in place of the title; null = the title as text. */
+  logo?: string | null;
   progress?: ProgressWire | null;
   episode?: EpisodeRef;
   year?: number | null;

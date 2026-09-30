@@ -155,6 +155,13 @@ beforeAll(async () => {
     overview: "Thomas Anderson…",
     poster_path: "/abc.jpg",
     backdrop_path: "/bd.jpg",
+    images: {
+      logos: [
+        { file_path: "/logo-en.png", iso_639_1: "en", vote_average: 9 },
+        { file_path: "/logo-fr.svg", iso_639_1: "fr", vote_average: 8 },
+        { file_path: "/logo-fr.png", iso_639_1: "fr", vote_average: 5 },
+      ],
+    },
     vote_average: 8.2,
     vote_count: 25000,
     genres: [
@@ -390,6 +397,7 @@ describe("GET /movies/{id}", () => {
       director: "Lana Wachowski",
       trailer: "https://www.youtube.com/watch?v=vKQi3bBA1y8",
       backdrop: "http://kanstrimi.test/img/w1280/bd.jpg",
+      logo: "http://kanstrimi.test/img/w500/logo-fr.png",
       has_tmdb: true,
       provider_category: null,
       raw_title: null,

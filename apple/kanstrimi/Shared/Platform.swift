@@ -95,6 +95,8 @@ nonisolated struct Metrics: Sendable {
     /// Detail sheet title size, the top padding above it, and the episode still width (16:9).
     var detailTitle: CGFloat
     var detailTop: CGFloat
+    /// The box a title logo fits in, in place of the title.
+    var detailLogo: CGSize
     var stillWidth: CGFloat
     /// Maximum width of running text (overview, cast line) so it stays readable.
     var textWidth: CGFloat
@@ -133,7 +135,7 @@ nonisolated struct Metrics: Sendable {
 
     static let tv = Metrics(inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,
-                            heroHeight: 600, heroTitle: 64, detailTitle: 76, detailTop: 160, stillWidth: 260, textWidth: 1000,
+                            heroHeight: 600, heroTitle: 64, detailTitle: 76, detailTop: 160, detailLogo: CGSize(width: 640, height: 200), stillWidth: 260, textWidth: 1000,
                             stateIcon: 56, statePadding: 60, searchPoster: 360, searchColumn: 400, liveColumns: true, channelLogo: 96,
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
                             panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 360,
@@ -141,7 +143,7 @@ nonisolated struct Metrics: Sendable {
                             pickerWidth: 1200, toggleWidth: 420, iconButton: 76)
     static let phone = Metrics(inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,
                                artTitle: 14, badge: 12, badgeSmall: 10,
-                               heroHeight: 300, heroTitle: 32, detailTitle: 30, detailTop: 40, stillWidth: 140, textWidth: .infinity,
+                               heroHeight: 300, heroTitle: 32, detailTitle: 30, detailTop: 40, detailLogo: CGSize(width: 260, height: 90), stillWidth: 140, textWidth: .infinity,
                                stateIcon: 40, statePadding: 24, searchPoster: 140, searchColumn: nil, liveColumns: false, channelLogo: 56,
                                pairingTitle: 28, showsQR: false, codeCell: 40, pairingColumn: nil,
                                panelHeight: 300, panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
@@ -149,7 +151,7 @@ nonisolated struct Metrics: Sendable {
                                pickerWidth: nil, toggleWidth: nil, iconButton: 44)
     static let mac = Metrics(inset: 32, posterWidth: 160, resumeWidth: 260, cardSpacing: 16, rowPadding: 16, gridColumns: nil,
                              artTitle: 16, badge: 14, badgeSmall: 12,
-                             heroHeight: 400, heroTitle: 40, detailTitle: 40, detailTop: 60, stillWidth: 200, textWidth: 800,
+                             heroHeight: 400, heroTitle: 40, detailTitle: 40, detailTop: 60, detailLogo: CGSize(width: 380, height: 120), stillWidth: 200, textWidth: 800,
                              stateIcon: 48, statePadding: 32, searchPoster: 200, searchColumn: nil, liveColumns: false, channelLogo: 64,
                              pairingTitle: 32, showsQR: false, codeCell: 48, pairingColumn: nil,
                              panelHeight: 360, panelPadding: 24, panelCard: 220, listWidth: 400, recentCard: 280,

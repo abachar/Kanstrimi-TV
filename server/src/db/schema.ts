@@ -181,6 +181,8 @@ export const catalogContents = pgTable(
     endYear: integer("end_year"),
     posterPath: text("poster_path"),
     backdropPath: text("backdrop_path"),
+    /** TMDB logo of the title, drawn in place of the title on the sheet (`logoOf`). */
+    titleLogoPath: text("title_logo_path"),
     overview: text("overview"),
     rating: real("rating"),
     voteCount: integer("vote_count"),

@@ -59,6 +59,8 @@ cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Fu
 libellé n'apparaît que sous la pastille focalisée, sur iPhone et Mac il est toujours affiché. Ma liste = cœur
 (favori, comme dans le Direct). La bande-annonce (YouTube, que VLC ne lit pas) s'ouvre par `openURL` : l'app
 YouTube sur tvOS (`youtube://`, `LSApplicationQueriesSchemes`), bouton masqué si elle manque ; la page web ailleurs.
+Le titre est dessiné par son logo TMDB (`logo`, `TitleLogo`) quand le serveur en sert un, dans la boîte
+`Metrics.detailLogo` ; le texte le remplace pendant le chargement et en cas d'échec.
 
 **Reprendre et vu** : appui long sur une carte de « Reprendre » (accueil) = Retirer ou Marquer comme vu ; fiche d'un film = bouton « Marquer comme vu » / « Vu » ; appui long sur un épisode = vu / non vu, sur un bouton de saison = toute la saison. La progression en attente du titre est oubliée (`ProgressQueue.drop`) pour qu'un rejeu ne le ramène pas.
 

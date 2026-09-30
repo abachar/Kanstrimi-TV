@@ -50,6 +50,5 @@ Idées reprises des tentatives précédentes (supprimées le 2026-09-29), absent
 - Plus faible :
   - **Distribution avec photos** : photos des acteurs sur la fiche, un acteur ouvre ses autres titres du catalogue.
   - **« Si vous avez aimé… »** : rangée de titres proches sur la fiche, recommandations TMDB croisées avec le catalogue.
-  - **Logos TMDB** : le logo du titre en tête de fiche à la place du texte.
   - **« Director's Cut » / « Extended »** : reconnaître ces mentions dans le nettoyage des noms, pour ne pas gêner le rapprochement TMDB et le regroupement.
   - **Clé du direct sur l'identifiant iptv-org** : une clé stable quand le fournisseur renomme une chaîne ; demande de migrer favoris et progression.

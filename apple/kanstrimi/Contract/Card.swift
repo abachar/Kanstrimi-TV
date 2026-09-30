@@ -83,6 +83,8 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
     let addedAt: Date?
 
     // Sheet only
+    /// The title's logo (transparent PNG), drawn in place of the title.
+    let logo: URL?
     let originalTitle: String?
     let endYear: Int?
     let overview: String?
@@ -103,7 +105,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, kind, title, poster, languages, backdrop, progress, episode, year, rating, genres, hint
-        case overview, runtime, certification, cast, director, trailer, versions, seasons, saga
+        case overview, runtime, certification, cast, director, trailer, versions, seasons, saga, logo
         case maxQuality = "max_quality"
         case dynamicRange = "dynamic_range"
         case addedAt = "added_at"
@@ -118,14 +120,14 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
 
     init(id: ContentID, kind: ContentKind, title: String, poster: URL? = nil, maxQuality: Quality? = nil, dynamicRange: DynamicRange? = nil,
          languages: [Language] = [], backdrop: URL? = nil, progress: Progress? = nil, episode: EpisodeRef? = nil,
-         year: Int? = nil, rating: Double? = nil, genres: [String] = [], hint: String? = nil, addedAt: Date? = nil,
+         year: Int? = nil, rating: Double? = nil, genres: [String] = [], hint: String? = nil, addedAt: Date? = nil, logo: URL? = nil,
          originalTitle: String? = nil, endYear: Int? = nil, overview: String? = nil, runtime: Int? = nil, certification: String? = nil,
          cast: [Person] = [], director: String? = nil, trailer: URL? = nil, hasTMDB: Bool? = nil, providerCategory: String? = nil,
          rawTitle: String? = nil, versions: [Version] = [], isFavorite: Bool? = nil, seasons: [Season]? = nil, currentEpisode: EpisodeRef? = nil,
          saga: SagaRef? = nil) {
         self.id = id; self.kind = kind; self.title = title; self.poster = poster; self.maxQuality = maxQuality; self.dynamicRange = dynamicRange
         self.languages = languages; self.backdrop = backdrop; self.progress = progress; self.episode = episode
-        self.year = year; self.rating = rating; self.genres = genres; self.hint = hint; self.addedAt = addedAt
+        self.year = year; self.rating = rating; self.genres = genres; self.hint = hint; self.addedAt = addedAt; self.logo = logo
         self.originalTitle = originalTitle; self.endYear = endYear; self.overview = overview; self.runtime = runtime; self.certification = certification
         self.cast = cast; self.director = director; self.trailer = trailer; self.hasTMDB = hasTMDB; self.providerCategory = providerCategory
         self.rawTitle = rawTitle; self.versions = versions; self.isFavorite = isFavorite; self.seasons = seasons; self.currentEpisode = currentEpisode
@@ -149,6 +151,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
         genres = try c.decodeIfPresent([String].self, forKey: .genres) ?? []
         hint = try c.decodeIfPresent(String.self, forKey: .hint)
         addedAt = try c.decodeIfPresent(Date.self, forKey: .addedAt)
+        logo = try c.decodeIfPresent(URL.self, forKey: .logo)
         originalTitle = try c.decodeIfPresent(String.self, forKey: .originalTitle)
         endYear = try c.decodeIfPresent(Int.self, forKey: .endYear)
         overview = try c.decodeIfPresent(String.self, forKey: .overview)

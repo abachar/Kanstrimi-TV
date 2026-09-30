@@ -155,6 +155,13 @@
       "when": 1790720846717,
       "tag": "0021_search-trigrams",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790763609432,
+      "tag": "0022_title-logo",
+      "breakpoints": true
     }
   ]
 }

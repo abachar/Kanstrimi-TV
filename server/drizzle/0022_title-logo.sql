@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_contents" ADD COLUMN "title_logo_path" text;

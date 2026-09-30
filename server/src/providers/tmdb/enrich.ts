@@ -1,6 +1,6 @@
 import { getSettings } from "@/config";
 import { db, schema, tmdbMediaType } from "@/db";
-import { and, asc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import pLimit from "p-limit";
 import { TmdbClient, type TmdbDetails } from "./client";
 import { scoreAll, bestSimilarity, namesOf, hasAllNames, MATCH_THRESHOLD, type ScoredDetail } from "./match";
@@ -20,6 +20,12 @@ const RETRY_UNMATCHED_MS = 7 * 24 * 3600 * 1000;
  * a new saga reach the cards without a burst (four runs a day cover ~60 000 entries in a month).
  */
 const REFRESH_PER_RUN = 500;
+/**
+ * Entries cached before the logos were kept (no `images.logos`), fetched again on top of the
+ * above, visible titles and latest releases first: ~60 000 entries take a dozen runs, about
+ * three days, then this finds none. A sheet opened meanwhile catches up at once (`catalog/cards`).
+ */
+const BACKFILL_PER_RUN = 5000;
 /**
  * A provider-supplied TMDB id is a hint, not a fact: it is accepted only when the title of
  * the TMDB document resembles the cleaned name. Looser than the search threshold because the
@@ -54,7 +60,7 @@ export async function getDetails(
 }
 
 /** Fetches the details and stores them; throws when TMDB does. */
-async function fetchDetails(client: TmdbClient, mediaType: "movie" | "tv", tmdbId: number): Promise<TmdbDetails> {
+export async function fetchDetails(client: TmdbClient, mediaType: "movie" | "tv", tmdbId: number): Promise<TmdbDetails> {
   const data = mediaType === "movie" ? await client.movie(tmdbId) : await client.tv(tmdbId);
   await db
     .insert(schema.tmdbCache)
@@ -218,22 +224,29 @@ export async function runEnrich(opts: { limit?: number } = {}) {
 
 /**
  * The oldest cache entries past the TTL that a content still uses, fetched again: at most
- * REFRESH_PER_RUN. A failure keeps the old entry (tried again next run). Returns how many landed.
+ * REFRESH_PER_RUN; plus at most BACKFILL_PER_RUN used entries that predate the logos. A failure
+ * keeps the old entry (tried again next run). Returns how many landed.
  */
 async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>): Promise<number> {
-  const stale = await db
-    .select({ mediaType: schema.tmdbCache.mediaType, tmdbId: schema.tmdbCache.tmdbId })
-    .from(schema.tmdbCache)
-    .where(
-      and(
-        eq(schema.tmdbCache.lang, client.language),
-        lt(schema.tmdbCache.fetchedAt, new Date(Date.now() - TTL_MS)),
-        sql`exists (select 1 from ${schema.catalogContents} c where c.tmdb_id = ${schema.tmdbCache.tmdbId}
-          and case c.kind when 'vod' then 'movie' else 'tv' end = ${schema.tmdbCache.mediaType})`,
-      ),
-    )
-    .orderBy(asc(schema.tmdbCache.fetchedAt))
-    .limit(REFRESH_PER_RUN);
+  const users = sql`from ${schema.catalogContents} c where c.tmdb_id = ${schema.tmdbCache.tmdbId}
+    and case c.kind when 'vod' then 'movie' else 'tv' end = ${schema.tmdbCache.mediaType}`;
+  const pick = (cond: SQL, max: number, order: SQL[]) =>
+    db
+      .select({ mediaType: schema.tmdbCache.mediaType, tmdbId: schema.tmdbCache.tmdbId })
+      .from(schema.tmdbCache)
+      .where(and(eq(schema.tmdbCache.lang, client.language), cond, sql`exists (select 1 ${users})`))
+      .orderBy(...order)
+      .limit(max);
+  const cutoff = new Date(Date.now() - TTL_MS);
+  const withoutLogos = sql`not coalesce(${schema.tmdbCache.data} -> 'images' ? 'logos', false)`;
+  const stale = [
+    ...(await pick(lt(schema.tmdbCache.fetchedAt, cutoff)!, REFRESH_PER_RUN, [asc(schema.tmdbCache.fetchedAt)])),
+    // What the app shows first gets its logo first: visible titles, the latest releases.
+    ...(await pick(and(withoutLogos, gte(schema.tmdbCache.fetchedAt, cutoff))!, BACKFILL_PER_RUN, [
+      sql`(select bool_or(c.visible) ${users}) desc`,
+      sql`(select max(c.release_date) ${users}) desc nulls last`,
+    ])),
+  ];
   let done = 0;
   await Promise.all(
     stale.map((r) =>

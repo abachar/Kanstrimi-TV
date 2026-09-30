@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Content } from "@/db";
-import { ensureEpisodes, parseKey } from "@/catalog";
+import { ensureEpisodes, parseKey, refreshCardOnOpen } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
 import { contentByKey, variantsOf } from "./contents";
@@ -19,8 +19,9 @@ export function sheetRoutes(kind: "vod" | "series") {
     const key = c.req.param("id");
     const parsed = parseKey(key);
     if (!parsed || parsed.kind !== kind || parsed.episode !== undefined) return fail("not_found", "Contenu introuvable");
-    const content = await contentByKey(c.get("ctx"), key);
+    let content = await contentByKey(c.get("ctx"), key);
     if (!content) return fail("not_found", "Contenu introuvable");
+    if (await refreshCardOnOpen(content)) content = (await contentByKey(c.get("ctx"), key)) ?? content;
     return json(kind === "vod" ? await movieSheet(c.get("ctx"), content) : await seriesSheet(c.get("ctx"), content));
   });
   return routes;

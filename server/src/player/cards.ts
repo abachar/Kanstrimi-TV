@@ -65,6 +65,7 @@ export function sheetCard(ctx: RestContext, c: Content, extra: { providerCategor
   return {
     ...gridCard(ctx, c),
     backdrop: imageUrl(ctx.baseUrl, "w1280", c.backdropPath) || null,
+    logo: imageUrl(ctx.baseUrl, "w500", c.titleLogoPath) || null,
     original_title: c.originalTitle,
     end_year: c.endYear,
     overview: c.overview,

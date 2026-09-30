@@ -41,4 +41,22 @@ describe("runEnrich", () => {
     const stats = await runEnrich();
     expect(stats).toMatchObject({ retried: 1, processed: 0, errors: 1 });
   });
+
+  it("fetches again the cache entries that predate the logos, asking for every useful image language", async () => {
+    await db.insert(schema.tmdbCache).values({ mediaType: "movie", tmdbId: 603, lang: "fr-FR", data: { id: 603, title: "Matrix" } });
+    await db
+      .insert(schema.catalogContents)
+      .values({ key: "tmdb:movie:603", kind: "vod", tmdbId: 603, title: "Matrix", addedAt: new Date() });
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (u: URL) => {
+      urls.push(String(u));
+      return Response.json({ id: 603, title: "Matrix", images: { logos: [{ file_path: "/m.png", iso_639_1: "fr", vote_average: 5 }] } });
+    });
+    expect(await runEnrich()).toMatchObject({ refreshed: 1 });
+    expect(new URL(urls.find((u) => u.includes("/movie/603"))!).searchParams.get("include_image_language")).toBe("fr,en,null");
+    const [c] = await db.select().from(schema.tmdbCache).where(eq(schema.tmdbCache.tmdbId, 603));
+    expect((c.data as { images: unknown }).images).toMatchObject({ logos: [{ file_path: "/m.png", iso_639_1: "fr" }] });
+    // Once caught up, nothing left to fetch before the TTL.
+    expect(await runEnrich()).toMatchObject({ refreshed: 0 });
+  });
 });

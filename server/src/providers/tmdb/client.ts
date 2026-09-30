@@ -10,6 +10,7 @@ export type TmdbSearchResult = {
   vote_count?: number;
   poster_path?: string | null;
 };
+export type TmdbLogo = { file_path: string; iso_639_1?: string | null; vote_average?: number };
 export type TmdbDetails = Record<string, unknown> & {
   id: number;
   production_companies?: { id: number; name?: string; logo_path?: string | null }[];
@@ -38,7 +39,12 @@ export type TmdbDetails = Record<string, unknown> & {
   origin_country?: string[];
   credits?: { cast?: { name: string; character?: string; order?: number }[]; crew?: { name: string; job: string }[] };
   videos?: { results?: { key: string; site: string; type: string; official?: boolean }[] };
-  images?: { backdrops?: { file_path: string }[]; posters?: { file_path: string }[]; logos?: { file_path: string }[] };
+  images?: {
+    backdrops?: { file_path: string }[];
+    posters?: { file_path: string }[];
+    /** The title's logo: `iso_639_1` null = no text in a language (a symbol, a logotype read the same everywhere). */
+    logos?: TmdbLogo[];
+  };
   release_dates?: { results?: { iso_3166_1: string; release_dates: { certification: string }[] }[] };
   content_ratings?: { results?: { iso_3166_1: string; rating: string }[] };
   /** Movies answer `titles`, series `results`: the international English title lives here when the original is not English. */
@@ -51,8 +57,10 @@ export type TmdbDetails = Record<string, unknown> & {
 
 /**
  * Keep the translated titles and the image file names only: the full payload repeats every
- * overview in forty languages and describes every image. Both serve one purpose here,
- * recognising the provider's entry (its English title, its TMDB backdrop hashes).
+ * overview in forty languages and describes every image. Titles and backdrops serve to
+ * recognise the provider's entry (its English title, its TMDB backdrop hashes); logos keep their
+ * language and vote, what `logoOf` chooses by. `logos` is always present once fetched this way:
+ * its absence marks an entry cached before, which `enrich` fetches again.
  */
 export function trimTranslations(d: TmdbDetails): TmdbDetails {
   const list = (d.translations?.translations ?? [])
@@ -62,7 +70,13 @@ export function trimTranslations(d: TmdbDetails): TmdbDetails {
   return {
     ...d,
     translations: { translations: list },
-    images: { backdrops: files(d.images?.backdrops), posters: files(d.images?.posters) },
+    images: {
+      backdrops: files(d.images?.backdrops),
+      posters: files(d.images?.posters),
+      logos: (d.images?.logos ?? [])
+        .slice(0, 20)
+        .map((l) => ({ file_path: l.file_path, iso_639_1: l.iso_639_1 ?? null, vote_average: l.vote_average ?? 0 })),
+    },
   };
 }
 
@@ -103,14 +117,23 @@ export class TmdbClient {
       include_adult: includeAdult ? "true" : "false",
     });
   }
+  /**
+   * `images` follows `language` unless told otherwise: fr-FR alone returns French posters and
+   * no backdrop. The card's language, English and no language cover the logo and the backdrops.
+   */
+  private get imageLanguages() {
+    return [...new Set([this.language.split("-")[0], "en", "null"])].join(",");
+  }
   movie(id: number) {
     return this.get<TmdbDetails>(`/movie/${id}`, {
       append_to_response: "credits,videos,release_dates,alternative_titles,translations,images",
+      include_image_language: this.imageLanguages,
     }).then(trimTranslations);
   }
   tv(id: number) {
     return this.get<TmdbDetails>(`/tv/${id}`, {
       append_to_response: "credits,videos,content_ratings,alternative_titles,translations,images",
+      include_image_language: this.imageLanguages,
     }).then(trimTranslations);
   }
   /** One page (20 titles) of TMDB's weekly trending list. */

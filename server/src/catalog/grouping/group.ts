@@ -74,6 +74,15 @@ export async function regroupItems(ids: number[]) {
   });
 }
 
+/**
+ * Card fields of a few contents, copied again from their cache entry (a sheet that just re-read
+ * TMDB). No lock: it rewrites the same columns from the same cache as a full pass would, and a
+ * sheet must not wait behind a pipeline run.
+ */
+export async function refreshCards(contentIds: number[]) {
+  if (contentIds.length) await fillCardFields(contentIds);
+}
+
 /** Aggregates only: what the admin visibility switches and the filters need. Takes no lock: its callers hold it. */
 export async function refreshVisibility() {
   await refreshAggregates();
@@ -281,6 +290,7 @@ async function fillCardFields(onlyIds?: number[]) {
         end_year: [],
         poster: [],
         backdrop: [],
+        title_logo: [],
         overview: [],
         rating: [],
         votes: [],
@@ -313,6 +323,7 @@ async function fillCardFields(onlyIds?: number[]) {
         f.end_year.push(c.endYear);
         f.poster.push(c.posterPath);
         f.backdrop.push(c.backdropPath);
+        f.title_logo.push(c.logoPath);
         f.overview.push(c.overview);
         f.rating.push(c.rating);
         f.votes.push(c.voteCount);
@@ -342,6 +353,7 @@ async function fillCardFields(onlyIds?: number[]) {
         f.end_year.push(null);
         f.poster.push(null);
         f.backdrop.push(null);
+        f.title_logo.push(null);
         f.overview.push(null);
         f.rating.push(null);
         f.votes.push(null);
@@ -367,12 +379,12 @@ async function fillCardFields(onlyIds?: number[]) {
     await pg`
       with u_raw as (
         select * from unnest(${ids}::int[], ${(f.tmdb_adult as boolean[]).map(String)}::text[], ${f.title as string[]}::text[], ${f.original_title as string[]}::text[], ${f.title_en as string[]}::text[], ${f.year as number[]}::int[], ${f.end_year as number[]}::int[],
-                  ${f.poster as string[]}::text[], ${f.backdrop as string[]}::text[], ${f.overview as string[]}::text[], ${f.rating as number[]}::real[], ${f.votes as number[]}::int[],
+                  ${f.poster as string[]}::text[], ${f.backdrop as string[]}::text[], ${f.title_logo as string[]}::text[], ${f.overview as string[]}::text[], ${f.rating as number[]}::real[], ${f.votes as number[]}::int[],
                   ${f.genre_ids as string[]}::text[], ${f.genres as string[]}::text[], ${f.runtime as number[]}::int[], ${f.cert as string[]}::text[],
                   ${f.cast as string[]}::text[], ${f.director as string[]}::text[], ${f.trailer as string[]}::text[], ${f.status as string[]}::text[], ${f.search as string[]}::text[], ${f.release_date as string[]}::text[],
                   ${f.saga_id as number[]}::int[], ${f.saga_name as string[]}::text[], ${f.saga_poster as string[]}::text[], ${f.saga_backdrop as string[]}::text[],
                   ${f.company_ids as string[]}::text[], ${f.network_ids as string[]}::text[])
-        as u(id, tmdb_adult, title, original_title, title_en, year, end_year, poster, backdrop, overview, rating, votes, genre_ids, genres, runtime, cert, "cast", director, trailer, status, search, release_date, saga_id, saga_name, saga_poster, saga_backdrop, company_ids, network_ids)
+        as u(id, tmdb_adult, title, original_title, title_en, year, end_year, poster, backdrop, title_logo, overview, rating, votes, genre_ids, genres, runtime, cert, "cast", director, trailer, status, search, release_date, saga_id, saga_name, saga_poster, saga_backdrop, company_ids, network_ids)
       ),
       u as (
         select u_raw.*, case when c.tmdb_id is not null and u_raw.year is not null then u_raw.year else c.year end as final_year
@@ -381,7 +393,7 @@ async function fillCardFields(onlyIds?: number[]) {
       update catalog_contents c set
         title = u.title, original_title = u.original_title, title_en = u.title_en, tmdb_adult = u.tmdb_adult::boolean,
         year = u.final_year, end_year = u.end_year,
-        poster_path = u.poster, backdrop_path = u.backdrop, overview = u.overview, rating = u.rating, vote_count = u.votes,
+        poster_path = u.poster, backdrop_path = u.backdrop, title_logo_path = u.title_logo, overview = u.overview, rating = u.rating, vote_count = u.votes,
         genre_ids = coalesce(string_to_array(nullif(u.genre_ids, ''), ',')::int[], '{}'), genres = coalesce(string_to_array(nullif(u.genres, ''), E'\\x1f'), '{}'),
         runtime = u.runtime, certification = u.cert, "cast" = u.cast::jsonb, director = u.director, trailer_key = u.trailer, status = u.status,
         search = to_tsvector('simple', u.search),

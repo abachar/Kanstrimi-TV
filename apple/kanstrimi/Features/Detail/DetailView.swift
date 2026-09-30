@@ -118,7 +118,7 @@ private struct DetailContent: View {
     private func header(_ d: Card) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(tagline(d)).font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
-            Text(d.title).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(2).frame(maxWidth: metrics.textWidth, alignment: .leading)
+            TitleLogo(title: d.title, logo: d.logo)
             HStack(spacing: 14) {
                 Text(meta(d)).foregroundStyle(Theme.secondary)
                 if let c = d.certification { Badge(c) }
@@ -408,5 +408,34 @@ private struct RoundIconStyle: ButtonStyle {
                 .animation(.easeOut(duration: 0.15), value: focused)
                 .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
         }
+    }
+}
+
+/// The title's logo when TMDB has one, else the title as text; the text also stands in while the
+/// logo loads and when it fails, so the header never stays empty.
+private struct TitleLogo: View {
+    @Environment(\.metrics) private var metrics
+    let title: String
+    let logo: URL?
+
+    var body: some View {
+        if let logo {
+            AsyncImage(url: logo) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit()
+                        .frame(maxWidth: metrics.detailLogo.width, maxHeight: metrics.detailLogo.height, alignment: .leading)
+                        .shadow(color: .black.opacity(0.5), radius: 12)
+                        .accessibilityLabel(title)
+                } else {
+                    text
+                }
+            }
+        } else {
+            text
+        }
+    }
+
+    private var text: some View {
+        Text(title).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(2).frame(maxWidth: metrics.textWidth, alignment: .leading)
     }
 }

@@ -117,9 +117,10 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func idsPickTheirCollectionAndStayInThePath() async throws {
-        answer(200, #"{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo"}"#)
-        _ = try await client.detail(id: ContentID("tmdb:tv:1396"))
+        answer(200, #"{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo","logo":"https://kanstrimi.test/img/w500/l.png"}"#)
+        let sheet = try await client.detail(id: ContentID("tmdb:tv:1396"))
         #expect(try last.url?.path() == "/player/series/tmdb:tv:1396")
+        #expect(sheet.logo == URL(string: "https://kanstrimi.test/img/w500/l.png"))
         answer(200, #"{"id":"fallback:movie:tenet:2020","kind":"movie","title":"Tenet"}"#)
         _ = try await client.detail(id: ContentID("fallback:movie:tenet:2020"))
         #expect(try last.url?.path() == "/player/movies/fallback:movie:tenet:2020")
