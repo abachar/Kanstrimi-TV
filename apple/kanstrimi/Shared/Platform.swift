@@ -52,6 +52,9 @@ nonisolated enum Platform {
 /// platform today; a compact/regular variant will do for iPad. `nil` means "no fixed size":
 /// the element takes the width it is given.
 nonisolated struct Metrics: Sendable {
+    /// Layout for a screen held in the hand (iPhone): fewer facts on a card, actions sized for a thumb,
+    /// system bars and titles. The television keeps its own, focus-driven layout.
+    var compact: Bool
     /// Side margin of every screen. On tvOS the overscan safe zone (80 pt) plus a little air.
     var inset: CGFloat
     /// Poster card width (2:3), landscape "Reprendre" card width (16:9), space between cards,
@@ -111,7 +114,7 @@ nonisolated struct Metrics: Sendable {
     /// Diameter of a round icon button (detail sheet), the height of the play button beside it.
     var iconButton: CGFloat
 
-    static let tv = Metrics(inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
+    static let tv = Metrics(compact: false, inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,
                             heroHeight: 600, heroTitle: 64, detailTitle: 76, detailTop: 160, detailLogo: CGSize(width: 640, height: 200), stillWidth: 260, textWidth: 1000,
                             stateIcon: 56, statePadding: 60, searchPoster: 360, searchColumn: 400, liveColumns: true, channelLogo: 96,
@@ -119,9 +122,9 @@ nonisolated struct Metrics: Sendable {
                             panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 460,
                             dialogTitle: 48, dialogWidth: 900, nextCard: 620, dialogMargin: 70,
                             pickerWidth: 1200, toggleWidth: 420, iconButton: 76)
-    static let phone = Metrics(inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,
+    static let phone = Metrics(compact: true, inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,
                                artTitle: 14, badge: 12, badgeSmall: 10,
-                               heroHeight: 300, heroTitle: 32, detailTitle: 30, detailTop: 40, detailLogo: CGSize(width: 260, height: 90), stillWidth: 140, textWidth: .infinity,
+                               heroHeight: 470, heroTitle: 32, detailTitle: 30, detailTop: 40, detailLogo: CGSize(width: 260, height: 90), stillWidth: 140, textWidth: .infinity,
                                stateIcon: 40, statePadding: 24, searchPoster: 140, searchColumn: nil, liveColumns: false, channelLogo: 56,
                                pairingTitle: 28, showsQR: false, codeCell: 40, pairingColumn: nil,
                                panelHeight: 300, panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
@@ -178,14 +181,34 @@ extension View {
         #endif
     }
 
+    /// The player screen as a whole. tvOS: edge to edge, its hosting controller hands the safe area back.
+    /// iOS: the video and the veils go to the edges on their own; the controls stay clear of the notch.
+    @ViewBuilder func playerIgnoresSafeArea() -> some View {
+        #if os(tvOS)
+        ignoresSafeArea()
+        #else
+        self
+        #endif
+    }
+
+    /// iOS: edge to edge (the video layer, a veil, the gesture surface). Nothing more on tvOS, where
+    /// the whole player already is.
+    @ViewBuilder func touchIgnoresSafeArea() -> some View {
+        #if os(iOS)
+        ignoresSafeArea()
+        #else
+        self
+        #endif
+    }
+
     /// Margins of what floats over the video. The player lives in its own hosting controller on
     /// tvOS, which hands the safe area (80 pt) back to its content: the inset alone is the margin.
-    /// On iOS the safe area is the notch and the home indicator: keep it, add a little air.
+    /// On iOS the player keeps the safe area (notch, home indicator): a little air on top of it.
     @ViewBuilder func playerChromeInsets() -> some View {
         #if os(tvOS)
         padding(.horizontal, Metrics.tv.inset).padding(.vertical, 60).ignoresSafeArea()
         #else
-        padding(.horizontal, 24).padding(.vertical, 12)
+        padding(.horizontal, 12).padding(.vertical, 8)
         #endif
     }
 
@@ -197,6 +220,43 @@ extension View {
         #else
         self
         #endif
+    }
+
+    /// iPhone: the screen's title in the navigation bar, large, shrinking into the bar as the content
+    /// scrolls. tvOS has no navigation bar: the screen draws its own title.
+    @ViewBuilder func phoneLargeTitle(_ title: String) -> some View {
+        #if os(iOS)
+        navigationTitle(title).navigationBarTitleDisplayMode(.large)
+        #else
+        self
+        #endif
+    }
+
+    /// iPhone: a swipe, reported once the finger lifts with its translation. tvOS has no finger.
+    @ViewBuilder func touchSwipe(_ onEnded: @escaping (CGSize) -> Void) -> some View {
+        #if os(iOS)
+        simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { onEnded($0.translation) })
+        #else
+        self
+        #endif
+    }
+
+    /// iPhone: a long press shows these actions over a preview of the card. tvOS keeps its press for focus.
+    @ViewBuilder func touchContextMenu<Menu: View>(@ViewBuilder _ items: () -> Menu) -> some View {
+        #if os(iOS)
+        contextMenu(menuItems: items)
+        #else
+        self
+        #endif
+    }
+
+    /// iPhone: a main button's label as wide as the screen and a thumb high. Unchanged on the television.
+    @ViewBuilder func phoneFullWidth(_ metrics: Metrics, height: CGFloat = 36) -> some View {
+        if metrics.compact {
+            frame(maxWidth: .infinity).frame(height: height)
+        } else {
+            self
+        }
     }
 
     /// A secondary screen (version picker): full screen on tvOS, a sheet on iOS.

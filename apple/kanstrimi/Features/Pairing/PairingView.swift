@@ -9,6 +9,57 @@ struct PairingView: View {
     @State private var model = PairingModel()
 
     var body: some View {
+        if metrics.compact { phoneBody } else { tvBody }
+    }
+
+    /// iPhone: the code first, then the button that opens the admin on this phone, the status and a
+    /// new code; the steps and the address to type by hand under them.
+    private var phoneBody: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Kanstrimi").font(.system(size: 22, weight: .bold)).tracking(3).foregroundStyle(Theme.accent)
+                    Text("Ajoutez cet \(Platform.deviceKind)").font(.system(size: metrics.pairingTitle, weight: .bold))
+                    Text("La validation se fait dans l'admin, sur ce téléphone : rien à saisir ici.")
+                        .font(.subheadline).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                if let message = env.device.lastRevocationMessage { revokedNotice(message) }
+                VStack(spacing: 16) {
+                    Text("CODE DE L'APPAREIL").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.secondary)
+                    codeCells
+                    if let url = model.code?.url, model.status != .expired {
+                        Link(destination: url) {
+                            Label("Ouvrir l'admin pour valider", systemImage: "safari").font(.headline).phoneFullWidth(metrics, height: 40)
+                        }
+                        .prominentButtonStyle()
+                    }
+                    statusLine
+                    Button { Task { await model.newCode(env) } } label: { Label("Nouveau code", systemImage: "arrow.clockwise") }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isBusy)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity)
+                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 24))
+                VStack(alignment: .leading, spacing: 16) {
+                    step(1, "Ouvrez l'admin avec le bouton ci-dessus")
+                    step(2, "Connectez-vous et nommez cet appareil")
+                    step(3, "L'appareil est ajouté tout seul")
+                }
+                Text("Sans le bouton : ouvrez \(Text(model.host + "/admin/pair/…").foregroundStyle(Theme.accent)) en remplaçant les points par le code.")
+                    .font(.footnote).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                if !env.client.isMock {
+                    Text("Serveur : \(model.host)").font(.footnote).foregroundStyle(Theme.secondary)
+                }
+            }
+            .padding(.horizontal, metrics.inset + 4)
+            .padding(.vertical, 24)
+        }
+        .background(Theme.background)
+        .task { await model.run(env) }
+    }
+
+    private var tvBody: some View {
         // Two columns on TV; on a phone everything stacks and scrolls.
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: 120) {
@@ -79,11 +130,11 @@ struct PairingView: View {
                 Text(text).font(.title3).fixedSize(horizontal: false, vertical: true)
             }
         } else {
-            HStack(spacing: 18) {
-                Text("\(n)").font(.title3.weight(.bold))
-                    .frame(width: 44, height: 44)
+            HStack(spacing: 14) {
+                Text("\(n)").font(.subheadline.weight(.bold))
+                    .frame(width: 30, height: 30)
                     .background(Circle().fill(.white.opacity(0.12)))
-                Text(text).font(.title3).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.body).fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -134,13 +185,17 @@ struct PairingView: View {
                 }
                 .font(.callout)
             }
-            HStack(spacing: 10) {
-                ForEach(Array((model.code?.code ?? "······").enumerated()), id: \.offset) { _, ch in
-                    Text(String(ch)).font(.system(size: metrics.codeCell * 0.73, weight: .bold, design: .rounded))
-                        .frame(width: metrics.codeCell, height: metrics.codeCell * 1.27)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(.white.opacity(model.status == .expired ? 0.05 : 0.12)))
-                        .foregroundStyle(model.status == .expired ? Theme.secondary : Theme.text)
-                }
+            codeCells
+        }
+    }
+
+    private var codeCells: some View {
+        HStack(spacing: 10) {
+            ForEach(Array((model.code?.code ?? "······").enumerated()), id: \.offset) { _, ch in
+                Text(String(ch)).font(.system(size: metrics.codeCell * 0.73, weight: .bold, design: .rounded))
+                    .frame(width: metrics.codeCell, height: metrics.codeCell * 1.27)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(.white.opacity(model.status == .expired ? 0.05 : 0.12)))
+                    .foregroundStyle(model.status == .expired ? Theme.secondary : Theme.text)
             }
         }
     }

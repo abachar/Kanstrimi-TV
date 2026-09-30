@@ -19,6 +19,7 @@ struct SearchView: View {
         content
             .background(Theme.background)
             .searchable(text: $text, prompt: "Titre, acteur, réalisateur")
+            .phoneLargeTitle("Recherche")
         .task { if !text.isEmpty { schedule(immediately: true) } }
         .onChange(of: text) { _, _ in schedule() }
         .onChange(of: scope) { _, _ in schedule(immediately: true) }
@@ -117,7 +118,7 @@ struct SearchView: View {
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: 30) {
                     ForEach(cards) { c in
-                        PosterCard(card: c) { open(c) }
+                        PosterCard(card: c) { open(c) }.posterMenu(c)
                     }
                 }
                 .padding(.vertical, 24).padding(.horizontal, 10)

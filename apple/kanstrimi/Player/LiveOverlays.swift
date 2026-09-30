@@ -1,66 +1,5 @@
 import SwiftUI
 
-/// iOS: "EN DIRECT · 4K · FR · Source A", programme and the zapping banner [16].
-/// tvOS shows its bar instead (`PlayerBar`).
-struct LiveBanner: View {
-    @Environment(AppEnvironment.self) private var env
-    let visible: Bool
-    private var player: PlayerService { env.player }
-
-    var body: some View {
-        VStack {
-            HStack(alignment: .top) {
-                if visible {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 10) {
-                            Text("EN DIRECT").font(.caption.weight(.bold)).tracking(1.5)
-                                .padding(.horizontal, 8).padding(.vertical, 3).background(Theme.live, in: RoundedRectangle(cornerRadius: 5))
-                            if let v = player.version, let s = player.source {
-                                Text("\(v.shortQualityLabel) · \(v.language.rawValue) · \(player.sourceLabel(s, in: v))").font(.callout.weight(.semibold))
-                            }
-                        }
-                        Text(player.channel?.name ?? "").font(.title2.weight(.bold))
-                        if let now = player.epg.now {
-                            Text(now.title).font(.headline)
-                            Text("\(Format.hour(now.start)) – \(Format.hour(now.end))" + (player.epg.next.map { " · Ensuite : \($0.title) · \(Format.hour($0.start))" } ?? ""))
-                                .font(.callout).foregroundStyle(Theme.secondary)
-                            ProgressBar(fraction: now.fraction(), height: 5).frame(maxWidth: 420)
-                        }
-                    }
-                    .padding(.horizontal, 24).padding(.vertical, 18)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-                    .transition(.opacity)
-                }
-                Spacer()
-                if player.zapBanner { zapColumn.transition(.move(edge: .trailing).combined(with: .opacity)) }
-            }
-            Spacer()
-        }
-        .playerChromeInsets()
-        .allowsHitTesting(false)
-    }
-
-    private var zapColumn: some View {
-        let n = player.neighbours
-        return VStack(alignment: .trailing, spacing: 10) {
-            if let p = n.previous { zapRow(p, current: false, arrow: "▲") }
-            if let c = player.channel { zapRow(c, current: true, arrow: "") }
-            if let x = n.next { zapRow(x, current: false, arrow: "▼") }
-        }
-        .padding(16)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-    }
-
-    private func zapRow(_ c: Channel, current: Bool, arrow: String) -> some View {
-        HStack(spacing: 12) {
-            Text(arrow).font(.caption).foregroundStyle(Theme.secondary).frame(width: 20)
-            ChannelLogo(channel: c, size: 32)
-            Text(c.name).font(current ? .headline : .callout).foregroundStyle(current ? Theme.text : Theme.secondary)
-            if let q = c.maxQuality { Badge(q.rawValue) }
-        }
-    }
-}
-
 /// ◀ on tvOS: the channels of the group the live started from, each with what it shows now.
 struct ChannelListOverlay: View {
     @Environment(AppEnvironment.self) private var env
@@ -68,24 +7,54 @@ struct ChannelListOverlay: View {
     @FocusState private var focusedID: ContentID?
     let onClose: () -> Void
     var onActivity: () -> Void = { }
+    /// iPhone: a tap beside the list or a swipe back closes it.
+    var touch = false
+    /// iPhone held upright: the list rises from the bottom, under the video, instead of sliding from the left.
+    var fromBottom = false
     private var player: PlayerService { env.player }
 
     var body: some View {
-        HStack(spacing: 0) {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
-                    Text("Chaînes").font(.title2.weight(.bold)).padding(.bottom, 6)
-                    ForEach(player.channels) { c in
-                        ChannelListRow(channel: c, isCurrent: c.id == player.channel?.id) {
-                            player.play(channel: c, in: player.channels)
-                            env.recentChannels.record(c.id)
-                            onClose()
-                        }
-                        .focused($focusedID, equals: c.id)
+        if fromBottom { bottomSheet } else { sideList }
+    }
+
+    private var list: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: touch ? 4 : 14) {
+                Text("Chaînes").font(.title2.weight(.bold)).padding(.bottom, 6)
+                ForEach(player.channels) { c in
+                    ChannelListRow(channel: c, isCurrent: c.id == player.channel?.id, logoSize: touch ? 44 : 64) {
+                        player.play(channel: c, in: player.channels)
+                        env.recentChannels.record(c.id)
+                        onClose()
                     }
+                    .focused($focusedID, equals: c.id)
                 }
-                .padding(metrics.panelPadding)
             }
+            .padding(metrics.panelPadding)
+        }
+    }
+
+    private var bottomSheet: some View {
+        VStack(spacing: 0) {
+            Color.black.opacity(0.35).ignoresSafeArea().contentShape(Rectangle()).onTapGesture { onClose() }
+            list
+                .frame(maxWidth: .infinity)
+                .frame(height: 460)
+                .background {
+                    let shape = UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24)
+                    ZStack { shape.fill(.black.opacity(0.35)); shape.fill(.ultraThinMaterial) }.ignoresSafeArea(edges: .bottom)
+                }
+                .touchSwipe { t in
+                    if t.height > 80, abs(t.height) > abs(t.width) { onClose() }
+                }
+        }
+        // The sheet's material runs under the home indicator, its rows stay above it.
+        .touchActivity(onActivity)
+    }
+
+    private var sideList: some View {
+        HStack(spacing: 0) {
+            list
             .scrollClipDisabled()
             .frame(width: metrics.listWidth)
             .background(.ultraThinMaterial)
@@ -95,7 +64,20 @@ struct ChannelListOverlay: View {
                 .frame(width: 160)
             Spacer(minLength: 0)
         }
-        .ignoresSafeArea()
+        .overlay {
+            // iPhone: a tap on the video beside the list closes it, a swipe towards the left too.
+            if touch {
+                HStack(spacing: 0) {
+                    Color.clear.frame(width: metrics.listWidth)
+                    Color.clear.contentShape(Rectangle()).onTapGesture { onClose() }
+                }
+            }
+        }
+        .touchSwipe { t in
+            if t.width < -80, abs(t.width) > abs(t.height) { onClose() }
+        }
+        // tvOS: to the edges. iPhone: the rows clear the notch, the list's material still reaches the edge.
+        .playerIgnoresSafeArea()
         .touchActivity(onActivity)
         .onAppear { focusedID = player.channel?.id ?? player.channels.first?.id }
         .onChange(of: focusedID) { _, _ in onActivity() }
@@ -107,6 +89,7 @@ private struct ChannelListRow: View {
     @Environment(AppEnvironment.self) private var env
     let channel: Channel
     let isCurrent: Bool
+    var logoSize: CGFloat = 64
     let action: () -> Void
     /// The list's own, else the guide asked at display (kept a minute by the cache).
     private var now: Programme? { channel.now ?? env.channelCache.cached(channel.id)?.now }
@@ -114,7 +97,7 @@ private struct ChannelListRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 18) {
-                ChannelLogo(channel: channel, size: 64)
+                ChannelLogo(channel: channel, size: logoSize)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 10) {
                         Text(channel.name).font(.callout.weight(.semibold)).lineLimit(1)
@@ -139,28 +122,6 @@ private struct ChannelListRow: View {
         .task {
             if now == nil, channel.hasEPG != false { _ = await env.channelCache.channel(channel.id) }
         }
-    }
-}
-
-/// iOS: the 8 last channels, most recent first; the previous one is focused [22].
-struct RecentChannelsOverlay: View {
-    @Environment(\.metrics) private var metrics
-    let onClose: () -> Void
-    var onActivity: () -> Void = { }
-
-    var body: some View {
-        VStack {
-            Spacer()
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Chaînes récentes").font(.title2.weight(.bold))
-                RecentChannelsStrip(onActivity: onActivity, onPick: onClose)
-            }
-            .padding(metrics.panelPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.thinMaterial.opacity(0.9))
-        }
-        .ignoresSafeArea()
-        .touchActivity(onActivity)
     }
 }
 

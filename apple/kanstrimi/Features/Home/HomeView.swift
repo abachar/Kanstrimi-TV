@@ -53,7 +53,7 @@ struct HomeView: View {
                         OfflineBanner(detail: "Accueil du \(Format.dayHour(home.generatedAt)) affiché · la lecture reste possible si le flux répond") {
                             Task { await model.load() }
                         }
-                        .padding(.horizontal, metrics.inset).padding(.top, 30)
+                        .padding(.horizontal, metrics.inset).padding(.top, metrics.compact ? 64 : 30)
                     }
                     if let hero = home.hero { heroView(hero, model: model) }
                     ForEach(home.rows) { row in
@@ -66,8 +66,8 @@ struct HomeView: View {
                 }
                 .padding(.bottom, 20)
             }
-            // tvOS: the hero runs under the floating tab bar instead of leaving a black band above it.
-            .ignoresSafeArea(edges: Platform.isTV ? [.horizontal, .top] : .horizontal)
+            // The hero runs under the floating tab bar (tvOS) or the status bar (iPhone) instead of leaving a black band above it.
+            .ignoresSafeArea(edges: [.horizontal, .top])
         } else if let error = model.error {
             StatePanel(icon: "wifi.exclamationmark", title: "Serveur injoignable",
                        message: "\(error.localizedDescription). Aucun accueil en cache sur cet appareil.") {
@@ -78,7 +78,64 @@ struct HomeView: View {
         }
     }
 
-    private func heroView(_ hero: HomeHero, model: HomeModel) -> some View {
+    @ViewBuilder private func heroView(_ hero: HomeHero, model: HomeModel) -> some View {
+        if metrics.compact { phoneHero(hero, model: model) } else { tvHero(hero, model: model) }
+    }
+
+    /// iPhone: the backdrop from the top edge, the logo (or the title), one line of facts, then Lecture,
+    /// Ma liste and the sheet. A tap on the picture opens the sheet too.
+    private func phoneHero(_ hero: HomeHero, model: HomeModel) -> some View {
+        ZStack(alignment: .bottom) {
+            ArtView(id: hero.card.id, url: hero.card.backdrop)
+                .frame(maxWidth: .infinity).frame(height: metrics.heroHeight)
+                .overlay {
+                    // Dark under the status bar, then clear, then the background under the text.
+                    LinearGradient(stops: [.init(color: Theme.background.opacity(0.55), location: 0),
+                                           .init(color: .clear, location: 0.22),
+                                           .init(color: .clear, location: 0.4),
+                                           .init(color: Theme.background.opacity(0.85), location: 0.78),
+                                           .init(color: Theme.background, location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { env.open(hero.card.id) }
+            VStack(spacing: 12) {
+                Text(hero.tagline).font(.caption2.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
+                TitleLogo(title: hero.card.title, logo: hero.card.logo, centered: true)
+                HStack(spacing: 8) {
+                    Text([hero.card.year.map(String.init), hero.card.genres.first, hero.runtime.map(Format.runtime(minutes:))].compactMap { $0 }.joined(separator: " · "))
+                        .foregroundStyle(Theme.secondary).lineLimit(1)
+                    if let c = hero.certification { Badge(c, small: true) }
+                }
+                .font(.subheadline)
+                HStack(spacing: 14) {
+                    let favorite = model.heroIsFavorite
+                    Button { Task { await model.toggleHeroFavorite() } } label: { Image(systemName: favorite ? "heart.fill" : "heart") }
+                        .buttonStyle(RoundIconStyle(diameter: 46))
+                        .accessibilityLabel(favorite ? "Retirer de ma liste" : "Ajouter à ma liste")
+                        .sensoryFeedback(.selection, trigger: favorite)
+                    Button { model.playHero(version: nil, source: nil) } label: {
+                        Label(hero.card.progress?.isResumable == true ? "Reprendre" : "Lecture", systemImage: "play.fill")
+                            .font(.headline).phoneFullWidth(metrics)
+                    }
+                    .prominentButtonStyle()
+                    .contextMenu {
+                        if VersionPicker.lineCount(hero.versions) > 1 {
+                            Button { showPicker = true } label: { Label("Choisir la version", systemImage: "rectangle.stack.badge.play") }
+                        }
+                    }
+                    Button { env.open(hero.card.id) } label: { Image(systemName: "info") }
+                        .buttonStyle(RoundIconStyle(diameter: 46))
+                        .accessibilityLabel("Fiche")
+                }
+                .padding(.top, 4)
+            }
+            .padding(.horizontal, metrics.inset + 8)
+            .padding(.bottom, 12)
+        }
+    }
+
+    private func tvHero(_ hero: HomeHero, model: HomeModel) -> some View {
         ZStack(alignment: .bottomLeading) {
             ArtView(id: hero.card.id, url: hero.card.backdrop)
                 .frame(maxWidth: .infinity).frame(height: metrics.heroHeight)
@@ -126,8 +183,11 @@ private extension HomeView {
             Label(hero.card.progress?.isResumable == true ? "Reprendre" : "Lecture", systemImage: "play.fill").font(.headline)
         }
         .prominentButtonStyle()
-        .onLongPressGesture(minimumDuration: 0.5) { showPicker = true }
-        Button("Versions · \(hero.versions.count)") { showPicker = true }.buttonStyle(.bordered)
+        .onLongPressGesture(minimumDuration: 0.5) { if VersionPicker.lineCount(hero.versions) > 1 { showPicker = true } }
+        // Only when the picker has more than one line to offer.
+        if VersionPicker.lineCount(hero.versions) > 1 {
+            Button("Versions · \(hero.versions.count)") { showPicker = true }.buttonStyle(.bordered)
+        }
         Button { env.open(hero.card.id) } label: { Label("Fiche", systemImage: "info.circle") }.buttonStyle(.bordered)
     }
 }
@@ -148,6 +208,7 @@ final class HomeModel {
         do {
             let h = try await env.call { try await env.client.home() }
             home = h
+            heroFavorite = nil
             error = nil
             isOffline = false
             env.homeCache.save(h)
@@ -165,6 +226,17 @@ final class HomeModel {
                 isOffline = true
             }
         }
+    }
+
+    /// Ma liste of the hero, as toggled here until the next load says otherwise.
+    private var heroFavorite: Bool?
+    var heroIsFavorite: Bool { heroFavorite ?? home?.hero?.card.isFavorite ?? false }
+
+    func toggleHeroFavorite() async {
+        guard let id = home?.hero?.card.id else { return }
+        let target = !heroIsFavorite
+        heroFavorite = target
+        do { try await env.call { try await env.client.setFavorite(id: id, target) } } catch { heroFavorite = !target }
     }
 
     var heroChoice: VersionChooser.Choice? {

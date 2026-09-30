@@ -93,6 +93,11 @@ final class PlayerService: NSObject {
     private var startDeadline: Task<Void, Never>?
     /// True once the stream shows images: the start deadline hands over to the freeze watchdog.
     private var isStarted = false
+    /// False from `start()` until VLC opens the new media: the `.stopped`/`.error` of the media it
+    /// replaces arrive after `start()` and must not count as a failure of the new one (two restarts).
+    private var isOpened = false
+    /// Last seek: the image stands still while VLC fetches the new position, not a freeze.
+    private var lastSeek: Date?
     private var watchdog: Task<Void, Never>?
     private var scanTask: Task<Void, Never>?
     private var progressTicker: Task<Void, Never>?
@@ -222,14 +227,10 @@ final class PlayerService: NSObject {
     func seek(to seconds: TimeInterval) {
         guard !isLive, duration > 0 else { return }
         let target = min(max(0, seconds), duration - 1)
-        if Self.seekByPosition {
-            // Fraction of the file: the fast byte-offset path of the MKV demuxer when Cues are missing.
-            player.position = target / duration
-        } else {
-            player.time = VLCTime(int: Int32(target * 1000))
-        }
+        player.time = VLCTime(int: Int32(target * 1000))
         time = target
-        log.info("seek to \(target, format: .fixed(precision: 0)) (\(Self.seekByPosition ? "position" : "time"))")
+        lastSeek = .now
+        log.info("seek to \(target, format: .fixed(precision: 0))")
         onPlaybackChanged?()
     }
 
@@ -265,13 +266,6 @@ final class PlayerService: NSObject {
 
     /// The time the chrome shows: the sweep's target while scanning.
     var shownTime: TimeInterval { scanTarget ?? time }
-
-    enum ResumeStrategy { case startTime, seekAfterStart }
-    /// How a resume position is applied. On the simulator, both strategies leave the video output
-    /// black after a deep seek into a remote MKV (audio plays, `hasVideoOut` is true), while a
-    /// resume at 120 s works: the "seek MKV" risk of ETUDE.md §3, to measure on a real Apple TV 4K.
-    static var resumeStrategy: ResumeStrategy = .startTime
-    static var seekByPosition = false
 
     var remaining: TimeInterval { max(0, duration - shownTime) }
     var endDate: Date { .now.addingTimeInterval(remaining) }
@@ -382,8 +376,10 @@ final class PlayerService: NSObject {
         phase = .opening
         time = position ?? 0
         duration = ctx.duration ?? 0
-        pendingSeek = position
+        pendingSeek = (position ?? 0) > 1 ? position : nil
         isStarted = false
+        isOpened = false
+        lastSeek = nil
         audioTracks = []; textTracks = []
 
         player.stop()
@@ -392,12 +388,11 @@ final class PlayerService: NSObject {
         media?.addOption(":network-caching=\(isLive ? preferences.liveBufferMs : preferences.vodBufferMs)")
         // A dropped HTTP connection is reopened by VLC (with a Range on VOD) before the watchdog steps in.
         media?.addOption(":http-reconnect")
-        // Resume through the demuxer rather than a seek after `play()`: on a remote MKV the
-        // early seek leaves the video output black while the Cues are fetched.
-        if let position, position > 1, !isLive, Self.resumeStrategy == .startTime {
-            media?.addOption(":start-time=\(Int(position))")
-            pendingSeek = nil
-        }
+        // Films and episodes go through FFmpeg's demuxer: VLC 4's own MKV demuxer gives up on the
+        // provider's Cues (stops right after their CRC-32) and every seek re-reads the file from the
+        // start, a freeze. The resume is a seek once playing (`pendingSeek`): with `:start-time`,
+        // avformat counts the time from the resume point and shortens the duration by as much.
+        if !isLive { media?.addOption(":demux=avformat") }
         player.media = media
         player.play()
         armStartDeadline()
@@ -428,6 +423,7 @@ final class PlayerService: NSObject {
                 try? await Task.sleep(for: .seconds(tick))
                 guard let self, !Task.isCancelled else { return }
                 guard isStarted, phase == .playing, let stats = player.media?.statistics else { last = nil; still = 0; continue }
+                if let lastSeek, Date.now.timeIntervalSince(lastSeek) < timeout { last = nil; still = 0; continue }
                 let pictures = stats.displayedPictures
                 // A lost video output (black screen) counts as a frozen image.
                 if !player.hasVideoOut || last.map({ pictures <= $0 }) == true { still += tick } else { still = 0 }
@@ -584,7 +580,9 @@ extension PlayerService: VLCMediaPlayerDelegate {
     private func handle(state: VLCMediaPlayerState) {
         log.info("state \(VLCMediaPlayerStateToString(state)) time \(self.time, format: .fixed(precision: 0)) duration \(self.duration, format: .fixed(precision: 0)) videoOut \(self.player.hasVideoOut)")
         switch state {
-        case .opening: phase = .opening
+        case .opening:
+            isOpened = true
+            phase = .opening
         case .playing:
             phase = .playing
             if let pending = pendingSeek, pending > 0, duration > 0 {
@@ -594,6 +592,8 @@ extension PlayerService: VLCMediaPlayerDelegate {
             if player.hasVideoOut { markStarted() }
             refreshTracks()
         case .paused: phase = .paused
+        case .stopped where !isOpened, .error where !isOpened:
+            break
         case .stopped:
             // The upstream closing the connection ends like the file does: live has no end, and a
             // film stopping far from its end was cut.
@@ -654,8 +654,6 @@ extension PlayerService {
             let start = Date.now.addingTimeInterval(-3200)
             epg = EPGNow(now: Programme(title: "Ligue · Lyon – Nantes", start: start, end: start.addingTimeInterval(7200), overview: nil),
                          next: Programme(title: "Le Mag du foot", start: start.addingTimeInterval(7200), end: start.addingTimeInterval(9000), overview: nil))
-            // tvOS has no zapping: only the iPhone shows the channel column.
-            zapBanner = !Platform.isTV
         case .panel: phase = .playing
         case .opening: phase = .buffering; bufferingProgress = 42
         }

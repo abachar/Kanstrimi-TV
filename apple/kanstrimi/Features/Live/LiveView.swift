@@ -55,15 +55,15 @@ struct LiveView: View {
                 }
                 .ignoresSafeArea(edges: .horizontal)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Direct").font(.largeTitle.weight(.bold)).padding(.horizontal, metrics.inset)
-                    categoryChips
+                // iPhone: the title is the navigation bar's; one menu picks the category above the list.
+                VStack(alignment: .leading, spacing: 8) {
+                    categoryMenu.padding(.horizontal, metrics.inset)
                     channelList.padding(.horizontal, metrics.inset)
                 }
-                .padding(.top, 10)
             }
         }
         .background(Theme.background)
+        .phoneLargeTitle("Direct")
         .task { if groups.isEmpty { await load() } }
         .onChange(of: focus) { _, f in
             switch f {
@@ -119,23 +119,67 @@ struct LiveView: View {
         if metrics.liveColumns { preview.show(c) }
     }
 
-    /// Phone: one chip per category above the list.
-    private var categoryChips: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                if !recents.isEmpty { chip(.recent, name: "Récentes", count: recents.count) }
-                if !favorites.isEmpty { chip(.favorites, name: "Favoris", count: favorites.count) }
-                ForEach(groups) { g in chip(.group(g.id), name: g.name, count: g.channels.count) }
+    /// Phone: the selected category as a button whose menu lists them all, Récentes and Favoris first,
+    /// then the groups by market ("France · Sport" under France). Too many groups for a row of chips.
+    private var categoryMenu: some View {
+        Menu {
+            if !recents.isEmpty || !favorites.isEmpty {
+                Section {
+                    if !recents.isEmpty { menuItem(.recent, name: "Récentes", count: recents.count, icon: "clock") }
+                    if !favorites.isEmpty { menuItem(.favorites, name: "Favoris", count: favorites.count, icon: "heart") }
+                }
             }
-            .padding(.horizontal, metrics.inset)
+            ForEach(markets, id: \.name) { market in
+                Section(market.name) {
+                    ForEach(market.groups) { g in menuItem(.group(g.id), name: theme(of: g), count: g.channels.count, icon: nil) }
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Text(selectedName).font(.headline).lineLimit(1)
+                Text("\(visible.count)").font(.subheadline).foregroundStyle(Theme.secondary)
+                Image(systemName: "chevron.up.chevron.down").font(.footnote.weight(.semibold)).foregroundStyle(Theme.secondary)
+            }
+            .padding(.horizontal, 14).frame(height: 38)
+            .background(Capsule().fill(.white.opacity(0.12)))
         }
-        .scrollClipDisabled()
-        .buttonStyle(.bordered)
+        .sensoryFeedback(.selection, trigger: selected)
     }
 
-    private func chip(_ id: CategoryID, name: String, count: Int) -> some View {
-        Button("\(name) · \(count)") { selected = id }
-            .tint(selected == id ? Theme.accent : nil)
+    private func menuItem(_ id: CategoryID, name: String, count: Int, icon: String?) -> some View {
+        Button { selected = id } label: {
+            if selected == id {
+                Label("\(name) · \(count)", systemImage: "checkmark")
+            } else if let icon {
+                Label("\(name) · \(count)", systemImage: icon)
+            } else {
+                Text("\(name) · \(count)")
+            }
+        }
+    }
+
+    /// The groups by market, in the server's order: "France · Sport" goes under "France".
+    private var markets: [(name: String, groups: [ChannelGroup])] {
+        var result: [(name: String, groups: [ChannelGroup])] = []
+        for g in groups {
+            let market = g.name.components(separatedBy: " · ").first ?? g.name
+            if let i = result.firstIndex(where: { $0.name == market }) { result[i].groups.append(g) } else { result.append((market, [g])) }
+        }
+        return result
+    }
+
+    /// "Sport" for "France · Sport"; the whole name when there is no market in it.
+    private func theme(of g: ChannelGroup) -> String {
+        let parts = g.name.components(separatedBy: " · ")
+        return parts.count > 1 ? parts.dropFirst().joined(separator: " · ") : g.name
+    }
+
+    private var selectedName: String {
+        switch selected {
+        case .recent: "Récentes"
+        case .favorites: "Favoris"
+        case .group(let id): groups.first { $0.id == id }?.name ?? "Catégorie"
+        }
     }
 
     // MARK: - Column 1: categories
@@ -178,7 +222,7 @@ struct LiveView: View {
 
     private var channelList: some View {
         ScrollView {
-            LazyVStack(spacing: 10) {
+            LazyVStack(spacing: metrics.compact ? 2 : 10) {
                 ForEach(visible) { c in channelRow(c) }
                 if visible.isEmpty {
                     Text("Aucune chaîne dans cette catégorie.").foregroundStyle(Theme.secondary).padding(30)
@@ -186,10 +230,52 @@ struct LiveView: View {
             }
             .padding(.vertical, 10)
         }
-        .scrollClipDisabled()
+        // tvOS lets the focus growth spill over; on a phone the list must stay under the category menu.
+        .scrollClipDisabled(!metrics.compact)
     }
 
-    private func channelRow(_ c: Channel) -> some View {
+    @ViewBuilder private func channelRow(_ c: Channel) -> some View {
+        if metrics.compact { phoneChannelRow(c) } else { tvChannelRow(c) }
+    }
+
+    /// iPhone: logo, name and quality, then what is on air with its hours and its progress.
+    private func phoneChannelRow(_ c: Channel) -> some View {
+        let now = c.now ?? env.channelCache.cached(c.id)?.now
+        return Button { watch(c) } label: {
+            HStack(spacing: 14) {
+                ChannelLogo(channel: c, size: metrics.channelLogo)
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 8) {
+                        Text(c.name).font(.headline).lineLimit(1)
+                        if let q = c.maxQuality { Badge(q.rawValue, small: true) }
+                        if c.isFavorite == true { Image(systemName: "heart.fill").font(.caption).foregroundStyle(Theme.accent) }
+                    }
+                    if let now {
+                        Text(now.title).font(.subheadline).foregroundStyle(Theme.text.opacity(0.85)).lineLimit(1)
+                        HStack(spacing: 8) {
+                            ProgressBar(fraction: now.fraction(), height: 3).frame(maxWidth: 120)
+                            Text("\(Format.hour(now.start)) – \(Format.hour(now.end))").font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary)
+                        }
+                    } else {
+                        Text(c.hasEPG == false ? "Pas de programme" : " ").font(.subheadline).foregroundStyle(Theme.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .cardButtonStyle()
+        .touchContextMenu {
+            Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
+        }
+        .task {
+            if now == nil, c.hasEPG != false { _ = await env.channelCache.channel(c.id) }
+        }
+    }
+
+    private func tvChannelRow(_ c: Channel) -> some View {
         Button {
             watch(c)
         } label: {
@@ -202,7 +288,6 @@ struct LiveView: View {
                     }
                     HStack(spacing: 6) {
                         if let q = c.maxQuality { Badge(q.rawValue, small: true) }
-                        if c.hasEPG == true { Badge("EPG", small: true) }
                         ForEach(c.versions.languages.prefix(2), id: \.self) { Badge($0.rawValue, small: true) }
                     }
                 }

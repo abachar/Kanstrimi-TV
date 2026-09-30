@@ -3,6 +3,8 @@
 # Capture un écran de l'app (client de démo) dans apple/ui-review/<écran>/<horodatage>-<cible>.png (hors git).
 # L'app Debug doit être installée sur le simulateur (shot-all.sh la compile et l'installe).
 # Simulateurs : TVOS_UDID / IPHONE_UDID pour changer ; WAIT=<s> pour attendre plus longtemps.
+# LANDSCAPE=1 : iPhone, le lecteur en paysage (fichier …-iphone-paysage.png).
+# PANEL=<Programme|Récentes|Épisodes|Infos|Chaînes> : iPhone, ce panneau du lecteur ouvert (ou la liste des chaînes).
 set -e
 cd "${0:A:h}"
 B=dev.crafters.kanstrimi
@@ -39,6 +41,8 @@ case $screen in
   Lecteur-direct)          kv=(debug.autoplay live debug.playerState livePlaying) ;;
 esac
 [[ $screen == Appairage ]] || kv[debug.autopair]=YES
+[[ $target == iphone && -n $LANDSCAPE ]] && kv[debug.landscape]=YES
+[[ $target == iphone && -n $PANEL ]] && kv[debug.panel]=$PANEL
 
 xcrun simctl boot $UDID 2>/dev/null || true
 xcrun simctl bootstatus $UDID >/dev/null
@@ -46,7 +50,7 @@ xcrun simctl get_app_container $UDID $B >/dev/null 2>&1 || { echo "app absente s
 [[ $target == iphone ]] && xcrun simctl status_bar $UDID override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
 
 xcrun simctl terminate $UDID $B >/dev/null 2>&1 || true
-for k in debug.tab debug.open debug.autoplay debug.playerState debug.resumeAt debug.unpair debug.autopair; do
+for k in debug.tab debug.open debug.autoplay debug.playerState debug.resumeAt debug.unpair debug.autopair debug.landscape debug.panel; do
   xcrun simctl spawn $UDID defaults delete $B $k >/dev/null 2>&1 || true
 done
 # The demo client for the capture, then the user's own choice back (the debug.* keys erase themselves at launch).
@@ -59,10 +63,12 @@ done
 xcrun simctl launch $UDID $B >/dev/null
 sleep ${WAIT:-5}
 mkdir -p ../ui-review/$screen
-xcrun simctl io $UDID screenshot --type=png "../ui-review/$screen/$stamp-$target.png" >/dev/null 2>&1
+suffix=$target; [[ $target == iphone && -n $LANDSCAPE ]] && suffix=iphone-paysage
+[[ -n $PANEL ]] && suffix=$suffix-$PANEL
+xcrun simctl io $UDID screenshot --type=png "../ui-review/$screen/$stamp-$suffix.png" >/dev/null 2>&1
 case $mock_before in
   absent) xcrun simctl spawn $UDID defaults delete $B pref.useMock >/dev/null 2>&1 || true ;;
   1) ;;
   *) xcrun simctl spawn $UDID defaults write $B pref.useMock -bool NO ;;
 esac
-echo "ok ui-review/$screen/$stamp-$target.png"
+echo "ok ui-review/$screen/$stamp-$suffix.png"

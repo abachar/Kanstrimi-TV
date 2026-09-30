@@ -10,7 +10,7 @@ tout (TS en direct, MKV et MP4 en VOD), AVPlayer est écarté.
 
 | Dossier | Rôle |
 |---|---|
-| `App/` | `KanstrimiApp` (les seuls `#if` hors des fichiers dédiés : l'adaptateur `AppDelegate` d'iOS), `AppEnvironment` (services partagés, onglet courant, piles de navigation), `Navigation.swift` (`MainTab`, `Route`, covers tvOS, chrome iOS), `RootView` (appairage puis onglets, cover du lecteur, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain), `OrientationLock+iOS` (paysage forcé du lecteur). |
+| `App/` | `KanstrimiApp` (les seuls `#if` hors des fichiers dédiés : l'adaptateur `AppDelegate` d'iOS), `AppEnvironment` (services partagés, onglet courant, piles de navigation), `Navigation.swift` (`MainTab`, `Route`, covers tvOS, chrome iOS), `RootView` (appairage puis onglets, cover du lecteur, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain), `OrientationLock+iOS` (rotation libre du lecteur, bouton plein écran). |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`) : `Card` unique, `Version`, `Source`, `Season`, `Episode`, `Channel`, `Playback`… `nonisolated`, jamais sur la base. |
 | `Client/` | Protocole `CatalogClient` ; `HTTPCatalogClient` (le serveur, URL compilée dans `Preferences.compiledServerURL`, jeton d'appareil en Keychain, erreurs mappées sur `CatalogError`, un GET retenté deux fois après 0,5 s puis 1,5 s sur une connexion tombée ou un 502-504 du proxy sans erreur JSON du serveur ; jamais une écriture, ni un délai dépassé) ; `MockCatalogClient` sur les fixtures JSON de `Client/Fixtures/` et ses `MockScenario` ; `SwitchingCatalogClient` bascule entre les deux. |
 | `Player/` | Le lecteur, service transverse unique : `PlayerService` (VLCKit, bascule de source, échec après 10 s, surveillance du direct, avance rapide, épisode suivant, zapping), `VersionChooser` (langue × qualité × capacités de l'appareil), `PlayerScreen` (état, overlays et panneaux communs) avec `PlayerScreen+tvOS` (télécommande, `PressCatcher`) et `PlayerScreen+iOS` (gestes, contrôles tactiles, PiP), `PlayerDrawable+tvOS` / `+iOS` (la surface vidéo ; celle d'iOS porte le Picture-in-Picture). |
@@ -27,13 +27,18 @@ partagé au plus spécifique :
 1. **`Metrics`** (`Shared/Platform.swift`, `@Environment(\.metrics)`) : marges, largeurs d'affiche,
    tailles de titres, colonnes de grille, hauteurs de panneaux… `Metrics.tv` et `Metrics.phone` ;
    l'iPad sera un troisième jeu de valeurs. Une vue écrit `metrics.posterWidth`, jamais `250`.
+   `metrics.compact` (iPhone) choisit une disposition tenue en main là où la télé garde la sienne :
+   accueil, fiche, épisodes, lignes du Direct, appairage, carte d'épisode suivant, chargement du lecteur.
+   Toute branche `compact` laisse le rendu tvOS inchangé.
    Les dispositions changent avec `ViewThatFits`, `LazyVGrid(.adaptive)` ou un `ScrollView(.horizontal)`
    qui fait défiler ce qui ne tient pas plutôt que de casser les libellés.
 2. **Modificateurs qui cachent une API absente d'une plateforme**, tous dans `Platform.swift` :
    `cardButtonStyle()` (`.card` sur tvOS, retour tactile sur iOS), `prominentButtonStyle()` (libellé
    sombre sur iOS, la teinte de l'app étant blanche), `onBackCommand` (`onExitCommand` sur tvOS,
    rien sur iOS), `platformSheet` (cover sur tvOS, feuille sur iOS), `playerChromeInsets()`,
-   `touchActivity()`. `Platform.isTV` et `Platform.deviceKind` servent aux rares présences ou
+   `touchActivity()`, et côté iPhone seulement (sans effet sur tvOS) `phoneLargeTitle` (grand titre de la barre
+   de navigation), `phoneFullWidth` (bouton principal pleine largeur), `touchContextMenu` (appui long sur une
+   affiche : Lecture, Voir la fiche), `touchSwipe`. `Platform.isTV` et `Platform.deviceKind` servent aux rares présences ou
    absences d'un contrôle (bouton Fermer d'une feuille, QR code) et aux textes qui nomment l'appareil.
 3. **Un fichier par plateforme** seulement là où l'entrée diffère vraiment : suffixe `+tvOS.swift`
    ou `+iOS.swift`, le fichier entier sous `#if os(...)`. Le lecteur (télécommande, gestes),
@@ -45,14 +50,35 @@ partagé au plus spécifique :
 `fullScreenCover` au-dessus des onglets ; sur iOS un push dans la `NavigationStack` de l'onglet
 courant (`AppEnvironment.paths`, `Route`). La grille d'un genre et l'écran d'une saga suivent la même règle. Le lecteur est
 un `fullScreenCover` depuis la racine. L'iPhone garde cinq onglets : Réglages se
-rejoint par la roue dentée de l'accueil.
+rejoint par la roue dentée de l'accueil. Sur iPhone, Films, Séries, Direct et Recherche portent le grand titre de la barre
+de navigation ; la recherche garde le champ `searchable` en haut de son écran : posé sur la pile ou sur le `TabView`
+avec l'onglet `role: .search`, iOS 27 (simulateur) n'affiche pas le champ dans la barre d'onglets (essayé le 2026-09-30).
 
-**Lecteur iPhone** : paysage forcé pendant la lecture (`AppDelegate.orientations` +
-`requestGeometryUpdate`), tap = contrôles, double tap gauche/droite = ±10 s, ±10 maintenu = avance/retour rapide, glisser horizontal =
-recherche, glisser vertical en direct = zapping, appui long = panneau. Picture-in-Picture par le
+**Lecteur iPhone** : il suit le téléphone, portrait ou paysage (`AppDelegate.orientations` élargi le temps de la
+lecture) ; le bouton plein écran fait pivoter (`OrientationLock.rotate`). Les contrôles (`PlayerControls`) reprennent
+la barre tvOS : en bas le titre, la progression (celle de l'émission en direct), les boutons de panneau à gauche
+(direct : Programme · Récentes · Infos ; épisode : Épisodes · Infos ; film : Infos) et les menus Versions · Audio ·
+Sous-titres à droite (un seul menu « … » s'il manque de place) ; les contrôles restent dans la zone sûre (encoche,
+barre d'accueil), seuls la vidéo et les voiles vont aux bords ; la surface vidéo recale les vues et couches de VLCKit à
+chaque mise en page (sinon l'image se décale après des rotations) ; en haut Fermer, PiP, plein écran ; au centre ±10 et
+lecture/pause (films, épisodes), remplacés par l'indicateur de chargement. Gestes : tap = contrôles (ou ferme le
+panneau), double tap gauche/droite = ±10 s, ±10 maintenu = avance/retour rapide, glisser horizontal = recherche.
+Paysage : glisser vers la droite en direct = chaînes du groupe (liste à gauche, comme ◀ sur tvOS). Portrait : vidéo
+centrée à son format, glisser vers le haut = chaînes en direct (liste montant du bas) ou premier panneau
+(Épisodes / Infos), glisser vers le bas = fermer. Plus de zapping ni d'appui long. Picture-in-Picture par le
 drawable `PiPVideoView` conforme à `VLCPictureInPictureDrawable` : VLCKit rend un
 `VLCPictureInPictureWindowControlling` quand sa sortie vidéo le permet, `PlayerService.isMinimized`
-cache l'écran sans arrêter la lecture. `Capabilities.iPhone` plafonne à la Full HD.
+cache l'écran sans arrêter la lecture, une fois l'image dans l'image démarrée (`stateChangeEventHandler`) : cachée
+avant, la surface vidéo quitte la fenêtre et iOS abandonne. `Capabilities.iPhone` plafonne à la Full HD.
+
+**Un seul choix, pas de bouton** (toutes plateformes) : Versions (fiche d'un film, « Versions · n » de l'accueil tvOS),
+Langue (fiche d'une série) et l'appui long sur Lecture n'existent que si le sélecteur a plus d'une ligne
+(`VersionPicker.lineCount`, une par source) ; dans le lecteur, Versions s'il y a plus d'une version, Audio avec plus
+d'une piste, Sous-titres avec au moins une piste (sinon « Désactivés » serait le seul choix). Les pistes arrivent avec
+la lecture : ces boutons apparaissent alors.
+
+**Direct sur iPhone** : un menu sous le titre choisit la catégorie (Récentes, Favoris, puis les groupes rangés par
+marché, « France » › « Sport »), trop nombreuses pour une ligne de pastilles.
 
 **Fiche** : Lecture/Reprendre en bouton plein, les autres actions en pastilles rondes (`IconAction`) : sur tvOS le
 libellé n'apparaît que sous la pastille focalisée, sur iPhone il est toujours affiché. Ma liste = cœur
@@ -73,8 +99,8 @@ qui ouvrent un panneau (direct : Programme · Récentes · Infos ; film : Infos 
 à droite les icônes Versions · Audio · Sous-titres, chacune un menu déroulant. Panneau ouvert : titre et progression
 s'effacent, les boutons remontent et le détail s'affiche dessous (▼), sur un voile sombre. Pas d'aide de télécommande à l'écran.
 **Télécommande en direct** (tvOS) : ◀ chaînes du groupe (avec l'émission en cours), ▼ la barre ; ▲ et ▶ ne font rien ;
-pas de zapping sur les flèches (sans numéros de chaîne, l'ordre ne s'apprend pas). L'iPhone garde le zapping
-(glisser vertical), le bandeau du direct et le panneau à onglets (`PlayerPanel`). Le dialogue d'échec y propose « Réessayer · <version en cours> », puis « ou essayer une autre
+pas de zapping sur les flèches (sans numéros de chaîne, l'ordre ne s'apprend pas). L'iPhone non plus : voir
+**Lecteur iPhone**. Le dialogue d'échec y propose « Réessayer · <version en cours> », puis « ou essayer une autre
 version » et les autres versions sur une ligne (`playInstead`, sans la mémoriser), puis « Quitter » à part.
 Le sélecteur de version de la fiche (`VersionPicker`, toutes plateformes) est une simple liste : un bouton par source de chaque
 version (la recommandée d'abord, puis par langue et qualité décroissante ; la source sous la version sur iPhone),
@@ -100,10 +126,17 @@ focus, et sous tvOS 27 (Xcode 27A266a) la liste poussée par un `Picker` par dé
 3 s en film ou épisode ; plafonné à 5 s, VLC remplissant le tampon avant la première image et une source
 ayant 10 s pour démarrer. `:http-reconnect` rouvre une connexion HTTP tombée avant que le chien de garde n'intervienne.
 
+**Films et épisodes par le démuxeur FFmpeg** (`:demux=avformat`) : le démuxeur MKV de VLC 4 abandonne l'index
+(Cues) des fichiers du fournisseur juste après son CRC-32, et chaque saut relit alors le film depuis le début
+(gel, `Error while reading SimpleBlock`). La reprise est un saut une fois la lecture lancée : avec `:start-time`,
+avformat compte le temps depuis le point de reprise et raccourcit la durée d'autant. Le direct (TS) garde le
+démuxeur de VLC.
+
 **Coupure en film ou épisode** : même bascule, reprise à la position courante. Deux signaux une fois
-l'image affichée : 15 s sans nouvelle image en lecture (plus long qu'en direct, un seek dans un MKV
-distant fige l'image quelques secondes), ou un `.stopped` à plus de 60 s de la fin ; plus près, c'est la
-fin du fichier (épisode suivant).
+l'image affichée : 15 s sans nouvelle image en lecture hors des 15 s qui suivent un saut (plus long qu'en
+direct, le temps de rouvrir le fichier à la nouvelle position), ou un `.stopped` à plus de 60 s de la fin ;
+plus près, c'est la fin du fichier (épisode suivant). Le `.stopped` ou l'erreur du média remplacé, reçus
+après le lancement du suivant, sont ignorés jusqu'à l'ouverture de celui-ci.
 
 **Avance rapide** (films, épisodes ; ◀ ▶ maintenus sur la télécommande via `PressCatcher`) : la cible avance
 de 10, 30, 60, 120 puis 300 s par seconde (un palier toutes les 2 s), affichée à la place du temps
@@ -118,7 +151,7 @@ défilement réel.
   affiche un lien « Ouvrir l'admin » (Safari), la validation se fait sur le même téléphone. Un `401`
   n'importe où dissocie l'appareil et ramène à l'appairage.
 - **Catalogue** : une affiche ne porte aucun texte dessous ; l'année, la note et les pastilles qualité et
-  langue sont dessinées dessus (pas de genre : un titre en a plusieurs, la rangée dit déjà lequel) ; une seule
+  langue sont dessinées dessus (sur iPhone l'année et la note seulement, l'indice en haut à gauche) (pas de genre : un titre en a plusieurs, la rangée dit déjà lequel) ; une seule
   carte pour les rangées et les grilles (`PosterCard` / `PosterCardLabel`). Même règle pour une saga (nombre de films
   sur l'affiche) et un studio (son logo seul, ou son nom sans logo). L'écran d'un studio
   (`GenreGridView(studio:)`) a sa tuile en tête et, en fond, le backdrop de son titre le plus récent (`Studio.backdrop`),
@@ -157,10 +190,13 @@ les deux destinations se vérifient quand même, à chaque modification. À froi
   `pref.useMock` (mock), `debug.autopair` / `debug.unpair`, `debug.tab` (`home` … `settings`),
   `debug.open` (identifiant de contenu), `debug.autoplay` (`live`, `live:<id>` ou un identifiant,
   plus `debug.resumeAt`), `debug.playerState` (`vodPaused`, `livePlaying`, `failure`, `nextEpisode`,
-  `panel`, `opening` : met le lecteur dans cet état sans flux, une fausse image `PreviewFrame` à la place de la vidéo pour juger la transparence des overlays ; les previews du lecteur aussi). Puis `xcrun simctl io <udid> screenshot`.
+  `panel`, `opening` : met le lecteur dans cet état sans flux, une fausse image `PreviewFrame` à la place de la vidéo pour juger la transparence des overlays ; les previews du lecteur aussi).
+  iPhone : `debug.tab settings` pousse Réglages depuis l'accueil, `debug.landscape` fait pivoter le lecteur,
+  `debug.panel` (`Programme`, `Récentes`, `Épisodes`, `Infos`, `Chaînes`) ouvre ce panneau. Puis `xcrun simctl io <udid> screenshot`.
 - Captures pour la revue UI : `scripts/shot-all.sh tvos` (puis `iphone`) compile en Debug, installe et capture
   les 15 écrans atteignables par ces clés, avec le même horodatage (`NOBUILD=1` pour sauter la compilation) ;
-  `scripts/shot.sh <écran> <cible>` pour un seul écran. Sortie dans `ui-review/`, ignoré par git. Les clés `debug.*` s'effacent au lancement qui les lit, et le script
+  `scripts/shot.sh <écran> <cible>` pour un seul écran (iPhone : `LANDSCAPE=1` pour le lecteur en paysage,
+  `PANEL=<panneau>` pour un panneau ouvert). Sortie dans `ui-review/`, ignoré par git. Les clés `debug.*` s'effacent au lancement qui les lit, et le script
   remet `pref.useMock` comme il l'a trouvé : un lancement suivant depuis Xcode repart normalement. Ce qui demande
   focus ou défilement (résultats de recherche, grilles, panneau du lecteur, Programme du direct) passe par `ScreenTour`.
 
@@ -170,7 +206,8 @@ les deux destinations se vérifient quand même, à chaque modification. À froi
   d'octets fiable ; d'où VLCKit seul et une bascule de source plutôt qu'un retry aveugle.
 - Reprise profonde dans un MKV sur simulateur (1140 s sur 4520 s) : son sans image, alors que
   120 s fonctionne. À mesurer sur Apple TV réel avant de conclure.
-- iPhone (simulateur, sans flux réel) : paysage forcé et retour en portrait vérifiés, contrôles
-  tactiles rendus dans chaque état du lecteur. Non vérifié faute de flux et de doigt : les gestes
-  eux-mêmes, le PiP de bout en bout (`pictureInPictureReady` doit être appelé par VLCKit sur un vrai
+- iPhone (simulateur, sans flux réel) : portrait et paysage (bouton plein écran) vérifiés, contrôles
+  tactiles, panneaux et liste des chaînes rendus dans chaque état du lecteur ; le tap passe par
+  `DeviceInteractionSynthesize`, qui n'offre ni glisser ni rotation. Non vérifié faute de flux et de doigt : les glissers
+  eux-mêmes, la rotation physique du téléphone, le PiP de bout en bout (`pictureInPictureReady` doit être appelé par VLCKit sur un vrai
   flux), la lecture en arrière-plan. À faire sur un iPhone réel contre le serveur.

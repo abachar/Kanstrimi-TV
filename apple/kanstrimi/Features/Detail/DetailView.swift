@@ -56,6 +56,8 @@ private struct DetailContent: View {
     @Environment(\.metrics) private var metrics
     @Environment(\.openURL) private var openURL
     @FocusState private var focused: Focus?
+    /// iPhone: the overview shows in full after a tap.
+    @State private var overviewExpanded = false
     private enum Focus: Hashable { case play, restart, watched, versions, trailer, favorite, language, season(Int), episode(ContentID) }
 
     var body: some View {
@@ -63,6 +65,8 @@ private struct DetailContent: View {
             StatePanel(icon: "exclamationmark.triangle", title: "Fiche indisponible", message: error.localizedDescription) {
                 Task { await model.load() }
             }
+        } else if let d = model.detail, metrics.compact {
+            phoneBody(d)
         } else if let d = model.detail {
             ZStack(alignment: .topLeading) {
                 backdrop(d)
@@ -82,6 +86,36 @@ private struct DetailContent: View {
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    /// iPhone: the backdrop as a banner at the top that scrolls with the page, the title over its faded end.
+    private func phoneBody(_ d: Card) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if d.isMatched {
+                    ArtView(id: d.id, url: d.backdrop)
+                        .frame(maxWidth: .infinity).frame(height: 320)
+                        .overlay {
+                            LinearGradient(stops: [.init(color: Theme.background.opacity(0.5), location: 0),
+                                                   .init(color: .clear, location: 0.3),
+                                                   .init(color: Theme.background.opacity(0.7), location: 0.75),
+                                                   .init(color: Theme.background, location: 1)],
+                                           startPoint: .top, endPoint: .bottom)
+                        }
+                } else {
+                    Color.clear.frame(height: 110)
+                }
+                VStack(alignment: .leading, spacing: 24) {
+                    header(d)
+                    buttons(d)
+                    if d.kind == .series { seasons(d) }
+                }
+                .padding(.horizontal, metrics.inset)
+                .padding(.top, d.isMatched ? -90 : 0)
+                Spacer(minLength: 60)
+            }
+        }
+        .ignoresSafeArea(edges: .top)
     }
 
     private func backdrop(_ d: Card) -> some View {
@@ -119,13 +153,23 @@ private struct DetailContent: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(tagline(d)).font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
             TitleLogo(title: d.title, logo: d.logo)
-            HStack(spacing: 14) {
-                Text(meta(d)).foregroundStyle(Theme.secondary)
-                if let c = d.certification { Badge(c) }
-                if let r = d.rating { Text(String(format: "★ %.1f", r)).foregroundStyle(Theme.accent) }
+            if metrics.compact {
+                // Phone: the facts on their own line, the certification and the rating with the tags,
+                // so that none of them breaks a line in the middle.
+                Text(meta(d)).font(.subheadline).foregroundStyle(Theme.secondary)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) { ratingAndCertification(d); versionTags(d) }
+                    VStack(alignment: .leading, spacing: 10) { HStack(spacing: 10) { ratingAndCertification(d) }; versionTags(d) }
+                }
+            } else {
+                HStack(spacing: 14) {
+                    Text(meta(d)).foregroundStyle(Theme.secondary)
+                    if let c = d.certification { Badge(c) }
+                    if let r = d.rating { Text(String(format: "★ %.1f", r)).foregroundStyle(Theme.accent) }
+                }
+                .font(.title3)
+                versionTags(d)
             }
-            .font(.title3)
-            versionTags(d)
             if let s = d.saga {
                 Button { openSaga(s) } label: {
                     Label("\(s.name) · \(s.count) films", systemImage: "square.stack")
@@ -133,15 +177,31 @@ private struct DetailContent: View {
                 .buttonStyle(.bordered)
             }
             if d.isMatched {
-                if let o = d.overview { Text(o).font(.body).foregroundStyle(Theme.text.opacity(0.9)).frame(maxWidth: metrics.textWidth, alignment: .leading).lineLimit(4) }
+                if let o = d.overview {
+                    if metrics.compact {
+                        Text(o).font(.subheadline).foregroundStyle(Theme.text.opacity(0.9)).lineLimit(overviewExpanded ? nil : 3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { overviewExpanded.toggle() } }
+                            .accessibilityHint(overviewExpanded ? "" : "Afficher le résumé complet")
+                    } else {
+                        Text(o).font(.body).foregroundStyle(Theme.text.opacity(0.9)).frame(maxWidth: metrics.textWidth, alignment: .leading).lineLimit(4)
+                    }
+                }
                 if !d.cast.isEmpty || d.director != nil {
                     Text([d.director.map { "Réalisation \($0)" }, d.cast.isEmpty ? nil : "Avec " + d.cast.map(\.name).joined(separator: ", ")].compactMap { $0 }.joined(separator: " · "))
-                        .font(.callout).foregroundStyle(Theme.secondary).frame(maxWidth: metrics.textWidth, alignment: .leading)
+                        .font(metrics.compact ? .footnote : .callout).foregroundStyle(Theme.secondary).frame(maxWidth: metrics.textWidth, alignment: .leading)
+                        .lineLimit(metrics.compact ? 2 : nil)
                 }
             } else {
                 noTMDB(d)
             }
         }
+    }
+
+    @ViewBuilder private func ratingAndCertification(_ d: Card) -> some View {
+        if let c = d.certification { Badge(c) }
+        if let r = d.rating { Text(String(format: "★ %.1f", r)).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent) }
     }
 
     private func tagline(_ d: Card) -> String {
@@ -167,8 +227,19 @@ private struct DetailContent: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
-    /// One row on TV; on a phone Lecture takes a line and the others scroll below it.
-    private func buttons(_ d: Card) -> some View {
+    /// One row on TV; on a phone Lecture takes the width and the others share the line below it.
+    @ViewBuilder private func buttons(_ d: Card) -> some View {
+        if metrics.compact {
+            VStack(spacing: 18) {
+                buttonSet(d, primaryOnly: true)
+                HStack(alignment: .top, spacing: 4) { buttonSet(d, secondaryOnly: true) }
+            }
+        } else {
+            tvButtons(d)
+        }
+    }
+
+    private func tvButtons(_ d: Card) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: 20) { buttonSet(d) }.fixedSize()
             VStack(alignment: .leading, spacing: 12) {
@@ -185,11 +256,11 @@ private struct DetailContent: View {
     @ViewBuilder private func buttonSet(_ d: Card, primaryOnly: Bool = false, secondaryOnly: Bool = false) -> some View {
         if !secondaryOnly {
             Button { Task { await model.playPrimary() } } label: {
-                Label(model.primaryLabel, systemImage: "play.fill").font(.headline)
+                Label(model.primaryLabel, systemImage: "play.fill").font(.headline).phoneFullWidth(metrics)
             }
             .prominentButtonStyle()
             .focused($focused, equals: .play)
-            .onLongPressGesture(minimumDuration: 0.5) { showPicker = true }
+            .onLongPressGesture(minimumDuration: 0.5) { if hasChoice(d) { showPicker = true } }
             .disabled(d.versions.isEmpty)
         }
         if !primaryOnly {
@@ -200,14 +271,15 @@ private struct DetailContent: View {
                 .focused($focused, equals: .restart)
                 .disabled(d.versions.isEmpty)
             }
-            if d.kind == .series {
+            if d.kind == .series, hasChoice(d) {
                 IconAction(title: "Langue · \(model.seriesChoice?.label ?? "—")", systemImage: "waveform", focused: focused == .language) { showPicker = true }
                     .focused($focused, equals: .language)
                     .disabled(d.versions.isEmpty)
-            } else {
-                IconAction(title: "Versions (\(d.versions.count))", systemImage: "rectangle.stack.badge.play", focused: focused == .versions) { showPicker = true }
-                    .focused($focused, equals: .versions)
-                    .disabled(d.versions.isEmpty)
+            } else if d.kind != .series {
+                if hasChoice(d) {
+                    IconAction(title: "Versions (\(d.versions.count))", systemImage: "rectangle.stack.badge.play", focused: focused == .versions) { showPicker = true }
+                        .focused($focused, equals: .versions)
+                }
                 let watched = d.progress?.isWatched == true
                 IconAction(title: watched ? "Vu" : "Marquer comme vu", systemImage: "checkmark", focused: focused == .watched) {
                     Task { await model.setWatched(!watched) }
@@ -226,25 +298,37 @@ private struct DetailContent: View {
         }
     }
 
+    /// The version picker would show more than one line.
+    private func hasChoice(_ d: Card) -> Bool { VersionPicker.lineCount(d.versions) > 1 }
+
     // MARK: - Series
+
+    private func seasonButtons(_ d: Card) -> some View {
+        HStack(spacing: 12) {
+            ForEach(d.seasons ?? []) { s in
+                Button("Saison \(s.number)") { model.selectedSeason = s.number }
+                .buttonStyle(.bordered)
+                .tint(model.selectedSeason == s.number ? Theme.accent : nil)
+                .focused($focused, equals: .season(s.number))
+                .contextMenu {
+                    Button { Task { await model.setWatched(true, season: s.number) } } label: {
+                        Label("Marquer la saison comme vue", systemImage: "checkmark.circle")
+                    }
+                    Button { Task { await model.setWatched(false, season: s.number) } } label: {
+                        Label("Marquer la saison comme non vue", systemImage: "circle")
+                    }
+                }
+            }
+        }
+    }
 
     private func seasons(_ d: Card) -> some View {
         VStack(alignment: .leading, spacing: 22) {
-            HStack(spacing: 12) {
-                ForEach(d.seasons ?? []) { s in
-                    Button("Saison \(s.number)") { model.selectedSeason = s.number }
-                    .buttonStyle(.bordered)
-                    .tint(model.selectedSeason == s.number ? Theme.accent : nil)
-                    .focused($focused, equals: .season(s.number))
-                    .contextMenu {
-                        Button { Task { await model.setWatched(true, season: s.number) } } label: {
-                            Label("Marquer la saison comme vue", systemImage: "checkmark.circle")
-                        }
-                        Button { Task { await model.setWatched(false, season: s.number) } } label: {
-                            Label("Marquer la saison comme non vue", systemImage: "circle")
-                        }
-                    }
-                }
+            // A long series scrolls its seasons sideways on a phone.
+            if metrics.compact {
+                ScrollView(.horizontal) { seasonButtons(d) }.scrollClipDisabled()
+            } else {
+                seasonButtons(d)
             }
             if let n = model.selectedSeason {
                 if let gap = model.languageGaps(in: n).first, let lang = model.seriesChoice?.language, let alt = gap.languages.first {
@@ -253,7 +337,7 @@ private struct DetailContent: View {
                           systemImage: "info.circle")
                         .font(.callout).foregroundStyle(Theme.accent)
                 }
-                LazyVStack(spacing: 14) {
+                LazyVStack(spacing: metrics.compact ? 6 : 14) {
                     ForEach(model.episodes(in: n)) { e in
                         EpisodeRow(episode: e, seriesLanguage: model.seriesChoice?.language) { Task { await model.play(episode: e) } }
                             .focused($focused, equals: .episode(e.id))
@@ -278,6 +362,68 @@ struct EpisodeRow: View {
     let action: () -> Void
 
     var body: some View {
+        if metrics.compact { phoneRow } else { tvRow }
+    }
+
+    /// iPhone: the still and the title side by side, the summary under both at full width; no version
+    /// tags, the sheet already shows them, except the one-language warning.
+    private var phoneRow: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 14) {
+                    still
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(episode.number). \(episode.title)").font(.subheadline.weight(.semibold)).lineLimit(2)
+                        Text(facts).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
+                        if let warning = languageWarning {
+                            Text(warning).font(.caption2.weight(.bold)).padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                if let o = episode.overview {
+                    Text(o).font(.caption).foregroundStyle(Theme.secondary).lineLimit(3).multilineTextAlignment(.leading)
+                }
+            }
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .cardButtonStyle()
+        .disabled(episode.versions.isEmpty)
+    }
+
+    private var still: some View {
+        ZStack(alignment: .bottomLeading) {
+            ArtView(id: episode.id, url: episode.still).frame(width: metrics.stillWidth, height: metrics.stillWidth * 9 / 16)
+            if let p = episode.progress, p.isResumable {
+                ProgressBar(fraction: p.fraction, height: 3).padding(.horizontal, 8).padding(.bottom, 6)
+            }
+            if episode.progress?.isWatched == true {
+                Image(systemName: "checkmark.circle.fill").font(.callout).padding(6).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
+        }
+        .frame(width: metrics.stillWidth, height: metrics.stillWidth * 9 / 16)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// "45 min · 12 min restantes".
+    private var facts: String {
+        var parts: [String] = []
+        if let r = episode.runtime { parts.append("\(r) min") }
+        if let p = episode.progress, p.isResumable { parts.append(Format.remaining(p.remaining)) }
+        else if episode.progress?.isWatched == true { parts.append("Vu") }
+        return parts.joined(separator: " · ")
+    }
+
+    private var languageWarning: String? {
+        guard let l = seriesLanguage, !episode.languages.contains(l), let only = episode.languages.first else { return nil }
+        return "\(only.rawValue) SEUL"
+    }
+
+    private var tvRow: some View {
         Button(action: action) {
             HStack(spacing: 24) {
                 ZStack(alignment: .bottomLeading) {
@@ -338,7 +484,12 @@ struct IconAction: View {
                 .padding(.bottom, 44)
                 .overlay(alignment: .bottom) { label.opacity(focused ? 1 : 0) }
         } else {
-            VStack(spacing: 6) { button; label }
+            // The actions share the width of the line; a long label takes two lines instead of being cut.
+            VStack(spacing: 6) {
+                button
+                Text(title).font(.caption2).foregroundStyle(Theme.secondary).lineLimit(2).multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
         }
     }
 
@@ -355,7 +506,7 @@ struct IconAction: View {
 
 /// A round icon button drawn by hand: `.bordered` is shaped for text and makes an uneven capsule
 /// around a glyph. Focused on tvOS it turns white and grows, without the system's focus halo.
-private struct RoundIconStyle: ButtonStyle {
+struct RoundIconStyle: ButtonStyle {
     let diameter: CGFloat
 
     func makeBody(configuration: Configuration) -> some View {
@@ -386,17 +537,19 @@ private struct RoundIconStyle: ButtonStyle {
 
 /// The title's logo when TMDB has one, else the title as text; the text also stands in while the
 /// logo loads and when it fails, so the header never stays empty.
-private struct TitleLogo: View {
+struct TitleLogo: View {
     @Environment(\.metrics) private var metrics
     let title: String
     let logo: URL?
+    /// Home hero on a phone: centred, the text shrinking a little rather than being cut.
+    var centered = false
 
     var body: some View {
         if let logo {
             AsyncImage(url: logo) { phase in
                 if let image = phase.image {
                     image.resizable().scaledToFit()
-                        .frame(maxWidth: metrics.detailLogo.width, maxHeight: metrics.detailLogo.height, alignment: .leading)
+                        .frame(maxWidth: metrics.detailLogo.width, maxHeight: metrics.detailLogo.height, alignment: centered ? .center : .leading)
                         .shadow(color: .black.opacity(0.5), radius: 12)
                         .accessibilityLabel(title)
                 } else {
@@ -408,7 +561,12 @@ private struct TitleLogo: View {
         }
     }
 
-    private var text: some View {
-        Text(title).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(2).frame(maxWidth: metrics.textWidth, alignment: .leading)
+    @ViewBuilder private var text: some View {
+        if centered {
+            Text(title).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(3).minimumScaleFactor(0.6)
+                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+        } else {
+            Text(title).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(2).frame(maxWidth: metrics.textWidth, alignment: .leading)
+        }
     }
 }

@@ -39,10 +39,10 @@ extension PlayerService {
 
     var isPictureInPictureAvailable: Bool { pipView?.pipWindow != nil }
 
+    /// The player screen hides only once the picture has started (`stateChangeEventHandler`): hidden
+    /// before, the video surface leaves the window and iOS gives up on the picture.
     func startPictureInPicture() {
-        guard let window = pipView?.pipWindow else { return }
-        isMinimized = true
-        window.startPictureInPicture()
+        pipView?.pipWindow?.startPictureInPicture()
     }
 }
 
@@ -61,6 +61,25 @@ final class PiPVideoView: UIView, VLCPictureInPictureDrawable {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
+    /// VLCKit draws in a view and layers of its own inside this one, sized once: after a rotation they
+    /// kept the old size and the picture drifted off centre. They follow the surface at every layout.
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for view in subviews {
+            if view.frame != bounds { view.frame = bounds }
+            Self.fit(view.layer, to: view.bounds)
+        }
+        Self.fit(layer, to: bounds)
+        CATransaction.commit()
+    }
+
+    /// The bare layers (no view behind them) inside `layer`, sized to `bounds`.
+    private static func fit(_ layer: CALayer, to bounds: CGRect) {
+        for sub in layer.sublayers ?? [] where sub.delegate == nil && sub.frame != bounds { sub.frame = bounds }
+    }
+
     nonisolated func mediaController() -> any VLCPictureInPictureMediaControlling { controller }
 
     nonisolated func pictureInPictureReady() -> (((any VLCPictureInPictureWindowControlling)?) -> Void)? {
@@ -73,8 +92,8 @@ final class PiPVideoView: UIView, VLCPictureInPictureDrawable {
                 view.pipWindow = handle.value
                 handle.value.stateChangeEventHandler = { started in
                     Task { @MainActor in
-                        // Leaving the picture: the player screen comes back over the app.
-                        if !started { view.service?.isMinimized = false }
+                        // In the picture: the player screen steps aside; out of it, it comes back over the app.
+                        view.service?.isMinimized = started
                     }
                 }
             }

@@ -17,7 +17,7 @@ struct RootView: View {
         .background(Theme.background.ignoresSafeArea())
         .detailCover(env)
         .fullScreenCover(isPresented: Binding(get: { env.player.isPresented && !env.player.isMinimized && env.presentedDetail == nil },
-                                              set: { if !$0 { env.player.stop() } })) {
+                                              set: { if !$0, !env.player.isMinimized { env.player.stop() } })) {
             PlayerScreen().environment(env).interactiveDismissDisabled()
         }
     }
@@ -47,7 +47,10 @@ private extension RootView {
             env.device.store(token: "mock-debug", code: "DEBUG0")
         }
         try? await Task.sleep(for: .seconds(1))
-        if let tab = defaults.string(forKey: "debug.tab").flatMap(MainTab.init(rawValue:)) { env.selectedTab = tab }
+        if let tab = defaults.string(forKey: "debug.tab").flatMap(MainTab.init(rawValue:)) {
+            // iPhone: Réglages is pushed from the home screen, it has no tab.
+            if tab == .settings, !Platform.isTV { env.selectedTab = .home; env.navigate(.settings) } else { env.selectedTab = tab }
+        }
         if let id = defaults.string(forKey: "debug.open") { env.open(ContentID(id)) }
         await debugAutoplay(defaults)
         #endif
@@ -94,7 +97,7 @@ private extension RootView {
 extension View {
     /// Presents the player above this view when playback starts from it.
     func playerCover(_ env: AppEnvironment) -> some View {
-        fullScreenCover(isPresented: Binding(get: { env.player.isPresented }, set: { if !$0 { env.player.stop() } })) {
+        fullScreenCover(isPresented: Binding(get: { env.player.isPresented }, set: { if !$0, !env.player.isMinimized { env.player.stop() } })) {
             PlayerScreen().environment(env).interactiveDismissDisabled()
         }
     }

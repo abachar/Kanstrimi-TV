@@ -77,25 +77,41 @@ struct PosterCardLabel: View {
             ArtView(id: card.id, url: card.poster, title: card.title)
                 .frame(width: width, height: width * 1.5)
             LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-            VStack(alignment: .leading, spacing: 6) {
+            if metrics.compact {
+                // Phone: the year and the rating only, the hint as a small tag in the top corner.
                 if let hint = card.hint {
-                    Text(hint).font(.caption2.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 3)
+                    Text(hint).font(.system(size: 9, weight: .bold)).lineLimit(1)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
+                        .padding(6)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
                 if let facts {
                     Text(facts).font(.system(size: metrics.badge, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
                         .shadow(color: .black.opacity(0.6), radius: 3)
+                        .padding(.horizontal, 8).padding(.bottom, card.progress?.isResumable == true ? 14 : 8)
                 }
-                VersionBadges(quality: card.qualityBadge, languages: card.languages, compact: true)
-                    .scaleEffect(0.85, anchor: .bottomLeading)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    if let hint = card.hint {
+                        Text(hint).font(.caption2.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
+                    }
+                    if let facts {
+                        Text(facts).font(.system(size: metrics.badge, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                            .shadow(color: .black.opacity(0.6), radius: 3)
+                    }
+                    VersionBadges(quality: card.qualityBadge, languages: card.languages, compact: true)
+                        .scaleEffect(0.85, anchor: .bottomLeading)
+                }
+                .padding(12)
             }
-            .padding(12)
             if let p = card.progress, p.isResumable {
-                ProgressBar(fraction: p.fraction, height: 5).padding(.horizontal, 12).padding(.bottom, 6)
+                ProgressBar(fraction: p.fraction, height: metrics.compact ? 3 : 5).padding(.horizontal, metrics.compact ? 8 : 12).padding(.bottom, 6)
             }
         }
         .frame(width: width, height: width * 1.5)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: metrics.compact ? 10 : 14))
         .accessibilityElement(children: .combine)
         .accessibilityLabel([card.title, facts].compactMap { $0 }.joined(separator: ", "))
     }
@@ -147,6 +163,29 @@ struct ResumeCard: View {
         if let p = card.progress { parts.append(Format.remaining(p.remaining)) }
         return parts.joined(separator: " · ")
     }
+}
+
+/// iPhone: a long press on a poster offers to play it at once or to open its sheet. Nothing on tvOS.
+struct PosterMenu: ViewModifier {
+    @Environment(AppEnvironment.self) private var env
+    let card: Card
+
+    func body(content: Content) -> some View {
+        content.touchContextMenu {
+            if card.kind != .live {
+                Button { play() } label: { Label("Lecture", systemImage: "play.fill") }
+                Button { env.open(card.id) } label: { Label("Voir la fiche", systemImage: "info.circle") }
+            }
+        }
+    }
+
+    private func play() {
+        Task { if let ctx = try? await env.playbackContext(for: card) { env.player.play(ctx) } }
+    }
+}
+
+extension View {
+    func posterMenu(_ card: Card) -> some View { modifier(PosterMenu(card: card)) }
 }
 
 /// Horizontal row with a title, used on the home screen and in search.

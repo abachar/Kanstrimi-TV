@@ -18,6 +18,8 @@ struct SettingsView: View {
             form
                 .navigationTitle("Réglages")
                 .background(Theme.background)
+                // The app tint is white: an interrupter on would read as off. Amber, like the accent.
+                .toggleStyle(.switch).tint(Theme.accent)
         }
     }
 
@@ -79,11 +81,18 @@ struct SettingsView: View {
             // tvOS: the device, the server and À propos sit in the left column (`brand`).
             if !Platform.isTV {
             Section {
-                HStack {
-                    Text(deviceTitle).font(.title3.weight(.semibold))
-                    Spacer()
-                    Text(serverHost).foregroundStyle(Theme.secondary)
+                // iPhone: who this device is and which server it talks to, like the account card atop the iOS Réglages.
+                HStack(spacing: 14) {
+                    Image(systemName: "iphone")
+                        .font(.title2.weight(.semibold)).foregroundStyle(.black)
+                        .frame(width: 52, height: 52)
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(deviceName).font(.headline)
+                        Text("\(serverHost) · \(env.info?.serverVersion ?? "—")").font(.subheadline).foregroundStyle(Theme.secondary)
+                    }
                 }
+                .padding(.vertical, 4)
             }
             }
 

@@ -39,21 +39,34 @@ struct StreamFailureDialog: View {
                             .scrollClipDisabled()
                         }
                     } else {
-                        Button { player.retryFromServer() } label: { Label("Réessayer", systemImage: "arrow.clockwise") }.focused($focused)
+                        // Réessayer is the answer most of the time: the one filled button, as wide as the dialog.
+                        Button { player.retryFromServer() } label: {
+                            Label("Réessayer", systemImage: "arrow.clockwise").font(.headline).phoneFullWidth(metrics, height: 40)
+                        }
+                        .prominentButtonStyle()
+                        .focused($focused)
                         if let alt = player.alternativeVersion {
-                            Button { player.playAlternative() } label: { Label("Autre version · \(alt.label)", systemImage: "rectangle.stack.badge.play") }
+                            Button { player.playAlternative() } label: {
+                                Label("Autre version · \(alt.label)", systemImage: "rectangle.stack.badge.play").phoneFullWidth(metrics, height: 40)
+                            }
+                            .buttonStyle(.bordered)
                         }
                     }
-                    Button("Quitter", role: .cancel) { player.stop() }
+                    if Platform.isTV {
+                        Button("Quitter", role: .cancel) { player.stop() }
+                    } else {
+                        Button("Quitter", role: .cancel) { player.stop() }.frame(maxWidth: .infinity).padding(.top, 2)
+                    }
                 }
                 if !Platform.isTV {
                     Text("Réessayer suffit souvent : la source change d'une tentative à l'autre.")
-                        .font(.callout).foregroundStyle(Theme.secondary)
+                        .font(.footnote).foregroundStyle(Theme.secondary)
                 }
             }
             .padding(metrics.panelPadding)
             .frame(maxWidth: metrics.dialogWidth, alignment: .leading)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 32))
+            .padding(.horizontal, metrics.compact ? 16 : 0)
         }
         // Takes the focus on arrival: nothing else on screen is focusable, so the remote would be dead.
         .onAppear { focused = true }
@@ -69,6 +82,41 @@ struct NextEpisodeCard: View {
     private var player: PlayerService { env.player }
 
     var body: some View {
+        if metrics.compact { compactCard } else { tvCard }
+    }
+
+    /// iPhone: a small card at the top right, above the video upright and clear of the controls sideways:
+    /// the countdown, the episode, Lire maintenant and Annuler.
+    private var compactCard: some View {
+        VStack {
+            HStack {
+                Spacer()
+                if let next = player.context?.next {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ÉPISODE SUIVANT · \(player.nextCountdown ?? 0) s").font(.caption2.weight(.bold)).tracking(1.2).foregroundStyle(Theme.accent)
+                        Text("\(next.ref.code) · \(next.title ?? "")").font(.subheadline.weight(.semibold)).lineLimit(1)
+                        if let warning = languageWarning(next) {
+                            Text(warning).font(.caption).foregroundStyle(Theme.accent).lineLimit(2)
+                        }
+                        HStack(spacing: 10) {
+                            Button { player.playNextNow() } label: { Label("Lire maintenant", systemImage: "play.fill").font(.footnote.weight(.semibold)) }
+                                .prominentButtonStyle()
+                            Button("Annuler", role: .cancel) { player.cancelNext() }.font(.footnote)
+                        }
+                    }
+                    .padding(14)
+                    .frame(width: 280, alignment: .leading)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 56)
+        .transition(.move(edge: .trailing).combined(with: .opacity))
+    }
+
+    private var tvCard: some View {
         VStack {
             Spacer()
             HStack {

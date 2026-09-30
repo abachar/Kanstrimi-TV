@@ -30,7 +30,10 @@ struct CatalogView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {
-                        Text(kind == .series ? "Séries" : "Films").font(.largeTitle.weight(.bold)).padding(.horizontal, metrics.inset).padding(.top, 30)
+                        // iPhone: the title is the navigation bar's (`phoneLargeTitle`).
+                        if !metrics.compact {
+                            Text(kind == .series ? "Séries" : "Films").font(.largeTitle.weight(.bold)).padding(.horizontal, metrics.inset).padding(.top, 30)
+                        }
                         ForEach(rows) { row in
                             ShelfRow(row: row, ranked: row.id == "top10", onSelect: { env.open($0.id) },
                                      onSeeAll: row.total > row.cards.count ? { seeAll(row) } : nil)
@@ -51,6 +54,7 @@ struct CatalogView: View {
             }
         }
         .background(Theme.background)
+        .phoneLargeTitle(kind == .series ? "Séries" : "Films")
         // Every appearance: on tvOS, crossing the tab bar selects then leaves this tab, which cancels the load midway.
         .task { await load() }
         .fullScreenCover(item: $seeAll) { row in
@@ -132,6 +136,7 @@ struct ShelfRow: View {
                                     .offset(x: metrics.cardSpacing * 0.6)
                             }
                             PosterCard(card: c) { onSelect(c) }
+                                .posterMenu(c)
                         }
                     }
                     if let onSeeAll { SeeAllCard(total: row.total, action: onSeeAll) }
@@ -240,6 +245,7 @@ struct GenreGridView: View {
                             PosterCardLabel(card: card)
                         }
                         .cardButtonStyle()
+                        .posterMenu(card)
                         // A cell appearing near the end asks for the next page: works for a focus
                         // walk on TV and for a scroll on a phone alike.
                         .onAppear { Task { await p.loadMoreIfNeeded(reaching: index) } }

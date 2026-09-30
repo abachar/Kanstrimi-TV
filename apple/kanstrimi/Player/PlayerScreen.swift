@@ -6,7 +6,9 @@ import SwiftUI
 /// Each provides `host` (the wrapper around `content`) and `surface` (the invisible layer
 /// that receives the input when no panel is open).
 struct PlayerScreen: View {
-    enum Sheet: Equatable { case none, panel, programme, channels, recents }
+    enum Sheet: Equatable { case none, channels }
+    /// iPhone: what the bar of the touch controls opens above its buttons, like the tvOS bar's panels.
+    enum BarPanel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", infos = "Infos" }
 
     @Environment(AppEnvironment.self) var env
     @State var controlsVisible = true
@@ -18,6 +20,9 @@ struct PlayerScreen: View {
     @FocusState var surfaceFocused: Bool
     /// iOS: the time under the finger while scrubbing, shown instead of the current time.
     @State var scrubTime: TimeInterval?
+    /// iOS: the panel open in the touch controls, and whether the phone is held upright.
+    @State var barPanel: BarPanel?
+    @State var isPortrait = false
     /// A panel closes by itself after this long without any move inside it.
     static let sheetTimeout: Duration = .seconds(10)
 
@@ -25,7 +30,7 @@ struct PlayerScreen: View {
 
     var body: some View {
         host
-            .ignoresSafeArea()
+            .playerIgnoresSafeArea()
             .background(.black)
             // Back (Menu on older remotes) closes the open panel first, then quits the player.
             // Attached outside the nested hosting controller so the outer SwiftUI hierarchy sees it;
@@ -37,7 +42,10 @@ struct PlayerScreen: View {
         ZStack {
             VLCVideoView(view: player.videoView).ignoresSafeArea()
             #if DEBUG
-            if player.debugFrame { PreviewFrame().ignoresSafeArea() }
+            if player.debugFrame {
+                // iPhone: a 16:9 picture, fitted like the video, centred with black around when upright.
+                if Platform.isTV { PreviewFrame().ignoresSafeArea() } else { Color.clear.ignoresSafeArea().overlay { PreviewFrame().aspectRatio(16 / 9, contentMode: .fit) } }
+            }
             #endif
 
             // The surface steps aside while the failure dialog is up, otherwise it keeps the
@@ -48,19 +56,13 @@ struct PlayerScreen: View {
                 surface
             }
 
-            // On iOS the touch top bar (close, panel) sits above the banner. tvOS has its bar.
-            if player.isLive, !Platform.isTV { LiveBanner(visible: controlsVisible || player.zapBanner).padding(.top, 64) }
-
             if controlsVisible || barFocused, sheet == .none, player.failure == nil {
                 controls.transition(.opacity)
             }
 
-            switch sheet {
-            case .panel: PlayerPanel(onClose: { closeSheet() }, onActivity: { armSheetTimer() })
-            case .programme: PlayerPanel(opening: .programme, onClose: { closeSheet() }, onActivity: { armSheetTimer() })
-            case .channels: ChannelListOverlay(onClose: { closeSheet() }, onActivity: { armSheetTimer() })
-            case .recents: RecentChannelsOverlay(onClose: { closeSheet() }, onActivity: { armSheetTimer() })
-            case .none: EmptyView()
+            if sheet == .channels {
+                ChannelListOverlay(onClose: { closeSheet() }, onActivity: { armSheetTimer() },
+                                   touch: !Platform.isTV, fromBottom: isPortrait)
             }
 
             LoadingBadge()
@@ -129,6 +131,12 @@ struct PlayerScreen: View {
         }
     }
 
+    /// iOS: a tap on the video hides the controls at once.
+    func hideControls() {
+        hideTask?.cancel()
+        controlsVisible = false
+    }
+
     func showControls(autoHide: Bool = true) {
         controlsVisible = true
         if autoHide, player.phase == .playing { scheduleHide() } else { hideTask?.cancel() }
@@ -138,7 +146,7 @@ struct PlayerScreen: View {
         hideTask?.cancel()
         hideTask = Task {
             try? await Task.sleep(for: .seconds(4))
-            if !Task.isCancelled, player.phase == .playing { controlsVisible = false }
+            if !Task.isCancelled, player.phase == .playing, barPanel == nil { controlsVisible = false }
         }
     }
 }
@@ -148,9 +156,30 @@ struct PlayerScreen: View {
 /// Its own zone at the top right: opening, then buffering with its percentage.
 struct LoadingBadge: View {
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
     private var player: PlayerService { env.player }
+    private var isLoading: Bool { player.phase == .opening || player.phase == .buffering }
 
     var body: some View {
+        if metrics.compact { centred } else { corner }
+    }
+
+    /// iPhone: in the middle of the video, where the play button stands otherwise (the corner holds buttons).
+    private var centred: some View {
+        VStack(spacing: 12) {
+            if isLoading {
+                ProgressView().controlSize(.large).tint(.white)
+                Text(player.phase == .opening ? "Ouverture du flux…" : "Chargement · \(Int(player.bufferingProgress)) %")
+                    .font(.footnote.weight(.semibold)).foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.6), radius: 4)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.easeInOut(duration: 0.2), value: player.phase)
+        .allowsHitTesting(false)
+    }
+
+    private var corner: some View {
         VStack {
             HStack {
                 Spacer()

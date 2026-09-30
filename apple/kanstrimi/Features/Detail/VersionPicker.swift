@@ -89,6 +89,10 @@ struct VersionPicker: View {
     }
 
     /// One row per source: the recommended version first, then by language and descending quality.
+    /// How many lines the picker shows for these versions (one per source): with one, there is nothing
+    /// to choose and the buttons that open it hide.
+    static func lineCount(_ versions: [Version]) -> Int { versions.reduce(0) { $0 + $1.sources.count } }
+
     private var rows: [Row] {
         let order = versions.languages
         let sorted = versions.sorted { a, b in

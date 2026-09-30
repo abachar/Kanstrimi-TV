@@ -44,10 +44,10 @@ struct SagaCardLabel: View {
             LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
             Text(filmCount(saga.count)).font(.system(size: metrics.badge, weight: .semibold)).foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.6), radius: 3)
-                .padding(12)
+                .padding(metrics.compact ? 8 : 12)
         }
         .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: metrics.compact ? 10 : 14))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(saga.name), \(filmCount(saga.count))")
     }
@@ -220,7 +220,8 @@ struct StudioTile: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14).fill(.white)
+            // Phone: without a logo the name sits on a dark tile, a white block glares on the dark screen.
+            RoundedRectangle(cornerRadius: metrics.compact ? 10 : 14).fill(darkTile ? Color.white.opacity(0.1) : .white)
             Group {
                 if let logo = studio.logo {
                     AsyncImage(url: logo) { image in
@@ -240,8 +241,10 @@ struct StudioTile: View {
         .accessibilityLabel(studio.name)
     }
 
+    private var darkTile: Bool { metrics.compact && studio.logo == nil }
+
     private var name: some View {
-        Text(studio.name).font(.headline).foregroundStyle(.black).multilineTextAlignment(.center).padding(8)
+        Text(studio.name).font(.headline).foregroundStyle(darkTile ? Theme.text : .black).multilineTextAlignment(.center).padding(8)
     }
 }
 
