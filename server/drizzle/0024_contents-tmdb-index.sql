@@ -1,0 +1,1 @@
+CREATE INDEX "catalog_contents_tmdb_idx" ON "catalog_contents" USING btree ("tmdb_id");

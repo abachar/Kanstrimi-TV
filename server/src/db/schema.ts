@@ -235,6 +235,8 @@ export const catalogContents = pgTable(
     // The sort keys of `player/lists.ts`, expression for expression, or the planner cannot use them.
     index("catalog_contents_release_idx").on(t.kind, t.visible, sql`coalesce(${t.releaseDate}, '0001-01-01'::date) desc`, t.id),
     index("catalog_contents_saga_idx").on(t.sagaId),
+    // Every join from a TMDB document to its contents: the cache refresh of `enrich`, the trending rows, the studios.
+    index("catalog_contents_tmdb_idx").on(t.tmdbId),
     index("catalog_contents_companies_idx").using("gin", t.companyIds),
     index("catalog_contents_networks_idx").using("gin", t.networkIds),
     index("catalog_contents_title_idx").on(t.kind, t.visible, t.title, t.id),

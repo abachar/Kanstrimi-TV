@@ -239,27 +239,40 @@ async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>
       .limit(max);
   const cutoff = new Date(Date.now() - TTL_MS);
   const withoutLogos = sql`not coalesce(${schema.tmdbCache.data} -> 'images' ? 'logos', false)`;
-  const stale = [
-    ...(await pick(lt(schema.tmdbCache.fetchedAt, cutoff)!, REFRESH_PER_RUN, [asc(schema.tmdbCache.fetchedAt)])),
-    // What the app shows first gets its logo first: visible titles, the latest releases.
-    ...(await pick(and(withoutLogos, gte(schema.tmdbCache.fetchedAt, cutoff))!, BACKFILL_PER_RUN, [
-      sql`(select bool_or(c.visible) ${users}) desc`,
-      sql`(select max(c.release_date) ${users}) desc nulls last`,
-    ])),
-  ];
-  let done = 0;
-  await Promise.all(
-    stale.map((r) =>
-      limit(async () => {
-        try {
-          await fetchDetails(client, r.mediaType as "movie" | "tv", r.tmdbId);
-          done++;
-        } catch (e) {
-          console.error(`[enrich] rafraîchissement TMDB ${r.mediaType} ${r.tmdbId} : ${describeError(e)}`);
-        }
-      }),
-    ),
+  const old = await pick(lt(schema.tmdbCache.fetchedAt, cutoff)!, REFRESH_PER_RUN, [asc(schema.tmdbCache.fetchedAt)]);
+  // What the app shows first gets its logo first: visible titles, the latest releases.
+  const logoless = await pick(and(withoutLogos, gte(schema.tmdbCache.fetchedAt, cutoff))!, BACKFILL_PER_RUN, [
+    sql`(select bool_or(c.visible) ${users}) desc`,
+    sql`(select max(c.release_date) ${users}) desc nulls last`,
+  ]);
+  const stale = [...old, ...logoless];
+  if (!stale.length) return 0;
+  const n = (x: number) => x.toLocaleString("fr-FR");
+  console.log(
+    `[enrich] ${n(stale.length)} fiches TMDB à relire : ${n(old.length)} de plus de 30 jours, ${n(logoless.length)} d'avant les logos`,
   );
+  let done = 0,
+    failed = 0;
+  const beat = progress("enrich", stale.length, () => `${n(done)} fiches relues · ${n(failed)} erreurs`);
+  try {
+    await Promise.all(
+      stale.map((r) =>
+        limit(async () => {
+          try {
+            await fetchDetails(client, r.mediaType as "movie" | "tv", r.tmdbId);
+            done++;
+          } catch (e) {
+            failed++;
+            console.error(`[enrich] rafraîchissement TMDB ${r.mediaType} ${r.tmdbId} : ${describeError(e)}`);
+          } finally {
+            beat.tick();
+          }
+        }),
+      ),
+    );
+  } finally {
+    beat.stop();
+  }
   return done;
 }
 
