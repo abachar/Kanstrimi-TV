@@ -142,23 +142,16 @@ final class DetailModel {
         env.player.play(ctx)
     }
 
-    /// Picker result: remember (or not) and play.
-    func chose(version: Version, source: Source?, remember: Bool, asDefault: Bool) {
+    /// Picker result. A series keeps the language picked; a film plays the version, and forgets the
+    /// one remembered for it: only a switch made while playing is remembered.
+    func chose(version: Version, source: Source?) {
         guard let d = detail else { return }
         if d.kind == .series {
             env.preferences.setSeriesChoice(VersionChoiceKey(version), for: id)
-        } else if remember {
-            env.preferences.remember(versionID: version.id, for: id)
         } else {
             env.preferences.remember(versionID: nil, for: id)
+            play(movie: d, version: version, source: source)
         }
-        if asDefault {
-            var order = env.preferences.languageOrder.filter { $0 != version.language }
-            order.insert(version.language, at: 0)
-            env.preferences.languageOrder = order
-            env.preferences.maxQuality = version.quality
-        }
-        if d.kind != .series { play(movie: d, version: version, source: source) }
     }
 
     /// Episodes of the selected season missing the series language, for the warning line.

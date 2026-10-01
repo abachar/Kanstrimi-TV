@@ -25,14 +25,16 @@ struct Badge: View {
     var filled = false
     var color: Color = Theme.text
     var small = false
+    /// As written, for the texts capitals would distort: "24 i/s", "23 Mb/s".
+    var verbatim = false
 
-    init(_ text: String, filled: Bool = false, color: Color = Theme.text, small: Bool = false) {
-        self.text = text; self.filled = filled; self.color = color; self.small = small
+    init(_ text: String, filled: Bool = false, color: Color = Theme.text, small: Bool = false, verbatim: Bool = false) {
+        self.text = text; self.filled = filled; self.color = color; self.small = small; self.verbatim = verbatim
     }
 
     var body: some View {
         let size = small ? metrics.badgeSmall : metrics.badge
-        Text(text.uppercased())
+        Text(verbatim ? text : text.uppercased())
             .font(.system(size: size, weight: .bold))
             .tracking(small ? 0.2 : 0.6)
             .padding(.horizontal, size / 2)

@@ -53,9 +53,6 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
     }
     /// "4K Dolby Vision · VF".
     var label: String { "\(qualityLabel) · \(language.rawValue)" }
-    /// "4K Dolby Vision · Français · MKV".
-    /// "4K Dolby Vision · Français": the container (TS, MKV) means nothing to a viewer.
-    var longLabel: String { "\(qualityLabel) · \(language.label)" }
 }
 
 nonisolated extension Array where Element == Version {

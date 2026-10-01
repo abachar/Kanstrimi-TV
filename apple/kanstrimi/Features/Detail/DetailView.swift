@@ -27,11 +27,11 @@ struct DetailView: View {
         .onChange(of: env.player.progressRevision) { Task { await model?.refresh() } }
         .platformSheet(isPresented: $showPicker) {
             if let model, let d = model.detail {
-                VersionPicker(title: d.title, versions: d.versions, recommendedID: model.choice?.version.id, isSeries: model.isSeries) { v, s, remember, asDefault in
+                VersionPicker(title: d.title, versions: d.versions, recommendedID: model.choice?.version.id, isSeries: model.isSeries) { v, s in
                     // Let the picker finish dismissing before the player cover presents.
                     Task {
                         try? await Task.sleep(for: .milliseconds(400))
-                        model.chose(version: v, source: s, remember: remember, asDefault: asDefault)
+                        model.chose(version: v, source: s)
                     }
                 }
                 .environment(env)

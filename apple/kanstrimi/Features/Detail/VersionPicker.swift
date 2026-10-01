@@ -8,7 +8,7 @@ struct VersionPicker: View {
     let versions: [Version]
     let recommendedID: String?
     var isSeries = false
-    let onPick: (_ version: Version, _ source: Source?, _ remember: Bool, _ asDefault: Bool) -> Void
+    let onPick: (_ version: Version, _ source: Source?) -> Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.metrics) private var metrics
 
@@ -25,7 +25,7 @@ struct VersionPicker: View {
                     VStack(alignment: .leading, spacing: 14) {
                         ForEach(rows, id: \.source.id) { row in
                             Button {
-                                onPick(row.version, row.source, false, false)
+                                onPick(row.version, row.source)
                                 dismiss()
                             } label: {
                                 label(row).frame(maxWidth: .infinity, alignment: .leading)

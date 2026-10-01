@@ -168,10 +168,13 @@ de sous-titres recharge brièvement la session (noir d'environ 1 s, attendu).
 
 **HDR et Dolby Vision** (tvOS) : pilotés par le moteur (Match Content, critères d'affichage), l'app ne fait rien. Le direct d'aperçu les supprime.
 
-**Faits du flux** (`StreamFacts`, en bas du panneau Infos) : ce que le moteur a lu dans le flux, pour confronter l'étiquette du
-fournisseur à ce qu'il livre. Vidéo (codec, profil, taille, cadence, profondeur, débit), Image (format de la source et profil
-Dolby Vision, format réellement affiché, transfert, primaires), Audio (codec, Atmos,
-canaux, débit, transmis tel quel ou réencodé), Lecture (conteneur, route, décodeur, état d'« Adapter au contenu » sur tvOS). Rien ne s'affiche avant qu'un flux soit ouvert.
+**Faits du flux** (`StreamFacts`, en bas du panneau Infos, à la place de l'ancienne ligne « version · source ») : des pastilles, l'image
+puis le son, chacun derrière son icône. Image : définition (d'après la largeur lue), plage dynamique réellement affichée (SDR compris),
+codec, cadence, débit (déclaré par le fichier, sinon mesuré sur ce qui a été lu : un direct n'en déclare pas). Son : langue de la version, codec et canaux de la piste en cours, Atmos. Avant que le flux soit lu, les pastilles
+disent ce qu'annonce l'étiquette du fournisseur ; ensuite une pastille passe en ambre là où le flux est en dessous de cette étiquette
+(« HDR10 » pour un Dolby Vision annoncé). Pastilles ambre aussi pour un film décodé par l'app, l'adaptation au contenu désactivée (tvOS),
+un son réencodé ou abandonné. « Source B » n'apparaît que si la version a plusieurs sources. Les previews et états mis en scène
+montrent un échantillon.
 
 **Avance rapide** (films, épisodes ; ◀ ▶ maintenus sur la télécommande via `PressCatcher`) : la cible avance
 de 10, 30, 60, 120 puis 300 s par seconde (un palier toutes les 2 s), affichée à la place du temps

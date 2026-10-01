@@ -27,8 +27,7 @@ struct HomeView: View {
         .onChange(of: env.player.progressRevision) { Task { await model?.load() } }
         .platformSheet(isPresented: $showPicker) {
             if let model, let hero = model.home?.hero {
-                VersionPicker(title: hero.card.title, versions: hero.versions, recommendedID: model.heroChoice?.version.id) { v, s, remember, _ in
-                    if remember { env.preferences.remember(versionID: v.id, for: hero.card.id) }
+                VersionPicker(title: hero.card.title, versions: hero.versions, recommendedID: model.heroChoice?.version.id) { v, s in
                     Task {
                         try? await Task.sleep(for: .milliseconds(400))
                         model.playHero(version: v, source: s)

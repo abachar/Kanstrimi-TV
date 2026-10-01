@@ -132,13 +132,13 @@ struct PlayerInfos: View {
                     if let next = player.epg.next {
                         Text("Ensuite · \(Format.hour(next.start)) · \(next.title)").font(.callout).foregroundStyle(Theme.secondary)
                     }
-                    versionLine
+                    StreamFacts(player: player)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     if !facts.isEmpty { Text(facts).font(.callout).foregroundStyle(Theme.secondary) }
                     if let o = overview { Text(o).font(.callout).lineLimit(4) }
-                    versionLine
+                    StreamFacts(player: player)
                 }
             }
             Spacer(minLength: 0)
@@ -147,12 +147,6 @@ struct PlayerInfos: View {
         .task(id: player.context?.content.id) { await load() }
     }
 
-    @ViewBuilder private var versionLine: some View {
-        if let v = player.version, let s = player.source {
-            Text("\(v.longLabel) · \(player.sourceLabel(s, in: v))").font(.caption).foregroundStyle(Theme.secondary)
-        }
-        StreamFacts(engine: player.engine)
-    }
 
     private var episode: Episode? {
         guard let id = player.context?.content.id else { return nil }

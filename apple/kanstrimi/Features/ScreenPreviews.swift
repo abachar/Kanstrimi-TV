@@ -43,7 +43,7 @@ private struct ScreenHost<Content: View>: View {
 }
 #Preview("Sélecteur de version") {
     ScreenHost {
-        VersionPicker(title: "La Lisière", versions: Fixtures.sevenVersions, recommendedID: "vf-4k-dv") { _, _, _, _ in }
+        VersionPicker(title: "La Lisière", versions: Fixtures.sevenVersions, recommendedID: "vf-4k-dv") { _, _ in }
     }
 }
 #Preview("Direct") { ScreenHost { LiveView() } }
