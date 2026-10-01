@@ -124,9 +124,11 @@ struct LiveView: View {
         if isVisible, !env.player.isPresented, let c = focusedChannel { showPreview(c) }
     }
 
-    /// The side preview exists only in the three-column layout: a phone streams nothing until a tap.
+    /// The side preview exists only in the three-column layout: a phone streams nothing until a tap. It
+    /// shows the version the channel would start in: « TF1 » switched to FHD previews in FHD.
     private func showPreview(_ c: Channel) {
-        if metrics.liveColumns { preview.show(c) }
+        guard metrics.liveColumns, let url = env.player.startChoice(c.id, versions: c.versions)?.source.streamURL else { return }
+        preview.show(c.id, url: url)
     }
 
     /// Phone: the selected category as a button whose menu lists them all, Récentes, Les plus regardées and Favoris first,
@@ -406,14 +408,14 @@ final class PreviewPlayer {
     /// Reloads of the current channel after a source reset: one at most, then the placeholder stays.
     @ObservationIgnored private var resets = 0
 
-    func show(_ channel: Channel) {
-        guard channel.id != channelID else { return }
+    func show(_ id: ContentID, url: URL) {
+        guard id != channelID else { return }
         stop()
-        channelID = channel.id
+        channelID = id
         resets = 0
         debounce = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(400))
-            guard let self, !Task.isCancelled, let url = channel.versions.first?.sources.first?.streamURL else { return }
+            guard let self, !Task.isCancelled else { return }
             streamURL = url
             start(url)
         }

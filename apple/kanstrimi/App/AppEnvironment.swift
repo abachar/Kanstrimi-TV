@@ -79,10 +79,10 @@ final class AppEnvironment {
         info = try? await call { try await client.info() }
     }
 
-    /// A channel's guide as the app shows it: that of the version playing, else of the one it would play,
-    /// each quality having possibly its own (« M6 4K »).
+    /// A channel's guide as the app shows it: that of the version playing, else of the one it would start in
+    /// (remembered or best), each quality having possibly its own (« M6 4K »).
     func guide(of channel: Channel) -> Channel.Guide {
-        let version = player.channel?.id == channel.id ? player.version : player.chooser.choose(from: channel.versions)?.version
+        let version = player.channel?.id == channel.id ? player.version : player.startChoice(channel.id, versions: channel.versions)?.version
         return channel.guide(for: version)
     }
 

@@ -159,13 +159,17 @@ final class PlayerService {
                        isSourceFailed: { [failedSources] in failedSources.isFailed($0) })
     }
 
+    /// The version a title or a channel starts in (`VersionChooser.start`): « TF1 » switched to FHD reopens,
+    /// previews and shows its guide in FHD.
+    func startChoice(_ id: ContentID, versions: [Version], seriesID: ContentID? = nil) -> VersionChooser.Choice? {
+        chooser.start(id, versions: versions, seriesID: seriesID, preferences: preferences)
+    }
+
     // MARK: - Entry points
 
     /// Chooses the version with the engine and starts. Called by every "Lecture".
     func play(_ context: PlaybackContext) {
-        let remembered = preferences.rememberVersionPerTitle ? preferences.rememberedVersion(for: context.content.id) : nil
-        let series = context.seriesID.flatMap { preferences.seriesChoice(for: $0) }
-        guard let choice = chooser.choose(from: context.versions, remembered: remembered, seriesChoice: series) else { return }
+        guard let choice = startChoice(context.content.id, versions: context.versions, seriesID: context.seriesID) else { return }
         start(context, version: choice.version, source: choice.source, reason: choice.reason, at: context.resumeAt)
     }
 

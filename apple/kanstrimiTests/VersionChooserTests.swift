@@ -44,6 +44,20 @@ struct VersionChooserTests {
         #expect(choice?.reason == .remembered)
     }
 
+    @Test("Une chaîne passée en FHD repart en FHD (lecture, aperçu, guide) ; la première fois, la meilleure")
+    func channelStartsInRememberedQuality() {
+        let preferences = Preferences(defaults: UserDefaults(suiteName: "tests-\(UUID().uuidString)")!)
+        let chooser = VersionChooser(languageOrder: [.vf], maxQuality: .uhd)
+        let tf1 = ContentID("live:fr-tf1")
+        let versions = [Fixtures.version("vf-4k", .vf, .uhd), Fixtures.version("vf-fhd", .vf, .fhd), Fixtures.version("vf-hd", .vf, .hd)]
+        #expect(chooser.start(tf1, versions: versions, preferences: preferences)?.version.id == "vf-4k")
+        preferences.remember(versionID: "vf-fhd", for: tf1)
+        #expect(chooser.start(tf1, versions: versions, preferences: preferences)?.version.id == "vf-fhd")
+        #expect(chooser.start(ContentID("live:fr-m6"), versions: versions, preferences: preferences)?.version.id == "vf-4k")
+        preferences.rememberVersionPerTitle = false
+        #expect(chooser.start(tf1, versions: versions, preferences: preferences)?.version.id == "vf-4k")
+    }
+
     @Test("La langue de la série s'applique même si la qualité exacte manque")
     func seriesLanguageFallsBackWithinLanguage() {
         let chooser = VersionChooser(languageOrder: [.vf], maxQuality: .uhd)

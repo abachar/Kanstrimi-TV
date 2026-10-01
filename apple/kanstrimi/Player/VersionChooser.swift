@@ -76,6 +76,14 @@ struct VersionChooser {
         return Choice(version: candidate, source: s, reason: .fallbackLanguage)
     }
 
+    /// The version a title starts in, wherever it starts (Lecture, a channel, the Direct preview, the guide
+    /// shown for it): the one remembered for it when the preference says so, the series' choice, else the best.
+    func start(_ id: ContentID, versions: [Version], seriesID: ContentID? = nil, preferences: Preferences) -> Choice? {
+        let remembered = preferences.rememberVersionPerTitle ? preferences.rememberedVersion(for: id) : nil
+        let series = seriesID.flatMap { preferences.seriesChoice(for: $0) }
+        return choose(from: versions, remembered: remembered, seriesChoice: series)
+    }
+
     /// Versions the engine would try after `current`, best first, for "Autre version".
     func alternatives(to current: Version, in versions: [Version]) -> [Version] {
         let others = versions.filter { $0.id != current.id && !$0.sources.isEmpty }
