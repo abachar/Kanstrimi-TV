@@ -117,6 +117,32 @@ export type HomeHero = {
 };
 export type Home = { hero: HomeHero | null; rows: HomeRow[]; generated_at: string };
 
+/**
+ * `/top-shelf`: the full-screen carousel of the Apple TV home screen, six items at most, in order: the
+ * last title in progress, a series started that has a new episode, then the week's top movies.
+ * `play_id` is what Lecture plays (an episode for a series), `open_id` the sheet Plus d'infos opens.
+ */
+export type TopShelfItem = {
+  id: string;
+  reason: "resume" | "new_episode" | "top";
+  /** Above the title: « Reprendre · 40 min restantes », « Nouvel épisode · S2 É5 », « N° 1 cette semaine ». */
+  context: string;
+  title: string;
+  summary: string | null;
+  genre: string | null;
+  /** Seconds. */
+  duration: number | null;
+  release_date: string | null;
+  /** 1920×1080 for HD screens, the original for 4K ones. */
+  image: string;
+  image_2x: string;
+  cast: string[];
+  max_quality?: Quality;
+  dynamic_range?: DynamicRange;
+  play_id: string;
+  open_id: string;
+};
+
 export type CatalogRow = { id: string; name: string; total: number } & ({ movies: Card[] } | { series: Card[] });
 export type Page = { items: Card[]; next_cursor: string | null };
 

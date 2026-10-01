@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { player as api } from "..";
 import { nightEnd } from "../epg";
+import { remaining } from "../top-shelf";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { verify, lockForTests, isUnlocked } from "@/config";
 import {
@@ -1065,6 +1066,61 @@ describe("« Chaînes les plus regardées »", () => {
     await watch("live:fr-tf1", { seconds: 299 });
     expect(await homeRows()).not.toContain("most-watched-channels");
     expect(await ranks()).toEqual({ "live:fr-tf1": null, "live:fr-bein-sports-1": null });
+  });
+});
+
+describe("GET /top-shelf", () => {
+  const progressRow = (contentKey: string, position: number, duration: number, updatedAt: Date) => ({
+    contentKey,
+    position,
+    duration,
+    finished: position / duration >= 0.9,
+    updatedAt,
+  });
+
+  it("the last title in progress, a started series with a new episode, then the week's top movies, each once", async () => {
+    await db.delete(schema.appWatchProgress);
+    await db.insert(schema.appWatchProgress).values([
+      progressRow("tmdb:movie:603", 1000, 8280, new Date()),
+      // Watched long before the series' last arrival: its next episode is new.
+      progressRow("tmdb:tv:1396:s01e01", 4800, 4800, new Date("2020-01-01")),
+    ]);
+    const { status, body } = await get("/top-shelf");
+    expect(status).toBe(200);
+    expect(
+      body.map((i: { reason: string; play_id: string; open_id: string; context: string }) => [i.reason, i.play_id, i.open_id, i.context]),
+    ).toEqual([
+      ["resume", "tmdb:movie:603", "tmdb:movie:603", "Reprendre · 2 h 01 restantes"],
+      ["new_episode", "tmdb:tv:1396:s01e02", "tmdb:tv:1396", "Nouvel épisode · S1 É2"],
+      // Matrix is already there: the top movies go on with Heat only.
+      ["top", "tmdb:movie:949", "tmdb:movie:949", "N° 1 cette semaine"],
+    ]);
+    expect(body[0]).toMatchObject({
+      title: "Matrix",
+      image: "http://kanstrimi.test/img/w1280/bd.jpg",
+      image_2x: "http://kanstrimi.test/img/original/bd.jpg",
+      duration: 8280,
+      max_quality: "4K",
+    });
+    expect(body[1].title).toBe("Vincenzo");
+  });
+
+  it("no new episode once the next one is started, nor when the series has had no arrival since", async () => {
+    await call("/playback/tmdb:tv:1396:s01e02/progress", { method: "PUT", body: JSON.stringify({ position: 600, duration: 4680 }) });
+    let reasons = (await get("/top-shelf")).body.map((i: { reason: string; play_id: string }) => [i.reason, i.play_id]);
+    // The episode just started is now the title in progress.
+    expect(reasons[0]).toEqual(["resume", "tmdb:tv:1396:s01e02"]);
+    expect(reasons.map((r: string[]) => r[0])).not.toContain("new_episode");
+    await db.delete(schema.appWatchProgress).where(eq(schema.appWatchProgress.contentKey, "tmdb:tv:1396:s01e02"));
+    await db.delete(schema.appWatchProgress).where(eq(schema.appWatchProgress.contentKey, "tmdb:movie:603"));
+    await db.update(schema.appWatchProgress).set({ updatedAt: new Date() });
+    reasons = (await get("/top-shelf")).body.map((i: { reason: string }) => i.reason);
+    expect(reasons).toEqual(["top", "top"]);
+  });
+
+  it("remaining time in French", () => {
+    expect(remaining({ position: 0, duration: 2400 })).toBe("40 min restantes");
+    expect(remaining({ position: 0, duration: 4080 })).toBe("1 h 08 restantes");
   });
 });
 

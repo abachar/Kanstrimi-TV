@@ -2,7 +2,8 @@ import Foundation
 import Observation
 import Security
 
-/// The device token lives in the Keychain; everything else about pairing is derived from it.
+/// The device token lives in the Keychain; everything else about pairing is derived from it. The Keychain group is
+/// shared with the Top Shelf extension (`Entitlements/`), which reads the token and the server address from it.
 @Observable
 final class DeviceStore {
     private(set) var token: String?
@@ -24,6 +25,11 @@ final class DeviceStore {
         self.token = token
         self.code = code
         lastRevocationMessage = nil
+    }
+
+    /// The server address, for the Top Shelf extension: it has no access to the app's preferences.
+    func share(serverURL: String) {
+        if Keychain.read(account: "server-url") != serverURL { Keychain.write(serverURL, account: "server-url") }
     }
 
     /// Token revoked or user unpaired: forget everything local.

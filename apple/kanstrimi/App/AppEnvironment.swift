@@ -88,6 +88,26 @@ final class AppEnvironment {
         recentChannels.record(channel.id)
     }
 
+    /// Follows a Top Shelf link: the sheet, or the playback where it was left. Nothing before pairing.
+    func handle(_ link: DeepLink) async {
+        guard device.isPaired else { return }
+        switch link {
+        case .open(let id):
+            if player.isPresented { player.stop() }
+            open(id)
+        case .play(let id):
+            if let ctx = try? await playbackContext(for: id) { player.play(ctx) }
+        }
+    }
+
+    /// A movie or an episode from its id alone (Top Shelf, debug hooks): its sheet gives the title and the episode.
+    func playbackContext(for id: ContentID) async throws -> PlaybackContext? {
+        let card = try await call { try await client.detail(id: id.seriesID ?? id) }
+        guard id.seriesID != nil else { return try await playbackContext(for: card) }
+        guard let episode = card.allEpisodes.first(where: { $0.id == id }) else { return nil }
+        return try await playbackContext(for: episode, of: card)
+    }
+
     /// `GET /playback/{id}` wrapped with what the player needs to know about the content.
     func playbackContext(for card: Card) async throws -> PlaybackContext {
         let playback = try await call { try await client.playback(id: card.id) }

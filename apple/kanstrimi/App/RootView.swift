@@ -14,6 +14,13 @@ struct RootView: View {
             }
         }
         .task { await debugHooks() }
+        .onOpenURL { url in
+            if let link = DeepLink(url: url) { Task { await env.handle(link) } }
+        }
+        // The Top Shelf shows the last title in progress and reads the server address from the Keychain.
+        .task(id: env.device.token) { env.shareWithTopShelf() }
+        .onChange(of: env.preferences.serverURL) { env.shareWithTopShelf() }
+        .onChange(of: env.player.progressRevision) { env.topShelfDidChange() }
         .background(Theme.background.ignoresSafeArea())
         .detailCover(env)
         .fullScreenCover(isPresented: Binding(get: { env.player.isPresented && !env.player.isMinimized && env.presentedDetail == nil },
@@ -75,15 +82,7 @@ private extension RootView {
             guard let channel = all.first(where: { $0.id == ContentID(id) }) else { return }
             env.player.play(channel: channel, in: all)
         default:
-            let id = ContentID(what)
-            guard let card = try? await env.client.detail(id: id.seriesID ?? id) else { return }
-            var ctx: PlaybackContext?
-            if id.seriesID != nil, let ep = card.allEpisodes.first(where: { $0.id == id }) {
-                ctx = try? await env.playbackContext(for: ep, of: card)
-            } else {
-                ctx = try? await env.playbackContext(for: card)
-            }
-            guard var ctx else { return }
+            guard var ctx = try? await env.playbackContext(for: ContentID(what)) else { return }
             let resume = defaults.double(forKey: "debug.resumeAt")
             if resume > 0 {
                 ctx = PlaybackContext(content: ctx.content, versions: ctx.versions, resumeAt: resume, duration: ctx.duration, next: ctx.next)

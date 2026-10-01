@@ -1,6 +1,6 @@
 # Kanstrimi — app Apple (Apple TV, iPhone ; iPad à venir)
 
-`kanstrimi.xcodeproj` : **une cible `kanstrimi`, deux destinations** (tvOS 27 et iOS 27,
+`kanstrimi.xcodeproj` : **une cible `kanstrimi`, deux destinations** (tvOS 27 et iOS 27, plus l'extension tvOS `TopShelf`,
 `TARGETED_DEVICE_FAMILY = 1,3` ; l'iPad ajoutera `2`). SwiftUI en français (`developmentRegion = fr` : les contrôles système suivent), Swift 6 (isolation `MainActor`
 par défaut), Swift Testing, **AetherEngine 7.x en SPM** (`superuser404notfound/AetherEngine`, `upToNextMajorVersion` depuis
 7.24.0 ; il tire `FFmpegBuild` et `LibDovi`). FFmpeg démuxe, VideoToolbox décode, le moteur pilote l'affichage
@@ -19,6 +19,8 @@ en ligne de commande).
 | `Player/` | Le lecteur, service transverse unique : `PlayerService` (AetherEngine, bascule de source, échec après 10 s, chien de garde des gels, relances du direct, avance rapide, épisode suivant, zapping), `VersionChooser` (langue × qualité × capacités de l'appareil), `PlayerScreen` (état, overlays et panneaux communs) avec `PlayerScreen+tvOS` (télécommande, `PressCatcher`) et `PlayerScreen+iOS` (gestes, contrôles tactiles), `VideoSurface` (héberge la vue du moteur en SwiftUI), `SubtitleOverlay` (sous-titres dessinés par l'app), `PictureInPicture+iOS` / `+tvOS` (le Picture-in-Picture d'iOS ; sur tvOS, rien à brancher). |
 | `Features/` | Un dossier par écran : Appairage, Accueil, Catalogue, Fiche, Direct, Recherche, Réglages. Une seule vue par écran pour les deux plateformes. |
 | `Shared/` | `Platform.swift` (**`Metrics` et les modificateurs par plateforme**), `Theme` (couleurs, badges, panneaux d'état), `CardViews`, `Stores` (chaînes récentes, sources en échec, file de progression, caches). |
+| `../TopShelf/` | Extension Top Shelf (tvOS seul, embarquée avec `platformFilters = (tvos)`) : `ContentProvider` lit le jeton et l'adresse du serveur dans le Keychain partagé, appelle `GET /player/top-shelf` et en fait un carrousel plein écran, style « détails ». Son petit lecteur de Keychain et son décodage du contrat sont recopiés à dessein : l'extension ne partage aucun fichier avec l'app. |
+| `../Entitlements/` | `keychain-access-groups` = `$(AppIdentifierPrefix)dev.crafters.kanstrimi` pour l'app et l'extension : c'est le groupe par défaut de l'app, où le jeton était déjà rangé, donc rien à migrer. |
 | `scripts/` | `shot.sh <écran> <tvos\|iphone>` et `shot-all.sh <tvos\|iphone>` : captures du client de démo pour la revue UI, dans `ui-review/<écran>/<horodatage>-<cible>.png` (hors git). |
 | `../kanstrimiTests/` | Swift Testing : client HTTP (serveur simulé), moteur de choix (dont le plafond FHD de l'iPhone), curseur et file de progression. Lancés sur les deux destinations. |
 
@@ -48,6 +50,13 @@ partagé au plus spécifique :
    la surface vidéo (PiP), l'orientation. Aucune exception de membre dans le groupe synchronisé
    du projet, sauf l'`Info.plist` partiel (`UIBackgroundModes` pour le PiP) que Xcode exclut des
    ressources.
+
+**Top Shelf** (tvOS) : six éléments au plus, composés par le serveur (dernier titre en cours, série commencée qui a reçu
+un épisode depuis la dernière lecture, puis les tops films de la semaine ; titres avec fond seulement). Lecture suit
+`kanstrimi://play/<id>` (film ou épisode, repris là où il en était), Plus d'infos `kanstrimi://open/<id>` (la fiche) :
+`DeepLink`, `AppEnvironment.handle`. L'app écrit l'adresse du serveur dans le Keychain partagé (`DeviceStore.share`) et
+appelle `topShelfContentDidChange()` après chaque lecture (`TopShelf+tvOS.swift`). Sans jeton ou hors ligne, tvOS garde
+l'image fixe.
 
 **Navigation** : `env.open(id)` est l'unique point d'entrée vers une fiche. Sur tvOS c'est un
 `fullScreenCover` au-dessus des onglets ; sur iOS un push dans la `NavigationStack` de l'onglet
