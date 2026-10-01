@@ -79,11 +79,15 @@ final class AppEnvironment {
         info = try? await call { try await client.info() }
     }
 
-    /// A channel's guide as the app shows it: that of the version playing, else of the one it would start in
-    /// (remembered or best), each quality having possibly its own (« M6 4K »).
+    /// The version a channel is shown in: the one playing, else the one it would start in (remembered, else
+    /// the best). Its quality and language are the channel's badges, its guide the one shown.
+    func liveVersion(of channel: Channel) -> Version? {
+        player.channel?.id == channel.id ? player.version : player.startChoice(channel.id, versions: channel.versions)?.version
+    }
+
+    /// A channel's guide as the app shows it, `liveVersion`'s: each quality may have its own (« M6 4K »).
     func guide(of channel: Channel) -> Channel.Guide {
-        let version = player.channel?.id == channel.id ? player.version : player.startChoice(channel.id, versions: channel.versions)?.version
-        return channel.guide(for: version)
+        channel.guide(for: liveVersion(of: channel))
     }
 
     /// Plays a channel from a card (search, home): its versions and the zapping order come with the channel list.

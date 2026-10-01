@@ -1,3 +1,4 @@
+import AVFoundation
 import AetherEngine
 import Combine
 import SwiftUI
@@ -122,6 +123,18 @@ struct LiveView: View {
             if focusedChannelID == id { focusedDetail = c }
         }
         if isVisible, !env.player.isPresented, let c = focusedChannel { showPreview(c) }
+    }
+
+    /// The quality and language the channel is shown in (`liveVersion`: remembered, else the best); the
+    /// channel's best and languages when it has no version.
+    @ViewBuilder private func versionBadges(_ c: Channel, small: Bool) -> some View {
+        if let v = env.liveVersion(of: c) {
+            Badge(v.quality.rawValue, small: small)
+            Badge(v.language.rawValue, small: small)
+        } else {
+            if let q = c.maxQuality { Badge(q.rawValue, small: small) }
+            ForEach(c.versions.languages.prefix(2), id: \.self) { Badge($0.rawValue, small: small) }
+        }
     }
 
     /// The side preview exists only in the three-column layout: a phone streams nothing until a tap. It
@@ -264,7 +277,7 @@ struct LiveView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 8) {
                         Text(c.name).font(.headline).lineLimit(1)
-                        if let q = c.maxQuality { Badge(q.rawValue, small: true) }
+                        if let q = env.liveVersion(of: c)?.quality ?? c.maxQuality { Badge(q.rawValue, small: true) }
                         if c.isFavorite == true { Image(systemName: "heart.fill").font(.caption).foregroundStyle(Theme.accent) }
                     }
                     if let now {
@@ -303,10 +316,7 @@ struct LiveView: View {
                     if let now = env.channelCache.cached(c.id).flatMap({ env.guide(of: $0).now }) {
                         Text(now.title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
                     }
-                    HStack(spacing: 6) {
-                        if let q = c.maxQuality { Badge(q.rawValue, small: true) }
-                        ForEach(c.versions.languages.prefix(2), id: \.self) { Badge($0.rawValue, small: true) }
-                    }
+                    HStack(spacing: 6) { versionBadges(c, small: true) }
                 }
                 Spacer()
                 if c.isFavorite == true { Image(systemName: "heart.fill").foregroundStyle(Theme.accent) }
@@ -339,8 +349,7 @@ struct LiveView: View {
                     HStack(spacing: 10) {
                         Text("EN DIRECT").font(.caption.weight(.bold)).tracking(1.5).padding(.horizontal, 8).padding(.vertical, 3).background(Theme.live, in: RoundedRectangle(cornerRadius: 5))
                         Text(c.name).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
-                        if let q = c.maxQuality { Badge(q.rawValue) }
-                        ForEach(c.versions.languages, id: \.self) { Badge($0.rawValue) }
+                        versionBadges(c, small: false)
                     }
                     if let guide = focusedDetail.map(env.guide(of:)), let now = guide.now {
                         Text("En ce moment").font(.caption).foregroundStyle(Theme.secondary)
@@ -360,16 +369,19 @@ struct LiveView: View {
                         Text("Programme inconnu").foregroundStyle(Theme.secondary)
                     }
                     HStack(spacing: 8) {
+                        let start = env.liveVersion(of: c)?.id
                         ForEach(c.versions) { v in
-                            // "×3" = backup sources, the same mark as the version matrix of the detail page.
+                            // "×3" = backup sources, the same mark as the version matrix of the detail page. The
+                            // version the channel starts in stands out.
                             HStack(spacing: 6) {
                                 Text("\(v.quality.rawValue) · \(v.language.rawValue)")
                                 if v.sources.count > 1 {
-                                    Text("×\(v.sources.count)").foregroundStyle(Theme.secondary)
+                                    Text("×\(v.sources.count)").foregroundStyle(v.id == start ? Color.black.opacity(0.6) : Theme.secondary)
                                 }
                             }
                             .font(.caption.weight(.semibold)).padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(.white.opacity(0.12), in: Capsule())
+                            .foregroundStyle(v.id == start ? Color.black : Theme.text)
+                            .background(v.id == start ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(.white.opacity(0.12)), in: Capsule())
                             .accessibilityElement(children: .ignore)
                             .accessibilityLabel("\(v.quality.rawValue) \(v.language.label)\(v.sources.count > 1 ? ", \(v.sources.count) sources" : "")")
                         }
@@ -391,7 +403,7 @@ struct LiveView: View {
     }
 }
 
-/// Side preview of the focused channel: a second, silent engine with its own surface, created at the
+/// Side preview of the focused channel: a second engine with its own surface, heard once its picture shows, created at the
 /// first `show` (a phone has no preview column and never creates it). The account allows one connection,
 /// so `LiveView` stops it before any playback starts.
 @Observable
@@ -425,6 +437,7 @@ final class PreviewPlayer {
     func stop() {
         debounce?.cancel(); debounce = nil
         loadTask?.cancel(); loadTask = nil
+        engine?.volume = 0
         engine?.stop()
         streamURL = nil
         channelID = nil
@@ -436,6 +449,8 @@ final class PreviewPlayer {
         hasImage = false
         loadTask?.cancel()
         engine.stop()
+        // Its sound needs the session active; the player screen activates it the same way.
+        try? AVAudioSession.sharedInstance().setActive(true)
         // Decoded in the app, like the live in the player: the picture comes within a second of the focus.
         var options = LoadOptions(suppressDisplayCriteria: true, isLive: true, liveJoinProfile: .fastZap, maxConcurrentSourceRequests: 1)
         options.preferredDecodePath = .software
@@ -456,6 +471,8 @@ final class PreviewPlayer {
             .sink { [weak self] in
                 guard let self else { return }
                 hasImage = $0 && channelID != nil
+                // The sound comes with the picture, not while the stream is still connecting.
+                self.engine?.volume = hasImage ? 1 : 0
             }
             .store(in: &cancellables)
         engine.liveSourceReset

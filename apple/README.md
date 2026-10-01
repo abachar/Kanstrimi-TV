@@ -37,7 +37,7 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 ## Choix et pièges
 
 - **Une seule connexion au fournisseur** : `maxConcurrentSourceRequests: 1`, et l'aperçu du Direct (un second moteur,
-  muet) est coupé avant toute lecture. Pas d'option du moteur qui ouvrirait une seconde connexion (`confirmAtmos`).
+  sonore dès que l'image paraît) est coupé avant toute lecture. Pas d'option du moteur qui ouvrirait une seconde connexion (`confirmAtmos`).
 - **ATS** : `NSAllowsArbitraryLoads`, le `302` du serveur mène à des URL `http://` du fournisseur.
 - **Direct** : décodé par le moteur (`preferredDecodePath: .software`), image en 0,6 s contre 6 s par le HLS local
   d'AVPlayer ; jamais de pause, comme une télé.
