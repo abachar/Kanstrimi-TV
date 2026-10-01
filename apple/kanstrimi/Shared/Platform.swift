@@ -1,16 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// The native view type VLCKit draws into.
-typealias PlatformView = UIView
-
-/// A plain black surface for VLCKit: the player's drawable on tvOS, the live preview everywhere.
-func makeBlackSurface() -> PlatformView {
-    let v = UIView()
-    v.backgroundColor = .black
-    return v
-}
-
 /// What differs between the television and the phone, in one place. Views stay free of
 /// `#if os(...)`: they read `Metrics` for sizes and use the modifiers below for the APIs one
 /// platform lacks.
@@ -34,7 +24,7 @@ nonisolated enum Platform {
     }
 
     /// Where a YouTube trailer opens: the YouTube app on tvOS, which has no browser (nil when it
-    /// is not installed, and the button hides), the web page elsewhere. VLC cannot read a YouTube page.
+    /// is not installed, and the button hides), the web page elsewhere. The player does not read a YouTube page.
     @MainActor static func trailerURL(_ web: URL) -> URL? {
         #if os(tvOS)
         guard var c = URLComponents(url: web, resolvingAgainstBaseURL: false) else { return nil }
@@ -113,6 +103,8 @@ nonisolated struct Metrics: Sendable {
     var toggleWidth: CGFloat?
     /// Diameter of a round icon button (detail sheet), the height of the play button beside it.
     var iconButton: CGFloat
+    /// Subtitle text size, drawn by the app over the video.
+    var subtitleSize: CGFloat
 
     static let tv = Metrics(compact: false, inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,
@@ -121,7 +113,7 @@ nonisolated struct Metrics: Sendable {
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
                             panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 460,
                             dialogTitle: 48, dialogWidth: 900, nextCard: 620, dialogMargin: 70,
-                            pickerWidth: 1200, toggleWidth: 420, iconButton: 76)
+                            pickerWidth: 1200, toggleWidth: 420, iconButton: 76, subtitleSize: 48)
     static let phone = Metrics(compact: true, inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,
                                artTitle: 14, badge: 12, badgeSmall: 10,
                                heroHeight: 470, heroTitle: 32, detailTitle: 30, detailTop: 40, detailLogo: CGSize(width: 260, height: 90), stillWidth: 140, textWidth: .infinity,
@@ -129,7 +121,7 @@ nonisolated struct Metrics: Sendable {
                                pairingTitle: 28, showsQR: false, codeCell: 40, pairingColumn: nil,
                                panelHeight: 300, panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
                                dialogTitle: 26, dialogWidth: 460, nextCard: 340, dialogMargin: 24,
-                               pickerWidth: nil, toggleWidth: nil, iconButton: 44)
+                               pickerWidth: nil, toggleWidth: nil, iconButton: 44, subtitleSize: 17)
     static var current: Metrics {
         #if os(tvOS)
         return .tv

@@ -157,7 +157,7 @@ struct PlayerBar: View {
                     .focused($focus, equals: .panel(p))
             }
             Spacer()
-            // Each menu only when it offers a choice; the tracks are known once VLC has read the stream.
+            // Each menu only when it offers a choice; the tracks are known once the player has read the stream.
             if (player.context?.versions.count ?? 0) > 1 { versionsMenu }
             if player.audioTracks.count > 1 { audioMenu }
             if !player.textTracks.isEmpty { subtitlesMenu }

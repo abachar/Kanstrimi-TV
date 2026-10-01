@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1000001000000000000VLC1 /* VLCKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1000001000000000000VLC2 /* VLCKit */; };
+		B2000002000000000000AET1 /* AetherEngine in Frameworks */ = {isa = PBXBuildFile; productRef = B2000002000000000000AET2 /* AetherEngine */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,7 +66,7 @@
 		158194DF3067306A00A28BEA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
-				A1000001000000000000VLC1 /* VLCKit in Frameworks */,
+				B2000002000000000000AET1 /* AetherEngine in Frameworks */,
 			);
 		};
 		158194EC3067306B00A28BEA /* Frameworks */ = {
@@ -133,7 +133,7 @@
 			);
 			name = kanstrimi;
 			packageProductDependencies = (
-				A1000001000000000000VLC2 /* VLCKit */,
+				B2000002000000000000AET2 /* AetherEngine */,
 			);
 			productName = kanstrimi;
 			productReference = 158194E23067306A00A28BEA /* kanstrimi.app */;
@@ -192,7 +192,7 @@
 			mainGroup = 158194D93067306A00A28BEA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A1000001000000000000VLC0 /* XCRemoteSwiftPackageReference "vlckit" */,
+				B2000002000000000000AET0 /* XCRemoteSwiftPackageReference "AetherEngine" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 158194E33067306A00A28BEA /* Products */;
@@ -576,21 +576,21 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		A1000001000000000000VLC0 /* XCRemoteSwiftPackageReference "vlckit" */ = {
+		B2000002000000000000AET0 /* XCRemoteSwiftPackageReference "AetherEngine" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/videolan/vlckit";
+			repositoryURL = "https://github.com/superuser404notfound/AetherEngine";
 			requirement = {
-				kind = revision;
-				revision = 440dc1df19d181b500ae414762671701d192bcf8;
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.24.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A1000001000000000000VLC2 /* VLCKit */ = {
+		B2000002000000000000AET2 /* AetherEngine */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A1000001000000000000VLC0 /* XCRemoteSwiftPackageReference "vlckit" */;
-			productName = VLCKit;
+			package = B2000002000000000000AET0 /* XCRemoteSwiftPackageReference "AetherEngine" */;
+			productName = AetherEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -2,9 +2,12 @@
 
 `kanstrimi.xcodeproj` : **une cible `kanstrimi`, deux destinations** (tvOS 27 et iOS 27,
 `TARGETED_DEVICE_FAMILY = 1,3` ; l'iPad ajoutera `2`). SwiftUI en français (`developmentRegion = fr` : les contrôles système suivent), Swift 6 (isolation `MainActor`
-par défaut), Swift Testing, **VLCKit 4 en SPM** (miroir GitHub `videolan/vlckit`, révision figée
-dans le projet ; le xcframework couvre iOS et tvOS). Le fournisseur ne sert pas de HLS : VLCKit lit
-tout (TS en direct, MKV et MP4 en VOD), AVPlayer est écarté.
+par défaut), Swift Testing, **AetherEngine 7.x en SPM** (`superuser404notfound/AetherEngine`, `upToNextMajorVersion` depuis
+7.24.0 ; il tire `FFmpegBuild` et `LibDovi`). FFmpeg démuxe, VideoToolbox décode, le moteur pilote l'affichage
+(HDR, Dolby Vision) sur tvOS. Le fournisseur ne sert pas de HLS : le moteur lit tout (TS en direct, MKV et MP4 en
+VOD), sans relais ni AVPlayer d'hôte. Un seul moteur côté lecteur ; le direct en ouvre un second, muet, pour son aperçu.
+**Build tvOS Simulateur en arm64 seulement** (`LibDovi` n'a pas de tranche x86_64 : `ARCHS=arm64 ONLY_ACTIVE_ARCH=NO`
+en ligne de commande).
 
 ## Structure
 
@@ -13,7 +16,7 @@ tout (TS en direct, MKV et MP4 en VOD), AVPlayer est écarté.
 | `App/` | `KanstrimiApp` (les seuls `#if` hors des fichiers dédiés : l'adaptateur `AppDelegate` d'iOS), `AppEnvironment` (services partagés, onglet courant, piles de navigation), `Navigation.swift` (`MainTab`, `Route`, covers tvOS, chrome iOS), `RootView` (appairage puis onglets, cover du lecteur, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain), `OrientationLock+iOS` (rotation libre du lecteur, bouton plein écran). |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`) : `Card` unique, `Version`, `Source`, `Season`, `Episode`, `Channel`, `Playback`… `nonisolated`, jamais sur la base. |
 | `Client/` | Protocole `CatalogClient` ; `HTTPCatalogClient` (le serveur, URL compilée dans `Preferences.compiledServerURL`, jeton d'appareil en Keychain, erreurs mappées sur `CatalogError`, un GET retenté deux fois après 0,5 s puis 1,5 s sur une connexion tombée ou un 502-504 du proxy sans erreur JSON du serveur ; jamais une écriture, ni un délai dépassé) ; `MockCatalogClient` sur les fixtures JSON de `Client/Fixtures/` et ses `MockScenario` ; `SwitchingCatalogClient` bascule entre les deux. |
-| `Player/` | Le lecteur, service transverse unique : `PlayerService` (VLCKit, bascule de source, échec après 10 s, surveillance du direct, avance rapide, épisode suivant, zapping), `VersionChooser` (langue × qualité × capacités de l'appareil), `PlayerScreen` (état, overlays et panneaux communs) avec `PlayerScreen+tvOS` (télécommande, `PressCatcher`) et `PlayerScreen+iOS` (gestes, contrôles tactiles, PiP), `PlayerDrawable+tvOS` / `+iOS` (la surface vidéo ; celle d'iOS porte le Picture-in-Picture). |
+| `Player/` | Le lecteur, service transverse unique : `PlayerService` (AetherEngine, bascule de source, échec après 10 s, chien de garde des gels, relances du direct, avance rapide, épisode suivant, zapping), `VersionChooser` (langue × qualité × capacités de l'appareil), `PlayerScreen` (état, overlays et panneaux communs) avec `PlayerScreen+tvOS` (télécommande, `PressCatcher`) et `PlayerScreen+iOS` (gestes, contrôles tactiles), `VideoSurface` (héberge la vue du moteur en SwiftUI), `SubtitleOverlay` (sous-titres dessinés par l'app), `PictureInPicture+iOS` / `+tvOS` (le Picture-in-Picture d'iOS ; sur tvOS, rien à brancher). |
 | `Features/` | Un dossier par écran : Appairage, Accueil, Catalogue, Fiche, Direct, Recherche, Réglages. Une seule vue par écran pour les deux plateformes. |
 | `Shared/` | `Platform.swift` (**`Metrics` et les modificateurs par plateforme**), `Theme` (couleurs, badges, panneaux d'état), `CardViews`, `Stores` (chaînes récentes, sources en échec, file de progression, caches). |
 | `scripts/` | `shot.sh <écran> <tvos\|iphone>` et `shot-all.sh <tvos\|iphone>` : captures du client de démo pour la revue UI, dans `ui-review/<écran>/<horodatage>-<cible>.png` (hors git). |
@@ -59,17 +62,19 @@ lecture) ; le bouton plein écran fait pivoter (`OrientationLock.rotate`). Les c
 la barre tvOS : en bas le titre, la progression (celle de l'émission en direct), les boutons de panneau à gauche
 (direct : Programme · Récentes · Infos ; épisode : Épisodes · Infos ; film : Infos) et les menus Versions · Audio ·
 Sous-titres à droite (un seul menu « … » s'il manque de place) ; les contrôles restent dans la zone sûre (encoche,
-barre d'accueil), seuls la vidéo et les voiles vont aux bords ; la surface vidéo recale les vues et couches de VLCKit à
-chaque mise en page (sinon l'image se décale après des rotations) ; en haut Fermer, PiP, plein écran ; au centre ±10 et
+barre d'accueil), seuls la vidéo et les voiles vont aux bords ; la vue du moteur recale elle-même sa couche à
+chaque mise en page ; en haut Fermer, PiP, plein écran ; au centre ±10 et
 lecture/pause (films, épisodes), remplacés par l'indicateur de chargement. Gestes : tap = contrôles (ou ferme le
 panneau), double tap gauche/droite = ±10 s, ±10 maintenu = avance/retour rapide, glisser horizontal = recherche.
 Paysage : glisser vers la droite en direct = chaînes du groupe (liste à gauche, comme ◀ sur tvOS). Portrait : vidéo
 centrée à son format, glisser vers le haut = chaînes en direct (liste montant du bas) ou premier panneau
-(Épisodes / Infos), glisser vers le bas = fermer. Plus de zapping ni d'appui long. Picture-in-Picture par le
-drawable `PiPVideoView` conforme à `VLCPictureInPictureDrawable` : VLCKit rend un
-`VLCPictureInPictureWindowControlling` quand sa sortie vidéo le permet, `PlayerService.isMinimized`
-cache l'écran sans arrêter la lecture, une fois l'image dans l'image démarrée (`stateChangeEventHandler`) : cachée
-avant, la surface vidéo quitte la fenêtre et iOS abandonne. `Capabilities.iPhone` plafonne à la Full HD.
+(Épisodes / Infos), glisser vers le bas = fermer. Plus de zapping ni d'appui long. Picture-in-Picture (`PictureInPicture+iOS`) : le
+moteur dessine soit dans un `AVPlayerLayer` (routes vidéo natives), soit dans une couche d'échantillons (route logicielle, par
+exemple un direct 1080i désentrelacé) ; le contrôleur AVKit est reconstruit selon `engine.$videoRoute`, ses commandes passent par
+`PlayerService` (pas de pause en direct). `PlayerService.isMinimized`
+cache l'écran sans arrêter la lecture, une fois l'image dans l'image démarrée (`didStart`) : cachée
+avant, la surface vidéo quitte la fenêtre et iOS abandonne. La vue du moteur est gardée par le service (le moteur ne tient ses vues
+qu'en `weak`), elle survit donc à ce masquage. `Capabilities.iPhone` plafonne à la Full HD.
 
 **Un seul choix, pas de bouton** (toutes plateformes) : Versions (fiche d'un film, « Versions · n » de l'accueil tvOS),
 Langue (fiche d'une série) et l'appui long sur Lecture n'existent que si le sélecteur a plus d'une ligne
@@ -82,7 +87,7 @@ marché, « France » › « Sport »), trop nombreuses pour une ligne de pastil
 
 **Fiche** : Lecture/Reprendre en bouton plein, les autres actions en pastilles rondes (`IconAction`) : sur tvOS le
 libellé n'apparaît que sous la pastille focalisée, sur iPhone il est toujours affiché. Ma liste = cœur
-(favori, comme dans le Direct). La bande-annonce (YouTube, que VLC ne lit pas) s'ouvre par `openURL` : l'app
+(favori, comme dans le Direct). La bande-annonce (YouTube, que le lecteur ne lit pas) s'ouvre par `openURL` : l'app
 YouTube sur tvOS (`youtube://`, `LSApplicationQueriesSchemes`), bouton masqué si elle manque ; la page web ailleurs.
 Sous le titre, les tags de version montrent en plein celle que Lecture joue (qualité et langue),
 les autres langues en contour ; pas de note « version choisie » ni de tableau des versions.
@@ -111,10 +116,10 @@ automatique.
 **Programme du direct** : dans le lecteur, le bouton Programme (tvOS : dans la barre ; iPhone : « Programme ») ouvre le programme, qui remplace Infos : `GET /channels/{id}/programmes`, du programme en cours jusqu'à 6 h, rechargé à chaque zapping ; un échec se lit « Programme inconnu ».
 
 **Direct** : jamais de pause, comme une télé (`PlayerService.togglePlayPause`/`pause` l'ignorent sur toutes les plateformes) ; Lecture relance seulement un flux arrêté par une coupure.
-Une fois l'image affichée, un chien de garde compte les images affichées (`VLCMedia.statistics`) : 4 s sans
-nouvelle image ou sans sortie vidéo = source en cause (le débit ne l'est pas), bascule d'échec : source suivante, nouvel essai
-(nouveau jeton via le `302`), puis le dialogue. Un `.stopped` en direct (connexion fermée par l'amont, que `:http-reconnect`
-n'a pas pu rouvrir) prend la même bascule : un direct n'a pas de fin.
+Le direct se charge avec `isLive` et `liveJoinProfile: .fastZap` (entrée rapide sur la chaîne). L'aperçu de l'écran Direct (`PreviewPlayer`,
+`Features/Live/LiveView.swift`) est un **second `AetherEngine`**, créé au premier aperçu (l'iPhone n'en crée jamais), muet
+(`volume = 0`), qui ne touche ni la session audio ni le mode d'affichage du téléviseur (`suppressDisplayCriteria`). Le compte du
+fournisseur n'autorise qu'une connexion : l'aperçu est coupé avant toute lecture.
 
 **Réglages** (tvOS) : à gauche le nom de l'app et ce qui se lit sans se régler (appareil et code, serveur et version,
 volumes du catalogue, langues, dernier import) ; à droite la liste des réglages seulement. Interrupteurs et choix y sont
@@ -122,21 +127,43 @@ des lignes dessinées par l'app (`FocusRow`, `ChoiceRow`) : le `Toggle` système
 focus, et sous tvOS 27 (Xcode 27A266a) la liste poussée par un `Picker` par défaut s'ouvre noire, même seule dans un
 `NavigationStack` nu ; `ChoiceRow` ouvre un menu à la place. À retester à chaque version de tvOS.
 
-**Tampons VLC** : `:network-caching` par média, réglable dans Réglages › Lecture : 1,5 s en direct (zapping rapide),
-3 s en film ou épisode ; plafonné à 5 s, VLC remplissant le tampon avant la première image et une source
-ayant 10 s pour démarrer. `:http-reconnect` rouvre une connexion HTTP tombée avant que le chien de garde n'intervienne.
+**Moteur** : chaque lecture passe par `engine.load(url:startPosition:options:)`, avec `maxConcurrentSourceRequests: 1` (une seule
+connexion, ce qui coupe aussi les requêtes parallèles spéculatives). Pas de `stop()` entre deux chargements : `load` démonte la session
+précédente et garde les critères d'affichage d'un épisode au suivant ; `stop()` du service arrête le moteur et rend au téléviseur son mode.
+`PlayerService` active la session audio (`setActive(true)`, sans `setCategory` : le moteur déclare la sienne) avant chaque chargement.
+Les états du moteur (`playbackPhase`) se lisent ainsi : `.loading` = ouverture ; `.playing` ; `.paused` ; `.seeking`, `.rebuffering` et
+`.stalled` = lecture (ou pause), sauf tant que la session n'a jamais joué (toujours ouverture) ; `.ended` = fin, ou coupure ; `.error` =
+coupure. `.ended` est terminal : rejouer, c'est recharger. Le temps vient de l'horloge du moteur, échantillonnée toutes les 0,5 s (chaque
+tick est une transaction de rendu, et un `Menu` ouvert clignote sous tvOS), ignoré tant qu'un saut est en vol.
+Le moteur lit par `URLSession` et le `302` mène à une URL `http://` du fournisseur (un pool d'adresses IP) : `Info.plist` porte
+`NSAllowsArbitraryLoads`, sans quoi App Transport Security refuse l'ouverture (`sourceOpenFailed`, « Input/output error »).
 
-**Films et épisodes par le démuxeur FFmpeg** (`:demux=avformat`) : le démuxeur MKV de VLC 4 abandonne l'index
-(Cues) des fichiers du fournisseur juste après son CRC-32, et chaque saut relit alors le film depuis le début
-(gel, `Error while reading SimpleBlock`). La reprise est un saut une fois la lecture lancée : avec `:start-time`,
-avformat compte le temps depuis le point de reprise et raccourcit la durée d'autant. Le direct (TS) garde le
-démuxeur de VLC.
+**Coupures et gels** (un seul chemin : `handleStreamFailure`, source suivante, deux nouveaux essais au même endroit avec un nouveau
+jeton par le `302`, puis le dialogue). Signaux :
+- **démarrage** : 10 s après le chargement sans première image ou sans `.playing` ;
+- **gel** : une fois démarré, le chien de garde compte les secondes passées en `.rebuffering` ou `.stalled` : 4 s en direct, 15 s en film
+  ou épisode (plus long : rouvrir un fichier distant à la nouvelle position prend du temps), compteur remis à zéro pendant les 15 s qui suivent un saut ;
+- **fin** : `.ended` en direct (un direct n'a pas de fin), ou à plus de 60 s de la fin d'un film ou épisode, est une coupure ; plus
+  près, c'est la fin du fichier (épisode suivant) ;
+- **`.error`** du moteur, journalisé avec son type et son code ; l'échec du `throw` de `load` n'est pas compté en double ;
+- **`liveSourceReset`** (direct) : la source a redémarré du début et le moteur a parqué la session. Même bascule, gardée : une relance
+  à la fois, 5 s au moins entre deux (le reste est différé), 3 au plus par chaîne choisie (remis à zéro par `play(channel:in:)` et
+  `retryFromServer`) ; au-delà, le dialogue d'échec directement, jamais une sortie silencieuse.
+Une fois l'image affichée, un nouvel essai réussi remet le compte à zéro et efface la source des échecs.
 
-**Coupure en film ou épisode** : même bascule, reprise à la position courante. Deux signaux une fois
-l'image affichée : 15 s sans nouvelle image en lecture hors des 15 s qui suivent un saut (plus long qu'en
-direct, le temps de rouvrir le fichier à la nouvelle position), ou un `.stopped` à plus de 60 s de la fin ;
-plus près, c'est la fin du fichier (épisode suivant). Le `.stopped` ou l'erreur du média remplacé, reçus
-après le lancement du suivant, sont ignorés jusqu'à l'ouverture de celui-ci.
+**Pas de tampon réglable** : AetherEngine n'a pas d'équivalent au `:network-caching` de l'ancien moteur (son `forwardBufferSegments` est
+une avance, pas un délai de démarrage) ; Réglages › Lecture n'a donc plus de réglage de tampon.
+
+**Démuxeur et reprise** : le moteur démuxe avec FFmpeg (MKV, MP4, TS). La reprise d'un film
+ou d'un épisode passe au chargement (`startPosition`), sans saut une fois la lecture lancée ; pas de reprise en direct.
+
+**Sous-titres** : le moteur ne les dessine pas. `SubtitleOverlay`, posé par `PlayerScreen` au-dessus de la vidéo et sous les contrôles, observe
+lui-même le moteur (repères et horloge source) et ne se redessine que si l'ensemble des repères visibles change : texte centré en bas
+(taille `Metrics.subtitleSize`), images (PGS, DVB) placées selon leur position dans le cadre. Aucun sous-titre au départ ; rien n'est
+dessiné sans piste choisie. Dans la fenêtre de PiP logicielle, le moteur incruste lui-même les repères actifs. Changer de piste audio ou
+de sous-titres recharge brièvement la session (noir d'environ 1 s, attendu).
+
+**HDR et Dolby Vision** (tvOS) : pilotés par le moteur (Match Content, critères d'affichage), l'app ne fait rien. Le direct d'aperçu les supprime.
 
 **Avance rapide** (films, épisodes ; ◀ ▶ maintenus sur la télécommande via `PressCatcher`) : la cible avance
 de 10, 30, 60, 120 puis 300 s par seconde (un palier toutes les 2 s), affichée à la place du temps
@@ -203,11 +230,25 @@ les deux destinations se vérifient quand même, à chaque modification. À froi
 ## Contraintes mesurées
 
 - Fournisseur : proxy à jetons devant un pool de backends, MKV sans HLS, pas de plage
-  d'octets fiable ; d'où VLCKit seul et une bascule de source plutôt qu'un retry aveugle.
-- Reprise profonde dans un MKV sur simulateur (1140 s sur 4520 s) : son sans image, alors que
-  120 s fonctionne. À mesurer sur Apple TV réel avant de conclure.
+  d'octets fiable, un seul flux par compte ; d'où une seule connexion côté moteur, l'aperçu du direct coupé avant toute lecture,
+  et une bascule de source plutôt qu'un retry aveugle.
+- tvOS Simulateur : arm64 seulement (`LibDovi`).
+- Simulateur Apple TV contre le serveur local (2026-10-01) : un MKV HEVC 4K reprend à 808 s, première image en 3 s (décodage
+  logiciel, le simulateur n'a pas de décodeur HEVC matériel) ; une chaîne démarre en 9 s (route native : HLS local lu par AVPlayer),
+  puis la source a livré moins vite que le temps réel au bout de 32 s et le gel de 4 s a relancé la lecture.
 - iPhone (simulateur, sans flux réel) : portrait et paysage (bouton plein écran) vérifiés, contrôles
   tactiles, panneaux et liste des chaînes rendus dans chaque état du lecteur ; le tap passe par
-  `DeviceInteractionSynthesize`, qui n'offre ni glisser ni rotation. Non vérifié faute de flux et de doigt : les glissers
-  eux-mêmes, la rotation physique du téléphone, le PiP de bout en bout (`pictureInPictureReady` doit être appelé par VLCKit sur un vrai
-  flux), la lecture en arrière-plan. À faire sur un iPhone réel contre le serveur.
+  `DeviceInteractionSynthesize`, qui n'offre ni glisser ni rotation.
+
+## À mesurer sur appareil
+
+Rien de ce qui suit n'a été vérifié depuis le passage à AetherEngine (deux lectures seulement, sur simulateur) :
+
+- **Gel du direct à 4 s** : à juger sur un vrai flux ; le moteur retamponne là où l'ancien figeait l'image, le seuil est peut-être trop court.
+
+- **Dolby Vision et HDR** (Apple TV 4K) : bascule du mode d'affichage, retour au mode d'origine à la fermeture du lecteur.
+- **Atmos** (EAC3 + JOC, barre de son ou AirPods).
+- **Saut profond dans un MKV** (reprise à 1140 s sur 4520 s) et avance rapide : l'ancien moteur rendait le son sans image.
+- **Picture-in-Picture** de bout en bout, sur route native et sur route logicielle ; lecture en arrière-plan.
+- Zapping du direct (`.fastZap`), aperçu muet du Direct, relances `liveSourceReset` sur un vrai flux instable.
+- Glissers eux-mêmes et rotation physique du téléphone. À faire sur un iPhone réel contre le serveur.

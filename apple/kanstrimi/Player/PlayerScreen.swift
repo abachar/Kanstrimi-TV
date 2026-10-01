@@ -40,13 +40,15 @@ struct PlayerScreen: View {
 
     var content: some View {
         ZStack {
-            VLCVideoView(view: player.videoView).ignoresSafeArea()
+            VideoSurface(view: player.videoView).ignoresSafeArea()
             #if DEBUG
             if player.debugFrame {
                 // iPhone: a 16:9 picture, fitted like the video, centred with black around when upright.
                 if Platform.isTV { PreviewFrame().ignoresSafeArea() } else { Color.clear.ignoresSafeArea().overlay { PreviewFrame().aspectRatio(16 / 9, contentMode: .fit) } }
             }
             #endif
+            // Edge to edge like the video: a bitmap subtitle is placed against the picture's frame.
+            SubtitleOverlay(engine: player.engine).ignoresSafeArea()
 
             // The surface steps aside while the failure dialog is up, otherwise it keeps the
             // focus and every press lands on it instead of on the dialog's buttons.

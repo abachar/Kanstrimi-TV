@@ -1,15 +1,16 @@
+import AVFoundation
+import AetherEngine
+import Combine
 import Foundation
 import Observation
 import OSLog
-import UIKit
-import VLCKit
 
 private let log = Logger(subsystem: "dev.crafters.kanstrimi", category: "player")
 
-/// The one player of the app. Wraps VLCKit, owns the playback context, the version and
+/// The one player of the app. Wraps AetherEngine, owns the playback context, the version and
 /// source in use, the automatic source switch, the failure dialog and the next-episode countdown.
 @Observable
-final class PlayerService: NSObject {
+final class PlayerService {
     enum Phase: Equatable {
         case idle, opening, buffering, playing, paused, ended
         case failed
@@ -74,7 +75,6 @@ final class PlayerService: NSObject {
     /// True while playback goes on with the player screen hidden (Picture-in-Picture on iOS).
     var isMinimized = false
     var isLive: Bool { context?.content.kind == .live }
-    var hasImage: Bool { player.hasVideoOut }
 
     // MARK: - Dependencies
 
@@ -82,29 +82,35 @@ final class PlayerService: NSObject {
     private let preferences: Preferences
     private let failedSources: FailedSourcesStore
     private let progressQueue: ProgressQueue
-    let player: VLCMediaPlayer
-    /// The surface VLC draws into. Created once and attached before any playback, because a
-    /// drawable set after `play()` is not always picked up by the video output. Each platform
-    /// builds its own (`PlayerDrawable+iOS.swift` adds Picture-in-Picture).
-    let videoView: PlatformView = PlayerService.makeDrawable()
+    let engine: AetherEngine
+    /// The surface the engine draws into. Kept by the service, because the engine holds its views weakly:
+    /// it outlives the player screen, which hides while Picture-in-Picture runs.
+    let videoView = AetherPlayerView(frame: .zero)
+    let pictureInPicture = PictureInPicture()
     private let capabilities: VersionChooser.Capabilities
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
     private var startAttempts = 0
     private var startDeadline: Task<Void, Never>?
     /// True once the stream shows images: the start deadline hands over to the freeze watchdog.
     private var isStarted = false
-    /// False from `start()` until VLC opens the new media: the `.stopped`/`.error` of the media it
-    /// replaces arrive after `start()` and must not count as a failure of the new one (two restarts).
-    private var isOpened = false
-    /// Last seek: the image stands still while VLC fetches the new position, not a freeze.
+    /// True once the session has been `.playing`: before that, rebuffering and seeking still read as opening.
+    private var hasPlayed = false
+    /// Last seek: the image stands still while the engine fetches the new position, not a freeze.
     private var lastSeek: Date?
+    /// Seeks issued and not yet landed: the clock's ticks would show the old position meanwhile.
+    private var pendingSeeks = 0
+    private var loadTask: Task<Void, Never>?
+    /// Live: restarts asked by the source itself on the chosen channel, and when the last one ran.
+    private var liveResets = 0
+    private var lastLiveReset: Date?
+    private var deferredReset: Task<Void, Never>?
     private var watchdog: Task<Void, Never>?
     private var scanTask: Task<Void, Never>?
     private var progressTicker: Task<Void, Never>?
     private var toastTask: Task<Void, Never>?
     private var countdownTask: Task<Void, Never>?
     private var zapTask: Task<Void, Never>?
-    private var pendingSeek: TimeInterval?
     private var nextTriggered = false
     var onExit: (() -> Void)?
     /// Bumped once the final report of a playback has reached the server (or the offline queue):
@@ -121,6 +127,9 @@ final class PlayerService: NSObject {
     static let freezeTimeout: TimeInterval = 4
     /// Films and episodes: longer, a seek in a remote MKV can hold the image for a few seconds.
     static let vodFreezeTimeout: TimeInterval = 15
+    /// Live: at most this many source restarts per chosen channel, at least `liveResetGap` apart.
+    static let maxLiveResets = 3
+    static let liveResetGap: TimeInterval = 5
     /// Films and episodes: a stop further than this from the end is a cut, not the end of the file.
     static let endMargin: TimeInterval = 60
     /// Fast forward / rewind speeds, one more level every 2 s of hold.
@@ -133,11 +142,11 @@ final class PlayerService: NSObject {
         self.failedSources = failedSources
         self.progressQueue = progressQueue
         self.capabilities = capabilities
-        self.player = VLCMediaPlayer(options: ["--no-video-title-show"])
-        super.init()
-        player.delegate = self
-        player.drawable = videoView
-        player.timeChangeUpdateInterval = 0.5
+        do { self.engine = try AetherEngine() } catch { fatalError("AetherEngine failed to start: \(error)") }
+        // The app plays no other sound: give the audio session back when the player stops.
+        engine.deactivatesAudioSessionOnStop = true
+        engine.bind(view: videoView)
+        observeEngine()
     }
 
     var chooser: VersionChooser {
@@ -169,6 +178,7 @@ final class PlayerService: NSObject {
         channels = list
         self.channel = channel
         epg = .empty
+        liveResets = 0
         let ctx = PlaybackContext(content: PlaybackContent(id: channel.id, kind: .live, title: channel.name, subtitle: nil, episode: nil, backdrop: nil),
                                   versions: channel.versions)
         play(ctx)
@@ -199,8 +209,8 @@ final class PlayerService: NSObject {
     func stop() {
         sendProgress(final: true)
         cancelTimers()
-        player.stop()
-        player.media = nil
+        loadTask?.cancel(); loadTask = nil
+        engine.stop()
         context = nil; version = nil; source = nil; channel = nil; channels = []
         phase = .idle; time = 0; duration = 0; isMinimized = false
         failure = nil; toast = nil; nextCountdown = nil; nextContext = nil; nextTriggered = false
@@ -213,12 +223,16 @@ final class PlayerService: NSObject {
     /// Live never pauses, like a TV: only a stall or an interruption can stop it, and Play resumes it.
     func togglePlayPause() {
         switch phase {
-        case .playing: if !isLive { player.pause() }
-        case .paused, .ended: player.play()
+        case .playing: if !isLive { engine.pause() }
+        case .paused: engine.play()
+        // `.ended` is terminal for the engine: playing again is a new load from the start.
+        case .ended:
+            guard let context, let version, let source else { return }
+            start(context, version: version, source: source, reason: choiceReason, at: 0)
         default: break
         }
     }
-    func pause() { if phase == .playing, !isLive { player.pause() } }
+    func pause() { if phase == .playing, !isLive { engine.pause() } }
 
     func seek(by delta: TimeInterval) {
         guard !isLive, duration > 0 else { return }
@@ -227,9 +241,13 @@ final class PlayerService: NSObject {
     func seek(to seconds: TimeInterval) {
         guard !isLive, duration > 0 else { return }
         let target = min(max(0, seconds), duration - 1)
-        player.time = VLCTime(int: Int32(target * 1000))
         time = target
         lastSeek = .now
+        pendingSeeks += 1
+        Task { [engine] in
+            await engine.seek(to: target)
+            pendingSeeks -= 1
+        }
         log.info("seek to \(target, format: .fixed(precision: 0))")
         onPlaybackChanged?()
     }
@@ -271,18 +289,25 @@ final class PlayerService: NSObject {
     var endDate: Date { .now.addingTimeInterval(remaining) }
     var fraction: Double { duration > 0 ? shownTime / duration : 0 }
 
+    /// A short reload with a black picture for about a second: the engine rebuilds the session on the new track.
     func select(audio track: Track) {
-        guard let t = player.audioTracks.first(where: { $0.trackId == track.id }) else { return }
-        t.isSelectedExclusively = true
-        refreshTracks()
+        guard let index = Int(track.id) else { return }
+        engine.selectAudioTrack(index: index)
     }
     func select(text track: Track?) {
-        if let track, let t = player.textTracks.first(where: { $0.trackId == track.id }) {
-            t.isSelectedExclusively = true
-        } else {
-            player.deselectAllTextTracks()
-        }
-        refreshTracks()
+        if let track, let index = Int(track.id) { engine.selectSubtitleTrack(index: index) } else { engine.clearSubtitle() }
+    }
+
+    // MARK: - Picture-in-Picture
+
+    var isPictureInPictureAvailable: Bool { pictureInPicture.isAvailable }
+    func startPictureInPicture() { pictureInPicture.start() }
+    /// Wires Picture-in-Picture to this service once; safe to call at every appearance of the player.
+    func attachPictureInPicture() { pictureInPicture.attach(to: self) }
+
+    /// The app activates the session; the engine declares its category and route policy, which a `setCategory` would override.
+    private func activateAudioSession() {
+        try? AVAudioSession.sharedInstance().setActive(true)
     }
 
     // MARK: - Versions while playing
@@ -310,6 +335,7 @@ final class PlayerService: NSObject {
     func retryFromServer() {
         guard let context, let version else { return }
         failure = nil
+        liveResets = 0
         Task { [weak self] in
             guard let self else { return }
             let fresh = (try? await client.playback(id: context.content.id)).map { PlaybackContext(content: context.content, playback: $0) } ?? context
@@ -376,25 +402,30 @@ final class PlayerService: NSObject {
         phase = .opening
         time = position ?? 0
         duration = ctx.duration ?? 0
-        pendingSeek = (position ?? 0) > 1 ? position : nil
         isStarted = false
-        isOpened = false
+        hasPlayed = false
         lastSeek = nil
         audioTracks = []; textTracks = []
 
-        player.stop()
-        let media = VLCMedia(url: s.streamURL)
-        // Per media: the live keeps a short buffer for the zap, VOD a longer one (Réglages › Lecture).
-        media?.addOption(":network-caching=\(isLive ? preferences.liveBufferMs : preferences.vodBufferMs)")
-        // A dropped HTTP connection is reopened by VLC (with a Range on VOD) before the watchdog steps in.
-        media?.addOption(":http-reconnect")
-        // Films and episodes go through FFmpeg's demuxer: VLC 4's own MKV demuxer gives up on the
-        // provider's Cues (stops right after their CRC-32) and every seek re-reads the file from the
-        // start, a freeze. The resume is a seek once playing (`pendingSeek`): with `:start-time`,
-        // avformat counts the time from the resume point and shortens the duration by as much.
-        if !isLive { media?.addOption(":demux=avformat") }
-        player.media = media
-        player.play()
+        // One connection at most: the account allows a single stream, and this also stops the
+        // speculative parallel requests. No `stop()` between two loads: `load` tears the previous session
+        // down and keeps the display criteria from one episode to the next.
+        let options = isLive
+            ? LoadOptions(isLive: true, liveJoinProfile: .fastZap, maxConcurrentSourceRequests: 1)
+            : LoadOptions(maxConcurrentSourceRequests: 1)
+        let resume = !isLive && (position ?? 0) > 1 ? position : nil
+        activateAudioSession()
+        loadTask?.cancel()
+        loadTask = Task { [engine] in
+            do {
+                _ = try await engine.load(url: s.streamURL, startPosition: resume, options: options)
+            } catch is CancellationError {
+                // A newer load or a stop replaced this one: not a failure.
+            } catch {
+                // The same failure also arrives as the engine's `.error` state, counted there only.
+                log.info("load failed: \(error)")
+            }
+        }
         armStartDeadline()
         armWatchdog()
         startProgressTicker()
@@ -408,26 +439,26 @@ final class PlayerService: NSObject {
         if let source { failedSources.clear(source.id) }
     }
 
-    /// Once started, a stream whose image stops moving or disappears while playing is a failed source
-    /// (next source, retry at the same position, then the dialog): the bandwidth at home is not the
-    /// bottleneck, the source is. The upstream closing the connection ends in `.stopped` instead,
-    /// handled in `handle(state:)`.
+    /// Once started, a source that keeps rebuffering or stalling while playing is a failed source (next
+    /// source, retry at the same position, then the dialog): the bandwidth at home is not the bottleneck,
+    /// the source is. A source that closes the connection for good ends in `.ended` or `.error` instead,
+    /// handled in `handle(enginePhase:)`.
     private func armWatchdog() {
         watchdog?.cancel()
         let timeout = isLive ? Self.freezeTimeout : Self.vodFreezeTimeout
         watchdog = Task { [weak self] in
-            var last: UInt64?
             var still: TimeInterval = 0
             let tick: TimeInterval = 1
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(tick))
                 guard let self, !Task.isCancelled else { return }
-                guard isStarted, phase == .playing, let stats = player.media?.statistics else { last = nil; still = 0; continue }
-                if let lastSeek, Date.now.timeIntervalSince(lastSeek) < timeout { last = nil; still = 0; continue }
-                let pictures = stats.displayedPictures
-                // A lost video output (black screen) counts as a frozen image.
-                if !player.hasVideoOut || last.map({ pictures <= $0 }) == true { still += tick } else { still = 0 }
-                last = pictures
+                guard isStarted, phase == .playing else { still = 0; continue }
+                // Just after a seek the engine may take a few seconds to fetch the new position.
+                if let lastSeek, Date.now.timeIntervalSince(lastSeek) < Self.vodFreezeTimeout { still = 0; continue }
+                switch engine.playbackPhase {
+                case .rebuffering, .stalled: still += tick
+                default: still = 0
+                }
                 if still >= timeout {
                     log.info("freeze at \(self.time, format: .fixed(precision: 0))")
                     handleStreamFailure()
@@ -442,7 +473,7 @@ final class PlayerService: NSObject {
         startDeadline = Task { [weak self] in
             try? await Task.sleep(for: Self.startTimeout)
             guard let self, !Task.isCancelled else { return }
-            if phase != .playing || !player.hasVideoOut { handleStreamFailure() }
+            if !engine.hasFirstFrameReadyForDisplay || engine.playbackPhase != .playing { handleStreamFailure() }
         }
     }
 
@@ -461,11 +492,45 @@ final class PlayerService: NSObject {
             start(context, version: version, source: source, reason: choiceReason, at: time)
             return
         }
+        presentFailure()
+    }
+
+    /// Stops and shows the failure dialog.
+    private func presentFailure() {
+        guard let version, let source else { return }
         cancelTimers(keepCountdown: true)
-        player.stop()
+        loadTask?.cancel(); loadTask = nil
+        engine.stop()
         phase = .failed
         failure = Failure(attempts: startAttempts, sourceLabel: "\(version.label) · \(sourceLabel(source, in: version))",
                           hadAlternativeSource: version.sources.count > 1)
+    }
+
+    /// Live: the source restarted from its beginning (the engine parked the session). Same switch as a
+    /// failure, guarded: one restart at a time, `liveResetGap` apart, `maxLiveResets` per channel, then the dialog.
+    private func handleLiveSourceReset() {
+        guard isLive, let source, phase != .opening, phase != .idle, phase != .failed else { return }
+        if liveResets >= Self.maxLiveResets {
+            log.info("live source reset: limit reached")
+            failedSources.markFailed(source.id)
+            presentFailure()
+            return
+        }
+        if let lastLiveReset, Date.now.timeIntervalSince(lastLiveReset) < Self.liveResetGap {
+            guard deferredReset == nil else { return }
+            let wait = Self.liveResetGap - Date.now.timeIntervalSince(lastLiveReset)
+            deferredReset = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(wait))
+                guard let self, !Task.isCancelled else { return }
+                deferredReset = nil
+                handleLiveSourceReset()
+            }
+            return
+        }
+        liveResets += 1
+        lastLiveReset = .now
+        log.info("live source reset \(self.liveResets)/\(Self.maxLiveResets)")
+        handleStreamFailure()
     }
 
     func sourceLabel(_ s: Source, in v: Version) -> String {
@@ -538,89 +603,125 @@ final class PlayerService: NSObject {
     private func cancelTimers(keepCountdown: Bool = false) {
         startDeadline?.cancel(); startDeadline = nil
         watchdog?.cancel(); watchdog = nil
+        deferredReset?.cancel(); deferredReset = nil
         cancelScan()
         progressTicker?.cancel(); progressTicker = nil
         if !keepCountdown { countdownTask?.cancel(); countdownTask = nil }
     }
 
-    private func refreshTracks() {
-        audioTracks = player.audioTracks.map { Track(id: $0.trackId, name: $0.trackName, language: $0.language, isSelected: $0.isSelected) }
-        textTracks = player.textTracks.map { Track(id: $0.trackId, name: $0.trackName, language: $0.language, isSelected: $0.isSelected) }
-    }
-
     var selectedAudioLabel: String { audioTracks.first(where: \.isSelected)?.name ?? "—" }
     var selectedTextLabel: String { textTracks.first(where: \.isSelected)?.name ?? "désactivés" }
-}
 
-// MARK: - VLCMediaPlayerDelegate
+    // MARK: - Engine
 
-extension PlayerService: VLCMediaPlayerDelegate {
-    nonisolated func mediaPlayerStateChanged(_ newState: VLCMediaPlayerState) {
-        Task { @MainActor in self.handle(state: newState) }
-    }
-    nonisolated func mediaPlayerTimeChanged(_ aNotification: Notification) {
-        Task { @MainActor in self.handleTimeChanged() }
-    }
-    nonisolated func mediaPlayerBufferingChanged(_ progress: Float) {
-        Task { @MainActor in self.bufferingProgress = progress }
-    }
-    nonisolated func mediaPlayerLengthChanged(_ length: Int64) {
-        Task { @MainActor in
-            log.info("length \(length) ms")
-            if length > 0 { self.duration = TimeInterval(length) / 1000 }
-        }
-    }
-    nonisolated func mediaPlayerTrackAdded(_ trackId: String, with trackType: VLCMedia.TrackType) {
-        Task { @MainActor in self.refreshTracks() }
-    }
-    nonisolated func mediaPlayerTrackSelected(_ trackType: VLCMedia.TrackType, selectedId: String, unselectedId: String) {
-        Task { @MainActor in self.refreshTracks() }
+    /// Mirrors the engine's published state. Each sink hops to the next main-queue turn first: `@Published`
+    /// emits before it stores the value, and the handlers read the engine.
+    private func observeEngine() {
+        engine.$playbackPhase
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.handle(enginePhase: $0) }
+            .store(in: &cancellables)
+        // Half a second, like the sampling the chrome has always had: every tick is a render transaction.
+        engine.clock.$currentTime
+            .throttle(for: .milliseconds(500), scheduler: DispatchQueue.main, latest: true)
+            .sink { [weak self] in self?.handle(time: $0) }
+            .store(in: &cancellables)
+        engine.$duration
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in if $0 > 0 { self?.duration = $0 } }
+            .store(in: &cancellables)
+        engine.$startupProgress
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.bufferingProgress = Float(($0?.fraction ?? 0) * 100) }
+            .store(in: &cancellables)
+        Publishers.MergeMany([
+            engine.$audioTracks.map { _ in }.eraseToAnyPublisher(),
+            engine.$activeAudioTrackIndex.map { _ in }.eraseToAnyPublisher(),
+            engine.$subtitleTracks.map { _ in }.eraseToAnyPublisher(),
+            engine.$activeSubtitleTrackIndex.map { _ in }.eraseToAnyPublisher(),
+            engine.$isSubtitleActive.map { _ in }.eraseToAnyPublisher(),
+        ])
+        .receive(on: DispatchQueue.main)
+        .sink { [weak self] in self?.refreshTracks() }
+        .store(in: &cancellables)
+        engine.liveSourceReset
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.handleLiveSourceReset() }
+            .store(in: &cancellables)
     }
 
-    private func handle(state: VLCMediaPlayerState) {
-        log.info("state \(VLCMediaPlayerStateToString(state)) time \(self.time, format: .fixed(precision: 0)) duration \(self.duration, format: .fixed(precision: 0)) videoOut \(self.player.hasVideoOut)")
-        switch state {
-        case .opening:
-            isOpened = true
+    private func handle(enginePhase: PlaybackPhase) {
+        log.info("phase \(String(describing: enginePhase)) time \(self.time, format: .fixed(precision: 0)) duration \(self.duration, format: .fixed(precision: 0))")
+        // After `stop()` or a failure the engine's last events are the old session's.
+        guard phase != .idle, phase != .failed else { return }
+        switch enginePhase {
+        case .idle:
+            return
+        case .loading:
             phase = .opening
         case .playing:
             phase = .playing
-            if let pending = pendingSeek, pending > 0, duration > 0 {
-                pendingSeek = nil
-                seek(to: pending)
-            }
-            if player.hasVideoOut { markStarted() }
-            refreshTracks()
-        case .paused: phase = .paused
-        case .stopped where !isOpened, .error where !isOpened:
-            break
-        case .stopped:
-            // The upstream closing the connection ends like the file does: live has no end, and a
-            // film stopping far from its end was cut.
-            if isStarted, phase == .playing, isLive || (duration > 0 && duration - time > Self.endMargin) {
+            hasPlayed = true
+            markStartedIfReady()
+        case .paused:
+            phase = .paused
+        case .seeking, .rebuffering, .stalled:
+            phase = !hasPlayed ? .opening : engine.state == .paused ? .paused : .playing
+        case .ended:
+            // A live has no end, and a film ending far from its end was cut.
+            if isLive || !hasPlayed || (duration > 0 && duration - time > Self.endMargin) {
                 log.info("cut at \(self.time, format: .fixed(precision: 0))")
                 handleStreamFailure()
-            } else if phase == .playing || phase == .paused {
-                phase = .ended
-                if context?.next != nil, nextContext != nil, !nextTriggered, preferences.autoPlayNext { playNextNow() }
+                return
             }
-        case .error: handleStreamFailure()
-        default: break
+            phase = .ended
+            if context?.next != nil, nextContext != nil, !nextTriggered, preferences.autoPlayNext { playNextNow() }
+        case .error:
+            if let info = engine.errorInfo {
+                log.info("error \(String(describing: info.kind)) \(info.underlyingDomain ?? "-") \(info.underlyingCode ?? 0)")
+            }
+            handleStreamFailure()
+            return
         }
         onPlaybackChanged?()
     }
 
-    private func handleTimeChanged() {
-        let ms = player.time.value?.doubleValue ?? 0
-        if ms >= 0 { time = ms / 1000 }
-        if duration == 0, let len = player.media?.length.value?.doubleValue, len > 0 { duration = len / 1000 }
-        if let pending = pendingSeek, duration > 0 {
-            pendingSeek = nil
-            seek(to: pending)
-        }
-        if phase == .playing, player.hasVideoOut { markStarted() }
+    private func handle(time engineTime: TimeInterval) {
+        guard phase != .opening, phase != .idle, !engine.isSeeking, pendingSeeks == 0 else { return }
+        time = engineTime
+        markStartedIfReady()
         maybeStartCountdown()
         onPlaybackChanged?()
+    }
+
+    /// Started: the first picture is on screen and the session is playing.
+    private func markStartedIfReady() {
+        guard phase == .playing, engine.hasFirstFrameReadyForDisplay, engine.playbackPhase == .playing else { return }
+        markStarted()
+    }
+
+    private func refreshTracks() {
+        let audio = engine.audioTracks.map { info in
+            Track(id: String(info.id), name: Self.name(of: info, audio: true), language: info.language,
+                  isSelected: info.id == engine.activeAudioTrackIndex)
+        }
+        let text = engine.subtitleTracks.map { info in
+            Track(id: String(info.id), name: Self.name(of: info, audio: false), language: info.language,
+                  isSelected: engine.isSubtitleActive && info.id == engine.activeSubtitleTrackIndex)
+        }
+        if audio != audioTracks { audioTracks = audio }
+        if text != textTracks { textTracks = text }
+    }
+
+    /// The track's own name, else its language in full, with the codec and channels for audio: "Français (EAC3 5.1)".
+    private static func name(of info: TrackInfo, audio: Bool) -> String {
+        if !info.name.isEmpty { return info.name }
+        let language = info.language.flatMap { Locale(identifier: "fr").localizedString(forLanguageCode: $0)?.localizedCapitalized } ?? "Piste \(info.id)"
+        guard audio else { return language }
+        let channels = switch info.channels { case 0: ""; case 1: "1.0"; case 2: "2.0"; case 6: "5.1"; case 8: "7.1"; default: "\(info.channels) ch" }
+        let detail = [info.codec.uppercased(), channels].filter { !$0.isEmpty }.joined(separator: " ")
+        return detail.isEmpty ? language : "\(language) (\(detail))"
     }
 }
 

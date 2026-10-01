@@ -13,8 +13,6 @@ final class Preferences {
         autoPlayNext = defaults.object(forKey: Keys.autoPlayNext) as? Bool ?? true
         rememberVersionPerTitle = defaults.object(forKey: Keys.rememberVersion) as? Bool ?? true
         switchSourceOnFailure = defaults.object(forKey: Keys.switchSource) as? Bool ?? true
-        liveBufferMs = defaults.object(forKey: Keys.liveBuffer) as? Int ?? Self.defaultLiveBufferMs
-        vodBufferMs = defaults.object(forKey: Keys.vodBuffer) as? Int ?? Self.defaultVODBufferMs
         serverURL = defaults.string(forKey: Keys.serverURL) ?? Self.compiledServerURL
         useMockClient = defaults.object(forKey: Keys.useMock) as? Bool ?? false
         deviceName = defaults.string(forKey: Keys.deviceName) ?? ""
@@ -28,8 +26,6 @@ final class Preferences {
         static let autoPlayNext = "pref.autoPlayNext"
         static let rememberVersion = "pref.rememberVersion"
         static let switchSource = "pref.switchSource"
-        static let liveBuffer = "pref.liveBufferMs"
-        static let vodBuffer = "pref.vodBufferMs"
         static let serverURL = "pref.serverURL"
         static let useMock = "pref.useMock"
         static let deviceName = "pref.deviceName"
@@ -45,16 +41,6 @@ final class Preferences {
     var autoPlayNext: Bool { didSet { defaults.set(autoPlayNext, forKey: Keys.autoPlayNext) } }
     var rememberVersionPerTitle: Bool { didSet { defaults.set(rememberVersionPerTitle, forKey: Keys.rememberVersion) } }
     var switchSourceOnFailure: Bool { didSet { defaults.set(switchSourceOnFailure, forKey: Keys.switchSource) } }
-    /// VLC network buffer of the live, in ms: short keeps the zap quick.
-    var liveBufferMs: Int { didSet { defaults.set(liveBufferMs, forKey: Keys.liveBuffer) } }
-    /// VLC network buffer of movies and episodes, in ms: longer absorbs the provider's hiccups and deep MKV seeks.
-    var vodBufferMs: Int { didSet { defaults.set(vodBufferMs, forKey: Keys.vodBuffer) } }
-    static let defaultLiveBufferMs = 1500
-    static let defaultVODBufferMs = 3000
-    /// The choices of Réglages. Capped at 5 s: VLC fills the buffer before the first frame, and the
-    /// player gives a source 10 s to start.
-    static let liveBufferChoices = [1000, 1500, 3000, 5000]
-    static let vodBufferChoices = [1500, 3000, 5000]
     var serverURL: String { didSet { defaults.set(serverURL, forKey: Keys.serverURL) } }
     /// Réglages › Démo: the embedded fixtures instead of the server. Off by default; previews force it.
     var useMockClient: Bool { didSet { defaults.set(useMockClient, forKey: Keys.useMock) } }
@@ -85,8 +71,6 @@ final class Preferences {
         autoPlayNext = true
         rememberVersionPerTitle = true
         switchSourceOnFailure = true
-        liveBufferMs = Self.defaultLiveBufferMs
-        vodBufferMs = Self.defaultVODBufferMs
         serverURL = Self.compiledServerURL
         deviceName = ""
         rememberedVersions = [:]

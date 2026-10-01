@@ -16,7 +16,6 @@ extension PlayerScreen {
             .allowsRotation()
             .onGeometryChange(for: Bool.self) { $0.size.height > $0.size.width } action: { isPortrait = $0 }
             .onAppear {
-                player.activateAudioSession()
                 player.attachPictureInPicture()
                 #if DEBUG
                 // scripts/shot.sh with LANDSCAPE=1: the player sideways, as after the full-screen button. Read once.

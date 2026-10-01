@@ -1,6 +1,6 @@
+import AetherEngine
+import Combine
 import SwiftUI
-
-import VLCKit
 
 /// Direct in three columns on TV: categories with their count, the channels of the selected one,
 /// and on the right the live preview of the focused channel with its programme. On a phone the
@@ -306,7 +306,7 @@ struct LiveView: View {
     private var side: some View {
         VStack(alignment: .leading, spacing: 20) {
             ZStack {
-                VLCVideoView(view: preview.videoView)
+                VideoSurface(view: preview.videoView)
                 if preview.channelID == nil || !preview.hasImage {
                     VStack(spacing: 10) {
                         Image(systemName: "tv").font(.system(size: 50)).foregroundStyle(Theme.secondary)
@@ -374,44 +374,82 @@ struct LiveView: View {
     }
 }
 
-/// A second, silent VLC instance for the side preview. It closes the previous stream and opens the new one.
+/// Side preview of the focused channel: a second, silent engine with its own surface, created at the
+/// first `show` (a phone has no preview column and never creates it). The account allows one connection,
+/// so `LiveView` stops it before any playback starts.
 @Observable
-final class PreviewPlayer: NSObject, VLCMediaPlayerDelegate {
-    let player = VLCMediaPlayer(options: ["--network-caching=1000", "--no-video-title-show", "--no-audio"])
-    /// The surface VLC draws into, attached once, before any playback.
-    let videoView: PlatformView = makeBlackSurface()
+final class PreviewPlayer {
+    /// The surface the engine draws into, kept here because the engine holds its views weakly.
+    let videoView = AetherPlayerView(frame: .zero)
     private(set) var channelID: ContentID?
     private(set) var hasImage = false
-    private var debounce: Task<Void, Never>?
-
-    override init() {
-        super.init()
-        player.delegate = self
-        player.drawable = videoView
-    }
+    @ObservationIgnored private var engine: AetherEngine?
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var debounce: Task<Void, Never>?
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var streamURL: URL?
+    /// Reloads of the current channel after a source reset: one at most, then the placeholder stays.
+    @ObservationIgnored private var resets = 0
 
     func show(_ channel: Channel) {
         guard channel.id != channelID else { return }
+        stop()
         channelID = channel.id
-        hasImage = false
-        debounce?.cancel()
+        resets = 0
         debounce = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(400))
             guard let self, !Task.isCancelled, let url = channel.versions.first?.sources.first?.streamURL else { return }
-            player.stop()
-            player.media = VLCMedia(url: url)
-            player.play()
+            streamURL = url
+            start(url)
         }
     }
 
+    /// Synchronous: nothing of the preview is still connecting or playing when it returns.
     func stop() {
-        debounce?.cancel()
-        player.stop()
+        debounce?.cancel(); debounce = nil
+        loadTask?.cancel(); loadTask = nil
+        engine?.stop()
+        streamURL = nil
         channelID = nil
         hasImage = false
     }
 
-    nonisolated func mediaPlayerStateChanged(_ newState: VLCMediaPlayerState) {
-        Task { @MainActor in self.hasImage = newState == .playing && self.player.hasVideoOut }
+    private func start(_ url: URL) {
+        let engine = makeEngine()
+        hasImage = false
+        loadTask?.cancel()
+        engine.stop()
+        loadTask = Task {
+            _ = try? await engine.load(url: url, options: LoadOptions(suppressDisplayCriteria: true, isLive: true,
+                                                                      liveJoinProfile: .fastZap, maxConcurrentSourceRequests: 1))
+        }
+    }
+
+    private func makeEngine() -> AetherEngine {
+        if let engine { return engine }
+        let engine: AetherEngine
+        do { engine = try AetherEngine() } catch { fatalError("AetherEngine failed to start: \(error)") }
+        engine.volume = 0
+        // The player screen owns the audio session: the preview must not release it.
+        engine.deactivatesAudioSessionOnStop = false
+        engine.bind(view: videoView)
+        // Each sink hops to the next main-queue turn: `@Published` emits before it stores the value.
+        engine.$hasFirstFrameReadyForDisplay
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                guard let self else { return }
+                hasImage = $0 && channelID != nil
+            }
+            .store(in: &cancellables)
+        engine.liveSourceReset
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                guard let self, let streamURL, resets < 1 else { return }
+                resets += 1
+                start(streamURL)
+            }
+            .store(in: &cancellables)
+        self.engine = engine
+        return engine
     }
 }

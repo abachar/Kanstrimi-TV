@@ -214,7 +214,7 @@ struct PlayerControls: View {
         }
     }
 
-    // Each menu only when it offers a choice; the tracks are known once VLC has read the stream.
+    // Each menu only when it offers a choice; the tracks are known once the player has read the stream.
     private var hasVersions: Bool { (player.context?.versions.count ?? 0) > 1 }
     private var hasAudio: Bool { player.audioTracks.count > 1 }
     private var hasSubtitles: Bool { !player.textTracks.isEmpty }
