@@ -283,7 +283,10 @@ La pastille « Atmos » vient de `TrackInfo.isAtmos`, juste quand l'audio est en
 - **Retour du PiP d'une chaîne** (route logicielle, par le bouton comme par le balayage) : une fois l'image revenue au centre, un
   bref éclair montre l'image de la fenêtre PiP à la place de la vidéo, puis le direct continue. Cosmétique ; les films n'ont rien.
 - **Son perdu sur le direct** sans réaction de l'app : le chien de garde ne regarde que la phase du moteur (`.rebuffering`,
-  `.stalled`), un son coupé pendant `.playing` lui échappe.
+  `.stalled`), un son coupé pendant `.playing` lui échappe. Cause inconnue, en attente d'un cas reproduit : relever les
+  journaux `AetherEngine` et `dev.crafters.kanstrimi` (Console.app, Apple TV branchée) autour de la coupure. Le moteur
+  n'expose aucun état du son ; seul `installAudioTap()` (son décodé) permettrait de voir un flux qui cesse d'envoyer du
+  son, pas un tampon vidé par le système (journalisé « AE#549 », le son revient seul) ni une sortie audio perdue.
 
 ## À mesurer sur appareil
 
