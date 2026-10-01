@@ -28,6 +28,17 @@ export async function contentByKey(ctx: RestContext, key: string): Promise<Conte
   return c ?? null;
 }
 
+/** The visible contents among `keys`, in the order of `keys` (« Ma liste », « Chaînes les plus regardées »). */
+export async function contentsInOrder(ctx: RestContext, keys: string[], kind?: "live" | "vod" | "series"): Promise<Content[]> {
+  if (!keys.length) return [];
+  const rows = await db
+    .select()
+    .from(schema.catalogContents)
+    .where(and(visibleContent(ctx, kind), inArray(schema.catalogContents.key, keys)));
+  const order = new Map(keys.map((k, i) => [k, i]));
+  return rows.sort((a, b) => order.get(a.key)! - order.get(b.key)!);
+}
+
 /** Does a progress or favourite key point at something the app may see? */
 export async function keyExists(ctx: RestContext, key: string): Promise<boolean> {
   const parsed = parseKey(key);

@@ -272,4 +272,22 @@ struct HTTPCatalogClientTests {
         #expect(movieBody["watched"] as? Bool == false)
         #expect(movieBody["season"] == nil)
     }
+
+    @Test("Chaînes les plus regardées : POST …/watch-time, rangée d'accueil, rang sur /channels, type de rangée inconnu toléré")
+    func mostWatchedChannelsTravel() async throws {
+        answer(204, "")
+        try await client.reportWatchTime(id: ContentID("live:fr-tf1"), seconds: 30)
+        #expect(try last.httpMethod == "POST")
+        #expect(try last.url?.path() == "/player/playback/live:fr-tf1/watch-time")
+        let body = try #require(JSONSerialization.jsonObject(with: StubProtocol.bodies.last ?? Data()) as? [String: Any])
+        #expect(body["seconds"] as? Int == 30)
+
+        answer(200, #"{"hero":null,"generated_at":"2026-10-01T18:00:00Z","rows":[{"id":"most-watched-channels","kind":"most_watched_channels","title":"Chaînes les plus regardées","cards":[{"id":"live:fr-tf1","kind":"live","title":"TF1"}]},{"id":"later","kind":"not_yet_known","title":"Plus tard","cards":[]}]}"#)
+        let home = try await client.home()
+        #expect(home.rows.map(\.kind) == [.mostWatchedChannels, .other])
+
+        answer(200, #"[{"id":"fr-generalistes","name":"France · Généralistes","channels":[{"id":"live:fr-tf1","name":"TF1","number":1,"logo":null,"has_epg":false,"is_favorite":false,"versions":[],"watched_rank":1},{"id":"live:fr-m6","name":"M6","number":6,"logo":null,"has_epg":false,"is_favorite":false,"versions":[]}]}]"#)
+        let channels = try await client.channels().flatMap(\.channels)
+        #expect(channels.map(\.watchedRank) == [1, nil])
+    }
 }

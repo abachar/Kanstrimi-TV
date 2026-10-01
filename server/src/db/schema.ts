@@ -444,6 +444,20 @@ export const appWatchProgress = pgTable("app_watch_progress", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * Seconds of live watched, per channel and per day (the server's `TZ`): the app adds what it played
+ * every 30 s and when it leaves a channel. « Chaînes les plus regardées » sums the last 30 days.
+ */
+export const appLiveWatch = pgTable(
+  "app_live_watch",
+  {
+    contentKey: text("content_key").notNull(),
+    day: date("day").notNull(),
+    seconds: integer("seconds").default(0).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.contentKey, t.day] })],
+);
+
 /** "Ma liste": movies, series and channels by content key. */
 export const appFavorites = pgTable("app_favorites", {
   contentKey: text("content_key").primaryKey(),

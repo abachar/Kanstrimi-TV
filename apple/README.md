@@ -83,8 +83,15 @@ Langue (fiche d'une série) et l'appui long sur Lecture n'existent que si le sé
 d'une piste, Sous-titres avec au moins une piste (sinon « Désactivés » serait le seul choix). Les pistes arrivent avec
 la lecture : ces boutons apparaissent alors.
 
-**Direct sur iPhone** : un menu sous le titre choisit la catégorie (Récentes, Favoris, puis les groupes rangés par
+**Direct sur iPhone** : un menu sous le titre choisit la catégorie (Récentes, Les plus regardées, Favoris, puis les groupes rangés par
 marché, « France » › « Sport »), trop nombreuses pour une ligne de pastilles.
+
+**Chaînes les plus regardées** : pendant la lecture d'une chaîne, `PlayerService` envoie le temps regardé depuis la première image
+(`POST /playback/{id}/watch-time`, toutes les 30 s, en quittant la chaîne et sur un échec ; l'aperçu du Direct ne compte pas).
+Le serveur en tire la rangée d'accueil « Chaînes les plus regardées » (juste après « Reprendre ») et le rang `watched_rank` des
+chaînes, d'où la catégorie « Les plus regardées » du Direct, choisie par défaut quand Récentes est vide. Une carte de chaîne
+d'une rangée (`ChannelCard` : logo sur une tuile 16:9, programme en cours) lance la chaîne. Un type de rangée inconnu de
+l'app (`HomeRowKind.other`) s'affiche en rangée simple au lieu de faire échouer l'accueil.
 
 **Fiche** : Lecture/Reprendre en bouton plein, les autres actions en pastilles rondes (`IconAction`) : sur tvOS le
 libellé n'apparaît que sous la pastille focalisée, sur iPhone il est toujours affiché. Ma liste = cœur

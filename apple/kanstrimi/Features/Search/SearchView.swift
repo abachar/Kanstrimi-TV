@@ -168,11 +168,7 @@ struct SearchView: View {
     private func play(_ c: Card) {
         Task {
             if c.kind == .live {
-                guard let groups = try? await env.call({ try await env.client.channels() }) else { return }
-                let all = groups.flatMap(\.channels)
-                guard let ch = all.first(where: { $0.id == c.id }) else { return }
-                env.player.play(channel: ch, in: all)
-                env.recentChannels.record(ch.id)
+                await env.watchChannel(c.id)
             } else if let ctx = try? await env.playbackContext(for: c) {
                 env.player.play(ctx)
             }

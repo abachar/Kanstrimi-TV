@@ -180,6 +180,8 @@ final class MockCatalogClient: CatalogClient {
         resume.sort { ($0.progress?.fraction ?? 0) > ($1.progress?.fraction ?? 0) }
         var rows: [HomeRow] = []
         if !resume.isEmpty { rows.append(HomeRow(id: "resume", kind: .resume, title: "Reprendre", cards: resume)) }
+        let watched = mostWatched.map { Card(id: $0.id, kind: .live, title: $0.name, poster: $0.logo) }
+        rows.append(HomeRow(id: "most-watched-channels", kind: .mostWatchedChannels, title: "Chaînes les plus regardées", cards: watched))
         rows.append(HomeRow(id: "recent-movies", kind: .recentMovies, title: "Nouveautés", cards: recentMovies.prefix(12).map { card(for: $0) }))
         rows.append(HomeRow(id: "recent-series", kind: .recentSeries, title: "Derniers épisodes", cards: recentSeries.prefix(12).map { card(for: $0) }))
         let favs = allCards.filter { favorites.contains($0.id) }.map { card(for: $0) }
@@ -272,8 +274,18 @@ final class MockCatalogClient: CatalogClient {
 
     func channels() async throws -> [ChannelGroup] {
         try await gate()
-        return groups.map { g in ChannelGroup(id: g.id, name: g.name, channels: g.channels.map { withFavorite($0) }) }
+        let ranks = Dictionary(mostWatched.enumerated().map { ($1.id, $0 + 1) }, uniquingKeysWith: { a, _ in a })
+        return groups.map { g in
+            ChannelGroup(id: g.id, name: g.name, channels: g.channels.map { c in
+                var c = withFavorite(c)
+                c.watchedRank = ranks[c.id]
+                return c
+            })
+        }
     }
+
+    /// The demo has no watch time: the first channels of the list stand for the most watched.
+    private var mostWatched: [Channel] { Array(groups.flatMap(\.channels).prefix(6)) }
 
     func channel(id: ContentID) async throws -> Channel {
         try await gate()
@@ -345,6 +357,10 @@ final class MockCatalogClient: CatalogClient {
         try await gate()
         progress[report.contentID] = Progress(position: report.position, duration: report.duration,
                                               finished: report.duration > 0 && report.position / report.duration >= 0.9)
+    }
+
+    func reportWatchTime(id: ContentID, seconds: Int) async throws {
+        try await gate()
     }
 
     // MARK: - Search and favourites

@@ -125,6 +125,8 @@ protocol CatalogClient: AnyObject {
     func playback(id: ContentID) async throws -> Playback
     /// `PUT /playback/{id}/progress`
     func report(_ progress: ProgressReport) async throws
+    /// `POST /playback/{id}/watch-time`: seconds of a channel played since the last report (« Chaînes les plus regardées »).
+    func reportWatchTime(id: ContentID, seconds: Int) async throws
     /// `DELETE /playback/{id}/progress`: out of « Reprendre », the resume point forgotten.
     func removeFromResume(id: ContentID) async throws
     /// `PUT /playback/{id}/watched`: a movie or an episode; on a series id with `season`, that whole season.

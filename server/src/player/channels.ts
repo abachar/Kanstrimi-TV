@@ -7,6 +7,7 @@ import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
 import { contentByKey, liveCategories, variantsOf, visibleContent } from "./contents";
 import { favoriteSet } from "./favorites";
+import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
 import { playableOfItem, qualityOfRank, versionsOf } from "./versions";
 import { dayProgrammes, epgOf, type ChannelEpg } from "./epg";
 import { channelLogo } from "./cards";
@@ -35,7 +36,14 @@ channelRoutes.get("/:id/programmes", async (c) => {
 });
 
 /** Lists and sheets alike carry `now` / `next`: the app rolls over on `end` without asking again. */
-function channelWire(ctx: RestContext, c: Content, versions: Version[], favs: Set<string>, epg: ChannelEpg | undefined): ChannelWire {
+function channelWire(
+  ctx: RestContext,
+  c: Content,
+  versions: Version[],
+  favs: Set<string>,
+  epg: ChannelEpg | undefined,
+  watchedRank?: number,
+): ChannelWire {
   return {
     id: c.key,
     name: c.title,
@@ -47,6 +55,7 @@ function channelWire(ctx: RestContext, c: Content, versions: Version[], favs: Se
     versions,
     now: epg?.now ?? null,
     next: epg?.next ?? null,
+    ...(watchedRank ? { watched_rank: watchedRank } : {}),
   };
 }
 
@@ -102,7 +111,7 @@ const themeRank = (t: string) => {
  * the provider's own labels alphabetically.
  */
 export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[]> {
-  const [channels, items, favs] = await Promise.all([
+  const [channels, items, favs, watchedKeys] = await Promise.all([
     db
       .select()
       .from(schema.catalogContents)
@@ -113,7 +122,15 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
       .from(schema.catalogVariants)
       .where(and(eq(schema.catalogVariants.kind, "live"), visibleItem, sql`${schema.catalogVariants.contentId} is not null`)),
     favoriteSet(),
+    mostWatchedKeys(),
   ]);
+  const visibleKeys = new Set(channels.map((c) => c.key));
+  const watchedRank = new Map(
+    watchedKeys
+      .filter((k) => visibleKeys.has(k))
+      .slice(0, MOST_WATCHED_LIMIT)
+      .map((k, i) => [k, i + 1]),
+  );
   const catName = new Map((await liveCategories()).map((c) => [c.xtreamId, c.name]));
   const epg = await epgOf(channels.map((c) => c.epgChannelId ?? ""));
   const byContent = new Map<number, Variant[]>();
@@ -128,7 +145,7 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
       ctx,
       its.map((i) => playableOfItem(i, i.categoryXtreamId ? (catName.get(i.categoryXtreamId) ?? null) : null)),
     );
-    const wire = channelWire(ctx, c, versions, favs, epg.get(c.epgChannelId ?? ""));
+    const wire = channelWire(ctx, c, versions, favs, epg.get(c.epgChannelId ?? ""), watchedRank.get(c.key));
     for (const theme of c.themes.length ? c.themes : [LIVE_THEMES[0]]) {
       const key = `${c.market ?? ""}|${theme}`;
       const g = groups.get(key) ?? { market: c.market, theme, channels: [] };

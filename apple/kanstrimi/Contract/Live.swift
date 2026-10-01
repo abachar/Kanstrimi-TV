@@ -25,18 +25,22 @@ nonisolated struct Channel: Codable, Hashable, Identifiable, Sendable {
     let versions: [Version]
     let now: Programme?
     let next: Programme?
+    /// 1 = the most watched over the last 30 days (« Les plus regardées », 10 channels at most); nil otherwise.
+    var watchedRank: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, name, number, logo, versions, now, next
         case maxQuality = "max_quality"
         case hasEPG = "has_epg"
         case isFavorite = "is_favorite"
+        case watchedRank = "watched_rank"
     }
 
     init(id: ContentID, name: String, number: Int? = nil, logo: URL? = nil, maxQuality: Quality? = nil, hasEPG: Bool? = nil,
-         isFavorite: Bool? = nil, versions: [Version] = [], now: Programme? = nil, next: Programme? = nil) {
+         isFavorite: Bool? = nil, versions: [Version] = [], now: Programme? = nil, next: Programme? = nil, watchedRank: Int? = nil) {
         self.id = id; self.name = name; self.number = number; self.logo = logo; self.maxQuality = maxQuality ?? versions.maxQuality
         self.hasEPG = hasEPG; self.isFavorite = isFavorite; self.versions = versions; self.now = now; self.next = next
+        self.watchedRank = watchedRank
     }
 
     init(from decoder: Decoder) throws {
@@ -51,6 +55,7 @@ nonisolated struct Channel: Codable, Hashable, Identifiable, Sendable {
         isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite)
         now = try c.decodeIfPresent(Programme.self, forKey: .now)
         next = try c.decodeIfPresent(Programme.self, forKey: .next)
+        watchedRank = try c.decodeIfPresent(Int.self, forKey: .watchedRank)
     }
 }
 

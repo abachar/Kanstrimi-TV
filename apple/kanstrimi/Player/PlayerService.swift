@@ -95,6 +95,8 @@ final class PlayerService {
     private var startDeadline: Task<Void, Never>?
     /// True once the stream shows images: the start deadline hands over to the freeze watchdog.
     private var isStarted = false
+    /// Live: since when the channel has been counted for « Chaînes les plus regardées », from its first image.
+    private var liveWatchedFrom: Date?
     /// True once the session has been `.playing`: before that, rebuffering and seeking still read as opening.
     private var hasPlayed = false
     /// Last seek: the image stands still while the engine fetches the new position, not a freeze.
@@ -445,6 +447,7 @@ final class PlayerService {
     private func markStarted() {
         guard !isStarted else { return }
         isStarted = true
+        if isLive, liveWatchedFrom == nil { liveWatchedFrom = .now }
         startAttempts = 0
         startDeadline?.cancel()
         if let source { failedSources.clear(source.id) }
@@ -509,6 +512,7 @@ final class PlayerService {
     /// Stops and shows the failure dialog.
     private func presentFailure() {
         guard let version, let source else { return }
+        sendWatchTime(final: true)
         cancelTimers(keepCountdown: true)
         loadTask?.cancel(); loadTask = nil
         engine.stop()
@@ -598,8 +602,11 @@ final class PlayerService {
         }
     }
 
+    /// Films and episodes: the position. Live: the time watched since the last report (every 30 s, and
+    /// when leaving the channel), the restarts of the same channel included.
     private func sendProgress(final: Bool) {
-        guard let context, !isLive, duration > 0, time > 0 else { return }
+        if isLive { return sendWatchTime(final: final) }
+        guard let context, duration > 0, time > 0 else { return }
         let report = ProgressReport(contentID: context.content.id, position: time, duration: duration, sentAt: .now)
         Task { [weak self, client, progressQueue] in
             do {
@@ -610,6 +617,14 @@ final class PlayerService {
             }
             if final { self?.progressRevision += 1 }
         }
+    }
+
+    private func sendWatchTime(final: Bool) {
+        guard let context, let from = liveWatchedFrom else { return }
+        let seconds = Int(Date.now.timeIntervalSince(from))
+        liveWatchedFrom = final ? nil : .now
+        guard seconds > 0 else { return }
+        Task { [client] in try? await client.reportWatchTime(id: context.content.id, seconds: seconds) }
     }
 
     private func cancelTimers(keepCountdown: Bool = false) {

@@ -4,21 +4,22 @@ import { db, schema, type Content } from "@/db";
 import { hasTmdbKey, isEpisodeKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
-import { isNewRelease, variantsOf, visibleContent } from "./contents";
+import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./contents";
 import { getProgress, resumeKeys, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
+import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
 import { baseCard, gridCard, progressWire, sheetCard } from "./cards";
 import { versionsOf, versionsSummary } from "./versions";
 import type { Card, Home, HomeRow } from "./types";
 
-/** `/home`: hero, "Reprendre", recent movies and series, "Ma liste". */
+/** `/home`: hero, "Reprendre", "Chaînes les plus regardées", recent movies and series, "Ma liste". */
 export const homeRoutes = new Hono<Env>();
 homeRoutes.get("/", async (c) => json(await home(c.get("ctx"))));
 
 const HOME_ROW = 24;
 
 export async function home(ctx: RestContext): Promise<Home> {
-  const [resume, recentMovies, recentSeries, favKeys] = await Promise.all([
+  const [resume, recentMovies, recentSeries, favKeys, watchedKeys] = await Promise.all([
     resumeKeys(20),
     db
       .select()
@@ -33,10 +34,20 @@ export async function home(ctx: RestContext): Promise<Home> {
       .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
       .limit(HOME_ROW),
     favoriteKeys(),
+    mostWatchedKeys(),
   ]);
   const rows: HomeRow[] = [];
   const resumeCards = await resumeCardsOf(ctx, resume);
   if (resumeCards.length) rows.push({ id: "resume", kind: "resume", title: "Reprendre", cards: resumeCards });
+  const watched = await contentsInOrder(ctx, watchedKeys, "live");
+  if (watched.length) {
+    rows.push({
+      id: "most-watched-channels",
+      kind: "most_watched_channels",
+      title: "Chaînes les plus regardées",
+      cards: watched.slice(0, MOST_WATCHED_LIMIT).map((c) => gridCard(ctx, c)),
+    });
+  }
   const progress = await getProgress([...recentMovies, ...recentSeries].map((c) => c.key));
   if (recentMovies.length) {
     rows.push({
@@ -54,15 +65,8 @@ export async function home(ctx: RestContext): Promise<Home> {
       cards: recentSeries.map((c) => gridCard(ctx, c, progress.get(c.key))),
     });
   }
-  if (favKeys.length) {
-    const favs = await db
-      .select()
-      .from(schema.catalogContents)
-      .where(and(visibleContent(ctx), inArray(schema.catalogContents.key, favKeys)));
-    const order = new Map(favKeys.map((k, i) => [k, i]));
-    favs.sort((a, b) => order.get(a.key)! - order.get(b.key)!);
-    if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => gridCard(ctx, c)) });
-  }
+  const favs = await contentsInOrder(ctx, favKeys);
+  if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => gridCard(ctx, c)) });
   const heroContent = recentMovies.find((c) => c.posterPath && c.backdropPath) ?? recentMovies[0];
   let hero: Home["hero"] = null;
   if (heroContent) {

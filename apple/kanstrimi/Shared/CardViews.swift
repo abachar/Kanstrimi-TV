@@ -165,6 +165,35 @@ struct ResumeCard: View {
     }
 }
 
+/// A channel in a row of cards (« Chaînes les plus regardées », « Ma liste »): its logo on a 16:9 tile, its name
+/// and the programme on air.
+struct ChannelCard: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
+    let card: Card
+    let action: () -> Void
+    @State private var now: Programme?
+
+    var body: some View {
+        let width = metrics.resumeWidth
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                ZStack {
+                    Theme.art(for: card.id).opacity(0.35)
+                    ChannelLogo(channel: Channel(id: card.id, name: card.title, logo: card.poster), size: width * 9 / 16 * 0.6)
+                }
+                .frame(width: width, height: width * 9 / 16)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                Text(card.title).font(.callout.weight(.semibold)).lineLimit(1)
+                Text(now?.title ?? "En direct").font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
+            }
+            .frame(width: width)
+        }
+        .cardButtonStyle()
+        .task { now = await env.channelCache.channel(card.id)?.now }
+    }
+}
+
 /// iPhone: a long press on a poster offers to play it at once or to open its sheet. Nothing on tvOS.
 struct PosterMenu: ViewModifier {
     @Environment(AppEnvironment.self) private var env
@@ -214,6 +243,8 @@ struct CardRow: View {
                         Group {
                             if landscape {
                                 ResumeCard(card: c) { onSelect(c) }
+                            } else if c.kind == .live {
+                                ChannelCard(card: c) { onSelect(c) }
                             } else {
                                 PosterCard(card: c) { onSelect(c) }
                             }

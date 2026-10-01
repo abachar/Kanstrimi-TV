@@ -82,6 +82,11 @@ final class HTTPCatalogClient: CatalogClient {
                                 body: Body(position: progress.position.rounded(), duration: progress.duration.rounded()))
     }
 
+    func reportWatchTime(id: ContentID, seconds: Int) async throws {
+        struct Body: Encodable { let seconds: Int }
+        try await sendNoContent("POST", "playback/\(id.rawValue)/watch-time", body: Body(seconds: seconds))
+    }
+
     // MARK: - Search, favourites
 
     func search(_ query: String, scope: SearchScope) async throws -> SearchResults {

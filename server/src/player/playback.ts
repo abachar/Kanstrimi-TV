@@ -7,11 +7,13 @@ import { contentByKey, keyExists, variantsOf } from "./contents";
 import { deleteProgress, getProgress, isResumable, setFinished, setProgress } from "./progress";
 import { versionsOf, versionsSummary } from "./versions";
 import { episodeWire, loadEpisodes } from "./episodes";
+import { addWatchTime } from "./watch-time";
 import type { Playback } from "./types";
 
 /**
  * `/playback/{id}`: versions, resume point and next episode; `PUT …/progress`: the position watched;
- * `DELETE …/progress`: out of « Reprendre »; `PUT …/watched`: seen or not, a whole season on a series id.
+ * `DELETE …/progress`: out of « Reprendre »; `PUT …/watched`: seen or not, a whole season on a series id;
+ * `POST …/watch-time`: seconds of a channel played, for « Chaînes les plus regardées ».
  */
 export const playbackRoutes = new Hono<Env>();
 
@@ -68,6 +70,18 @@ playbackRoutes.put("/:id/watched", async (c) => {
   }
   if (!(await keyExists(ctx, key))) return fail("not_found", "Contenu introuvable");
   await setFinished(key, body.data.watched);
+  return noContent();
+});
+
+const watchTimeBody = z.object({ seconds: z.number().min(0).finite() });
+/** A channel only: what the app played since its last report, added to today's total. */
+playbackRoutes.post("/:id/watch-time", async (c) => {
+  const key = c.req.param("id");
+  if (parseKey(key)?.kind !== "live") return fail("not_found", "Chaîne introuvable");
+  const body = watchTimeBody.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return fail("bad_request", "seconds (≥ 0) attendu");
+  if (!(await keyExists(c.get("ctx"), key))) return fail("not_found", "Chaîne introuvable");
+  await addWatchTime(key, body.data.seconds);
   return noContent();
 });
 

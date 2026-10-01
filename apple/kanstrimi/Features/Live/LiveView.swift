@@ -6,7 +6,7 @@ import SwiftUI
 /// and on the right the live preview of the focused channel with its programme. On a phone the
 /// categories are chips above the channel list and a tap plays the channel; no preview.
 struct LiveView: View {
-    private enum CategoryID: Hashable { case recent, favorites, group(String) }
+    private enum CategoryID: Hashable { case recent, mostWatched, favorites, group(String) }
 
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
@@ -24,11 +24,17 @@ struct LiveView: View {
     private var allChannels: [Channel] { groups.flatMap(\.channels) }
     private var recents: [Channel] { env.recentChannels.entries.compactMap { e in allChannels.first { $0.id == e.channelID } } }
     private var favorites: [Channel] { allChannels.filter { $0.isFavorite == true } }
+    /// The server's ranking over the last 30 days; a channel sits in several groups, counted once.
+    private var mostWatched: [Channel] {
+        var seen = Set<ContentID>()
+        return allChannels.filter { $0.watchedRank != nil && seen.insert($0.id).inserted }.sorted { $0.watchedRank! < $1.watchedRank! }
+    }
 
     /// The channels of the selected category, in the order used for zapping.
     private var visible: [Channel] {
         switch selected {
         case .recent: recents
+        case .mostWatched: mostWatched
         case .favorites: favorites
         case .group(let id): groups.first { $0.id == id }?.channels ?? []
         }
@@ -97,7 +103,9 @@ struct LiveView: View {
         do {
             groups = try await env.call { try await env.client.channels() }
             error = nil
-            if recents.isEmpty { selected = favorites.isEmpty ? .group(groups.first?.id ?? "") : .favorites }
+            if recents.isEmpty {
+                selected = !mostWatched.isEmpty ? .mostWatched : !favorites.isEmpty ? .favorites : .group(groups.first?.id ?? "")
+            }
             if focusedChannelID == nil, let first = visible.first { focusChannel(first.id) }
         } catch {
             self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
@@ -119,13 +127,14 @@ struct LiveView: View {
         if metrics.liveColumns { preview.show(c) }
     }
 
-    /// Phone: the selected category as a button whose menu lists them all, Récentes and Favoris first,
+    /// Phone: the selected category as a button whose menu lists them all, Récentes, Les plus regardées and Favoris first,
     /// then the groups by market ("France · Sport" under France). Too many groups for a row of chips.
     private var categoryMenu: some View {
         Menu {
-            if !recents.isEmpty || !favorites.isEmpty {
+            if !recents.isEmpty || !mostWatched.isEmpty || !favorites.isEmpty {
                 Section {
                     if !recents.isEmpty { menuItem(.recent, name: "Récentes", count: recents.count, icon: "clock") }
+                    if !mostWatched.isEmpty { menuItem(.mostWatched, name: "Les plus regardées", count: mostWatched.count, icon: "flame") }
                     if !favorites.isEmpty { menuItem(.favorites, name: "Favoris", count: favorites.count, icon: "heart") }
                 }
             }
@@ -177,6 +186,7 @@ struct LiveView: View {
     private var selectedName: String {
         switch selected {
         case .recent: "Récentes"
+        case .mostWatched: "Les plus regardées"
         case .favorites: "Favoris"
         case .group(let id): groups.first { $0.id == id }?.name ?? "Catégorie"
         }
@@ -189,6 +199,7 @@ struct LiveView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Direct").font(.largeTitle.weight(.bold)).padding(.bottom, 16)
                 if !recents.isEmpty { categoryRow(.recent, name: "Récentes", count: recents.count, icon: "clock") }
+                if !mostWatched.isEmpty { categoryRow(.mostWatched, name: "Les plus regardées", count: mostWatched.count, icon: "flame") }
                 if !favorites.isEmpty { categoryRow(.favorites, name: "Favoris", count: favorites.count, icon: "heart") }
                 ForEach(groups) { g in categoryRow(.group(g.id), name: g.name, count: g.channels.count, icon: nil) }
             }
@@ -203,8 +214,10 @@ struct LiveView: View {
             selected = id
             if let first = visible.first { focus = .channel(first.id) }
         } label: {
-            HStack(spacing: 14) {
-                if let icon { Image(systemName: icon).frame(width: 30) }
+            // Every name starts at the same edge: the groups keep an empty slot where the others have their icon,
+            // which faces the name rather than the two lines.
+            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                Image(systemName: icon ?? "circle").frame(width: 30).opacity(icon == nil ? 0 : 1)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name).font(on ? .callout.weight(.semibold) : .callout)
                     Text("\(count) chaîne\(count > 1 ? "s" : "")").font(.caption).foregroundStyle(Theme.secondary)

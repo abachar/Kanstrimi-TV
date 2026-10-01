@@ -1020,6 +1020,54 @@ describe("« Reprendre » cleanup and watched marks", () => {
   });
 });
 
+describe("« Chaînes les plus regardées »", () => {
+  const watch = (id: string, body: unknown) => call(`/playback/${id}/watch-time`, { method: "POST", body: JSON.stringify(body) });
+  const homeRows = async () => (await get("/home")).body.rows.map((r: { id: string }) => r.id);
+  const ranks = async () =>
+    Object.fromEntries(
+      (await get("/channels")).body
+        .flatMap((g: { channels: { id: string; watched_rank?: number }[] }) => g.channels)
+        .map((c: { id: string; watched_rank?: number }) => [c.id, c.watched_rank ?? null]),
+    );
+
+  it("POST /playback/{id}/watch-time: a channel only, seconds ≥ 0, a report capped at 10 minutes", async () => {
+    expect((await watch("live:fr-tf1", { seconds: -1 })).status).toBe(400);
+    expect((await watch("live:fr-tf1", {})).status).toBe(400);
+    expect((await watch("tmdb:movie:603", { seconds: 30 })).status).toBe(404);
+    expect((await watch("live:fr-nope", { seconds: 30 })).status).toBe(404);
+    expect((await watch("live:fr-tf1", { seconds: 200 })).status).toBe(204);
+    await watch("live:fr-tf1", { seconds: 5000 });
+    const rows = await db.select().from(schema.appLiveWatch);
+    expect(rows.map((r) => [r.contentKey, r.seconds])).toEqual([["live:fr-tf1", 800]]);
+  });
+
+  it("5 minutes over the last 30 days at least, most watched first: a home row after « Reprendre » and a rank on /channels", async () => {
+    const day = (n: number) => ymd(daysAgo(n));
+    await db.insert(schema.appLiveWatch).values([
+      { contentKey: "live:fr-bein-sports-1", day: day(1), seconds: 2000 },
+      // Out of the window: 30 days ago does not count.
+      { contentKey: "live:fr-tf1", day: day(30), seconds: 99999 },
+    ]);
+    const rows = await homeRows();
+    // First, or right after « Reprendre » when something is in progress.
+    expect(rows.filter((id: string) => id !== "resume")[0]).toBe("most-watched-channels");
+    const row = (await get("/home")).body.rows.find((r: { id: string }) => r.id === "most-watched-channels");
+    expect(row).toMatchObject({ kind: "most_watched_channels", title: "Chaînes les plus regardées" });
+    expect(row.cards.map((c: { id: string; kind: string }) => [c.id, c.kind])).toEqual([
+      ["live:fr-bein-sports-1", "live"],
+      ["live:fr-tf1", "live"],
+    ]);
+    expect(await ranks()).toEqual({ "live:fr-tf1": 2, "live:fr-bein-sports-1": 1 });
+  });
+
+  it("below 5 minutes, nothing", async () => {
+    await db.delete(schema.appLiveWatch);
+    await watch("live:fr-tf1", { seconds: 299 });
+    expect(await homeRows()).not.toContain("most-watched-channels");
+    expect(await ranks()).toEqual({ "live:fr-tf1": null, "live:fr-bein-sports-1": null });
+  });
+});
+
 describe("GET /stream/{source}", () => {
   it("302 to the provider for a signed link, 401 when tampered, expired or revoked", async () => {
     const sheet = (await get("/movies/tmdb:movie:603")).body;

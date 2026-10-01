@@ -79,6 +79,15 @@ final class AppEnvironment {
         info = try? await call { try await client.info() }
     }
 
+    /// Plays a channel from a card (search, home): its versions and the zapping order come with the channel list.
+    func watchChannel(_ id: ContentID) async {
+        guard let groups = try? await call({ try await client.channels() }) else { return }
+        let all = groups.flatMap(\.channels)
+        guard let channel = all.first(where: { $0.id == id }) else { return }
+        player.play(channel: channel, in: all)
+        recentChannels.record(channel.id)
+    }
+
     /// `GET /playback/{id}` wrapped with what the player needs to know about the content.
     func playbackContext(for card: Card) async throws -> PlaybackContext {
         let playback = try await call { try await client.playback(id: card.id) }

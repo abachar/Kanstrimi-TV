@@ -46,11 +46,11 @@ Ce qui vient après la V1.1 (tvOS et iPhone), par version, puis les idées non p
 - **V1.2** :
   - **Défauts constatés sur appareil** (`apple/README.md`) : son perdu sur le direct.
   - **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).
-  - **Chaînes les plus vues** : une rangée d'accueil des chaînes du direct les plus regardées. Mesure à choisir : temps de
-    visionnage ou nombre de lectures.
 - **V1.3** :
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la
     fiche d'un film ou d'une série, et proposés à la fin d'un film ou du dernier épisode connu d'une série.
 - Non planifiées :
+  - **Fond qui suit le focus (tvOS, POC)** : un film ou une série qui prend le focus change le fond de l'écran pour son
+    affiche, pour éviter les grands aplats noirs.
   - **« Director's Cut » / « Extended »** : reconnaître ces mentions dans le nettoyage des noms, pour ne pas gêner le rapprochement TMDB et le regroupement.

@@ -96,12 +96,14 @@ export type ChannelWire = {
   versions: Version[];
   now?: Programme | null;
   next?: Programme | null;
+  /** 1 = the most watched over the last 30 days (« Les plus regardées », 10 channels at most); absent otherwise. */
+  watched_rank?: number;
 };
 export type ChannelGroupWire = { id: string; name: string; channels: ChannelWire[] };
 
 export type HomeRow = {
   id: string;
-  kind: "resume" | "recent_movies" | "recent_series" | "favorites" | "collection";
+  kind: "resume" | "most_watched_channels" | "recent_movies" | "recent_series" | "favorites" | "collection";
   title: string;
   cards: Card[];
 };

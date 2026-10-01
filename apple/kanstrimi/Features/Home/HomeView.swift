@@ -58,7 +58,9 @@ struct HomeView: View {
                     ForEach(home.rows) { row in
                         CardRow(title: row.title, cards: row.cards, landscape: row.kind == .resume,
                                 actions: row.kind == .resume ? { card in resumeActions(card, model: model) } : { _ in [] }) { card in
-                            if row.kind == .resume { model.resume(card) } else { env.open(card.id) }
+                            if row.kind == .resume { model.resume(card) }
+                            else if card.kind == .live { Task { await env.watchChannel(card.id) } }
+                            else { env.open(card.id) }
                         }
                     }
                     Spacer(minLength: 60)
