@@ -30,15 +30,6 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
   **anglais** dans les commentaires de code.
 - Chaque dossier porte ses décisions structurantes dans son `README.md`.
 
-## Décisions figées
-
-- **Un seul client : l'app Apple** (tvOS et iOS, un seul code). L'API Xtream-compatible pour les players du marché
-  (TiviMate, Smarters…) était un prototype ; elle a été retirée le 2026-09-27.
-- Pas de multi-utilisateur, pas de multi-fournisseur, un seul mot de passe (admin web et
-  compte client IPTV).
-- Abandonné : Rust + Askama, SQLite, client Fire TV, AVPlayer côté app Apple (le fournisseur
-  ne sert pas de HLS ; AetherEngine lit tout, MKV et TS compris, sans relais).
-
 ## Pistes
 
 Ce qui vient après la V1.2 (tvOS et iPhone), par version, puis les idées non planifiées.

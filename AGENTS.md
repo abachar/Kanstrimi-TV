@@ -2,7 +2,7 @@
 
 La documentation du projet tient en trois fichiers, à lire dans cet ordre avant de coder :
 
-1. `README.md` (racine) — ce que fait le système, ses deux composants, les conventions communes et les décisions figées.
+1. `README.md` (racine) — ce que fait le système, ses deux composants et les conventions communes.
 2. `server/README.md` — si l'on touche au serveur.
 3. `apple/README.md` — si l'on touche à l'app Apple (tvOS, iOS).
 
