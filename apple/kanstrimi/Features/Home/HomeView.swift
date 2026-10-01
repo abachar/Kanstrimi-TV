@@ -1,11 +1,18 @@
 import SwiftUI
 
-/// Hero, then the rows the server composed [3]. Offline: the last home received, from disk [17].
+/// The carousel, then the rows the server composed [3]. Offline: the last home received, from disk [17].
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
     @State private var model: HomeModel?
     @State private var showPicker = false
+    /// tvOS: the hero's buttons, and the two invisible edges past them that turn the carousel.
+    @FocusState private var heroFocus: HeroFocus?
+    /// iPhone: a finger on the carousel holds it.
+    @State private var dragging = false
+
+    /// Seconds a slide stays before the next one.
+    static let slideDuration: Duration = .seconds(8)
 
     var body: some View {
         Group {
@@ -26,11 +33,11 @@ struct HomeView: View {
         }
         .onChange(of: env.player.progressRevision) { Task { await model?.load() } }
         .platformSheet(isPresented: $showPicker) {
-            if let model, let hero = model.home?.hero {
+            if let model, let hero = model.hero {
                 VersionPicker(title: hero.card.title, versions: hero.versions, recommendedID: model.heroChoice?.version.id) { v, s in
                     Task {
                         try? await Task.sleep(for: .milliseconds(400))
-                        model.playHero(version: v, source: s)
+                        model.playHero(hero, version: v, source: s)
                     }
                 }
                 .environment(env)
@@ -54,7 +61,7 @@ struct HomeView: View {
                         }
                         .padding(.horizontal, metrics.inset).padding(.top, metrics.compact ? 64 : 30)
                     }
-                    if let hero = home.hero { heroView(hero, model: model) }
+                    if let hero = model.hero { carousel(hero, count: home.heroes.count, model: model) }
                     ForEach(home.rows) { row in
                         CardRow(title: row.title, cards: row.cards, landscape: row.kind == .resume,
                                 actions: row.kind == .resume ? { card in resumeActions(card, model: model) } : { _ in [] }) { card in
@@ -79,6 +86,37 @@ struct HomeView: View {
         }
     }
 
+    /// One slide at a time, the next every eight seconds unless held: the hero's buttons focused (tvOS),
+    /// a finger on it (iPhone), the version picker open. A slide turned by hand starts its eight seconds again.
+    private func carousel(_ hero: HomeHero, count: Int, model: HomeModel) -> some View {
+        let held = heroFocus != nil || dragging || showPicker
+        return heroView(hero, model: model)
+            .overlay(alignment: metrics.compact ? .bottom : .bottomTrailing) {
+                if count > 1 {
+                    PageDots(count: count, current: model.heroIndex, size: metrics.compact ? 8 : 14)
+                        .padding(.horizontal, metrics.inset)
+                        .padding(.bottom, metrics.compact ? 8 : 48)
+                }
+            }
+            .horizontalSwipe(touching: { dragging = $0 }) { turn(model, by: $0) }
+            .task(id: SlideTimer(index: model.heroIndex, count: count, held: held)) {
+                guard !held, count > 1 else { return }
+                try? await Task.sleep(for: Self.slideDuration)
+                guard !Task.isCancelled else { return }
+                turn(model, by: 1)
+            }
+            .onChange(of: heroFocus) { _, focus in
+                // Past the first or the last button: the previous or the next slide, the focus back on Lecture.
+                guard focus == .previous || focus == .next else { return }
+                turn(model, by: focus == .next ? 1 : -1)
+                heroFocus = .play
+            }
+    }
+
+    private func turn(_ model: HomeModel, by step: Int) {
+        withAnimation(.easeInOut(duration: 0.6)) { model.turn(by: step) }
+    }
+
     @ViewBuilder private func heroView(_ hero: HomeHero, model: HomeModel) -> some View {
         if metrics.compact { phoneHero(hero, model: model) } else { tvHero(hero, model: model) }
     }
@@ -89,6 +127,7 @@ struct HomeView: View {
         ZStack(alignment: .bottom) {
             ArtView(id: hero.card.id, url: hero.card.backdrop)
                 .frame(maxWidth: .infinity).frame(height: metrics.heroHeight)
+                .id(hero.playID).transition(.opacity)
                 .overlay {
                     // Dark under the status bar, then clear, then the background under the text.
                     LinearGradient(stops: [.init(color: Theme.background.opacity(0.55), location: 0),
@@ -101,21 +140,23 @@ struct HomeView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { env.open(hero.card.id) }
             VStack(spacing: 12) {
-                Text(hero.tagline).font(.caption2.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
-                TitleLogo(title: hero.card.title, logo: hero.card.logo, centered: true)
-                HStack(spacing: 8) {
-                    Text([hero.card.year.map(String.init), hero.card.genres.first, hero.runtime.map(Format.runtime(minutes:))].compactMap { $0 }.joined(separator: " · "))
-                        .foregroundStyle(Theme.secondary).lineLimit(1)
-                    if let c = hero.certification { Badge(c, small: true) }
+                VStack(spacing: 12) {
+                    Text(hero.tagline).font(.caption2.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
+                    TitleLogo(title: hero.card.title, logo: hero.card.logo, centered: true)
+                    HStack(spacing: 8) {
+                        Text(facts(hero)).foregroundStyle(Theme.secondary).lineLimit(1)
+                        if let c = hero.certification { Badge(c, small: true) }
+                    }
+                    .font(.subheadline)
                 }
-                .font(.subheadline)
+                .id(hero.playID).transition(.opacity)
                 HStack(spacing: 14) {
-                    let favorite = model.heroIsFavorite
-                    Button { Task { await model.toggleHeroFavorite() } } label: { Image(systemName: favorite ? "heart.fill" : "heart") }
+                    let favorite = model.isFavorite(hero)
+                    Button { Task { await model.toggleFavorite(hero) } } label: { Image(systemName: favorite ? "heart.fill" : "heart") }
                         .buttonStyle(RoundIconStyle(diameter: 46))
                         .accessibilityLabel(favorite ? "Retirer de ma liste" : "Ajouter à ma liste")
                         .sensoryFeedback(.selection, trigger: favorite)
-                    Button { model.playHero(version: nil, source: nil) } label: {
+                    Button { model.playHero(hero, version: nil, source: nil) } label: {
                         Label(hero.card.progress?.isResumable == true ? "Reprendre" : "Lecture", systemImage: "play.fill")
                             .font(.headline).phoneFullWidth(metrics)
                     }
@@ -132,14 +173,21 @@ struct HomeView: View {
                 .padding(.top, 4)
             }
             .padding(.horizontal, metrics.inset + 8)
-            .padding(.bottom, 12)
+            .padding(.bottom, 28)
         }
+    }
+
+    /// Year, genre, length: « 2026 · Drame · 2 h 16 ». An episode: its code first.
+    private func facts(_ hero: HomeHero) -> String {
+        [hero.episode?.shortCode, hero.card.year.map(String.init), hero.card.genres.first, hero.runtime.map(Format.runtime(minutes:))]
+            .compactMap { $0 }.joined(separator: " · ")
     }
 
     private func tvHero(_ hero: HomeHero, model: HomeModel) -> some View {
         ZStack(alignment: .bottomLeading) {
             ArtView(id: hero.card.id, url: hero.card.backdrop)
                 .frame(maxWidth: .infinity).frame(height: metrics.heroHeight)
+                .id(hero.playID).transition(.opacity)
                 .overlay {
                     LinearGradient(colors: [Theme.background.opacity(0.95), Theme.background.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing)
                     LinearGradient(colors: [.clear, Theme.background.opacity(0.6), Theme.background], startPoint: .center, endPoint: .bottom)
@@ -147,27 +195,36 @@ struct HomeView: View {
                     if Platform.isTV { LinearGradient(colors: [Theme.background.opacity(0.7), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.3)) }
                 }
             VStack(alignment: .leading, spacing: 16) {
-                Text(hero.tagline).font(.caption.weight(.bold)).tracking(2.5).foregroundStyle(Theme.accent)
-                // Wider than running text: a long title keeps two lines instead of being cut.
-                Text(hero.card.title).font(.system(size: metrics.heroTitle, weight: .heavy)).lineLimit(2).minimumScaleFactor(0.85)
-                    .frame(maxWidth: metrics.textWidth * 1.4, alignment: .leading)
-                HStack(spacing: 12) {
-                    Text([hero.card.year.map(String.init), hero.card.genres.first, hero.runtime.map(Format.runtime(minutes:))].compactMap { $0 }.joined(separator: " · "))
-                        .foregroundStyle(Theme.secondary)
-                    if let c = hero.certification { Badge(c) }
-                }
-                .font(.title3)
-                if let c = model.heroChoice {
-                    HStack(spacing: 10) {
-                        Image(systemName: "sparkles").foregroundStyle(Theme.accent)
-                        Text(c.version.label).font(.title3.weight(.semibold))
-                        Text(model.isOffline ? "— version connue à \(Format.hour(model.home?.generatedAt ?? .now)) · elle sera revérifiée au lancement" : "— choisi pour vous")
-                            .font(.title3).foregroundStyle(Theme.secondary)
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(hero.tagline).font(.caption.weight(.bold)).tracking(2.5).foregroundStyle(Theme.accent)
+                    // Wider than running text: a long title keeps two lines instead of being cut.
+                    Text(hero.card.title).font(.system(size: metrics.heroTitle, weight: .heavy)).lineLimit(2).minimumScaleFactor(0.85)
+                        .frame(maxWidth: metrics.textWidth * 1.4, alignment: .leading)
+                    HStack(spacing: 12) {
+                        Text(facts(hero)).foregroundStyle(Theme.secondary)
+                        if let c = hero.certification { Badge(c) }
+                    }
+                    .font(.title3)
+                    if let c = model.heroChoice {
+                        HStack(spacing: 10) {
+                            Image(systemName: "sparkles").foregroundStyle(Theme.accent)
+                            Text(c.version.label).font(.title3.weight(.semibold))
+                            Text(model.isOffline ? "— version connue à \(Format.hour(model.home?.generatedAt ?? .now)) · elle sera revérifiée au lancement" : "— choisi pour vous")
+                                .font(.title3).foregroundStyle(Theme.secondary)
+                        }
                     }
                 }
+                .id(hero.playID).transition(.opacity)
                 // The row never wraps a label: on a phone it scrolls sideways instead.
                 ScrollView(.horizontal) {
-                    HStack(spacing: 18) { heroButtons(hero, model: model) }.fixedSize()
+                    // tvOS: an invisible stop on each side, outside the buttons' spacing, focusable once the
+                    // focus is in the row (coming up from a row below never lands on it): reaching one turns the carousel.
+                    HStack(spacing: 0) {
+                        if Platform.isTV { edge(.previous) }
+                        HStack(spacing: 18) { heroButtons(hero, model: model) }
+                        if Platform.isTV { edge(.next) }
+                    }
+                    .fixedSize()
                 }
                 .scrollClipDisabled()
                 .padding(.top, 8)
@@ -178,18 +235,57 @@ struct HomeView: View {
     }
 }
 
+enum HeroFocus: Hashable { case previous, play, versions, sheet, next }
+
+/// The carousel's timer: a new slide, a new count or a hold restarts it.
+private struct SlideTimer: Equatable {
+    let index: Int
+    let count: Int
+    let held: Bool
+}
+
+/// Which slide of how many: a dot each, the current one long.
+private struct PageDots: View {
+    let count: Int
+    let current: Int
+    /// A dot's height: read from a sofa on the television.
+    let size: CGFloat
+
+    var body: some View {
+        HStack(spacing: size) {
+            ForEach(0..<count, id: \.self) { i in
+                Capsule().fill(i == current ? Theme.accent : Theme.secondary.opacity(0.45))
+                    .frame(width: i == current ? size * 2.5 : size, height: size)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: current)
+        .accessibilityElement()
+        .accessibilityLabel("Élément \(current + 1) sur \(count)")
+    }
+}
+
 private extension HomeView {
     @ViewBuilder func heroButtons(_ hero: HomeHero, model: HomeModel) -> some View {
-        Button { model.playHero(version: nil, source: nil) } label: {
+        Button { model.playHero(hero, version: nil, source: nil) } label: {
             Label(hero.card.progress?.isResumable == true ? "Reprendre" : "Lecture", systemImage: "play.fill").font(.headline)
         }
         .prominentButtonStyle()
+        .focused($heroFocus, equals: .play)
         .onLongPressGesture(minimumDuration: 0.5) { if VersionPicker.lineCount(hero.versions) > 1 { showPicker = true } }
         // Only when the picker has more than one line to offer.
         if VersionPicker.lineCount(hero.versions) > 1 {
             Button("Versions · \(hero.versions.count)") { showPicker = true }.buttonStyle(.bordered)
+                .focused($heroFocus, equals: .versions)
         }
         Button { env.open(hero.card.id) } label: { Label("Fiche", systemImage: "info.circle") }.buttonStyle(.bordered)
+            .focused($heroFocus, equals: .sheet)
+    }
+
+    func edge(_ side: HeroFocus) -> some View {
+        Color.clear.frame(width: 2, height: 2)
+            .focusable(heroFocus != nil)
+            .focused($heroFocus, equals: side)
+            .accessibilityHidden(true)
     }
 }
 
@@ -197,6 +293,8 @@ private extension HomeView {
 final class HomeModel {
     private let env: AppEnvironment
     private(set) var home: HomeScreen?
+    /// The carousel's current slide.
+    private(set) var heroIndex = 0
     private(set) var error: CatalogError?
     private(set) var isOffline = false
     private(set) var isLoading = false
@@ -208,8 +306,11 @@ final class HomeModel {
         defer { isLoading = false }
         do {
             let h = try await env.call { try await env.client.home() }
+            // The same slide stays on screen when it is still there.
+            let current = hero?.playID
             home = h
-            heroFavorite = nil
+            heroIndex = h.heroes.firstIndex { $0.playID == current } ?? 0
+            favoriteOverrides = [:]
             error = nil
             isOffline = false
             env.homeCache.save(h)
@@ -219,6 +320,7 @@ final class HomeModel {
             if e == .unauthorized { return }
             if let cached = env.homeCache.load() {
                 home = cached
+                heroIndex = min(heroIndex, max(cached.heroes.count - 1, 0))
                 isOffline = true
                 self.error = nil
             } else if home == nil {
@@ -229,30 +331,54 @@ final class HomeModel {
         }
     }
 
-    /// Ma liste of the hero, as toggled here until the next load says otherwise.
-    private var heroFavorite: Bool?
-    var heroIsFavorite: Bool { heroFavorite ?? home?.hero?.card.isFavorite ?? false }
+    var hero: HomeHero? {
+        guard let heroes = home?.heroes, !heroes.isEmpty else { return nil }
+        return heroes[min(heroIndex, heroes.count - 1)]
+    }
 
-    func toggleHeroFavorite() async {
-        guard let id = home?.hero?.card.id else { return }
-        let target = !heroIsFavorite
-        heroFavorite = target
-        do { try await env.call { try await env.client.setFavorite(id: id, target) } } catch { heroFavorite = !target }
+    /// The next slide (`step` 1) or the previous one (-1), round the carousel.
+    func turn(by step: Int) {
+        guard let count = home?.heroes.count, count > 0 else { return }
+        heroIndex = ((heroIndex + step) % count + count) % count
+    }
+
+    /// Ma liste of each slide, as toggled here until the next load says otherwise.
+    private var favoriteOverrides: [ContentID: Bool] = [:]
+    func isFavorite(_ hero: HomeHero) -> Bool { favoriteOverrides[hero.card.id] ?? hero.card.isFavorite ?? false }
+
+    func toggleFavorite(_ hero: HomeHero) async {
+        let id = hero.card.id
+        let target = !isFavorite(hero)
+        favoriteOverrides[id] = target
+        do { try await env.call { try await env.client.setFavorite(id: id, target) } } catch { favoriteOverrides[id] = !target }
     }
 
     var heroChoice: VersionChooser.Choice? {
-        guard let hero = home?.hero else { return nil }
+        guard let hero else { return nil }
         let remembered = env.preferences.rememberVersionPerTitle ? env.preferences.rememberedVersion(for: hero.card.id) : nil
         return env.player.chooser.choose(from: hero.versions, remembered: remembered)
     }
 
-    func playHero(version: Version?, source: Source?) {
-        guard let hero = home?.hero else { return }
+    /// A movie plays from what the home carries, offline included. An episode asks `/playback` first for
+    /// the episode after it, and falls back on the slide's versions.
+    func playHero(_ hero: HomeHero, version: Version?, source: Source?) {
         let p = hero.card.progress
-        let ctx = PlaybackContext(content: PlaybackContent(id: hero.card.id, kind: hero.card.kind, title: hero.card.title, subtitle: nil, episode: nil, backdrop: hero.card.backdrop),
-                                  versions: hero.versions, resumeAt: p?.isResumable == true ? p?.position : nil,
-                                  duration: p?.duration ?? hero.runtime.map { TimeInterval($0 * 60) })
-        if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
+        let content: PlaybackContent
+        if let e = hero.episode {
+            content = PlaybackContent(id: hero.playID, kind: .episode, title: e.title ?? hero.card.title, subtitle: hero.card.title,
+                                      episode: e, backdrop: hero.card.backdrop)
+        } else {
+            content = PlaybackContent(id: hero.playID, kind: hero.card.kind, title: hero.card.title, subtitle: nil, episode: nil, backdrop: hero.card.backdrop)
+        }
+        let local = PlaybackContext(content: content, versions: hero.versions, resumeAt: hero.episode == nil && p?.isResumable == true ? p?.position : nil,
+                                    duration: hero.episode == nil ? p?.duration ?? hero.runtime.map { TimeInterval($0 * 60) } : hero.runtime.map { TimeInterval($0 * 60) })
+        Task {
+            var ctx = local
+            if hero.episode != nil, let playback = try? await env.call({ try await env.client.playback(id: hero.playID) }) {
+                ctx = PlaybackContext(content: content, playback: playback)
+            }
+            if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
+        }
     }
 
     func removeFromResume(_ card: Card) async {
@@ -272,8 +398,8 @@ final class HomeModel {
         Task {
             if let ctx = try? await env.playbackContext(for: card) {
                 env.player.play(ctx)
-            } else if let cached = home, cached.hero?.card.id == card.id {
-                playHero(version: nil, source: nil)
+            } else if let hero = home?.heroes.first(where: { $0.card.id == card.id }) {
+                playHero(hero, version: nil, source: nil)
             }
         }
     }

@@ -265,6 +265,22 @@ extension View {
         #endif
     }
 
+    /// iPhone: a sideways swipe, alongside the scroll. `touching` while the finger is down, `swiped` with
+    /// -1 (towards the right: back) or 1 (towards the left: next). tvOS has no touch: unchanged.
+    @ViewBuilder func horizontalSwipe(touching: @escaping (Bool) -> Void, swiped: @escaping (Int) -> Void) -> some View {
+        #if os(iOS)
+        simultaneousGesture(DragGesture(minimumDistance: 24)
+            .onChanged { _ in touching(true) }
+            .onEnded { v in
+                touching(false)
+                let dx = v.translation.width
+                if abs(dx) > 60, abs(dx) > abs(v.translation.height) { swiped(dx < 0 ? 1 : -1) }
+            })
+        #else
+        self
+        #endif
+    }
+
     /// iPhone: a main button's label as wide as the screen and a thumb high. Unchanged on the television.
     @ViewBuilder func phoneFullWidth(_ metrics: Metrics, height: CGFloat = 36) -> some View {
         if metrics.compact {

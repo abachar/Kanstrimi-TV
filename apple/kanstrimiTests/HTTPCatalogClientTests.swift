@@ -145,11 +145,26 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func datesDecodeWithAndWithoutFractionalSeconds() async throws {
-        answer(200, #"{"hero":null,"rows":[{"id":"recent-movies","kind":"recent_movies","title":"Films récents","cards":[{"id":"tmdb:movie:603","kind":"movie","title":"Matrix","added_at":"2026-09-01T00:00:00Z"}]}],"generated_at":"2026-09-26T21:14:00.512Z"}"#)
+        answer(200, #"{"heroes":[],"rows":[{"id":"recent-movies","kind":"recent_movies","title":"Films récents","cards":[{"id":"tmdb:movie:603","kind":"movie","title":"Matrix","added_at":"2026-09-01T00:00:00Z"}]}],"generated_at":"2026-09-26T21:14:00.512Z"}"#)
         let home = try await client.home()
         #expect(home.rows[0].cards[0].addedAt == HTTPCatalogClient.parseISO8601("2026-09-01T00:00:00Z"))
         #expect(abs(home.generatedAt.timeIntervalSince1970 - 1790457240.512) < 0.001)
-        #expect(home.hero == nil)
+        #expect(home.heroes.isEmpty)
+    }
+
+    @Test func homeCarouselDecodesWhatLecturePlays() async throws {
+        answer(200, #"{"heroes":[{"card":{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo"},"tagline":"SÉRIE · NOUVEL ÉPISODE · S1 É2","overview":null,"runtime":80,"certification":null,"versions":[],"play_id":"tmdb:tv:1396:s01e02","episode":{"season":1,"number":2,"title":"Épisode 2"}},{"card":{"id":"tmdb:movie:603","kind":"movie","title":"Matrix"},"tagline":"FILM · N° 1 CETTE SEMAINE","overview":null,"runtime":136,"certification":"12","versions":[],"play_id":"tmdb:movie:603"}],"rows":[],"generated_at":"2026-10-03T08:00:00Z"}"#)
+        let home = try await client.home()
+        #expect(home.heroes.map(\.playID) == [ContentID("tmdb:tv:1396:s01e02"), ContentID("tmdb:movie:603")])
+        #expect(home.heroes[0].card.id == ContentID("tmdb:tv:1396"))
+        #expect(home.heroes[0].episode == EpisodeRef(season: 1, number: 2, title: "Épisode 2"))
+        #expect(home.heroes[1].episode == nil)
+    }
+
+    @Test func aHomeCachedWithASingleHeroStillReads() throws {
+        let old = #"{"hero":null,"rows":[],"generated_at":"2026-10-01T18:00:00Z"}"#
+        let home = try HTTPCatalogClient.makeDecoder().decode(HomeScreen.self, from: Data(old.utf8))
+        #expect(home.heroes.isEmpty)
     }
 
     @Test func sagasTravelAndDecode() async throws {
@@ -299,7 +314,7 @@ struct HTTPCatalogClientTests {
         let body = try #require(JSONSerialization.jsonObject(with: StubProtocol.bodies.last ?? Data()) as? [String: Any])
         #expect(body["seconds"] as? Int == 30)
 
-        answer(200, #"{"hero":null,"generated_at":"2026-10-01T18:00:00Z","rows":[{"id":"most-watched-channels","kind":"most_watched_channels","title":"Chaînes les plus regardées","cards":[{"id":"live:fr-tf1","kind":"live","title":"TF1"}]},{"id":"later","kind":"not_yet_known","title":"Plus tard","cards":[]}]}"#)
+        answer(200, #"{"heroes":[],"generated_at":"2026-10-01T18:00:00Z","rows":[{"id":"most-watched-channels","kind":"most_watched_channels","title":"Chaînes les plus regardées","cards":[{"id":"live:fr-tf1","kind":"live","title":"TF1"}]},{"id":"later","kind":"not_yet_known","title":"Plus tard","cards":[]}]}"#)
         let home = try await client.home()
         #expect(home.rows.map(\.kind) == [.mostWatchedChannels, .other])
 

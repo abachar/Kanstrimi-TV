@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema, type Content } from "@/db";
-import { availableWaitlistKeys, hasTmdbKey, isEpisodeKey } from "@/catalog";
+import { hasTmdbKey, isEpisodeKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
 import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./contents";
@@ -10,12 +10,12 @@ import { favoriteKeys } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
 import { baseCard, gridCard, progressWire, sheetCard } from "./cards";
 import { versionsOf, versionsSummary } from "./versions";
-import type { Card, Home, HomeRow } from "./types";
+import { type ShelfPick, shelfPicks, TOP_SHELF_SIZE } from "./top-shelf";
+import type { Card, Home, HomeHero, HomeRow } from "./types";
 
 /**
- * `/home`: hero, "Reprendre", "Chaînes les plus regardées", recent movies and series, "Ma liste". The
- * hero is the latest movie of the « Liste d'attente » that arrived and is not started yet, else the
- * newest « Nouveauté ».
+ * `/home`: the carousel (the Top Shelf without « Reprendre »), "Reprendre", "Chaînes les plus
+ * regardées", recent movies and series, "Ma liste".
  */
 export const homeRoutes = new Hono<Env>();
 homeRoutes.get("/", async (c) => json(await home(c.get("ctx"))));
@@ -23,7 +23,7 @@ homeRoutes.get("/", async (c) => json(await home(c.get("ctx"))));
 const HOME_ROW = 24;
 
 export async function home(ctx: RestContext): Promise<Home> {
-  const [resume, recentMovies, recentSeries, favKeys, watchedKeys, waitlistKeys] = await Promise.all([
+  const [resume, recentMovies, recentSeries, favKeys, watchedKeys, picks] = await Promise.all([
     resumeKeys(20),
     db
       .select()
@@ -39,7 +39,7 @@ export async function home(ctx: RestContext): Promise<Home> {
       .limit(HOME_ROW),
     favoriteKeys(),
     mostWatchedKeys(),
-    availableWaitlistKeys(),
+    shelfPicks(ctx, { resume: false }),
   ]);
   const rows: HomeRow[] = [];
   const resumeCards = await resumeCardsOf(ctx, resume);
@@ -53,8 +53,14 @@ export async function home(ctx: RestContext): Promise<Home> {
       cards: watched.slice(0, MOST_WATCHED_LIMIT).map((c) => gridCard(ctx, c)),
     });
   }
-  const [awaited] = await contentsInOrder(ctx, waitlistKeys, "vod");
-  const progress = await getProgress([...recentMovies, ...recentSeries, ...(awaited ? [awaited] : [])].map((c) => c.key));
+  // A lifeboat: no pick at all (no TMDB trend in the catalogue, nothing awaited) still leaves a carousel.
+  const slides: Pick<ShelfPick, "content" | "playId" | "context" | "episode">[] = picks.length
+    ? picks
+    : recentMovies
+        .filter((c) => c.posterPath && c.backdropPath)
+        .slice(0, TOP_SHELF_SIZE)
+        .map((c) => ({ content: c, playId: c.key, context: "Nouveauté" }));
+  const progress = await getProgress([...recentMovies, ...recentSeries, ...slides.map((p) => p.content)].map((c) => c.key));
   if (recentMovies.length) {
     rows.push({
       id: "recent-movies",
@@ -73,24 +79,28 @@ export async function home(ctx: RestContext): Promise<Home> {
   }
   const favs = await contentsInOrder(ctx, favKeys);
   if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => gridCard(ctx, c)) });
-  const heroContent = awaited ?? recentMovies.find((c) => c.posterPath && c.backdropPath) ?? recentMovies[0];
-  let hero: Home["hero"] = null;
-  if (heroContent) {
-    const versions = versionsOf(ctx, (await variantsOf(heroContent)).playables);
-    hero = {
-      card: {
-        ...gridCard(ctx, heroContent, progress.get(heroContent.key)),
-        backdrop: backdropOf(ctx, heroContent),
-        ...versionsSummary(versions),
-      },
-      tagline: heroContent === awaited ? "FILM · ENFIN DISPONIBLE" : "FILM · NOUVEAUTÉ",
-      overview: heroContent.overview,
-      runtime: heroContent.runtime,
-      certification: heroContent.certification,
-      versions,
-    };
-  }
-  return { hero, rows, generated_at: new Date().toISOString() };
+  const heroes = await Promise.all(slides.map((p) => heroOf(ctx, p, progress.get(p.content.key))));
+  return { heroes, rows, generated_at: new Date().toISOString() };
+}
+
+/** A slide: the content's card, and what Lecture plays with its own versions (an episode for a series). */
+async function heroOf(
+  ctx: RestContext,
+  p: Pick<ShelfPick, "content" | "playId" | "context" | "episode">,
+  progress: Progress | undefined,
+): Promise<HomeHero> {
+  const { content: c, episode: e } = p;
+  const versions = versionsOf(ctx, e ? e.playables : (await variantsOf(c)).playables);
+  return {
+    card: { ...gridCard(ctx, c, progress), backdrop: backdropOf(ctx, c), ...versionsSummary(versions) },
+    tagline: `${c.kind === "series" ? "Série" : "Film"} · ${p.context}`.toLocaleUpperCase("fr-FR"),
+    overview: e?.overview || c.overview,
+    runtime: e ? e.runtime : c.runtime,
+    certification: c.certification,
+    versions,
+    play_id: p.playId,
+    ...(e ? { episode: { season: e.season, number: e.number, title: e.title } } : {}),
+  };
 }
 
 /** Resume cards: a movie card, or the series card wearing the episode's progress and reference. */

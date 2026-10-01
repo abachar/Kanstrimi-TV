@@ -102,8 +102,10 @@ shared/     utilitaires ; n'importe jamais `@/`
   serveur est verrouillé jusqu'à la première requête authentifiée (le premier appel d'un appareil appairé suffit).
 - **Ne jamais journaliser une URL brute** : le mot de passe Xtream y circule. Passer par `requestLogger()`.
 - **Liste d'attente** (`catalog/waitlist.ts`, admin › Application) : des films cherchés sur TMDB avant que le fournisseur ne les ait. Dès
-  qu'un contenu visible porte leur clé `tmdb:movie:<id>`, ils deviennent le hero de l'accueil et la tête du Top Shelf,
-  jusqu'à 5 % de lecture. Un film mal reconnu (clé `fallback:`) ne se détecte qu'une fois son match TMDB corrigé.
+  qu'un contenu visible porte leur clé `tmdb:movie:<id>`, ils passent en tête du Top Shelf et du carrousel de l'accueil,
+  jusqu'à 5 % de lecture.
+- **Carrousel de l'accueil** : le Top Shelf sans « Reprendre » (`shelfPicks`), six au plus ; sans rien à y mettre, les
+  dernières nouveautés. `trending` refuse une liste vide et garde celle de la semaine précédente. Un film mal reconnu (clé `fallback:`) ne se détecte qu'une fois son match TMDB corrigé.
 - **Top Shelf** : tvOS garde les images par adresse ; changer leur mise en page = changer `SHELF_LAYOUT` et `?layout=`.
 
 ## Déploiement

@@ -6,7 +6,8 @@ const PAGES = 5;
 
 /**
  * The `trending` step: TMDB's weekly trending movies and series, replaced as a whole. The ranks
- * are TMDB's; the « Top 10 » rows keep the first ten the catalogue shows.
+ * are TMDB's; the « Top 10 » rows keep the first ten the catalogue shows. An empty list (a TMDB
+ * hiccup, never a real week) fails the step and keeps the previous one, as an unreachable TMDB does.
  */
 export async function runTrending() {
   const client = await getTmdbClient();
@@ -22,9 +23,12 @@ export async function runTrending() {
       }
     }
   }
+  const movies = rows.filter((r) => r.mediaType === "movie").length;
+  const series = rows.length - movies;
+  if (!movies || !series) throw new Error(`Tendances TMDB vides (${movies} films, ${series} séries) : la liste précédente est gardée`);
   await db.transaction(async (tx) => {
     await tx.delete(schema.tmdbTrending);
-    if (rows.length) await tx.insert(schema.tmdbTrending).values(rows);
+    await tx.insert(schema.tmdbTrending).values(rows);
   });
-  return { movies: rows.filter((r) => r.mediaType === "movie").length, series: rows.filter((r) => r.mediaType === "tv").length };
+  return { movies, series };
 }

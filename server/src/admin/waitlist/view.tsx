@@ -136,7 +136,7 @@ export function WaitlistView({
     <>
       <Title
         t="Liste d'attente"
-        sub="Des films que le fournisseur n'a pas encore. Dès qu'une source visible existe, le film devient le film principal de l'accueil et passe en tête du Top Shelf, jusqu'à ce qu'il soit entamé. Le traitement complet le vérifie à chaque passage."
+        sub="Des films que le fournisseur n'a pas encore. Dès qu'une source visible existe, le film passe en tête du carrousel de l'accueil et du Top Shelf, jusqu'à ce qu'il soit entamé. Le traitement complet le vérifie à chaque passage."
       />
       <Card title="Films attendus" extra={fmt(rows.length)}>
         {rows.length === 0 ? (

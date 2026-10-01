@@ -122,6 +122,11 @@ export type HomeRow = {
   title: string;
   cards: Card[];
 };
+/**
+ * A slide of the home carousel. `card` is what Fiche opens (the series for a new episode); `play_id`
+ * what Lecture plays, `versions`, `runtime` and `overview` being that title's own; `episode` names the
+ * episode played. `tagline`: what the slide is, « FILM · N° 1 CETTE SEMAINE ».
+ */
 export type HomeHero = {
   card: Card;
   tagline: string;
@@ -129,8 +134,14 @@ export type HomeHero = {
   runtime: number | null;
   certification: string | null;
   versions: Version[];
+  play_id: string;
+  episode?: EpisodeRef;
 };
-export type Home = { hero: HomeHero | null; rows: HomeRow[]; generated_at: string };
+/**
+ * `heroes`: the Top Shelf without the title in progress (« Reprendre » is a row), at most six; the
+ * newest « Nouveautés » when it has none.
+ */
+export type Home = { heroes: HomeHero[]; rows: HomeRow[]; generated_at: string };
 
 /**
  * `/top-shelf`: the full-screen carousel of the Apple TV home screen, six items at most, in order: the

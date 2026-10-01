@@ -59,6 +59,10 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **Éditions** (« Version longue », « Director's Cut ») : une version à part, jamais choisie d'office tant que le
   montage habituel existe ; elle se prend dans le sélecteur, puis la langue de la série la garde.
 - **Accueil** : un type de rangée inconnu de l'app s'affiche en rangée simple au lieu de faire échouer l'écran.
+- **Carrousel de l'accueil** : les éléments du serveur, un toutes les 8 s, retenu tant que ses boutons ont le focus
+  (tvOS), qu'un doigt le touche (iPhone) ou que le sélecteur de version est ouvert. tvOS : deux butées invisibles
+  de part et d'autre des boutons tournent le carrousel ; elles ne prennent le focus qu'une fois dans la rangée.
+  « Lecture » joue `play_id` (l'épisode pour une série), « Fiche » ouvre la carte.
 - **tvOS 27** : la liste poussée par un `Picker` s'ouvre noire ; `ChoiceRow` ouvre un menu à la place. À retester à
   chaque version.
 - **iOS 27** : le champ de recherche reste en haut de son écran (avec `role: .search`, il n'apparaît pas), toujours

@@ -186,10 +186,17 @@ final class MockCatalogClient: CatalogClient {
         rows.append(HomeRow(id: "recent-series", kind: .recentSeries, title: "Derniers épisodes", cards: recentSeries.prefix(12).map { card(for: $0) }))
         let favs = allCards.filter { favorites.contains($0.id) }.map { card(for: $0) }
         if !favs.isEmpty { rows.append(HomeRow(id: "favorites", kind: .favorites, title: "Ma liste", cards: favs)) }
-        let heroDetail = recentMovies.first!
-        let hero = HomeHero(card: card(for: heroDetail), tagline: "FILM · NOUVEAUTÉ", overview: heroDetail.overview,
-                            runtime: heroDetail.runtime, certification: heroDetail.certification, versions: heroDetail.versions)
-        return HomeScreen(hero: hero, rows: rows, generatedAt: .now)
+        // The carousel as the server composes it: an awaited movie that arrived, a new episode, the week's top.
+        let slides = recentMovies.filter { $0.backdrop != nil }.prefix(4)
+        var heroes = slides.enumerated().map { i, m in
+            HomeHero(card: card(for: m), tagline: i == 0 ? "FILM · ENFIN DISPONIBLE" : "FILM · N° \(i) CETTE SEMAINE", overview: m.overview,
+                     runtime: m.runtime, certification: m.certification, versions: m.versions, playID: m.id, episode: nil)
+        }
+        if let s = recentSeries.first(where: { $0.backdrop != nil }), let e = s.allEpisodes.last {
+            heroes.insert(HomeHero(card: card(for: s), tagline: "SÉRIE · NOUVEL ÉPISODE · \(e.ref.shortCode)", overview: e.overview ?? s.overview,
+                                   runtime: e.runtime, certification: s.certification, versions: e.versions, playID: e.id, episode: e.ref), at: min(1, heroes.count))
+        }
+        return HomeScreen(heroes: heroes, rows: rows, generatedAt: .now)
     }
 
     // MARK: - Movies and series

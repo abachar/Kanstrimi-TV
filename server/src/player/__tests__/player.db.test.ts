@@ -644,14 +644,18 @@ describe("GET /home", () => {
   it("hero, resume row (movie + episode), recent rows, favourites row", async () => {
     await call("/favorites/tmdb:movie:949", { method: "PUT" });
     const { body } = await get("/home");
-    // The newest matched movie with poster and backdrop: Matrix.
-    expect(body.hero).toMatchObject({
-      tagline: "FILM · NOUVEAUTÉ",
+    // Nothing awaited, no trend, no new episode: the lifeboat, the newest matched movies with poster and backdrop.
+    expect(body.heroes.map((h: { tagline: string; play_id: string }) => [h.tagline, h.play_id])).toEqual([
+      ["FILM · NOUVEAUTÉ", "tmdb:movie:603"],
+      ["FILM · NOUVEAUTÉ", "tmdb:movie:949"],
+    ]);
+    expect(body.heroes[0]).toMatchObject({
       card: { id: "tmdb:movie:603", backdrop: "http://kanstrimi.test/img/w1280/bd.jpg", max_quality: "4K", languages: ["VF", "VOSTFR"] },
       runtime: 136,
       certification: "12",
     });
-    expect(body.hero.versions.length).toBe(2);
+    expect(body.heroes[0].versions.length).toBe(2);
+    expect(body.heroes[0].episode).toBeUndefined();
     expect(body.rows.map((r: { id: string; kind: string }) => [r.id, r.kind])).toEqual([
       ["resume", "resume"],
       ["recent-movies", "recent_movies"],
@@ -1137,6 +1141,17 @@ describe("GET /top-shelf", () => {
       max_quality: "4K",
     });
     expect(body[1]).toMatchObject({ title: "Vincenzo", image: "http://kanstrimi.test/img/shelf/1x/vb.jpg/v-logo.png?layout=2" });
+
+    // The home carousel repeats it without the title in progress: « Reprendre » is a row there.
+    const heroes = (await get("/home")).body.heroes;
+    expect(heroes.map((h: { tagline: string; play_id: string; card: { id: string } }) => [h.tagline, h.play_id, h.card.id])).toEqual([
+      ["SÉRIE · NOUVEL ÉPISODE · S1 É2", "tmdb:tv:1396:s01e02", "tmdb:tv:1396"],
+      ["FILM · N° 1 CETTE SEMAINE", "tmdb:movie:949", "tmdb:movie:949"],
+      ["FILM · N° 2 CETTE SEMAINE", "tmdb:movie:603", "tmdb:movie:603"],
+    ]);
+    // Lecture plays the episode, with its own versions.
+    expect(heroes[0].episode).toEqual({ season: 1, number: 2, title: "Épisode 2" });
+    expect(heroes[0].versions.length).toBeGreaterThan(0);
   });
 
   it("a title without a TMDB logo is left out: the carousel would show it untitled", async () => {
@@ -1172,7 +1187,7 @@ describe("« Liste d'attente »: hero and Top Shelf", () => {
     await db.insert(schema.curationWaitlist).values({ contentKey: "tmdb:movie:949", tmdbId: 949, title: "Heat" });
     // Heat is visible already: the next regroup flags it available.
     expect((await runGrouping()).waitlist_available).toBe(1);
-    expect((await get("/home")).body.hero).toMatchObject({ tagline: "FILM · ENFIN DISPONIBLE", card: { id: "tmdb:movie:949" } });
+    expect((await get("/home")).body.heroes[0]).toMatchObject({ tagline: "FILM · ENFIN DISPONIBLE", card: { id: "tmdb:movie:949" } });
     const [first] = (await get("/top-shelf")).body;
     expect([first.reason, first.play_id, first.open_id, first.context]).toEqual([
       "available",
@@ -1182,12 +1197,11 @@ describe("« Liste d'attente »: hero and Top Shelf", () => {
     ]);
     // Opened a minute: still announced.
     await call("/playback/tmdb:movie:949/progress", { method: "PUT", body: JSON.stringify({ position: 60, duration: 6000 }) });
-    expect((await get("/home")).body.hero.card.id).toBe("tmdb:movie:949");
-    // Started: « Reprendre » takes it over, the hero is the newest « Nouveauté » again.
+    expect((await get("/home")).body.heroes[0].card.id).toBe("tmdb:movie:949");
+    // Started: « Reprendre » takes it over, the carousel announces it no more.
     await call("/playback/tmdb:movie:949/progress", { method: "PUT", body: JSON.stringify({ position: 600, duration: 6000 }) });
     const { body } = await get("/home");
-    expect(body.hero.tagline).toBe("FILM · NOUVEAUTÉ");
-    expect(body.hero.card.id).not.toBe("tmdb:movie:949");
+    expect(body.heroes.map((h: { tagline: string }) => h.tagline)).not.toContain("FILM · ENFIN DISPONIBLE");
     expect(body.rows.find((r: { id: string }) => r.id === "resume").cards.map((c: { id: string }) => c.id)).toContain("tmdb:movie:949");
     expect((await get("/top-shelf")).body.map((i: { reason: string }) => i.reason)).not.toContain("available");
     const [w] = await db.select().from(schema.curationWaitlist);
