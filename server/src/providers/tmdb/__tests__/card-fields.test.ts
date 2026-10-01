@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { TmdbDetails, TmdbLogo } from "../client";
-import { logoOf } from "../card-fields";
+import { cardFields, logoOf } from "../card-fields";
 
 const doc = (logos: TmdbLogo[], english?: string): TmdbDetails => ({
   id: 1,
@@ -32,5 +32,24 @@ describe("logoOf", () => {
     expect(logoOf(doc([{ file_path: "/en.png", iso_639_1: "en" }], "Taken"), "fr-FR", "Io vi troverò")).toBeNull();
     expect(logoOf(doc([]), "fr-FR", "Matrix")).toBeNull();
     expect(logoOf({ id: 1 }, "fr-FR", "Matrix")).toBeNull();
+  });
+});
+
+describe("cardFields cast", () => {
+  const cast = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ id: 100 + i, name: `Actor ${i}`, character: `Role ${i}`, profile_path: `/p${i}.jpg` }));
+  const fields = (list: NonNullable<NonNullable<TmdbDetails["credits"]>["cast"]>) =>
+    cardFields("movie", { id: 1, credits: { cast: list, crew: [] } }, "fr-FR", "Fallback");
+
+  it("keeps the TMDB id, the photo and the role", () => {
+    expect(fields(cast(1)).cast).toEqual([{ id: 100, name: "Actor 0", role: "Role 0", profile: "/p0.jpg" }]);
+  });
+
+  it("keeps the first ten only", () => {
+    expect(fields(cast(15)).cast.map((p) => p.id)).toEqual(cast(10).map((p) => p.id));
+  });
+
+  it("gives null to what TMDB leaves out", () => {
+    expect(fields([{ name: "Extra" }]).cast).toEqual([{ id: null, name: "Extra", role: null, profile: null }]);
   });
 });

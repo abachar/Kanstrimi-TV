@@ -173,6 +173,26 @@ struct HTTPCatalogClientTests {
         #expect(try await client.detail(id: ContentID("tmdb:movie:2")).saga == nil)
     }
 
+    @Test func personTravelsAndTheCastDecodes() async throws {
+        answer(200, #"{"id":"person:31","name":"Tom Hanks","photo":"https://kanstrimi.test/img/w185/h.jpg","movies":[{"id":"tmdb:movie:1","kind":"movie","title":"Un"}],"series":[{"id":"tmdb:tv:2","kind":"series","title":"Deux"}]}"#)
+        let sheet = try await client.person(id: "person:31")
+        #expect(try last.url?.path() == "/player/people/person:31")
+        #expect(sheet.name == "Tom Hanks")
+        #expect(sheet.photo == URL(string: "https://kanstrimi.test/img/w185/h.jpg"))
+        #expect(sheet.movies.map(\.title) == ["Un"])
+        #expect(sheet.series.map(\.title) == ["Deux"])
+
+        // A sheet carries the cast with ids and photos, and an older one without them still decodes.
+        answer(200, #"{"id":"tmdb:movie:1","kind":"movie","title":"Un","cast":[{"id":"person:31","name":"Tom Hanks","role":"Woody","photo":"https://kanstrimi.test/img/w185/h.jpg"},{"name":"Ancien","role":null}]}"#)
+        let cast = try await client.detail(id: ContentID("tmdb:movie:1")).cast
+        #expect(cast[0].id == "person:31")
+        #expect(cast[0].photo == URL(string: "https://kanstrimi.test/img/w185/h.jpg"))
+        #expect(cast[0].ref == PersonRef(id: "person:31", name: "Tom Hanks", photo: cast[0].photo))
+        #expect(cast[1].id == nil)
+        #expect(cast[1].photo == nil)
+        #expect(cast[1].ref == nil)
+    }
+
     @Test func studiosTravelAndFilterTheLists() async throws {
         answer(200, #"[{"id":"network:49","name":"HBO","logo":"https://kanstrimi.test/img/w300/hbo.png","count":144}]"#)
         let studios = try await client.studios(kind: .series)

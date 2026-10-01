@@ -71,7 +71,12 @@ export function sheetCard(ctx: RestContext, c: Content, extra: { providerCategor
     overview: c.overview,
     runtime: c.runtime,
     certification: c.certification,
-    cast: c.cast ?? [],
+    cast: (c.cast ?? []).map((p) => ({
+      id: p.id != null ? `person:${p.id}` : null,
+      name: p.name,
+      role: p.role,
+      photo: imageUrl(ctx.baseUrl, "w185", p.profile) || null,
+    })),
     director: c.director,
     trailer: c.trailerKey ? `https://www.youtube.com/watch?v=${c.trailerKey}` : null,
     has_tmdb: tmdb,

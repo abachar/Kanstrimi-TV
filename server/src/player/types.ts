@@ -13,7 +13,8 @@ export type Version = { id: string; language: string; quality: Quality; dynamic_
 
 export type ProgressWire = { position: number; duration: number; finished?: boolean };
 export type EpisodeRef = { season: number; number: number; title: string | null };
-export type Person = { name: string; role: string | null };
+/** `id` = `person:<TMDB id>`, null until the sheet has been copied again (no link to their titles). */
+export type Person = { id: string | null; name: string; role: string | null; photo: string | null };
 
 export type EpisodeWire = {
   id: string;
@@ -80,6 +81,8 @@ export type SagaPage = { items: SagaWire[]; next_cursor: string | null; total: n
 export type StudioWire = { id: string; name: string; logo: string | null; count: number; backdrop: string | null };
 /** `/movies/sagas/{id}`: the saga and its visible movies, latest release first. */
 export type SagaSheet = SagaWire & { movies: Card[] };
+/** `/people/{id}`: an actor and their visible titles, latest release first. */
+export type PersonSheet = { id: string; name: string; photo: string | null; movies: Card[]; series: Card[] };
 
 export type Programme = { title: string; start: string; end: string; overview?: string | null };
 export type ChannelWire = {

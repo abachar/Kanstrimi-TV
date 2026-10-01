@@ -20,7 +20,7 @@ export type CardFields = {
   genres: string[];
   runtime: number | null;
   certification: string | null;
-  cast: { name: string; role: string | null }[];
+  cast: { id: number | null; name: string; role: string | null; profile: string | null }[];
   director: string | null;
   trailerKey: string | null;
   status: string | null;
@@ -88,7 +88,12 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
     genres: (d.genres ?? []).map((g) => g.name),
     runtime: runtime || null,
     certification: certificationOf(d, lang),
-    cast: (d.credits?.cast ?? []).slice(0, 10).map((c) => ({ name: c.name, role: c.character || null })),
+    cast: (d.credits?.cast ?? []).slice(0, 10).map((c) => ({
+      id: Number.isInteger(c.id) ? (c.id as number) : null,
+      name: c.name,
+      role: c.character || null,
+      profile: c.profile_path || null,
+    })),
     director: director || null,
     trailerKey: trailerKeyOf(d),
     status: d.status ?? null,

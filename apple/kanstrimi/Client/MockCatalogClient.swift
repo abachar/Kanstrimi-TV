@@ -260,6 +260,14 @@ final class MockCatalogClient: CatalogClient {
         return SagaSheet(id: f.id, name: f.name, count: cards.count, poster: f.poster, backdrop: f.backdrop, movies: cards)
     }
 
+    func person(id: String) async throws -> PersonSheet {
+        try await gate()
+        let titles = (movies + series).filter { $0.cast.contains { $0.id == id } }.sorted { ($0.year ?? 0) > ($1.year ?? 0) }  // latest first, like the server
+        guard let me = titles.first?.cast.first(where: { $0.id == id }) else { throw CatalogError.notFound }
+        let cards = titles.map { card(for: $0) }
+        return PersonSheet(id: id, name: me.name, photo: me.photo, movies: cards.filter { $0.kind == .movie }, series: cards.filter { $0.kind == .series })
+    }
+
     // MARK: - Live
 
     func channels() async throws -> [ChannelGroup] {

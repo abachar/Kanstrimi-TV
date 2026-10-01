@@ -51,7 +51,7 @@ partagé au plus spécifique :
 
 **Navigation** : `env.open(id)` est l'unique point d'entrée vers une fiche. Sur tvOS c'est un
 `fullScreenCover` au-dessus des onglets ; sur iOS un push dans la `NavigationStack` de l'onglet
-courant (`AppEnvironment.paths`, `Route`). La grille d'un genre et l'écran d'une saga suivent la même règle. Le lecteur est
+courant (`AppEnvironment.paths`, `Route`). La grille d'un genre, l'écran d'une saga et celui d'un acteur suivent la même règle. Le lecteur est
 un `fullScreenCover` depuis la racine. L'iPhone garde cinq onglets : Réglages se
 rejoint par la roue dentée de l'accueil. Sur iPhone, Films, Séries, Direct et Recherche portent le grand titre de la barre
 de navigation ; la recherche garde le champ `searchable` en haut de son écran : posé sur la pile ou sur le `TabView`
@@ -93,6 +93,11 @@ Sous le titre, les tags de version montrent en plein celle que Lecture joue (qua
 les autres langues en contour ; pas de note « version choisie » ni de tableau des versions.
 Le titre est dessiné par son logo TMDB (`logo`, `TitleLogo`) quand le serveur en sert un, dans la boîte
 `Metrics.detailLogo` ; le texte le remplace pendant le chargement et en cas d'échec.
+
+**Distribution** (`CastRow`, 10 acteurs) : photos rondes avec nom et rôle ; film : sous les boutons, série : après les
+épisodes. Un acteur ouvre `PersonView` (cover sur tvOS, push sur iPhone) : ses films puis ses séries visibles, une
+section vide n'apparaît pas. Un acteur sans `id` (fiche pas encore recopiée par le serveur) n'est pas cliquable.
+« Réalisation » reste en texte sous le résumé.
 
 **Reprendre et vu** : appui long sur une carte de « Reprendre » (accueil) = Retirer ou Marquer comme vu ; fiche d'un film = bouton « Marquer comme vu » / « Vu » ; appui long sur un épisode = vu / non vu, sur un bouton de saison = toute la saison. La progression en attente du titre est oubliée (`ProgressQueue.drop`) pour qu'un rejeu ne le ramène pas.
 

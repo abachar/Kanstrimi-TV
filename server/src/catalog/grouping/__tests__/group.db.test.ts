@@ -83,7 +83,10 @@ describe("runGrouping", () => {
         { id: 878, name: "Science-Fiction" },
       ],
       runtime: 121,
-      credits: { cast: [{ name: "Tobey Maguire", character: "Peter Parker" }], crew: [{ name: "Sam Raimi", job: "Director" }] },
+      credits: {
+        cast: [{ id: 2, name: "Tobey Maguire", character: "Peter Parker", profile_path: "/tobey.jpg" }],
+        crew: [{ name: "Sam Raimi", job: "Director" }],
+      },
       videos: { results: [{ key: "abc", site: "YouTube", type: "Trailer", official: true }] },
       release_dates: { results: [{ iso_3166_1: "FR", release_dates: [{ certification: "TP" }] }] },
       original_language: "en",
@@ -119,7 +122,7 @@ describe("runGrouping", () => {
     expect(sm.genres).toEqual(["Action", "Science-Fiction"]);
     expect(sm.runtime).toBe(121);
     expect(sm.certification).toBe("TP");
-    expect(sm.cast).toEqual([{ name: "Tobey Maguire", role: "Peter Parker" }]);
+    expect(sm.cast).toEqual([{ id: 2, name: "Tobey Maguire", role: "Peter Parker", profile: "/tobey.jpg" }]);
     expect(sm.director).toBe("Sam Raimi");
     expect(sm.trailerKey).toBe("abc");
     expect(sm.variantCount).toBe(4);

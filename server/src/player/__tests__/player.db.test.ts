@@ -169,7 +169,10 @@ beforeAll(async () => {
       { id: 878, name: "Science-Fiction" },
     ],
     runtime: 136,
-    credits: { cast: [{ name: "Keanu Reeves", character: "Neo" }], crew: [{ name: "Lana Wachowski", job: "Director" }] },
+    credits: {
+      cast: [{ id: 6384, name: "Keanu Reeves", character: "Neo", profile_path: "/keanu.jpg" }],
+      crew: [{ name: "Lana Wachowski", job: "Director" }],
+    },
     videos: { results: [{ key: "vKQi3bBA1y8", site: "YouTube", type: "Trailer", official: true }] },
     release_dates: { results: [{ iso_3166_1: "FR", release_dates: [{ certification: "12" }] }] },
   });
@@ -186,7 +189,13 @@ beforeAll(async () => {
       { id: 80, name: "Crime" },
     ],
     runtime: 170,
-    credits: { cast: [{ name: "Al Pacino", character: "Vincent Hanna" }], crew: [] },
+    credits: {
+      cast: [
+        { id: 1158, name: "Al Pacino", character: "Vincent Hanna", profile_path: null },
+        { id: 6384, name: "Keanu Reeves", character: "Un policier", profile_path: "/keanu.jpg" },
+      ],
+      crew: [],
+    },
   });
   await seedTmdb("tv", 1396, {
     name: "Vincenzo",
@@ -198,6 +207,7 @@ beforeAll(async () => {
     poster_path: "/v.jpg",
     backdrop_path: "/vb.jpg",
     genres: [{ id: 80, name: "Crime" }],
+    credits: { cast: [{ id: 6384, name: "Keanu Reeves", character: "Invité", profile_path: "/keanu.jpg" }], crew: [] },
     created_by: [{ name: "Park Jae-bum" }],
     vote_average: 8.4,
     vote_count: 900,
@@ -275,7 +285,16 @@ describe("pairing", () => {
   });
 
   it("401 without or with a bad token, on every authenticated route", async () => {
-    for (const p of ["/info", "/home", "/movies", "/series", "/channels", "/search?q=a", "/playback/tmdb:movie:603"]) {
+    for (const p of [
+      "/info",
+      "/home",
+      "/movies",
+      "/series",
+      "/channels",
+      "/search?q=a",
+      "/playback/tmdb:movie:603",
+      "/people/person:6384",
+    ]) {
       expect((await get(p, false)).status, p).toBe(401);
       const r = await api.request(p, { headers: { authorization: "Bearer dvc_wrong" } });
       expect(r.status, p).toBe(401);
@@ -393,7 +412,7 @@ describe("GET /movies/{id}", () => {
       overview: "Thomas Anderson…",
       runtime: 136,
       certification: "12",
-      cast: [{ name: "Keanu Reeves", role: "Neo" }],
+      cast: [{ id: "person:6384", name: "Keanu Reeves", role: "Neo", photo: "http://kanstrimi.test/img/w185/keanu.jpg" }],
       director: "Lana Wachowski",
       trailer: "https://www.youtube.com/watch?v=vKQi3bBA1y8",
       backdrop: "http://kanstrimi.test/img/w1280/bd.jpg",
@@ -809,6 +828,54 @@ describe("sagas", () => {
     expect((await get("/movies/tmdb:movie:3002")).body.saga).toEqual({ id: "saga:900", name: "Trilogie - Saga", count: 3 });
     expect((await get("/movies/tmdb:movie:3004")).body.saga).toBeUndefined();
     expect((await get("/movies/tmdb:movie:603")).body.saga).toBeUndefined();
+  });
+});
+
+describe("people", () => {
+  beforeAll(async () => {
+    await seedItems([
+      {
+        kind: "vod",
+        xtreamId: "pe1",
+        name: "|FR| Film Caché Keanu (VF)",
+        cat: "12",
+        tmdbId: 3101,
+        matchStatus: "matched",
+        hiddenManual: true,
+      },
+    ]);
+    await seedTmdb("movie", 3101, {
+      title: "Film Caché Keanu",
+      original_title: "Film Caché Keanu",
+      release_date: ymd(daysAgo(2)),
+      credits: { cast: [{ id: 6384, name: "Keanu Reeves", character: "Caché", profile_path: "/keanu.jpg" }], crew: [] },
+    });
+    await runNaming();
+    await runGrouping();
+  });
+
+  it("movie sheet: an actor without photo has photo null", async () => {
+    const { body } = await get("/movies/tmdb:movie:949");
+    expect(body.cast[0]).toEqual({ id: "person:1158", name: "Al Pacino", role: "Vincent Hanna", photo: null });
+  });
+
+  it("GET /people/{id}: name, photo, visible movies and series, latest release first", async () => {
+    const { status, body } = await get("/people/person:6384");
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ id: "person:6384", name: "Keanu Reeves", photo: "http://kanstrimi.test/img/w185/keanu.jpg" });
+    expect(body.movies.map((c: { title: string }) => c.title)).toEqual(["Heat", "Matrix"]);
+    expect(body.series.map((c: { title: string }) => c.title)).toEqual(["Vincenzo"]);
+  });
+
+  it("a person without photo: photo null", async () => {
+    const { body } = await get("/people/person:1158");
+    expect(body).toMatchObject({ id: "person:1158", name: "Al Pacino", photo: null, series: [] });
+    expect(body.movies).toHaveLength(1);
+  });
+
+  it("404 for an unknown or malformed id", async () => {
+    expect((await get("/people/person:1")).status).toBe(404);
+    expect((await get("/people/nope")).status).toBe(404);
   });
 });
 

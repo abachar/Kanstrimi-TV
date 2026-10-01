@@ -65,6 +65,7 @@ final class HTTPCatalogClient: CatalogClient {
         try await send("GET", "movies/sagas", query: cursor.map { [URLQueryItem(name: "cursor", value: $0)] } ?? [])
     }
     func saga(id: String) async throws -> SagaSheet { try await send("GET", "movies/sagas/\(id)") }
+    func person(id: String) async throws -> PersonSheet { try await send("GET", "people/\(id)") }
 
     // MARK: - Live
 

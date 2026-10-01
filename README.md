@@ -45,7 +45,6 @@ Ce qui vient après la V1.1 (tvOS et iPhone), par version, puis les idées non p
 
 - **V1.2** :
   - **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).
-  - **Distribution avec photos** : photos des acteurs sur la fiche, un acteur ouvre ses autres titres du catalogue.
 - **V1.3** :
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la

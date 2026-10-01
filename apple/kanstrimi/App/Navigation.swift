@@ -6,12 +6,13 @@ enum MainTab: String, Hashable, CaseIterable {
 }
 
 /// Where a tab's navigation stack can go. On iOS these are pushed screens; on tvOS a detail
-/// is a full-screen cover above the tabs, the grids, a saga and a studio covers above their screen.
+/// is a full-screen cover above the tabs, the grids, a saga, a studio and an actor covers above their screen.
 nonisolated enum Route: Hashable {
     case detail(ContentID)
     case genre(ContentKind, CatalogRow)
     case saga(SagaRef)
     case sagas
+    case person(PersonRef)
     case studio(ContentKind, Studio)
     /// iPhone only: the tab bar holds five tabs, so Réglages is pushed from the home screen.
     case settings
@@ -26,6 +27,7 @@ struct RouteView: View {
         case .genre(let kind, let row): GenreGridView(kind: kind, row: row)
         case .saga(let ref): SagaView(ref: ref)
         case .sagas: SagasGridView()
+        case .person(let ref): PersonView(ref: ref)
         case .studio(let kind, let studio): GenreGridView(studio: studio, kind: kind)
         case .settings: SettingsView()
         }

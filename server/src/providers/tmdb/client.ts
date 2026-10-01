@@ -37,7 +37,10 @@ export type TmdbDetails = Record<string, unknown> & {
   number_of_episodes?: number;
   production_countries?: { iso_3166_1: string; name: string }[];
   origin_country?: string[];
-  credits?: { cast?: { name: string; character?: string; order?: number }[]; crew?: { name: string; job: string }[] };
+  credits?: {
+    cast?: { id?: number; name: string; character?: string; profile_path?: string | null; order?: number }[];
+    crew?: { name: string; job: string }[];
+  };
   videos?: { results?: { key: string; site: string; type: string; official?: boolean }[] };
   images?: {
     backdrops?: { file_path: string }[];

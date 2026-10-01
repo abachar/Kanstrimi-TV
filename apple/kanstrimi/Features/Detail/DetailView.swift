@@ -7,11 +7,12 @@ struct DetailView: View {
     @State private var model: DetailModel?
     @State private var showPicker = false
     @State private var saga: SagaRef?
+    @State private var person: PersonRef?
 
     var body: some View {
         Group {
             if let model {
-                DetailContent(model: model, showPicker: $showPicker, openSaga: openSaga)
+                DetailContent(model: model, showPicker: $showPicker, openSaga: openSaga, openPerson: openPerson)
             } else {
                 Color.clear
             }
@@ -41,10 +42,18 @@ struct DetailView: View {
             // On tvOS the saga covers this sheet: close it before the chosen movie replaces the sheet.
             SagaView(ref: ref, onSelect: { id in saga = nil; env.open(id) }).environment(env)
         }
+        .fullScreenCover(item: $person) { ref in
+            // Same as the saga: on tvOS the actor's screen covers this sheet, so it closes before the chosen title replaces the sheet.
+            PersonView(ref: ref, onSelect: { id in person = nil; env.open(id) }).environment(env)
+        }
     }
 
     private func openSaga(_ ref: SagaRef) {
         if Platform.isTV { saga = ref } else { env.navigate(.saga(ref)) }
+    }
+
+    private func openPerson(_ ref: PersonRef) {
+        if Platform.isTV { person = ref } else { env.navigate(.person(ref)) }
     }
 }
 
@@ -52,6 +61,7 @@ private struct DetailContent: View {
     @Bindable var model: DetailModel
     @Binding var showPicker: Bool
     let openSaga: (SagaRef) -> Void
+    let openPerson: (PersonRef) -> Void
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
     @Environment(\.openURL) private var openURL
@@ -74,7 +84,8 @@ private struct DetailContent: View {
                     VStack(alignment: .leading, spacing: 34) {
                         header(d).padding(.top, metrics.detailTop)
                         buttons(d)
-                        if d.kind == .series { seasons(d) }
+                        if d.kind != .series { castRow(d) }
+                        if d.kind == .series { seasons(d); castRow(d) }
                         Spacer(minLength: 80)
                     }
                     .padding(.horizontal, metrics.inset)
@@ -108,7 +119,8 @@ private struct DetailContent: View {
                 VStack(alignment: .leading, spacing: 24) {
                     header(d)
                     buttons(d)
-                    if d.kind == .series { seasons(d) }
+                    if d.kind != .series { castRow(d) }
+                    if d.kind == .series { seasons(d); castRow(d) }
                 }
                 .padding(.horizontal, metrics.inset)
                 .padding(.top, d.isMatched ? -90 : 0)
@@ -188,8 +200,8 @@ private struct DetailContent: View {
                         Text(o).font(.body).foregroundStyle(Theme.text.opacity(0.9)).frame(maxWidth: metrics.textWidth, alignment: .leading).lineLimit(4)
                     }
                 }
-                if !d.cast.isEmpty || d.director != nil {
-                    Text([d.director.map { "Réalisation \($0)" }, d.cast.isEmpty ? nil : "Avec " + d.cast.map(\.name).joined(separator: ", ")].compactMap { $0 }.joined(separator: " · "))
+                if let director = d.director {
+                    Text("Réalisation \(director)")
                         .font(metrics.compact ? .footnote : .callout).foregroundStyle(Theme.secondary).frame(maxWidth: metrics.textWidth, alignment: .leading)
                         .lineLimit(metrics.compact ? 2 : nil)
                 }
@@ -197,6 +209,11 @@ private struct DetailContent: View {
                 noTMDB(d)
             }
         }
+    }
+
+    /// The cast with photos, for a matched title that has one.
+    @ViewBuilder private func castRow(_ d: Card) -> some View {
+        if d.isMatched, !d.cast.isEmpty { CastRow(cast: d.cast, onSelect: openPerson) }
     }
 
     @ViewBuilder private func ratingAndCertification(_ d: Card) -> some View {

@@ -10,6 +10,7 @@ import { infoRoutes } from "./info";
 import { homeRoutes } from "./home";
 import { listRoutes } from "./lists";
 import { sagaRoutes } from "./sagas";
+import { peopleRoutes } from "./people";
 import { studioRoutes } from "./studios";
 import { sheetRoutes } from "./sheets";
 import { channelRoutes } from "./channels";
@@ -54,6 +55,7 @@ player.route("/channels", channelRoutes);
 player.route("/playback", playbackRoutes);
 player.route("/search", searchRoutes);
 player.route("/favorites", favoriteRoutes);
+player.route("/people", peopleRoutes);
 
 // What the admin reads and edits of the app's own data (favourites, positions); `player` itself never imports `admin`.
 export { contextFor, type RestContext } from "./context";

@@ -109,6 +109,8 @@ protocol CatalogClient: AnyObject {
     func sagas(cursor: String?) async throws -> Page<Saga>
     /// `GET /movies/sagas/{id}`: one saga and its movies.
     func saga(id: String) async throws -> SagaSheet
+    /// `GET /people/{id}`: an actor and their visible titles.
+    func person(id: String) async throws -> PersonSheet
 
     // Live
     /// `GET /channels`: every category with its channels.

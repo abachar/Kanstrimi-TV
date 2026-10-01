@@ -115,6 +115,8 @@ nonisolated struct Metrics: Sendable {
     var toggleWidth: CGFloat?
     /// Diameter of a round icon button (detail sheet), the height of the play button beside it.
     var iconButton: CGFloat
+    /// Diameter of an actor's photo on the sheet's cast row.
+    var castPhoto: CGFloat
     /// Subtitle text size, drawn by the app over the video.
     var subtitleSize: CGFloat
 
@@ -125,7 +127,7 @@ nonisolated struct Metrics: Sendable {
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
                             panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 460,
                             dialogTitle: 48, dialogWidth: 900, nextCard: 620, dialogMargin: 70,
-                            pickerWidth: 1200, toggleWidth: 420, iconButton: 76, subtitleSize: 48)
+                            pickerWidth: 1200, toggleWidth: 420, iconButton: 76, castPhoto: 150, subtitleSize: 48)
     static let phone = Metrics(compact: true, inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,
                                artTitle: 14, badge: 12, badgeSmall: 10,
                                heroHeight: 470, heroTitle: 32, detailTitle: 30, detailTop: 40, detailLogo: CGSize(width: 260, height: 90), stillWidth: 140, textWidth: .infinity,
@@ -133,7 +135,7 @@ nonisolated struct Metrics: Sendable {
                                pairingTitle: 28, showsQR: false, codeCell: 40, pairingColumn: nil,
                                panelHeight: 300, panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
                                dialogTitle: 26, dialogWidth: 460, nextCard: 340, dialogMargin: 24,
-                               pickerWidth: nil, toggleWidth: nil, iconButton: 44, subtitleSize: 17)
+                               pickerWidth: nil, toggleWidth: nil, iconButton: 44, castPhoto: 72, subtitleSize: 17)
     static var current: Metrics {
         #if os(tvOS)
         return .tv

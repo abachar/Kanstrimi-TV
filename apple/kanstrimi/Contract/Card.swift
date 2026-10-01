@@ -23,9 +23,20 @@ nonisolated struct EpisodeRef: Codable, Hashable, Sendable {
     var shortCode: String { "S\(season) É\(number)" }
 }
 
+/// A cast member of a sheet. `id` = `person:<TMDB id>`; nil on a sheet the server has not copied again
+/// (no link to their titles). `photo` is nil when TMDB has none.
 nonisolated struct Person: Codable, Hashable, Sendable {
+    let id: String?
     let name: String
     let role: String?
+    let photo: URL?
+
+    init(id: String? = nil, name: String, role: String? = nil, photo: URL? = nil) {
+        self.id = id; self.name = name; self.role = role; self.photo = photo
+    }
+
+    /// What the navigation carries to the actor's screen; nil without an `id`.
+    var ref: PersonRef? { id.map { PersonRef(id: $0, name: name, photo: photo) } }
 }
 
 nonisolated struct Episode: Codable, Hashable, Identifiable, Sendable {

@@ -27,44 +27,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:19923",
     "name": "Hugh Bonneville",
-    "role": "Robert Crawley"
+    "role": "Robert Crawley",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/skbxj8MUuNiI39ZkP38uEirU0bC.jpg"
    },
    {
+    "id": "person:224194",
     "name": "Laura Carmichael",
-    "role": "Edith Crawley"
+    "role": "Edith Crawley",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ab4ATHYMzFzxfF2VdpoXwqkrfqR.jpg"
    },
    {
+    "id": "person:20070",
     "name": "Jim Carter",
-    "role": "Charles Carson"
+    "role": "Charles Carson",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/okiL3gc0mNqP0kPfMQHHvFjKnHb.jpg"
    },
    {
+    "id": "person:196544",
     "name": "Raquel Cassidy",
-    "role": "Phyllis Baxter"
+    "role": "Phyllis Baxter",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/lRdtHq0V5Gdu5kWR6UnOATgM9Pb.jpg"
    },
    {
+    "id": "person:74056",
     "name": "Brendan Coyle",
-    "role": "John Bates"
+    "role": "John Bates",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/x62gQenNH3fVHfDkTL0UDyVFHgo.jpg"
    },
    {
+    "id": "person:70904",
     "name": "Michelle Dockery",
-    "role": "Mary Crawley"
+    "role": "Mary Crawley",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/pgPJGf2wAPgoC6Bp5PBJYQV7IVt.jpg"
    },
    {
+    "id": "person:130977",
     "name": "Joanne Froggatt",
-    "role": "Anna Bates"
+    "role": "Anna Bates",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/eL6B9OTjeRALm5uUfMmy74Wu9Sr.jpg"
    },
    {
+    "id": "person:4513",
     "name": "Elizabeth McGovern",
-    "role": "Cora Crawley"
+    "role": "Cora Crawley",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ihYdCKyr3JPz74tPuvkn1WSNh9b.jpg"
    },
    {
+    "id": "person:1216101",
     "name": "Kevin Doyle",
-    "role": "Joseph Molesley"
+    "role": "Joseph Molesley",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/qAOTfour2vXXpQxlMK4sSKISb4F.jpg"
    },
    {
+    "id": "person:1396601",
     "name": "Michael Fox",
-    "role": "Andy"
+    "role": "Andy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/rXMf9BWNuIRr5FcFncQz7HPJBOy.jpg"
    }
   ],
   "director": "Michael Engler",
@@ -200,44 +220,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:1428070",
     "name": "Isabela Merced",
-    "role": "Dora"
+    "role": "Dora",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/7O5GWIH8IHwU4kGZIhC3JkGDiZr.jpg"
    },
    {
+    "id": "person:1826682",
     "name": "Jeff Wahlberg",
-    "role": "Diego"
+    "role": "Diego",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/2l4keQAgLuv0acsPcmfP9SJ28sF.jpg"
    },
    {
+    "id": "person:1109111",
     "name": "Madeleine Madden",
-    "role": "Sammy"
+    "role": "Sammy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/oOZ1EJeq2DHxNNLAkLEyYYOlqlM.jpg"
    },
    {
+    "id": "person:239574",
     "name": "Eugenio Derbez",
-    "role": "Alejandro Gutierrez"
+    "role": "Alejandro Gutierrez",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6o1w3mYF947N6TTakQXcs3NNy4w.jpg"
    },
    {
+    "id": "person:454",
     "name": "Michael Peña",
-    "role": "Cole - Dora's Father"
+    "role": "Cole - Dora's Father",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/afs4PCiwn8LR93a10drULLVeVLo.jpg"
    },
    {
+    "id": "person:52605",
     "name": "Eva Longoria",
-    "role": "Elena"
+    "role": "Elena",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/1u26GLWK1DE7gBugyI9P3OMFq4A.jpg"
    },
    {
+    "id": "person:1121",
     "name": "Benicio del Toro",
-    "role": "Swiper (voice)"
+    "role": "Swiper (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/aYomJWx0B2B8ra6Rmgt8lr0XCrw.jpg"
    },
    {
+    "id": "person:2110964",
     "name": "Madelyn Miranda",
-    "role": "Dora (6 years)"
+    "role": "Dora (6 years)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/dUANDOz6yCQGXTNcW6aMuJTTo2h.jpg"
    },
    {
+    "id": "person:1836114",
     "name": "Malachi Barton",
-    "role": "Diego (6 years)"
+    "role": "Diego (6 years)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/lmV6ParCZkniV1OQO71xxfjFjaG.jpg"
    },
    {
+    "id": "person:23680",
     "name": "Dee Bradley Baker",
-    "role": "Animal Vocalizations (voice)"
+    "role": "Animal Vocalizations (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/9oFnToDZWp0I484s7Ua1EzNQQ2m.jpg"
    }
   ],
   "director": "James Bobin",
@@ -361,44 +401,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:20738",
     "name": "Song Kang-ho",
-    "role": "Kim Ki-taek"
+    "role": "Kim Ki-taek",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/kBM9UTPYXUA2RNk210DXhztLFns.jpg"
    },
    {
+    "id": "person:115290",
     "name": "Sun-kyun Lee",
-    "role": "Park Dong-ik"
+    "role": "Park Dong-ik",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nHFBbSFohzOUOvMxPVwe3Es2nJw.jpg"
    },
    {
+    "id": "person:556435",
     "name": "Cho Yeo-jeong",
-    "role": "Yeon-kyo"
+    "role": "Yeon-kyo",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5MgWM8pkUiYkj9MEaEpO0Ir1FD9.jpg"
    },
    {
+    "id": "person:1255881",
     "name": "Choi Woo-shik",
-    "role": "Ki-woo"
+    "role": "Ki-woo",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/9mZ9DNopxpCLUjXd0rLd42TLamw.jpg"
    },
    {
+    "id": "person:1442583",
     "name": "Park So-dam",
-    "role": "Ki-jung"
+    "role": "Ki-jung",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/fGVOikpvivopeATDy6ZzLdKYXDu.jpg"
    },
    {
+    "id": "person:1572354",
     "name": "Lee Jung-eun",
-    "role": "Moon-gwang"
+    "role": "Moon-gwang",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/4r3K47UpSmzZ5t9cyTRRqRl9rdz.jpg"
    },
    {
+    "id": "person:2158882",
     "name": "Jang Hye-jin",
-    "role": "Chung-sook"
+    "role": "Chung-sook",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/pZiQXSWwo9F4gncHfa1yw0CQjxk.jpg"
    },
    {
+    "id": "person:1694435",
     "name": "Park Myung-hoon",
-    "role": "Geun-se"
+    "role": "Geun-se",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5SucrxkigHss7UuJKrkfAZX5MXz.jpg"
    },
    {
+    "id": "person:1418762",
     "name": "Jung Zi-so",
-    "role": "Da-hye"
+    "role": "Da-hye",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/jsUPFmY1HlML92ubVtSE8L8ovz6.jpg"
    },
    {
+    "id": "person:2306987",
     "name": "Jung Hyeon-jun",
-    "role": "Da-song"
+    "role": "Da-song",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/vZadA6ip6V2kh0VZW9RwnLcYFgW.jpg"
    }
   ],
   "director": "Bong Joon-ho",
@@ -522,44 +582,64 @@
   "certification": "12",
   "cast": [
    {
+    "id": "person:65731",
     "name": "Sam Worthington",
-    "role": "Jake Sully"
+    "role": "Jake Sully",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/mflBcox36s9ZPbsZPVOuhf6axaJ.jpg"
    },
    {
+    "id": "person:8691",
     "name": "Zoe Saldaña",
-    "role": "Neytiri"
+    "role": "Neytiri",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/vQBwmsSOAd0JDaEcZ5p43J9xzsY.jpg"
    },
    {
+    "id": "person:10205",
     "name": "Sigourney Weaver",
-    "role": "Kiri"
+    "role": "Kiri",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wTSnfktNBLd6kwQxgvkqYw6vEon.jpg"
    },
    {
+    "id": "person:32747",
     "name": "Stephen Lang",
-    "role": "Colonel Miles Quaritch"
+    "role": "Colonel Miles Quaritch",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/gnO5VfkDgA2fsHweD0622LUY3Hu.jpg"
    },
    {
+    "id": "person:204",
     "name": "Kate Winslet",
-    "role": "Ronal"
+    "role": "Ronal",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6qNnMsKtKz9si5rabpUEG85UfHp.jpg"
    },
    {
+    "id": "person:7248",
     "name": "Cliff Curtis",
-    "role": "Tonowari"
+    "role": "Tonowari",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/dfaElGoyJWseFWxXwEMLL9WTi7V.jpg"
    },
    {
+    "id": "person:59231",
     "name": "Joel David Moore",
-    "role": "Norm Spellman"
+    "role": "Norm Spellman",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/mMVhVglj6BZFuvqAXnEibce08k7.jpg"
    },
    {
+    "id": "person:30485",
     "name": "CCH Pounder",
-    "role": "Mo'at"
+    "role": "Mo'at",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/yLOU0qA5MwJyoKMc0e4HyZz4oFV.jpg"
    },
    {
+    "id": "person:36190",
     "name": "Edie Falco",
-    "role": "General Frances Ardmore"
+    "role": "General Frances Ardmore",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/jS2Hnr5OmntpX0J7EpH70zAG0mz.jpg"
    },
    {
+    "id": "person:55936",
     "name": "Jemaine Clement",
-    "role": "Dr. Ian Garvin"
+    "role": "Dr. Ian Garvin",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6eiNbeurpHb2fxIeT0RrJ0wRI25.jpg"
    }
   ],
   "director": "James Cameron",
@@ -684,44 +764,64 @@
   "certification": "12",
   "cast": [
    {
+    "id": "person:84223",
     "name": "Anna Kendrick",
-    "role": "Stephanie Smothers"
+    "role": "Stephanie Smothers",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/i2HIJQcBsUQ3o9HwEeDwou45D60.jpg"
    },
    {
+    "id": "person:59175",
     "name": "Blake Lively",
-    "role": "Emily Nelson"
+    "role": "Emily Nelson",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/rkGVjd6wImtgjOCi0IpeffdEWtb.jpg"
    },
    {
+    "id": "person:1807132",
     "name": "Henry Golding",
-    "role": "Sean Townsend"
+    "role": "Sean Townsend",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/zWZDvqMInsficgm4o3W2cRJ6tmn.jpg"
    },
    {
+    "id": "person:36669",
     "name": "Rupert Friend",
-    "role": "Dennis Nylon"
+    "role": "Dennis Nylon",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/aMOUdXtTlqtscPumbuvfcH1JB42.jpg"
    },
    {
+    "id": "person:1817",
     "name": "Linda Cardellini",
-    "role": "Diana Hyland"
+    "role": "Diana Hyland",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/bcycvynDprC1rrhBNrnBjn5uOUd.jpg"
    },
    {
+    "id": "person:1241330",
     "name": "Bashir Salahuddin",
-    "role": "Detective Summervile"
+    "role": "Detective Summervile",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ZL5MRzjd6kWkvQXqh5mgPY1CKP.jpg"
    },
    {
+    "id": "person:1323876",
     "name": "Danielle Bourgon",
-    "role": "Grace, Stephanie's Mom"
+    "role": "Grace, Stephanie's Mom",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/sc5047vKNM6IsTSiQT3cQBeLfjA.jpg"
    },
    {
+    "id": "person:1309781",
     "name": "Kelly McCormack",
-    "role": "Stacy"
+    "role": "Stacy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/62TeNBs75LRmbmZfVoYEXjePp28.jpg"
    },
    {
+    "id": "person:990369",
     "name": "Andrew Rannells",
-    "role": "Darren"
+    "role": "Darren",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wOXFZssfq3wymBwuiMNVNBpPENB.jpg"
    },
    {
+    "id": "person:2123596",
     "name": "Ian Ho",
-    "role": "Nicky Nelson"
+    "role": "Nicky Nelson",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/t8hDCgib6IFBu69tI6E1kYB2wPf.jpg"
    }
   ],
   "director": "Paul Feig",
@@ -845,44 +945,64 @@
   "certification": "12",
   "cast": [
    {
+    "id": "person:17604",
     "name": "Jeremy Renner",
-    "role": "Hansel"
+    "role": "Hansel",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/yB84D1neTYXfWBaV0QOE9RF2VCu.jpg"
    },
    {
+    "id": "person:59620",
     "name": "Gemma Arterton",
-    "role": "Gretel"
+    "role": "Gretel",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/Alfm28oyHNiYweNCUaMmrVjVMAT.jpg"
    },
    {
+    "id": "person:10696",
     "name": "Famke Janssen",
-    "role": "Muriel"
+    "role": "Muriel",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/uvZGwNsLqe9NyA57Qlt46IkO8Bd.jpg"
    },
    {
+    "id": "person:93564",
     "name": "Pihla Viitala",
-    "role": "Mina"
+    "role": "Mina",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/4arJbR42gQfEdWOrnZKIJTuLCLF.jpg"
    },
    {
+    "id": "person:51300",
     "name": "Derek Mears",
-    "role": "Edward"
+    "role": "Edward",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/2ckpSGUa4EDKWS1KMP0hLtFUWi.jpg"
    },
    {
+    "id": "person:130081",
     "name": "Robin Atkin Downes",
-    "role": "Edward (voice)"
+    "role": "Edward (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/qb4xPIJGiKyiQ2MhSDQzFWxN0jS.jpg"
    },
    {
+    "id": "person:87879",
     "name": "Ingrid Bolsø Berdal",
-    "role": "Horned Witch"
+    "role": "Horned Witch",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/iv9RaskT1WronDXaTKh9mI5KNUn.jpg"
    },
    {
+    "id": "person:908548",
     "name": "Joanna Kulig",
-    "role": "Red Haired Witch"
+    "role": "Red Haired Witch",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/hlRdav6dSvfzyDnSSMooVh9GVxh.jpg"
    },
    {
+    "id": "person:1142720",
     "name": "Thomas Mann",
-    "role": "Ben"
+    "role": "Ben",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/cJO10vU19SL82pgMB6LdAijDSJv.jpg"
    },
    {
+    "id": "person:53",
     "name": "Peter Stormare",
-    "role": "Sheriff Berringer"
+    "role": "Sheriff Berringer",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/1rtpuUqBV29jDc1huUhtjGDbEwn.jpg"
    }
   ],
   "director": "Tommy Wirkola",
@@ -999,44 +1119,64 @@
   "certification": "U",
   "cast": [
    {
+    "id": "person:135651",
     "name": "Michael B. Jordan",
-    "role": "Bryan Stevenson"
+    "role": "Bryan Stevenson",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/sMBpav8cK7t7Nk0yf4tuNOqNUyW.jpg"
    },
    {
+    "id": "person:60073",
     "name": "Brie Larson",
-    "role": "Eva Ansley"
+    "role": "Eva Ansley",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/iqZ5uKJWbwSITCK4CqdlUHZTnXD.jpg"
    },
    {
+    "id": "person:134",
     "name": "Jamie Foxx",
-    "role": "Walter McMillian"
+    "role": "Walter McMillian",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/zD8Nsy4Xrghp7WunwpCj5JKBPeU.jpg"
    },
    {
+    "id": "person:1371398",
     "name": "O'Shea Jackson Jr.",
-    "role": "Anthony Ray Hinton"
+    "role": "Anthony Ray Hinton",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/kXJ02sXvnExbGNJ11piC6d6WMOc.jpg"
    },
    {
+    "id": "person:28847",
     "name": "Rafe Spall",
-    "role": "Tommy Champan"
+    "role": "Tommy Champan",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/zcqUqAvO7RQnitcCNNfTVPaiQtS.jpg"
    },
    {
+    "id": "person:1281250",
     "name": "Rob Morgan",
-    "role": "Herbert Richardson"
+    "role": "Herbert Richardson",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ps6wR3JZnk6MY9tbtOLORgadqs6.jpg"
    },
    {
+    "id": "person:1462",
     "name": "Tim Blake Nelson",
-    "role": "Ralph Myers"
+    "role": "Ralph Myers",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/rWuTGiAMaaHIJ30eRkQS23LbRSW.jpg"
    },
    {
+    "id": "person:51456",
     "name": "Rhoda Griffis",
-    "role": "Judge Pamela Bachab"
+    "role": "Judge Pamela Bachab",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/jO50PgihnZ0gAlJDulpzxMoLgRB.jpg"
    },
    {
+    "id": "person:1507385",
     "name": "J. Alphonse Nicholson",
-    "role": "Henry Davis"
+    "role": "Henry Davis",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/3Z0rqaMX65Lh4SFtEZz2cdHUHW5.jpg"
    },
    {
+    "id": "person:935721",
     "name": "Karan Kendrick",
-    "role": "Minnie McMillian"
+    "role": "Minnie McMillian",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/tI9h1WODzcym7cQwhmYWs7OTefP.jpg"
    }
   ],
   "director": "Destin Daniel Cretton",
@@ -1141,44 +1281,64 @@
   "certification": "12",
   "cast": [
    {
+    "id": "person:37632",
     "name": "Eddie Redmayne",
-    "role": "Newt Scamander"
+    "role": "Newt Scamander",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/fSvG7qzoBBnJUmgtIuMgrK3EQPN.jpg"
    },
    {
+    "id": "person:77795",
     "name": "Katherine Waterston",
-    "role": "Tina Goldstein"
+    "role": "Tina Goldstein",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/zaqbXjr5jE1DnEoyAHokUDoCKOM.jpg"
    },
    {
+    "id": "person:58873",
     "name": "Dan Fogler",
-    "role": "Jacob Kowalski"
+    "role": "Jacob Kowalski",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/zJWbLEjfbDthBMucq9M6L4GJXL3.jpg"
    },
    {
+    "id": "person:998225",
     "name": "Alison Sudol",
-    "role": "Queenie Goldstein"
+    "role": "Queenie Goldstein",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/BNrfybwhIhN74JMTQL2CHstXkx.jpg"
    },
    {
+    "id": "person:85",
     "name": "Johnny Depp",
-    "role": "Grindelwald"
+    "role": "Grindelwald",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/k2xt6EUxQDwYRKIyI4IBdZxfs8n.jpg"
    },
    {
+    "id": "person:9642",
     "name": "Jude Law",
-    "role": "Albus Dumbledore"
+    "role": "Albus Dumbledore",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6UadpSbfC39WMChAcdnNunzwDxv.jpg"
    },
    {
+    "id": "person:132157",
     "name": "Ezra Miller",
-    "role": "Credence Barebone"
+    "role": "Credence Barebone",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6wmTpbYpmhthaxzM5ss3377F9IV.jpg"
    },
    {
+    "id": "person:37153",
     "name": "Zoë Kravitz",
-    "role": "Leta Lestrange"
+    "role": "Leta Lestrange",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/n0mhAgmY6eJQmA7kaugsTZEJgHo.jpg"
    },
    {
+    "id": "person:1371041",
     "name": "Callum Turner",
-    "role": "Theseus Scamander"
+    "role": "Theseus Scamander",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/b9Sz10HU71SQ5wrx7CfWPKQ4vDJ.jpg"
    },
    {
+    "id": "person:1401531",
     "name": "수현",
-    "role": "Nagini"
+    "role": "Nagini",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/lIP9G93fPfePB1TaFTlcirEybUq.jpg"
    }
   ],
   "director": "David Yates",
@@ -1290,44 +1450,64 @@
   "certification": "12",
   "cast": [
    {
+    "id": "person:234352",
     "name": "Margot Robbie",
-    "role": "Harley Quinn"
+    "role": "Harley Quinn",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/8LqG2N6j98lFGMpuYsRUAhOunSd.jpg"
    },
    {
+    "id": "person:4810",
     "name": "Rosie Perez",
-    "role": "Renee Montoya"
+    "role": "Renee Montoya",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/g6iJNyIhVDY5NxZU1jbKMjPnNYf.jpg"
    },
    {
+    "id": "person:17628",
     "name": "Mary Elizabeth Winstead",
-    "role": "Helena Bertinelli / Huntress"
+    "role": "Helena Bertinelli / Huntress",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/cBMtncBcUrKMTB8CifDG23THuCE.jpg"
    },
    {
+    "id": "person:59017",
     "name": "Jurnee Smollett-Bell",
-    "role": "Dinah Lance / Black Canary"
+    "role": "Dinah Lance / Black Canary",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ohvV70Ar4rlL5I3WzxQGtRjpsgS.jpg"
    },
    {
+    "id": "person:3061",
     "name": "Ewan McGregor",
-    "role": "Roman Sionis"
+    "role": "Roman Sionis",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/q2UDxfwWnmXTB7khOUF3J9puBVP.jpg"
    },
    {
+    "id": "person:2175867",
     "name": "Ella Jay Basco",
-    "role": "Cassandra Cain"
+    "role": "Cassandra Cain",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/pvbIkOzprqteMtVH5hdaQ7VZMWB.jpg"
    },
    {
+    "id": "person:61659",
     "name": "Chris Messina",
-    "role": "Victor Zsasz"
+    "role": "Victor Zsasz",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/l9DbQTK5pI6SOGpmfbADGLhdOYS.jpg"
    },
    {
+    "id": "person:591835",
     "name": "Ali Wong",
-    "role": "Ellen Yee"
+    "role": "Ellen Yee",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/vpVDlzPIIzgwdO23MbbwvfmPtXQ.jpg"
    },
    {
+    "id": "person:1237876",
     "name": "David Ury",
-    "role": "Sleazy Breeder"
+    "role": "Sleazy Breeder",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/7PxPrnttpomJ9FuX4iSUwapRqR3.jpg"
    },
    {
+    "id": "person:2065065",
     "name": "Sara Montez",
-    "role": "Shallow Friend #1 / Kathrine"
+    "role": "Shallow Friend #1 / Kathrine",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/9esIG5yFs0i1vu9H7rQsMSJ4kBr.jpg"
    }
   ],
   "director": "Cathy Yan",
@@ -1432,44 +1612,64 @@
   "certification": "12",
   "cast": [
    {
+    "id": "person:880",
     "name": "Ben Affleck",
-    "role": "Batman / Bruce Wayne"
+    "role": "Batman / Bruce Wayne",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/aTcqu8cI4wMohU17xTdqmXKTGrw.jpg"
    },
    {
+    "id": "person:73968",
     "name": "Henry Cavill",
-    "role": "Superman / Clark Kent"
+    "role": "Superman / Clark Kent",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/kN3A5oLgtKYAxa9lAkpsIGYKYVo.jpg"
    },
    {
+    "id": "person:90633",
     "name": "Gal Gadot",
-    "role": "Wonder Woman / Diana Prince"
+    "role": "Wonder Woman / Diana Prince",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/AbXKtWQwuDiwhoQLh34VRglwuBE.jpg"
    },
    {
+    "id": "person:1313559",
     "name": "Ray Fisher",
-    "role": "Cyborg / Victor Stone"
+    "role": "Cyborg / Victor Stone",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/310snvA05xDOQZDn2fJSp242GHw.jpg"
    },
    {
+    "id": "person:117642",
     "name": "Jason Momoa",
-    "role": "Aquaman / Arthur Curry"
+    "role": "Aquaman / Arthur Curry",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/3troAR6QbSb6nUFMDu61YCCWLKa.jpg"
    },
    {
+    "id": "person:132157",
     "name": "Ezra Miller",
-    "role": "The Flash / Barry Allen"
+    "role": "The Flash / Barry Allen",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6wmTpbYpmhthaxzM5ss3377F9IV.jpg"
    },
    {
+    "id": "person:8785",
     "name": "Ciarán Hinds",
-    "role": "Steppenwolf (voice)"
+    "role": "Steppenwolf (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/d8wLIX9VYgwXRGSp1gmUdUxmApv.jpg"
    },
    {
+    "id": "person:9273",
     "name": "Amy Adams",
-    "role": "Lois Lane"
+    "role": "Lois Lane",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/1h2r2VTpoFb5QefAaBYYQgQzL9z.jpg"
    },
    {
+    "id": "person:5293",
     "name": "Willem Dafoe",
-    "role": "Vulko"
+    "role": "Vulko",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ui8e4sgZAwMPi3hzEO53jyBJF9B.jpg"
    },
    {
+    "id": "person:16940",
     "name": "Jeremy Irons",
-    "role": "Alfred"
+    "role": "Alfred",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/w8Ct1q02Ht3sWdOSqfp3B85TzT.jpg"
    }
   ],
   "director": "Zack Snyder",
@@ -1575,44 +1775,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:1193391",
     "name": "Anthony Gonzalez",
-    "role": "Miguel Rivera (voice)"
+    "role": "Miguel Rivera (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/WF7bn6t0LkxwBWyDMWvomVujn7.jpg"
    },
    {
+    "id": "person:258",
     "name": "Gael García Bernal",
-    "role": "Héctor (voice)"
+    "role": "Héctor (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/7uEO29wtdyY9bjt2JN43gVpE6vt.jpg"
    },
    {
+    "id": "person:4589",
     "name": "Benjamin Bratt",
-    "role": "Ernesto de la Cruz (voice)"
+    "role": "Ernesto de la Cruz (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/hBenHPT4iJEG2kt5z2TOGnkRZwh.jpg"
    },
    {
+    "id": "person:10402",
     "name": "Alanna Ubach",
-    "role": "Mamá Imelda (voice)"
+    "role": "Mamá Imelda (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ffyBAEoW3bDgVJQV3GaHsZ9x29W.jpg"
    },
    {
+    "id": "person:154004",
     "name": "Renée Victor",
-    "role": "Abuelita (voice)"
+    "role": "Abuelita (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wAVDqwFhQsRQgO6VIYq6T9Wbbx8.jpg"
    },
    {
+    "id": "person:545087",
     "name": "Jaime Camil",
-    "role": "Papá (voice)"
+    "role": "Papá (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/njvdXEGN3bSSXpsyVnyKQTXdf1V.jpg"
    },
    {
+    "id": "person:22767",
     "name": "Alfonso Arau",
-    "role": "Papá Julio (voice)"
+    "role": "Papá Julio (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5ishPim5akWXSnMbwOWSc3KxDx8.jpg"
    },
    {
+    "id": "person:178667",
     "name": "Herbert Siguenza",
-    "role": "Tío Oscar / Tío Felipe (voice)"
+    "role": "Tío Oscar / Tío Felipe (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/aVLX3sRMZp1qIfqCRHgjjy2NfGI.jpg"
    },
    {
+    "id": "person:86498",
     "name": "Gabriel Iglesias",
-    "role": "Clerk (voice)"
+    "role": "Clerk (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/8Bjy3RZ5TfNs3oUOUpxTv84G01f.jpg"
    },
    {
+    "id": "person:4992",
     "name": "Lombardo Boyar",
-    "role": "Plaza Mariachi / Gustavo (voice)"
+    "role": "Plaza Mariachi / Gustavo (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wwWs0u2QDz1XOakR05C0BYJCfM1.jpg"
    }
   ],
   "director": "Lee Unkrich",
@@ -1717,44 +1937,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:3223",
     "name": "Robert Downey Jr.",
-    "role": "Tony Stark / Iron Man"
+    "role": "Tony Stark / Iron Man",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5qHNjhtjMD4YWH3UP0rm4tKwxCL.jpg"
    },
    {
+    "id": "person:16828",
     "name": "Chris Evans",
-    "role": "Steve Rogers / Captain America"
+    "role": "Steve Rogers / Captain America",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/3bOGNsHlrswhyW79uvIHH1V43JI.jpg"
    },
    {
+    "id": "person:103",
     "name": "Mark Ruffalo",
-    "role": "Bruce Banner / Hulk"
+    "role": "Bruce Banner / Hulk",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5GilHMOt5PAQh6rlUKZzGmaKEI7.jpg"
    },
    {
+    "id": "person:74568",
     "name": "Chris Hemsworth",
-    "role": "Thor"
+    "role": "Thor",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/piQGdoIQOF3C1EI5cbYZLAW1gfj.jpg"
    },
    {
+    "id": "person:1245",
     "name": "Scarlett Johansson",
-    "role": "Natasha Romanoff / Black Widow"
+    "role": "Natasha Romanoff / Black Widow",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/tgxYh3jMs5bY2Ub4d2dcp9iaz1R.jpg"
    },
    {
+    "id": "person:17604",
     "name": "Jeremy Renner",
-    "role": "Clint Barton / Hawkeye"
+    "role": "Clint Barton / Hawkeye",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/yB84D1neTYXfWBaV0QOE9RF2VCu.jpg"
    },
    {
+    "id": "person:16851",
     "name": "Josh Brolin",
-    "role": "Thanos"
+    "role": "Thanos",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/sX2etBbIkxRaCsATyw5ZpOVMPTD.jpg"
    },
    {
+    "id": "person:1896",
     "name": "Don Cheadle",
-    "role": "James Rhodes / War Machine"
+    "role": "James Rhodes / War Machine",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/umhTmcVF26qZKEpSfG1ZNpcbs9D.jpg"
    },
    {
+    "id": "person:22226",
     "name": "Paul Rudd",
-    "role": "Scott Lang / Ant-Man"
+    "role": "Scott Lang / Ant-Man",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6jtwNOLKy0LdsRAKwZqgYMAfd5n.jpg"
    },
    {
+    "id": "person:71580",
     "name": "Benedict Cumberbatch",
-    "role": "Doctor Strange"
+    "role": "Doctor Strange",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wz3MRiMmoz6b5X3oSzMRC9nLxY1.jpg"
    }
   ],
   "director": "Anthony Russo, Joe Russo",
@@ -1858,44 +2098,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:36592",
     "name": "Saoirse Ronan",
-    "role": "Jo March"
+    "role": "Jo March",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/tsk3iKGmMgXIGbRjwf2zYkh8Zkb.jpg"
    },
    {
+    "id": "person:10990",
     "name": "Emma Watson",
-    "role": "Meg March"
+    "role": "Meg March",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/mf0OANvWYSzU1d8yggrhyw8IbIz.jpg"
    },
    {
+    "id": "person:1373737",
     "name": "Florence Pugh",
-    "role": "Amy March"
+    "role": "Amy March",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/2URrZb95t3kY6pLroKny3Enmabp.jpg"
    },
    {
+    "id": "person:1669125",
     "name": "Eliza Scanlen",
-    "role": "Beth March"
+    "role": "Beth March",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/bxSr2EH0KLN2SqQBJiITUx35cF6.jpg"
    },
    {
+    "id": "person:4784",
     "name": "Laura Dern",
-    "role": "Marmee March"
+    "role": "Marmee March",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/gB9PnGEvxKg33OSlcqptQwTBwPE.jpg"
    },
    {
+    "id": "person:1190668",
     "name": "Timothée Chalamet",
-    "role": "Laurie"
+    "role": "Laurie",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/dFxpwRpmzpVfP1zjluH68DeQhyj.jpg"
    },
    {
+    "id": "person:72638",
     "name": "Tracy Letts",
-    "role": "Mr. Dashwood"
+    "role": "Mr. Dashwood",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/x318yEddF10ASORC5U958C2kowf.jpg"
    },
    {
+    "id": "person:59410",
     "name": "Bob Odenkirk",
-    "role": "Father March"
+    "role": "Father March",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/rF0Lb6SBhGSTvjRffmlKRSeI3jE.jpg"
    },
    {
+    "id": "person:1205278",
     "name": "James Norton",
-    "role": "John Brooke"
+    "role": "John Brooke",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/3i9z9MkUCrlOGdMRw00j2vScxGC.jpg"
    },
    {
+    "id": "person:16269",
     "name": "Louis Garrel",
-    "role": "Friedrich Bhaer"
+    "role": "Friedrich Bhaer",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/iKJ1SL0im6tJVnE777HNLX2kUeG.jpg"
    }
   ],
   "director": "Greta Gerwig",
@@ -2002,44 +2262,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:31",
     "name": "Tom Hanks",
-    "role": "Woody (voice)"
+    "role": "Woody (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/oFvZoKI6lvU03n4YoNGAll9rkas.jpg"
    },
    {
+    "id": "person:12898",
     "name": "Tim Allen",
-    "role": "Buzz Lightyear (voice)"
+    "role": "Buzz Lightyear (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/k8XPNHBO459FaqkqqM4tfX5GMKk.jpg"
    },
    {
+    "id": "person:8873",
     "name": "Annie Potts",
-    "role": "Bo Peep (voice)"
+    "role": "Bo Peep (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nugPVN28qOhOIoHawrDJ6fIfrxR.jpg"
    },
    {
+    "id": "person:25147",
     "name": "Tony Hale",
-    "role": "Forky (voice)"
+    "role": "Forky (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/3dEyZgTye0Ec17VGKp0mJ3aU6ty.jpg"
    },
    {
+    "id": "person:298410",
     "name": "Keegan-Michael Key",
-    "role": "Ducky (voice)"
+    "role": "Ducky (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/xmdzYXP9j87a43FSiL138nLesuS.jpg"
    },
    {
+    "id": "person:1530558",
     "name": "Madeleine McGraw",
-    "role": "Bonnie (voice)"
+    "role": "Bonnie (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/8LXcAdo1TYsbrBnMxh50SzZkMLc.jpg"
    },
    {
+    "id": "person:110014",
     "name": "Christina Hendricks",
-    "role": "Gabby Gabby (voice)"
+    "role": "Gabby Gabby (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nwSh3NXQtUT3joHbCVwLvOoBxJG.jpg"
    },
    {
+    "id": "person:291263",
     "name": "Jordan Peele",
-    "role": "Bunny (voice)"
+    "role": "Bunny (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/kFUKn5g3ebpyZ3CSZZZo2HFWRNQ.jpg"
    },
    {
+    "id": "person:6384",
     "name": "Keanu Reeves",
-    "role": "Duke Caboom (voice)"
+    "role": "Duke Caboom (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/8RZLOyYGsoRe9p44q3xin9QkMHv.jpg"
    },
    {
+    "id": "person:209596",
     "name": "Ally Maki",
-    "role": "Giggle McDimples (voice)"
+    "role": "Giggle McDimples (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/jLeL0NSbV1j0snQugmFGzXhFbmv.jpg"
    }
   ],
   "director": "Josh Cooley",
@@ -2152,44 +2432,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:16855",
     "name": "Mandy Moore",
-    "role": "Rapunzel (voice)"
+    "role": "Rapunzel (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/2n0rqUGojRNEHrmtPeCEptHREEY.jpg"
    },
    {
+    "id": "person:69899",
     "name": "Zachary Levi",
-    "role": "Flynn Rider (voice)"
+    "role": "Flynn Rider (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/1W8L3kEMMPF9umT3ZGaNIiCYKfZ.jpg"
    },
    {
+    "id": "person:2517",
     "name": "Donna Murphy",
-    "role": "Mother Gothel (voice)"
+    "role": "Mother Gothel (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nbhjInhXh1puhwnfRU7Ov1XFmD0.jpg"
    },
    {
+    "id": "person:2372",
     "name": "Ron Perlman",
-    "role": "Stabbington Brother (voice)"
+    "role": "Stabbington Brother (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nfky6J9ueey1gMdWMNU9k9YdfGP.jpg"
    },
    {
+    "id": "person:22132",
     "name": "Michael Connor Gainey",
-    "role": "Captain of the Guard (voice)"
+    "role": "Captain of the Guard (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nM82se0lOFbOhhj3J6tRFcdEydO.jpg"
    },
    {
+    "id": "person:4175",
     "name": "Jeffrey Tambor",
-    "role": "Big Nose Thug (voice)"
+    "role": "Big Nose Thug (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/e4IkxsEo5O4oUWrIpXlEhWa6lqB.jpg"
    },
    {
+    "id": "person:18",
     "name": "Brad Garrett",
-    "role": "Hook Hand Thug (voice)"
+    "role": "Hook Hand Thug (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/813ffbpoaoaJRdoe1yrbivboWKp.jpg"
    },
    {
+    "id": "person:1219029",
     "name": "Paul F. Tompkins",
-    "role": "Short Thug (voice)"
+    "role": "Short Thug (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/pL9v2aubEAOSW0lgrWyP0vvGr34.jpg"
    },
    {
+    "id": "person:10460",
     "name": "Richard Kiel",
-    "role": "Vlad (voice)"
+    "role": "Vlad (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wop4KV2ywl6gdYnCUs1OthtGylM.jpg"
    },
    {
+    "id": "person:1273208",
     "name": "Delaney Rose Stein",
-    "role": "Young Rapunzel / Little Girl (voice)"
+    "role": "Young Rapunzel / Little Girl (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/fivjClC0riAPwL9esdOAkAHWdS3.jpg"
    }
   ],
   "director": "Byron Howard, Nathan Greno",
@@ -2295,44 +2595,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:6968",
     "name": "Hugh Jackman",
-    "role": "Nicolas 'Nick' Bannister"
+    "role": "Nicolas 'Nick' Bannister",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/4Xujtewxqt6aU0Y81tsS9gkjizk.jpg"
    },
    {
+    "id": "person:933238",
     "name": "Rebecca Ferguson",
-    "role": "Mae"
+    "role": "Mae",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ra53cM1aNmdH0aFhj8yBqPOj2fb.jpg"
    },
    {
+    "id": "person:9030",
     "name": "Thandiwe Newton",
-    "role": "Emily 'Watts' Sanders"
+    "role": "Emily 'Watts' Sanders",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/hZQLvxj7nV7pBrRyWTvWVz1CDi8.jpg"
    },
    {
+    "id": "person:7248",
     "name": "Cliff Curtis",
-    "role": "Cyrus Booth"
+    "role": "Cyrus Booth",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/dfaElGoyJWseFWxXwEMLL9WTi7V.jpg"
    },
    {
+    "id": "person:78883",
     "name": "Marina de Tavira",
-    "role": "Tamara Sylvan"
+    "role": "Tamara Sylvan",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/rGGjW1UnUL1Q4TGlfRL3W5yuyq1.jpg"
    },
    {
+    "id": "person:64436",
     "name": "吳彥祖",
-    "role": "Saint Joe"
+    "role": "Saint Joe",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/w6fCmYDlTNYfgdXBZjZH107c9zJ.jpg"
    },
    {
+    "id": "person:1375499",
     "name": "Mojean Aria",
-    "role": "Sebastian Sylvan"
+    "role": "Sebastian Sylvan",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/v5W5lpuAWSDVMokU0RKGkHDT2rj.jpg"
    },
    {
+    "id": "person:16841",
     "name": "Brett Cullen",
-    "role": "Walter Sylvan"
+    "role": "Walter Sylvan",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/4P6TsRcnr9MRbXlCdHitulGM5LT.jpg"
    },
    {
+    "id": "person:76511",
     "name": "Natalie Martinez",
-    "role": "Avery Castillo"
+    "role": "Avery Castillo",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/cFn0OI9c8aypx20hm3XpTqkrMEx.jpg"
    },
    {
+    "id": "person:85143",
     "name": "Angela Sarafyan",
-    "role": "Elsa Carine"
+    "role": "Elsa Carine",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/n23SKRSGUZL5sJz4MFkjnPxLgPl.jpg"
    }
   ],
   "director": "Lisa Joy",
@@ -2445,44 +2765,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:36662",
     "name": "Carey Mulligan",
-    "role": "Cassandra"
+    "role": "Cassandra",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/iwVHhqoz5b62FR0SDpZ7wfsuTBI.jpg"
    },
    {
+    "id": "person:115128",
     "name": "Bo Burnham",
-    "role": "Ryan"
+    "role": "Ryan",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/xMAatohXadCfz9ipvqvIaTLwOmV.jpg"
    },
    {
+    "id": "person:88029",
     "name": "Alison Brie",
-    "role": "Madison"
+    "role": "Madison",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/smqYVStfIHDYKTu8T1BA2LnhdF9.jpg"
    },
    {
+    "id": "person:6574",
     "name": "Clancy Brown",
-    "role": "Stanley"
+    "role": "Stanley",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/1JeBRNG7VS7r64V9lOvej9bZXW5.jpg"
    },
    {
+    "id": "person:38334",
     "name": "Jennifer Coolidge",
-    "role": "Susan"
+    "role": "Susan",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/hcpbV0dY4ZJxmZi1WcAWe8euqV2.jpg"
    },
    {
+    "id": "person:1298360",
     "name": "Laverne Cox",
-    "role": "Gail"
+    "role": "Gail",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5Fdim9m1g5tLM2S5rzkXEvMTkqV.jpg"
    },
    {
+    "id": "person:84300",
     "name": "Chris Lowell",
-    "role": "Al Monroe"
+    "role": "Al Monroe",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/mRZcivH2VjWRB1mQuOvRuRC2Lll.jpg"
    },
    {
+    "id": "person:28640",
     "name": "Molly Shannon",
-    "role": "Mrs. Fisher"
+    "role": "Mrs. Fisher",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5ZTbNpJtDRU4ZCH24nJvFRxaqAD.jpg"
    },
    {
+    "id": "person:86310",
     "name": "Connie Britton",
-    "role": "Dean Walker"
+    "role": "Dean Walker",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/lxfHf4tTx5NukbemcJjmgqqFAiV.jpg"
    },
    {
+    "id": "person:11702",
     "name": "Adam Brody",
-    "role": "Jerry"
+    "role": "Jerry",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/qKBWrohBYegm6AAaLrtxEqqouIK.jpg"
    }
   ],
   "director": "Emerald Fennell",
@@ -2586,44 +2926,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:500",
     "name": "Tom Cruise",
-    "role": "Ethan Hunt"
+    "role": "Ethan Hunt",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/maf8PhSvDCdEwjEMbYfGpojR5RP.jpg"
    },
    {
+    "id": "person:73968",
     "name": "Henry Cavill",
-    "role": "August Walker"
+    "role": "August Walker",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/kN3A5oLgtKYAxa9lAkpsIGYKYVo.jpg"
    },
    {
+    "id": "person:10182",
     "name": "Ving Rhames",
-    "role": "Luther Stickell"
+    "role": "Luther Stickell",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/tOVDvu1EQP78AwaUw6uh1wN818E.jpg"
    },
    {
+    "id": "person:11108",
     "name": "Simon Pegg",
-    "role": "Benji Dunn"
+    "role": "Benji Dunn",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/jw8bEEoTOithyNf0qxu4Zt1yaKp.jpg"
    },
    {
+    "id": "person:933238",
     "name": "Rebecca Ferguson",
-    "role": "Ilsa Faust"
+    "role": "Ilsa Faust",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ra53cM1aNmdH0aFhj8yBqPOj2fb.jpg"
    },
    {
+    "id": "person:16702",
     "name": "Sean Harris",
-    "role": "Solomon Lane"
+    "role": "Solomon Lane",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/jouyaTu0UuZMNBrADRRkCQX1VX1.jpg"
    },
    {
+    "id": "person:9780",
     "name": "Angela Bassett",
-    "role": "Erika Sloane"
+    "role": "Erika Sloane",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/tKnuviliyeKNGlo26IU5gIrJAtd.jpg"
    },
    {
+    "id": "person:556356",
     "name": "Vanessa Kirby",
-    "role": "The White Widow"
+    "role": "The White Widow",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5fbvIkZ02RdcXfZHUUk4cQ9kILK.jpg"
    },
    {
+    "id": "person:11705",
     "name": "Michelle Monaghan",
-    "role": "Julia"
+    "role": "Julia",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/uK1qhSzKd9gkDh3p1H5e2PWMYyH.jpg"
    },
    {
+    "id": "person:8210",
     "name": "Wes Bentley",
-    "role": "Erik"
+    "role": "Erik",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/voD93lzFZrr9xfAggwFcPRBi84i.jpg"
    }
   ],
   "director": "Christopher McQuarrie",
@@ -2728,44 +3088,64 @@
   "certification": "PG-13",
   "cast": [
    {
+    "id": "person:2282",
     "name": "Ben Kingsley",
-    "role": "Milton Robinson"
+    "role": "Milton Robinson",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/k3Dmu49B2akwDvgqy52MOxznI59.jpg"
    },
    {
+    "id": "person:538",
     "name": "Harriet Sansom Harris",
-    "role": "Sandy"
+    "role": "Sandy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/1ShvYCWkZycAGb27ZivGrLx1PhS.jpg"
    },
    {
+    "id": "person:58184",
     "name": "Jane Curtin",
-    "role": "Joyce"
+    "role": "Joyce",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wJVLls0zifqXZTVd89N0nIpuDP1.jpg"
    },
    {
+    "id": "person:1619994",
     "name": "Jade Quon",
-    "role": "Jules"
+    "role": "Jules",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/iOve0CLKwppZzsGhXJzOSwiM8Sv.jpg"
    },
    {
+    "id": "person:205761",
     "name": "Teddy Cañez",
-    "role": "Mayor Martinez"
+    "role": "Mayor Martinez",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/l2nRHBMJToH1LRRs4VmOfBpdJ14.jpg"
    },
    {
+    "id": "person:3281003",
     "name": "Narea Kang",
-    "role": "Councilwoman Wu"
+    "role": "Councilwoman Wu",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/f2keupeQogXIrGfD5MxtWS5KKXT.jpg"
    },
    {
+    "id": "person:91453",
     "name": "Edward James Hyland",
-    "role": "Councilman Daniels"
+    "role": "Councilman Daniels",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/8B0SKLTuvRgniMpgioW2LibLEcH.jpg"
    },
    {
+    "id": "person:2370459",
     "name": "Blair Baker",
-    "role": "Councilwoman Diane Strauss"
+    "role": "Councilwoman Diane Strauss",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nbjI7b0pvXpin8UcADl1CPf01du.jpg"
    },
    {
+    "id": "person:3392420",
     "name": "Joshua Moore",
-    "role": "Steve Gorham"
+    "role": "Steve Gorham",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/2MB2bTCJnj8T0D1bqwJmMf0mqfL.jpg"
    },
    {
+    "id": "person:94637",
     "name": "John Skelley",
-    "role": "Engineer"
+    "role": "Engineer",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/gxmOoLXNUkMfipwgUO99AgGKs7W.jpg"
    }
   ],
   "director": "Marc Turtletaub",
@@ -2869,44 +3249,64 @@
   "certification": "U",
   "cast": [
    {
+    "id": "person:103",
     "name": "Mark Ruffalo",
-    "role": "Robert Bilott"
+    "role": "Robert Bilott",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5GilHMOt5PAQh6rlUKZzGmaKEI7.jpg"
    },
    {
+    "id": "person:1813",
     "name": "Anne Hathaway",
-    "role": "Sarah Bilott"
+    "role": "Sarah Bilott",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nbccV2pMoyLTCeg5DQip24Eq0Jp.jpg"
    },
    {
+    "id": "person:504",
     "name": "Tim Robbins",
-    "role": "Tom Terp"
+    "role": "Tom Terp",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/3FfJMIVwXgsIXbAT8ECBSZJAncR.jpg"
    },
    {
+    "id": "person:8984",
     "name": "Bill Pullman",
-    "role": "Harry Dietzler"
+    "role": "Harry Dietzler",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/AlLhgmcX5zh3frPT82OSPY9gqXO.jpg"
    },
    {
+    "id": "person:121718",
     "name": "Bill Camp",
-    "role": "Wilbur Tennant"
+    "role": "Wilbur Tennant",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wxYyJSltCHwU0MTg838SllOlvNT.jpg"
    },
    {
+    "id": "person:8536",
     "name": "Victor Garber",
-    "role": "Phil Donnelly"
+    "role": "Phil Donnelly",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/FdhXl8qxsKgj22Ip99SRM9jUx1.jpg"
    },
    {
+    "id": "person:51544",
     "name": "Mare Winningham",
-    "role": "Darlene Kiger"
+    "role": "Darlene Kiger",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/pl4Cq1uCs8ajVxZkJ7Qd4XjD2P2.jpg"
    },
    {
+    "id": "person:1410478",
     "name": "William Jackson Harper",
-    "role": "James Ross"
+    "role": "James Ross",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5Oy037YttIweiqNGaErkalNmH0G.jpg"
    },
    {
+    "id": "person:131871",
     "name": "Louisa Krause",
-    "role": "Carla Pfeiffer"
+    "role": "Carla Pfeiffer",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/xkIx3PWJUumeUjOa2b3GPdMHp46.jpg"
    },
    {
+    "id": "person:1213105",
     "name": "Kevin Crowley",
-    "role": "Larry Winter"
+    "role": "Larry Winter",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/uRVsf1zx3EUA8nTpoEWkWNDyuKX.jpg"
    }
   ],
   "director": "Todd Haynes",
@@ -3011,44 +3411,64 @@
   "certification": "U",
   "cast": [
    {
+    "id": "person:87485",
     "name": "Neil Armstrong",
-    "role": "Self (archive footage)"
+    "role": "Self (archive footage)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/qFvQ2fS9RTGnOgWIUGSWaB6qWsO.jpg"
    },
    {
+    "id": "person:106843",
     "name": "Buzz Aldrin",
-    "role": "Self (archive footage)"
+    "role": "Self (archive footage)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/gUuAUCEAR3ut3ZX1a5iiz5tegk0.jpg"
    },
    {
+    "id": "person:106840",
     "name": "Michael Collins",
-    "role": "Self (archive footage)"
+    "role": "Self (archive footage)",
+    "photo": null
    },
    {
+    "id": "person:83786",
     "name": "Walter Cronkite",
-    "role": "Self (archive footage)"
+    "role": "Self (archive footage)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/hCIBybvwP7aMqwJFxcmVEyNrRyB.jpg"
    },
    {
+    "id": "person:2774149",
     "name": "Bruce McCandless II",
-    "role": "Self (archive footage)"
+    "role": "Self (archive footage)",
+    "photo": null
    },
    {
+    "id": "person:1195357",
     "name": "Charlie Duke",
-    "role": "Self (archive footage)"
+    "role": "Self (archive footage)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/eyZiNBkrGx8FrBSZpuLuK9MEb2R.jpg"
    },
    {
+    "id": "person:3647543",
     "name": "Andy Aldrin",
-    "role": "Self"
+    "role": "Self",
+    "photo": null
    },
    {
+    "id": "person:3647550",
     "name": "Patricia Mary Finnegan",
-    "role": "Self"
+    "role": "Self",
+    "photo": null
    },
    {
+    "id": "person:3647552",
     "name": "Janet Armstrong",
-    "role": "Self"
+    "role": "Self",
+    "photo": null
    },
    {
+    "id": "person:21111",
     "name": "John F. Kennedy",
-    "role": "Self (archive footage)"
+    "role": "Self (archive footage)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/59L7ESQn3PCui8bVluY7H5Qu9Fv.jpg"
    }
   ],
   "director": "Todd Douglas Miller",
@@ -3154,44 +3574,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:21290",
     "name": "Dave Foley",
-    "role": "Flik (voice)"
+    "role": "Flik (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/muHRRGDTE7ZWk3guqDAk9L4DqVX.jpg"
    },
    {
+    "id": "person:1979",
     "name": "Kevin Spacey",
-    "role": "Hopper (voice)"
+    "role": "Hopper (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nPrUZDEbGQe6jwpVbHKJCXsMd7r.jpg"
    },
    {
+    "id": "person:15886",
     "name": "Julia Louis-Dreyfus",
-    "role": "Atta (voice)"
+    "role": "Atta (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/iEfHQNrVbVFesDPjdySom9nqsFg.jpg"
    },
    {
+    "id": "person:17265",
     "name": "Hayden Panettiere",
-    "role": "Dot (voice)"
+    "role": "Dot (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/beFQeFN0KcF2MsM5DRFE8YTMDjQ.jpg"
    },
    {
+    "id": "person:89784",
     "name": "Phyllis Diller",
-    "role": "Queen (voice)"
+    "role": "Queen (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/teELYDRWmPGAVCzH4n4lX17Wa4J.jpg"
    },
    {
+    "id": "person:21125",
     "name": "Richard Kind",
-    "role": "Molt (voice)"
+    "role": "Molt (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/yWmuVQeQUzb5OSMVDoWkR0IylCK.jpg"
    },
    {
+    "id": "person:11076",
     "name": "David Hyde Pierce",
-    "role": "Slim (voice)"
+    "role": "Slim (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/9BSgq4yxjPry1Oghqq92S4wUIvs.jpg"
    },
    {
+    "id": "person:7911",
     "name": "Joe Ranft",
-    "role": "Heimlich / Additional Voices (voice)"
+    "role": "Heimlich / Additional Voices (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/f1BoWC2JbCcfP1e5hKfGsxkHzVU.jpg"
    },
    {
+    "id": "person:5724",
     "name": "Denis Leary",
-    "role": "Francis (voice)"
+    "role": "Francis (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/tAOziVWQBnrW9eR442M6g9SQkmA.jpg"
    },
    {
+    "id": "person:123037",
     "name": "Jonathan Harris",
-    "role": "Manny (voice)"
+    "role": "Manny (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6UFydJAV96p3h3LLpq8xP4S8sh1.jpg"
    }
   ],
   "director": "John Lasseter",
@@ -3296,44 +3736,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:2882",
     "name": "Diane Lane",
-    "role": "Margaret Blackledge"
+    "role": "Margaret Blackledge",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6OfP3vFMuCL51zamFKgb8aS74hs.jpg"
    },
    {
+    "id": "person:1269",
     "name": "Kevin Costner",
-    "role": "George Blackledge"
+    "role": "George Blackledge",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/608blZipRDZkDpzp8VItB64qMaT.jpg"
    },
    {
+    "id": "person:1731341",
     "name": "Kayli Carter",
-    "role": "Lorna Blackledge"
+    "role": "Lorna Blackledge",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wUZP5bEcTEjacXkUDdYcD8pOt5i.jpg"
    },
    {
+    "id": "person:72305",
     "name": "Lesley Manville",
-    "role": "Blanche Weboy"
+    "role": "Blanche Weboy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/tioPlSoypjdME3oMu3g7XmgIIKS.jpg"
    },
    {
+    "id": "person:1140241",
     "name": "Will Brittain",
-    "role": "Donnie Weboy"
+    "role": "Donnie Weboy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/eml8QuUoFvGauEX9HEFfzOYrgE.jpg"
    },
    {
+    "id": "person:52886",
     "name": "Jeffrey Donovan",
-    "role": "Bill Weboy"
+    "role": "Bill Weboy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wlDXfXpu6Uz32LUmbFzU8QPDoQH.jpg"
    },
    {
+    "id": "person:121868",
     "name": "Booboo Stewart",
-    "role": "Peter Dragswolf"
+    "role": "Peter Dragswolf",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/8V4UXWSMZHJ5juaY7pp1KuVQp20.jpg"
    },
    {
+    "id": "person:1459526",
     "name": "Ryan Bruce",
-    "role": "James Blackledge"
+    "role": "James Blackledge",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/yVf2MbXAXkptW5LAiTSXg9Bgm57.jpg"
    },
    {
+    "id": "person:2844033",
     "name": "Otto Hornung",
-    "role": "Jimmy Blackledge"
+    "role": "Jimmy Blackledge",
+    "photo": null
    },
    {
+    "id": "person:2844034",
     "name": "Bram Hornung",
-    "role": "Jimmy Blackledge"
+    "role": "Jimmy Blackledge",
+    "photo": null
    }
   ],
   "director": "Thomas Bezucha",
@@ -3441,44 +3901,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:6807",
     "name": "Sam Rockwell",
-    "role": "Wolf (voice)"
+    "role": "Wolf (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/afYhNpLwpa65Yy0Q0g00FNFhzx5.jpg"
    },
    {
+    "id": "person:1231717",
     "name": "Marc Maron",
-    "role": "Snake (voice)"
+    "role": "Snake (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/xzRBK8hR6693VQWmr3Wx2UVoA5P.jpg"
    },
    {
+    "id": "person:1625558",
     "name": "Awkwafina",
-    "role": "Tarantula (voice)"
+    "role": "Tarantula (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/l5AKkg3H1QhMuXmTTmq1EyjyiRb.jpg"
    },
    {
+    "id": "person:64342",
     "name": "Craig Robinson",
-    "role": "Shark (voice)"
+    "role": "Shark (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/mTyTrOWUSOBJMOlDpnd4OYx7FlJ.jpg"
    },
    {
+    "id": "person:1560244",
     "name": "Anthony Ramos",
-    "role": "Piranha (voice)"
+    "role": "Piranha (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/gCeRfH3aetIpZwKxe8Wl4ZYcQg5.jpg"
    },
    {
+    "id": "person:98103",
     "name": "Richard Ayoade",
-    "role": "Professor Marmalade (voice)"
+    "role": "Professor Marmalade (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/qHKoy9kP4bsv4G9EkvU4FMUmYkS.jpg"
    },
    {
+    "id": "person:1545693",
     "name": "Zazie Beetz",
-    "role": "Diane Foxington (voice)"
+    "role": "Diane Foxington (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ijrT4pvALvxU0gphea4YxDnDh6e.jpg"
    },
    {
+    "id": "person:24357",
     "name": "Alex Borstein",
-    "role": "Police Chief Misty Luggins (voice)"
+    "role": "Police Chief Misty Luggins (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/evbCnRe5Yfuy0B41PONLTIcvbem.jpg"
    },
    {
+    "id": "person:1576058",
     "name": "Lilly Singh",
-    "role": "Tiffany Fluffit (voice)"
+    "role": "Tiffany Fluffit (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5dBOPUqrYIZuKRqpKRsHBdERclp.jpg"
    },
    {
+    "id": "person:85294",
     "name": "Barbara Goodson",
-    "role": "Old Lady (voice)"
+    "role": "Old Lady (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/tiLlOlaP5boOpL9RKKzQGb1RQAN.jpg"
    }
   ],
   "director": "Pierre Perifel",
@@ -3583,44 +4063,64 @@
   "certification": null,
   "cast": [
    {
+    "id": "person:84223",
     "name": "Anna Kendrick",
-    "role": "Noelle Kringle"
+    "role": "Noelle Kringle",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/i2HIJQcBsUQ3o9HwEeDwou45D60.jpg"
    },
    {
+    "id": "person:4090",
     "name": "Shirley MacLaine",
-    "role": "Elf Polly"
+    "role": "Elf Polly",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/vU4QsP3GRj03S8Z92vrZfkdb7rO.jpg"
    },
    {
+    "id": "person:19278",
     "name": "Bill Hader",
-    "role": "Nick Kringle"
+    "role": "Nick Kringle",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/qyT50vQ9PQIEctE1IxDTEsBKstU.jpg"
    },
    {
+    "id": "person:1417352",
     "name": "Kingsley Ben-Adir",
-    "role": "Jake Hapman"
+    "role": "Jake Hapman",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/yCJNGOQKavWqOZSIEPKvQVlyAwA.jpg"
    },
    {
+    "id": "person:14415",
     "name": "Julie Hagerty",
-    "role": "Mrs. Kringle"
+    "role": "Mrs. Kringle",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/bQZ0bcFNyE4a3GDNfYMmfO7eWMl.jpg"
    },
    {
+    "id": "person:973651",
     "name": "Billy Eichner",
-    "role": "Gabriel Kringle"
+    "role": "Gabriel Kringle",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/kScO4moqNlDbyCTZuIoBqyaml4l.jpg"
    },
    {
+    "id": "person:2095424",
     "name": "Maceo Smedley",
-    "role": "Alex"
+    "role": "Alex",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/uVcQ4nwT7w65dNOBN89dRWd4Hff.jpg"
    },
    {
+    "id": "person:34488",
     "name": "Diana Maria Riva",
-    "role": "Helen Rojas"
+    "role": "Helen Rojas",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/fe6KB60w93zaHFzvI2sprIVOBVE.jpg"
    },
    {
+    "id": "person:1381295",
     "name": "Anthony Konechny",
-    "role": "Elf Ted"
+    "role": "Elf Ted",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/hDnhD4QL3hxzO6aUT4KhJlFP0tV.jpg"
    },
    {
+    "id": "person:67015",
     "name": "Michael Gross",
-    "role": "Elder Elf Abe"
+    "role": "Elder Elf Abe",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/467FG7f1rXkG9ZzU8IumVkBHi0v.jpg"
    }
   ],
   "director": "Marc Lawrence",
@@ -3725,44 +4225,64 @@
   "certification": null,
   "cast": [
    {
+    "id": "person:1303037",
     "name": "Taron Egerton",
-    "role": "Nathan Mcclusky"
+    "role": "Nathan Mcclusky",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/uCaPhyKAQIfEzAWWCYIrO2004CB.jpg"
    },
    {
+    "id": "person:1977937",
     "name": "Ana Sophia Heger",
-    "role": "Polly Huff"
+    "role": "Polly Huff",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/xmS1mbykFBImMiI8gnGV8nqRoET.jpg"
    },
    {
+    "id": "person:207389",
     "name": "Rob Yang",
-    "role": "John Park"
+    "role": "John Park",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/rijNHjy45mhXw6TIhLesuDs4BY4.jpg"
    },
    {
+    "id": "person:1972166",
     "name": "Odessa A'zion",
-    "role": "Charlotte"
+    "role": "Charlotte",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5Q0Z5O3nkZH5JvueTyc2q0anw2B.jpg"
    },
    {
+    "id": "person:76941",
     "name": "David Lyons",
-    "role": "Jimmy"
+    "role": "Jimmy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6Op16GnrpkS5YcIDF9YV2vgGA5p.jpg"
    },
    {
+    "id": "person:3911",
     "name": "John Carroll Lynch",
-    "role": "Houser"
+    "role": "Houser",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/lXlHxLK91U2l3yb77Tw32yEHJyT.jpg"
    },
    {
+    "id": "person:78890",
     "name": "Keith Jardine",
-    "role": "Magic"
+    "role": "Magic",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/emN5dXAoqW9Naab4g3yOwxSfkvh.jpg"
    },
    {
+    "id": "person:138860",
     "name": "Jamie Bernadette",
-    "role": "Mom at School"
+    "role": "Mom at School",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/hSKDAGunkF2E4btXXEo0ELF8GqY.jpg"
    },
    {
+    "id": "person:5605242",
     "name": "Goldie Tom",
-    "role": "School Teacher"
+    "role": "School Teacher",
+    "photo": null
    },
    {
+    "id": "person:1740855",
     "name": "Kiko Sanchez",
-    "role": "Motel Man No. 1"
+    "role": "Motel Man No. 1",
+    "photo": null
    }
   ],
   "director": "Nick Rowland",
@@ -3866,44 +4386,64 @@
   "certification": "R",
   "cast": [
    {
+    "id": "person:2991232",
     "name": "Masumi",
-    "role": "Akemi"
+    "role": "Akemi",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/7Zoh7Y4HW8MEhZA1OXelyBHnlQT.jpg"
    },
    {
+    "id": "person:1244",
     "name": "Jonathan Rhys Meyers",
-    "role": "Shirô"
+    "role": "Shirô",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/3MvT0B15nt5JLp1dUcxmbqmjHUc.jpg"
    },
    {
+    "id": "person:33516",
     "name": "伊原剛志",
-    "role": "Takeshi"
+    "role": "Takeshi",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/xJdhEiJWcHcxpE5hOLp20EANVj9.jpg"
    },
    {
+    "id": "person:33520",
     "name": "Eijiro Ozaki",
-    "role": "Kojiro"
+    "role": "Kojiro",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/a0xPwQwRkVl7HwH831lgVvhASS1.jpg"
    },
    {
+    "id": "person:2266276",
     "name": "Toshiji Takeshima",
-    "role": "Chiba"
+    "role": "Chiba",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/4tulKV8wirBcnomWtnvco0LFATB.jpg"
    },
    {
+    "id": "person:1295141",
     "name": "Mariko Takai",
-    "role": "Mrs. Tsugahara"
+    "role": "Mrs. Tsugahara",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nTS15meVHTP9TVpf79WLGKAluRt.jpg"
    },
    {
+    "id": "person:1474171",
     "name": "Kenny Leu",
-    "role": "Taxista"
+    "role": "Taxista",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/9e8mnD6SfsQAW536tpm5On8LXTP.jpg"
    },
    {
+    "id": "person:592477",
     "name": "Nicolas Trevijano",
-    "role": "Wallace"
+    "role": "Wallace",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/9SXWUFvfO4LPwcW4mZFCqq7T5IA.jpg"
    },
    {
+    "id": "person:1768645",
     "name": "Iuri Saraiva",
-    "role": "Tulio"
+    "role": "Tulio",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/prXPKFSROEnObskNqjiA2qtyc9I.jpg"
    },
    {
+    "id": "person:1597253",
     "name": "Ricardo Gelli",
-    "role": "César"
+    "role": "César",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/yFCgIKRvd33yasJvxLBC6vX4yp2.jpg"
    }
   ],
   "director": "Vicente Amorim",
@@ -4009,44 +4549,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:1813",
     "name": "Anne Hathaway",
-    "role": "Grand High Witch"
+    "role": "Grand High Witch",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nbccV2pMoyLTCeg5DQip24Eq0Jp.jpg"
    },
    {
+    "id": "person:6944",
     "name": "Octavia Spencer",
-    "role": "Grandma"
+    "role": "Grandma",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/zDGydyM1fmvNWzQlTAns9IZjNxT.jpg"
    },
    {
+    "id": "person:2283",
     "name": "Stanley Tucci",
-    "role": "Mr. Stringer"
+    "role": "Mr. Stringer",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/q4TanMDI5Rgsvw4SfyNbPBh4URr.jpg"
    },
    {
+    "id": "person:2241218",
     "name": "Jahzir Bruno",
-    "role": "Hero Boy"
+    "role": "Hero Boy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/hOcGEUz1QUsNUTCTIwOpSRn5olP.jpg"
    },
    {
+    "id": "person:2632",
     "name": "Chris Rock",
-    "role": "Older Hero (voice)"
+    "role": "Older Hero (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5lILFeBvX3sC0EfbHhrvMEc7bPD.jpg"
    },
    {
+    "id": "person:2153678",
     "name": "Codie-Lei Eastick",
-    "role": "Bruno Jenkins"
+    "role": "Bruno Jenkins",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/cfRVQ7iMYIyaDt1Yn2g6HGVPTgm.jpg"
    },
    {
+    "id": "person:52775",
     "name": "Kristin Chenoweth",
-    "role": "Daisy / Mary (voice)"
+    "role": "Daisy / Mary (voice)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/q3ENDu5n23FARhyij4FVRaTkSg4.jpg"
    },
    {
+    "id": "person:281527",
     "name": "Charles Edwards",
-    "role": "Mr. Jenkins"
+    "role": "Mr. Jenkins",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/zyzow44jiPve8nU9O1F1X9wnrtU.jpg"
    },
    {
+    "id": "person:1370805",
     "name": "Morgana Robinson",
-    "role": "Mrs. Jenkins"
+    "role": "Mrs. Jenkins",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/guBJRfTPeLBd3RxbhzUIi3cl242.jpg"
    },
    {
+    "id": "person:1228665",
     "name": "Brian Bovell",
-    "role": "Reginald"
+    "role": "Reginald",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/rWmU6Vua4xMynf4zT2orZlxeGaI.jpg"
    }
   ],
   "director": "Robert Zemeckis",
@@ -4151,44 +4711,64 @@
   "certification": "TP",
   "cast": [
    {
+    "id": "person:1680339",
     "name": "KJ Apa",
-    "role": "Jeremy Camp"
+    "role": "Jeremy Camp",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/idpwm8ZdFnndjeQ3mKleF20hvRo.jpg"
    },
    {
+    "id": "person:52018",
     "name": "Britt Robertson",
-    "role": "Melissa Henning"
+    "role": "Melissa Henning",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/6lnipeQ6auGaxn4gQ8UX68xoxOy.jpg"
    },
    {
+    "id": "person:1067459",
     "name": "Nathan Parsons",
-    "role": "Jean-Luc Lajoie"
+    "role": "Jean-Luc Lajoie",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/p0J7egp89b2XOCNsCMzFKcpeRoq.jpg"
    },
    {
+    "id": "person:33",
     "name": "Gary Sinise",
-    "role": "Tom Camp"
+    "role": "Tom Camp",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/olRjiV8ZhBixQiTvrGwXhpVXxsV.jpg"
    },
    {
+    "id": "person:108558",
     "name": "Shania Twain",
-    "role": "Terry Camp"
+    "role": "Terry Camp",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/3owuqJmMriymwz05fzJ7z9mRSrA.jpg"
    },
    {
+    "id": "person:2443123",
     "name": "Reuben Dodd",
-    "role": "Josh Camp"
+    "role": "Josh Camp",
+    "photo": null
    },
    {
+    "id": "person:1440058",
     "name": "Nicolas Bechtel",
-    "role": "Jared"
+    "role": "Jared",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5s5liiNXUCyPeMRxPdc97XtrbAP.jpg"
    },
    {
+    "id": "person:1006731",
     "name": "Melissa Roxburgh",
-    "role": "Heather Henning"
+    "role": "Heather Henning",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/8RE7Wtgi8tiNU7oJLlLadKmMkwq.jpg"
    },
    {
+    "id": "person:2257",
     "name": "Terry Serpico",
-    "role": "Mark"
+    "role": "Mark",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5UfDA4ySgYUhle7iXqOuhzAgghn.jpg"
    },
    {
+    "id": "person:1265329",
     "name": "Tanya Christiansen",
-    "role": "Janette Henning"
+    "role": "Janette Henning",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ciifmUGctpO3zPcazaaAlD8QvJ9.jpg"
    }
   ],
   "director": "Andrew Erwin, Jon Erwin",
@@ -4294,44 +4874,64 @@
   "certification": "R",
   "cast": [
    {
+    "id": "person:1323881",
     "name": "Mark Coles Smith",
-    "role": "Leo"
+    "role": "Leo",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/mFGf5GruME5dnAuKBG1kgzK8PJs.jpg"
    },
    {
+    "id": "person:4918082",
     "name": "Joel Nankervis",
-    "role": "Will"
+    "role": "Will",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/p9gyKYXICMSMf6U7y2m2psQGoLX.jpg"
    },
    {
+    "id": "person:1721096",
     "name": "Sam Delich",
-    "role": "Des Kelly"
+    "role": "Des Kelly",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5t0I4FBAQ5BRiZXUNnFJBOlyKc8.jpg"
    },
    {
+    "id": "person:2479415",
     "name": "Maximillian Johnson",
-    "role": "Stan"
+    "role": "Stan",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/sjlNcH8ftVnbYzMkVw2tB1CVYuC.jpg"
    },
    {
+    "id": "person:3684983",
     "name": "Lee Tiger Halley",
-    "role": "Teddy"
+    "role": "Teddy",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/dEoFIS64jLAM5anf3A9DIs9vw6e.jpg"
    },
    {
+    "id": "person:110516",
     "name": "Sam Parsonson",
-    "role": "Thompson"
+    "role": "Thompson",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ta9h0LYwhyDTjUDhtwCuA8B8R9I.jpg"
    },
    {
+    "id": "person:2159487",
     "name": "Tristan McKinnon",
-    "role": "Bobby"
+    "role": "Bobby",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/2sMmWqtTEmUw8f8IgAHzFAu51se.jpg"
    },
    {
+    "id": "person:4078263",
     "name": "Aswan Reid",
-    "role": "Archie"
+    "role": "Archie",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/oesXEXgDzwH9fPo8nqGhtjgNtF7.jpg"
    },
    {
+    "id": "person:83283",
     "name": "マサ・ヤマグチ",
-    "role": "Commander Tetsuo Harada"
+    "role": "Commander Tetsuo Harada",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nLyy3eNUmXY9UTZNYVdGhaZWps4.jpg"
    },
    {
+    "id": "person:1707878",
     "name": "Lauren Grimson",
-    "role": "Hazel"
+    "role": "Hazel",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/lgcVpfvG6azbOG5OanG4uXh6JxB.jpg"
    }
   ],
   "director": "Kiah Roache-Turner",
@@ -4483,8 +5083,10 @@
   "certification": "NR",
   "cast": [
    {
+    "id": "person:1555813",
     "name": "Tanya Blumstein",
-    "role": null
+    "role": null,
+    "photo": null
    }
   ],
   "director": "Juliette Jourdan, Idit Bloch",
@@ -4591,44 +5193,64 @@
   "certification": "R",
   "cast": [
    {
+    "id": "person:1243",
     "name": "Woody Allen",
-    "role": "Victor / Fabrizio / The Fool / Sperm"
+    "role": "Victor / Fabrizio / The Fool / Sperm",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/wcPQgZLDibuej1RwNTy1R2U2ZJw.jpg"
    },
    {
+    "id": "person:8516",
     "name": "John Carradine",
-    "role": "Dr. Bernardo"
+    "role": "Dr. Bernardo",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/hv2AAXNlTHVmGgXn8q7025S0g2b.jpg"
    },
    {
+    "id": "person:23708",
     "name": "Lou Jacobi",
-    "role": "Sam Musgrave"
+    "role": "Sam Musgrave",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/xCm6ntT3faWFIr5IagDdeHtvRlv.jpg"
    },
    {
+    "id": "person:9565",
     "name": "Louise Lasser",
-    "role": "Gina"
+    "role": "Gina",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/smrLNcvGJgR60iAwHnov1a7EwYa.jpg"
    },
    {
+    "id": "person:14371",
     "name": "Anthony Quayle",
-    "role": "The King"
+    "role": "The King",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/fiH7Bb3NzerwiFZizveR2BTLVK8.jpg"
    },
    {
+    "id": "person:40206",
     "name": "Tony Randall",
-    "role": "The Operator"
+    "role": "The Operator",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/chkOBbF21YeXpV1RCdhHm5gTV7O.jpg"
    },
    {
+    "id": "person:29791",
     "name": "Lynn Redgrave",
-    "role": "Queen"
+    "role": "Queen",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/jIre1bJ2unStloUDFJNkUIpzA45.jpg"
    },
    {
+    "id": "person:16475",
     "name": "Burt Reynolds",
-    "role": "Switchboard"
+    "role": "Switchboard",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/5FNuc4f1OR9EF9QcrcnFIr3zZQr.jpg"
    },
    {
+    "id": "person:3460",
     "name": "Gene Wilder",
-    "role": "Dr. Doug Ross"
+    "role": "Dr. Doug Ross",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/mwwOSWS2m8ArpiUKnoxVVyT8fND.jpg"
    },
    {
+    "id": "person:1219290",
     "name": "Jack Barry",
-    "role": "Himself"
+    "role": "Himself",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/nPSBPf1FwFBvhZCSndPEURkjgtc.jpg"
    }
   ],
   "director": "Woody Allen",
@@ -4683,28 +5305,40 @@
   "certification": "U",
   "cast": [
    {
+    "id": "person:31771",
     "name": "Billy Bletcher",
-    "role": "Robot Butler (segment \"Modern Inventions\") (voice) (archive sound) (uncredited)"
+    "role": "Robot Butler (segment \"Modern Inventions\") (voice) (archive sound) (uncredited)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/ncapDtCeDsMJxEKFXocJTFfnpau.jpg"
    },
    {
+    "id": "person:30236",
     "name": "Cliff Edwards",
-    "role": "Robot Barber Chair (segment \"Modern Inventions\") (voice) (archive sound) (uncredited)"
+    "role": "Robot Barber Chair (segment \"Modern Inventions\") (voice) (archive sound) (uncredited)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/cplAl2NjSDuoHvSJ87kf8Yh2cdK.jpg"
    },
    {
+    "id": "person:78077",
     "name": "Clarence Nash",
-    "role": "Donald Duck (voice) (archive sound) (uncredited)"
+    "role": "Donald Duck (voice) (archive sound) (uncredited)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/x2g2hbu4RRIcn6Q5RT8gpWR1FKV.jpg"
    },
    {
+    "id": "person:34759",
     "name": "Sterling Holloway",
-    "role": "Amos Mouse (segment \"Ben and Me\") (voice) (archive sound) (uncredited)"
+    "role": "Amos Mouse (segment \"Ben and Me\") (voice) (archive sound) (uncredited)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/86gGSpQcfgQrumwwvOmO6DtTWkP.jpg"
    },
    {
+    "id": "person:16421",
     "name": "Hans Conried",
-    "role": "Tom Jefferson / Crook (segment \"Ben and Me\") (voice) (archive sound) (uncredited)"
+    "role": "Tom Jefferson / Crook (segment \"Ben and Me\") (voice) (archive sound) (uncredited)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/rftuT9tTEqVoEDqqJZEQicnXHVH.jpg"
    },
    {
+    "id": "person:16417",
     "name": "Paul Frees",
-    "role": "True Spirit of Adventure / Narrator / Creature (voice) (archive sound) (uncredited)"
+    "role": "True Spirit of Adventure / Narrator / Creature (voice) (archive sound) (uncredited)",
+    "photo": "https://kanstrimi.crafters.dev/img/w185/pACT0LYkEyff7PGt88iqr5u9T7u.jpg"
    }
   ],
   "director": null,
