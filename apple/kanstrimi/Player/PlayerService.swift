@@ -87,6 +87,7 @@ final class PlayerService {
     /// it outlives the player screen, which hides while Picture-in-Picture runs.
     let videoView = AetherPlayerView(frame: .zero)
     let pictureInPicture = PictureInPicture()
+    private let nowPlaying = NowPlaying()
     private let capabilities: VersionChooser.Capabilities
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
@@ -185,7 +186,10 @@ final class PlayerService {
         Task { [weak self] in
             guard let self else { return }
             let full = try? await client.channel(id: channel.id)
-            if self.channel?.id == channel.id { epg = full.map { EPGNow(now: $0.now, next: $0.next) } ?? .empty }
+            if self.channel?.id == channel.id {
+                epg = full.map { EPGNow(now: $0.now, next: $0.next) } ?? .empty
+                nowPlaying.update()
+            }
         }
     }
 
@@ -216,6 +220,7 @@ final class PlayerService {
         failure = nil; toast = nil; nextCountdown = nil; nextContext = nil; nextTriggered = false
         audioTracks = []; textTracks = []
         epg = .empty
+        nowPlaying.clear()
     }
 
     // MARK: - Controls
@@ -249,6 +254,7 @@ final class PlayerService {
             pendingSeeks -= 1
         }
         log.info("seek to \(target, format: .fixed(precision: 0))")
+        nowPlaying.update()
         onPlaybackChanged?()
     }
 
@@ -432,6 +438,8 @@ final class PlayerService {
         armStartDeadline()
         armWatchdog()
         startProgressTicker()
+        nowPlaying.attach(to: self)
+        nowPlaying.update()
     }
 
     private func markStarted() {
@@ -507,6 +515,7 @@ final class PlayerService {
         phase = .failed
         failure = Failure(attempts: startAttempts, sourceLabel: "\(version.label) · \(sourceLabel(source, in: version))",
                           hadAlternativeSource: version.sources.count > 1)
+        nowPlaying.update()
     }
 
     /// Live: the source restarted from its beginning (the engine parked the session). Same switch as a
@@ -632,7 +641,11 @@ final class PlayerService {
             .store(in: &cancellables)
         engine.$duration
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] in if $0 > 0 { self?.duration = $0 } }
+            .sink { [weak self] in
+                guard $0 > 0, let self else { return }
+                duration = $0
+                nowPlaying.update()
+            }
             .store(in: &cancellables)
         engine.$startupProgress
             .receive(on: DispatchQueue.main)
@@ -687,6 +700,7 @@ final class PlayerService {
             handleStreamFailure()
             return
         }
+        nowPlaying.update()
         onPlaybackChanged?()
     }
 

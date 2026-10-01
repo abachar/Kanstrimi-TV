@@ -166,6 +166,13 @@ lui-même le moteur (repères et horloge source) et ne se redessine que si l'ens
 dessiné sans piste choisie. Dans la fenêtre de PiP logicielle, le moteur incruste lui-même les repères actifs. Changer de piste audio ou
 de sous-titres recharge brièvement la session (noir d'environ 1 s, attendu).
 
+**Carte « En lecture »** (iPhone, `NowPlaying+iOS`) : écran verrouillé, Centre de contrôle, écouteurs. `PlayerService` y publie le titre,
+le sous-titre (série, ou programme en cours d'une chaîne), l'image (fond du titre, logo de la chaîne), la durée, la position et
+l'état, à chaque changement d'état, de titre ou de position, pas à chaque tick : le système fait avancer le temps seul. Les commandes
+passent par le service et gardent ses règles : lecture, pause, ±10 s et déplacement dans un film ; en direct, ni pause ni saut, et
+précédent / suivant zappent. Par `MPNowPlayingInfoCenter` et `MPRemoteCommandCenter` directement, pas par la session du moteur
+(`ownsVideoNowPlayingSession`), qui n'existe que sur la route AVPlayer et laisserait le direct sans carte. Rien sur tvOS.
+
 **HDR et Dolby Vision** (tvOS) : pilotés par le moteur (Match Content, critères d'affichage), l'app ne fait rien. Le direct d'aperçu les supprime.
 
 **Faits du flux** (`StreamFacts`, en bas du panneau Infos, à la place de l'ancienne ligne « version · source ») : des pastilles, l'image
