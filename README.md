@@ -41,11 +41,11 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 
 ## Pistes
 
-Ce qui vient après la V1 (tvOS), par version, puis les idées non planifiées.
+Ce qui vient après la V1.1 (tvOS et iPhone), par version, puis les idées non planifiées.
 
-- **V1.1 · iPhone** : revue UI de l'app iPhone, comme la passe tvOS ; **commandes système**
-  (`MPNowPlayingInfoCenter`) : titre et lecture en arrière-plan et en PiP.
 - **V1.2** :
+  - **Commandes système** (`MPNowPlayingInfoCenter`) : titre et commandes de lecture sur l'écran verrouillé, en arrière-plan et
+    en PiP. Reportées de la V1.1, livrée le 2026-10-01 : revue UI de l'app iPhone, moteur AetherEngine à la place de VLCKit.
   - **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).
   - **Distribution avec photos** : photos des acteurs sur la fiche, un acteur ouvre ses autres titres du catalogue.
 - **V1.3** :

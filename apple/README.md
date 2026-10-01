@@ -251,15 +251,20 @@ les deux destinations se vérifient quand même, à chaque modification. À froi
   tactiles, panneaux et liste des chaînes rendus dans chaque état du lecteur ; le tap passe par
   `DeviceInteractionSynthesize`, qui n'offre ni glisser ni rotation.
 
+## Vérifié sur appareil (2026-10-01, Apple TV 4K + LG G3, iPhone)
+
+Depuis le passage à AetherEngine : lecture des films et du direct, Dolby Vision affiché par le téléviseur (MKV profil 8, « Adapter au
+contenu : Plage »), zapping du direct par la route logicielle et fluidité d'une chaîne 4K, sous-titres dessinés par l'app,
+Picture-in-Picture d'une chaîne et lecture hors de l'app sur iPhone, focus de la barre tvOS sur le bouton du panneau ouvert.
+
 ## À mesurer sur appareil
 
-Rien de ce qui suit n'a été vérifié depuis le passage à AetherEngine (deux lectures seulement, sur simulateur) :
+Pas encore vérifié depuis le passage à AetherEngine :
 
-- **Gel du direct à 4 s** : à juger sur un vrai flux ; le moteur retamponne là où l'ancien figeait l'image, le seuil est peut-être trop court.
-
-- **Dolby Vision et HDR** (Apple TV 4K) : bascule du mode d'affichage, retour au mode d'origine à la fermeture du lecteur.
+- **Gel du direct à 4 s** : le moteur retamponne là où l'ancien figeait l'image, le seuil est peut-être trop court ; relances
+  `liveSourceReset` sur un vrai flux instable.
 - **Atmos** (EAC3 + JOC, barre de son ou AirPods).
 - **Saut profond dans un MKV** (reprise à 1140 s sur 4520 s) et avance rapide : l'ancien moteur rendait le son sans image.
-- **Picture-in-Picture** de bout en bout, sur route native et sur route logicielle ; lecture en arrière-plan.
-- Zapping du direct (`.fastZap`), aperçu muet du Direct, relances `liveSourceReset` sur un vrai flux instable.
-- Glissers eux-mêmes et rotation physique du téléphone. À faire sur un iPhone réel contre le serveur.
+- **Retour du téléviseur à son mode d'origine** à la fermeture du lecteur après un film HDR.
+- **Sous-titres en image** (PGS) : position dans le cadre, surtout sur un film à bandes noires. Les sous-titres ne passent pas dans la fenêtre PiP.
+- Picture-in-Picture d'un film (route native), boutons de la fenêtre PiP, rotation physique du téléphone.
