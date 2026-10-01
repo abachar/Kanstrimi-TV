@@ -3,6 +3,9 @@ import AVKit
 import AetherEngine
 import Combine
 import Observation
+import OSLog
+
+private let log = Logger(subsystem: "dev.crafters.kanstrimi", category: "pip")
 
 /// Picture-in-Picture of the iPhone. The engine draws either through an `AVPlayerLayer` (native routes)
 /// or into a sample-buffer layer (software route): the controller is rebuilt for whichever is live.
@@ -71,28 +74,44 @@ final class PictureInPicture {
         var onStateChange: ((Bool) -> Void)?
 
         func pictureInPictureControllerWillStartPictureInPicture(_ controller: AVPictureInPictureController) {
+            log.info("will start, app \(Self.appState)")
             onStateChange?(true)
         }
 
         /// The player screen hides only once the picture has started: hidden before, the video surface
-        /// leaves the window and iOS gives up on the picture.
+        /// leaves the window and iOS gives up on the picture. Started by iOS as the app leaves the screen
+        /// (swipe home), the player stays: hidden during that exit, the surface leaves the window too, and
+        /// on return iOS ends the picture itself and puts the video back in the player.
         func pictureInPictureControllerDidStartPictureInPicture(_ controller: AVPictureInPictureController) {
-            service?.isMinimized = true
+            log.info("did start, app \(Self.appState)")
+            if UIApplication.shared.applicationState == .active { service?.isMinimized = true }
         }
 
         func pictureInPictureController(_ controller: AVPictureInPictureController, failedToStartPictureInPictureWithError error: any Error) {
+            log.error("failed to start: \(error.localizedDescription)")
             onStateChange?(false)
         }
 
         func pictureInPictureControllerDidStopPictureInPicture(_ controller: AVPictureInPictureController) {
+            log.info("did stop, app \(Self.appState)")
             onStateChange?(false)
             service?.isMinimized = false
         }
 
         /// Out of the picture, the player screen comes back over the app.
         func pictureInPictureController(_ controller: AVPictureInPictureController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
+            log.info("restore, app \(Self.appState)")
             service?.isMinimized = false
             completionHandler(true)
+        }
+
+        private static var appState: String {
+            switch UIApplication.shared.applicationState {
+            case .active: "active"
+            case .inactive: "inactive"
+            case .background: "background"
+            @unknown default: "unknown"
+            }
         }
 
         func pictureInPictureController(_ controller: AVPictureInPictureController, setPlaying playing: Bool) {

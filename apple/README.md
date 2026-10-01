@@ -73,7 +73,8 @@ moteur dessine soit dans un `AVPlayerLayer` (routes vidéo natives), soit dans u
 exemple un direct 1080i désentrelacé) ; le contrôleur AVKit est reconstruit selon `engine.$videoRoute`, ses commandes passent par
 `PlayerService` (pas de pause en direct). `PlayerService.isMinimized`
 cache l'écran sans arrêter la lecture, une fois l'image dans l'image démarrée (`didStart`) : cachée
-avant, la surface vidéo quitte la fenêtre et iOS abandonne. La vue du moteur est gardée par le service (le moteur ne tient ses vues
+avant, la surface vidéo quitte la fenêtre et iOS abandonne. Lancée par iOS au balayage vers l'accueil (app hors premier plan), l'image dans
+l'image ne cache rien : au retour, iOS la referme et remet la vidéo dans le lecteur resté ouvert. La vue du moteur est gardée par le service (le moteur ne tient ses vues
 qu'en `weak`), elle survit donc à ce masquage. `Capabilities.iPhone` plafonne à la Full HD.
 
 **Un seul choix, pas de bouton** (toutes plateformes) : Versions (fiche d'un film, « Versions · n » de l'accueil tvOS),
@@ -266,17 +267,25 @@ les deux destinations se vérifient quand même, à chaque modification. À froi
 ## Vérifié sur appareil (2026-10-01, Apple TV 4K + LG G3, iPhone)
 
 Depuis le passage à AetherEngine : lecture des films et du direct, Dolby Vision affiché par le téléviseur (MKV profil 8, « Adapter au
-contenu : Plage »), zapping du direct par la route logicielle et fluidité d'une chaîne 4K, sous-titres dessinés par l'app,
-Picture-in-Picture d'une chaîne et lecture hors de l'app sur iPhone, focus de la barre tvOS sur le bouton du panneau ouvert.
+contenu : Plage ») et retour du téléviseur en SDR à la fermeture (retour, bouton TV, chaîne SDR enchaînée ; le noir de quelques
+secondes est la bascule HDMI), zapping du direct par la route logicielle et fluidité d'une chaîne 4K, seuil de gel du direct à 4 s
+(les accrocs repartent seuls, aucune relance de trop), Atmos rendu par des AirPods Max (EAC3 + JOC copié tel quel), saut profond
+dans un MKV, reprise depuis « Reprendre » et avance rapide, sous-titres dessinés par l'app, PGS et texte compris (en paysage),
+Picture-in-Picture d'une chaîne et d'un film sur iPhone, par le bouton du lecteur comme par le balayage vers l'accueil, et
+boutons de sa fenêtre, rotation physique du téléphone, focus de la barre tvOS sur le bouton du panneau ouvert.
+
+La pastille « Atmos » vient de `TrackInfo.isAtmos`, juste quand l'audio est en tête du fichier ; la confirmation du moteur
+(`LoadOptions.confirmAtmos`) ouvrirait une seconde connexion, exclue par le fournisseur.
+
+## Défauts constatés sur appareil
+
+- **Retour du PiP d'une chaîne** (route logicielle, par le bouton comme par le balayage) : une fois l'image revenue au centre, un
+  bref éclair montre l'image de la fenêtre PiP à la place de la vidéo, puis le direct continue. Cosmétique ; les films n'ont rien.
+- **Sous-titres texte en portrait iPhone** : collés en bas de l'écran, loin de l'image, alors que le PGS est placé dans le cadre.
+- **Son perdu sur le direct** sans réaction de l'app : le chien de garde ne regarde que la phase du moteur (`.rebuffering`,
+  `.stalled`), un son coupé pendant `.playing` lui échappe.
 
 ## À mesurer sur appareil
 
-Pas encore vérifié depuis le passage à AetherEngine :
-
-- **Gel du direct à 4 s** : le moteur retamponne là où l'ancien figeait l'image, le seuil est peut-être trop court ; relances
-  `liveSourceReset` sur un vrai flux instable.
-- **Atmos** (EAC3 + JOC, barre de son ou AirPods).
-- **Saut profond dans un MKV** (reprise à 1140 s sur 4520 s) et avance rapide : l'ancien moteur rendait le son sans image.
-- **Retour du téléviseur à son mode d'origine** à la fermeture du lecteur après un film HDR.
-- **Sous-titres en image** (PGS) : position dans le cadre, surtout sur un film à bandes noires. Les sous-titres ne passent pas dans la fenêtre PiP.
-- Picture-in-Picture d'un film (route native), boutons de la fenêtre PiP, rotation physique du téléphone.
+- Atmos par une barre de son en HDMI.
+- Sous-titres en image (PGS) sur Apple TV, film à bandes noires. Les sous-titres ne passent pas dans la fenêtre PiP.
