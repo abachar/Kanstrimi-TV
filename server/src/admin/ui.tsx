@@ -65,8 +65,8 @@ export const Badge = ({ tone = "plain", title, children }: { tone?: Tone; title?
 );
 
 export function Status({ status }: { status: string }) {
-  const tone: Record<string, Tone> = { success: "ok", error: "bad", running: "info" };
-  const label: Record<string, string> = { success: "Succès", error: "Erreur", running: "En cours" };
+  const tone: Record<string, Tone> = { success: "ok", error: "bad", running: "info", killed: "warn" };
+  const label: Record<string, string> = { success: "Succès", error: "Erreur", running: "En cours", killed: "Arrêté" };
   return <Badge tone={tone[status] ?? "plain"}>{label[status] ?? status}</Badge>;
 }
 

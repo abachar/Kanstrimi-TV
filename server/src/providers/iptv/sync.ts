@@ -3,7 +3,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { env } from "@/shared";
+import { checkCancelled, env } from "@/shared";
 
 /**
  * The iptv-org database (github.com/iptv-org/database), through its published API files. Two
@@ -120,6 +120,7 @@ export async function syncIptv(): Promise<{ iptv_channels: number; iptv_logos: n
   await db.transaction(async (tx) => {
     await tx.delete(schema.iptvorgChannels);
     for (let i = 0; i < channels.length; i += CHUNK) {
+      checkCancelled();
       const rows = channels.slice(i, i + CHUNK).map((c) => {
         const logo = pickLogo(logosBy.get(c.id) ?? []);
         if (logo) withLogo++;

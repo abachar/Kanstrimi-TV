@@ -76,6 +76,13 @@ l'un après l'autre (`withCatalogLock`, `catalog/lock.ts`).
   plus le récit du pipeline. Un fichier et non la base : il s'écrit même quand c'est Postgres qui tombe.
   La console est dupliquée par `AsyncLocalStorage` : aucune étape n'écrit dans le fichier elle-même.
 
+**Arrêter** (carte de la tâche et page du passage, `POST /admin/tasks/:id/kill`, `killRun`) : un passage que ce
+processus fait tourner reçoit le signal d'arrêt de sa tâche (`shared/cancel.ts`) ; les étapes le vérifient entre deux
+unités de travail (une tranche, un appel TMDB, un lot du guide), si bien que l'opération en cours finit et que rien de
+nouveau ne part. Aucune écriture n'est coupée en deux : une transaction interrompue est annulée entière. Le passage et
+son étape finissent `killed` (« Arrêté »), les étapes suivantes ne démarrent pas, rien n'est relancé. Un passage
+affiché « en cours » que plus rien ne fait tourner (sa fin n'a pas pu s'écrire, Postgres tombé) est clos `killed` aussitôt,
+avec ses étapes restées « en cours ».
 Un passage resté « en cours » au démarrage est clos en erreur (`closeOrphanLogs`). Passages et fichiers
 sont purgés après 90 jours (`RETENTION_DAYS`), à la fin de chaque passage. `/admin/tasks/:id` affiche les
 étapes et la fin du fichier (1 Mo, rafraîchie toutes les 2 s tant que ça tourne), `/raw` le télécharge.

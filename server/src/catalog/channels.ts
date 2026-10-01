@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db, schema, client as pg } from "@/db";
-import { similarity, stripAccents } from "@/shared";
+import { checkCancelled, similarity, stripAccents } from "@/shared";
 import { syncIptv } from "@/providers/iptv";
 import { regroupItems } from "./grouping/group";
 import { LIVE_THEMES, type LiveTheme } from "./naming";
@@ -261,6 +261,7 @@ const liveRows = (where = eq(schema.catalogVariants.kind, "live")) =>
 /** Only the variants whose channel, theme, flag or EPG verdict moved are written. */
 async function write(rows: Resolved[]) {
   for (let i = 0; i < rows.length; i += CHUNK) {
+    checkCancelled();
     const part = rows.slice(i, i + CHUNK);
     await pg`
       update catalog_variants i set iptv_id = u.iptv, iptv_match = u.how, iptv_theme = u.theme, iptv_adult = u.adult, epg_mismatch = u.mismatch

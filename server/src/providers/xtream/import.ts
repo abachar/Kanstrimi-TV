@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db, schema, KINDS, type Kind } from "@/db";
-import { stripOrnaments } from "@/shared";
+import { checkCancelled, stripOrnaments } from "@/shared";
 import { getSettings, setSettings } from "@/config";
 import { XtreamClient, xtreamFromSettings, type XCategory, type XStream } from "./client";
 
@@ -125,6 +125,7 @@ export async function runSync(opts: { acceptShrink?: boolean } = {}): Promise<Re
   for (const r of rows) current[r.kind] = r.n;
   checkShrink(received, current, opts.acceptShrink);
 
+  checkCancelled();
   await db.transaction(async (tx) => {
     await tx.execute(sql`truncate table ${schema.xtreamCategories}, ${schema.xtreamStreams}`);
     for (let i = 0; i < cats.length; i += CHUNK) await tx.insert(schema.xtreamCategories).values(cats.slice(i, i + CHUNK));

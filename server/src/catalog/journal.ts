@@ -25,6 +25,25 @@ export async function closeOrphanLogs(): Promise<number> {
   return rows.length;
 }
 
+/**
+ * A run the journal still shows as running while no process runs it (the database fell, the
+ * end could not be written): closed as killed, with its steps still marked running. False when
+ * the run is not running.
+ */
+export async function closeStaleRun(id: number, message: string): Promise<boolean> {
+  const closed = { status: "killed" as const, message, finishedAt: new Date() };
+  const rows = await db
+    .update(schema.taskRuns)
+    .set(closed)
+    .where(and(eq(schema.taskRuns.id, id), eq(schema.taskRuns.status, "running")))
+    .returning({ id: schema.taskRuns.id });
+  await db
+    .update(schema.taskSteps)
+    .set(closed)
+    .where(and(eq(schema.taskSteps.runId, id), eq(schema.taskSteps.status, "running")));
+  return rows.length > 0;
+}
+
 export async function startRun(task: string, trigger: Trigger): Promise<{ id: number; logFile: string }> {
   const [row] = await db
     .insert(schema.taskRuns)
@@ -34,7 +53,9 @@ export async function startRun(task: string, trigger: Trigger): Promise<{ id: nu
   await db.update(schema.taskRuns).set({ logFile }).where(eq(schema.taskRuns.id, row.id));
   return { id: row.id, logFile };
 }
-export async function finishRun(id: number, status: "success" | "error", message?: string) {
+export type EndStatus = "success" | "error" | "killed";
+
+export async function finishRun(id: number, status: EndStatus, message?: string) {
   await db.update(schema.taskRuns).set({ status, message, finishedAt: new Date() }).where(eq(schema.taskRuns.id, id));
 }
 
@@ -42,7 +63,7 @@ export async function startStep(step: string, runId?: number) {
   const [row] = await db.insert(schema.taskSteps).values({ step, runId }).returning();
   return row.id;
 }
-export async function finishStep(id: number, status: "success" | "error", message?: string, stats?: Record<string, unknown>) {
+export async function finishStep(id: number, status: EndStatus, message?: string, stats?: Record<string, unknown>) {
   await db.update(schema.taskSteps).set({ status, message, stats, finishedAt: new Date() }).where(eq(schema.taskSteps.id, id));
 }
 

@@ -23,6 +23,7 @@ export {
 export {
   getLastError,
   isTaskRunning,
+  killRun,
   launch,
   pipelineSteps,
   run,

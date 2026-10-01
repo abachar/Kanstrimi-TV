@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { checkCancelled } from "@/shared";
 import fs from "node:fs";
 import path from "node:path";
 import { db, schema } from "@/db";
@@ -6,15 +7,21 @@ import { resetDb, closeDb } from "@/test/db";
 import { verify } from "@/config";
 import { startStep, finishStep, closeOrphanLogs, startRun, runById, recentRuns } from "../journal";
 import { logDir, readRunLog, withRunLog, withStep } from "../runlog";
-import { run, runAll } from "../pipeline";
+import { isTaskRunning, killRun, run, runAll } from "../pipeline";
 
 let channelsFail = false;
+/** `channels` turns into a step that lasts until it is told to stop. */
+let channelsBlock = false;
 vi.mock("../channels", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../channels")>();
   return {
     ...mod,
     runChannels: async () => {
       if (channelsFail) throw new Error("iptv-org injoignable");
+      while (channelsBlock) {
+        checkCancelled();
+        await new Promise((r) => setTimeout(r, 5));
+      }
       return mod.runChannels();
     },
   };
@@ -103,5 +110,42 @@ describe("run log file", () => {
     const [r] = (await recentRuns({ limit: 1 })).runs;
     expect(r).toMatchObject({ task: "pipeline", status: "success" });
     expect(r.steps.map((s) => s.step)).toEqual(["filters", "group"]);
+  });
+});
+
+describe("killRun", () => {
+  it("stops a run in progress after the work in flight: the run and its step end killed, the next steps never start", async () => {
+    channelsBlock = true;
+    try {
+      const done = runAll("manual", "channels");
+      await vi.waitUntil(async () => (await recentRuns({ limit: 1 })).runs[0]?.steps.some((s) => s.step === "channels"));
+      const [r] = (await recentRuns({ limit: 1 })).runs;
+      expect(r.status).toBe("running");
+      expect(await killRun(r.id)).toBe("stopping");
+      expect(await done).toBe(false);
+    } finally {
+      channelsBlock = false;
+    }
+    expect(isTaskRunning("pipeline")).toBe(false);
+    const [r] = (await recentRuns({ limit: 1 })).runs;
+    expect(r).toMatchObject({ task: "pipeline", status: "killed", message: "Arrêté depuis l'admin" });
+    expect(r.finishedAt).not.toBeNull();
+    expect(r.steps.map((s) => [s.step, s.status])).toEqual([["channels", "killed"]]);
+    expect(readRunLog(r.logFile!)!.text).toContain("Arrêté depuis l'admin");
+    // Over: a second stop changes nothing.
+    expect(await killRun(r.id)).toBe("not_running");
+  });
+
+  it("closes a run left « running » that nothing runs any more, its running steps with it", async () => {
+    const r = await startRun("pipeline", "cron");
+    const done = await startStep("source", r.id);
+    await finishStep(done, "success");
+    const stuck = await startStep("group", r.id);
+    expect(await killRun(r.id)).toBe("closed");
+    const run = (await runById(r.id))!;
+    expect(run).toMatchObject({ status: "killed", message: "Arrêté depuis l'admin" });
+    expect(run.steps.find((s) => s.id === stuck)).toMatchObject({ status: "killed" });
+    expect(run.steps.find((s) => s.id === done)?.status).toBe("success");
+    expect(await killRun(r.id)).toBe("not_running");
   });
 });

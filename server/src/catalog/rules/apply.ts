@@ -1,4 +1,5 @@
 import { inArray } from "drizzle-orm";
+import { checkCancelled } from "@/shared";
 import { db, schema } from "@/db";
 import { compileRules, isHidden } from "./engine";
 import { refreshVisibility } from "../grouping/group";
@@ -40,11 +41,13 @@ async function apply(refresh: boolean) {
     if (h !== c.hidden) catUpdates[h ? 0 : 1].ids.push(c.id);
   }
   for (const u of catUpdates)
-    for (let i = 0; i < u.ids.length; i += CHUNK)
+    for (let i = 0; i < u.ids.length; i += CHUNK) {
+      checkCancelled();
       await db
         .update(schema.catalogCategories)
         .set({ hiddenByRule: u.hidden })
         .where(inArray(schema.catalogCategories.id, u.ids.slice(i, i + CHUNK)));
+    }
 
   const its = await db
     .select({
@@ -65,11 +68,13 @@ async function apply(refresh: boolean) {
     if (h !== it.hidden) itemUpdates[h ? 0 : 1].ids.push(it.id);
   }
   for (const u of itemUpdates)
-    for (let i = 0; i < u.ids.length; i += CHUNK)
+    for (let i = 0; i < u.ids.length; i += CHUNK) {
+      checkCancelled();
       await db
         .update(schema.catalogVariants)
         .set({ hiddenByRule: u.hidden })
         .where(inArray(schema.catalogVariants.id, u.ids.slice(i, i + CHUNK)));
+    }
   const changed = catUpdates.some((u) => u.ids.length) || itemUpdates.some((u) => u.ids.length);
   if (refresh && changed) await refreshVisibility();
   return { categories: catUpdates[0].ids.length + catUpdates[1].ids.length, items: itemUpdates[0].ids.length + itemUpdates[1].ids.length };

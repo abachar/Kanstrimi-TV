@@ -36,7 +36,9 @@ const DOT: Record<string, string> = {
   success: "bg-emerald-500",
   error: "bg-destructive",
   running: "bg-sky-500 animate-pulse",
+  killed: "bg-amber-500",
 };
+const STATUS_WORD: Record<string, string> = { success: "succès", error: "erreur", running: "en cours", killed: "arrêté" };
 function Dots({ runs }: { runs: RunWithSteps[] }) {
   return (
     <div class="flex items-center gap-1.5" aria-label="Derniers passages">
@@ -44,7 +46,7 @@ function Dots({ runs }: { runs: RunWithSteps[] }) {
         <a
           href={`/admin/tasks/${r.id}`}
           class={`size-3 rounded-full ${DOT[r.status] ?? "bg-muted"}`}
-          title={`${when(r.startedAt)} · ${r.status === "success" ? "succès" : r.status === "error" ? "erreur" : "en cours"}`}
+          title={`${when(r.startedAt)} · ${STATUS_WORD[r.status] ?? r.status}`}
         />
       ))}
     </div>
@@ -56,11 +58,25 @@ function StepBadges({ steps }: { steps: TaskStep[] }) {
   return (
     <span class="inline-flex flex-wrap gap-1">
       {steps.map((s) => (
-        <Badge tone={s.status === "error" ? "bad" : s.status === "running" ? "info" : "muted"}>
+        <Badge tone={s.status === "error" ? "bad" : s.status === "running" ? "info" : s.status === "killed" ? "warn" : "muted"}>
           {jobLabel(s.step)} <span class="font-normal tabular-nums opacity-75">{took(s)}</span>
         </Badge>
       ))}
     </span>
+  );
+}
+
+/**
+ * « Arrêter » a run shown as running: the work in flight ends, nothing new starts; a run nothing
+ * runs any more (its end could not be written) is closed at once.
+ */
+function KillButton({ run }: { run: { id: number } }) {
+  return (
+    <form method="post" action={`/admin/tasks/${run.id}/kill`} onsubmit="return confirm('Arrêter ce passage ?')">
+      <button class="btn" data-variant="destructive" data-size="sm">
+        Arrêter
+      </button>
+    </form>
   );
 }
 
@@ -90,6 +106,11 @@ export function TaskCard({ task, cron, runs, busy, steps }: TaskState) {
           </a>
         ) : (
           <Empty title="Jamais lancé" />
+        )}
+        {last?.status === "running" && (
+          <div class="flex justify-end">
+            <KillButton run={last} />
+          </div>
         )}
         <Dots runs={runs} />
         {/* On its own line: the step picker is as wide as its longest option. */}
@@ -277,6 +298,7 @@ export function RunView({ run, log }: { run: RunWithSteps; log: { text: string; 
                 Télécharger le log
               </a>
             )}
+            {run.status === "running" && <KillButton run={run} />}
           </>
         }
       />

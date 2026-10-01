@@ -1,4 +1,5 @@
 import { client as pg, KINDS, type Kind } from "@/db";
+import { checkCancelled } from "@/shared";
 import { isSeparator, separatorText, SHRINK_HINT } from "@/providers/xtream";
 import { runNaming } from "./grouping/group";
 import { withCatalogLock } from "./lock";
@@ -118,6 +119,7 @@ async function mergeCopy(acceptShrink: boolean): Promise<Omit<MergeStats, "items
       kind content_kind, xtream_id text, position int, name text, category text, section text, added_at timestamptz,
       primary key (kind, xtream_id)) on commit drop`;
     for (let i = 0; i < entries.length; i += CHUNK) {
+      checkCancelled();
       const part = entries.slice(i, i + CHUNK);
       await tx`
         insert into merge_entries

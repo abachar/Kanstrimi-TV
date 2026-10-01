@@ -22,7 +22,7 @@ export const kindEnum = pgEnum("content_kind", ["live", "vod", "series"]);
 export const ruleActionEnum = pgEnum("rule_action", ["hide", "keep"]);
 export const ruleTargetEnum = pgEnum("rule_target", ["name", "category"]);
 export const matchStatusEnum = pgEnum("match_status", ["pending", "matched", "unmatched", "manual", "skipped"]);
-export const syncStatusEnum = pgEnum("sync_status", ["running", "success", "error"]);
+export const syncStatusEnum = pgEnum("sync_status", ["running", "success", "error", "killed"]);
 
 /** Key/value settings (xtream creds, proxy creds, tmdb key, ...). */
 export const settings = pgTable("settings", {

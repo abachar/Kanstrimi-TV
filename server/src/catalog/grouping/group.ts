@@ -16,7 +16,7 @@ import {
 } from "../naming";
 import { cardFields, type TmdbDetails } from "@/providers/tmdb";
 import { contentKey, hasFallbackKey } from "../keys";
-import { searchText } from "@/shared";
+import { checkCancelled, searchText } from "@/shared";
 import { withCatalogLock } from "../lock";
 
 /**
@@ -110,6 +110,7 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
   let last = 0,
     written = 0;
   for (;;) {
+    checkCancelled();
     const where = [gt(schema.catalogVariants.id, last)];
     if (onlyIds) where.push(inArray(schema.catalogVariants.id, onlyIds));
     const rows = await db
@@ -185,6 +186,7 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
   let last = 0,
     total = 0;
   for (;;) {
+    checkCancelled();
     const where = [gt(schema.catalogVariants.id, last)];
     if (onlyIds) where.push(inArray(schema.catalogVariants.id, onlyIds));
     const rows = await db
@@ -267,6 +269,7 @@ async function fillCardFields(onlyIds?: number[]) {
   const lang = (await getSettings()).tmdb_language;
   let last = 0;
   for (;;) {
+    checkCancelled();
     const rows = await pg<
       { id: number; kind: "live" | "vod" | "series"; tmdb_id: number | null; title: string; data: TmdbDetails | null }[]
     >`

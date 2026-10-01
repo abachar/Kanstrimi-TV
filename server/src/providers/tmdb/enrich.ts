@@ -4,7 +4,7 @@ import { and, asc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "drizz
 import pLimit from "p-limit";
 import { TmdbClient, type TmdbDetails } from "./client";
 import { scoreAll, bestSimilarity, namesOf, hasAllNames, MATCH_THRESHOLD, type ScoredDetail } from "./match";
-import { describeError, isUnreachable, progress, similarityKey } from "@/shared";
+import { cancelGuard, describeError, isUnreachable, progress, similarityKey } from "@/shared";
 
 const TTL_MS = 30 * 24 * 3600 * 1000;
 /** TMDB allows ~50 requests per second; stay well under with the retry on 429 as a safety net. */
@@ -136,6 +136,8 @@ export async function runEnrich(opts: { limit?: number } = {}) {
     () => `${n(stats.matched)} associés · ${n(stats.unmatched)} non trouvés · ${n(stats.errors)} erreurs`,
   );
   const limit = pLimit(CONCURRENCY);
+  // p-limit may run a queued call outside this context: the stop check is bound here.
+  const checkCancelled = cancelGuard();
   let unreachable = 0;
   let halted: string | null = null;
   const account = (r: boolean) => {
@@ -174,6 +176,7 @@ export async function runEnrich(opts: { limit?: number } = {}) {
       ...[...byProvidedId.values()].map((group) =>
         limit(async () => {
           if (halted) return;
+          checkCancelled();
           const first = group[0];
           const mediaType = tmdbMediaType(first.kind);
           const pid = providedTmdbId(first)!;
@@ -183,6 +186,7 @@ export async function runEnrich(opts: { limit?: number } = {}) {
             d = await getDetails(client, mediaType, pid, true).catch(() => d);
           for (const it of group) {
             if (halted) return;
+            checkCancelled();
             try {
               if (d && idLooksRight(d, it)) {
                 await setMatch(it.id, pid, 1, "matched");
@@ -200,6 +204,7 @@ export async function runEnrich(opts: { limit?: number } = {}) {
       ...noId.map((it) =>
         limit(async () => {
           if (halted) return;
+          checkCancelled();
           try {
             account(await matchByTitle(client, it));
           } catch (e) {
@@ -211,7 +216,8 @@ export async function runEnrich(opts: { limit?: number } = {}) {
   } finally {
     beat.stop();
   }
-  if (!halted) stats.refreshed = await refreshStale(client, limit);
+  checkCancelled();
+  if (!halted) stats.refreshed = await refreshStale(client, limit, checkCancelled);
   console.log(
     `[enrich] ${n(stats.processed)} traités : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ids_rejected)} identifiants fournis rejetés, ${n(stats.retried)} non trouvés retentés, ${n(stats.refreshed)} fiches rafraîchies`,
   );
@@ -227,7 +233,7 @@ export async function runEnrich(opts: { limit?: number } = {}) {
  * REFRESH_PER_RUN; plus at most BACKFILL_PER_RUN used entries that predate the logos. A failure
  * keeps the old entry (tried again next run). Returns how many landed.
  */
-async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>): Promise<number> {
+async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>, checkCancelled: () => void): Promise<number> {
   const users = sql`from ${schema.catalogContents} c where c.tmdb_id = ${schema.tmdbCache.tmdbId}
     and case c.kind when 'vod' then 'movie' else 'tv' end = ${schema.tmdbCache.mediaType}`;
   const pick = (cond: SQL, max: number, order: SQL[]) =>
@@ -258,6 +264,7 @@ async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>
     await Promise.all(
       stale.map((r) =>
         limit(async () => {
+          checkCancelled();
           try {
             await fetchDetails(client, r.mediaType as "movie" | "tv", r.tmdbId);
             done++;

@@ -1,13 +1,13 @@
 import { Cron } from "croner";
 import { getSettings, isUnlocked, isXtreamConfigured, type Settings } from "@/config";
-import { describeError } from "@/shared";
+import { describeError, isCancelled, withCancel } from "@/shared";
 import { runSync, runEpgRebuild } from "@/providers/xtream";
 import { runEnrich, runTrending } from "@/providers/tmdb";
 import { applyRules } from "./rules/apply";
 import { runGrouping } from "./grouping/group";
 import { runMerge } from "./merge";
 import { runChannels } from "./channels";
-import { startStep, finishStep, startRun, finishRun, purgeRuns, type Trigger } from "./journal";
+import { startStep, finishStep, startRun, finishRun, purgeRuns, closeStaleRun, type Trigger } from "./journal";
 import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
 
 /**
@@ -56,6 +56,9 @@ const RUNNERS: Record<Step, (ctx: StepContext) => Promise<unknown>> = {
 
 const running = new Map<Step, Date>();
 const runningTasks = new Set<string>();
+/** The run each task is on, and the switch that stops it. */
+const current = new Map<string, { runId: number; stop: AbortController }>();
+const KILLED = "Arrêté depuis l'admin";
 let lastError: { step: Step; message: string; at: Date } | null = null;
 
 export const runningSteps = () => [...running.entries()].map(([step, since]) => ({ step, since }));
@@ -77,6 +80,11 @@ async function runStep(step: Step, runId: number, ctx: StepContext): Promise<str
     note(`── ${step} : terminé en ${Math.round((Date.now() - started) / 1000)} s${stats ? ` · ${JSON.stringify(stats)}` : ""}`);
     return null;
   } catch (e) {
+    if (isCancelled(e)) {
+      note(`── ${step} : arrêté après ${Math.round((Date.now() - started) / 1000)} s`);
+      if (stepId !== null) await finishStep(stepId, "killed", KILLED).catch(() => {});
+      return KILLED;
+    }
     const message = describeError(e);
     lastError = { step, message, at: new Date() };
     console.error(`[pipeline] ${step} :`, message);
@@ -104,25 +112,33 @@ async function runTask(task: string, trigger: Trigger, steps: Step[], opts: RunO
       console.error(`[pipeline] ${task} : journal inaccessible,`, describeError(e));
       return false;
     }
-    return await withRunLog(run.logFile, async () => {
-      note(
-        `Passage n° ${run.id} · ${task} · ${trigger === "cron" ? "planifié" : "manuel"} · étapes ${steps.join(" → ")}${opts.acceptShrink ? " · baisse du catalogue acceptée" : ""}`,
-      );
-      let error: string | null = null;
-      for (const step of steps) {
-        const failed = await runStep(step, run.id, { ...opts, steps });
-        if (!failed) continue;
-        error ??= failed;
-        if (!SKIPPABLE.has(step)) break;
-        note(`${step} en échec : le passage continue sans lui`);
-      }
-      note(error ? `Échec : ${error}` : "Terminé");
-      await finishRun(run.id, error ? "error" : "success", error ?? undefined).catch((e) =>
-        console.error(`[pipeline] ${task} : fin du passage non enregistrée,`, describeError(e)),
-      );
-      return !error;
-    });
+    const stop = new AbortController();
+    current.set(task, { runId: run.id, stop });
+    return await withRunLog(run.logFile, () =>
+      withCancel(stop.signal, async () => {
+        note(
+          `Passage n° ${run.id} · ${task} · ${trigger === "cron" ? "planifié" : "manuel"} · étapes ${steps.join(" → ")}${opts.acceptShrink ? " · baisse du catalogue acceptée" : ""}`,
+        );
+        let error: string | null = null;
+        for (const step of steps) {
+          if (stop.signal.aborted) break;
+          const failed = await runStep(step, run.id, { ...opts, steps });
+          if (!failed) continue;
+          if (stop.signal.aborted) break;
+          error ??= failed;
+          if (!SKIPPABLE.has(step)) break;
+          note(`${step} en échec : le passage continue sans lui`);
+        }
+        const killed = stop.signal.aborted;
+        note(killed ? "Arrêté depuis l'admin" : error ? `Échec : ${error}` : "Terminé");
+        await finishRun(run.id, killed ? "killed" : error ? "error" : "success", killed ? KILLED : (error ?? undefined)).catch((e) =>
+          console.error(`[pipeline] ${task} : fin du passage non enregistrée,`, describeError(e)),
+        );
+        return !error && !killed;
+      }),
+    );
   } finally {
+    current.delete(task);
     runningTasks.delete(task);
     purge();
   }
@@ -161,6 +177,20 @@ export function launch(task: Task, from?: Step, opts: RunOptions = {}): boolean 
   if (runningTasks.has(task) || !isUnlocked()) return false;
   void (task === "pipeline" ? runAll("manual", from, opts) : runEpg("manual"));
   return true;
+}
+
+/**
+ * Stops a run from the admin. Running in this process: asked to stop, it ends as `killed` once the
+ * work in flight is done (`stopping`). Shown as running though nothing runs it (a run whose end
+ * could not be written): closed as `killed` at once (`closed`). Already over: `not_running`.
+ */
+export async function killRun(runId: number): Promise<"stopping" | "closed" | "not_running"> {
+  for (const c of current.values())
+    if (c.runId === runId) {
+      c.stop.abort();
+      return "stopping";
+    }
+  return (await closeStaleRun(runId, KILLED)) ? "closed" : "not_running";
 }
 
 // ---------------------------------------------------------------- schedule

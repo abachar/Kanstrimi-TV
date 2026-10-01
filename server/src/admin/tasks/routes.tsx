@@ -9,13 +9,14 @@ import {
   readRunLog,
   runLogPath,
   isTaskRunning,
+  killRun,
   runningSteps,
   getLastError,
   pipelineSteps,
   TASKS,
   RETENTION_DAYS,
 } from "@/catalog";
-import { page } from "../http";
+import { back, page } from "../http";
 import { TasksView, RunView, RunLog, RUNS_PER_PAGE } from "./view";
 
 /** `/admin/tasks`: the scheduled tasks and the runs; `/admin/tasks/:id`: one run and its log file. */
@@ -69,4 +70,18 @@ tasksRoutes.get("/:id/raw", async (c) => {
   return stream(c, async (s) => {
     for await (const chunk of fs.createReadStream(file)) await s.write(chunk as Uint8Array);
   });
+});
+
+/** « Arrêter »: the run stops after the work in flight, or is closed at once when nothing runs it. */
+tasksRoutes.post("/:id/kill", async (c) => {
+  const run = await runOf(c.req.param("id"));
+  if (!run) return c.notFound();
+  const result = await killRun(run.id);
+  const msg =
+    result === "stopping"
+      ? { ok: "Arrêt demandé : le passage s'arrête dès la fin de l'opération en cours" }
+      : result === "closed"
+        ? { ok: "Passage marqué arrêté : plus rien ne le faisait tourner" }
+        : { err: "Ce passage n'est plus en cours" };
+  return back(c, `/admin/tasks/${run.id}`, msg);
 });

@@ -4,6 +4,7 @@ import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db
 import { verify } from "@/config";
 import { itemById } from "@/catalog";
 import { run, runNaming } from "@/catalog";
+import { startRun } from "@/catalog/journal";
 import { setFavorite, setProgress, listProgress } from "@/player";
 import { admin } from "..";
 
@@ -105,6 +106,15 @@ describe("admin", () => {
     expect(await html(`/admin/tasks/${runId}`)).toContain("── group : terminé");
     expect((await call(`/admin/tasks/${runId}/raw`)).headers.get("content-disposition")).toContain(".log");
     expect((await call("/admin/tasks/999999")).status).toBe(404);
+    // A run left « running » (its end never written): « Arrêter » closes it as killed.
+    const stuck = await startRun("pipeline", "manual");
+    expect(await html(`/admin/tasks/${stuck.id}`)).toContain(`/admin/tasks/${stuck.id}/kill`);
+    expect(flash(await post(`/admin/tasks/${stuck.id}/kill`, {}))).toContain("Passage marqué arrêté");
+    const stopped = await html(`/admin/tasks/${stuck.id}`);
+    expect(stopped).toContain("Arrêté");
+    expect(stopped).not.toContain(`/admin/tasks/${stuck.id}/kill`);
+    expect(flash(await post(`/admin/tasks/${stuck.id}/kill`, {}))).toContain("n'est plus en cours");
+    expect((await post("/admin/tasks/999999/kill", {})).status).toBe(404);
     expect(await html("/admin/epg")).toContain("Corrections du guide");
     expect(await html("/admin/epg?channel=TF1.fr")).toContain("Décalage à appliquer");
     expect(await html("/admin/epg/preview/TF1.fr?minutes=-180&pattern=*.fr")).toContain("Aperçu avec −3 h");

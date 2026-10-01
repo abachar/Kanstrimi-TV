@@ -1,4 +1,5 @@
 import { SaxesParser } from "saxes";
+import { checkCancelled } from "@/shared";
 import { and, eq, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { db, schema, visibleItem } from "@/db";
 import { getSettings, setSettings } from "@/config";
@@ -119,6 +120,7 @@ export async function runEpgRebuild(): Promise<{ channels: number; programmes: n
   let duplicates = 0;
   await db.transaction(async (tx) => {
     for await (const batch of parseXmltv(body.pipeThrough(new TextDecoderStream()), wanted)) {
+      checkCancelled();
       const rows = batch.flatMap((r) => {
         const key = `${r.channelId}|${r.startAt.getTime()}`;
         if (keys.has(key)) {
