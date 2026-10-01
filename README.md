@@ -44,8 +44,7 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 Ce qui vient après la V1.1 (tvOS et iPhone), par version, puis les idées non planifiées.
 
 - **V1.2** :
-  - **Défauts constatés sur appareil** (`apple/README.md`), dans l'ordre : sous-titres texte en portrait iPhone, son perdu sur
-    le direct.
+  - **Défauts constatés sur appareil** (`apple/README.md`) : son perdu sur le direct.
   - **Top Shelf tvOS** : « Reprendre » et « Nouveautés » sur l'écran d'accueil de l'Apple TV (extension + jeton partagé).
   - **Chaînes les plus vues** : une rangée d'accueil des chaînes du direct les plus regardées. Mesure à choisir : temps de
     visionnage ou nombre de lectures.

@@ -168,7 +168,8 @@ ou d'un épisode passe au chargement (`startPosition`), sans saut une fois la le
 
 **Sous-titres** : le moteur ne les dessine pas. `SubtitleOverlay`, posé par `PlayerScreen` au-dessus de la vidéo et sous les contrôles, observe
 lui-même le moteur (repères et horloge source) et ne se redessine que si l'ensemble des repères visibles change : texte centré en bas
-(taille `Metrics.subtitleSize`), images (PGS, DVB) placées selon leur position dans le cadre. Aucun sous-titre au départ ; rien n'est
+du cadre de l'image, 16:9 centré (taille `Metrics.subtitleSize` ; en portrait iPhone, au bas de l'image et non de l'écran, un peu plus haut),
+images (PGS, DVB) placées selon leur position dans ce cadre. Aucun sous-titre au départ ; rien n'est
 dessiné sans piste choisie. Dans la fenêtre de PiP logicielle, le moteur incruste lui-même les repères actifs. Changer de piste audio ou
 de sous-titres recharge brièvement la session (noir d'environ 1 s, attendu).
 
@@ -270,7 +271,7 @@ Depuis le passage à AetherEngine : lecture des films et du direct, Dolby Vision
 contenu : Plage ») et retour du téléviseur en SDR à la fermeture (retour, bouton TV, chaîne SDR enchaînée ; le noir de quelques
 secondes est la bascule HDMI), zapping du direct par la route logicielle et fluidité d'une chaîne 4K, seuil de gel du direct à 4 s
 (les accrocs repartent seuls, aucune relance de trop), Atmos rendu par des AirPods Max (EAC3 + JOC copié tel quel), saut profond
-dans un MKV, reprise depuis « Reprendre » et avance rapide, sous-titres dessinés par l'app, PGS et texte compris (en paysage),
+dans un MKV, reprise depuis « Reprendre » et avance rapide, sous-titres dessinés par l'app, PGS et texte compris (paysage et portrait),
 Picture-in-Picture d'une chaîne et d'un film sur iPhone, par le bouton du lecteur comme par le balayage vers l'accueil, et
 boutons de sa fenêtre, rotation physique du téléphone, focus de la barre tvOS sur le bouton du panneau ouvert.
 
@@ -281,7 +282,6 @@ La pastille « Atmos » vient de `TrackInfo.isAtmos`, juste quand l'audio est en
 
 - **Retour du PiP d'une chaîne** (route logicielle, par le bouton comme par le balayage) : une fois l'image revenue au centre, un
   bref éclair montre l'image de la fenêtre PiP à la place de la vidéo, puis le direct continue. Cosmétique ; les films n'ont rien.
-- **Sous-titres texte en portrait iPhone** : collés en bas de l'écran, loin de l'image, alors que le PGS est placé dans le cadre.
 - **Son perdu sur le direct** sans réaction de l'app : le chien de garde ne regarde que la phase du moteur (`.rebuffering`,
   `.stalled`), un son coupé pendant `.playing` lui échappe.
 

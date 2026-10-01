@@ -17,7 +17,7 @@ struct SubtitleOverlay: View {
                 ForEach(visible) { cue in
                     switch cue.body {
                     case .image(let image): bitmap(image, in: frame)
-                    case .text, .richText: text(cue)
+                    case .text, .richText: text(cue, in: frame, letterboxed: frame.height < geo.size.height - 1)
                     }
                 }
             }
@@ -34,8 +34,10 @@ struct SubtitleOverlay: View {
         if now.map(\.id) != visible.map(\.id) { visible = now }
     }
 
-    /// Bottom centre by default, top when the source asked for a top alignment (ASS `\an7`...`\an9`).
-    private func text(_ cue: SubtitleCue) -> some View {
+    /// Bottom centre of the picture by default, top when the source asked for a top alignment (ASS `\an7`...`\an9`).
+    /// Placed against the picture's frame like a bitmap: on an upright iPhone the screen's bottom is far below it.
+    /// Letterboxed (upright iPhone), a little higher: the line sits closer to the picture's own bottom.
+    private func text(_ cue: SubtitleCue, in frame: CGRect, letterboxed: Bool) -> some View {
         let onTop = (cue.placement?.alignment).map { (7...9).contains($0) } ?? false
         return Text(Self.stripped(cue.text ?? ""))
             .font(.system(size: metrics.subtitleSize, weight: .semibold))
@@ -44,8 +46,9 @@ struct SubtitleOverlay: View {
             .shadow(color: .black, radius: 3, x: 0, y: 1)
             .shadow(color: .black.opacity(0.8), radius: 6)
             .padding(.horizontal, metrics.inset)
-            .padding(.vertical, metrics.compact ? 24 : 70)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: onTop ? .top : .bottom)
+            .padding(.vertical, metrics.compact ? (letterboxed ? 40 : 24) : 70)
+            .frame(width: frame.width, height: frame.height, alignment: onTop ? .top : .bottom)
+            .position(x: frame.midX, y: frame.midY)
     }
 
     /// The engine maps a bitmap onto its canvas, the canvas width-aligned and centred on the video.
