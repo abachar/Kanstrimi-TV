@@ -86,9 +86,8 @@ nonisolated struct Metrics: Sendable {
     /// Empty and error panels: icon size and padding.
     var stateIcon: CGFloat
     var statePadding: CGFloat
-    /// Search: the best result's poster width and its column width.
-    var searchPoster: CGFloat
-    var searchColumn: CGFloat?
+    /// Search: the width of the best result's wide picture, its facts beside it; nil = the screen's width, facts below.
+    var searchBest: CGFloat?
     /// Live: three columns with a preview (TV) or a stacked list (phone); logo size in the list.
     var liveColumns: Bool
     var channelLogo: CGFloat
@@ -123,7 +122,7 @@ nonisolated struct Metrics: Sendable {
     static let tv = Metrics(compact: false, inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,
                             heroHeight: 600, heroTitle: 64, detailTitle: 76, detailTop: 160, detailLogo: CGSize(width: 640, height: 200), stillWidth: 260, textWidth: 1000,
-                            stateIcon: 56, statePadding: 60, searchPoster: 360, searchColumn: 400, liveColumns: true, channelLogo: 96,
+                            stateIcon: 56, statePadding: 60, searchBest: 560, liveColumns: true, channelLogo: 96,
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
                             panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 460,
                             dialogTitle: 48, dialogWidth: 900, nextCard: 620, dialogMargin: 70,
@@ -131,7 +130,7 @@ nonisolated struct Metrics: Sendable {
     static let phone = Metrics(compact: true, inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,
                                artTitle: 14, badge: 12, badgeSmall: 10,
                                heroHeight: 470, heroTitle: 32, detailTitle: 30, detailTop: 40, detailLogo: CGSize(width: 260, height: 90), stillWidth: 140, textWidth: .infinity,
-                               stateIcon: 40, statePadding: 24, searchPoster: 140, searchColumn: nil, liveColumns: false, channelLogo: 56,
+                               stateIcon: 40, statePadding: 24, searchBest: nil, liveColumns: false, channelLogo: 56,
                                pairingTitle: 28, showsQR: false, codeCell: 40, pairingColumn: nil,
                                panelHeight: 300, panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
                                dialogTitle: 26, dialogWidth: 460, nextCard: 340, dialogMargin: 24,
@@ -235,6 +234,16 @@ extension View {
         navigationTitle(title).navigationBarTitleDisplayMode(.large)
         #else
         self
+        #endif
+    }
+
+    /// The search field. iPhone: always shown under the title; by default iOS hides it until the
+    /// content is pulled down, and the empty screen has nothing to pull.
+    @ViewBuilder func searchField(text: Binding<String>, prompt: String) -> some View {
+        #if os(iOS)
+        searchable(text: text, placement: .navigationBarDrawer(displayMode: .always), prompt: prompt)
+        #else
+        searchable(text: text, prompt: prompt)
         #endif
     }
 

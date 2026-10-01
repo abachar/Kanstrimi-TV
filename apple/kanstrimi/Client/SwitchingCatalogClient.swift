@@ -34,6 +34,6 @@ final class SwitchingCatalogClient: CatalogClient {
     func reportWatchTime(id: ContentID, seconds: Int) async throws { try await active.reportWatchTime(id: id, seconds: seconds) }
     func removeFromResume(id: ContentID) async throws { try await active.removeFromResume(id: id) }
     func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws { try await active.setWatched(id: id, watched, season: season) }
-    func search(_ query: String, scope: SearchScope) async throws -> SearchResults { try await active.search(query, scope: scope) }
+    func search(_ query: String) async throws -> SearchResults { try await active.search(query) }
     func setFavorite(id: ContentID, _ favorite: Bool) async throws { try await active.setFavorite(id: id, favorite) }
 }

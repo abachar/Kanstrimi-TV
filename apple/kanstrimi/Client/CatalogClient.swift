@@ -68,18 +68,6 @@ nonisolated struct ListQuery: Hashable, Sendable {
     var cleared: ListQuery { var q = ListQuery(kind: kind, genre: genre); q.studio = studio; return q }
 }
 
-nonisolated enum SearchScope: String, CaseIterable, Sendable {
-    case all, movies, series, live
-    var label: String {
-        switch self {
-        case .all: "Tout"
-        case .movies: "Films"
-        case .series: "Séries"
-        case .live: "En direct"
-        }
-    }
-}
-
 /// `/player`, one method per route. One implementation today: `MockCatalogClient`.
 protocol CatalogClient: AnyObject {
     // Devices
@@ -133,8 +121,8 @@ protocol CatalogClient: AnyObject {
     func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws
 
     // Search and favourites
-    /// `GET /search?q=&scope=`
-    func search(_ query: String, scope: SearchScope) async throws -> SearchResults
+    /// `GET /search?q=`: films, series and channels at once.
+    func search(_ query: String) async throws -> SearchResults
     /// `PUT` / `DELETE /favorites/{id}`
     func setFavorite(id: ContentID, _ favorite: Bool) async throws
 }

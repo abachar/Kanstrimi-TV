@@ -37,6 +37,7 @@ private extension RootView {
     ///   debug.unpair    — forgets the token, back to the pairing screen
     ///   debug.tab       — home | live | movies | series | search | settings
     ///   debug.open      — a content id whose detail opens
+    ///   debug.search    — a query typed in the search screen (read and erased by `SearchView`, built later)
     ///   debug.autoplay  — live | live:<id> | <content id>, plus debug.resumeAt in seconds
     ///   debug.playerState — vodPaused | failure | nextEpisode | livePlaying | panel | opening:
     ///                     stages the player in that state instead of streaming (no flux in the mock)

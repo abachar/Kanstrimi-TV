@@ -89,8 +89,8 @@ final class HTTPCatalogClient: CatalogClient {
 
     // MARK: - Search, favourites
 
-    func search(_ query: String, scope: SearchScope) async throws -> SearchResults {
-        try await send("GET", "search", query: [URLQueryItem(name: "q", value: query), URLQueryItem(name: "scope", value: scope.rawValue)])
+    func search(_ query: String) async throws -> SearchResults {
+        try await send("GET", "search", query: [URLQueryItem(name: "q", value: query)])
     }
     func removeFromResume(id: ContentID) async throws {
         try await sendNoContent("DELETE", "playback/\(id.rawValue)/progress")

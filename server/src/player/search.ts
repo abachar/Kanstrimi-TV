@@ -3,12 +3,12 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { and, asc, desc, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { searchText } from "@/shared";
+import { searchText, similarityKey } from "@/shared";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
 import { liveCategories, visibleContent } from "./contents";
 import { getProgress } from "./progress";
-import { baseCard, gridCard } from "./cards";
+import { artBlock, baseCard, gridCard } from "./cards";
 import type { Card, SearchResults } from "./types";
 
 /**
@@ -32,28 +32,43 @@ searchRoutes.get("/", searchQuery, async (c) => {
 /** Shortest query given to the typo-tolerant fallback. */
 export const FUZZY_MIN_LENGTH = 3;
 
+/** A title as `similarityKey` writes it, in SQL: accent-free, lower case, punctuation as spaces. */
+const titleKey = (col: unknown) =>
+  sql`btrim(regexp_replace(lower(public.unaccent('public.unaccent'::regdictionary, coalesce(${col}, ''))), '[^a-z0-9]+', ' ', 'g'))`;
+
+/**
+ * Titles before everything else: a title equal to the query (punctuation, accents and case aside;
+ * original and English titles too), then the titles closest to it, then popularity. The full-text
+ * rank is left out: it weighs a title and a cast name alike. « I Robot » finds « I, Robot » first.
+ */
 export async function search(ctx: RestContext, query: string, scope: "all" | "movies" | "series" | "live"): Promise<SearchResults> {
   const q = searchText(query.trim());
   if (!q) return { query, best: null, movies: [], series: [], live: [] };
   const terms = q.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   if (!terms.length) return { query, best: null, movies: [], series: [], live: [] };
   const tsq = terms.map((t) => `${t.replace(/'/g, "''")}:*`).join(" & ");
-  const rank = sql`ts_rank(${schema.catalogContents.search}, to_tsquery('simple', ${tsq}))`;
+  const key = similarityKey(query);
+  const t = schema.catalogContents;
+  // Same expression as the `catalog_contents_titles_trgm_idx` index, or the planner cannot use it.
+  const titles = sql`search_titles(${t.title}, ${t.originalTitle}, ${t.titleEn})`;
+  const fields = {
+    content: t,
+    exact: sql<boolean>`(${titleKey(t.title)} = ${key} or ${titleKey(t.originalTitle)} = ${key} or ${titleKey(t.titleEn)} = ${key})`,
+    closeness: sql<number>`word_similarity(${q}, ${titles})`,
+  };
   const find = (kind: "vod" | "series" | "live") =>
     db
-      .select()
-      .from(schema.catalogContents)
-      .where(and(visibleContent(ctx, kind), sql`${schema.catalogContents.search} @@ to_tsquery('simple', ${tsq})`))
-      .orderBy(desc(rank), desc(schema.catalogContents.voteCount), asc(schema.catalogContents.title))
+      .select(fields)
+      .from(t)
+      .where(and(visibleContent(ctx, kind), sql`${t.search} @@ to_tsquery('simple', ${tsq})`))
+      .orderBy(desc(fields.exact), desc(fields.closeness), desc(t.voteCount), asc(t.title))
       .limit(20);
-  // Same expression as the `catalog_contents_titles_trgm_idx` index, or the planner cannot use it.
-  const titles = sql`search_titles(${schema.catalogContents.title}, ${schema.catalogContents.originalTitle}, ${schema.catalogContents.titleEn})`;
   const resembling = (kind: "vod" | "series" | "live") =>
     db
-      .select()
-      .from(schema.catalogContents)
+      .select(fields)
+      .from(t)
       .where(and(visibleContent(ctx, kind), sql`${q} <% ${titles}`))
-      .orderBy(desc(sql`word_similarity(${q}, ${titles})`), desc(schema.catalogContents.voteCount), asc(schema.catalogContents.title))
+      .orderBy(desc(fields.exact), desc(fields.closeness), desc(t.voteCount), asc(t.title))
       .limit(20);
   const run = (query: typeof find) =>
     Promise.all([
@@ -64,16 +79,27 @@ export async function search(ctx: RestContext, query: string, scope: "all" | "mo
   let [movies, series, live] = await run(find);
   // Below three characters, trigrams match about anything.
   if (!movies.length && !series.length && !live.length && q.length >= FUZZY_MIN_LENGTH) [movies, series, live] = await run(resembling);
-  const progress = await getProgress([...movies, ...series].map((c) => c.key));
+  const progress = await getProgress([...movies, ...series].map((r) => r.content.key));
   const cats = live.length ? new Map((await liveCategories()).map((c) => [c.xtreamId, c.name])) : new Map<string, string>();
-  const m = movies.map((c) => gridCard(ctx, c, progress.get(c.key)));
-  const s = series.map((c) => gridCard(ctx, c, progress.get(c.key)));
-  const l = live.map((c) => ({
+  const m = movies.map((r) => gridCard(ctx, r.content, progress.get(r.content.key)));
+  const s = series.map((r) => gridCard(ctx, r.content, progress.get(r.content.key)));
+  const l = live.map(({ content: c }) => ({
     ...baseCard(ctx, c),
     genres: c.categoryXtreamId && cats.get(c.categoryXtreamId) ? [cats.get(c.categoryXtreamId)!] : [],
   }));
-  const all = [...m, ...s, ...l];
-  const starts = (c: Card) => searchText(c.title).startsWith(q);
-  const best = all.find(starts) ?? all[0] ?? null;
+  // The best across the three kinds: an equal title, then the closest one, then the most voted.
+  const all = [...movies, ...series, ...live];
+  const cards: Card[] = [...m, ...s, ...l];
+  const ranked = all
+    .map((r, i) => ({ r, i }))
+    .sort(
+      (a, b) =>
+        Number(b.r.exact) - Number(a.r.exact) ||
+        b.r.closeness - a.r.closeness ||
+        (b.r.content.voteCount ?? 0) - (a.r.content.voteCount ?? 0),
+    );
+  const i = ranked[0]?.i ?? -1;
+  // The app shows the best result wide: its backdrop, logo and overview, which the rows do not need.
+  const best = i < 0 ? null : { ...cards[i], ...artBlock(ctx, all[i].content), overview: all[i].content.overview };
   return { query, best, movies: m, series: s, live: l };
 }

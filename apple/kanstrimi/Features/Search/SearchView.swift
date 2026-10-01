@@ -1,164 +1,164 @@
 import SwiftUI
 
-/// System search field, scope chips, best result on the left, rows per type on the right [6] [19].
+/// System search field, then one column: the best result wide, then the channels, films and series
+/// that match, a row each [6] [19]. No filters: the search covers everything at once.
 struct SearchView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
     @State private var text = ""
-    @State private var scope: SearchScope = .all
-    @State private var only4K = false
-    @State private var language: Language?
     @State private var results: SearchResults?
     @State private var error: CatalogError?
     @State private var searchTask: Task<Void, Never>?
+
     init(initialQuery: String = "") {
         _text = State(initialValue: initialQuery)
     }
 
     var body: some View {
         content
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Theme.background)
-            .searchable(text: $text, prompt: "Titre, acteur, réalisateur")
+            .searchField(text: $text, prompt: "Titre, acteur, réalisateur")
             .phoneLargeTitle("Recherche")
-        .task { if !text.isEmpty { schedule(immediately: true) } }
-        .onChange(of: text) { _, _ in schedule() }
-        .onChange(of: scope) { _, _ in schedule(immediately: true) }
+            .task {
+                #if DEBUG
+                // `debug.search` (RootView.debugHooks): the screen is built after the hooks ran, it reads the key itself.
+                if let q = UserDefaults.standard.string(forKey: "debug.search") {
+                    UserDefaults.standard.removeObject(forKey: "debug.search")
+                    text = q
+                }
+                #endif
+                if !text.isEmpty { schedule(immediately: true) }
+            }
+            .onChange(of: text) { _, _ in schedule() }
     }
 
     @ViewBuilder private var content: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            HStack {
-                filters
-                Spacer()
-            }
-            .padding(.horizontal, metrics.inset)
-            if text.trimmingCharacters(in: .whitespaces).isEmpty {
-                StatePanel(icon: "magnifyingglass", title: "Rechercher", message: "Un titre, un acteur ou un réalisateur. La recherche couvre films, séries et chaînes.", actionTitle: nil)
-            } else if let error {
-                StatePanel(icon: "exclamationmark.triangle", title: "Recherche impossible", message: error.localizedDescription) { schedule(immediately: true) }
-            } else if let r = results, r.query == text {
-                if filtered(r).isEmpty {
-                    StatePanel(icon: "magnifyingglass", title: "Aucun résultat pour « \(r.query) »",
-                               message: "Essayez un autre titre, un nom d'acteur ou de réalisateur. La recherche couvre films, séries et chaînes.", actionTitle: nil)
-                } else {
-                    resultsView(r)
-                }
+        if text.trimmingCharacters(in: .whitespaces).isEmpty {
+            StatePanel(icon: "magnifyingglass", title: "Rechercher", message: "Un titre, un acteur ou un réalisateur. La recherche couvre films, séries et chaînes.", actionTitle: nil)
+        } else if let error {
+            StatePanel(icon: "exclamationmark.triangle", title: "Recherche impossible", message: error.localizedDescription) { schedule(immediately: true) }
+        } else if let r = results, r.query == text {
+            if let best = r.best ?? (r.live + r.movies + r.series).first {
+                resultsView(r, best: best)
             } else {
-                ProgressView().frame(maxWidth: .infinity).padding(80)
+                StatePanel(icon: "magnifyingglass", title: "Aucun résultat pour « \(r.query) »",
+                           message: "Essayez un autre titre, un nom d'acteur ou de réalisateur. La recherche couvre films, séries et chaînes.", actionTitle: nil)
             }
-            Spacer(minLength: 0)
+        } else {
+            ProgressView().frame(maxWidth: .infinity).padding(80)
         }
-        .padding(.top, 20)
     }
 
-    private var filters: some View {
-        ScrollView(.horizontal) { HStack(spacing: 12) {
-            ForEach(SearchScope.allCases, id: \.self) { s in
-                let n = count(for: s)
-                Button(n.map { "\(s.label) · \($0)" } ?? s.label) { scope = s }
-                    .tint(scope == s ? Theme.accent : nil)
+    private func resultsView(_ r: SearchResults, best: Card) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: metrics.compact ? 20 : 30) {
+                bestView(best)
+                if !r.live.isEmpty { row("En direct", r.live) }
+                if !r.movies.isEmpty { row("Films", r.movies) }
+                if !r.series.isEmpty { row("Séries", r.series) }
             }
-            Divider().frame(height: 36)
-            Button("4K") { only4K.toggle() }.tint(only4K ? Theme.accent : nil)
-            ForEach([Language.vf, .vostfr], id: \.self) { l in
-                Button(l.rawValue) { language = language == l ? nil : l }.tint(language == l ? Theme.accent : nil)
-            }
-        } }
+            .padding(.leading, metrics.inset)
+            .padding(.vertical, metrics.compact ? 12 : 20)
+        }
         .scrollClipDisabled()
-        .buttonStyle(.bordered)
-    }
-
-    private func count(for s: SearchScope) -> Int? {
-        guard let r = results else { return nil }
-        switch s {
-        case .all: return nil
-        case .movies: return r.movies.count
-        case .series: return r.series.count
-        case .live: return r.live.count
-        }
-    }
-
-    private func filtered(_ r: SearchResults) -> [Card] {
-        (r.movies + r.series + r.live).filter(passes)
-    }
-    private func passes(_ c: Card) -> Bool {
-        if only4K, c.maxQuality != .uhd { return false }
-        if let language, !c.languages.contains(language) { return false }
-        return true
-    }
-
-    private func resultsView(_ r: SearchResults) -> some View {
-        let all = filtered(r)
-        let best = (r.best.flatMap { b in all.first { $0.id == b.id } }) ?? all.first
-        let movies = r.movies.filter(passes), series = r.series.filter(passes), live = r.live.filter(passes)
-        let rows = VStack(alignment: .leading, spacing: 10) {
-            if !movies.isEmpty { row("Films", movies) }
-            if !series.isEmpty { row("Séries", series) }
-            if !live.isEmpty { row("En direct", live) }
-        }
-        // Best result beside the rows on TV, above them on a phone.
-        return ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 60) {
-                if let best { bestView(best) }
-                ScrollView { rows }.scrollClipDisabled()
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    if let best { bestView(best) }
-                    rows
-                }
-            }
-        }
-        .padding(.leading, metrics.inset)
     }
 
     private func row(_ title: String, _ cards: [Card]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title).font(.title3.weight(.bold))
             ScrollView(.horizontal) {
-                LazyHStack(alignment: .top, spacing: 30) {
+                LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
                     ForEach(cards) { c in
                         PosterCard(card: c) { open(c) }.posterMenu(c)
                     }
                 }
-                .padding(.vertical, 24).padding(.horizontal, 10)
+                .padding(.vertical, metrics.rowPadding).padding(.horizontal, metrics.compact ? 0 : 10)
             }
             .scrollClipDisabled()
         }
     }
 
+    /// The wide picture (a channel's logo on its colour) is the button, like any card: the sheet, or
+    /// the channel. On TV the title, facts and overview beside it, so the next row shows under it;
+    /// on a phone the facts alone, below it.
     private func bestView(_ c: Card) -> some View {
-        let poster = ArtView(id: c.id, url: c.poster, title: c.title)
-            .frame(width: metrics.searchPoster, height: metrics.searchPoster * 1.5).clipShape(RoundedRectangle(cornerRadius: 18))
-        let facts = VStack(alignment: .leading, spacing: 10) {
-            Text(c.title).font(.title2.weight(.bold)).lineLimit(2)
-            Text([c.kind.label, c.year.map(String.init), c.genres.first].compactMap { $0 }.joined(separator: " · ")).foregroundStyle(Theme.secondary)
-            VersionBadges(quality: c.qualityBadge, languages: c.languages)
-            Button { play(c) } label: { Label(playLabel(c), systemImage: "play.fill") }
-                .prominentButtonStyle()
-            if c.kind != .live {
-                Button("Fiche") { env.open(c.id) }.buttonStyle(.bordered)
-            }
-        }
-        return VStack(alignment: .leading, spacing: 14) {
-            Text("Meilleur résultat").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.secondary)
-            // Poster above the facts in a column on TV, beside them on a phone.
-            if metrics.searchColumn != nil {
-                poster
-                facts
+        let card = Button { open(c) } label: { widePicture(c) }
+            .cardButtonStyle()
+            .posterMenu(c)
+        return VStack(alignment: .leading, spacing: metrics.compact ? 12 : 18) {
+            Text("MEILLEUR RÉSULTAT").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.secondary)
+            if let width = metrics.searchBest {
+                HStack(alignment: .top, spacing: 40) {
+                    card.frame(width: width)
+                    bestFacts(c)
+                }
             } else {
-                HStack(alignment: .top, spacing: 16) { poster; facts }
+                card
+                bestFacts(c)
             }
         }
-        .frame(width: metrics.searchColumn, alignment: .leading)
-        .padding(.trailing, metrics.searchColumn == nil ? metrics.inset : 0)
+        .padding(.trailing, metrics.inset)
     }
 
-    private func playLabel(_ c: Card) -> String {
-        var parts = ["Lecture"]
-        if let q = c.qualityBadge { parts.append(q) }
-        if let l = env.preferences.languageOrder.first(where: { c.languages.contains($0) }) ?? c.languages.first { parts.append(l.rawValue) }
-        return parts.joined(separator: " · ")
+    private func bestFacts(_ c: Card) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if !metrics.compact { Text(c.title).font(.title2.weight(.bold)).lineLimit(2) }
+            HStack(spacing: 12) {
+                Text([c.kind.label, c.year.map(String.init), c.genres.first].compactMap { $0 }.joined(separator: " · "))
+                    .foregroundStyle(Theme.secondary).lineLimit(1)
+                VersionBadges(quality: c.qualityBadge, languages: c.languages)
+            }
+            if !metrics.compact, let overview = c.overview, !overview.isEmpty {
+                Text(overview).font(.callout).foregroundStyle(Theme.secondary).lineLimit(4)
+            }
+        }
+    }
+
+    private func widePicture(_ c: Card) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            if c.kind == .live {
+                Rectangle().fill(Theme.art(for: c.id))
+                    .overlay {
+                        AsyncImage(url: c.poster) { phase in
+                            if let image = phase.image { image.resizable().scaledToFit() }
+                        }
+                        .padding(metrics.compact ? 40 : 70)
+                    }
+            } else {
+                ArtView(id: c.id, url: c.backdrop ?? c.poster)
+                    .overlay {
+                        LinearGradient(colors: [.clear, .clear, Theme.background.opacity(0.85)], startPoint: .top, endPoint: .bottom)
+                    }
+                bestTitle(c).padding(metrics.compact ? 14 : 24)
+            }
+        }
+        .aspectRatio(16 / 9, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: metrics.compact ? 14 : 18))
+    }
+
+    /// The title's logo over the picture; else the title, on a phone only: on TV it is written beside.
+    @ViewBuilder private func bestTitle(_ c: Card) -> some View {
+        if let logo = c.logo {
+            AsyncImage(url: logo) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit()
+                        .frame(maxWidth: metrics.compact ? 180 : 320, maxHeight: metrics.compact ? 60 : 110, alignment: .bottomLeading)
+                        .shadow(color: .black.opacity(0.5), radius: 12)
+                        .accessibilityLabel(c.title)
+                } else {
+                    titleOverPicture(c)
+                }
+            }
+        } else {
+            titleOverPicture(c)
+        }
+    }
+
+    @ViewBuilder private func titleOverPicture(_ c: Card) -> some View {
+        if metrics.compact {
+            Text(c.title).font(.title3.weight(.bold)).lineLimit(2).shadow(color: .black.opacity(0.6), radius: 8)
+        }
     }
 
     private func open(_ c: Card) {
@@ -184,7 +184,7 @@ struct SearchView: View {
             if !immediately { try? await Task.sleep(for: .milliseconds(300)) }
             if Task.isCancelled { return }
             do {
-                let r = try await env.call { try await env.client.search(q, scope: scope) }
+                let r = try await env.call { try await env.client.search(q) }
                 if !Task.isCancelled { results = r; error = nil }
             } catch {
                 if !Task.isCancelled { self.error = (error as? CatalogError) ?? .server(error.localizedDescription) }

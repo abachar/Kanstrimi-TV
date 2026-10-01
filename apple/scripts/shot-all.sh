@@ -22,7 +22,7 @@ if [[ -z $NOBUILD ]]; then
 fi
 
 stamp=$(date +%Y-%m-%d_%H-%M-%S)
-for s in Appairage Accueil Direct Films Series Recherche Reglages Fiche-film Fiche-serie Fiche-sans-TMDB \
+for s in Appairage Accueil Direct Films Series Recherche Recherche-resultats Reglages Fiche-film Fiche-serie Fiche-sans-TMDB \
          Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-direct; do
   ./shot.sh $s $target $stamp
 done

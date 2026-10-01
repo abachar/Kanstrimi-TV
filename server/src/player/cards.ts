@@ -59,13 +59,20 @@ export function gridCard(ctx: RestContext, c: Content, progress?: Progress): Car
   };
 }
 
+/** The wide picture and the title's logo: the sheet, and the best search result. */
+export function artBlock(ctx: RestContext, c: Content): Pick<Card, "backdrop" | "logo"> {
+  return {
+    backdrop: imageUrl(ctx.baseUrl, "w1280", c.backdropPath) || null,
+    logo: imageUrl(ctx.baseUrl, "w500", c.titleLogoPath) || null,
+  };
+}
+
 /** Base + sheet block, without versions and seasons (added by the caller). */
 export function sheetCard(ctx: RestContext, c: Content, extra: { providerCategory: string | null; rawTitle: string | null }): Card {
   const tmdb = isTmdbKey(c.key);
   return {
     ...gridCard(ctx, c),
-    backdrop: imageUrl(ctx.baseUrl, "w1280", c.backdropPath) || null,
-    logo: imageUrl(ctx.baseUrl, "w500", c.titleLogoPath) || null,
+    ...artBlock(ctx, c),
     original_title: c.originalTitle,
     end_year: c.endYear,
     overview: c.overview,

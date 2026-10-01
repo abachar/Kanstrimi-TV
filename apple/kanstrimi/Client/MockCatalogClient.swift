@@ -70,7 +70,7 @@ final class MockCatalogClient: CatalogClient {
         let versions = d.kind == .series ? d.allEpisodes.flatMap(\.versions) : d.versions
         return Card(id: d.id, kind: d.kind, title: d.title, poster: d.poster, maxQuality: versions.maxQuality, dynamicRange: versions.maxDynamicRange,
                     languages: versions.languages, backdrop: d.backdrop, progress: progress[d.id], year: d.year, rating: d.rating,
-                    genres: d.genres, hint: hint(for: d), addedAt: d.addedAt)
+                    genres: d.genres, hint: hint(for: d), addedAt: d.addedAt, logo: d.logo, overview: d.overview)
     }
 
     /// Resume card for an episode: the series card, the episode's progress and reference.
@@ -365,7 +365,7 @@ final class MockCatalogClient: CatalogClient {
 
     // MARK: - Search and favourites
 
-    func search(_ query: String, scope: SearchScope) async throws -> SearchResults {
+    func search(_ query: String) async throws -> SearchResults {
         try await gate()
         let q = query.trimmingCharacters(in: .whitespaces).folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
         if q.isEmpty || scenario.emptySearch { return SearchResults(query: query, best: nil, movies: [], series: [], live: []) }
@@ -374,13 +374,13 @@ final class MockCatalogClient: CatalogClient {
                 .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             return hay.contains(q)
         }
-        let m = (scope == .all || scope == .movies) ? movies.filter(matches).map { card(for: $0) } : []
-        let s = (scope == .all || scope == .series) ? series.filter(matches).map { card(for: $0) } : []
-        let l = (scope == .all || scope == .live) ? groups.flatMap { g in g.channels.filter {
+        let m = movies.filter(matches).map { card(for: $0) }
+        let s = series.filter(matches).map { card(for: $0) }
+        let l = groups.flatMap { g in g.channels.filter {
             $0.name.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).contains(q)
         }.map { c in
             Card(id: c.id, kind: .live, title: c.name, poster: c.logo, maxQuality: c.maxQuality, languages: c.versions.languages, genres: [g.name])
-        } } : []
+        } }
         let best = (m + s + l).min { a, b in
             let ta = a.title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).hasPrefix(q)
             let tb = b.title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).hasPrefix(q)

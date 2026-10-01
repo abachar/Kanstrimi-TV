@@ -677,8 +677,17 @@ describe("GET /home", () => {
 describe("search and favourites", () => {
   it("GET /search: prefix, accent-insensitive, cast, scope, best", async () => {
     let r = (await get("/search?q=matr")).body;
-    expect(r.best.id).toBe("tmdb:movie:603");
+    expect(r.best).toMatchObject({
+      id: "tmdb:movie:603",
+      backdrop: "http://kanstrimi.test/img/w1280/bd.jpg",
+      logo: "http://kanstrimi.test/img/w500/logo-fr.png",
+    });
     expect(r.movies.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603"]);
+    // Only the best result carries the wide picture.
+    expect(r.movies[0].backdrop).toBeUndefined();
+    // An equal title wins, punctuation and case aside, the original title included; with its overview.
+    r = (await get("/search?q=THE-MATRIX")).body;
+    expect(r.best).toMatchObject({ id: "tmdb:movie:603", overview: "Thomas Anderson…" });
     r = (await get("/search?q=pacino")).body;
     expect(r.movies.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
     r = (await get("/search?q=tf1&scope=live")).body;

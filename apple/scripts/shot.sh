@@ -8,7 +8,7 @@
 set -e
 cd "${0:A:h}"
 B=dev.crafters.kanstrimi
-SCREENS=(Appairage Accueil Direct Films Series Recherche Reglages Fiche-film Fiche-serie Fiche-sans-TMDB
+SCREENS=(Appairage Accueil Direct Films Series Recherche Recherche-resultats Reglages Fiche-film Fiche-serie Fiche-sans-TMDB
          Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-direct)
 
 screen=$1; target=$2; stamp=${3:-$(date +%Y-%m-%d_%H-%M-%S)}
@@ -30,6 +30,7 @@ case $screen in
   Films)                   kv=(debug.tab movies) ;;
   Series)                  kv=(debug.tab series) ;;
   Recherche)               kv=(debug.tab search) ;;
+  Recherche-resultats)     kv=(debug.tab search debug.search le) ;;
   Reglages)                kv=(debug.tab settings) ;;
   Fiche-film)              kv=(debug.open tmdb:movie:535544) ;;
   Fiche-serie)             kv=(debug.open tmdb:tv:300388) ;;
@@ -50,7 +51,7 @@ xcrun simctl get_app_container $UDID $B >/dev/null 2>&1 || { echo "app absente s
 [[ $target == iphone ]] && xcrun simctl status_bar $UDID override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
 
 xcrun simctl terminate $UDID $B >/dev/null 2>&1 || true
-for k in debug.tab debug.open debug.autoplay debug.playerState debug.resumeAt debug.unpair debug.autopair debug.landscape debug.panel; do
+for k in debug.tab debug.search debug.open debug.autoplay debug.playerState debug.resumeAt debug.unpair debug.autopair debug.landscape debug.panel; do
   xcrun simctl spawn $UDID defaults delete $B $k >/dev/null 2>&1 || true
 done
 # The demo client for the capture, then the user's own choice back (the debug.* keys erase themselves at launch).

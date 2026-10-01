@@ -209,10 +209,10 @@ struct HTTPCatalogClientTests {
         #expect(q.cleared.studio == "network:49" && q.cleared.language == nil)
     }
 
-    @Test func searchScopeTravels() async throws {
+    @Test func searchSendsTheQueryOnly() async throws {
         answer(200, #"{"query":"heures","best":null,"movies":[],"series":[],"live":[]}"#)
-        _ = try await client.search("heures", scope: .live)
-        #expect(try query(last) == ["q": "heures", "scope": "live"])
+        _ = try await client.search("heures")
+        #expect(try query(last) == ["q": "heures"])
     }
 
     @Test("Un GET retente deux fois un 502 du proxy, puis réussit")

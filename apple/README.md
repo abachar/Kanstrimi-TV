@@ -57,7 +57,8 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **Accueil** : un type de rangée inconnu de l'app s'affiche en rangée simple au lieu de faire échouer l'écran.
 - **tvOS 27** : la liste poussée par un `Picker` s'ouvre noire ; `ChoiceRow` ouvre un menu à la place. À retester à
   chaque version.
-- **iOS 27** : le champ de recherche reste en haut de son écran (avec `role: .search`, il n'apparaît pas).
+- **iOS 27** : le champ de recherche reste en haut de son écran (avec `role: .search`, il n'apparaît pas), toujours
+  affiché (`searchField`) : sinon iOS le cache jusqu'à ce qu'on tire le contenu, et l'écran vide n'a rien à tirer.
 
 ## Vérifier
 
