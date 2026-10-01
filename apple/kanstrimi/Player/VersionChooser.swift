@@ -2,7 +2,8 @@ import Foundation
 
 /// Picks the version and source `Lecture` will play, without asking.
 /// Order: choice remembered for this title › series language › preferences (language order,
-/// max quality) › TV capabilities › server order. A recently failed source is skipped.
+/// max quality) › TV capabilities › server order. A recently failed source is skipped. An edition
+/// ("Version longue") is never the automatic choice while the usual cut exists: it plays when picked.
 struct VersionChooser {
     struct Capabilities: Sendable {
         var maxQuality: Quality = .uhd
@@ -51,11 +52,13 @@ struct VersionChooser {
             return Choice(version: v, source: s, reason: .remembered)
         }
         if let seriesChoice {
-            // Exact match first, then same language at the best allowed quality.
+            // Exact match first, then same language (and edition) at the best allowed quality.
             if let v = playable.first(where: { VersionChoiceKey($0) == seriesChoice }), let s = bestSource(of: v) {
                 return Choice(version: v, source: s, reason: .seriesLanguage)
             }
-            if let v = best(among: playable.filter { $0.language == seriesChoice.language }), let s = bestSource(of: v) {
+            let sameLanguage = playable.filter { $0.language == seriesChoice.language }
+            if let v = best(among: sameLanguage.filter { $0.edition == seriesChoice.edition }) ?? best(among: sameLanguage),
+               let s = bestSource(of: v) {
                 return Choice(version: v, source: s, reason: .seriesLanguage)
             }
         }
@@ -91,7 +94,10 @@ struct VersionChooser {
     }
 
     /// Highest quality that fits, dynamic range as a tiebreaker; falls back to the lowest if nothing fits.
-    private func best(among candidates: [Version], respectingServerOrder: Bool = false) -> Version? {
+    /// The usual cut only, when there is one.
+    private func best(among all: [Version], respectingServerOrder: Bool = false) -> Version? {
+        let usual = all.filter { $0.edition == nil }
+        let candidates = usual.isEmpty ? all : usual
         guard !candidates.isEmpty else { return nil }
         let fitting = candidates.filter(fits)
         if fitting.isEmpty { return candidates.min { $0.quality < $1.quality } }
@@ -102,10 +108,10 @@ struct VersionChooser {
         }
     }
 
-    private func rank(_ v: Version) -> (Int, Int, Int) {
+    private func rank(_ v: Version) -> (Int, Int, Int, Int) {
         let lang = languageOrder.firstIndex(of: v.language) ?? languageOrder.count
         let fit = fits(v) ? 0 : 1
-        return (fit, lang, -(Quality.allCases.firstIndex(of: v.quality) ?? 0))
+        return (fit, lang, v.edition == nil ? 0 : 1, -(Quality.allCases.firstIndex(of: v.quality) ?? 0))
     }
 
     /// First source in server order that has not failed recently; else the first anyway.

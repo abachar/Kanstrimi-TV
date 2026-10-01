@@ -88,7 +88,8 @@ struct VersionPicker: View {
         let title: String
     }
 
-    /// One row per source: the recommended version first, then by language and descending quality.
+    /// One row per source: the recommended version first, then by language, the usual cut before the
+    /// editions, and descending quality.
     /// How many lines the picker shows for these versions (one per source): with one, there is nothing
     /// to choose and the buttons that open it hide.
     static func lineCount(_ versions: [Version]) -> Int { versions.reduce(0) { $0 + $1.sources.count } }
@@ -99,6 +100,7 @@ struct VersionPicker: View {
             if (a.id == recommendedID) != (b.id == recommendedID) { return a.id == recommendedID }
             let la = order.firstIndex(of: a.language) ?? 0, lb = order.firstIndex(of: b.language) ?? 0
             if la != lb { return la < lb }
+            if (a.edition == nil) != (b.edition == nil) { return a.edition == nil }
             return a.quality != b.quality ? a.quality > b.quality : (a.dynamicRange ?? .sdr) > (b.dynamicRange ?? .sdr)
         }
         return sorted.flatMap { v in

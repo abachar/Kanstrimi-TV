@@ -42,6 +42,7 @@ export async function loadEpisodes(
       lang: it.lang,
       quality: it.quality,
       dynamicRange: it.dynamicRange,
+      edition: it.edition,
       categoryName: categoryName(it),
       qualityRank: it.qualityRank,
       position: it.position,

@@ -37,7 +37,7 @@ relancer seule (**Tâches → Lancer à partir de…**).
 | Étape | Rôle |
 |---|---|
 | `source` | copie brute des listes Xtream ; refuse une réponse vide ou un catalogue qui fond de moitié (panne du fournisseur) |
-| `merge` | copie brute → variantes du catalogue, par différence ; analyse des noms (titre, année, marché, langue, qualité) |
+| `merge` | copie brute → variantes du catalogue, par différence ; analyse des noms (titre, année, marché, langue, qualité, édition) |
 | `channels` | rattache les chaînes du direct à iptv-org : thème, logo, drapeau adulte |
 | `enrich` | matching TMDB des éléments en attente ; relit peu à peu les fiches anciennes |
 | `filters` | règles regex de masquage |

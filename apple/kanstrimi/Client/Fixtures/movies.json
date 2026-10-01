@@ -157,7 +157,15 @@
        "kind": "xtream"
       },
       "origin": "|FR| DRAMATIQUE"
-     },
+     }
+    ]
+   },
+   {
+    "id": "vf-hd-version-longue",
+    "language": "VF",
+    "quality": "HD",
+    "edition": "Version longue",
+    "sources": [
      {
       "id": "src-irgi",
       "container": "MKV",
@@ -167,7 +175,7 @@
        "name": "Fournisseur",
        "kind": "xtream"
       },
-      "origin": "|FR| HISTORIQUE ET BIOPIC"
+      "origin": "|FR| FILMS VERSION LONGUE"
      }
     ]
    },

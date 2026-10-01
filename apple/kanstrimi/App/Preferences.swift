@@ -91,21 +91,30 @@ nonisolated struct VersionChoiceKey: Hashable, Codable, RawRepresentable, Sendab
     let language: Language
     let quality: Quality
     let dynamicRange: DynamicRange?
+    /// The series watched in an edition of its own ("Noir et blanc") stays in it.
+    let edition: String?
 
-    init(language: Language, quality: Quality, dynamicRange: DynamicRange?) {
-        self.language = language; self.quality = quality; self.dynamicRange = dynamicRange
+    init(language: Language, quality: Quality, dynamicRange: DynamicRange?, edition: String? = nil) {
+        self.language = language; self.quality = quality; self.dynamicRange = dynamicRange; self.edition = edition
     }
-    init(_ version: Version) { self.init(language: version.language, quality: version.quality, dynamicRange: version.dynamicRange) }
+    init(_ version: Version) {
+        self.init(language: version.language, quality: version.quality, dynamicRange: version.dynamicRange, edition: version.edition)
+    }
 
-    var rawValue: String { "\(language.rawValue)/\(quality.rawValue)/\(dynamicRange?.rawValue ?? "")" }
+    /// "VF/FHD/HDR", plus "/<edition>" for an edition; keys stored before editions have three parts.
+    var rawValue: String {
+        let base = "\(language.rawValue)/\(quality.rawValue)/\(dynamicRange?.rawValue ?? "")"
+        return edition.map { "\(base)/\($0)" } ?? base
+    }
     init?(rawValue: String) {
-        let parts = rawValue.split(separator: "/", omittingEmptySubsequences: false)
-        guard parts.count == 3, let q = Quality(rawValue: String(parts[1])) else { return nil }
+        let parts = rawValue.split(separator: "/", maxSplits: 3, omittingEmptySubsequences: false)
+        guard parts.count >= 3, let q = Quality(rawValue: String(parts[1])) else { return nil }
         language = Language(String(parts[0])); quality = q
         dynamicRange = parts[2].isEmpty ? nil : DynamicRange(rawValue: String(parts[2]))
+        edition = parts.count == 4 && !parts[3].isEmpty ? String(parts[3]) : nil
     }
     var label: String {
         let dr = dynamicRange.map { $0 == .sdr ? "" : " \($0.label)" } ?? ""
-        return "\(language.rawValue) · \(quality.label)\(dr)"
+        return ["\(language.rawValue) · \(quality.label)\(dr)", edition].compactMap(\.self).joined(separator: " · ")
     }
 }

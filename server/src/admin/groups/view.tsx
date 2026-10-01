@@ -113,6 +113,7 @@ export function GroupVariants({ c, items, cats }: { c: Content; items: Variant[]
               <Badge tone="muted">{it.lang ?? "?"}</Badge>
               <Badge tone="muted">{it.quality ?? "?"}</Badge>
               {it.dynamicRange && <Badge tone="muted">{it.dynamicRange}</Badge>}
+              {it.edition && <Badge tone="muted">{it.edition}</Badge>}
             </div>
             <div class="truncate text-muted-foreground md:col-span-2">{cat?.name ?? it.categoryXtreamId ?? ""}</div>
             <div class="col-span-2 flex flex-wrap gap-1 md:col-span-3 md:justify-end">

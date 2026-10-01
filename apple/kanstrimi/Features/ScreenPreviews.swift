@@ -77,6 +77,7 @@ private enum Fixtures {
         Version(id: "vf-4k-dv", language: .vf, quality: .uhd, dynamicRange: .dolbyVision, sources: [source("a", origin: "4K DV")]),
         Version(id: "vf-4k-hdr", language: .vf, quality: .uhd, dynamicRange: .hdr, sources: [source("b", origin: "Films 4K UHD"), source("c", origin: "4K LIGHT")]),
         Version(id: "vf-fhd", language: .vf, quality: .fhd, dynamicRange: nil, sources: [source("d", origin: "Films FHD")]),
+        Version(id: "vf-fhd-version-longue", language: .vf, quality: .fhd, dynamicRange: nil, sources: [source("h", origin: "Films FHD")], edition: "Version longue"),
         Version(id: "vostfr-4k-hdr", language: .vostfr, quality: .uhd, dynamicRange: .hdr, sources: [source("e", origin: "VOST")]),
         Version(id: "vostfr-fhd", language: .vostfr, quality: .fhd, dynamicRange: nil, sources: [source("f", origin: "VOST")]),
         Version(id: "vo-fhd", language: .vo, quality: .fhd, dynamicRange: nil, sources: [source("g", origin: "VO")]),

@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_variants" ADD COLUMN "edition" text;

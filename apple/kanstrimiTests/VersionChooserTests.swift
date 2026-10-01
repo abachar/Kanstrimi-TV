@@ -100,6 +100,34 @@ struct VersionChooserTests {
         #expect(chooser.choose(from: only)?.reason == .onlyOne)
     }
 
+    @Test("Une édition n'est jamais le choix automatique tant que le montage habituel existe")
+    func editionNotAutomatic() {
+        let chooser = VersionChooser(languageOrder: [.vf], maxQuality: .uhd)
+        let versions = [
+            Fixtures.version("vf-hd", .vf, .hd),
+            Fixtures.version("vf-4k-version-longue", .vf, .uhd, edition: "Version longue"),
+        ]
+        #expect(chooser.choose(from: versions)?.version.id == "vf-hd")
+        #expect(chooser.choose(from: versions, remembered: "vf-4k-version-longue")?.version.id == "vf-4k-version-longue")
+        #expect(chooser.alternatives(to: versions[1], in: versions).map(\.id) == ["vf-hd"])
+        // Nothing but an edition in the language: it plays.
+        let only = [Fixtures.version("vf-hd-noir-et-blanc", .vf, .hd, edition: "Noir et blanc"), Fixtures.version("vo-hd", .vo, .hd)]
+        #expect(chooser.choose(from: only)?.version.id == "vf-hd-noir-et-blanc")
+    }
+
+    @Test("La série regardée dans une édition y reste, d'un épisode à l'autre")
+    func seriesEditionKept() {
+        let chooser = VersionChooser(languageOrder: [.vf], maxQuality: .uhd)
+        let edition = Fixtures.version("vf-hd-noir-et-blanc", .vf, .hd, edition: "Noir et blanc")
+        let key = VersionChoiceKey(edition)
+        #expect(VersionChoiceKey(rawValue: key.rawValue) == key)
+        #expect(VersionChoiceKey(rawValue: "VF/HD/")?.edition == nil)
+        #expect(key.label == "VF · HD · Noir et blanc")
+        let episode = [Fixtures.version("vf-4k", .vf, .uhd), Fixtures.version("vf-fhd-noir-et-blanc", .vf, .fhd, edition: "Noir et blanc")]
+        #expect(chooser.choose(from: episode, seriesChoice: key)?.version.id == "vf-fhd-noir-et-blanc")
+        #expect(edition.label == "HD · VF · Noir et blanc")
+    }
+
     @Test("Sans versions ou sans sources : rien à jouer")
     func nothingPlayable() {
         let chooser = VersionChooser(languageOrder: [.vf], maxQuality: .uhd)

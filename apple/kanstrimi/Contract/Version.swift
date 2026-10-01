@@ -35,9 +35,11 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
     let quality: Quality
     let dynamicRange: DynamicRange?
     let sources: [Source]
+    /// A cut other than the theatrical one ("Version longue", "Director's Cut"); nil for the usual cut.
+    var edition: String? = nil
 
     enum CodingKeys: String, CodingKey {
-        case id, language, quality, sources
+        case id, language, quality, sources, edition
         case dynamicRange = "dynamic_range"
     }
 
@@ -51,8 +53,8 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
         guard let dynamicRange, dynamicRange != .sdr else { return quality.rawValue }
         return "\(quality.rawValue) \(dynamicRange.shortLabel)"
     }
-    /// "4K Dolby Vision · VF".
-    var label: String { "\(qualityLabel) · \(language.rawValue)" }
+    /// "4K Dolby Vision · VF", "HD · VF · Version longue".
+    var label: String { ["\(qualityLabel) · \(language.rawValue)", edition].compactMap(\.self).joined(separator: " · ") }
 }
 
 nonisolated extension Array where Element == Version {

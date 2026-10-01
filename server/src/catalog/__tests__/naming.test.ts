@@ -60,6 +60,27 @@ describe("parseName", () => {
     ["|AR| AL AOULA HD TNT", "live", { title: "AL AOULA", quality: "HD", tags: ["tnt"] }],
     ["|US| TNT", "live", { title: "TNT", tags: [] }],
     ["|ARG| TNT SPORTS", "live", { title: "TNT SPORTS" }],
+    // Editions: in brackets or a segment of their own; never when the title carries the words.
+    [
+      "|FR| Rebel Moon - Partie 1 : Enfant du feu | Version longue (HEVC)",
+      "vod",
+      { title: "Rebel Moon - Partie 1 : Enfant du feu", edition: "Version longue", tags: ["hevc"] },
+    ],
+    ["|FR| Les 3 Petits Cochons (Version Longue)", "vod", { title: "Les 3 Petits Cochons", edition: "Version longue" }],
+    ["|FR| Spider-Noir | MULTI (Black & White)", "series", { title: "Spider-Noir", edition: "Noir et blanc", language: "VF" }],
+    ["Blade Runner [Final Cut] (1982) 4K", "vod", { title: "Blade Runner", year: 1982, quality: "4K", edition: "Final Cut" }],
+    ["|EN| Aliens - Director’s Cut", "vod", { title: "Aliens", edition: "Director's Cut" }],
+    ["|FR| Amadeus (Version du réalisateur)", "vod", { title: "Amadeus", edition: "Director's Cut" }],
+    [
+      "|EN| The Lord of the Rings (Extended Edition) (UHD)",
+      "vod",
+      { title: "The Lord of the Rings", quality: "4K", edition: "Version longue" },
+    ],
+    ["|FR| Anita: Director's Cut (MULTI)", "series", { title: "Anita: Director's Cut", edition: undefined }],
+    ["|IT| Apocalypse Now Redux", "vod", { title: "Apocalypse Now Redux", edition: undefined }],
+    ["|FR| Director's Cut", "vod", { title: "Director's Cut", edition: undefined }],
+    ["|FR| Uncut Gems (4K)", "vod", { title: "Uncut Gems", edition: undefined }],
+    ["|FR| FILM EXTENDED HD", "live", { edition: undefined }],
     // Scene-style names behind a technical prefix.
     ["AZ - Silver.Book.of.Dreams.2013", "vod", { title: "Silver Book of Dreams", year: 2013, market: undefined }],
     ["FR - Karate.Kid.Legends.2025.MULTI", "vod", { title: "Karate Kid Legends", year: 2025, market: "fr", language: "VF" }],

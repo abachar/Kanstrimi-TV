@@ -52,6 +52,8 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **Top Shelf** : tvOS n'affiche aucun titre dans le carrousel et l'API publique n'a pas de logo séparé : le serveur dessine
   le logo dans l'image. Jeton et adresse du serveur passent par le Keychain partagé ; Jouer et En savoir plus ouvrent
   `kanstrimi://play/<id>` et `kanstrimi://open/<id>`. L'extension ne partage aucun fichier avec l'app.
+- **Éditions** (« Version longue », « Director's Cut ») : une version à part, jamais choisie d'office tant que le
+  montage habituel existe ; elle se prend dans le sélecteur, puis la langue de la série la garde.
 - **Accueil** : un type de rangée inconnu de l'app s'affiche en rangée simple au lieu de faire échouer l'écran.
 - **tvOS 27** : la liste poussée par un `Picker` s'ouvre noire ; `ChoiceRow` ouvre un menu à la place. À retester à
   chaque version.

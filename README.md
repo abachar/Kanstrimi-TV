@@ -35,14 +35,13 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 Ce qui vient après la V1.2 (tvOS et iPhone), par version, puis les idées non planifiées.
 
 - **V1.3** :
-  - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
-  - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la
-    fiche d'un film ou d'une série, et proposés à la fin d'un film ou du dernier épisode connu d'une série.
-- Non planifiées :
-  - **Vidéo d'aperçu du Top Shelf** : tvOS la joue quand on s'attarde sur un élément du carrousel, mais il lui faut une vidéo
-    directe (HLS ou MP4). Les bandes-annonces TMDB sont sur YouTube (pas de lien direct) : à reprendre si une source directe se présente.
   - **Liste d'attente** : ajouter un film pas encore au catalogue (sortie récente, par son titre) et recevoir une notification
     dès qu'il devient disponible, c'est-à-dire qu'une source visible existe.
   - **Fond qui suit le focus (tvOS, POC)** : un film ou une série qui prend le focus change le fond de l'écran pour son
     affiche, pour éviter les grands aplats noirs.
-  - **« Director's Cut » / « Extended »** : reconnaître ces mentions dans le nettoyage des noms, pour ne pas gêner le rapprochement TMDB et le regroupement.
+- Non planifiées :
+  - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
+  - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la
+    fiche d'un film ou d'une série, et proposés à la fin d'un film ou du dernier épisode connu d'une série.
+  - **Vidéo d'aperçu du Top Shelf** : tvOS la joue quand on s'attarde sur un élément du carrousel, mais il lui faut une vidéo
+    directe (HLS ou MP4). Les bandes-annonces TMDB sont sur YouTube (pas de lien direct) : à reprendre si une source directe se présente.

@@ -189,6 +189,7 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
               ["Qualité", it.quality, true],
               ["Dynamique", it.dynamicRange, true],
               ["Tags", it.tags, true],
+              ["Édition", it.edition, true],
               ["Saison", it.seasonHint, true],
               ["Section", it.section, true],
               ["Thème", it.theme, true],

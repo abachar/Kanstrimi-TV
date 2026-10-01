@@ -100,7 +100,7 @@ async function categoryHints() {
 }
 
 /**
- * Names → variant columns (clean_title, year, market, language, quality, tags, name_adult, name_theme).
+ * Names → variant columns (clean_title, year, market, language, quality, tags, edition, name_adult, name_theme).
  * Depends on the name, the section and the category only, so it runs right after `merge`: TMDB
  * matching reads `clean_title` and `year`, the grouping reads them all. Every name is parsed, only
  * the rows whose result changed are written: a new grammar applies everywhere at the next run.
@@ -138,6 +138,7 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       drs: (DynamicRange | null)[] = [],
       tags: string[] = [],
       seasons: (number | null)[] = [],
+      editions: (string | null)[] = [],
       adults: boolean[] = [],
       themes: (string | null)[] = [];
     for (const r of rows) {
@@ -156,6 +157,7 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       drs.push(dr);
       tags.push([...new Set([...p.tags, ...(h?.tags ?? [])])].sort().join(","));
       seasons.push(p.seasonHint ?? null);
+      editions.push(p.edition ?? null);
       adults.push(Boolean(h?.adult) || isAdultEntryName(r.name));
       themes.push(r.kind === "live" ? liveTheme(r.section, h?.title ?? null, p.title) : null);
     }
@@ -163,17 +165,17 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       update catalog_variants i set
         clean_title = u.title, year = u.year,
         market = u.market, lang = u.lang, quality = u.quality, quality_rank = u.qrank, dynamic_range = u.dr,
-        tags = u.tags, season_hint = u.season, name_adult = u.adult, name_theme = u.theme
+        tags = u.tags, season_hint = u.season, edition = u.edition, name_adult = u.adult, name_theme = u.theme
       from (
-        select id, title, year, market, lang, quality, qrank, dr, coalesce(string_to_array(nullif(tags, ''), ','), '{}') as tags, season,
+        select id, title, year, market, lang, quality, qrank, dr, coalesce(string_to_array(nullif(tags, ''), ','), '{}') as tags, season, edition,
                adult::boolean as adult, theme
         from unnest(${ids}::int[], ${titles}::text[], ${years}::int[], ${markets}::text[], ${langs}::text[],
-                    ${qualities}::text[], ${qranks}::int[], ${drs}::text[], ${tags}::text[], ${seasons}::int[], ${adults.map(String)}::text[], ${themes}::text[])
-          as x(id, title, year, market, lang, quality, qrank, dr, tags, season, adult, theme)
+                    ${qualities}::text[], ${qranks}::int[], ${drs}::text[], ${tags}::text[], ${seasons}::int[], ${editions}::text[], ${adults.map(String)}::text[], ${themes}::text[])
+          as x(id, title, year, market, lang, quality, qrank, dr, tags, season, edition, adult, theme)
       ) u
       where i.id = u.id
-        and (i.clean_title, i.year, i.market, i.lang, i.quality, i.quality_rank, i.dynamic_range, i.tags, i.season_hint, i.name_adult, i.name_theme)
-            is distinct from (u.title, u.year, u.market, u.lang, u.quality, u.qrank, u.dr, u.tags, u.season, u.adult, u.theme)
+        and (i.clean_title, i.year, i.market, i.lang, i.quality, i.quality_rank, i.dynamic_range, i.tags, i.season_hint, i.edition, i.name_adult, i.name_theme)
+            is distinct from (u.title, u.year, u.market, u.lang, u.quality, u.qrank, u.dr, u.tags, u.season, u.edition, u.adult, u.theme)
       returning 1`;
     written += changed.length;
     if (rows.length < CHUNK) break;

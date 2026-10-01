@@ -131,6 +131,8 @@ export const catalogVariants = pgTable(
     dynamicRange: text("dynamic_range"),
     tags: text("tags").array().default([]).notNull(),
     seasonHint: integer("season_hint"),
+    /** A cut other than the theatrical one, as the app shows it (« Version longue »); null = the usual cut. */
+    edition: text("edition"),
     /** The name says so: adult category or tag in the name (naming). */
     nameAdult: boolean("name_adult").default(false).notNull(),
     /** Live: the label of the separator line preceding the entry in its category, as the provider wrote it. */

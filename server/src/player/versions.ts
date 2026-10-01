@@ -1,10 +1,11 @@
 import { QUALITY_RANK, DYNAMIC_RANGE_RANK, qualityOfRank as knownQualityOfRank } from "@/catalog";
 import type { Variant } from "@/db";
 import type { DynamicRange, Quality, Version } from "./types";
+import { slug } from "@/shared";
 import type { RestContext } from "./context";
 import { sourceId, streamUrl } from "./stream-links";
 
-/** A version = language × quality × dynamic range; its sources are the playable variants behind it. */
+/** A version = language × quality × dynamic range × edition; its sources are the playable variants behind it. */
 
 export const DEFAULT_LANGUAGE_ORDER = ["VF", "VOSTFR", "VO"];
 const LANG_RANK = (l: string) => {
@@ -26,6 +27,7 @@ export type Playable = {
   lang: string | null;
   quality: string | null;
   dynamicRange: string | null;
+  edition: string | null;
   categoryName: string | null;
   qualityRank: number;
   position: number;
@@ -39,6 +41,7 @@ export function playableOfItem(it: Variant, categoryName: string | null): Playab
     lang: it.lang,
     quality: it.quality,
     dynamicRange: it.dynamicRange,
+    edition: it.edition,
     categoryName,
     qualityRank: it.qualityRank,
     position: it.position,
@@ -46,15 +49,16 @@ export function playableOfItem(it: Variant, categoryName: string | null): Playab
   };
 }
 
-/** Group playable rows by language × quality × dynamic range; sources in server order. */
+/** Group playable rows by language × quality × dynamic range × edition; sources in server order. */
 export function versionsOf(ctx: RestContext, rows: Playable[], withSources = true): Version[] {
-  const map = new Map<string, Version & { _q: number; _d: number }>();
+  const map = new Map<string, Version & { _q: number; _d: number; _e: string }>();
   const sorted = [...rows].sort((a, b) => b.qualityRank - a.qualityRank || a.position - b.position || a.id - b.id);
   for (const r of sorted) {
     const language = r.lang ?? "VO",
       quality = qualityOf(r.quality),
-      dr = drOf(r.dynamicRange);
-    const id = `${language.toLowerCase()}-${quality.toLowerCase()}${dr ? `-${dr.toLowerCase()}` : ""}`;
+      dr = drOf(r.dynamicRange),
+      edition = r.edition ?? undefined;
+    const id = `${language.toLowerCase()}-${quality.toLowerCase()}${dr ? `-${dr.toLowerCase()}` : ""}${edition ? `-${slug(edition)}` : ""}`;
     let v = map.get(id);
     if (!v) {
       v = {
@@ -62,9 +66,11 @@ export function versionsOf(ctx: RestContext, rows: Playable[], withSources = tru
         language,
         quality,
         ...(dr ? { dynamic_range: dr } : {}),
+        ...(edition ? { edition } : {}),
         sources: [],
         _q: QUALITY_RANK[quality],
         _d: dr ? DYNAMIC_RANGE_RANK[dr] : 0,
+        _e: edition ?? "",
       };
       map.set(id, v);
     }
@@ -77,9 +83,18 @@ export function versionsOf(ctx: RestContext, rows: Playable[], withSources = tru
         origin: r.categoryName,
       });
   }
+  // The usual cut first: an edition is a choice, never what plays by default.
   return [...map.values()]
-    .sort((a, b) => LANG_RANK(a.language) - LANG_RANK(b.language) || a.language.localeCompare(b.language) || b._q - a._q || b._d - a._d)
-    .map(({ _q, _d, ...v }) => v);
+    .sort(
+      (a, b) =>
+        LANG_RANK(a.language) - LANG_RANK(b.language) ||
+        a.language.localeCompare(b.language) ||
+        Number(Boolean(a._e)) - Number(Boolean(b._e)) ||
+        b._q - a._q ||
+        b._d - a._d ||
+        a._e.localeCompare(b._e),
+    )
+    .map(({ _q, _d, _e, ...v }) => v);
 }
 
 export function versionsSummary(versions: Version[]): { max_quality?: Quality; dynamic_range?: DynamicRange; languages: string[] } {

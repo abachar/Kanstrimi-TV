@@ -30,6 +30,8 @@ export type ParsedName = {
   tags: string[];
   /** Series split per season upstream: « Vincenzo (MULTI) S01 » → 1. */
   seasonHint?: number;
+  /** A cut other than the theatrical one, as the app shows it: « Version longue », « Director's Cut »… */
+  edition?: string;
 };
 
 export type CategoryHints = Pick<ParsedName, "market" | "language" | "quality" | "dynamicRange" | "tags"> & { title: string };
@@ -182,6 +184,25 @@ const BARE_PREFIX = /^([A-Z]{2,7})\s*[-:|]\s+/;
 const TZ_DELAY = /\|?\s*[-+]?\d{1,2}H\s*\|?/gi;
 const SEASON_TAG = /(?:^|[\s\-(\[|])(?:S(\d{1,2})|(?:Saison|Season|Temporada|Stagione)\s*(\d{1,2}))(?=$|[\s\-)\]|])/i;
 
+/** Edition words → the label the app shows. Case ignored, accents optional. */
+const EDITIONS: [string, string][] = [
+  ["VERSION LONGUE|VERSION [EÉ]TENDUE|EXTENDED(?: CUT| EDITION| VERSION)?", "Version longue"],
+  ["DIRECTOR['’]?S CUT|DIRECTORS['’] CUT|VERSION DU R[EÉ]ALISATEUR", "Director's Cut"],
+  ["UNCUT|UNRATED|VERSION INT[EÉ]GRALE|(?:VERSION )?NON CENSUR[EÉ]E", "Version intégrale"],
+  ["THEATRICAL(?: CUT| EDITION| VERSION)?|VERSION CIN[EÉ]MA", "Version cinéma"],
+  ["FINAL CUT", "Final Cut"],
+  ["ULTIMATE CUT", "Ultimate Cut"],
+  ["REDUX", "Redux"],
+  ["REMASTERED|REMASTERIS[EÉ]E?|VERSION RESTAUR[EÉ]E", "Version restaurée"],
+  ["BLACK (?:AND|&) (?:WHITE|CHROME)(?: EDITION)?|NOIR (?:ET|&) BLANC", "Noir et blanc"],
+];
+const EDITION_ALT = EDITIONS.map(([w]) => `(${w})`).join("|");
+/**
+ * An edition only where nothing else can be a title: in brackets, or as a segment of its own
+ * after « | » or « - ». « Anita: Director's Cut », « Apocalypse Now Redux » are titles and stay.
+ */
+const EDITION_TAG = new RegExp(`(?:[[({]\\s*(?:${EDITION_ALT})\\s*[\\])}]|\\s*(?:\\||\\s[-–])\\s*(?:${EDITION_ALT})\\s*(?=$|[|[(]))`, "i");
+
 // ---------------------------------------------------------------- helpers
 
 type Found = { language?: Language; quality?: Quality; dynamicRange?: DynamicRange; tags: Set<string> };
@@ -313,6 +334,15 @@ export function parseName(raw: string, kind: Kind): ParsedName {
     }
   }
 
+  let edition: string | undefined;
+  if (kind !== "live") {
+    const m = EDITION_TAG.exec(s);
+    if (m) {
+      edition = EDITIONS[m.slice(1).findIndex(Boolean) % EDITIONS.length][1];
+      s = s.slice(0, m.index) + " " + s.slice(m.index + m[0].length);
+    }
+  }
+
   const y = extractYear(s);
   s = y.s;
   s = extractTags(s, f);
@@ -336,6 +366,7 @@ export function parseName(raw: string, kind: Kind): ParsedName {
     dynamicRange: f.dynamicRange,
     tags: [...f.tags].sort(),
     seasonHint,
+    edition,
   };
 }
 

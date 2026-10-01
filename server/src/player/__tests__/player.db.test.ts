@@ -98,6 +98,15 @@ beforeAll(async () => {
     },
     {
       kind: "vod",
+      xtreamId: "7",
+      name: "|FR| Heat (Director's Cut) (VOST)",
+      cat: "11",
+      tmdbId: 949,
+      matchStatus: "matched",
+      addedAt: daysAgo(40),
+    },
+    {
+      kind: "vod",
       xtreamId: "4",
       name: `AZ - Silver.Book.of.Dreams.${THIS_YEAR}`,
       cat: "12",
@@ -327,7 +336,7 @@ describe("GET /info", () => {
     expect(status).toBe(200);
     expect(body.counts).toEqual({ movies: 3, series: 1, channels: 2 });
     expect(body.last_import).toBe("2026-09-26T02:10:00.000Z");
-    expect(body.tmdb_rate).toBe(0.83);
+    expect(body.tmdb_rate).toBe(0.86);
     expect(body.catalog_languages).toEqual(["VF", "VOSTFR"]);
     expect(body.default_language_order).toEqual(["VF", "VOSTFR", "VO"]);
     expect(typeof body.server_version).toBe("string");
@@ -436,6 +445,15 @@ describe("GET /movies/{id}", () => {
     });
     expect(src.id).toMatch(/^src-i[0-9a-z]+$/);
     expect(src.stream_url).toMatch(new RegExp(`^http://kanstrimi\\.test/player/stream/${src.id}\\?d=${code}&e=\\d+&s=[A-Za-z0-9_-]+$`));
+  });
+
+  it("an edition is a version of its own, after the usual cut", async () => {
+    const { body } = await get("/movies/tmdb:movie:949");
+    expect(body.title).toBe("Heat");
+    expect(body.versions.map((v: { id: string; edition?: string }) => [v.id, v.edition])).toEqual([
+      ["vostfr-hd", undefined],
+      ["vostfr-hd-director-s-cut", "Director's Cut"],
+    ]);
   });
 
   it("fallback movie: has_tmdb false, provider category and raw title", async () => {
