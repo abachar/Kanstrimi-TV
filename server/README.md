@@ -30,6 +30,7 @@ appairer l'Apple TV ou l'iPhone.
 | `npm run css` | compile `src/admin/assets/admin.css` (Tailwind + Basecoat) et copie le script de Basecoat dans `dist/assets/`, que `/admin/assets/*` sert ; lancé par `dev` et `build` |
 | `npm run format` · `npm run typecheck` · `npm test` · `npm run build` | à lancer après chaque modification (`format:check` vérifie sans écrire) |
 | `npm run db:generate` | migration drizzle-kit après un changement de `src/db/schema.ts` (`--custom` pour une migration de données, ex. `0006`) |
+| `scripts/tmdb-cache-clean.sh [--fix]` | trouve les documents illisibles de `tmdb_cache` (jsonb abîmé : `unknown type of jsonb container`, ou segfault de Postgres au groupement) et, avec `--fix`, les vide pour qu'`enrich` les relise ; puis lancer le traitement à partir d'`enrich`. Par défaut `podman exec postgres psql` (Harbor, en `apps`), sinon `PSQL="psql <url>"` |
 | `npm run db:migrate` | migrateur runtime (`src/db/migrate.ts` ; en production le conteneur oneshot `kanstrimi-migrate` lance `dist/db/migrate.js`) |
 
 Les tests `*.db.test.ts` exigent un Postgres de test : `TEST_DATABASE_URL`, sinon
