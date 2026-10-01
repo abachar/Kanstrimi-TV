@@ -410,9 +410,12 @@ final class PlayerService {
         // One connection at most: the account allows a single stream, and this also stops the
         // speculative parallel requests. No `stop()` between two loads: `load` tears the previous session
         // down and keeps the display criteria from one episode to the next.
-        let options = isLive
+        var options = isLive
             ? LoadOptions(isLive: true, liveJoinProfile: .fastZap, maxConcurrentSourceRequests: 1)
             : LoadOptions(maxConcurrentSourceRequests: 1)
+        // Live decodes in the app: AVPlayer, fed by the engine's local HLS, waits for three whole GOPs
+        // before it starts (6 s on a channel with long GOPs), and does not deinterlace 1080i on tvOS.
+        if isLive { options.preferredDecodePath = .software }
         let resume = !isLive && (position ?? 0) > 1 ? position : nil
         activateAudioSession()
         loadTask?.cancel()

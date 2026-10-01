@@ -116,9 +116,12 @@ automatique.
 **Programme du direct** : dans le lecteur, le bouton Programme (tvOS : dans la barre ; iPhone : « Programme ») ouvre le programme, qui remplace Infos : `GET /channels/{id}/programmes`, du programme en cours jusqu'à 6 h, rechargé à chaque zapping ; un échec se lit « Programme inconnu ».
 
 **Direct** : jamais de pause, comme une télé (`PlayerService.togglePlayPause`/`pause` l'ignorent sur toutes les plateformes) ; Lecture relance seulement un flux arrêté par une coupure.
-Le direct se charge avec `isLive` et `liveJoinProfile: .fastZap` (entrée rapide sur la chaîne). L'aperçu de l'écran Direct (`PreviewPlayer`,
+Le direct se charge avec `isLive` et `preferredDecodePath: .software` : le moteur décode lui-même (FFmpeg, désentrelacement compris)
+au lieu de servir AVPlayer par son HLS local, qui attend trois groupes d'images entiers avant de démarrer. Mesuré sur simulateur
+(TF1 4K, groupes de 6 à 13 s) : image en 0,6 s contre 6,0 s. Le décodage est au processeur : fluidité du 4K à juger sur Apple TV.
+`liveJoinProfile: .fastZap` reste posé pour le cas où le moteur reprendrait la route HLS. L'aperçu de l'écran Direct (`PreviewPlayer`,
 `Features/Live/LiveView.swift`) est un **second `AetherEngine`**, créé au premier aperçu (l'iPhone n'en crée jamais), muet
-(`volume = 0`), qui ne touche ni la session audio ni le mode d'affichage du téléviseur (`suppressDisplayCriteria`). Le compte du
+(`volume = 0`), sur la même route logicielle, qui ne touche ni la session audio ni le mode d'affichage du téléviseur (`suppressDisplayCriteria`). Le compte du
 fournisseur n'autorise qu'une connexion : l'aperçu est coupé avant toute lecture.
 
 **Réglages** (tvOS) : à gauche le nom de l'app et ce qui se lit sans se régler (appareil et code, serveur et version,
@@ -164,6 +167,11 @@ dessiné sans piste choisie. Dans la fenêtre de PiP logicielle, le moteur incru
 de sous-titres recharge brièvement la session (noir d'environ 1 s, attendu).
 
 **HDR et Dolby Vision** (tvOS) : pilotés par le moteur (Match Content, critères d'affichage), l'app ne fait rien. Le direct d'aperçu les supprime.
+
+**Faits du flux** (`StreamFacts`, en bas du panneau Infos) : ce que le moteur a lu dans le flux, pour confronter l'étiquette du
+fournisseur à ce qu'il livre. Vidéo (codec, profil, taille, cadence, profondeur, débit), Image (format de la source et profil
+Dolby Vision, format réellement affiché, transfert, primaires), Audio (codec, Atmos,
+canaux, débit, transmis tel quel ou réencodé), Lecture (conteneur, route, décodeur, état d'« Adapter au contenu » sur tvOS). Rien ne s'affiche avant qu'un flux soit ouvert.
 
 **Avance rapide** (films, épisodes ; ◀ ▶ maintenus sur la télécommande via `PressCatcher`) : la cible avance
 de 10, 30, 60, 120 puis 300 s par seconde (un palier toutes les 2 s), affichée à la place du temps

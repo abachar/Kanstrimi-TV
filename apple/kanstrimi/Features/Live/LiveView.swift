@@ -419,10 +419,10 @@ final class PreviewPlayer {
         hasImage = false
         loadTask?.cancel()
         engine.stop()
-        loadTask = Task {
-            _ = try? await engine.load(url: url, options: LoadOptions(suppressDisplayCriteria: true, isLive: true,
-                                                                      liveJoinProfile: .fastZap, maxConcurrentSourceRequests: 1))
-        }
+        // Decoded in the app, like the live in the player: the picture comes within a second of the focus.
+        var options = LoadOptions(suppressDisplayCriteria: true, isLive: true, liveJoinProfile: .fastZap, maxConcurrentSourceRequests: 1)
+        options.preferredDecodePath = .software
+        loadTask = Task { _ = try? await engine.load(url: url, options: options) }
     }
 
     private func makeEngine() -> AetherEngine {

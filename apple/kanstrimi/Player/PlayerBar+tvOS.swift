@@ -46,15 +46,16 @@ struct PlayerBar: View {
             }
             VStack(alignment: .leading, spacing: 28) {
                 Spacer(minLength: 0)
+                if open == nil {
+                    header
+                    progress
+                }
+                // One place for the buttons, panel open or not: rebuilt, they would lose the focus to the first one.
+                buttons
                 if let open {
-                    buttons
                     panelContent(open)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity)
-                } else {
-                    header
-                    progress
-                    buttons
                 }
             }
             .playerChromeInsets()

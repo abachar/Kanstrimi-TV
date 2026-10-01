@@ -1,3 +1,4 @@
+import AVKit
 import SwiftUI
 import UIKit
 
@@ -20,6 +21,17 @@ nonisolated enum Platform {
         true
         #else
         false
+        #endif
+    }
+
+    /// tvOS: whether Réglages › Vidéo et audio › Ajuster le contenu lets the player switch the television
+    /// to the dynamic range of what plays. nil where the screen is the device's own.
+    @MainActor static var matchesContent: Bool? {
+        #if os(tvOS)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        return scene?.windows.first?.avDisplayManager.isDisplayCriteriaMatchingEnabled
+        #else
+        nil
         #endif
     }
 

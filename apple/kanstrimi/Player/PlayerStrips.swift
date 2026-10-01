@@ -151,6 +151,7 @@ struct PlayerInfos: View {
         if let v = player.version, let s = player.source {
             Text("\(v.longLabel) · \(player.sourceLabel(s, in: v))").font(.caption).foregroundStyle(Theme.secondary)
         }
+        StreamFacts(engine: player.engine)
     }
 
     private var episode: Episode? {
