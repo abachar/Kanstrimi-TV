@@ -28,11 +28,20 @@ export type Playable = {
   quality: string | null;
   dynamicRange: string | null;
   edition: string | null;
+  /** Live: the EPG ids to try, in order (the provider's, then iptv-org's when they disagree). */
+  epgIds: string[];
   categoryName: string | null;
   qualityRank: number;
   position: number;
   id: number;
 };
+
+/** The provider's EPG id, then iptv-org's when they name different channels: the first with programmes wins. */
+function epgIdsOf(it: Variant): string[] {
+  if (it.kind !== "live") return [];
+  const own = String(it.raw.epg_channel_id ?? "") || null;
+  return [own, it.epgMismatch ? it.iptvId : null].filter((x): x is string => Boolean(x));
+}
 
 export function playableOfItem(it: Variant, categoryName: string | null): Playable {
   return {
@@ -42,6 +51,7 @@ export function playableOfItem(it: Variant, categoryName: string | null): Playab
     quality: it.quality,
     dynamicRange: it.dynamicRange,
     edition: it.edition,
+    epgIds: epgIdsOf(it),
     categoryName,
     qualityRank: it.qualityRank,
     position: it.position,

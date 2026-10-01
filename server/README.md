@@ -43,7 +43,7 @@ relancer seule (**Tâches → Lancer à partir de…**).
 | `filters` | règles regex de masquage |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
 | `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf) |
-| `epg` | guide des programmes des chaînes visibles, tous les trois jours ; décalages horaires corrigés dans l'admin |
+| `epg` | guide des programmes des chaînes visibles, tous les trois jours, l'EPG de chaque variante ; décalages horaires corrigés dans l'admin |
 
 TMDB passe avant les filtres : tout est matché une fois, et démasquer ne fait jamais apparaître de titres non matchés.
 Un passage s'arrête à la première étape en échec, sauf `channels`, `enrich` et `trending` (réseau externe). Chaque passage

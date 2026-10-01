@@ -35,14 +35,15 @@ struct ProgrammeStrip: View {
             }
         }
         .onChange(of: focused) { _, _ in onActivity() }
-        .task(id: player.channel?.id) { await load() }
+        .task(id: "\(player.channel?.id.rawValue ?? "")|\(player.version?.id ?? "")") { await load() }
     }
 
     private func load() async {
         guard player.isLive, let id = player.channel?.id else { return }
         programmes = nil
         // An unreliable guide is no reason for an error screen: a failure reads as an unknown programme.
-        programmes = (try? await env.call { try await env.client.programmes(channel: id) }) ?? []
+        let version = player.version?.id
+        programmes = (try? await env.call { try await env.client.programmes(channel: id, version: version) }) ?? []
     }
 
     private func card(_ p: Programme) -> some View {

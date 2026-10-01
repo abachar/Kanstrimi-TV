@@ -106,7 +106,8 @@ protocol CatalogClient: AnyObject {
     /// `GET /channels/{id}`: one channel with `now` and `next`.
     func channel(id: ContentID) async throws -> Channel
     /// `GET /channels/{id}/programmes`: the programme on air, then the following ones until 6:00.
-    func programmes(channel id: ContentID) async throws -> [Programme]
+    /// In the guide of that version (each quality may have its own), the channel's without one.
+    func programmes(channel id: ContentID, version: String?) async throws -> [Programme]
 
     // Playback
     /// `GET /playback/{id}`: movie, episode or channel.

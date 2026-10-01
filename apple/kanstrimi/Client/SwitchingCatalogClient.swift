@@ -28,7 +28,7 @@ final class SwitchingCatalogClient: CatalogClient {
     func person(id: String) async throws -> PersonSheet { try await active.person(id: id) }
     func channels() async throws -> [ChannelGroup] { try await active.channels() }
     func channel(id: ContentID) async throws -> Channel { try await active.channel(id: id) }
-    func programmes(channel id: ContentID) async throws -> [Programme] { try await active.programmes(channel: id) }
+    func programmes(channel id: ContentID, version: String?) async throws -> [Programme] { try await active.programmes(channel: id, version: version) }
     func playback(id: ContentID) async throws -> Playback { try await active.playback(id: id) }
     func report(_ progress: ProgressReport) async throws { try await active.report(progress) }
     func reportWatchTime(id: ContentID, seconds: Int) async throws { try await active.reportWatchTime(id: id, seconds: seconds) }

@@ -422,6 +422,14 @@ async function fillCardFields(onlyIds?: number[]) {
  * The variant visibility is the shared predicate, so the app and the admin can never disagree with the
  * aggregate. A content is written only when one of its aggregates moved.
  */
+/**
+ * A variant's EPG id. A provider id naming another channel gives way to the iptv-org id of the channel
+ * found by name, but only when the provider files no programme under it: a guide is never lost for nothing.
+ */
+const variantEpgId = sql`case
+  when epg_mismatch and not exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = raw->>'epg_channel_id')
+  then iptv_id else nullif(raw->>'epg_channel_id', '') end`;
+
 async function refreshAggregates(onlyIds?: number[]) {
   const scope = onlyIds ? sql`and content_id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``;
   await db.execute(sql`
@@ -450,14 +458,13 @@ async function refreshAggregates(onlyIds?: number[]) {
           (array_agg(iptv_id order by vis desc, quality_rank desc, position, id) filter (where iptv_id is not null))[1] as iptv,
           (array_agg(category_xtream_id order by vis desc, quality_rank desc, position, id))[1] as cat,
           (array_agg(nullif(regexp_replace(coalesce(raw->>'num', ''), '\\D', '', 'g'), '')::int order by vis desc, quality_rank desc, position, id))[1] as num,
-          -- A provider EPG id naming another channel gives way to the iptv-org id of the channel found by
-          -- name, but only when the provider files no programme under it: a guide is never lost for nothing.
-          (array_agg(case
-              when epg_mismatch and not exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = raw->>'epg_channel_id')
-              then iptv_id else nullif(raw->>'epg_channel_id', '') end
-            order by vis desc, quality_rank desc, position, id))[1] as epg
+          -- The guide of the best quality that has one (« TF1 4K » files none, « TF1 FHD » does), as the
+          -- app's guide per quality (player/guides.ts) does for the channel's first version.
+          (array_agg(epg_id order by vis desc, has_epg desc, quality_rank desc, position, id) filter (where epg_id is not null))[1] as epg
         from (
-          select id, content_id, added_at, quality_rank, lang, dynamic_range, market, position, category_xtream_id, raw, theme, adult, iptv_id, epg_mismatch,
+          select id, content_id, added_at, quality_rank, lang, dynamic_range, market, position, category_xtream_id, raw, theme, adult, iptv_id,
+            ${variantEpgId} as epg_id,
+            exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = ${variantEpgId}) as has_epg,
             (${visibleItem}) as vis,
             (${visibleItem} or not bool_or(${visibleItem}) over (partition by content_id)) as counted
           from ${schema.catalogVariants} where content_id is not null ${scope}

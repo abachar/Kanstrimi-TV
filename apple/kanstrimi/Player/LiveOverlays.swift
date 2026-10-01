@@ -92,7 +92,7 @@ private struct ChannelListRow: View {
     var logoSize: CGFloat = 64
     let action: () -> Void
     /// The list's own, else the guide asked at display (kept a minute by the cache).
-    private var now: Programme? { channel.now ?? env.channelCache.cached(channel.id)?.now }
+    private var now: Programme? { env.guide(of: channel).now ?? env.channelCache.cached(channel.id).flatMap { env.guide(of: $0).now } }
 
     var body: some View {
         Button(action: action) {
@@ -109,7 +109,7 @@ private struct ChannelListRow: View {
                         Text(now.title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
                         ProgressBar(fraction: now.fraction(), height: 4).frame(maxWidth: 260)
                     } else {
-                        Text(channel.hasEPG == false ? "Pas de programme" : " ").font(.caption).foregroundStyle(Theme.secondary)
+                        Text(env.guide(of: channel).hasEPG == false ? "Pas de programme" : " ").font(.caption).foregroundStyle(Theme.secondary)
                     }
                 }
                 Spacer(minLength: 0)
@@ -120,7 +120,7 @@ private struct ChannelListRow: View {
         }
         .cardButtonStyle()
         .task {
-            if now == nil, channel.hasEPG != false { _ = await env.channelCache.channel(channel.id) }
+            if now == nil, env.guide(of: channel).hasEPG != false { _ = await env.channelCache.channel(channel.id) }
         }
     }
 }
@@ -157,7 +157,7 @@ struct RecentChannelCard: View {
             .frame(width: metrics.recentCard)
         }
         .cardButtonStyle()
-        .task { now = await env.channelCache.channel(channel.id)?.now }
+        .task { now = await env.channelCache.channel(channel.id).flatMap { env.guide(of: $0).now } }
     }
 }
 

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db, schema, type Content, type Variant, visibleItem } from "@/db";
+import { db, schema, type Content, visibleItem } from "@/db";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { slug } from "@/shared";
 import { LIVE_THEMES, parseKey } from "@/catalog";
@@ -8,14 +8,16 @@ import { fail, json } from "./http";
 import { contentByKey, liveCategories, variantsOf, visibleContent } from "./contents";
 import { favoriteSet } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
-import { playableOfItem, qualityOfRank, versionsOf } from "./versions";
+import { playableOfItem, qualityOfRank, versionsOf, type Playable } from "./versions";
+import { guidesOf } from "./guides";
 import { dayProgrammes, epgOf, type ChannelEpg } from "./epg";
 import { channelLogo } from "./cards";
 import type { ChannelGroupWire, ChannelWire, Version } from "./types";
 
 /**
  * `/channels`: every visible live category with its channels; `/channels/{id}`: one channel;
- * `/channels/{id}/programmes`: its programmes until 6:00, for the live player.
+ * `/channels/{id}/programmes?version=`: its programmes until 6:00, for the live player, in the guide of
+ * that version (each quality may have its own), the channel's without one.
  */
 export const channelRoutes = new Hono<Env>();
 
@@ -30,20 +32,43 @@ channelRoutes.get("/:id", async (c) => {
 channelRoutes.get("/:id/programmes", async (c) => {
   const key = c.req.param("id");
   if (parseKey(key)?.kind !== "live") return fail("not_found", "Chaîne introuvable");
-  const content = await contentByKey(c.get("ctx"), key);
+  const ctx = c.get("ctx");
+  const content = await contentByKey(ctx, key);
   if (!content) return fail("not_found", "Chaîne introuvable");
-  return json(content.epgChannelId ? await dayProgrammes(content.epgChannelId) : []);
+  const { playables } = await variantsOf(content);
+  const { versions, guides } = guided(ctx, playables, await epgOf(playables.flatMap((p) => p.epgIds)));
+  const version = c.req.query("version");
+  const id = (version && guides.has(version) ? guides.get(version) : guides.get(versions[0]?.id ?? "")) ?? null;
+  return json(id ? await dayProgrammes(id) : []);
 });
 
-/** Lists and sheets alike carry `now` / `next`: the app rolls over on `end` without asking again. */
+/** The versions of a channel and the guide of each (`guidesOf`), from the guides known to `epg`. */
+function guided(ctx: RestContext, playables: Playable[], epg: Map<string, ChannelEpg>) {
+  const versions = versionsOf(ctx, playables);
+  return { versions, guides: guidesOf(versions, playables, (id) => epg.get(id)?.hasEpg ?? false) };
+}
+
+/**
+ * Lists and sheets alike carry `now` / `next`: the app rolls over on `end` without asking again. The
+ * channel's guide is its first version's; a version whose guide differs carries its own.
+ */
 function channelWire(
   ctx: RestContext,
   c: Content,
-  versions: Version[],
+  playables: Playable[],
   favs: Set<string>,
-  epg: ChannelEpg | undefined,
+  epgs: Map<string, ChannelEpg>,
   watchedRank?: number,
 ): ChannelWire {
+  const { versions: all, guides } = guided(ctx, playables, epgs);
+  const main = guides.get(all[0]?.id ?? "") ?? null;
+  const epg = main ? epgs.get(main) : undefined;
+  const versions: Version[] = all.map((v) => {
+    const own = guides.get(v.id) ?? null;
+    if (own === main) return v;
+    const e = own ? epgs.get(own) : undefined;
+    return { ...v, has_epg: e?.hasEpg ?? false, now: e?.now ?? null, next: e?.next ?? null };
+  });
   return {
     id: c.key,
     name: c.title,
@@ -132,20 +157,20 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
       .map((k, i) => [k, i + 1]),
   );
   const catName = new Map((await liveCategories()).map((c) => [c.xtreamId, c.name]));
-  const epg = await epgOf(channels.map((c) => c.epgChannelId ?? ""));
-  const byContent = new Map<number, Variant[]>();
-  for (const it of items) byContent.set(it.contentId!, [...(byContent.get(it.contentId!) ?? []), it]);
+  const byContent = new Map<number, Playable[]>();
+  for (const it of items)
+    byContent.set(it.contentId!, [
+      ...(byContent.get(it.contentId!) ?? []),
+      playableOfItem(it, it.categoryXtreamId ? (catName.get(it.categoryXtreamId) ?? null) : null),
+    ]);
+  const epg = await epgOf([...byContent.values()].flat().flatMap((p) => p.epgIds));
 
   type Group = { market: string | null; theme: string; channels: ChannelWire[] };
   const groups = new Map<string, Group>();
   for (const c of channels) {
-    const its = byContent.get(c.id) ?? [];
-    if (!its.length) continue;
-    const versions = versionsOf(
-      ctx,
-      its.map((i) => playableOfItem(i, i.categoryXtreamId ? (catName.get(i.categoryXtreamId) ?? null) : null)),
-    );
-    const wire = channelWire(ctx, c, versions, favs, epg.get(c.epgChannelId ?? ""), watchedRank.get(c.key));
+    const playables = byContent.get(c.id) ?? [];
+    if (!playables.length) continue;
+    const wire = channelWire(ctx, c, playables, favs, epg, watchedRank.get(c.key));
     for (const theme of c.themes.length ? c.themes : [LIVE_THEMES[0]]) {
       const key = `${c.market ?? ""}|${theme}`;
       const g = groups.get(key) ?? { market: c.market, theme, channels: [] };
@@ -167,6 +192,6 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
 }
 
 export async function channelSheet(ctx: RestContext, content: Content): Promise<ChannelWire> {
-  const [{ playables }, favs, epg] = await Promise.all([variantsOf(content), favoriteSet(), epgOf([content.epgChannelId ?? ""])]);
-  return channelWire(ctx, content, versionsOf(ctx, playables), favs, epg.get(content.epgChannelId ?? ""));
+  const [{ playables }, favs] = await Promise.all([variantsOf(content), favoriteSet()]);
+  return channelWire(ctx, content, playables, favs, await epgOf(playables.flatMap((p) => p.epgIds)));
 }

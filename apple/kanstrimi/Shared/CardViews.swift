@@ -190,7 +190,7 @@ struct ChannelCard: View {
             .frame(width: width)
         }
         .cardButtonStyle()
-        .task { now = await env.channelCache.channel(card.id)?.now }
+        .task { now = await env.channelCache.channel(card.id).flatMap { env.guide(of: $0).now } }
     }
 }
 

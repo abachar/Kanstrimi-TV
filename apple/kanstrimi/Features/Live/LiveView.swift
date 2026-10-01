@@ -255,7 +255,7 @@ struct LiveView: View {
 
     /// iPhone: logo, name and quality, then what is on air with its hours and its progress.
     private func phoneChannelRow(_ c: Channel) -> some View {
-        let now = c.now ?? env.channelCache.cached(c.id)?.now
+        let now = env.guide(of: c).now ?? env.channelCache.cached(c.id).flatMap { env.guide(of: $0).now }
         return Button { watch(c) } label: {
             HStack(spacing: 14) {
                 ChannelLogo(channel: c, size: metrics.channelLogo)
@@ -272,7 +272,7 @@ struct LiveView: View {
                             Text("\(Format.hour(now.start)) – \(Format.hour(now.end))").font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary)
                         }
                     } else {
-                        Text(c.hasEPG == false ? "Pas de programme" : " ").font(.subheadline).foregroundStyle(Theme.secondary)
+                        Text(env.guide(of: c).hasEPG == false ? "Pas de programme" : " ").font(.subheadline).foregroundStyle(Theme.secondary)
                     }
                 }
                 Spacer(minLength: 0)
@@ -286,7 +286,7 @@ struct LiveView: View {
             Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
         }
         .task {
-            if now == nil, c.hasEPG != false { _ = await env.channelCache.channel(c.id) }
+            if now == nil, env.guide(of: c).hasEPG != false { _ = await env.channelCache.channel(c.id) }
         }
     }
 
@@ -298,7 +298,7 @@ struct LiveView: View {
                 ChannelLogo(channel: c, size: metrics.channelLogo)
                 VStack(alignment: .leading, spacing: 8) {
                     Text(c.name).font(.callout.weight(.semibold)).lineLimit(1)
-                    if let now = env.channelCache.cached(c.id)?.now {
+                    if let now = env.channelCache.cached(c.id).flatMap({ env.guide(of: $0).now }) {
                         Text(now.title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
                     }
                     HStack(spacing: 6) {
@@ -340,7 +340,7 @@ struct LiveView: View {
                         if let q = c.maxQuality { Badge(q.rawValue) }
                         ForEach(c.versions.languages, id: \.self) { Badge($0.rawValue) }
                     }
-                    if let now = focusedDetail?.now {
+                    if let guide = focusedDetail.map(env.guide(of:)), let now = guide.now {
                         Text("En ce moment").font(.caption).foregroundStyle(Theme.secondary)
                         Text(now.title).font(.title3.weight(.bold)).lineLimit(2)
                         if let o = now.overview { Text(o).font(.caption).foregroundStyle(Theme.secondary).lineLimit(3) }
@@ -349,7 +349,7 @@ struct LiveView: View {
                             Text(Format.hour(now.start)); Spacer(); Text(Format.hour(now.end))
                         }
                         .font(.caption).foregroundStyle(Theme.secondary)
-                        if let next = focusedDetail?.next {
+                        if let next = guide.next {
                             Text("Ensuite : \(next.title) · \(Format.hour(next.start))").font(.caption).foregroundStyle(Theme.secondary)
                         }
                     } else if focusedDetail == nil {

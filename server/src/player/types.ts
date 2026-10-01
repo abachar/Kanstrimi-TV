@@ -9,8 +9,22 @@ export type DynamicRange = "HDR" | "DV";
 
 export type Provider = { id: string; name: string; kind: "xtream" | "local" | (string & {}) };
 export type Source = { id: string; container: string; stream_url: string; provider: Provider; origin: string | null };
-/** `edition`: a cut other than the theatrical one (« Version longue », « Director's Cut »), absent for the usual cut. */
-export type Version = { id: string; language: string; quality: Quality; dynamic_range?: DynamicRange; edition?: string; sources: Source[] };
+/**
+ * `edition`: a cut other than the theatrical one (« Version longue », « Director's Cut »), absent for the usual cut.
+ * Live: `has_epg`, `now`, `next` when this quality's guide is not the channel's (« M6 4K » has its own);
+ * absent, the channel's apply.
+ */
+export type Version = {
+  id: string;
+  language: string;
+  quality: Quality;
+  dynamic_range?: DynamicRange;
+  edition?: string;
+  sources: Source[];
+  has_epg?: boolean;
+  now?: Programme | null;
+  next?: Programme | null;
+};
 
 export type ProgressWire = { position: number; duration: number; finished?: boolean };
 export type EpisodeRef = { season: number; number: number; title: string | null };

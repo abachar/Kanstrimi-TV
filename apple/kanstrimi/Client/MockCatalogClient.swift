@@ -302,7 +302,7 @@ final class MockCatalogClient: CatalogClient {
         return c
     }
 
-    func programmes(channel id: ContentID) async throws -> [Programme] {
+    func programmes(channel id: ContentID, version: String?) async throws -> [Programme] {
         try await gate()
         guard let c = rawChannel(id) else { throw CatalogError.notFound }
         return scenario.emptyEPG || c.hasEPG == false ? [] : schedule(for: c)

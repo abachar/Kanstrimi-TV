@@ -59,6 +59,21 @@ nonisolated struct Channel: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+extension Channel {
+    /// What a channel shows now and next, and whether the guide knows it at all.
+    struct Guide: Equatable {
+        let now: Programme?
+        let next: Programme?
+        let hasEPG: Bool?
+    }
+
+    /// The guide of that version: its own when the server sent one (each quality may have its own), else the channel's.
+    func guide(for version: Version?) -> Guide {
+        if let version, version.hasEPG != nil { return Guide(now: version.now, next: version.next, hasEPG: version.hasEPG) }
+        return Guide(now: now, next: next, hasEPG: hasEPG)
+    }
+}
+
 /// One entry of `GET /channels`: a provider category with its channels.
 nonisolated struct ChannelGroup: Codable, Hashable, Identifiable, Sendable {
     let id: String

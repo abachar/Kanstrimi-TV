@@ -247,10 +247,27 @@ struct HTTPCatalogClientTests {
     @Test("Les programmes d'une chaîne passent par /channels/{id}/programmes")
     func channelProgrammesTravel() async throws {
         answer(200, #"[{"title":"Journal","start":"2026-09-30T18:00:00.000Z","end":"2026-09-30T18:40:00.000Z","overview":"Les titres"},{"title":"Film","start":"2026-09-30T18:40:00.000Z","end":"2026-09-30T20:30:00.000Z","overview":null}]"#)
-        let day = try await client.programmes(channel: ContentID("live:fr-tf1"))
+        let day = try await client.programmes(channel: ContentID("live:fr-tf1"), version: "vf-4k")
         #expect(day.map(\.title) == ["Journal", "Film"])
         #expect(day[0].overview == "Les titres")
         #expect(try last.url?.path() == "/player/channels/live:fr-tf1/programmes")
+        #expect(try query(last) == ["version": "vf-4k"])
+    }
+
+    @Test("Une qualité au guide propre le porte ; les autres prennent celui de la chaîne")
+    func guidePerQuality() async throws {
+        let src = #"{"id":"s","container":"TS","stream_url":"demo://live","provider":null,"origin":null}"#
+        answer(200, #"""
+        {"id":"live:fr-m6","name":"M6","has_epg":true,
+         "now":{"title":"Match en 4K","start":"2026-09-30T18:00:00.000Z","end":"2026-09-30T19:00:00.000Z","overview":null},"next":null,
+         "versions":[{"id":"vf-4k","language":"VF","quality":"4K","sources":[\#(src)]},
+                     {"id":"vf-hd","language":"VF","quality":"HD","sources":[\#(src)],"has_epg":true,
+                      "now":{"title":"Météo","start":"2026-09-30T18:00:00.000Z","end":"2026-09-30T19:00:00.000Z","overview":null},"next":null}]}
+        """#)
+        let m6 = try await client.channel(id: ContentID("live:fr-m6"))
+        #expect(m6.guide(for: m6.versions[0]).now?.title == "Match en 4K")
+        #expect(m6.guide(for: m6.versions[1]).now?.title == "Météo")
+        #expect(m6.guide(for: nil).now?.title == "Match en 4K")
     }
 
     @Test("Retirer de « Reprendre » et marquer vu : DELETE …/progress, PUT …/watched")

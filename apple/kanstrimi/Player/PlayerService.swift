@@ -64,6 +64,8 @@ final class PlayerService {
     /// Live: the ordered channel list to zap through, and the current one.
     private(set) var channels: [Channel] = []
     private(set) var channel: Channel?
+    /// The playing channel as `GET /channels/{id}` gives it: its guide, and each quality's own.
+    private var channelDetail: Channel?
     private(set) var epg: EPGNow = .empty
     /// Live: banner "previous / current / next" after a zap.
     private(set) var zapBanner: Bool = false
@@ -180,6 +182,7 @@ final class PlayerService {
     func play(channel: Channel, in list: [Channel]) {
         channels = list
         self.channel = channel
+        channelDetail = nil
         epg = .empty
         liveResets = 0
         let ctx = PlaybackContext(content: PlaybackContent(id: channel.id, kind: .live, title: channel.name, subtitle: nil, episode: nil, backdrop: nil),
@@ -189,8 +192,8 @@ final class PlayerService {
             guard let self else { return }
             let full = try? await client.channel(id: channel.id)
             if self.channel?.id == channel.id {
-                epg = full.map { EPGNow(now: $0.now, next: $0.next) } ?? .empty
-                nowPlaying.update()
+                channelDetail = full
+                showGuide()
             }
         }
     }
@@ -222,7 +225,16 @@ final class PlayerService {
         failure = nil; toast = nil; nextCountdown = nil; nextContext = nil; nextTriggered = false
         audioTracks = []; textTracks = []
         epg = .empty
+        channelDetail = nil
         nowPlaying.clear()
+    }
+
+    /// The guide of the version playing: each quality may have its own (« M6 4K »), else the channel's.
+    private func showGuide() {
+        guard let channelDetail, channelDetail.id == channel?.id else { return }
+        let guide = channelDetail.guide(for: version)
+        epg = EPGNow(now: guide.now, next: guide.next)
+        nowPlaying.update()
     }
 
     // MARK: - Controls
@@ -403,7 +415,9 @@ final class PlayerService {
         }
         cancelTimers(keepCountdown: true)
         context = ctx
+        let changedVersion = version?.id != v.id
         version = v
+        if changedVersion, isLive { showGuide() }
         source = s
         choiceReason = reason
         failure = nil

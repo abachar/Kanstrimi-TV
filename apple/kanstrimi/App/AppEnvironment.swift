@@ -79,6 +79,13 @@ final class AppEnvironment {
         info = try? await call { try await client.info() }
     }
 
+    /// A channel's guide as the app shows it: that of the version playing, else of the one it would play,
+    /// each quality having possibly its own (« M6 4K »).
+    func guide(of channel: Channel) -> Channel.Guide {
+        let version = player.channel?.id == channel.id ? player.version : player.chooser.choose(from: channel.versions)?.version
+        return channel.guide(for: version)
+    }
+
     /// Plays a channel from a card (search, home): its versions and the zapping order come with the channel list.
     func watchChannel(_ id: ContentID) async {
         guard let groups = try? await call({ try await client.channels() }) else { return }

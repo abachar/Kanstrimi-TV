@@ -37,10 +37,15 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
     let sources: [Source]
     /// A cut other than the theatrical one ("Version longue", "Director's Cut"); nil for the usual cut.
     var edition: String? = nil
+    /// Live: this quality's own guide when it is not the channel's ("M6 4K"); `hasEPG` nil = the channel's applies.
+    var hasEPG: Bool? = nil
+    var now: Programme? = nil
+    var next: Programme? = nil
 
     enum CodingKeys: String, CodingKey {
-        case id, language, quality, sources, edition
+        case id, language, quality, sources, edition, now, next
         case dynamicRange = "dynamic_range"
+        case hasEPG = "has_epg"
     }
 
     /// "4K Dolby Vision", "HD".

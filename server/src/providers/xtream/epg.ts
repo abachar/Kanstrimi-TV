@@ -1,6 +1,6 @@
 import { SaxesParser } from "saxes";
 import { checkCancelled } from "@/shared";
-import { and, eq, isNotNull, lt, ne, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { db, schema, visibleItem } from "@/db";
 import { getSettings, setSettings } from "@/config";
 import { xtreamFromSettings } from "./client";
@@ -74,27 +74,19 @@ export async function* parseXmltv(chunks: AsyncIterable<string>, wanted: Set<str
 }
 
 /**
- * The EPG ids of the channels the app can see: the only ones worth storing. A visible variant
- * whose provider id names another channel (`epg_mismatch`) brings both ids, its own and iptv-org's:
- * the grouping then keeps whichever the guide has programmes for.
+ * The EPG ids of the channels the app can see: the only ones worth storing. Every visible variant
+ * brings its own, so each quality keeps its guide (« M6 4K » may differ from « M6 »); one whose
+ * provider id names another channel (`epg_mismatch`) brings iptv-org's too. The app then shows,
+ * per quality, whichever has programmes (`player/guides.ts`).
  */
 async function wantedChannelIds(): Promise<Set<string>> {
+  const v = schema.catalogVariants;
   const rows = await db
-    .selectDistinct({ id: schema.catalogContents.epgChannelId })
-    .from(schema.catalogContents)
-    .where(
-      and(
-        eq(schema.catalogContents.kind, "live"),
-        eq(schema.catalogContents.visible, true),
-        isNotNull(schema.catalogContents.epgChannelId),
-        ne(schema.catalogContents.epgChannelId, ""),
-      ),
-    );
-  const disputed = await db
-    .select({ own: sql<string>`${schema.catalogVariants.raw}->>'epg_channel_id'`, iptv: schema.catalogVariants.iptvId })
-    .from(schema.catalogVariants)
-    .where(and(eq(schema.catalogVariants.kind, "live"), eq(schema.catalogVariants.epgMismatch, true), visibleItem));
-  return new Set([...rows.map((r) => r.id!), ...disputed.flatMap((d) => [d.own, d.iptv]).filter((x): x is string => Boolean(x))]);
+    .select({ own: sql<string | null>`nullif(${v.raw}->>'epg_channel_id', '')`, iptv: v.iptvId, mismatch: v.epgMismatch })
+    .from(v)
+    .innerJoin(schema.catalogContents, eq(schema.catalogContents.id, v.contentId))
+    .where(and(eq(v.kind, "live"), eq(schema.catalogContents.visible, true), visibleItem));
+  return new Set(rows.flatMap((r) => [r.own, r.mismatch ? r.iptv : null]).filter((x): x is string => Boolean(x)));
 }
 
 /**

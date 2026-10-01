@@ -1167,6 +1167,45 @@ describe("GET /top-shelf", () => {
   });
 });
 
+describe("guide per quality", () => {
+  beforeAll(async () => {
+    await seedItems([
+      // « TF1 4K » names a guide without programmes: it takes the FHD's, so the channel keeps TF1.fr.
+      { kind: "live", xtreamId: "110", name: "|FR| TF1 4K", cat: "20", raw: { num: 3, epg_channel_id: "tf1-4k.fr" } },
+      // « M6 4K » has a guide of its own, which is not the HD's.
+      { kind: "live", xtreamId: "111", name: "|FR| M6 HD", cat: "20", raw: { num: 6, epg_channel_id: "M6.fr" } },
+      { kind: "live", xtreamId: "112", name: "|FR| M6 4K", cat: "20", raw: { num: 7, epg_channel_id: "m6-4k.fr" } },
+    ]);
+    await seedProgrammes([
+      { channelId: "M6.fr", start: -10, end: 50, title: "Météo" },
+      { channelId: "m6-4k.fr", start: -10, end: 50, title: "Match en 4K" },
+    ]);
+    await runNaming();
+    await runGrouping();
+  });
+
+  it("a quality without a guide takes the closest lower one's; one with its own guide keeps it", async () => {
+    const channels = (await get("/channels")).body.flatMap((g: { channels: unknown[] }) => g.channels);
+    const byName = (n: string) => channels.find((c: { name: string }) => c.name === n);
+    const tf1 = byName("TF1");
+    expect(tf1.versions.map((v: { id: string }) => v.id)).toEqual(["vf-4k", "vf-fhd", "vf-hd"]);
+    expect(tf1.now.title).toBe("Journal");
+    expect(tf1.versions.every((v: object) => !("now" in v))).toBe(true);
+    const [tf1Content] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, tf1.id));
+    expect(tf1Content.epgChannelId).toBe("TF1.fr");
+
+    const m6 = byName("M6");
+    expect(m6.now.title).toBe("Match en 4K");
+    expect(m6.versions.map((v: { id: string; now?: { title: string } }) => [v.id, v.now?.title])).toEqual([
+      ["vf-4k", undefined],
+      ["vf-hd", "Météo"],
+    ]);
+    expect((await get(`/channels/${m6.id}`)).body.versions[1]).toMatchObject({ has_epg: true, now: { title: "Météo" } });
+    expect((await get(`/channels/${m6.id}/programmes?version=vf-hd`)).body.map((p: { title: string }) => p.title)).toEqual(["Météo"]);
+    expect((await get(`/channels/${m6.id}/programmes`)).body.map((p: { title: string }) => p.title)).toEqual(["Match en 4K"]);
+  });
+});
+
 describe("GET /stream/{source}", () => {
   it("302 to the provider for a signed link, 401 when tampered, expired or revoked", async () => {
     const sheet = (await get("/movies/tmdb:movie:603")).body;

@@ -47,6 +47,8 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **Picture-in-Picture (iPhone)** : le lecteur ne se cache qu'une fois l'image dans l'image démarrée, sinon iOS
   l'abandonne ; lancée par iOS au balayage vers l'accueil, elle ne cache rien.
 - **Carte « En lecture » (iPhone)** : par `MPNowPlayingInfoCenter` directement, la session du moteur laissant le direct sans carte.
+- **Guide du direct** : celui de la version lue, ou qui serait lue (`env.guide(of:)`) ; une qualité sans guide prend celui
+  de la qualité inférieure la plus proche, sinon supérieure (calculé par le serveur).
 - **Chaînes les plus regardées** : `PlayerService` envoie le temps regardé (`POST /playback/{id}/watch-time`) ; l'accueil
   et le Direct se rechargent en quittant le lecteur.
 - **Top Shelf** : tvOS n'affiche aucun titre dans le carrousel et l'API publique n'a pas de logo séparé : le serveur dessine
