@@ -624,7 +624,12 @@ final class PlayerService {
         let seconds = Int(Date.now.timeIntervalSince(from))
         liveWatchedFrom = final ? nil : .now
         guard seconds > 0 else { return }
-        Task { [client] in try? await client.reportWatchTime(id: context.content.id, seconds: seconds) }
+        // Out of the live player: the home and the Direct reload once the server counted it (« Chaînes les plus
+        // regardées »). Not on a zap, which would reload them at every channel.
+        Task { [weak self, client] in
+            try? await client.reportWatchTime(id: context.content.id, seconds: seconds)
+            if final, let self, !isLive { progressRevision += 1 }
+        }
     }
 
     private func cancelTimers(keepCountdown: Bool = false) {

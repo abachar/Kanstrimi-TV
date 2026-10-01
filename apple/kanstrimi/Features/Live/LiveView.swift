@@ -71,6 +71,8 @@ struct LiveView: View {
         .background(Theme.background)
         .phoneLargeTitle("Direct")
         .task { if groups.isEmpty { await load() } }
+        // A channel left: its watch time may change « Les plus regardées ».
+        .onChange(of: env.player.progressRevision) { Task { await load() } }
         .onChange(of: focus) { _, f in
             switch f {
             case .category(let id): selected = id
