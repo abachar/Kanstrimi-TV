@@ -57,9 +57,13 @@ export type ShelfScale = keyof typeof SHELF_SCALES;
 
 /**
  * The Apple TV carousel shows no title of its own: the title is drawn in the image, as Apple's own apps
- * do. The backdrop filled to 16:9, darkened on the left, the TMDB title logo on the left above the
- * carousel's buttons. Composed once, then served from the disk cache like any other image.
+ * do. The backdrop filled to 16:9, darkened in its top left corner, the TMDB title logo there, where
+ * Apple's TV app puts its own and clear of the carousel's arrows and buttons. Composed once, then served
+ * from the disk cache like any other image; `SHELF_LAYOUT` names the layout, a new one composes anew.
  */
+/** Bumped with the layout, together with `?layout=` in `player/top-shelf.ts`: tvOS caches the images by URL. */
+const SHELF_LAYOUT = 2;
+
 export async function ensureShelfImage(
   scale: ShelfScale,
   backdrop: string,
@@ -68,7 +72,7 @@ export async function ensureShelfImage(
   const s = SHELF_SCALES[scale];
   if (!s || !FILE.test(backdrop) || !FILE.test(logo)) return null;
   const dir = path.join(env.dataDir, "images", "shelf", scale);
-  const p = path.join(dir, `${path.parse(backdrop).name}_${path.parse(logo).name}.jpg`);
+  const p = path.join(dir, `${path.parse(backdrop).name}_${path.parse(logo).name}_${SHELF_LAYOUT}.jpg`);
   try {
     await fs.access(p);
     return { path: p, contentType: "image/jpeg" };
@@ -80,12 +84,12 @@ export async function ensureShelfImage(
   const { default: sharp } = await import("sharp");
   const width = 1920 * s,
     height = 1080 * s;
-  // Above the buttons of the carousel, which sit low on the left: the logo's foot at 68 % of the height.
-  const box = { left: 96 * s, width: 620 * s, height: 230 * s, foot: Math.round(height * 0.68) };
+  // As in Apple's TV app: 6 % from the left, 8 % from the top, a third of the width at most, a sixth of the height.
+  const box = { left: 112 * s, top: 86 * s, width: 620 * s, height: 180 * s };
   const shade = Buffer.from(
-    `<svg width="${width}" height="${height}"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="0">` +
-      `<stop offset="0" stop-color="#000" stop-opacity="0.6"/><stop offset="0.55" stop-color="#000" stop-opacity="0"/>` +
-      `</linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`,
+    `<svg width="${width}" height="${height}"><defs><radialGradient id="g" cx="0" cy="0" r="0.75">` +
+      `<stop offset="0" stop-color="#000" stop-opacity="0.55"/><stop offset="1" stop-color="#000" stop-opacity="0"/>` +
+      `</radialGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`,
   );
   const mark = await sharp(lg.path, { density: 300 })
     .resize({ width: box.width, height: box.height, fit: "inside" })
@@ -95,7 +99,7 @@ export async function ensureShelfImage(
     .resize(width, height, { fit: "cover" })
     .composite([
       { input: shade, left: 0, top: 0 },
-      { input: mark.data, left: box.left, top: box.foot - mark.info.height },
+      { input: mark.data, left: box.left, top: box.top },
     ])
     .jpeg({ quality: 86, mozjpeg: true })
     .toBuffer();

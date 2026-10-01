@@ -1104,12 +1104,12 @@ describe("GET /top-shelf", () => {
     const [matrix] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "tmdb:movie:603"));
     expect(body[0]).toMatchObject({
       title: "Matrix",
-      image: `http://kanstrimi.test/img/shelf/1x/bd.jpg${matrix.titleLogoPath}`,
-      image_2x: `http://kanstrimi.test/img/shelf/2x/bd.jpg${matrix.titleLogoPath}`,
+      image: `http://kanstrimi.test/img/shelf/1x/bd.jpg${matrix.titleLogoPath}?layout=2`,
+      image_2x: `http://kanstrimi.test/img/shelf/2x/bd.jpg${matrix.titleLogoPath}?layout=2`,
       duration: 8280,
       max_quality: "4K",
     });
-    expect(body[1]).toMatchObject({ title: "Vincenzo", image: "http://kanstrimi.test/img/shelf/1x/vb.jpg/v-logo.png" });
+    expect(body[1]).toMatchObject({ title: "Vincenzo", image: "http://kanstrimi.test/img/shelf/1x/vb.jpg/v-logo.png?layout=2" });
   });
 
   it("a title without a TMDB logo is left out: the carousel would show it untitled", async () => {

@@ -146,9 +146,12 @@ function item(
 }
 
 const hasShelfArt = (c: Content | null): c is Content => Boolean(c?.backdropPath && c.titleLogoPath);
-/** `/img/shelf/…`: the backdrop with the title logo drawn on it (`providers/tmdb`, `ensureShelfImage`). */
+/**
+ * `/img/shelf/…`: the backdrop with the title logo drawn on it (`providers/tmdb`, `ensureShelfImage`).
+ * `layout` follows `SHELF_LAYOUT` there: tvOS caches by URL, a new layout needs a new one.
+ */
 const shelfImage = (ctx: RestContext, c: Content, scale: "1x" | "2x") =>
-  `${ctx.baseUrl}/img/shelf/${scale}/${c.backdropPath!.replace(/^\//, "")}/${c.titleLogoPath!.replace(/^\//, "")}`;
+  `${ctx.baseUrl}/img/shelf/${scale}/${c.backdropPath!.replace(/^\//, "")}/${c.titleLogoPath!.replace(/^\//, "")}?layout=2`;
 
 /** « 40 min restantes », « 1 h 08 restantes ». */
 export function remaining(p: Pick<Progress, "position" | "duration">): string {
