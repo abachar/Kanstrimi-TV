@@ -6,7 +6,7 @@ export { groupVariants, type MergeCandidate, mergeCandidates, mergeVariantInto, 
 export { closeOrphanLogs, recentRuns, runById, lastRunsByTask, type RunWithSteps } from "./journal";
 export { readRunLog, runLogPath } from "./runlog";
 export { iptvChannelById, setIptvMatch } from "./channels";
-export { hasFallbackKey, hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
+export { hasFallbackKey, hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey, tmdbKey } from "./keys";
 export { assignManual, resetMatches, retryUnmatched, searchCandidates, type TmdbCandidate } from "./matching";
 export {
   cleanTitle,
@@ -54,3 +54,16 @@ export {
   studioSuggestions,
 } from "./studios";
 export { deleteRule, listRules, previewRule, type RulePreview, saveRule, setRuleEnabled } from "./rules/manage";
+export {
+  addToWaitlist,
+  availableWaitlistKeys,
+  listWaitlist,
+  markWaitlistStarted,
+  removeFromWaitlist,
+  searchWaitlistCandidates,
+  type WaitlistAddResult,
+  type WaitlistCandidate,
+  type WaitlistRow,
+  type WaitlistSheet,
+  type WaitlistStatus,
+} from "./waitlist";

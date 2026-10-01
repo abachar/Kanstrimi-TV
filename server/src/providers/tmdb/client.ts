@@ -9,6 +9,8 @@ export type TmdbSearchResult = {
   popularity?: number;
   vote_count?: number;
   poster_path?: string | null;
+  overview?: string;
+  vote_average?: number;
 };
 export type TmdbLogo = { file_path: string; iso_639_1?: string | null; vote_average?: number };
 export type TmdbDetails = Record<string, unknown> & {

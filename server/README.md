@@ -41,7 +41,7 @@ relancer seule (**Tâches → Lancer à partir de…**).
 | `channels` | rattache les chaînes du direct à iptv-org : thème, logo, drapeau adulte |
 | `enrich` | matching TMDB des éléments en attente ; relit peu à peu les fiches anciennes |
 | `filters` | règles regex de masquage |
-| `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
+| `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles, arrivées de la liste d'attente |
 | `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf) |
 | `epg` | guide des programmes des chaînes visibles, tous les trois jours, l'EPG de chaque variante ; décalages horaires corrigés dans l'admin |
 
@@ -101,6 +101,9 @@ shared/     utilitaires ; n'importe jamais `@/`
 - **Secrets** : un seul mot de passe ; réglages sensibles chiffrés avec une clé gardée en RAM. Après un redémarrage le
   serveur est verrouillé jusqu'à la première requête authentifiée (le premier appel d'un appareil appairé suffit).
 - **Ne jamais journaliser une URL brute** : le mot de passe Xtream y circule. Passer par `requestLogger()`.
+- **Liste d'attente** (`catalog/waitlist.ts`, admin › Application) : des films cherchés sur TMDB avant que le fournisseur ne les ait. Dès
+  qu'un contenu visible porte leur clé `tmdb:movie:<id>`, ils deviennent le hero de l'accueil et la tête du Top Shelf,
+  jusqu'à 5 % de lecture. Un film mal reconnu (clé `fallback:`) ne se détecte qu'une fois son match TMDB corrigé.
 - **Top Shelf** : tvOS garde les images par adresse ; changer leur mise en page = changer `SHELF_LAYOUT` et `?layout=`.
 
 ## Déploiement

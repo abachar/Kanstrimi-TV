@@ -1,5 +1,6 @@
 import { db, schema } from "@/db";
 import { desc, eq, inArray, sql } from "drizzle-orm";
+import { markWaitlistStarted } from "@/catalog";
 
 /** "Vu" is derived here, once, at write time: 90 % of the duration. */
 export const FINISHED_AT = 0.9;
@@ -17,6 +18,7 @@ export async function setProgress(contentKey: string, position: number, duration
     .values({ contentKey, position: p, duration: d, finished, updatedAt: new Date() })
     .onConflictDoUpdate({ target: schema.appWatchProgress.contentKey, set: { position: p, duration: d, finished, updatedAt: new Date() } })
     .returning();
+  if (finished || (d > 0 && p / d >= RESUMABLE_FROM)) await markWaitlistStarted(contentKey);
   return row;
 }
 
@@ -69,4 +71,5 @@ export async function setFinished(contentKey: string, finished: boolean): Promis
     .insert(schema.appWatchProgress)
     .values({ contentKey, position: duration, duration, finished: true, updatedAt: new Date() })
     .onConflictDoUpdate({ target: schema.appWatchProgress.contentKey, set: { position: duration, finished: true, updatedAt: new Date() } });
+  await markWaitlistStarted(contentKey);
 }

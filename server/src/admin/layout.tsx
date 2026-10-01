@@ -40,6 +40,7 @@ export const NAV: readonly (readonly [group: string | null, items: readonly NavI
       ["/admin/devices", "Appareils", "devices"],
       ["/admin/favorites", "Favoris", "favorites"],
       ["/admin/history", "Historique", "history"],
+      ["/admin/waitlist", "Liste d'attente", "waitlist"],
     ],
   ],
   [

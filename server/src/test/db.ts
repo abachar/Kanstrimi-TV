@@ -6,7 +6,7 @@ import type { XStream } from "@/providers/xtream";
 /** Empty every catalogue table between test files. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, curation_filter_rules, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_studios, tmdb_trending restart identity cascade`,
+    sql`truncate table xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, curation_filter_rules, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_studios, curation_waitlist, tmdb_trending restart identity cascade`,
   );
   invalidateSettings();
 }

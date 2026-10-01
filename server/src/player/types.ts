@@ -134,13 +134,14 @@ export type Home = { hero: HomeHero | null; rows: HomeRow[]; generated_at: strin
 
 /**
  * `/top-shelf`: the full-screen carousel of the Apple TV home screen, six items at most, in order: the
- * last title in progress, a series started that has a new episode, then the week's top movies.
+ * movies of the « Liste d'attente » that arrived and are not started, the last title in progress, a
+ * series started that has a new episode, then the week's top movies.
  * `play_id` is what Lecture plays (an episode for a series), `open_id` the sheet Plus d'infos opens.
  */
 export type TopShelfItem = {
   id: string;
-  reason: "resume" | "new_episode" | "top";
-  /** Above the title: « Reprendre · 40 min restantes », « Nouvel épisode · S2 É5 », « N° 1 cette semaine ». */
+  reason: "available" | "resume" | "new_episode" | "top";
+  /** Above the title: « Enfin disponible », « Reprendre · 40 min restantes », « Nouvel épisode · S2 É5 », « N° 1 cette semaine ». */
   context: string;
   title: string;
   summary: string | null;

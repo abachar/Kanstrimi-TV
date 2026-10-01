@@ -31,9 +31,12 @@ export function contentKey(i: KeyInput): string {
   const s = slug(i.title);
   const id = s === "-" ? `x${createHash("sha1").update(i.title).digest("hex").slice(0, 10)}` : s;
   if (i.kind === "live") return `live:${i.market ? i.market + "-" : ""}${id}`;
-  if (i.tmdbId && (i.matchStatus === "matched" || i.matchStatus === "manual")) return `tmdb:${tmdbMediaType(i.kind)}:${i.tmdbId}`;
+  if (i.tmdbId && (i.matchStatus === "matched" || i.matchStatus === "manual")) return tmdbKey(i.kind, i.tmdbId);
   return `fallback:${i.kind === "vod" ? "movie" : "series"}:${id}:${i.year ?? "-"}`;
 }
+
+/** The key of a content matched to TMDB: `tmdb:movie:603`, `tmdb:tv:1396`. */
+export const tmdbKey = (kind: Kind, tmdbId: number) => `tmdb:${tmdbMediaType(kind)}:${tmdbId}`;
 
 export function episodeKey(seriesKey: string, season: number, episode: number) {
   return `${seriesKey}:s${String(season).padStart(2, "0")}e${String(episode).padStart(2, "0")}`;

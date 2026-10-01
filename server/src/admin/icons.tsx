@@ -19,6 +19,7 @@ import {
   CalendarClock,
   Gauge,
   HardDrive,
+  Hourglass,
   Info,
   LoaderCircle,
   LogOut,
@@ -80,6 +81,7 @@ const ICONS = {
   studios: Building2,
   success: CircleCheck,
   trash: Trash,
+  waitlist: Hourglass,
   x: X,
 } as const;
 

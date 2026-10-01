@@ -81,6 +81,7 @@ export const STAT_LABELS: Record<string, string> = {
   contents: "contenus",
   multi_variant: "à plusieurs variantes",
   orphans_removed: "contenus retirés",
+  waitlist_available: "attendus devenus disponibles",
   items: "éléments",
   categories: "catégories",
   bytes: "", // bytes are already rendered as "x Mo"

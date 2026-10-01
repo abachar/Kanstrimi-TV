@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db, schema, type Content } from "@/db";
-import { ensureEpisodes, isEpisodeKey, parseKey } from "@/catalog";
+import { availableWaitlistKeys, ensureEpisodes, isEpisodeKey, parseKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
-import { contentByKey, variantsOf, visibleContent } from "./contents";
+import { contentByKey, contentsInOrder, variantsOf, visibleContent } from "./contents";
 import { getProgress, resumeKeys, type Progress } from "./progress";
 import { loadEpisodes } from "./episodes";
 import { drOf, qualityOfRank } from "./versions";
@@ -20,12 +20,14 @@ export const TOP_SHELF_SIZE = 6;
 const NEW_EPISODE_CANDIDATES = 10;
 
 /**
- * The last title in progress, then a series started that received an episode since it was last
- * watched, then the week's top movies for the remaining places. Only titles with a backdrop and a
- * TMDB title logo (the carousel shows no title: it is drawn in the image), each once.
+ * The awaited movies that arrived, then the last title in progress, then a series started that
+ * received an episode since it was last watched, then the week's top movies for the remaining
+ * places. Only titles with a backdrop and a TMDB title logo (the carousel shows no title: it is
+ * drawn in the image), each once.
  */
 export async function topShelf(ctx: RestContext): Promise<TopShelfItem[]> {
-  const items: TopShelfItem[] = [];
+  // One place at least is left to the title in progress.
+  const items: TopShelfItem[] = (await availableItems(ctx)).slice(0, TOP_SHELF_SIZE - 1);
   const resume = await resumeItem(ctx);
   if (resume) items.push(resume);
   const fresh = await newEpisodeItem(ctx, new Set(items.map((i) => i.open_id)));
@@ -35,7 +37,15 @@ export async function topShelf(ctx: RestContext): Promise<TopShelfItem[]> {
     if (items.length >= TOP_SHELF_SIZE) break;
     if (!taken.has(item.open_id)) items.push(item);
   }
-  return items;
+  return items.slice(0, TOP_SHELF_SIZE);
+}
+
+/** The « Liste d'attente » movies the provider now has and nobody started, the latest arrival first. */
+async function availableItems(ctx: RestContext): Promise<TopShelfItem[]> {
+  const contents = await contentsInOrder(ctx, await availableWaitlistKeys(), "vod");
+  return contents
+    .filter(hasShelfArt)
+    .map((c) => item(ctx, c, { id: c.key, reason: "available", context: "Enfin disponible", duration: c.runtime ? c.runtime * 60 : null }));
 }
 
 async function resumeItem(ctx: RestContext): Promise<TopShelfItem | null> {

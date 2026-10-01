@@ -18,6 +18,7 @@ import { cardFields, type TmdbDetails } from "@/providers/tmdb";
 import { contentKey, hasFallbackKey } from "../keys";
 import { checkCancelled, searchText } from "@/shared";
 import { withCatalogLock } from "../lock";
+import { markWaitlistAvailable } from "../waitlist";
 
 /**
  * The `group` step: no network, idempotent, all set-based SQL.
@@ -36,7 +37,13 @@ const CHUNK = 5000;
 
 const CARD_CHUNK = 500;
 
-export type GroupStats = { items_grouped: number; contents: number; multi_variant: number; orphans_removed: number };
+export type GroupStats = {
+  items_grouped: number;
+  contents: number;
+  multi_variant: number;
+  orphans_removed: number;
+  waitlist_available: number;
+};
 
 /** The pipeline's full pass and the admin's partial regroups touch the same rows: one at a time (`withCatalogLock`). */
 export async function runGrouping(): Promise<GroupStats> {
@@ -44,12 +51,18 @@ export async function runGrouping(): Promise<GroupStats> {
     const n = await assignKeys();
     await upsertContents();
     await fillCardFields();
-    await refreshAggregates();
+    const available = await refreshAggregates();
     const orphans = await deleteOrphans();
     const [c] = await db
       .select({ n: sql<number>`count(*)::int`, multi: sql<number>`count(*) filter (where variant_count > 1)::int` })
       .from(schema.catalogContents);
-    return { items_grouped: n, contents: c.n, multi_variant: c.multi, orphans_removed: orphans } satisfies GroupStats;
+    return {
+      items_grouped: n,
+      contents: c.n,
+      multi_variant: c.multi,
+      orphans_removed: orphans,
+      waitlist_available: available,
+    } satisfies GroupStats;
   });
 }
 
@@ -430,7 +443,8 @@ const variantEpgId = sql`case
   when epg_mismatch and not exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = raw->>'epg_channel_id')
   then iptv_id else nullif(raw->>'epg_channel_id', '') end`;
 
-async function refreshAggregates(onlyIds?: number[]) {
+/** Every visibility change goes through here: the waitlist learns of its arrivals at the same time. Returns those. */
+async function refreshAggregates(onlyIds?: number[]): Promise<number> {
   const scope = onlyIds ? sql`and content_id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``;
   await db.execute(sql`
     update catalog_contents c set
@@ -479,6 +493,7 @@ async function refreshAggregates(onlyIds?: number[]) {
           is distinct from
           (a.n, a.added_at, a.visible, a.max_q, a.langs, a.dr, a.themes, coalesce(c.market, a.market),
            a.cat, a.iptv, a.logo_url, a.num, a.epg, c.tmdb_adult or a.all_adult)`);
+  return markWaitlistAvailable();
 }
 
 // ---------------------------------------------------------------- 5. orphans

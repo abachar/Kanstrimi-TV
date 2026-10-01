@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { Hono } from "hono";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
-import { verify } from "@/config";
+import { setSettings, verify } from "@/config";
 import { itemById } from "@/catalog";
 import { run, runNaming } from "@/catalog";
 import { startRun } from "@/catalog/journal";
@@ -223,6 +223,39 @@ describe("admin", () => {
     const reset = await post(`/admin/catalog/groups/reset/${matrixId}`, {});
     expect(await reset.text()).toContain("2 variantes");
     expect((await call("/admin/catalog/groups/merge-form/1")).status).toBe(200);
+  });
+
+  it("waitlist: search TMDB, add a movie, remove it", async () => {
+    expect(await html("/admin/waitlist")).toContain("Aucun film attendu");
+    expect(await html("/admin/waitlist?q=mission")).toContain("Clé API TMDB non configurée");
+    await setSettings({ tmdb_api_key: "k" });
+    vi.stubGlobal("fetch", async (u: URL) =>
+      String(u).includes("/search/movie")
+        ? Response.json({
+            results: [
+              { id: 603, title: "Matrix", release_date: "1999-03-31" },
+              { id: 1200, title: "Mission : Impossible 9" },
+            ],
+          })
+        : Response.json({ id: 1200, title: "Mission : Impossible 9", release_date: "2027-05-21" }),
+    );
+    try {
+      const found = await html("/admin/waitlist?q=mission");
+      expect(found).toContain("Au catalogue"); // Matrix
+      expect(found).toContain('name="tmdb_id" value="1200"');
+      expect(flash(await post("/admin/waitlist", { tmdb_id: "1200", q: "mission" }))).toContain("Film ajouté à la liste d'attente");
+      expect(flash(await post("/admin/waitlist", { tmdb_id: "603" }))).toContain("déjà visible dans le catalogue");
+      const listed = await html("/admin/waitlist");
+      expect(listed).toContain("Mission : Impossible 9");
+      expect(listed).toContain("En attente");
+      expect(listed).toContain("Sortie le 21 mai 2027");
+      expect(listed).toContain("https://www.themoviedb.org/movie/1200");
+      expect(flash(await post("/admin/waitlist/1200/remove", {}))).toContain("Film retiré");
+      expect(await html("/admin/waitlist")).toContain("Aucun film attendu");
+    } finally {
+      vi.unstubAllGlobals();
+      await setSettings({ tmdb_api_key: "" });
+    }
   });
 
   it("logs out", async () => {

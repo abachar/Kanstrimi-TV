@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema, type Content } from "@/db";
-import { hasTmdbKey, isEpisodeKey } from "@/catalog";
+import { availableWaitlistKeys, hasTmdbKey, isEpisodeKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
 import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./contents";
@@ -12,14 +12,18 @@ import { baseCard, gridCard, progressWire, sheetCard } from "./cards";
 import { versionsOf, versionsSummary } from "./versions";
 import type { Card, Home, HomeRow } from "./types";
 
-/** `/home`: hero, "Reprendre", "Chaînes les plus regardées", recent movies and series, "Ma liste". */
+/**
+ * `/home`: hero, "Reprendre", "Chaînes les plus regardées", recent movies and series, "Ma liste". The
+ * hero is the latest movie of the « Liste d'attente » that arrived and is not started yet, else the
+ * newest « Nouveauté ».
+ */
 export const homeRoutes = new Hono<Env>();
 homeRoutes.get("/", async (c) => json(await home(c.get("ctx"))));
 
 const HOME_ROW = 24;
 
 export async function home(ctx: RestContext): Promise<Home> {
-  const [resume, recentMovies, recentSeries, favKeys, watchedKeys] = await Promise.all([
+  const [resume, recentMovies, recentSeries, favKeys, watchedKeys, waitlistKeys] = await Promise.all([
     resumeKeys(20),
     db
       .select()
@@ -35,6 +39,7 @@ export async function home(ctx: RestContext): Promise<Home> {
       .limit(HOME_ROW),
     favoriteKeys(),
     mostWatchedKeys(),
+    availableWaitlistKeys(),
   ]);
   const rows: HomeRow[] = [];
   const resumeCards = await resumeCardsOf(ctx, resume);
@@ -48,7 +53,8 @@ export async function home(ctx: RestContext): Promise<Home> {
       cards: watched.slice(0, MOST_WATCHED_LIMIT).map((c) => gridCard(ctx, c)),
     });
   }
-  const progress = await getProgress([...recentMovies, ...recentSeries].map((c) => c.key));
+  const [awaited] = await contentsInOrder(ctx, waitlistKeys, "vod");
+  const progress = await getProgress([...recentMovies, ...recentSeries, ...(awaited ? [awaited] : [])].map((c) => c.key));
   if (recentMovies.length) {
     rows.push({
       id: "recent-movies",
@@ -67,7 +73,7 @@ export async function home(ctx: RestContext): Promise<Home> {
   }
   const favs = await contentsInOrder(ctx, favKeys);
   if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => gridCard(ctx, c)) });
-  const heroContent = recentMovies.find((c) => c.posterPath && c.backdropPath) ?? recentMovies[0];
+  const heroContent = awaited ?? recentMovies.find((c) => c.posterPath && c.backdropPath) ?? recentMovies[0];
   let hero: Home["hero"] = null;
   if (heroContent) {
     const versions = versionsOf(ctx, (await variantsOf(heroContent)).playables);
@@ -77,7 +83,7 @@ export async function home(ctx: RestContext): Promise<Home> {
         backdrop: backdropOf(ctx, heroContent),
         ...versionsSummary(versions),
       },
-      tagline: "FILM · NOUVEAUTÉ",
+      tagline: heroContent === awaited ? "FILM · ENFIN DISPONIBLE" : "FILM · NOUVEAUTÉ",
       overview: heroContent.overview,
       runtime: heroContent.runtime,
       certification: heroContent.certification,

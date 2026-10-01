@@ -1167,6 +1167,36 @@ describe("GET /top-shelf", () => {
   });
 });
 
+describe("« Liste d'attente »: hero and Top Shelf", () => {
+  it("an awaited movie that arrived is the hero and heads the Top Shelf until 5 % of it is played", async () => {
+    await db.insert(schema.curationWaitlist).values({ contentKey: "tmdb:movie:949", tmdbId: 949, title: "Heat" });
+    // Heat is visible already: the next regroup flags it available.
+    expect((await runGrouping()).waitlist_available).toBe(1);
+    expect((await get("/home")).body.hero).toMatchObject({ tagline: "FILM · ENFIN DISPONIBLE", card: { id: "tmdb:movie:949" } });
+    const [first] = (await get("/top-shelf")).body;
+    expect([first.reason, first.play_id, first.open_id, first.context]).toEqual([
+      "available",
+      "tmdb:movie:949",
+      "tmdb:movie:949",
+      "Enfin disponible",
+    ]);
+    // Opened a minute: still announced.
+    await call("/playback/tmdb:movie:949/progress", { method: "PUT", body: JSON.stringify({ position: 60, duration: 6000 }) });
+    expect((await get("/home")).body.hero.card.id).toBe("tmdb:movie:949");
+    // Started: « Reprendre » takes it over, the hero is the newest « Nouveauté » again.
+    await call("/playback/tmdb:movie:949/progress", { method: "PUT", body: JSON.stringify({ position: 600, duration: 6000 }) });
+    const { body } = await get("/home");
+    expect(body.hero.tagline).toBe("FILM · NOUVEAUTÉ");
+    expect(body.hero.card.id).not.toBe("tmdb:movie:949");
+    expect(body.rows.find((r: { id: string }) => r.id === "resume").cards.map((c: { id: string }) => c.id)).toContain("tmdb:movie:949");
+    expect((await get("/top-shelf")).body.map((i: { reason: string }) => i.reason)).not.toContain("available");
+    const [w] = await db.select().from(schema.curationWaitlist);
+    expect(w.startedAt).not.toBeNull();
+    await db.delete(schema.curationWaitlist);
+    await db.delete(schema.appWatchProgress).where(eq(schema.appWatchProgress.contentKey, "tmdb:movie:949"));
+  });
+});
+
 describe("guide per quality", () => {
   beforeAll(async () => {
     await seedItems([

@@ -506,6 +506,24 @@ export const curationStudios = pgTable(
   (t) => [uniqueIndex("curation_studios_kind_tmdb_idx").on(t.kind, t.tmdbId)],
 );
 
+/**
+ * « Liste d'attente »: movies chosen in the admin before the provider has them, by their content key
+ * (`tmdb:movie:<id>`). Title, year and poster are copied at the time, the list needs no catalogue.
+ * `available_at`: the first time a visible content carried the key; `started_at`: the first time the
+ * app played 5 % of it. Available and not started = the home hero and the head of the Top Shelf.
+ */
+export const curationWaitlist = pgTable("curation_waitlist", {
+  contentKey: text("content_key").primaryKey(),
+  tmdbId: integer("tmdb_id").notNull(),
+  title: text("title").notNull(),
+  year: integer("year"),
+  posterPath: text("poster_path"),
+  releaseDate: date("release_date"),
+  addedAt: timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
+  availableAt: timestamp("available_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+});
+
 /** TMDB's weekly trending lists, replaced by the `trending` step: the « Top 10 » rows cross them with the catalogue. */
 export const tmdbTrending = pgTable(
   "tmdb_trending",
@@ -528,3 +546,4 @@ export type TaskStep = typeof taskSteps.$inferSelect;
 export type TaskRun = typeof taskRuns.$inferSelect;
 export type IptvorgChannel = typeof iptvorgChannels.$inferSelect;
 export type Studio = typeof curationStudios.$inferSelect;
+export type WaitlistEntry = typeof curationWaitlist.$inferSelect;
