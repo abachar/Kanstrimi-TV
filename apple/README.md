@@ -52,7 +52,8 @@ partagé au plus spécifique :
    ressources.
 
 **Top Shelf** (tvOS) : six éléments au plus, composés par le serveur (dernier titre en cours, série commencée qui a reçu
-un épisode depuis la dernière lecture, puis les tops films de la semaine ; titres avec fond seulement). Lecture suit
+un épisode depuis la dernière lecture, puis les tops films de la semaine ; titres avec fond et logo TMDB seulement : tvOS
+n'affiche aucun titre dans le carrousel, le serveur le dessine dans l'image). Lecture suit
 `kanstrimi://play/<id>` (film ou épisode, repris là où il en était), Plus d'infos `kanstrimi://open/<id>` (la fiche) :
 `DeepLink`, `AppEnvironment.handle`. L'app écrit l'adresse du serveur dans le Keychain partagé (`DeviceStore.share`) et
 appelle `topShelfContentDidChange()` après chaque lecture (`TopShelf+tvOS.swift`). Sans jeton ou hors ligne, tvOS garde

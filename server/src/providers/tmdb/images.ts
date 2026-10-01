@@ -3,10 +3,11 @@ import path from "node:path";
 import { env } from "@/shared";
 
 const SIZES = new Set(["w92", "w154", "w185", "w300", "w342", "w500", "w780", "w1280", "original"]);
+const FILE = /^[A-Za-z0-9_-]+\.(jpg|jpeg|png|svg|webp)$/;
 
 /** Return local cache path for a TMDB image, downloading it if needed. */
 export async function ensureImage(size: string, file: string): Promise<{ path: string; contentType: string } | null> {
-  if (!SIZES.has(size) || !/^[A-Za-z0-9_-]+\.(jpg|jpeg|png|svg|webp)$/.test(file)) return null;
+  if (!SIZES.has(size) || !FILE.test(file)) return null;
   const dir = path.join(env.dataDir, "images", size);
   const p = path.join(dir, file);
   const contentType = file.endsWith(".png")
@@ -35,17 +36,71 @@ export async function cacheStats() {
   const root = path.join(env.dataDir, "images");
   let files = 0,
     bytes = 0;
-  try {
-    for (const size of await fs.readdir(root)) {
-      const dir = path.join(root, size);
-      for (const f of await fs.readdir(dir)) {
-        const st = await fs.stat(path.join(dir, f));
+  // `images/<size>/<file>`, and `images/shelf/<scale>/<file>` for the Top Shelf.
+  const walk = async (dir: string): Promise<void> => {
+    for (const e of await fs.readdir(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) await walk(p);
+      else {
         files++;
-        bytes += st.size;
+        bytes += (await fs.stat(p)).size;
       }
     }
-  } catch {
-    /* empty */
-  }
+  };
+  await walk(root).catch(() => {});
   return { files, bytes };
+}
+
+/** A Top Shelf image: 1920×1080 (`1x`) or 3840×2160 (`2x`). */
+export const SHELF_SCALES = { "1x": 1, "2x": 2 } as const;
+export type ShelfScale = keyof typeof SHELF_SCALES;
+
+/**
+ * The Apple TV carousel shows no title of its own: the title is drawn in the image, as Apple's own apps
+ * do. The backdrop filled to 16:9, darkened on the left, the TMDB title logo on the left above the
+ * carousel's buttons. Composed once, then served from the disk cache like any other image.
+ */
+export async function ensureShelfImage(
+  scale: ShelfScale,
+  backdrop: string,
+  logo: string,
+): Promise<{ path: string; contentType: string } | null> {
+  const s = SHELF_SCALES[scale];
+  if (!s || !FILE.test(backdrop) || !FILE.test(logo)) return null;
+  const dir = path.join(env.dataDir, "images", "shelf", scale);
+  const p = path.join(dir, `${path.parse(backdrop).name}_${path.parse(logo).name}.jpg`);
+  try {
+    await fs.access(p);
+    return { path: p, contentType: "image/jpeg" };
+  } catch {
+    /* compose */
+  }
+  const [bg, lg] = await Promise.all([ensureImage("original", backdrop), ensureImage(s === 2 ? "original" : "w500", logo)]);
+  if (!bg || !lg) return null;
+  const { default: sharp } = await import("sharp");
+  const width = 1920 * s,
+    height = 1080 * s;
+  // Above the buttons of the carousel, which sit low on the left: the logo's foot at 68 % of the height.
+  const box = { left: 96 * s, width: 620 * s, height: 230 * s, foot: Math.round(height * 0.68) };
+  const shade = Buffer.from(
+    `<svg width="${width}" height="${height}"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="0">` +
+      `<stop offset="0" stop-color="#000" stop-opacity="0.6"/><stop offset="0.55" stop-color="#000" stop-opacity="0"/>` +
+      `</linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`,
+  );
+  const mark = await sharp(lg.path, { density: 300 })
+    .resize({ width: box.width, height: box.height, fit: "inside" })
+    .png()
+    .toBuffer({ resolveWithObject: true });
+  const out = await sharp(bg.path)
+    .resize(width, height, { fit: "cover" })
+    .composite([
+      { input: shade, left: 0, top: 0 },
+      { input: mark.data, left: box.left, top: box.foot - mark.info.height },
+    ])
+    .jpeg({ quality: 86, mozjpeg: true })
+    .toBuffer();
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(p + ".part", out);
+  await fs.rename(p + ".part", p);
+  return { path: p, contentType: "image/jpeg" };
 }

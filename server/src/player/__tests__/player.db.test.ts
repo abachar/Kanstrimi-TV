@@ -1079,6 +1079,12 @@ describe("GET /top-shelf", () => {
   });
 
   it("the last title in progress, a started series with a new episode, then the week's top movies, each once", async () => {
+    // The carousel draws the title logo in the image: Heat and Vincenzo get one, Matrix has its own.
+    await db
+      .update(schema.catalogContents)
+      .set({ titleLogoPath: "/heat-logo.png" })
+      .where(eq(schema.catalogContents.key, "tmdb:movie:949"));
+    await db.update(schema.catalogContents).set({ titleLogoPath: "/v-logo.png" }).where(eq(schema.catalogContents.key, "tmdb:tv:1396"));
     await db.delete(schema.appWatchProgress);
     await db.insert(schema.appWatchProgress).values([
       progressRow("tmdb:movie:603", 1000, 8280, new Date()),
@@ -1095,14 +1101,24 @@ describe("GET /top-shelf", () => {
       // Matrix is already there: the top movies go on with Heat only.
       ["top", "tmdb:movie:949", "tmdb:movie:949", "N° 1 cette semaine"],
     ]);
+    const [matrix] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "tmdb:movie:603"));
     expect(body[0]).toMatchObject({
       title: "Matrix",
-      image: "http://kanstrimi.test/img/w1280/bd.jpg",
-      image_2x: "http://kanstrimi.test/img/original/bd.jpg",
+      image: `http://kanstrimi.test/img/shelf/1x/bd.jpg${matrix.titleLogoPath}`,
+      image_2x: `http://kanstrimi.test/img/shelf/2x/bd.jpg${matrix.titleLogoPath}`,
       duration: 8280,
       max_quality: "4K",
     });
-    expect(body[1].title).toBe("Vincenzo");
+    expect(body[1]).toMatchObject({ title: "Vincenzo", image: "http://kanstrimi.test/img/shelf/1x/vb.jpg/v-logo.png" });
+  });
+
+  it("a title without a TMDB logo is left out: the carousel would show it untitled", async () => {
+    await db.update(schema.catalogContents).set({ titleLogoPath: null }).where(eq(schema.catalogContents.key, "tmdb:movie:949"));
+    expect((await get("/top-shelf")).body.map((i: { open_id: string }) => i.open_id)).not.toContain("tmdb:movie:949");
+    await db
+      .update(schema.catalogContents)
+      .set({ titleLogoPath: "/heat-logo.png" })
+      .where(eq(schema.catalogContents.key, "tmdb:movie:949"));
   });
 
   it("no new episode once the next one is started, nor when the series has had no arrival since", async () => {

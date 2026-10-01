@@ -51,6 +51,8 @@ Ce qui vient après la V1.1 (tvOS et iPhone), par version, puis les idées non p
   - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la
     fiche d'un film ou d'une série, et proposés à la fin d'un film ou du dernier épisode connu d'une série.
 - Non planifiées :
+  - **Vidéo d'aperçu du Top Shelf** : tvOS la joue quand on s'attarde sur un élément du carrousel, mais il lui faut une vidéo
+    directe (HLS ou MP4). Les bandes-annonces TMDB sont sur YouTube (pas de lien direct) : à reprendre si une source directe se présente.
   - **Liste d'attente** : ajouter un film pas encore au catalogue (sortie récente, par son titre) et recevoir une notification
     dès qu'il devient disponible, c'est-à-dire qu'une source visible existe.
   - **Fond qui suit le focus (tvOS, POC)** : un film ou une série qui prend le focus change le fond de l'écran pour son

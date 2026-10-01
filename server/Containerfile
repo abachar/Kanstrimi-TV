@@ -2,7 +2,8 @@
 # ---------------------------------------------------------------- build
 # Debian/glibc rather than alpine: this app does a lot of outbound HTTP (Xtream,
 # api.themoviedb.org, image.tmdb.org) and musl's resolver is a known source of
-# intermittent EAI_AGAIN under concurrency. No native module needs compiling.
+# intermittent EAI_AGAIN under concurrency. No native module needs compiling: sharp
+# ships prebuilt binaries for linux-x64 glibc.
 FROM docker.io/library/node:22-bookworm-slim AS build
 WORKDIR /app
 
@@ -11,9 +12,18 @@ RUN npm ci
 
 COPY tsconfig.json ./
 COPY src ./src
-# esbuild bundles every dependency into dist/: the runtime image ships no
-# node_modules at all, and no TypeScript is transpiled at start-up.
+# esbuild bundles every dependency into dist/ but sharp: the runtime image ships
+# no other node_modules, and no TypeScript is transpiled at start-up.
 RUN npm run build
+
+# ---------------------------------------------------------------- sharp
+# The one dependency esbuild cannot bundle (native libvips, `--external:sharp`): installed
+# alone, at the lockfile's version, and copied as the runtime's only node_modules.
+FROM docker.io/library/node:22-bookworm-slim AS sharp
+WORKDIR /deps
+COPY package-lock.json /tmp/
+RUN npm install --no-save --no-package-lock --omit=dev \
+      "sharp@$(node -p "require('/tmp/package-lock.json').packages['node_modules/sharp'].version")"
 
 # ---------------------------------------------------------------- runtime
 FROM docker.io/library/node:22-bookworm-slim AS runtime
@@ -27,6 +37,7 @@ WORKDIR /app
 # Plain JavaScript plus the SQL migrations, which are data files read at run time
 # (dist/db/migrate.js finds ../drizzle by walking up from its own directory).
 COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=sharp --chown=node:node /deps/node_modules ./node_modules
 COPY --chown=node:node drizzle ./drizzle
 
 # The mount point must exist and belong to uid 1000: podman copies this ownership

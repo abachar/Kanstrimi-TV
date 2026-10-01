@@ -7,7 +7,6 @@ import { json } from "./http";
 import { contentByKey, variantsOf, visibleContent } from "./contents";
 import { getProgress, resumeKeys, type Progress } from "./progress";
 import { loadEpisodes } from "./episodes";
-import { imageUrl } from "./cards";
 import { drOf, qualityOfRank } from "./versions";
 import type { TopShelfItem } from "./types";
 
@@ -22,8 +21,8 @@ const NEW_EPISODE_CANDIDATES = 10;
 
 /**
  * The last title in progress, then a series started that received an episode since it was last
- * watched, then the week's top movies for the remaining places. Only titles with a backdrop (the
- * carousel shows nothing else), each once.
+ * watched, then the week's top movies for the remaining places. Only titles with a backdrop and a
+ * TMDB title logo (the carousel shows no title: it is drawn in the image), each once.
  */
 export async function topShelf(ctx: RestContext): Promise<TopShelfItem[]> {
   const items: TopShelfItem[] = [];
@@ -44,7 +43,7 @@ async function resumeItem(ctx: RestContext): Promise<TopShelfItem | null> {
     const parsed = parseKey(p.contentKey);
     if (!parsed) continue;
     const content = await contentByKey(ctx, parsed.seriesKey);
-    if (!content?.backdropPath) continue;
+    if (!hasShelfArt(content)) continue;
     const left = remaining(p);
     if (!isEpisodeKey(p.contentKey))
       return item(ctx, content, { id: p.contentKey, reason: "resume", context: `Reprendre · ${left}`, duration: p.duration });
@@ -76,7 +75,7 @@ async function newEpisodeItem(ctx: RestContext, skip: Set<string>): Promise<TopS
   for (const [key, at] of [...lastWatched].slice(0, NEW_EPISODE_CANDIDATES)) {
     if (skip.has(key)) continue;
     const content = await contentByKey(ctx, key);
-    if (!content?.backdropPath || content.addedAt <= at) continue;
+    if (!hasShelfArt(content) || content.addedAt <= at) continue;
     const { items, categoryName } = await variantsOf(content);
     try {
       await ensureEpisodes(content, items, ctx.tmdbLang);
@@ -108,7 +107,7 @@ async function topMovieItems(ctx: RestContext): Promise<TopShelfItem[]> {
       schema.tmdbTrending,
       and(eq(schema.tmdbTrending.tmdbId, schema.catalogContents.tmdbId), eq(schema.tmdbTrending.mediaType, "movie")),
     )
-    .where(and(visibleContent(ctx, "vod"), isNotNull(schema.catalogContents.backdropPath)))
+    .where(and(visibleContent(ctx, "vod"), isNotNull(schema.catalogContents.backdropPath), isNotNull(schema.catalogContents.titleLogoPath)))
     .orderBy(asc(schema.tmdbTrending.rank))
     .limit(TOP_SHELF_SIZE);
   return rows.map(({ content }, i) =>
@@ -136,8 +135,8 @@ function item(
     genre: c.genres[0] ?? null,
     duration: o.duration || null,
     release_date: c.releaseDate,
-    image: imageUrl(ctx.baseUrl, "w1280", c.backdropPath),
-    image_2x: imageUrl(ctx.baseUrl, "original", c.backdropPath),
+    image: shelfImage(ctx, c, "1x"),
+    image_2x: shelfImage(ctx, c, "2x"),
     cast: (c.cast ?? []).slice(0, 4).map((p) => p.name),
     ...(c.maxQualityRank ? { max_quality: qualityOfRank(c.maxQualityRank) } : {}),
     ...(dr ? { dynamic_range: dr } : {}),
@@ -145,6 +144,11 @@ function item(
     open_id: c.key,
   };
 }
+
+const hasShelfArt = (c: Content | null): c is Content => Boolean(c?.backdropPath && c.titleLogoPath);
+/** `/img/shelf/…`: the backdrop with the title logo drawn on it (`providers/tmdb`, `ensureShelfImage`). */
+const shelfImage = (ctx: RestContext, c: Content, scale: "1x" | "2x") =>
+  `${ctx.baseUrl}/img/shelf/${scale}/${c.backdropPath!.replace(/^\//, "")}/${c.titleLogoPath!.replace(/^\//, "")}`;
 
 /** « 40 min restantes », « 1 h 08 restantes ». */
 export function remaining(p: Pick<Progress, "position" | "duration">): string {
