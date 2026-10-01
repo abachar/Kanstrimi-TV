@@ -290,7 +290,8 @@ secondes est la bascule HDMI), zapping du direct par la route logicielle et flui
 (les accrocs repartent seuls, aucune relance de trop), Atmos rendu par des AirPods Max (EAC3 + JOC copié tel quel), saut profond
 dans un MKV, reprise depuis « Reprendre » et avance rapide, sous-titres dessinés par l'app, PGS et texte compris (paysage et portrait),
 Picture-in-Picture d'une chaîne et d'un film sur iPhone, par le bouton du lecteur comme par le balayage vers l'accueil, et
-boutons de sa fenêtre, rotation physique du téléphone, focus de la barre tvOS sur le bouton du panneau ouvert.
+boutons de sa fenêtre, rotation physique du téléphone, chaînes les plus regardées (rangée d'accueil et catégorie du Direct,
+mises à jour en quittant le lecteur), Top Shelf (carrousel, logo dans l'image, Jouer et En savoir plus), focus de la barre tvOS sur le bouton du panneau ouvert.
 
 La pastille « Atmos » vient de `TrackInfo.isAtmos`, juste quand l'audio est en tête du fichier ; la confirmation du moteur
 (`LoadOptions.confirmAtmos`) ouvrirait une seconde connexion, exclue par le fournisseur.
