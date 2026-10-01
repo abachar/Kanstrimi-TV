@@ -8,7 +8,7 @@ import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./con
 import { getProgress, resumeKeys, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
-import { baseCard, gridCard, progressWire, sheetCard } from "./cards";
+import { artBlock, baseCard, gridCard, progressWire, sheetCard } from "./cards";
 import { versionsOf, versionsSummary } from "./versions";
 import { type ShelfPick, shelfPicks, TOP_SHELF_SIZE } from "./top-shelf";
 import type { Card, Home, HomeHero, HomeRow } from "./types";
@@ -92,7 +92,8 @@ async function heroOf(
   const { content: c, episode: e } = p;
   const versions = versionsOf(ctx, e ? e.playables : (await variantsOf(c)).playables);
   return {
-    card: { ...gridCard(ctx, c, progress), backdrop: backdropOf(ctx, c), ...versionsSummary(versions) },
+    // The title's logo too: the slide draws it in place of the title, as the sheet does.
+    card: { ...gridCard(ctx, c, progress), ...artBlock(ctx, c), ...versionsSummary(versions) },
     tagline: `${c.kind === "series" ? "Série" : "Film"} · ${p.context}`.toLocaleUpperCase("fr-FR"),
     overview: e?.overview || c.overview,
     runtime: e ? e.runtime : c.runtime,

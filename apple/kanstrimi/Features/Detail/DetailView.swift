@@ -560,13 +560,16 @@ struct TitleLogo: View {
     let logo: URL?
     /// Home hero on a phone: centred, the text shrinking a little rather than being cut.
     var centered = false
+    /// The logo's box; the sheet's by default.
+    var maxSize: CGSize?
 
     var body: some View {
         if let logo {
             AsyncImage(url: logo) { phase in
                 if let image = phase.image {
                     image.resizable().scaledToFit()
-                        .frame(maxWidth: metrics.detailLogo.width, maxHeight: metrics.detailLogo.height, alignment: centered ? .center : .leading)
+                        .frame(maxWidth: (maxSize ?? metrics.detailLogo).width, maxHeight: (maxSize ?? metrics.detailLogo).height,
+                               alignment: centered ? .center : .leading)
                         .shadow(color: .black.opacity(0.5), radius: 12)
                         .accessibilityLabel(title)
                 } else {

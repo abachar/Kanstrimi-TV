@@ -1149,6 +1149,8 @@ describe("GET /top-shelf", () => {
       ["FILM · N° 1 CETTE SEMAINE", "tmdb:movie:949", "tmdb:movie:949"],
       ["FILM · N° 2 CETTE SEMAINE", "tmdb:movie:603", "tmdb:movie:603"],
     ]);
+    // Each slide carries the title's logo, drawn in place of the title.
+    expect(heroes[0].card.logo).toBe("http://kanstrimi.test/img/w500/v-logo.png");
     // Lecture plays the episode, with its own versions.
     expect(heroes[0].episode).toEqual({ season: 1, number: 2, title: "Épisode 2" });
     expect(heroes[0].versions.length).toBeGreaterThan(0);

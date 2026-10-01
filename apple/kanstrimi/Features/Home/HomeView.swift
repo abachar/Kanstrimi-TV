@@ -197,9 +197,15 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(hero.tagline).font(.caption.weight(.bold)).tracking(2.5).foregroundStyle(Theme.accent)
-                    // Wider than running text: a long title keeps two lines instead of being cut.
-                    Text(hero.card.title).font(.system(size: metrics.heroTitle, weight: .heavy)).lineLimit(2).minimumScaleFactor(0.85)
-                        .frame(maxWidth: metrics.textWidth * 1.4, alignment: .leading)
+                    if hero.card.logo != nil {
+                        // As high as the two lines of title it replaces: the slide keeps its height under the tab bar.
+                        TitleLogo(title: hero.card.title, logo: hero.card.logo,
+                                  maxSize: CGSize(width: metrics.textWidth * 0.6, height: metrics.heroTitle * 2.1))
+                    } else {
+                        // Wider than running text: a long title keeps two lines instead of being cut.
+                        Text(hero.card.title).font(.system(size: metrics.heroTitle, weight: .heavy)).lineLimit(2).minimumScaleFactor(0.85)
+                            .frame(maxWidth: metrics.textWidth * 1.4, alignment: .leading)
+                    }
                     HStack(spacing: 12) {
                         Text(facts(hero)).foregroundStyle(Theme.secondary)
                         if let c = hero.certification { Badge(c) }
