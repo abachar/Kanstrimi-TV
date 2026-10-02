@@ -47,6 +47,10 @@ Ce qui vient après la V1.2 (tvOS et iPhone), par version, puis les idées non p
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la
     fiche d'un film ou d'une série, et proposés à la fin d'un film ou du dernier épisode connu d'une série.
+  - **Scènes pendant et après le générique** : les mots-clés TMDB `duringcreditsstinger` et `aftercreditsstinger` les
+    annoncent (justes sur les films vérifiés, saisis par la communauté donc parfois absents). Servirait à la proposition
+    du film suivant : la faire dès le générique, ou attendre la fin quand une scène est annoncée. Demande de détecter le
+    début du générique (rien aujourd'hui) et de récupérer les mots-clés à l'enrichissement.
   - **Notification de la liste d'attente** : une alerte push (APNs) sur l'iPhone, une pastille sur l'Apple TV, quand un film
     attendu arrive. Demande le programme Apple Developer payant.
   - **Vidéo d'aperçu du Top Shelf** : tvOS la joue quand on s'attarde sur un élément du carrousel, mais il lui faut une vidéo
