@@ -730,7 +730,15 @@ final class PlayerService {
                 return
             }
             phase = .ended
-            if context?.next != nil, nextContext != nil, !nextTriggered, preferences.autoPlayNext { playNextNow() }
+            if context?.next != nil, nextContext != nil, !nextTriggered, preferences.autoPlayNext {
+                playNextNow()
+            } else {
+                // Nothing follows (a film, the last episode, the countdown off or cancelled): back to the sheet,
+                // the title reported as seen to its end.
+                time = duration
+                stop()
+                return
+            }
         case .error:
             if let info = engine.errorInfo {
                 log.info("error \(String(describing: info.kind)) \(info.underlyingDomain ?? "-") \(info.underlyingCode ?? 0)")
