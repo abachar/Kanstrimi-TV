@@ -363,6 +363,8 @@ describe("GET /movies and /series", () => {
       kind: "movie",
       title: "Matrix",
       poster: "http://kanstrimi.test/img/w500/abc.jpg",
+      // Small: the Films screen blurs it behind the rows (tvOS).
+      backdrop: "http://kanstrimi.test/img/w300/bd.jpg",
       max_quality: "4K",
       dynamic_range: "DV",
       languages: ["VF", "VOSTFR"],
@@ -377,6 +379,7 @@ describe("GET /movies and /series", () => {
     const s = (await get("/series")).body;
     expect(s[0]).toMatchObject({ id: "recent", name: "Derniers épisodes", total: 1 });
     expect(s[0].series[0].id).toBe("tmdb:tv:20000".replace("20000", "1396"));
+    expect(s[0].series[0].backdrop).toBeUndefined();
   });
 
   it("list: cursor pagination, sort and filters", async () => {

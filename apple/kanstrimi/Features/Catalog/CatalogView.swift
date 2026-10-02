@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Films and Séries: the server's shelves (`GET /movies`, `GET /series`: Top 10, Nouveautés, genres),
 /// then after « Nouveautés » the studio hubs and, for films, the sagas. « Voir tout » opens a paginated grid.
@@ -16,6 +17,9 @@ struct CatalogView: View {
     @State private var openSaga: SagaRef?
     @State private var openStudio: Studio?
     @State private var allSagas = false
+    /// tvOS, Films (POC): the backdrop of the card in focus, and the one on screen once the focus has rested.
+    @State private var focusedBackdrop: URL?
+    @State private var backdrop: URL?
 
     var body: some View {
         Group {
@@ -36,7 +40,8 @@ struct CatalogView: View {
                         }
                         ForEach(rows) { row in
                             ShelfRow(row: row, ranked: row.id == "top10", onSelect: { env.open($0.id) },
-                                     onSeeAll: row.total > row.cards.count ? { seeAll(row) } : nil)
+                                     onSeeAll: row.total > row.cards.count ? { seeAll(row) } : nil,
+                                     onFocus: followsFocus ? { if let b = $0.backdrop { focusedBackdrop = b } } : nil)
                             if row.id == hubsAnchor {
                                 if let studios, !studios.isEmpty { StudioShelf(studios: studios) { open($0) } }
                                 if let sagas, !sagas.items.isEmpty {
@@ -53,7 +58,14 @@ struct CatalogView: View {
                 .ignoresSafeArea(edges: .horizontal)
             }
         }
-        .background(Theme.background)
+        .background {
+            if followsFocus { FocusBackdrop(url: backdrop) } else { Theme.background }
+        }
+        // Scrolling fast changes nothing: the background follows a card only once the focus rests on it.
+        .task(id: focusedBackdrop) {
+            try? await Task.sleep(for: .milliseconds(400))
+            if !Task.isCancelled { backdrop = focusedBackdrop }
+        }
         .phoneLargeTitle(kind == .series ? "Séries" : "Films")
         // Every appearance: on tvOS, crossing the tab bar selects then leaves this tab, which cancels the load midway.
         .task { await load() }
@@ -70,6 +82,9 @@ struct CatalogView: View {
             SagasGridView().environment(env)
         }
     }
+
+    /// The background follows the focused card: a POC on tvOS, Films only.
+    private var followsFocus: Bool { Platform.isTV && kind == .movie }
 
     /// Studios and sagas come after « Nouveautés », or after the first shelf when there is none.
     private var hubsAnchor: String? { rows.first { $0.id == "recent" }?.id ?? rows.first?.id }
@@ -117,6 +132,8 @@ struct ShelfRow: View {
     var ranked = false
     let onSelect: (Card) -> Void
     var onSeeAll: (() -> Void)?
+    /// A card took the focus (tvOS).
+    var onFocus: ((Card) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -137,6 +154,7 @@ struct ShelfRow: View {
                             }
                             PosterCard(card: c) { onSelect(c) }
                                 .posterMenu(c)
+                                .modifier(FocusReport { onFocus?(c) })
                         }
                     }
                     if let onSeeAll { SeeAllCard(total: row.total, action: onSeeAll) }
@@ -145,6 +163,44 @@ struct ShelfRow: View {
                 .padding(.vertical, metrics.rowPadding)
             }
             .scrollClipDisabled()
+        }
+    }
+}
+
+/// Calls `action` when the view takes the focus.
+private struct FocusReport: ViewModifier {
+    let action: () -> Void
+    @FocusState private var focused: Bool
+
+    func body(content: Content) -> some View {
+        content.focused($focused).onChange(of: focused) { _, now in if now { action() } }
+    }
+}
+
+/// The focused film's backdrop behind the rows, blurred down to its colours and dimmed so the posters
+/// keep the eye, faded from one to the next. Black until the first one has loaded.
+private struct FocusBackdrop: View {
+    let url: URL?
+    @State private var shown: (url: URL, image: Image)?
+
+    var body: some View {
+        ZStack {
+            Theme.background
+            if let shown {
+                // The rectangle sets the size: the image fills it without dictating it.
+                Rectangle().fill(.clear)
+                    .overlay { shown.image.resizable().scaledToFill().blur(radius: 50, opaque: true) }
+                    .clipped()
+                    .opacity(0.5)
+                    .id(shown.url)
+                    .transition(.opacity)
+            }
+        }
+        .ignoresSafeArea()
+        .task(id: url) {
+            guard let url, let (data, _) = try? await URLSession.shared.data(from: url), let image = UIImage(data: data),
+                  !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.6)) { shown = (url, Image(uiImage: image)) }
         }
     }
 }

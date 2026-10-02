@@ -10,7 +10,7 @@ import { BadRequest, json } from "./http";
 import { isNewRelease, visibleContent } from "./contents";
 import { studioFilter } from "./studios";
 import { getProgress } from "./progress";
-import { gridCard } from "./cards";
+import { gridCard, imageUrl } from "./cards";
 import type { CatalogRow, Page } from "./types";
 
 /** `/movies`, `/series`: the rows of the catalogue screen, or one filtered, cursor-paginated list ("Voir tout"). */
@@ -102,9 +102,12 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
   }
   const progress = await getProgress(rows.flatMap((r) => r.cards.map((c) => c.key)));
   const field = kind === "series" ? "series" : "movies";
-  return rows.map(
-    (r) => ({ id: r.id, name: r.name, total: r.total, [field]: r.cards.map((c) => gridCard(ctx, c, progress.get(c.key))) }) as CatalogRow,
-  );
+  // Films (tvOS POC): the screen's background follows the focused card, a small backdrop blurred behind the rows.
+  const card = (c: Content) => ({
+    ...gridCard(ctx, c, progress.get(c.key)),
+    ...(kind === "vod" ? { backdrop: imageUrl(ctx.baseUrl, "w300", c.backdropPath) || null } : {}),
+  });
+  return rows.map((r) => ({ id: r.id, name: r.name, total: r.total, [field]: r.cards.map(card) }) as CatalogRow);
 }
 
 /** TMDB's weekly trending order (the `trending` step), kept to what the app sees. */
