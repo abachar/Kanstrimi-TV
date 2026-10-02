@@ -80,7 +80,7 @@ export type Card = {
   current_episode?: EpisodeRef | null;
   /** Movie sheet: its saga, present only when two of its movies are visible. */
   saga?: SagaRef;
-  /** Sheet: « Si vous avez aimé… », TMDB's recommendations in the catalogue, nothing already seen, twenty at most. */
+  /** Sheet: « Si vous avez aimé… », TMDB's recommendations in the catalogue, nothing already seen, ten at most. */
   related?: Card[];
 };
 

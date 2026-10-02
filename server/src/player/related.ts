@@ -19,7 +19,7 @@ import type { Card, Suggestion, Suggestions } from "./types";
 const SHEET_WAIT_MS = 2000;
 /** The player asks once playback has started: it can wait longer. */
 const PLAYER_WAIT_MS = 4000;
-const SHEET_RELATED = 20;
+const SHEET_RELATED = 10;
 const PLAYER_RELATED = 5;
 const HOME_RELATED = 24;
 /** The home row's seeds: the titles last watched, plus « Ma liste ». */
@@ -81,7 +81,7 @@ function detailCard(ctx: RestContext, c: Content, progress?: Progress): Card {
   return { ...gridCard(ctx, c, progress), ...artBlock(ctx, c), overview: c.overview, runtime: c.runtime };
 }
 
-/** The sheet's row: nothing seen, twenty at most. */
+/** The sheet's row: nothing seen, ten at most. */
 export async function sheetRelated(ctx: RestContext, content: Content): Promise<Card[]> {
   const candidates = await recommendedContents(ctx, content, SHEET_WAIT_MS);
   const states = await watchStates(candidates);

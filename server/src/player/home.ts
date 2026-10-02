@@ -16,7 +16,7 @@ import type { Card, Home, HomeHero, HomeRow } from "./types";
 
 /**
  * `/home`: the carousel (the Top Shelf without « Reprendre »), "Reprendre", "Chaînes les plus
- * regardées", "Recommandé pour vous", recent movies and series, "Ma liste".
+ * regardées", recent movies and series, "Ma liste", "Recommandé pour vous".
  */
 export const homeRoutes = new Hono<Env>();
 homeRoutes.get("/", async (c) => json(await home(c.get("ctx"))));
@@ -55,7 +55,6 @@ export async function home(ctx: RestContext): Promise<Home> {
       cards: watched.slice(0, MOST_WATCHED_LIMIT).map((c) => gridCard(ctx, c)),
     });
   }
-  if (recommended.length) rows.push({ id: "recommended", kind: "recommended", title: "Recommandé pour vous", cards: recommended });
   // A lifeboat: no pick at all (no TMDB trend in the catalogue, nothing awaited) still leaves a carousel.
   const slides: Pick<ShelfPick, "content" | "playId" | "context" | "episode">[] = picks.length
     ? picks
@@ -82,6 +81,7 @@ export async function home(ctx: RestContext): Promise<Home> {
   }
   const favs = await contentsInOrder(ctx, favKeys);
   if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => gridCard(ctx, c)) });
+  if (recommended.length) rows.push({ id: "recommended", kind: "recommended", title: "Recommandé pour vous", cards: recommended });
   const heroes = await Promise.all(slides.map((p) => heroOf(ctx, p, progress.get(p.content.key))));
   return { heroes, rows, generated_at: new Date().toISOString() };
 }

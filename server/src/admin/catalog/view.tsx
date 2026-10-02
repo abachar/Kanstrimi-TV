@@ -50,7 +50,6 @@ export function CatalogShell({ qy, children }: { qy: CatalogQuery; children?: un
   );
 }
 
-
 /** Filters, then the foldable categories (rows loaded on demand), or the flat, paginated hits of a search. */
 export function CatalogView({
   qy,
