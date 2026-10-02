@@ -2,16 +2,16 @@ import { Hono } from "hono";
 import { countItems, pageItems, itemCountByCategory } from "./data";
 import { categoriesOfKind, categoryByXtreamId, itemById } from "@/catalog";
 import { isCategoryHidden, setItemHiddenManual, setCategoryHiddenManual } from "@/db";
-import { pageGroups } from "../groups/data";
 import { searchCandidates, assignManual } from "@/catalog";
 import { page, form, checked } from "../http";
 import { KIND_TITLES } from "../labels";
-import { GroupsView } from "../groups/view";
-import { parseGroupsQuery } from "../groups/query";
 import { getSettings } from "@/config";
 import { channelGroups, contextFor } from "@/player";
 import { CatalogShell, CatalogView } from "./view";
 import { AppLiveView } from "./app-live";
+import { AppCatalogView, ShelfRows } from "./app-catalog";
+import { shelfPage, shelvesOf } from "./app-data";
+import { kindParam } from "../query";
 import { isSearch } from "./query";
 import { CategoryItems, ItemRow } from "./row";
 import { TmdbCell } from "./tmdb-cell";
@@ -22,24 +22,22 @@ export const catalogRoutes = new Hono();
 catalogRoutes.get("/", async (c) => {
   const qy = parseCatalogQuery(c.req.query());
   const title = KIND_TITLES[qy.kind];
-  if (qy.view === "groups") {
-    const gq = parseGroupsQuery(c.req.query());
-    const { rows, total } = await pageGroups(gq, gq.page);
+  if (qy.view === "catalog") {
+    // What a device-less app gets: the same functions as `/player`, the adult setting included.
+    const ctx = contextFor(c.req.raw, null, await getSettings());
+    if (qy.kind === "live")
+      return page(
+        c,
+        title,
+        <CatalogShell qy={qy}>
+          <AppLiveView groups={await channelGroups(ctx)} />
+        </CatalogShell>,
+      );
     return page(
       c,
       title,
       <CatalogShell qy={qy}>
-        <GroupsView qy={gq} rows={rows} total={total} />
-      </CatalogShell>,
-    );
-  }
-  if (qy.view === "app") {
-    const groups = await channelGroups(contextFor(c.req.raw, null, await getSettings()));
-    return page(
-      c,
-      title,
-      <CatalogShell qy={qy}>
-        <AppLiveView groups={groups} />
+        <AppCatalogView kind={qy.kind} shelves={await shelvesOf(ctx, qy.kind)} />
       </CatalogShell>,
     );
   }
@@ -52,7 +50,18 @@ catalogRoutes.get("/", async (c) => {
   return page(c, title, <CatalogView qy={qy} cats={cats} rows={rows} total={total} catCounts={catCounts} />);
 });
 
-/** One page of a category, for the grouped view's lazy loading and its infinite scroll. */
+/** One page of a shelf of the « Catalogue » view, at its first opening and as it scrolls. */
+catalogRoutes.get("/shelf", async (c) => {
+  const kind = kindParam(c.req.query("kind"));
+  const shelf = c.req.query("shelf") ?? "";
+  if (kind === "live") return c.notFound();
+  const ctx = contextFor(c.req.raw, null, await getSettings());
+  const result = await shelfPage(ctx, kind, shelf, c.req.query("cursor") || undefined);
+  if (!result) return c.notFound();
+  return c.html(<ShelfRows kind={kind} shelf={shelf} page={result} n={Number(c.req.query("n")) || 0} />);
+});
+
+/** One page of a category, for the Xtream view's lazy loading and its infinite scroll. */
 catalogRoutes.get("/items", async (c) => {
   const qy = parseCatalogQuery(c.req.query());
   if (!qy.cat) return c.body(null, 204);
@@ -69,7 +78,7 @@ catalogRoutes.get("/items", async (c) => {
 catalogRoutes.post("/:scope{item|category}/:id/visible", async (c) => {
   const id = Number(c.req.param("id"));
   const hiddenManual = !(await checked(c, "visible"));
-  if (c.req.param("scope") === "category") {
+  if (c.req.param("scope") === "category" || c.req.query("reload")) {
     await setCategoryHiddenManual(id, hiddenManual);
     c.header("HX-Refresh", "true");
     return c.body(null, 204);

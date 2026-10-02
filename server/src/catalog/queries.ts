@@ -14,6 +14,11 @@ export async function contentById(id: number): Promise<Content | null> {
   return c ?? null;
 }
 
+export async function contentIdByKey(key: string): Promise<number | null> {
+  const [c] = await db.select({ id: schema.catalogContents.id }).from(schema.catalogContents).where(eq(schema.catalogContents.key, key));
+  return c?.id ?? null;
+}
+
 export async function categoryByXtreamId(kind: Kind, xtreamId: string | null): Promise<Category | null> {
   if (!xtreamId) return null;
   const [c] = await db

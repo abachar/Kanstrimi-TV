@@ -34,7 +34,7 @@ beforeAll(async () => {
     { kind: "vod", xtreamId: "10", name: "|FR| FILMS" },
     { kind: "live", xtreamId: "20", name: "FRANCE | TV" },
   ]);
-  await seedTmdb("movie", 603, { title: "Matrix", release_date: "1999-03-31" });
+  await seedTmdb("movie", 603, { title: "Matrix", release_date: "1999-03-31", genres: [{ id: 878, name: "Science-Fiction" }] });
   const items = await seedItems([
     { kind: "vod", xtreamId: "1", name: "|FR| Matrix (4K)", cat: "10", tmdbId: 603, matchStatus: "matched" },
     { kind: "vod", xtreamId: "2", name: "|FR| Matrix (VOST)", cat: "10", tmdbId: 603, matchStatus: "matched" },
@@ -79,23 +79,38 @@ describe("admin", () => {
 
   it("renders every page", async () => {
     expect(await html("/admin")).toContain("Tableau de bord");
-    expect(await html("/admin/catalog?kind=vod")).toContain("|FR| FILMS");
-    expect(await html("/admin/catalog?kind=vod&vis=hidden")).not.toContain("|FR| FILMS"); // nothing hidden under it
-    expect(await html("/admin/catalog?kind=vod&vis=all")).toContain("|FR| FILMS");
-    expect(await html("/admin/catalog?kind=vod&q=matrix")).toContain("Matrix (VOST)");
-    expect(await html("/admin/catalog?kind=live&q=tf1")).not.toContain("TMDB associé");
-    expect(await html("/admin/catalog?kind=live&view=app")).toContain("France · ");
-    expect(await html("/admin/catalog?kind=live&view=groups")).toContain("Application"); // live has no variant view: falls back to app
-    const groups = await html("/admin/catalog?kind=vod&view=groups");
-    expect(groups).toContain("2 variantes");
-    expect(groups).toContain("Groupes");
-    expect(await html("/admin/catalog/items?kind=vod&cat=10&view=grouped&page=1")).toContain("Matrix (4K)");
-    const live = await html("/admin/catalog?kind=live");
+    // « Catalogue » by default: the app's shelves, folded, each title leading to its content's page.
+    const shelves = await html("/admin/catalog?kind=vod");
+    expect(shelves).toContain("Science-Fiction"); // a genre shelf
+    const genre = await html("/admin/catalog/shelf?kind=vod&shelf=genre%3Ascience-fiction");
+    expect(genre).toContain(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`);
+    expect(genre).toContain("Variantes");
+    expect((await call("/admin/catalog/shelf?kind=vod&shelf=nope")).status).toBe(404);
+    expect((await call("/admin/catalog/shelf?kind=live&shelf=recent")).status).toBe(404);
+    expect(await html("/admin/catalog?kind=series")).toContain("Catalogue");
+    expect(await html("/admin/catalog?kind=vod&view=xtream")).toContain("|FR| FILMS");
+    expect(await html("/admin/catalog?kind=vod&view=grouped")).toContain("|FR| FILMS"); // the former name of the Xtream view
+    expect(await html("/admin/catalog?kind=vod&view=xtream&vis=hidden")).not.toContain("|FR| FILMS"); // nothing hidden under it
+    expect(await html("/admin/catalog?kind=vod&view=xtream&vis=all")).toContain("|FR| FILMS");
+    expect(await html("/admin/catalog?kind=vod&view=xtream&q=matrix")).toContain("Matrix (VOST)");
+    expect(await html("/admin/catalog?kind=live&view=xtream&q=tf1")).not.toContain("TMDB associé");
+    expect(await html("/admin/catalog?kind=live")).toContain('id="live-groups"');
+    expect(await html("/admin/catalog/items?kind=vod&cat=10&view=xtream&page=1")).toContain("Matrix (4K)");
+    const live = await html("/admin/catalog?kind=live&view=xtream");
     expect(live).toContain("Sans catégorie");
     expect(live).toContain("1 sans catégorie");
     expect(await html("/admin/catalog/items?kind=live&cat=_none&page=1")).toContain("BELLA RADIO");
-    expect(await html("/admin/catalog?kind=live&q=bella")).toContain("Sans catégorie"); // the category column of a hit
-    expect(await html(`/admin/item/${matrixId}`)).toContain("Afficher le JSON brut");
+    expect(await html("/admin/catalog?kind=live&view=xtream&q=bella")).toContain("Sans catégorie"); // the category column of a hit
+    // An entry opens on its content's page, itself unfolded among the others.
+    const toContent = (await call(`/admin/item/${matrixId}`)).headers.get("location")!;
+    expect(toContent).toMatch(new RegExp(`^/admin/content/\\d+\\?v=${matrixId}#variant-${matrixId}$`));
+    const sheet = await html(toContent);
+    expect(sheet).toContain("Afficher le JSON brut");
+    expect(sheet).toContain("2 variantes");
+    expect(sheet).toContain("Séparer");
+    expect((await call(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`)).headers.get("location")).toBe(toContent.split("?")[0]);
+    expect((await call("/admin/content/k/nope")).status).toBe(404);
+    expect((await call("/admin/content/999999")).status).toBe(404);
     expect(await html("/admin/rules")).toContain("Nouvelle règle");
     expect(await html("/admin/devices")).toContain("Aucun appareil");
     const logs = await html("/admin/tasks");
@@ -217,16 +232,16 @@ describe("admin", () => {
     expect(await html("/admin/rules")).toContain("Aucune règle");
   });
 
-  it("groups: split a variant and put it back through the HTMX endpoints", async () => {
-    const groupsPage = await html("/admin/catalog?kind=vod&view=groups");
-    const contentId = /hx-get="\/admin\/catalog\/groups\/(\d+)"/.exec(groupsPage)![1];
-    const variants = await html(`/admin/catalog/groups/${contentId}`);
-    expect(variants).toContain("Séparer");
-    const split = await post(`/admin/catalog/groups/split/${matrixId}`, {});
-    expect(await split.text()).toContain("1 variante<");
-    const reset = await post(`/admin/catalog/groups/reset/${matrixId}`, {});
-    expect(await reset.text()).toContain("2 variantes");
-    expect((await call("/admin/catalog/groups/merge-form/1")).status).toBe(200);
+  it("content page: split a variant and put it back, the page following the variant", async () => {
+    const split = await post(`/admin/item/${matrixId}/split`, {});
+    const alone = split.headers.get("hx-redirect")!;
+    expect(alone).toMatch(/^\/admin\/content\/\d+\?v=\d+&ok=.+#variant-\d+$/);
+    const page = await html(alone);
+    expect(page).toContain("1 variante visible sur 1");
+    expect(page).toContain("Revenir au groupement automatique");
+    const reset = await post(`/admin/item/${matrixId}/reset`, {});
+    expect(await html(reset.headers.get("hx-redirect")!)).toContain("2 variantes");
+    expect((await call(`/admin/item/${matrixId}/merge-form`)).status).toBe(200);
   });
 
   it("waitlist: search TMDB, add a movie, remove it", async () => {

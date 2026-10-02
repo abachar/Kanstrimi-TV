@@ -2,11 +2,12 @@ import type { ChannelGroupWire, ChannelWire, Version } from "@/player";
 import { fmt } from "../format";
 import { Badge, Empty, Table } from "../ui";
 import { Icon } from "../icons";
+import { contentKeyLink } from "../content/links";
 
 /**
- * « Application » view of the live kind: the channel groups (market · theme) exactly as
- * `/player/channels` serves them, read through the same function with a device-less context.
- * Read-only: a channel is corrected from its entry, reached through the search.
+ * « Catalogue » view of the live kind: the channel groups (country · theme) exactly as
+ * `/player/channels` serves them, read through the same function with a device-less context,
+ * one heading per country. Read-only: a channel opens its page, where its entries are corrected.
  */
 
 /** « FHD · VF · 2 sources » */
@@ -31,11 +32,7 @@ const ChannelRow = ({ ch }: { ch: ChannelWire }) => (
         ) : (
           ""
         )}
-        <a
-          class="font-medium hover:underline"
-          href={`/admin/catalog?kind=live&vis=all&q=${encodeURIComponent(ch.name)}`}
-          title="Retrouver les entrées"
-        >
+        <a class="font-medium hover:underline" href={contentKeyLink(ch.id)} title="Ouvrir la chaîne et ses variantes">
           {ch.name}
         </a>
       </span>
@@ -46,44 +43,56 @@ const ChannelRow = ({ ch }: { ch: ChannelWire }) => (
   </tr>
 );
 
+/** The groups under their country, in the server's order. */
+function sections(groups: ChannelGroupWire[]): [string, ChannelGroupWire[]][] {
+  const out = new Map<string, ChannelGroupWire[]>();
+  for (const g of groups) out.set(g.section, [...(out.get(g.section) ?? []), g]);
+  return [...out];
+}
+
 export function AppLiveView({ groups }: { groups: ChannelGroupWire[] }) {
   const total = groups.reduce((n, g) => n + g.channels.length, 0);
   return (
     <>
       <p class="text-sm text-muted-foreground">
         Lecture seule : les {fmt(groups.length)} groupes et {fmt(total)} chaînes que l'app reçoit (contenus visibles, adultes selon le
-        réglage). Cliquer une chaîne retrouve ses entrées pour les corriger.
+        réglage). Cliquer une chaîne ouvre sa fiche et ses variantes.
       </p>
       {groups.length === 0 && <Empty title="Aucun groupe" sub="Aucune chaîne visible pour l'app." />}
       {groups.length > 0 && (
         <div class="flex flex-col divide-y overflow-hidden rounded-xl border" id="live-groups">
           {/* `name` makes the groups exclusive: opening one closes the other, as the former accordion did. */}
-          {groups.map((g) => (
-            <details id={`grp-${g.id}`} name="live-groups">
-              <summary class="flex h-12 w-full min-w-0 items-center gap-2 bg-muted/30 px-4 text-sm hover:bg-muted/50">
-                <span class="truncate font-medium">{g.name}</span>
-                <Badge tone="plain">{fmt(g.channels.length)}</Badge>
-              </summary>
-              <div class="border-t px-2">
-                <Table>
-                  <thead>
-                    <tr>
-                      <th class="text-end">N°</th>
-                      <th></th>
-                      <th>Chaîne</th>
-                      <th>Qualité</th>
-                      <th>Versions</th>
-                      <th>EPG</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {g.channels.map((ch) => (
-                      <ChannelRow ch={ch} />
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
-            </details>
+          {sections(groups).map(([section, gs]) => (
+            <>
+              <h2 class="bg-muted/60 px-4 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{section}</h2>
+              {gs.map((g) => (
+                <details id={`grp-${g.id}`} name="live-groups">
+                  <summary class="flex h-12 w-full min-w-0 items-center gap-2 bg-muted/30 px-4 text-sm hover:bg-muted/50">
+                    <span class="truncate font-medium">{g.theme}</span>
+                    <Badge tone="plain">{fmt(g.channels.length)}</Badge>
+                  </summary>
+                  <div class="border-t px-2">
+                    <Table>
+                      <thead>
+                        <tr>
+                          <th class="text-end">N°</th>
+                          <th></th>
+                          <th>Chaîne</th>
+                          <th>Qualité</th>
+                          <th>Versions</th>
+                          <th>EPG</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {g.channels.map((ch) => (
+                          <ChannelRow ch={ch} />
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
+                </details>
+              ))}
+            </>
           ))}
         </div>
       )}

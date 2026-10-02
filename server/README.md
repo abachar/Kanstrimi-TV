@@ -91,6 +91,10 @@ shared/     utilitaires ; n'importe jamais `@/`
 - **Une lib plutôt qu'une roue réinventée** : `croner`, `cronstrue`, zod, `hono/secure-headers`. Restent maison à dessein :
   la similarité de titres, les clients Xtream et TMDB, le logger.
 - **Admin** : uniquement des classes Tailwind et Basecoat écrites en entier, pas d'attribut `style`.
+- **Écrans Live, Films, Séries de l'admin** : « Catalogue » (par défaut) montre ce que l'app affiche, par les fonctions
+  mêmes de `/player` : ses rangées repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; « Xtream », les catégories et flux du fournisseur. Tout mène à la fiche d'un contenu
+  (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream et les corrections (TMDB, iptv-org,
+  séparer, fusionner) ; `/admin/item/:id` y redirige.
 - **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Tout ce que voit l'app (tris, dates, compteurs, rangées)
   se calcule sur les seules variantes visibles.
 - **Dates** : arrivée = date du fournisseur (`added`, `last_modified` pour une série) ; sortie = TMDB, tri par défaut.

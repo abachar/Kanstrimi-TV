@@ -204,8 +204,8 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
           <Card
             title="Groupement des variantes"
             extra={
-              <a href="/admin/catalog?view=groups&kind=vod" class="hover:text-foreground">
-                voir les groupes
+              <a href="/admin/catalog?kind=vod" class="hover:text-foreground">
+                voir le catalogue
               </a>
             }
           >

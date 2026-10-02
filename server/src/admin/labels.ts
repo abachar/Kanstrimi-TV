@@ -8,7 +8,7 @@ export const KIND_TITLES: Record<Kind, string> = { live: "Live", vod: "Films", s
 export const KIND_NAMES: Record<Kind, string> = { live: "Chaîne", vod: "Film", series: "Série" };
 export const KIND_LABELS: Record<Kind | "all", string> = { all: "tous", live: "live", vod: "films", series: "séries" };
 
-/** How a content got its key, as shown in the "Groupes" view. */
+/** How a content got its key, as shown on its page. */
 export const KEY_KIND_LABELS: Record<KeyKind, string> = {
   tmdb: "TMDB",
   fallback: "repli",

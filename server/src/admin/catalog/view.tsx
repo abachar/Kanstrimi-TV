@@ -8,21 +8,26 @@ import { CategoryRow, NoCategoryRow } from "./category";
 import { CatalogHeader, ItemRow } from "./row";
 import { catalogLink, isSearch, type CatalogQuery, type CatalogView as ViewMode } from "./query";
 
-const viewsOf = (kind: CatalogQuery["kind"]): [ViewMode, string][] => [
-  ["grouped", "Par catégorie"],
-  kind === "live" ? ["app", "Application"] : ["groups", "Groupes"],
+/** « Catalogue »: what the app shows; « Xtream »: the provider's categories and streams as they come. */
+const VIEWS: [ViewMode, string][] = [
+  ["catalog", "Catalogue"],
+  ["xtream", "Xtream"],
 ];
 
-/** Title and view switch shared by the three presentations of a kind; the kind itself is chosen in the top menu. */
+/** Title and view switch shared by the two presentations of a kind; the kind itself is chosen in the side menu. */
 export function CatalogShell({ qy, children }: { qy: CatalogQuery; children?: unknown }) {
   return (
     <>
       <Title
         t={KIND_TITLES[qy.kind]}
-        sub="Parcourir, filtrer et corriger le contenu importé"
+        sub={
+          qy.view === "catalog"
+            ? "Ce que l'app affiche, organisé selon nos règles"
+            : "Les catégories et les flux du fournisseur, tels qu'ils arrivent"
+        }
         actions={
           <div class="button-group" role="group" aria-label="Présentation">
-            {viewsOf(qy.kind).map(([view, label]) => {
+            {VIEWS.map(([view, label]) => {
               const current = qy.view === view;
               return (
                 <a

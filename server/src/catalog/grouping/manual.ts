@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, ilike, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import type { Category, Content, Variant } from "@/db";
-import { contentById, variantsOfContent } from "../queries";
+import type { Content, Variant } from "@/db";
+import { contentById } from "../queries";
 import { regroupItems } from "./group";
 
 /**
@@ -52,17 +52,4 @@ export async function mergeCandidates(item: Variant, q: string, limit = 10): Pro
     )
     .orderBy(desc(schema.catalogContents.variantCount), asc(schema.catalogContents.title))
     .limit(limit);
-}
-
-/** A content with its variants and the categories they sit in, keyed `<kind>:<xtreamId>`. */
-export async function groupVariants(
-  contentId: number,
-): Promise<{ content: Content; items: Variant[]; categories: Map<string, Category> } | null> {
-  const content = await contentById(contentId);
-  if (!content) return null;
-  const [items, cats] = await Promise.all([
-    variantsOfContent(content.id),
-    db.select().from(schema.catalogCategories).where(eq(schema.catalogCategories.kind, content.kind)),
-  ]);
-  return { content, items, categories: new Map(cats.map((k) => [`${k.kind}:${k.xtreamId}`, k])) };
 }

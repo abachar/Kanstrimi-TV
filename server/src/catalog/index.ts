@@ -2,7 +2,7 @@ export { refreshCardOnOpen } from "./cards";
 export { ensureEpisodes, seasonsOf, UpstreamUnavailable } from "./episodes";
 export { groupingCounts, runGrouping, runNaming } from "./grouping/group";
 export { runMerge } from "./merge";
-export { groupVariants, type MergeCandidate, mergeCandidates, mergeVariantInto, resetVariant, splitVariant } from "./grouping/manual";
+export { type MergeCandidate, mergeCandidates, mergeVariantInto, resetVariant, splitVariant } from "./grouping/manual";
 export { closeOrphanLogs, recentRuns, runById, lastRunsByTask, type RunWithSteps } from "./journal";
 export { readRunLog, runLogPath } from "./runlog";
 export { iptvChannelById, setIptvMatch } from "./channels";
@@ -36,7 +36,7 @@ export {
   type Step,
   type Task,
 } from "./pipeline";
-export { categoriesOfKind, categoryByXtreamId, contentById, itemById, variantsOfContent } from "./queries";
+export { categoriesOfKind, categoryByXtreamId, contentById, contentIdByKey, itemById, variantsOfContent } from "./queries";
 export { validatePattern } from "./rules/engine";
 export {
   addStudio,
