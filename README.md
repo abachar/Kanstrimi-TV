@@ -32,12 +32,11 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 
 ## Pistes
 
-Ce qui vient après la V1.2 (tvOS et iPhone), par version, puis les idées non planifiées.
+Ce qui vient après la V1.3 (tvOS et iPhone), par version, puis les idées non planifiées.
 
-- **V1.3** :
+- Non planifiées :
   - **Fond qui suit le focus (tvOS, POC)** : un film qui prend le focus change le fond de l'écran pour son fond TMDB
     flouté, pour éviter les grands aplats noirs. POC sur l'écran Films, branche `poc/fond-focus`, mis de côté.
-- Non planifiées :
   - **Écran Films façon Prime Video (tvOS)** : deux rangées de films seulement en bas de l'écran ; le haut est un hero
     (fond, logo ou titre, infos) qui affiche le film en focus et change à chaque déplacement.
   - **Direct « Monde arabe » par pays** : découper ce marché (le préfixe `AR` du fournisseur) en pays, par exemple
