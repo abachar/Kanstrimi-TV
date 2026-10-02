@@ -47,6 +47,9 @@ Ce qui vient après la V1.2 (tvOS et iPhone), par version, puis les idées non p
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la
     fiche d'un film ou d'une série, et proposés à la fin d'un film ou du dernier épisode connu d'une série.
+  - **Fin de lecture sans sortie (bug)** : à la fin d'un film, le lecteur reste affiché, barre de progression à -0:00,
+    sans revenir à la fiche. `PlayerService` passe en `.ended` mais ne ferme rien quand il n'y a pas d'épisode suivant ;
+    à vérifier aussi en fin de série (dernier épisode, ou lecture automatique coupée).
   - **Scènes pendant et après le générique** : les mots-clés TMDB `duringcreditsstinger` et `aftercreditsstinger` les
     annoncent (justes sur les films vérifiés, saisis par la communauté donc parfois absents). Servirait à la proposition
     du film suivant : la faire dès le générique, ou attendre la fin quand une scène est annoncée. Demande de détecter le
