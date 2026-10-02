@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { compileQuery } from "@/catalog";
 import { resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
 import { listRules, saveRule, deleteRule, setRuleEnabled, previewRule } from "../manage";
 import { countItems } from "@/admin/catalog/data";
@@ -18,7 +19,8 @@ beforeAll(async () => {
 });
 afterAll(closeDb);
 
-const hiddenVod = () => countItems({ kind: "vod", q: "", cat: "", vis: "hidden", tmdb: "" });
+const hiddenVod = () =>
+  countItems({ kind: "vod", q: "visible:non", cat: "", match: compileQuery("visible:non", { kind: "vod", lang: "fr-FR" }) });
 
 describe("filter rules store", () => {
   it("previews with the JavaScript engine, per kind and target", async () => {

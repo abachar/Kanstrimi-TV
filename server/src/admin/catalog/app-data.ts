@@ -1,5 +1,6 @@
-import { inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db, schema, type Content } from "@/db";
+import type { Exec } from "./search";
 import { catalogRows, listContents, listSagas, sagaSheet, studiosOf, type RestContext, type SagaWire, type StudioWire } from "@/player";
 
 /**
@@ -67,4 +68,25 @@ export async function shelfPage(ctx: RestContext, kind: "vod" | "series", shelf:
     return saga ? { type: "contents", rows: await contentsOf(saga.movies.map((m) => m.id)), next: null } : null;
   }
   return null;
+}
+
+export const FOUND_PAGE = 50;
+
+/** The « Catalogue » search: the contents with at least one variant meeting the query, latest first. */
+export async function searchContents(ex: Exec, kind: "live" | "vod" | "series", where: SQL, offset: number) {
+  const cond = and(
+    eq(schema.catalogContents.kind, kind),
+    sql`exists (select 1 from ${schema.catalogVariants} where ${schema.catalogVariants.contentId} = ${schema.catalogContents.id} and ${where})`,
+  );
+  const [[{ n }], rows] = await Promise.all([
+    ex.select({ n: sql<number>`count(*)::int` }).from(schema.catalogContents).where(cond),
+    ex
+      .select()
+      .from(schema.catalogContents)
+      .where(cond)
+      .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
+      .limit(FOUND_PAGE)
+      .offset(offset),
+  ]);
+  return { rows, total: n };
 }

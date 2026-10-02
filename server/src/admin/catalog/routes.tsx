@@ -9,8 +9,11 @@ import { getSettings } from "@/config";
 import { channelGroups, contextFor } from "@/player";
 import { CatalogShell, CatalogView } from "./view";
 import { AppLiveView } from "./app-live";
-import { AppCatalogView, ShelfRows } from "./app-catalog";
-import { shelfPage, shelvesOf } from "./app-data";
+import { searchContents, shelfPage, shelvesOf } from "./app-data";
+import { AppCatalogView, FoundRows, FoundView, ShelfRows } from "./app-catalog";
+import { SearchBar } from "./search-bar";
+import { compileSearch, runSearch } from "./search";
+import { CATALOG_PAGE } from "./data";
 import { kindParam } from "../query";
 import { isSearch } from "./query";
 import { CategoryItems, ItemRow } from "./row";
@@ -22,32 +25,67 @@ export const catalogRoutes = new Hono();
 catalogRoutes.get("/", async (c) => {
   const qy = parseCatalogQuery(c.req.query());
   const title = KIND_TITLES[qy.kind];
+  const search = await compileSearch(qy.kind, qy.q);
   if (qy.view === "catalog") {
-    // What a device-less app gets: the same functions as `/player`, the adult setting included.
-    const ctx = contextFor(c.req.raw, null, await getSettings());
-    if (qy.kind === "live")
+    if (search.where) {
+      const where = search.where;
+      const found = await runSearch((ex) => searchContents(ex, qy.kind, where, 0));
       return page(
         c,
         title,
         <CatalogShell qy={qy}>
-          <AppLiveView groups={await channelGroups(ctx)} />
+          {"error" in found ? (
+            <SearchBar kind={qy.kind} view="catalog" q={qy.q} error={found.error} />
+          ) : (
+            <>
+              <SearchBar kind={qy.kind} view="catalog" q={qy.q} />
+              <FoundView kind={qy.kind} q={qy.q} rows={found.value.rows} total={found.value.total} />
+            </>
+          )}
         </CatalogShell>,
       );
+    }
+    // What a device-less app gets: the same functions as `/player`, the adult setting included.
+    const ctx = contextFor(c.req.raw, null, await getSettings());
     return page(
       c,
       title,
       <CatalogShell qy={qy}>
-        <AppCatalogView kind={qy.kind} shelves={await shelvesOf(ctx, qy.kind)} />
+        <SearchBar kind={qy.kind} view="catalog" q={qy.q} error={search.error} />
+        {qy.kind === "live" ? (
+          <AppLiveView groups={await channelGroups(ctx)} />
+        ) : (
+          <AppCatalogView kind={qy.kind} shelves={await shelvesOf(ctx, qy.kind)} />
+        )}
       </CatalogShell>,
     );
   }
   const cats = await categoriesOfKind(qy.kind);
-  const total = await countItems(qy);
-  // The grouped view lists categories only, the rows arrive later one category at a time; a search lists its hits at once.
-  const searching = isSearch(qy);
-  const rows = searching ? (await pageItems(qy, qy.page)).rows : [];
-  const catCounts = searching ? new Map<string, number>() : await itemCountByCategory(qy);
-  return page(c, title, <CatalogView qy={qy} cats={cats} rows={rows} total={total} catCounts={catCounts} />);
+  // The Xtream view lists categories only, the rows arrive later one category at a time; a search lists its hits at once.
+  if (isSearch(qy)) {
+    const f = { ...qy, match: search.where };
+    const found = search.where
+      ? await runSearch(async (ex) => ({ total: await countItems(f, ex), rows: (await pageItems(f, qy.page, CATALOG_PAGE, ex)).rows }))
+      : { error: search.error ?? "" };
+    const error = "error" in found ? found.error : null;
+    const { rows, total } = "value" in found ? found.value : { rows: [], total: 0 };
+    return page(c, title, <CatalogView qy={qy} cats={cats} rows={rows} total={total} catCounts={new Map()} error={error} />);
+  }
+  const [total, catCounts] = await Promise.all([countItems(qy), itemCountByCategory(qy)]);
+  return page(c, title, <CatalogView qy={qy} cats={cats} rows={[]} total={total} catCounts={catCounts} />);
+});
+
+/** One more page of a « Catalogue » search, as it scrolls. */
+catalogRoutes.get("/found", async (c) => {
+  const kind = kindParam(c.req.query("kind"));
+  const q = c.req.query("q") ?? "";
+  const n = Math.max(0, Number(c.req.query("n")) || 0);
+  const search = await compileSearch(kind, q);
+  if (!search.where) return c.body(null, 204);
+  const where = search.where;
+  const found = await runSearch((ex) => searchContents(ex, kind, where, n));
+  if ("error" in found) return c.body(null, 204);
+  return c.html(<FoundRows kind={kind} q={q} rows={found.value.rows} total={found.value.total} n={n} />);
 });
 
 /** One page of a shelf of the « Catalogue » view, at its first opening and as it scrolls. */

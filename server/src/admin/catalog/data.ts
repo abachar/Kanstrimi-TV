@@ -1,14 +1,15 @@
-import { and, asc, eq, ilike, isNull, sql, type SQL } from "drizzle-orm";
-import { db, schema, hiddenItem, visibleItem, type Kind } from "@/db";
+import { and, asc, eq, isNull, sql, type SQL } from "drizzle-orm";
+import { db, schema, type Kind } from "@/db";
 import type { Variant } from "@/db";
+import type { Exec } from "./search";
 
-/** How the admin narrows the catalogue. `vis` and `tmdb` are independent: "hidden and TMDB unmatched" is a valid question. */
+/** How the admin narrows the Xtream view: a category, and a query in the filter language (`visible:non`, `tmdb:attente`…). */
 export type CatalogFilter = {
   kind: Kind;
   q: string;
   cat: string;
-  vis: "visible" | "hidden" | "all";
-  tmdb: "" | "matched" | "unmatched" | "pending";
+  /** `q` compiled (`search.ts`): the condition a variant meets. */
+  match?: SQL | null;
 };
 export const CATALOG_PAGE = 100;
 /** The `cat` value of the entries the provider sends without a category (`category_id: null`). */
@@ -16,25 +17,25 @@ export const NO_CATEGORY = "_none";
 
 export function catalogWhere(f: CatalogFilter): SQL {
   const where: SQL[] = [eq(schema.catalogVariants.kind, f.kind)];
-  if (f.q) where.push(ilike(schema.catalogVariants.name, `%${f.q}%`));
+  if (f.q && f.match) where.push(f.match);
   if (f.cat === NO_CATEGORY) where.push(isNull(schema.catalogVariants.categoryXtreamId));
   else if (f.cat) where.push(eq(schema.catalogVariants.categoryXtreamId, f.cat));
-  if (f.vis === "hidden") where.push(hiddenItem);
-  if (f.vis === "visible") where.push(visibleItem);
-  if (f.tmdb === "unmatched") where.push(eq(schema.catalogVariants.matchStatus, "unmatched"));
-  if (f.tmdb === "pending") where.push(eq(schema.catalogVariants.matchStatus, "pending"));
-  if (f.tmdb === "matched") where.push(sql`${schema.catalogVariants.matchStatus} in ('matched','manual')`);
   return and(...where)!;
 }
 
-export async function countItems(f: CatalogFilter): Promise<number> {
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.catalogVariants).where(catalogWhere(f));
+export async function countItems(f: CatalogFilter, ex: Exec = db): Promise<number> {
+  const [{ n }] = await ex.select({ n: sql<number>`count(*)::int` }).from(schema.catalogVariants).where(catalogWhere(f));
   return n;
 }
 
 /** One page in provider order. Asks for one row past the page: cheaper than a second count(*) just to know if more remain. */
-export async function pageItems(f: CatalogFilter, page: number, size = CATALOG_PAGE): Promise<{ rows: Variant[]; hasMore: boolean }> {
-  const rows = await db
+export async function pageItems(
+  f: CatalogFilter,
+  page: number,
+  size = CATALOG_PAGE,
+  ex: Exec = db,
+): Promise<{ rows: Variant[]; hasMore: boolean }> {
+  const rows = await ex
     .select()
     .from(schema.catalogVariants)
     .where(catalogWhere(f))

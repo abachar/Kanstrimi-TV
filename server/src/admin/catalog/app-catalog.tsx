@@ -1,7 +1,7 @@
 import type { Content } from "@/db";
 import { qualityOfRank } from "@/catalog";
 import type { SagaWire, StudioWire } from "@/player";
-import type { Shelf, ShelfPage } from "./app-data";
+import { FOUND_PAGE, type Shelf, type ShelfPage } from "./app-data";
 import { fmt } from "../format";
 import { Badge, Busy, Empty } from "../ui";
 import { contentKeyLink } from "../content/links";
@@ -83,7 +83,10 @@ function TitleRow({ c, rank }: { c: Content; rank: number }) {
     <div class={ROW}>
       <div class="text-end text-muted-foreground tabular-nums md:col-span-1">{rank}</div>
       <div class="min-w-0 md:col-span-4">
-        <a class="font-medium break-words hover:underline" href={contentKeyLink(c.key)}>
+        <a
+          class={`break-words hover:underline ${c.visible ? "font-medium" : "text-muted-foreground line-through"}`}
+          href={contentKeyLink(c.key)}
+        >
           {c.title}
         </a>
       </div>
@@ -155,3 +158,37 @@ export function ShelfRows({ kind, shelf, page, n }: { kind: string; shelf: strin
     </>
   );
 }
+
+export const foundLink = (kind: string, q: string, n: number) => `/admin/catalog/found?${new URLSearchParams({ kind, q, n: String(n) })}`;
+
+/** One page of the contents a « Catalogue » search found, from rank `n + 1`. */
+export function FoundRows({ kind, q, rows, total, n }: { kind: string; q: string; rows: Content[]; total: number; n: number }) {
+  return (
+    <>
+      {n === 0 && <TitleHeader />}
+      {rows.map((c, i) => (
+        <TitleRow c={c} rank={n + i + 1} />
+      ))}
+      {n + rows.length < total && rows.length === FOUND_PAGE && <More link={foundLink(kind, q, n + rows.length)} />}
+    </>
+  );
+}
+
+/** The results of a « Catalogue » search: the contents, latest first, hidden ones struck through. */
+export const FoundView = ({ kind, q, rows, total }: { kind: string; q: string; rows: Content[]; total: number }) => (
+  <>
+    <p class="text-sm text-muted-foreground">
+      {fmt(total)} contenu{total > 1 ? "s" : ""} pour « {q} », du plus récent au plus ancien ·{" "}
+      <a class="underline underline-offset-4 hover:text-foreground" href={`/admin/catalog?kind=${kind}`}>
+        revenir aux rangées
+      </a>
+    </p>
+    {total > 0 ? (
+      <div class="flex flex-col divide-y overflow-hidden rounded-xl border">
+        <FoundRows kind={kind} q={q} rows={rows} total={total} n={0} />
+      </div>
+    ) : (
+      <Empty title="Aucun contenu" sub="Aucune variante ne correspond à la recherche." />
+    )}
+  </>
+);

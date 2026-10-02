@@ -91,6 +91,10 @@ shared/     utilitaires ; n'importe jamais `@/`
 - **Une lib plutôt qu'une roue réinventée** : `croner`, `cronstrue`, zod, `hono/secure-headers`. Restent maison à dessein :
   la similarité de titres, les clients Xtream et TMDB, le logger.
 - **Admin** : uniquement des classes Tailwind et Basecoat écrites en entier, pas d'attribut `style`.
+- **Langage de filtre** (`catalog/query/`, aide dans l'admin) : `genre:anim` contient, `genre:"animation"` égal,
+  `a,b` l'un de, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; casse et accents ignorés. Une requête est une
+  condition sur une variante (champs TMDB lus dans le cache de sa fiche), vérifiée champ par champ avant tout SQL, ses
+  valeurs toujours en paramètres. Sert aux recherches de l'admin, puis aux règles.
 - **Écrans Live, Films, Séries de l'admin** : « Catalogue » (par défaut) montre ce que l'app affiche, par les fonctions
   mêmes de `/player` : ses rangées repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; « Xtream », les catégories et flux du fournisseur. Tout mène à la fiche d'un contenu
   (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream et les corrections (TMDB, iptv-org,

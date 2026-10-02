@@ -16,8 +16,6 @@ export function parseCatalogQuery(q: Record<string, string>): CatalogQuery {
     kind,
     q: q.q?.trim() ?? "",
     cat: q.cat ?? "",
-    vis: pickEnum(q.vis, ["visible", "hidden", "all"], "visible"),
-    tmdb: pickEnum(q.tmdb, ["", "matched", "unmatched", "pending"], ""),
     page: pageParam(q.page),
     view,
   };
@@ -26,7 +24,7 @@ export function parseCatalogQuery(q: Record<string, string>): CatalogQuery {
 /** The current filters as a query string, `over` overriding some of them. */
 export function catalogQs(qy: CatalogQuery, over: Partial<CatalogQuery> = {}) {
   const v = { ...qy, ...over };
-  return new URLSearchParams({ kind: v.kind, q: v.q, cat: v.cat, vis: v.vis, tmdb: v.tmdb, view: v.view, page: String(v.page) }).toString();
+  return new URLSearchParams({ kind: v.kind, q: v.q, cat: v.cat, view: v.view, page: String(v.page) }).toString();
 }
 /** Link back to the catalogue, keeping the current filters. */
 export const catalogLink = (qy: CatalogQuery, over: Partial<CatalogQuery> = {}) => `/admin/catalog?${catalogQs(qy, over)}`;

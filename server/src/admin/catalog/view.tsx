@@ -2,9 +2,10 @@ import type { Category, Variant } from "@/db";
 import { CATALOG_PAGE, NO_CATEGORY } from "./data";
 import { isCategoryHidden } from "@/db";
 import { fmt } from "../format";
-import { Title, Options, Pagination, Empty } from "../ui";
+import { Title, Pagination, Empty } from "../ui";
 import { KIND_TITLES } from "../labels";
 import { CategoryRow, NoCategoryRow } from "./category";
+import { SearchBar } from "./search-bar";
 import { CatalogHeader, ItemRow } from "./row";
 import { catalogLink, isSearch, type CatalogQuery, type CatalogView as ViewMode } from "./query";
 
@@ -56,80 +57,32 @@ export function CatalogView({
   rows,
   total,
   catCounts,
+  error = null,
 }: {
   qy: CatalogQuery;
   cats: Category[];
   rows: Variant[];
   total: number;
   catCounts: Map<string, number>;
+  /** A query that could not run, said in a sentence. */
+  error?: string | null;
 }) {
   const catName = new Map(cats.map((c) => [c.xtreamId, c.name]));
   const hiddenCats = new Set(cats.filter(isCategoryHidden).map((c) => c.xtreamId));
   const searching = isSearch(qy);
-  // « Visibles » (the default) or a TMDB filter narrows the list: a category with nothing to show under it is noise.
-  const narrowing = qy.vis !== "all" || qy.tmdb !== "";
-  const shownCats = narrowing ? cats.filter((c) => (catCounts.get(c.xtreamId) ?? 0) > 0) : cats;
   const uncategorised = catCounts.get(NO_CATEGORY) ?? 0;
   return (
     <CatalogShell qy={qy}>
-      <form method="get" action="/admin/catalog" class="grid grid-cols-2 gap-2 md:grid-cols-12" role="search">
-        <input type="hidden" name="kind" value={qy.kind} />
-        <div class="col-span-2 md:col-span-5">
-          <input
-            class="input"
-            type="search"
-            name="q"
-            value={qy.q}
-            placeholder="Rechercher un titre…"
-            aria-label="Rechercher un titre"
-            enterkeyhint="search"
-          />
-        </div>
-        <div class={qy.kind !== "live" ? "md:col-span-2" : "col-span-2 md:col-span-4"}>
-          <select class="select w-full" name="vis" aria-label="Visibilité">
-            <Options
-              opts={[
-                ["visible", "Visibles"],
-                ["hidden", "Masqués"],
-                ["all", "Visibles et masqués"],
-              ]}
-              cur={qy.vis}
-            />
-          </select>
-        </div>
-        {qy.kind !== "live" && (
-          <div class="md:col-span-2">
-            <select class="select w-full" name="tmdb" aria-label="TMDB">
-              <Options
-                opts={[
-                  ["", "TMDB : tous"],
-                  ["matched", "TMDB associé"],
-                  ["unmatched", "TMDB introuvable"],
-                  ["pending", "TMDB en attente"],
-                ]}
-                cur={qy.tmdb}
-              />
-            </select>
-          </div>
-        )}
-        <div class="col-span-2 grid md:col-span-3">
-          <button class="btn" data-variant="secondary">
-            Filtrer
-          </button>
-        </div>
-      </form>
+      <SearchBar kind={qy.kind} view="xtream" q={qy.q} error={error} />
       {!searching ? (
         <>
           <p class="text-sm text-muted-foreground">
-            {fmt(shownCats.length)} catégorie(s) · {fmt(total)} élément(s)
+            {fmt(cats.length)} catégorie(s) · {fmt(total)} élément(s)
             {uncategorised ? ` · ${fmt(uncategorised)} sans catégorie` : ""}
-            {narrowing && shownCats.length < cats.length
-              ? ` · ${fmt(cats.length - shownCats.length)} sans élément correspondant, voir « Visibles et masqués »`
-              : ""}
           </p>
           <div class="flex flex-col divide-y overflow-hidden rounded-xl border">
             {uncategorised > 0 && <NoCategoryRow qy={qy} count={uncategorised} />}
-            {shownCats.map((c) => (
+            {cats.map((c) => (
               <CategoryRow c={c} qy={qy} count={catCounts.get(c.xtreamId) ?? 0} />
             ))}
           </div>

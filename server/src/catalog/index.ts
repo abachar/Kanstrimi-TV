@@ -36,6 +36,7 @@ export {
   type Step,
   type Task,
 } from "./pipeline";
+export { compileQuery, FIELDS as QUERY_FIELDS, QueryError, type CompileOptions, type Field as QueryField } from "./query";
 export { categoriesOfKind, categoryByXtreamId, contentById, contentIdByKey, itemById, variantsOfContent } from "./queries";
 export { validatePattern } from "./rules/engine";
 export {

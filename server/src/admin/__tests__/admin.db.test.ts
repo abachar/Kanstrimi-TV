@@ -90,8 +90,10 @@ describe("admin", () => {
     expect(await html("/admin/catalog?kind=series")).toContain("Catalogue");
     expect(await html("/admin/catalog?kind=vod&view=xtream")).toContain("|FR| FILMS");
     expect(await html("/admin/catalog?kind=vod&view=grouped")).toContain("|FR| FILMS"); // the former name of the Xtream view
-    expect(await html("/admin/catalog?kind=vod&view=xtream&vis=hidden")).not.toContain("|FR| FILMS"); // nothing hidden under it
-    expect(await html("/admin/catalog?kind=vod&view=xtream&vis=all")).toContain("|FR| FILMS");
+    expect(await html("/admin/catalog?kind=vod&view=xtream&q=visible%3Anon")).toContain("0 résultat"); // nothing hidden
+    expect(await html("/admin/catalog?kind=vod&view=xtream&q=tmdb%3Aattente")).toContain("0 résultat");
+    expect(await html("/admin/catalog?kind=vod&view=xtream&q=tmdb%3Aoui")).toContain("Matrix (4K)");
+    expect(await html("/admin/catalog?kind=vod&view=xtream&q=tmdb%3Apeut-etre")).toContain("tmdb vaut oui, non ou attente");
     expect(await html("/admin/catalog?kind=vod&view=xtream&q=matrix")).toContain("Matrix (VOST)");
     expect(await html("/admin/catalog?kind=live&view=xtream&q=tf1")).not.toContain("TMDB associé");
     expect(await html("/admin/catalog?kind=live")).toContain('id="live-groups"');
@@ -101,6 +103,19 @@ describe("admin", () => {
     expect(live).toContain("1 sans catégorie");
     expect(await html("/admin/catalog/items?kind=live&cat=_none&page=1")).toContain("BELLA RADIO");
     expect(await html("/admin/catalog?kind=live&view=xtream&q=bella")).toContain("Sans catégorie"); // the category column of a hit
+    // The filter language, in both views; a wrong query says why instead of failing.
+    expect(await html("/admin/catalog?kind=vod&view=xtream&q=genre%3Ascience")).toContain("Matrix (4K)");
+    // One search bar in both views, each keeping its own view.
+    expect(await html("/admin/catalog?kind=vod&view=xtream")).toContain('name="view" value="xtream"');
+    expect(await html("/admin/catalog?kind=vod")).toContain('name="view" value="catalog"');
+    expect(await html("/admin/catalog?kind=live")).toContain("Rechercher : tf1, thème:sport"); // examples of the kind
+    expect(await html("/admin/catalog?kind=vod&view=xtream&q=genr%3Ascience")).toContain("voulais-tu genre");
+    const found = await html("/admin/catalog?kind=vod&q=qualit%C3%A9%3A%3E%3Dfhd");
+    expect(found).toContain(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`);
+    expect(found).toContain("1 contenu pour");
+    expect(await html("/admin/catalog?kind=vod&q=genre%3A%3E5")).toContain("pas un nombre");
+    expect(await html("/admin/catalog?kind=vod&q=zzz")).toContain("Aucun contenu");
+    expect(await html("/admin/catalog/found?kind=vod&q=matrix&n=0")).toContain("Matrix");
     // An entry opens on its content's page, itself unfolded among the others.
     const toContent = (await call(`/admin/item/${matrixId}`)).headers.get("location")!;
     expect(toContent).toMatch(new RegExp(`^/admin/content/\\d+\\?v=${matrixId}#variant-${matrixId}$`));

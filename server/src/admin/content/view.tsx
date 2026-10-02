@@ -244,7 +244,7 @@ const MATCH_TONE: Record<string, "ok" | "warn" | "bad" | "muted"> = { matched: "
  */
 function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: boolean; alone: boolean; tmdbLang: string }) {
   const { item: it, category: cat } = v;
-  const qy: CatalogQuery = { kind: it.kind, q: "", cat: "", vis: "all", tmdb: "", page: 1, view: "xtream" };
+  const qy: CatalogQuery = { kind: it.kind, q: "", cat: "", page: 1, view: "xtream" };
   const hidden = isItemHidden(it, cat ?? undefined);
   const live = it.kind === "live";
   const raw = it.raw;
