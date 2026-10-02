@@ -7,23 +7,11 @@ struct PersonView: View {
     var onSelect: ((ContentID) -> Void)?
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
-    @State private var sheet: PersonSheet?
-    @State private var error: CatalogError?
 
     var body: some View {
-        Group {
-            if let sheet {
-                content(sheet)
-            } else if let error {
-                StatePanel(icon: "exclamationmark.triangle", title: "Acteur indisponible", message: error.localizedDescription) {
-                    Task { await load() }
-                }
-            } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+        LoadedScreen(errorTitle: "Acteur indisponible", load: { try await env.call { try await env.client.person(id: ref.id) } }) { s in
+            content(s)
         }
-        .background(Theme.background)
-        .task { if sheet == nil { await load() } }
     }
 
     private func content(_ s: PersonSheet) -> some View {
@@ -50,26 +38,10 @@ struct PersonView: View {
         if !cards.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
                 Text(title).font(.title3.weight(.bold)).padding(.horizontal, metrics.inset)
-                LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
-                    ForEach(cards) { card in
-                        Button { (onSelect ?? env.open)(card.id) } label: { PosterCardLabel(card: card) }
-                            .cardButtonStyle()
-                    }
-                }
-                .padding(.horizontal, metrics.inset)
-                .padding(.vertical, metrics.rowPadding)
+                PosterGrid(cards: cards, onSelect: onSelect ?? env.open)
             }
         }
     }
 
     private func titleCount(_ n: Int) -> String { n > 1 ? "\(n) titres" : "\(n) titre" }
-
-    private func load() async {
-        do {
-            sheet = try await env.call { try await env.client.person(id: ref.id) }
-            error = nil
-        } catch {
-            self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
-        }
-    }
 }

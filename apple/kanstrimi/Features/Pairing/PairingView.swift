@@ -57,6 +57,8 @@ struct PairingView: View {
         }
         .background(Theme.background)
         .task { await model.run(env) }
+        // The polling lives as long as the screen: paired from elsewhere or left, it stops.
+        .onDisappear { model.stop() }
     }
 
     private var tvBody: some View {
@@ -79,6 +81,8 @@ struct PairingView: View {
         .ignoresSafeArea(edges: .horizontal)
         .background(Theme.background)
         .task { await model.run(env) }
+        // The polling lives as long as the screen: paired from elsewhere or left, it stops.
+        .onDisappear { model.stop() }
     }
 
     private var explanation: some View {
@@ -230,6 +234,11 @@ final class PairingModel {
 
     func run(_ env: AppEnvironment) async {
         await newCode(env)
+    }
+
+    func stop() {
+        loop?.cancel()
+        loop = nil
     }
 
     func newCode(_ env: AppEnvironment) async {

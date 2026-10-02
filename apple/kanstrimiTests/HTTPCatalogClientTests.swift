@@ -36,7 +36,7 @@ struct HTTPCatalogClientTests {
     let client: HTTPCatalogClient
 
     init() {
-        device = DeviceStore()
+        device = DeviceStore(secrets: MemorySecrets())
         device.store(token: "dvc_test", code: "K7Q4MZ")
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubProtocol.self]
@@ -356,4 +356,29 @@ struct HTTPCatalogClientTests {
         #expect(maroc.map(\.sectionName) == ["Maroc"])
         #expect(maroc.map(\.themeName) == ["Sport"])
     }
+}
+
+/// The device's secrets in memory: the tests never touch the host app's Keychain.
+@MainActor final class MemorySecrets: SecretStore {
+    private var values: [String: String] = [:]
+    func read(account: String) -> String? { values[account] }
+    func write(_ value: String, account: String) { values[account] = value }
+    func delete(account: String) { values[account] = nil }
+}
+
+@Test("Le jeton ne part en clair que sur le réseau local")
+func tokenNeedsHTTPSOutsideTheLAN() {
+    #expect(HTTPCatalogClient.mayCarryToken(URL(string: "https://kanstrimi.crafters.dev/player/home")!))
+    #expect(HTTPCatalogClient.mayCarryToken(URL(string: "http://192.168.1.20:3000/player/home")!))
+    #expect(HTTPCatalogClient.mayCarryToken(URL(string: "http://mac-mini.local:3000/player/home")!))
+    #expect(!HTTPCatalogClient.mayCarryToken(URL(string: "http://kanstrimi.crafters.dev/player/home")!))
+    #expect(!HTTPCatalogClient.mayCarryToken(URL(string: "http://8.8.8.8/player/home")!))
+}
+
+@Test("Une qualité, une dynamique ou un type inconnus de l'app ne font pas échouer le décodage")
+func unknownEnumValuesDecode() throws {
+    let d = HTTPCatalogClient.makeDecoder()
+    #expect(try d.decode([Quality].self, from: Data(#"["8K","FHD"]"#.utf8)) == [.hd, .fhd])
+    #expect(try d.decode([DynamicRange].self, from: Data(#"["HDR10+","DV"]"#.utf8)) == [.sdr, .dolbyVision])
+    #expect(try d.decode([ContentKind].self, from: Data(#"["podcast","series"]"#.utf8)) == [.movie, .series])
 }

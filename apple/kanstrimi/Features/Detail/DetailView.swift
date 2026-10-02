@@ -395,7 +395,7 @@ struct EpisodeRow: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 14) {
-                    still
+                    EpisodeStill(episode: episode)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(episode.number). \(episode.title)").font(.subheadline.weight(.semibold)).lineLimit(2)
                         Text(facts).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
@@ -418,21 +418,6 @@ struct EpisodeRow: View {
         .disabled(episode.versions.isEmpty)
     }
 
-    private var still: some View {
-        ZStack(alignment: .bottomLeading) {
-            ArtView(id: episode.id, url: episode.still).frame(width: metrics.stillWidth, height: metrics.stillWidth * 9 / 16)
-            if let p = episode.progress, p.isResumable {
-                ProgressBar(fraction: p.fraction, height: 3).padding(.horizontal, 8).padding(.bottom, 6)
-            }
-            if episode.progress?.isWatched == true {
-                Image(systemName: "checkmark.circle.fill").font(.callout).padding(6).foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            }
-        }
-        .frame(width: metrics.stillWidth, height: metrics.stillWidth * 9 / 16)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
     /// "45 min · 12 min restantes".
     private var facts: String {
         var parts: [String] = []
@@ -450,18 +435,7 @@ struct EpisodeRow: View {
     private var tvRow: some View {
         Button(action: action) {
             HStack(spacing: 24) {
-                ZStack(alignment: .bottomLeading) {
-                    ArtView(id: episode.id, url: episode.still).frame(width: metrics.stillWidth, height: metrics.stillWidth * 9 / 16)
-                    if let p = episode.progress, p.isResumable {
-                        ProgressBar(fraction: p.fraction, height: 5).padding(.horizontal, 10).padding(.bottom, 8)
-                    }
-                    if episode.progress?.isWatched == true {
-                        Image(systemName: "checkmark.circle.fill").font(.title2).padding(10).foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    }
-                }
-                .frame(width: metrics.stillWidth, height: metrics.stillWidth * 9 / 16)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                EpisodeStill(episode: episode)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text("\(episode.number)").font(.headline).foregroundStyle(Theme.secondary)
@@ -555,45 +529,6 @@ struct RoundIconStyle: ButtonStyle {
                 .opacity(enabled ? 1 : 0.4)
                 .animation(.easeOut(duration: 0.15), value: focused)
                 .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
-        }
-    }
-}
-
-/// The title's logo when TMDB has one, else the title as text; the text also stands in while the
-/// logo loads and when it fails, so the header never stays empty.
-struct TitleLogo: View {
-    @Environment(\.metrics) private var metrics
-    let title: String
-    let logo: URL?
-    /// Home hero on a phone: centred, the text shrinking a little rather than being cut.
-    var centered = false
-    /// The logo's box; the sheet's by default.
-    var maxSize: CGSize?
-
-    var body: some View {
-        if let logo {
-            AsyncImage(url: logo) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFit()
-                        .frame(maxWidth: (maxSize ?? metrics.detailLogo).width, maxHeight: (maxSize ?? metrics.detailLogo).height,
-                               alignment: centered ? .center : .leading)
-                        .shadow(color: .black.opacity(0.5), radius: 12)
-                        .accessibilityLabel(title)
-                } else {
-                    text
-                }
-            }
-        } else {
-            text
-        }
-    }
-
-    @ViewBuilder private var text: some View {
-        if centered {
-            Text(title).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(3).minimumScaleFactor(0.6)
-                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-        } else {
-            Text(title).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(2).frame(maxWidth: metrics.textWidth, alignment: .leading)
         }
     }
 }

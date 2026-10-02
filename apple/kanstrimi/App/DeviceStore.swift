@@ -12,16 +12,20 @@ final class DeviceStore {
     /// Why the user is back on the pairing screen, if the token was just lost.
     var lastRevocationMessage: String?
 
-    init() {
-        token = Keychain.read(account: "device-token")
-        code = Keychain.read(account: "device-code")
+    private let secrets: SecretStore
+
+    /// Tests pass a store in memory: the app's Keychain stays untouched.
+    init(secrets: SecretStore = KeychainStore()) {
+        self.secrets = secrets
+        token = secrets.read(account: "device-token")
+        code = secrets.read(account: "device-code")
     }
 
     var isPaired: Bool { token != nil }
 
     func store(token: String, code: String) {
-        Keychain.write(token, account: "device-token")
-        Keychain.write(code, account: "device-code")
+        secrets.write(token, account: "device-token")
+        secrets.write(code, account: "device-code")
         self.token = token
         self.code = code
         lastRevocationMessage = nil
@@ -29,26 +33,35 @@ final class DeviceStore {
 
     /// The server address, for the Top Shelf extension: it has no access to the app's preferences.
     func share(serverURL: String) {
-        if Keychain.read(account: "server-url") != serverURL { Keychain.write(serverURL, account: "server-url") }
+        if secrets.read(account: "server-url") != serverURL { secrets.write(serverURL, account: "server-url") }
     }
 
     /// Token revoked or user unpaired: forget everything local.
     func forget(reason: String?) {
-        Keychain.delete(account: "device-token")
-        Keychain.delete(account: "device-code")
+        secrets.delete(account: "device-token")
+        secrets.delete(account: "device-code")
         token = nil
         code = nil
         lastRevocationMessage = reason
     }
 }
 
-private enum Keychain {
+/// Where the device's secrets are kept.
+protocol SecretStore {
+    func read(account: String) -> String?
+    func write(_ value: String, account: String)
+    func delete(account: String)
+}
+
+/// The Keychain, readable after the first unlock (the Top Shelf extension runs in the background) and never
+/// carried to another device by a backup.
+struct KeychainStore: SecretStore {
     private static let service = "dev.crafters.kanstrimi"
 
-    private static func query(_ account: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+    private func query(_ account: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: Self.service, kSecAttrAccount as String: account]
     }
-    static func read(account: String) -> String? {
+    func read(account: String) -> String? {
         var q = query(account)
         q[kSecReturnData as String] = true
         q[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -56,11 +69,13 @@ private enum Keychain {
         guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
         return String(data: data, encoding: .utf8)
     }
-    static func write(_ value: String, account: String) {
-        delete(account: account)
-        var q = query(account)
-        q[kSecValueData as String] = Data(value.utf8)
-        SecItemAdd(q as CFDictionary, nil)
+    /// Updated in place, added when missing: a failed add never loses the value already there.
+    func write(_ value: String, account: String) {
+        let attributes: [String: Any] = [kSecValueData as String: Data(value.utf8),
+                                         kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
+        let status = SecItemUpdate(query(account) as CFDictionary, attributes as CFDictionary)
+        guard status == errSecItemNotFound else { return }
+        SecItemAdd(query(account).merging(attributes) { $1 } as CFDictionary, nil)
     }
-    static func delete(account: String) { SecItemDelete(query(account) as CFDictionary) }
+    func delete(account: String) { SecItemDelete(query(account) as CFDictionary) }
 }

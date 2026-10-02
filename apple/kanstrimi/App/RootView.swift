@@ -4,6 +4,8 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppEnvironment.self) private var env
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         Group {
             if env.device.isPaired {
@@ -14,6 +16,7 @@ struct RootView: View {
             }
         }
         .task { await debugHooks() }
+        .onChange(of: scenePhase) { _, phase in env.sceneBecame(active: phase == .active) }
         .onOpenURL { url in
             if let link = DeepLink(url: url) { Task { await env.handle(link) } }
         }
@@ -21,6 +24,10 @@ struct RootView: View {
         .task(id: env.device.token) { env.shareWithTopShelf() }
         .onChange(of: env.preferences.serverURL) { env.shareWithTopShelf() }
         .onChange(of: env.player.progressRevision) { env.topShelfDidChange() }
+        .overlay {
+            if let notice = env.notice { ToastView(text: notice, icon: "exclamationmark.triangle") }
+        }
+        .animation(.easeInOut(duration: 0.25), value: env.notice)
         .background(Theme.background.ignoresSafeArea())
         .detailCover(env)
         .fullScreenCover(isPresented: Binding(get: { env.player.isPresented && !env.player.isMinimized && env.presentedDetail == nil },

@@ -6,7 +6,7 @@ import SwiftUI
 /// on the left the text buttons that open a panel above the bar, on the right the icons whose menu picks
 /// a version, an audio track or the subtitles.
 struct PlayerBar: View {
-    enum Panel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", related = "Similaires", infos = "Infos" }
+    typealias Panel = PlayerScreen.BarPanel
     private enum Focus: Hashable { case panel(Panel), versions, audio, subtitles }
 
     @Environment(AppEnvironment.self) private var env
@@ -22,14 +22,6 @@ struct PlayerBar: View {
     @State private var panel: Panel?
     @FocusState private var focus: Focus?
     private var player: PlayerService { env.player }
-
-    private var panels: [Panel] {
-        if player.isLive { return [.programme, .recents, .infos] }
-        // Similaires once the server answered with some.
-        let related: [Panel] = player.suggestions?.related.isEmpty == false ? [.related] : []
-        if player.context?.content.kind == .episode { return [.episodes] + related + [.infos] }
-        return related + [.infos]
-    }
 
     var body: some View {
         let open = interactive ? panel : nil
@@ -65,11 +57,11 @@ struct PlayerBar: View {
         .animation(.easeInOut(duration: 0.2), value: panel)
         .animation(.easeInOut(duration: 0.2), value: interactive)
         .onChange(of: interactive) { _, now in
-            if now { focus = .panel(panels[0]) } else { panel = nil }
+            if now { focus = .panel(player.panels[0]) } else { panel = nil }
         }
         .onAppear {
             panel = initialPanel
-            if interactive { focus = .panel(initialPanel ?? panels[0]) }
+            if interactive { focus = .panel(initialPanel ?? player.panels[0]) }
         }
         .onChange(of: focus) { _, _ in onActivity() }
         // Innermost: Back closes the open panel first, then gives the video back.
@@ -106,17 +98,7 @@ struct PlayerBar: View {
             VStack(spacing: 12) {
                 // Without a guide the bar is full: a live is always at its end.
                 ProgressBar(fraction: now?.fraction() ?? 1, height: 8)
-                HStack {
-                    if let now {
-                        Text(Format.hour(now.start))
-                        Spacer()
-                        Text(player.epg.next.map { "Ensuite : \($0.title) · \(Format.hour($0.start))" } ?? Format.hour(now.end))
-                    } else {
-                        Text("Programme inconnu")
-                        Spacer()
-                    }
-                }
-                .font(.callout.monospacedDigit()).foregroundStyle(Theme.secondary)
+                LiveProgressCaption().font(.callout.monospacedDigit()).foregroundStyle(Theme.secondary)
             }
         } else {
             VStack(spacing: 12) {
@@ -126,7 +108,7 @@ struct PlayerBar: View {
                         // "▶▶ ×30  1:02:14" above the playhead while a direction is held.
                         .overlay(alignment: .bottomLeading) {
                             if player.scanRate != 0 {
-                                Text(scanLabel + Format.clock(player.shownTime))
+                                Text(player.scanLabel + Format.clock(player.shownTime))
                                     .font(.callout.weight(.semibold))
                                     .padding(.horizontal, 12).padding(.vertical, 6)
                                     .background(.white, in: Capsule()).foregroundStyle(.black)
@@ -145,25 +127,20 @@ struct PlayerBar: View {
         }
     }
 
-    private var scanLabel: String {
-        guard player.scanRate != 0 else { return "" }
-        return "\(player.scanRate > 0 ? "▶▶" : "◀◀") ×\(Int(abs(player.scanRate)))  "
-    }
-
     // MARK: - Buttons
 
     private var buttons: some View {
         HStack(spacing: 16) {
-            ForEach(panels, id: \.self) { p in
+            ForEach(player.panels, id: \.self) { p in
                 Button { panel = panel == p ? nil : p } label: { Text(p.rawValue) }
                     .buttonStyle(BarButtonStyle(selected: panel == p && interactive))
                     .focused($focus, equals: .panel(p))
             }
             Spacer()
             // Each menu only when it offers a choice; the tracks are known once the player has read the stream.
-            if (player.context?.versions.count ?? 0) > 1 { versionsMenu }
-            if player.audioTracks.count > 1 { audioMenu }
-            if !player.textTracks.isEmpty { subtitlesMenu }
+            if player.offersVersions { versionsMenu }
+            if player.offersAudio { audioMenu }
+            if player.offersSubtitles { subtitlesMenu }
         }
         // Not reachable while the bar only shows: the remote keeps driving the video.
         .disabled(!interactive)
@@ -174,18 +151,8 @@ struct PlayerBar: View {
     }
 
     private var versionsMenu: some View {
-        let versions = player.context?.versions ?? []
-        let languages = versions.map(\.language).reduce(into: [Language]()) { if !$0.contains($1) { $0.append($1) } }
-        return Menu {
-            ForEach(languages, id: \.self) { language in
-                Section(language.label) {
-                    ForEach(versions.filter { $0.language == language }) { v in
-                        Button { player.switchVersion(v) } label: {
-                            if v.id == player.version?.id { Label(v.qualityLabel, systemImage: "checkmark") } else { Text(v.qualityLabel) }
-                        }
-                    }
-                }
-            }
+        Menu {
+            VersionMenuItems()
         } label: {
             Image(systemName: "rectangle.stack.badge.play").accessibilityLabel("Versions")
         }
@@ -196,10 +163,7 @@ struct PlayerBar: View {
 
     private var audioMenu: some View {
         Menu {
-            if player.audioTracks.isEmpty { Text("Pistes audio connues au démarrage de la lecture") }
-            ForEach(player.audioTracks) { t in
-                Button { player.select(audio: t) } label: { trackLabel(t) }
-            }
+            AudioMenuItems()
         } label: {
             Image(systemName: "waveform").accessibilityLabel("Audio")
         }
@@ -210,23 +174,13 @@ struct PlayerBar: View {
 
     private var subtitlesMenu: some View {
         Menu {
-            Button { player.select(text: nil) } label: {
-                if player.textTracks.contains(where: \.isSelected) { Text("Désactivés") } else { Label("Désactivés", systemImage: "checkmark") }
-            }
-            ForEach(player.textTracks) { t in
-                Button { player.select(text: t) } label: { trackLabel(t) }
-            }
+            SubtitleMenuItems()
         } label: {
             Image(systemName: "captions.bubble").accessibilityLabel("Sous-titres")
         }
         .menuStyle(.button)
         .buttonStyle(BarButtonStyle(round: true))
         .focused($focus, equals: .subtitles)
-    }
-
-    @ViewBuilder private func trackLabel(_ t: PlayerService.Track) -> some View {
-        let name = t.name + (t.language.map { " · \($0)" } ?? "")
-        if t.isSelected { Label(name, systemImage: "checkmark") } else { Text(name) }
     }
 
     // MARK: - Panels

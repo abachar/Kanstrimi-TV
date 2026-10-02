@@ -25,13 +25,17 @@ struct HomeView: View {
         .background(Theme.background)
         .settingsToolbar(env)
         .task {
-            if model == nil {
+            if let model {
+                // Left before its first answer, or shown from the disk: try the server again.
+                if model.home == nil || model.isOffline { await model.load() }
+            } else {
                 let m = HomeModel(env: env)
                 model = m
                 await m.load()
             }
         }
         .onChange(of: env.player.progressRevision) { Task { await model?.load() } }
+        .onChange(of: env.resumeRevision) { Task { await model?.load() } }
         .platformSheet(isPresented: $showPicker) {
             if let model, let hero = model.hero {
                 VersionPicker(title: hero.card.title, versions: hero.versions, recommendedID: model.heroChoice?.version.id) { v, s in
@@ -322,6 +326,8 @@ final class HomeModel {
             isOffline = false
             env.homeCache.save(h)
             await env.progressQueue.flush { try await env.client.report($0) }
+        } catch is CancellationError {
+            // The screen went away first: nothing to show.
         } catch {
             let e = (error as? CatalogError) ?? .server(error.localizedDescription)
             if e == .unauthorized { return }
@@ -390,23 +396,24 @@ final class HomeModel {
 
     func removeFromResume(_ card: Card) async {
         env.progressQueue.drop(card.id)
-        guard (try? await env.call { try await env.client.removeFromResume(id: card.id) }) != nil else { return }
+        guard await env.attempt("Retrait", { try await env.call { try await env.client.removeFromResume(id: card.id) } }) != nil else { return }
         await load()
     }
 
     func markWatched(_ card: Card) async {
         env.progressQueue.drop(card.id)
-        guard (try? await env.call { try await env.client.setWatched(id: card.id, true, season: nil) }) != nil else { return }
+        guard await env.attempt("Marquage", { try await env.call { try await env.client.setWatched(id: card.id, true, season: nil) } }) != nil else { return }
         await load()
     }
 
     /// "Reprendre" launches the player directly: one call for the playback context, no sheet.
     func resume(_ card: Card) {
         Task {
-            if let ctx = try? await env.playbackContext(for: card) {
+            if let hero = home?.heroes.first(where: { $0.card.id == card.id }) {
+                // The carousel already holds its versions: played even when the server does not answer.
+                if let ctx = try? await env.playbackContext(for: card) { env.player.play(ctx) } else { playHero(hero, version: nil, source: nil) }
+            } else if let ctx = await env.attempt("Lecture", { try await env.playbackContext(for: card) }) {
                 env.player.play(ctx)
-            } else if let hero = home?.heroes.first(where: { $0.card.id == card.id }) {
-                playHero(hero, version: nil, source: nil)
             }
         }
     }

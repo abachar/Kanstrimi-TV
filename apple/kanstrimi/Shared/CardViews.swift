@@ -50,6 +50,39 @@ struct ArtView: View {
     }
 }
 
+/// A poster's shell, 2:3: its art (the title stands in for it), a gradient that keeps the text drawn at the
+/// bottom readable, then `overlay` at the bottom left. Titles and sagas share it.
+struct PosterFrame<Overlay: View>: View {
+    @Environment(\.metrics) private var metrics
+    let id: ContentID
+    let url: URL?
+    let title: String
+    /// Defaults to the platform's poster width.
+    var width: CGFloat? = nil
+    @ViewBuilder let overlay: () -> Overlay
+
+    var body: some View {
+        let width = width ?? metrics.posterWidth
+        ZStack(alignment: .bottomLeading) {
+            ArtView(id: id, url: url, title: title).frame(width: width, height: width * 1.5)
+            LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
+            overlay()
+        }
+        .frame(width: width, height: width * 1.5)
+        .clipShape(RoundedRectangle(cornerRadius: metrics.cardRadius))
+    }
+}
+
+/// The short line drawn on a poster: « 2024 · ★ 7.4 », « 5 films ».
+struct PosterFacts: View {
+    @Environment(\.metrics) private var metrics
+    let text: String
+    var body: some View {
+        Text(text).font(.system(size: metrics.badge, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+            .shadow(color: .black.opacity(0.6), radius: 3)
+    }
+}
+
 /// Grid and row card: poster 2:3 with, drawn on it, year and rating, quality and language badges,
 /// optional hint and progress. No text under it: the poster carries the title (`ArtView` draws it
 /// until the artwork loads, or instead of it).
@@ -65,6 +98,24 @@ struct PosterCard: View {
     }
 }
 
+/// A grid of posters that are all loaded (an actor's titles, a saga's movies); a click opens the title.
+struct PosterGrid: View {
+    @Environment(\.metrics) private var metrics
+    let cards: [Card]
+    let onSelect: (ContentID) -> Void
+
+    var body: some View {
+        LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
+            ForEach(cards) { card in
+                Button { onSelect(card.id) } label: { PosterCardLabel(card: card) }
+                    .cardButtonStyle()
+            }
+        }
+        .padding(.horizontal, metrics.inset)
+        .padding(.vertical, metrics.rowPadding)
+    }
+}
+
 /// The poster card without its button: rows wrap it in `PosterCard`, grids in their own button.
 struct PosterCardLabel: View {
     @Environment(\.metrics) private var metrics
@@ -72,11 +123,7 @@ struct PosterCardLabel: View {
     var width: CGFloat? = nil
 
     var body: some View {
-        let width = width ?? metrics.posterWidth
-        ZStack(alignment: .bottomLeading) {
-            ArtView(id: card.id, url: card.poster, title: card.title)
-                .frame(width: width, height: width * 1.5)
-            LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
+        PosterFrame(id: card.id, url: card.poster, title: card.title, width: width) {
             if metrics.compact {
                 // Phone: the year and the rating only, the hint as a small tag in the top corner.
                 if let hint = card.hint {
@@ -87,8 +134,7 @@ struct PosterCardLabel: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
                 if let facts {
-                    Text(facts).font(.system(size: metrics.badge, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
-                        .shadow(color: .black.opacity(0.6), radius: 3)
+                    PosterFacts(text: facts)
                         .padding(.horizontal, 8).padding(.bottom, card.progress?.isResumable == true ? 14 : 8)
                 }
             } else {
@@ -97,10 +143,7 @@ struct PosterCardLabel: View {
                         Text(hint).font(.caption2.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 3)
                             .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
                     }
-                    if let facts {
-                        Text(facts).font(.system(size: metrics.badge, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
-                            .shadow(color: .black.opacity(0.6), radius: 3)
-                    }
+                    if let facts { PosterFacts(text: facts) }
                     VersionBadges(quality: card.qualityBadge, languages: card.languages, compact: true)
                         .scaleEffect(0.85, anchor: .bottomLeading)
                 }
@@ -110,8 +153,6 @@ struct PosterCardLabel: View {
                 ProgressBar(fraction: p.fraction, height: metrics.compact ? 3 : 5).padding(.horizontal, metrics.compact ? 8 : 12).padding(.bottom, 6)
             }
         }
-        .frame(width: width, height: width * 1.5)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.compact ? 10 : 14))
         .accessibilityElement(children: .combine)
         .accessibilityLabel([card.title, facts].compactMap { $0 }.joined(separator: ", "))
     }
@@ -162,7 +203,7 @@ struct ResumeCard: View {
                 .padding(pad)
             }
             .frame(width: width, height: width * 9 / 16)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: metrics.wideRadius))
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(card.title), \(meta)")
         }
@@ -179,6 +220,88 @@ struct ResumeCard: View {
     }
 }
 
+/// An episode's still, 16:9: its progress at the bottom, a check once seen. Shared by the sheet's rows and the
+/// player's « Épisodes »; `playing` is the progress of the episode on screen, which hides the check.
+struct EpisodeStill: View {
+    @Environment(\.metrics) private var metrics
+    let episode: Episode
+    /// Defaults to the platform's still width.
+    var width: CGFloat? = nil
+    var playing: Double? = nil
+
+    var body: some View {
+        let width = width ?? metrics.stillWidth
+        let progress = playing ?? episode.progress.flatMap { $0.isResumable ? $0.fraction : nil }
+        ZStack(alignment: .bottomLeading) {
+            ArtView(id: episode.id, url: episode.still).frame(width: width, height: width * 9 / 16)
+            if let progress {
+                ProgressBar(fraction: progress, height: metrics.compact ? 3 : 5)
+                    .padding(.horizontal, metrics.compact ? 8 : 10).padding(.bottom, metrics.compact ? 6 : 8)
+            }
+            if playing == nil, episode.progress?.isWatched == true {
+                Image(systemName: "checkmark.circle.fill").font(metrics.compact ? .callout : .title2).padding(metrics.compact ? 6 : 10)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
+        }
+        .frame(width: width, height: width * 9 / 16)
+        .clipShape(RoundedRectangle(cornerRadius: metrics.thumbRadius))
+    }
+}
+
+/// A title's logo when TMDB has one, held in `box`; `fallback` stands in while it loads, when it fails and
+/// without one, so the place never stays empty. Shared by the sheet's header, the home hero and the cards.
+struct LogoOrTitle<Fallback: View>: View {
+    let title: String
+    let logo: URL?
+    let box: CGSize
+    var alignment: Alignment = .leading
+    var shadowOpacity = 0.5
+    var shadowRadius: CGFloat = 12
+    @ViewBuilder let fallback: () -> Fallback
+
+    var body: some View {
+        if let logo {
+            AsyncImage(url: logo) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit()
+                        .frame(maxWidth: box.width, maxHeight: box.height, alignment: alignment)
+                        .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius)
+                        .accessibilityLabel(title)
+                } else {
+                    fallback()
+                }
+            }
+        } else {
+            fallback()
+        }
+    }
+}
+
+/// The sheet's header and the home hero: the title's logo, else the title in large type.
+struct TitleLogo: View {
+    @Environment(\.metrics) private var metrics
+    let title: String
+    let logo: URL?
+    /// Home hero on a phone: centred, the text shrinking a little rather than being cut.
+    var centered = false
+    /// The logo's box; the sheet's by default.
+    var maxSize: CGSize?
+
+    var body: some View {
+        LogoOrTitle(title: title, logo: logo, box: maxSize ?? metrics.detailLogo, alignment: centered ? .center : .leading) { text }
+    }
+
+    @ViewBuilder private var text: some View {
+        if centered {
+            Text(title).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(3).minimumScaleFactor(0.6)
+                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+        } else {
+            Text(title).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(2).frame(maxWidth: metrics.textWidth, alignment: .leading)
+        }
+    }
+}
+
 /// A title on a card's picture: its logo when TMDB has one, held in `box`; the text meanwhile and otherwise.
 private struct CardTitle: View {
     let title: String
@@ -186,53 +309,10 @@ private struct CardTitle: View {
     let box: CGSize
 
     var body: some View {
-        if let logo {
-            AsyncImage(url: logo) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFit()
-                        .frame(maxWidth: box.width, maxHeight: box.height, alignment: .bottomLeading)
-                        .shadow(color: .black.opacity(0.6), radius: 6)
-                } else {
-                    text
-                }
-            }
-        } else {
-            text
+        LogoOrTitle(title: title, logo: logo, box: box, alignment: .bottomLeading, shadowOpacity: 0.6, shadowRadius: 6) {
+            Text(title).font(.system(size: box.height * 0.55, weight: .heavy)).foregroundStyle(.white)
+                .lineLimit(2).minimumScaleFactor(0.7).shadow(color: .black.opacity(0.6), radius: 6)
         }
-    }
-
-    private var text: some View {
-        Text(title).font(.system(size: box.height * 0.55, weight: .heavy)).foregroundStyle(.white)
-            .lineLimit(2).minimumScaleFactor(0.7).shadow(color: .black.opacity(0.6), radius: 6)
-    }
-}
-
-/// A channel in a row of cards (« Chaînes les plus regardées », « Ma liste »): its logo on a 16:9 tile, its name
-/// and the programme on air.
-struct ChannelCard: View {
-    @Environment(AppEnvironment.self) private var env
-    @Environment(\.metrics) private var metrics
-    let card: Card
-    let action: () -> Void
-    @State private var now: Programme?
-
-    var body: some View {
-        let width = metrics.resumeWidth
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                ZStack {
-                    Theme.art(for: card.id).opacity(0.35)
-                    ChannelLogo(channel: Channel(id: card.id, name: card.title, logo: card.poster), size: width * 9 / 16 * 0.6)
-                }
-                .frame(width: width, height: width * 9 / 16)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                Text(card.title).font(.callout.weight(.semibold)).lineLimit(1)
-                Text(now?.title ?? "En direct").font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-            }
-            .frame(width: width)
-        }
-        .cardButtonStyle()
-        .task { now = await env.channelCache.channel(card.id).flatMap { env.guide(of: $0).now } }
     }
 }
 
@@ -251,7 +331,7 @@ struct PosterMenu: ViewModifier {
     }
 
     private func play() {
-        Task { if let ctx = try? await env.playbackContext(for: card) { env.player.play(ctx) } }
+        Task { if let ctx = await env.attempt("Lecture", { try await env.playbackContext(for: card) }) { env.player.play(ctx) } }
     }
 }
 

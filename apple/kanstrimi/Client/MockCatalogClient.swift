@@ -11,16 +11,18 @@ final class MockCatalogClient: CatalogClient {
     }
 
     let scenario: MockScenario
-    private let movies: [Card]
+    /// Read at the first call, not at launch: the app built on the server never pays for a megabyte of fixtures.
+    private lazy var fixtures = MockFixtures.load()
+    private var movies: [Card] { fixtures.movies }
     /// Groupings of fixture movies standing for TMDB collections: the fixtures hold no complete saga.
-    private let sagaFixtures: [SagaFixture]
+    private var sagaFixtures: [SagaFixture] { fixtures.sagas }
     /// Studio hubs over fixture movies.
-    private let studioFixtures: [StudioFixture]
-    private let series: [Card]
-    private let groups: [ChannelGroup]
-    private let epgTitles: [String: [String]]
-    private var progress: [ContentID: Progress] = [:]
-    private var favorites: Set<ContentID> = []
+    private var studioFixtures: [StudioFixture] { fixtures.studios }
+    private var series: [Card] { fixtures.series }
+    private var groups: [ChannelGroup] { fixtures.groups }
+    private var epgTitles: [String: [String]] { fixtures.epgTitles }
+    private lazy var progress: [ContentID: Progress] = fixtures.progress
+    private lazy var favorites: Set<ContentID> = fixtures.favorites
     private var pairingApproved = false
     private var pairingCreatedAt: Date?
     static let pageSize = 18
@@ -30,26 +32,38 @@ final class MockCatalogClient: CatalogClient {
 
     init(scenario: MockScenario) {
         self.scenario = scenario
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        func load<T: Decodable>(_ name: String, as type: T.Type) -> T {
-            guard let url = Bundle.main.url(forResource: name, withExtension: "json"),
-                  let data = try? Data(contentsOf: url) else { fatalError("Fixture \(name).json manquante") }
-            do { return try decoder.decode(T.self, from: data) } catch { fatalError("Fixture \(name).json : \(error)") }
+    }
+
+    /// The embedded JSON files, as the mock starts from.
+    private struct MockFixtures {
+        let movies: [Card]
+        let sagas: [SagaFixture]
+        let studios: [StudioFixture]
+        let series: [Card]
+        let groups: [ChannelGroup]
+        let epgTitles: [String: [String]]
+        let progress: [ContentID: Progress]
+        let favorites: Set<ContentID>
+
+        static func load() -> MockFixtures {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            func load<T: Decodable>(_ name: String, as type: T.Type) -> T {
+                guard let url = Bundle.main.url(forResource: name, withExtension: "json"),
+                      let data = try? Data(contentsOf: url) else { fatalError("Fixture \(name).json manquante") }
+                do { return try decoder.decode(T.self, from: data) } catch { fatalError("Fixture \(name).json : \(error)") }
+            }
+            // The fixtures' `demo://` stream URLs lead nowhere: the mock shows the catalogue, playback is the real server's job.
+            let ch = load("channels", as: ChannelsFile.self)
+            let state = load("state", as: StateFile.self)
+            var progress: [ContentID: Progress] = [:]
+            for e in state.progress {
+                progress[e.content_id] = Progress(position: e.position, duration: e.duration, finished: e.finished ?? false)
+            }
+            return MockFixtures(movies: load("movies", as: [Card].self), sagas: load("sagas", as: [SagaFixture].self),
+                                studios: load("studios", as: [StudioFixture].self), series: load("series", as: [Card].self),
+                                groups: ch.groups, epgTitles: ch.epg, progress: progress, favorites: Set(state.favorites))
         }
-        // The fixtures' `demo://` stream URLs lead nowhere: the mock shows the catalogue, playback is the real server's job.
-        movies = load("movies", as: [Card].self)
-        sagaFixtures = load("sagas", as: [SagaFixture].self)
-        studioFixtures = load("studios", as: [StudioFixture].self)
-        series = load("series", as: [Card].self)
-        let ch = load("channels", as: ChannelsFile.self)
-        groups = ch.groups
-        epgTitles = ch.epg
-        let state = load("state", as: StateFile.self)
-        for e in state.progress {
-            progress[e.content_id] = Progress(position: e.position, duration: e.duration, finished: e.finished ?? false)
-        }
-        favorites = Set(state.favorites)
     }
 
     // MARK: - Plumbing

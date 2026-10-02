@@ -86,13 +86,10 @@ struct ChannelListOverlay: View {
 
 /// A channel of the ◀ list: logo, name, the programme on air and its progress; the one playing marked.
 private struct ChannelListRow: View {
-    @Environment(AppEnvironment.self) private var env
     let channel: Channel
     let isCurrent: Bool
     var logoSize: CGFloat = 64
     let action: () -> Void
-    /// The list's own, else the guide asked at display (kept a minute by the cache).
-    private var now: Programme? { env.guide(of: channel).now ?? env.channelCache.cached(channel.id).flatMap { env.guide(of: $0).now } }
 
     var body: some View {
         Button(action: action) {
@@ -105,12 +102,7 @@ private struct ChannelListRow: View {
                             Text("EN COURS").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
                         }
                     }
-                    if let now {
-                        Text(now.title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-                        ProgressBar(fraction: now.fraction(), height: 4).frame(maxWidth: 260)
-                    } else {
-                        Text(env.guide(of: channel).hasEPG == false ? "Pas de programme" : " ").font(.caption).foregroundStyle(Theme.secondary)
-                    }
+                    ChannelNow(channel: channel, bar: 260)
                 }
                 Spacer(minLength: 0)
                 if let q = channel.maxQuality { Badge(q.rawValue, small: true) }
@@ -119,20 +111,16 @@ private struct ChannelListRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .cardButtonStyle()
-        .task {
-            if now == nil, env.guide(of: channel).hasEPG != false { _ = await env.channelCache.channel(channel.id) }
-        }
     }
 }
 
+/// A channel of « Récentes »: logo, name and when it was watched, then the programme on air and its progress.
 struct RecentChannelCard: View {
-    @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
     let channel: Channel
     let watchedAt: Date
     let isCurrent: Bool
     let action: () -> Void
-    @State private var now: Programme?
 
     var body: some View {
         Button(action: action) {
@@ -146,55 +134,11 @@ struct RecentChannelCard: View {
                     Spacer()
                     if let q = channel.maxQuality { Badge(q.rawValue) }
                 }
-                if let now {
-                    Text(now.title).font(.callout).lineLimit(1)
-                    ProgressBar(fraction: now.fraction(), height: 4)
-                } else {
-                    Text(" ").font(.callout)
-                }
+                ChannelNow(channel: channel, font: .callout, color: nil, spacing: 8, bar: .infinity, fallback: .text(" "))
             }
             .padding(18)
             .frame(width: metrics.recentCard)
         }
         .cardButtonStyle()
-        .task { now = await env.channelCache.channel(channel.id).flatMap { env.guide(of: $0).now } }
-    }
-}
-
-/// Logo placeholder: the mock has none, so initials on the channel's colour.
-/// The channel's logo (iptv-org's, served by our server, else the provider's) on a light tile:
-/// most logos are drawn for a light background. Initials on the channel's colour meanwhile or without one.
-struct ChannelLogo: View {
-    let channel: Channel
-    var size: CGFloat = 64
-    var body: some View {
-        ZStack {
-            if let url = channel.logo {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: size * 0.22).fill(.white.opacity(0.92))
-                            image.resizable().scaledToFit().padding(size * 0.12)
-                        }
-                    } else {
-                        initialsTile
-                    }
-                }
-            } else {
-                initialsTile
-            }
-        }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.22))
-    }
-    private var initialsTile: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: size * 0.22).fill(Theme.art(for: channel.id))
-            Text(initials).font(.system(size: size * 0.36, weight: .heavy)).foregroundStyle(.white)
-        }
-    }
-    private var initials: String {
-        let words = channel.name.split(separator: " ")
-        return words.prefix(2).compactMap { $0.first.map(String.init) }.joined().uppercased()
     }
 }

@@ -101,6 +101,41 @@ struct StatePanel: View {
     }
 }
 
+/// A screen that loads one thing (an actor, a saga): a spinner, then `content`, or a state panel whose
+/// Retry loads again.
+struct LoadedScreen<Value, Content: View>: View {
+    let errorTitle: String
+    let load: () async throws -> Value
+    @ViewBuilder let content: (Value) -> Content
+    @State private var value: Value?
+    @State private var error: CatalogError?
+
+    var body: some View {
+        Group {
+            if let value {
+                content(value)
+            } else if let error {
+                StatePanel(icon: "exclamationmark.triangle", title: errorTitle, message: error.localizedDescription) {
+                    Task { await run() }
+                }
+            } else {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .background(Theme.background)
+        .task { if value == nil { await run() } }
+    }
+
+    private func run() async {
+        do {
+            value = try await load()
+            error = nil
+        } catch {
+            self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
+        }
+    }
+}
+
 /// Card that takes the place of a page that failed to load, in a grid or a row.
 struct RetryCard: View {
     let message: String

@@ -38,16 +38,9 @@ struct SagaCardLabel: View {
     let saga: Saga
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            ArtView(id: ContentID(saga.id), url: saga.poster, title: saga.name)
-                .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
-            LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-            Text(filmCount(saga.count)).font(.system(size: metrics.badge, weight: .semibold)).foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.6), radius: 3)
-                .padding(metrics.compact ? 8 : 12)
+        PosterFrame(id: ContentID(saga.id), url: saga.poster, title: saga.name) {
+            PosterFacts(text: filmCount(saga.count)).padding(metrics.compact ? 8 : 12)
         }
-        .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.compact ? 10 : 14))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(saga.name), \(filmCount(saga.count))")
     }
@@ -60,23 +53,11 @@ struct SagaView: View {
     var onSelect: ((ContentID) -> Void)?
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
-    @State private var sheet: SagaSheet?
-    @State private var error: CatalogError?
 
     var body: some View {
-        Group {
-            if let sheet {
-                content(sheet)
-            } else if let error {
-                StatePanel(icon: "exclamationmark.triangle", title: "Saga indisponible", message: error.localizedDescription) {
-                    Task { await load() }
-                }
-            } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+        LoadedScreen(errorTitle: "Saga indisponible", load: { try await env.call { try await env.client.saga(id: ref.id) } }) { s in
+            content(s)
         }
-        .background(Theme.background)
-        .task { if sheet == nil { await load() } }
     }
 
     private func content(_ s: SagaSheet) -> some View {
@@ -95,26 +76,10 @@ struct SagaView: View {
                     }
                     .padding(.horizontal, metrics.inset)
                     .padding(.top, metrics.detailTop)
-                    LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
-                        ForEach(s.movies) { card in
-                            Button { (onSelect ?? env.open)(card.id) } label: { PosterCardLabel(card: card) }
-                                .cardButtonStyle()
-                        }
-                    }
-                    .padding(.horizontal, metrics.inset)
-                    .padding(.vertical, metrics.rowPadding)
+                    PosterGrid(cards: s.movies, onSelect: onSelect ?? env.open)
                 }
                 .padding(.bottom, 60)
             }
-        }
-    }
-
-    private func load() async {
-        do {
-            sheet = try await env.call { try await env.client.saga(id: ref.id) }
-            error = nil
-        } catch {
-            self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
         }
     }
 }
@@ -162,21 +127,10 @@ struct SagasGridView: View {
                     Task { await p.retry() }
                 }
             } else {
-                LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
-                    ForEach(Array(p.items.enumerated()), id: \.element.id) { index, saga in
-                        Button { open(saga.ref) } label: { SagaCardLabel(saga: saga) }
-                            .cardButtonStyle()
-                            .onAppear { Task { await p.loadMoreIfNeeded(reaching: index) } }
-                    }
-                    if let e = p.pageError {
-                        RetryCard(message: e.localizedDescription) { Task { await p.retry() } }
-                            .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
-                    } else if p.isLoading {
-                        ProgressView().frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
-                    }
+                PagedPosterGrid(paginator: p) { saga in
+                    Button { open(saga.ref) } label: { SagaCardLabel(saga: saga) }
+                        .cardButtonStyle()
                 }
-                .padding(.horizontal, metrics.inset)
-                .padding(.vertical, metrics.rowPadding)
             }
         } else {
             ProgressView().frame(maxWidth: .infinity).padding(100)
@@ -221,7 +175,7 @@ struct StudioTile: View {
     var body: some View {
         ZStack {
             // Phone: without a logo the name sits on a dark tile, a white block glares on the dark screen.
-            RoundedRectangle(cornerRadius: metrics.compact ? 10 : 14).fill(darkTile ? Color.white.opacity(0.1) : .white)
+            RoundedRectangle(cornerRadius: metrics.cardRadius).fill(darkTile ? Color.white.opacity(0.1) : .white)
             Group {
                 if let logo = studio.logo {
                     AsyncImage(url: logo) { image in
@@ -261,7 +215,7 @@ struct SeeAllCard: View {
                 Text("Voir tout").font(.headline)
                 Text(Format.count(total)).font(.caption).foregroundStyle(Theme.secondary)
             }
-            .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
+            .frame(width: metrics.posterSize.width, height: metrics.posterSize.height)
         }
         .cardButtonStyle()
     }

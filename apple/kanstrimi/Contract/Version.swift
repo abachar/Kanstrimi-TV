@@ -60,6 +60,8 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
     }
     /// "4K Dolby Vision · VF", "HD · VF · Version longue".
     var label: String { ["\(qualityLabel) · \(language.rawValue)", edition].compactMap(\.self).joined(separator: " · ") }
+    /// "Source A", "Source B": the sources of a version by their place.
+    static func sourceName(_ index: Int) -> String { "Source \(Character(UnicodeScalar(65 + index)!))" }
 }
 
 nonisolated extension Array where Element == Version {

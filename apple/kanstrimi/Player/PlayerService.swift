@@ -95,7 +95,7 @@ final class PlayerService {
     private let client: CatalogClient
     private let preferences: Preferences
     private let failedSources: FailedSourcesStore
-    private let progressQueue: ProgressQueue
+    private let reporter: PlaybackReporter
     let engine: AetherEngine
     /// The surface the engine draws into. Kept by the service, because the engine holds its views weakly:
     /// it outlives the player screen, which hides while Picture-in-Picture runs.
@@ -117,7 +117,11 @@ final class PlayerService {
     private var lastSeek: Date?
     /// Seeks issued and not yet landed: the clock's ticks would show the old position meanwhile.
     private var pendingSeeks = 0
+    /// Bumped at each start: a seek of the previous file landing late must not count against this one.
+    private var seekGeneration = 0
     private var loadTask: Task<Void, Never>?
+    /// Asking the server for fresh links before a restart; further failures meanwhile are the same one.
+    private var relinkTask: Task<Void, Never>?
     /// Live: restarts asked by the source itself on the chosen channel, and when the last one ran.
     private var liveResets = 0
     private var lastLiveReset: Date?
@@ -162,7 +166,7 @@ final class PlayerService {
         self.client = client
         self.preferences = preferences
         self.failedSources = failedSources
-        self.progressQueue = progressQueue
+        self.reporter = PlaybackReporter(client: client, queue: progressQueue)
         self.capabilities = capabilities
         do { self.engine = try AetherEngine() } catch { fatalError("AetherEngine failed to start: \(error)") }
         // The app plays no other sound: give the audio session back when the player stops.
@@ -240,6 +244,7 @@ final class PlayerService {
         sendProgress(final: true)
         cancelTimers()
         loadTask?.cancel(); loadTask = nil
+        relinkTask?.cancel(); relinkTask = nil
         engine.stop()
         context = nil; version = nil; source = nil; channel = nil; channels = []
         phase = .idle; time = 0; duration = 0; isMinimized = false
@@ -285,9 +290,11 @@ final class PlayerService {
         time = target
         lastSeek = .now
         pendingSeeks += 1
-        Task { [engine] in
+        let generation = seekGeneration
+        Task { [weak self, engine] in
             await engine.seek(to: target)
-            pendingSeeks -= 1
+            guard let self, seekGeneration == generation else { return }
+            pendingSeeks = max(0, pendingSeeks - 1)
         }
         log.info("seek to \(target, format: .fixed(precision: 0))")
         nowPlaying.update()
@@ -373,20 +380,13 @@ final class PlayerService {
         return chooser.alternatives(to: version, in: context.versions).first
     }
 
-    /// "Réessayer" from the failure dialog: ask the server for a fresh URL. The mock hands back the same context.
+    /// "Réessayer" from the failure dialog: fresh links from the server, same version, same position.
     func retryFromServer() {
-        guard let context, let version else { return }
+        guard let version else { return }
         failure = nil
         liveResets = 0
-        Task { [weak self] in
-            guard let self else { return }
-            let fresh = (try? await client.playback(id: context.content.id)).map { PlaybackContext(content: context.content, playback: $0) } ?? context
-            let v = fresh.versions.first { $0.id == version.id } ?? version
-            let s = chooser.bestSource(of: v) ?? v.sources.first
-            guard let s else { return }
-            startAttempts = 0
-            start(fresh, version: v, source: s, reason: choiceReason, at: time)
-        }
+        startAttempts = 0
+        restartWithFreshLinks(version: version, source: nil)
     }
 
     func playAlternative() {
@@ -424,11 +424,12 @@ final class PlayerService {
     private func followUp() {
         // Already changing: the engine's end after the countdown's own fallback.
         guard !isChangingTitle else { return }
-        guard preferences.autoPlayNext, !nextTriggered, let next = nextContext else {
+        guard preferences.autoPlayNext, !nextTriggered, let upNext, let context else {
             time = duration
             stop()
             return
         }
+        let prepared = nextContext
         countdownTask?.cancel()
         nextCountdown = nil
         nextContext = nil
@@ -439,8 +440,11 @@ final class PlayerService {
         Task { [weak self] in
             try? await Task.sleep(for: Self.nextBlack)
             guard let self, isChangingTitle else { return }
+            // Not ready (its prefetch failed): asked now rather than dropping back to the sheet.
+            let next = if let prepared { prepared } else { await self.context(for: upNext, after: context) }
+            guard isChangingTitle else { return }
             isChangingTitle = false
-            play(next)
+            if let next { play(next) } else { stop() }
         }
     }
     func cancelNext() {
@@ -462,6 +466,7 @@ final class PlayerService {
             fetchSuggestions(ctx)
         }
         cancelTimers(keepCountdown: true)
+        relinkTask?.cancel(); relinkTask = nil
         context = ctx
         let changedVersion = version?.id != v.id
         version = v
@@ -475,6 +480,8 @@ final class PlayerService {
         isStarted = false
         hasPlayed = false
         lastSeek = nil
+        seekGeneration += 1
+        pendingSeeks = 0
         audioTracks = []; textTracks = []
 
         // One connection at most: the account allows a single stream, and this also stops the
@@ -553,22 +560,56 @@ final class PlayerService {
         }
     }
 
-    /// Error or no image after 10 s: switch source, retry twice, then ask.
+    /// What follows a failed start or a freeze: the next source, the same one again, or the dialog.
+    nonisolated enum FailureStep: Equatable { case otherSource(Source), sameSource, giveUp }
+    nonisolated static func failureStep(attempts: Int, switchesSources: Bool, nextSource: Source?) -> FailureStep {
+        if switchesSources, let nextSource { return .otherSource(nextSource) }
+        return attempts <= 2 ? .sameSource : .giveUp
+    }
+
+    /// Error or no image after 10 s: switch source, retry twice, then ask. Every restart asks the server for
+    /// fresh links first: the ones a screen kept (home, Direct) may have expired, and would fail the same way.
     private func handleStreamFailure() {
-        guard let context, let version, let source else { return }
+        guard relinkTask == nil, context != nil, let version, let source else { return }
         startAttempts += 1
         failedSources.markFailed(source.id)
-        if preferences.switchSourceOnFailure, let other = chooser.nextSource(after: source, in: version) {
+        switch Self.failureStep(attempts: startAttempts, switchesSources: preferences.switchSourceOnFailure,
+                                nextSource: chooser.nextSource(after: source, in: version)) {
+        case .otherSource(let other):
             showToast("Source changée automatiquement", detail: "\(sourceLabel(source, in: version)) → \(sourceLabel(other, in: version)) · même version \(version.label)")
-            start(context, version: version, source: other, reason: choiceReason, at: time)
-            return
+            restartWithFreshLinks(version: version, source: other)
+        case .sameSource:
+            restartWithFreshLinks(version: version, source: source)
+        case .giveUp:
+            presentFailure()
         }
-        if startAttempts <= 2 {
-            // Same URL again: the server answers 302 with a fresh upstream token.
-            start(context, version: version, source: source, reason: choiceReason, at: time)
-            return
+    }
+
+    /// Asks `/playback` (`/channels/{id}` in live) again, then restarts on the same version and the given source
+    /// (nil: the best) at the same position. Offline, the links held are tried anyway.
+    private func restartWithFreshLinks(version: Version, source: Source?) {
+        guard let context else { return }
+        let at = time
+        relinkTask?.cancel()
+        relinkTask = Task { [weak self] in
+            guard let self else { return }
+            let fresh = await freshLinks(context) ?? context
+            guard !Task.isCancelled, self.context?.content.id == context.content.id else { return }
+            relinkTask = nil
+            let v = fresh.versions.first { $0.id == version.id } ?? version
+            guard let s = source.flatMap({ s in v.sources.first { $0.id == s.id } }) ?? source ?? chooser.bestSource(of: v) ?? v.sources.first
+            else { return }
+            start(fresh, version: v, source: s, reason: choiceReason, at: at)
         }
-        presentFailure()
+    }
+
+    private func freshLinks(_ ctx: PlaybackContext) async -> PlaybackContext? {
+        if ctx.content.kind == .live {
+            guard let channel = try? await client.channel(id: ctx.content.id) else { return nil }
+            return PlaybackContext(content: ctx.content, versions: channel.versions)
+        }
+        guard let playback = try? await client.playback(id: ctx.content.id) else { return nil }
+        return PlaybackContext(content: ctx.content, playback: playback)
     }
 
     /// Stops and shows the failure dialog.
@@ -613,7 +654,7 @@ final class PlayerService {
 
     func sourceLabel(_ s: Source, in v: Version) -> String {
         guard let idx = v.sources.firstIndex(of: s) else { return "Source" }
-        return "Source \(Character(UnicodeScalar(65 + idx)!))"
+        return Version.sourceName(idx)
     }
 
     private func showToast(_ text: String, detail: String?) {
@@ -628,10 +669,22 @@ final class PlayerService {
     private func prefetchNext(_ ctx: PlaybackContext) {
         guard let next = ctx.next else { return }
         Task { [weak self] in
-            guard let self, let playback = try? await client.playback(id: next.id) else { return }
+            guard let self, let prepared = await context(for: .episode(next), after: ctx) else { return }
+            if context?.content.id == ctx.content.id { nextContext = prepared }
+        }
+    }
+
+    /// What follows `ctx`, ready to play: its versions asked from `/playback`.
+    private func context(for upNext: UpNext, after ctx: PlaybackContext) async -> PlaybackContext? {
+        switch upNext {
+        case .episode(let next):
+            guard let playback = try? await client.playback(id: next.id) else { return nil }
             let content = PlaybackContent(id: next.id, kind: .episode, title: next.title ?? "", subtitle: ctx.content.subtitle,
                                           episode: next.ref, backdrop: ctx.content.backdrop)
-            if context?.content.id == ctx.content.id { nextContext = PlaybackContext(content: content, playback: playback) }
+            return PlaybackContext(content: content, playback: playback)
+        case .title(let suggestion):
+            guard let playback = try? await client.playback(id: suggestion.card.id) else { return nil }
+            return PlaybackContext(suggested: suggestion.card, playback: playback)
         }
     }
 
@@ -646,8 +699,8 @@ final class PlayerService {
             guard context?.content.id == ctx.content.id else { return }
             suggestions = s
             // After a movie or the last episode: what follows is the suggestion, ready before the end.
-            guard ctx.next == nil, let next = s.next, let playback = try? await client.playback(id: next.card.id) else { return }
-            if context?.content.id == ctx.content.id { nextContext = PlaybackContext(suggested: next.card, playback: playback) }
+            guard ctx.next == nil, let next = s.next, let prepared = await context(for: .title(next), after: ctx) else { return }
+            if context?.content.id == ctx.content.id { nextContext = prepared }
         }
     }
 
@@ -690,13 +743,8 @@ final class PlayerService {
         if isLive { return sendWatchTime(final: final) }
         guard let context, duration > 0, time > 0 else { return }
         let report = ProgressReport(contentID: context.content.id, position: time, duration: duration, sentAt: .now)
-        Task { [weak self, client, progressQueue] in
-            do {
-                try await client.report(report)
-                await progressQueue.flush { try await client.report($0) }
-            } catch {
-                progressQueue.enqueue(report)
-            }
+        Task { [weak self, reporter] in
+            await reporter.report(report)
             if final { self?.progressRevision += 1 }
         }
     }
@@ -708,8 +756,8 @@ final class PlayerService {
         guard seconds > 0 else { return }
         // Out of the live player: the home and the Direct reload once the server counted it (« Chaînes les plus
         // regardées »). Not on a zap, which would reload them at every channel.
-        Task { [weak self, client] in
-            try? await client.reportWatchTime(id: context.content.id, seconds: seconds)
+        Task { [weak self, reporter] in
+            await reporter.reportWatchTime(id: context.content.id, seconds: seconds)
             if final, let self, !isLive { progressRevision += 1 }
         }
     }

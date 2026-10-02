@@ -216,20 +216,7 @@ struct SeasonEpisodesStrip: View {
     private func card(_ ep: Episode) -> some View {
         let isCurrent = ep.id == player.context?.content.id
         return VStack(alignment: .leading, spacing: 10) {
-            ZStack(alignment: .bottomLeading) {
-                ArtView(id: ep.id, url: ep.still)
-                if isCurrent {
-                    ProgressBar(fraction: player.fraction, height: 5).padding(.horizontal, 12).padding(.bottom, 10)
-                } else if let p = ep.progress, p.isResumable {
-                    ProgressBar(fraction: p.fraction, height: 5).padding(.horizontal, 12).padding(.bottom, 10)
-                }
-                if ep.progress?.isWatched == true, !isCurrent {
-                    Image(systemName: "checkmark.circle.fill").font(.title3).padding(10).foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                }
-            }
-            .frame(width: metrics.stillWidth * 1.3, height: metrics.stillWidth * 1.3 * 9 / 16)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            EpisodeStill(episode: ep, width: metrics.stillWidth * 1.3, playing: isCurrent ? player.fraction : nil)
             HStack(spacing: 8) {
                 Text("É\(ep.number)").foregroundStyle(isCurrent ? Theme.accent : Theme.secondary)
                 Text(ep.title).lineLimit(1)

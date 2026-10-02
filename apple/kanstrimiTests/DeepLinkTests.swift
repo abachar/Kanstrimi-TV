@@ -11,5 +11,9 @@ struct DeepLinkTests {
         #expect(DeepLink(url: URL(string: "kanstrimi://open/")!) == nil)
         #expect(DeepLink(url: URL(string: "kanstrimi://watch/tmdb:movie:603")!) == nil)
         #expect(DeepLink(url: URL(string: "https://open/tmdb:movie:603")!) == nil)
+        // Opened by any app: only our ids, nothing that walks the API's paths.
+        #expect(DeepLink(url: URL(string: "kanstrimi://open/devices%2FK7Q4MZ")!) == nil)
+        #expect(DeepLink(url: URL(string: "kanstrimi://open/tmdb:movie:1%2F..%2F..%2Finfo")!) == nil)
+        #expect(DeepLink(url: URL(string: "kanstrimi://open/live:fr-tf1")!) == .open(ContentID("live:fr-tf1")))
     }
 }

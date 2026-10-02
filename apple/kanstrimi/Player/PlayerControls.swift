@@ -18,14 +18,6 @@ struct PlayerControls: View {
     let onActivity: () -> Void
     private var player: PlayerService { env.player }
 
-    private var panels: [Panel] {
-        if player.isLive { return [.programme, .recents, .infos] }
-        // Similaires once the server answered with some.
-        let related: [Panel] = player.suggestions?.related.isEmpty == false ? [.related] : []
-        if player.context?.content.kind == .episode { return [.episodes] + related + [.infos] }
-        return related + [.infos]
-    }
-
     var body: some View {
         ZStack {
             LinearGradient(stops: panel != nil
@@ -144,17 +136,7 @@ struct PlayerControls: View {
             VStack(spacing: 6) {
                 // Without a guide the bar is full: a live is always at its end.
                 ProgressBar(fraction: now?.fraction() ?? 1, height: 4)
-                HStack {
-                    if let now {
-                        Text(Format.hour(now.start))
-                        Spacer()
-                        Text(player.epg.next.map { "Ensuite : \($0.title) · \(Format.hour($0.start))" } ?? Format.hour(now.end)).lineLimit(1)
-                    } else {
-                        Text("Programme inconnu")
-                        Spacer()
-                    }
-                }
-                .font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary)
+                LiveProgressCaption().font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary)
             }
         } else {
             VStack(spacing: 6) {
@@ -175,7 +157,7 @@ struct PlayerControls: View {
                 }
                 .frame(height: 22)
                 HStack {
-                    Text(scanLabel + Format.clock(scrubTime ?? player.shownTime)).foregroundStyle(Theme.text)
+                    Text(player.scanLabel + Format.clock(scrubTime ?? player.shownTime)).foregroundStyle(Theme.text)
                     Spacer()
                     Text("−\(Format.clock(player.remaining)) · fin à \(Format.hour(player.endDate))")
                 }
@@ -184,29 +166,24 @@ struct PlayerControls: View {
         }
     }
 
-    private var scanLabel: String {
-        guard player.scanRate != 0 else { return "" }
-        return "\(player.scanRate > 0 ? "▶▶" : "◀◀") ×\(Int(abs(player.scanRate)))  "
-    }
-
     /// Panels on the left, menus on the right; upright and short of room, the three menus fold into one.
     private var buttons: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 10) {
                 panelButtons
                 Spacer(minLength: 8)
-                if hasVersions { versionsMenu }
-                if hasAudio { audioMenu }
-                if hasSubtitles { subtitlesMenu }
+                if player.offersVersions { versionsMenu }
+                if player.offersAudio { audioMenu }
+                if player.offersSubtitles { subtitlesMenu }
             }
             HStack(spacing: 10) {
                 panelButtons
                 Spacer(minLength: 8)
-                if hasVersions || hasAudio || hasSubtitles {
+                if player.offersVersions || player.offersAudio || player.offersSubtitles {
                     Menu {
-                        if hasVersions { Menu { versionItems } label: { Label("Versions", systemImage: "rectangle.stack.badge.play") } }
-                        if hasAudio { Menu { audioItems } label: { Label("Audio", systemImage: "waveform") } }
-                        if hasSubtitles { Menu { subtitleItems } label: { Label("Sous-titres", systemImage: "captions.bubble") } }
+                        if player.offersVersions { Menu { VersionMenuItems() } label: { Label("Versions", systemImage: "rectangle.stack.badge.play") } }
+                        if player.offersAudio { Menu { AudioMenuItems() } label: { Label("Audio", systemImage: "waveform") } }
+                        if player.offersSubtitles { Menu { SubtitleMenuItems() } label: { Label("Sous-titres", systemImage: "captions.bubble") } }
                     } label: {
                         roundLabel("ellipsis")
                     }
@@ -216,13 +193,8 @@ struct PlayerControls: View {
         }
     }
 
-    // Each menu only when it offers a choice; the tracks are known once the player has read the stream.
-    private var hasVersions: Bool { (player.context?.versions.count ?? 0) > 1 }
-    private var hasAudio: Bool { player.audioTracks.count > 1 }
-    private var hasSubtitles: Bool { !player.textTracks.isEmpty }
-
     private var panelButtons: some View {
-        ForEach(panels, id: \.self) { p in
+        ForEach(player.panels, id: \.self) { p in
             Button { panel = panel == p ? nil : p; onActivity() } label: {
                 Text(p.rawValue).font(.footnote.weight(.semibold)).lineLimit(1).fixedSize()
                     .padding(.horizontal, 14).frame(height: 36)
@@ -234,48 +206,13 @@ struct PlayerControls: View {
     }
 
     private var versionsMenu: some View {
-        Menu { versionItems } label: { roundLabel("rectangle.stack.badge.play") }.accessibilityLabel("Versions")
+        Menu { VersionMenuItems() } label: { roundLabel("rectangle.stack.badge.play") }.accessibilityLabel("Versions")
     }
     private var audioMenu: some View {
-        Menu { audioItems } label: { roundLabel("waveform") }.accessibilityLabel("Audio")
+        Menu { AudioMenuItems() } label: { roundLabel("waveform") }.accessibilityLabel("Audio")
     }
     private var subtitlesMenu: some View {
-        Menu { subtitleItems } label: { roundLabel("captions.bubble") }.accessibilityLabel("Sous-titres")
-    }
-
-    @ViewBuilder private var versionItems: some View {
-        let versions = player.context?.versions ?? []
-        let languages = versions.map(\.language).reduce(into: [Language]()) { if !$0.contains($1) { $0.append($1) } }
-        ForEach(languages, id: \.self) { language in
-            Section(language.label) {
-                ForEach(versions.filter { $0.language == language }) { v in
-                    Button { player.switchVersion(v) } label: {
-                        if v.id == player.version?.id { Label(v.qualityLabel, systemImage: "checkmark") } else { Text(v.qualityLabel) }
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder private var audioItems: some View {
-        if player.audioTracks.isEmpty { Text("Pistes audio connues au démarrage de la lecture") }
-        ForEach(player.audioTracks) { t in
-            Button { player.select(audio: t) } label: { trackLabel(t) }
-        }
-    }
-
-    @ViewBuilder private var subtitleItems: some View {
-        Button { player.select(text: nil) } label: {
-            if player.textTracks.contains(where: \.isSelected) { Text("Désactivés") } else { Label("Désactivés", systemImage: "checkmark") }
-        }
-        ForEach(player.textTracks) { t in
-            Button { player.select(text: t) } label: { trackLabel(t) }
-        }
-    }
-
-    @ViewBuilder private func trackLabel(_ t: PlayerService.Track) -> some View {
-        let name = t.name + (t.language.map { " · \($0)" } ?? "")
-        if t.isSelected { Label(name, systemImage: "checkmark") } else { Text(name) }
+        Menu { SubtitleMenuItems() } label: { roundLabel("captions.bubble") }.accessibilityLabel("Sous-titres")
     }
 
     // MARK: - Panels

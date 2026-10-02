@@ -75,8 +75,46 @@ final class AppEnvironment {
         catch CatalogError.unauthorized { handleUnauthorized(); throw CatalogError.unauthorized }
     }
 
+    /// A short message over the screens after an action that failed out of sight (Reprendre, a link, a mark).
+    private(set) var notice: String?
+    @ObservationIgnored private var noticeTask: Task<Void, Never>?
+
+    /// Runs an action whose failure would otherwise go unseen; nil when it failed, the notice then says why.
+    /// A revoked device already goes back to pairing, a cancelled action says nothing.
+    @discardableResult
+    func attempt<T>(_ action: String, _ work: () async throws -> T) async -> T? {
+        do { return try await work() }
+        catch is CancellationError { return nil }
+        catch CatalogError.unauthorized { return nil }
+        catch {
+            let reason = (error as? CatalogError)?.errorDescription ?? error.localizedDescription
+            notice = "\(action) impossible · \(reason)"
+            noticeTask?.cancel()
+            noticeTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(4))
+                if !Task.isCancelled { self?.notice = nil }
+            }
+            return nil
+        }
+    }
+
     func loadInfo() async {
         info = try? await call { try await client.info() }
+    }
+
+    /// Bumped when the app comes back after a long absence: the screens that hold stream links and programmes
+    /// (home, Direct) reload, their links having expired meanwhile.
+    private(set) var resumeRevision = 0
+    @ObservationIgnored private var inactiveSince: Date?
+    static let longAbsence: TimeInterval = 10 * 60
+
+    func sceneBecame(active: Bool) {
+        if !active {
+            if inactiveSince == nil { inactiveSince = .now }
+            return
+        }
+        if let since = inactiveSince, Date.now.timeIntervalSince(since) > Self.longAbsence { resumeRevision += 1 }
+        inactiveSince = nil
     }
 
     /// The version a channel is shown in: the one playing, else the one it would start in (remembered, else
@@ -90,9 +128,23 @@ final class AppEnvironment {
         channel.guide(for: liveVersion(of: channel))
     }
 
+    /// What a channel shows now, wherever it is drawn: its list's guide, else the detail `channelCache` received,
+    /// for as long as that programme airs.
+    func nowPlaying(on channel: Channel) -> Programme? {
+        if let now = guide(of: channel).now { return now }
+        guard let detail = channelCache.latest(channel.id), let now = guide(of: detail).now, now.end > .now else { return nil }
+        return now
+    }
+
+    /// Asks the channel's detail when nothing on air is known, unless the server says it has no guide.
+    func loadNowPlaying(on channel: Channel) async {
+        guard nowPlaying(on: channel) == nil, guide(of: channel).hasEPG != false else { return }
+        _ = await channelCache.channel(channel.id)
+    }
+
     /// Plays a channel from a card (search, home): its versions and the zapping order come with the channel list.
     func watchChannel(_ id: ContentID) async {
-        guard let groups = try? await call({ try await client.channels() }) else { return }
+        guard let groups = await attempt("Lecture", { try await call { try await client.channels() } }) else { return }
         let all = groups.flatMap(\.channels)
         guard let channel = all.first(where: { $0.id == id }) else { return }
         player.play(channel: channel, in: all)
@@ -107,7 +159,7 @@ final class AppEnvironment {
             if player.isPresented { player.stop() }
             open(id)
         case .play(let id):
-            if let ctx = try? await playbackContext(for: id) { player.play(ctx) }
+            if let found = await attempt("Lecture", { try await playbackContext(for: id) }), let ctx = found { player.play(ctx) }
         }
     }
 
@@ -122,6 +174,8 @@ final class AppEnvironment {
     /// `GET /playback/{id}` wrapped with what the player needs to know about the content.
     func playbackContext(for card: Card) async throws -> PlaybackContext {
         let playback = try await call { try await client.playback(id: card.id) }
+        // A series card: the server answers with the episode where it resumes, the one to play and report.
+        if card.episode == nil, playback.episode != nil { return PlaybackContext(suggested: card, playback: playback) }
         let content = PlaybackContent(id: card.id, kind: card.kind, title: card.episode?.title ?? card.title,
                                       subtitle: card.episode != nil ? card.title : nil, episode: card.episode, backdrop: card.backdrop)
         return PlaybackContext(content: content, playback: playback)

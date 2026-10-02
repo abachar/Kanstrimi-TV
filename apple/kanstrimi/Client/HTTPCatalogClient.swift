@@ -7,7 +7,6 @@ final class HTTPCatalogClient: CatalogClient {
     let baseURL: URL
     private let device: DeviceStore
     private let session: URLSession
-    private let decoder = HTTPCatalogClient.makeDecoder()
     /// Pauses before each new try of a GET that failed on a passing hiccup; one entry per retry.
     private let retryDelays: [Duration]
 
@@ -115,6 +114,16 @@ final class HTTPCatalogClient: CatalogClient {
         id.rawValue.hasPrefix("tmdb:tv:") || id.rawValue.hasPrefix("fallback:series:") ? .series : .movie
     }
 
+    /// The token travels over HTTPS, or in clear on the local network only (a development server).
+    nonisolated static func mayCarryToken(_ url: URL) -> Bool {
+        if url.scheme == "https" { return true }
+        guard url.scheme == "http", let host = url.host()?.lowercased() else { return false }
+        if host == "localhost" || host.hasSuffix(".local") || !host.contains(".") { return true }
+        let parts = host.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 4 else { return false }
+        return parts[0] == 10 || parts[0] == 127 || (parts[0] == 192 && parts[1] == 168) || (parts[0] == 172 && (16...31).contains(parts[1]))
+    }
+
     private func makeRequest(_ method: String, _ path: String, query: [URLQueryItem], auth: Bool, body: (any Encodable)?) throws -> URLRequest {
         var url = baseURL
         for segment in path.split(separator: "/") { url.append(path: String(segment)) }
@@ -123,6 +132,7 @@ final class HTTPCatalogClient: CatalogClient {
         req.httpMethod = method
         if auth {
             guard let token = device.token else { throw CatalogError.unauthorized }
+            guard Self.mayCarryToken(url) else { throw CatalogError.server("Adresse du serveur non chiffrée : https requis hors du réseau local") }
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let body {
@@ -140,9 +150,12 @@ final class HTTPCatalogClient: CatalogClient {
             let data: Data, response: URLResponse
             do { (data, response) = try await session.data(for: req) }
             catch let e as URLError {
+                // A screen left before its answer: not an error to show, the caller just stops.
+                if e.code == .cancelled { throw CancellationError() }
                 if Self.isTransient(e), let delay = delays.popFirst() { try await Task.sleep(for: delay); continue }
                 throw Self.map(e)
             }
+            catch is CancellationError { throw CancellationError() }
             catch { throw CatalogError.server(error.localizedDescription) }
             guard let http = response as? HTTPURLResponse else { throw CatalogError.server("Réponse invalide") }
             if (200..<300).contains(http.statusCode) { return (data, http) }
@@ -162,10 +175,14 @@ final class HTTPCatalogClient: CatalogClient {
         (502...504).contains(status) && (try? JSONDecoder().decode(ErrorBody.self, from: data)) == nil
     }
 
-    private func send<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = [], auth: Bool = true, body: (any Encodable)? = nil) async throws -> T {
+    private func send<T: Decodable & Sendable>(_ method: String, _ path: String, query: [URLQueryItem] = [], auth: Bool = true, body: (any Encodable)? = nil) async throws -> T {
         let (data, _) = try await perform(try makeRequest(method, path, query: query, auth: auth, body: body))
-        do { return try decoder.decode(T.self, from: data) }
-        catch { throw CatalogError.decoding(Self.describe(error)) }
+        return try await Self.decode(T.self, from: data)
+    }
+    /// Off the main actor: `/channels` or `/home` decoded there would stutter the focus moving meanwhile.
+    @concurrent nonisolated private static func decode<T: Decodable & Sendable>(_ type: T.Type, from data: Data) async throws -> T {
+        do { return try makeDecoder().decode(T.self, from: data) }
+        catch { throw CatalogError.decoding(describe(error)) }
     }
     private func sendNoContent(_ method: String, _ path: String, auth: Bool = true, body: (any Encodable)? = nil) async throws {
         _ = try await perform(try makeRequest(method, path, query: [], auth: auth, body: body))
@@ -186,11 +203,10 @@ final class HTTPCatalogClient: CatalogClient {
         switch e.code {
         case .notConnectedToInternet, .timedOut, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost, .dnsLookupFailed, .internationalRoamingOff, .dataNotAllowed:
             return .offline
-        case .cancelled: return .server("Annulé")
         default: return .server(e.localizedDescription)
         }
     }
-    private static func describe(_ error: Error) -> String {
+    nonisolated private static func describe(_ error: Error) -> String {
         guard let d = error as? DecodingError else { return error.localizedDescription }
         switch d {
         case .keyNotFound(let k, let c): return "clé \(k.stringValue) absente (\(c.codingPath.map(\.stringValue).joined(separator: ".")))"
@@ -212,11 +228,17 @@ final class HTTPCatalogClient: CatalogClient {
         return d
     }
     nonisolated static func parseISO8601(_ s: String) -> Date? {
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = fractional.date(from: s) { return d }
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
-        return plain.date(from: s)
+        fractionalISO8601.date(from: s) ?? plainISO8601.date(from: s)
     }
+    // Built once: a formatter per date made a thousand of them for `/channels`. Parsing is thread-safe.
+    private nonisolated(unsafe) static let fractionalISO8601: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private nonisolated(unsafe) static let plainISO8601: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
 }

@@ -210,15 +210,21 @@ struct LoadingBadge: View {
 // MARK: - Toast [12]
 
 struct ToastView: View {
-    let toast: PlayerService.Toast
+    let text: String
+    var detail: String? = nil
+    var icon = "arrow.triangle.2.circlepath"
+
+    init(toast: PlayerService.Toast) { text = toast.text; detail = toast.detail }
+    init(text: String, detail: String? = nil, icon: String) { self.text = text; self.detail = detail; self.icon = icon }
+
     var body: some View {
         VStack {
             Spacer()
             HStack(spacing: 16) {
-                Image(systemName: "arrow.triangle.2.circlepath").font(.title2).foregroundStyle(Theme.accent)
+                Image(systemName: icon).font(.title2).foregroundStyle(Theme.accent)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(toast.text).font(.headline)
-                    if let d = toast.detail { Text(d).font(.callout).foregroundStyle(Theme.secondary) }
+                    Text(text).font(.headline)
+                    if let d = detail { Text(d).font(.callout).foregroundStyle(Theme.secondary) }
                 }
             }
             .padding(.horizontal, 26).padding(.vertical, 18)

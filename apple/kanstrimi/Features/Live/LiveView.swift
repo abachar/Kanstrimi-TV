@@ -22,8 +22,10 @@ struct LiveView: View {
     @FocusState private var focus: Focus?
     private enum Focus: Hashable { case category(CategoryID), channel(ContentID), watch }
 
-    private var allChannels: [Channel] { groups.flatMap(\.channels) }
-    private var recents: [Channel] { env.recentChannels.entries.compactMap { e in allChannels.first { $0.id == e.channelID } } }
+    /// Every channel once, and by id: built at each load, read at every move of the focus.
+    @State private var allChannels: [Channel] = []
+    @State private var channelByID: [ContentID: Channel] = [:]
+    private var recents: [Channel] { env.recentChannels.entries.compactMap { channelByID[$0.channelID] } }
     private var favorites: [Channel] { allChannels.filter { $0.isFavorite == true } }
     /// The server's ranking over the last 30 days; a channel sits in several groups, counted once.
     private var mostWatched: [Channel] {
@@ -40,7 +42,7 @@ struct LiveView: View {
         case .group(let id): groups.first { $0.id == id }?.channels ?? []
         }
     }
-    private var focusedChannel: Channel? { allChannels.first { $0.id == focusedChannelID } }
+    private var focusedChannel: Channel? { focusedChannelID.flatMap { channelByID[$0] } }
 
     var body: some View {
         Group {
@@ -74,6 +76,7 @@ struct LiveView: View {
         .task { if groups.isEmpty { await load() } }
         // A channel left: its watch time may change « Les plus regardées ».
         .onChange(of: env.player.progressRevision) { Task { await load() } }
+        .onChange(of: env.resumeRevision) { Task { await load() } }
         .onChange(of: focus) { _, f in
             switch f {
             case .category(let id): selected = id
@@ -105,11 +108,16 @@ struct LiveView: View {
         defer { isLoading = false }
         do {
             groups = try await env.call { try await env.client.channels() }
+            allChannels = groups.flatMap(\.channels)
+            // A channel sits in several groups: the first one wins, as `first(where:)` did.
+            channelByID = Dictionary(allChannels.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             error = nil
             if recents.isEmpty {
                 selected = !mostWatched.isEmpty ? .mostWatched : !favorites.isEmpty ? .favorites : .group(groups.first?.id ?? "")
             }
             if focusedChannelID == nil, let first = visible.first { focusChannel(first.id) }
+        } catch is CancellationError {
+            // The screen went away first: nothing to show.
         } catch {
             self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
         }
@@ -120,7 +128,10 @@ struct LiveView: View {
         focusedDetail = env.channelCache.cached(id)
         Task {
             let c = await env.channelCache.channel(id)
-            if focusedChannelID == id { focusedDetail = c }
+            guard focusedChannelID == id else { return }
+            focusedDetail = c
+            // The detail's links are fresh; the list's may have expired while the screen stayed open.
+            if isVisible, !env.player.isPresented, let channel = focusedChannel { showPreview(channel) }
         }
         if isVisible, !env.player.isPresented, let c = focusedChannel { showPreview(c) }
     }
@@ -140,7 +151,8 @@ struct LiveView: View {
     /// The side preview exists only in the three-column layout: a phone streams nothing until a tap. It
     /// shows the version the channel would start in: « TF1 » switched to FHD previews in FHD.
     private func showPreview(_ c: Channel) {
-        guard metrics.liveColumns, let url = env.player.startChoice(c.id, versions: c.versions)?.source.streamURL else { return }
+        let versions = focusedDetail?.id == c.id ? focusedDetail?.versions ?? c.versions : c.versions
+        guard metrics.liveColumns, let url = env.player.startChoice(c.id, versions: versions)?.source.streamURL else { return }
         preview.show(c.id, url: url)
     }
 
@@ -270,8 +282,7 @@ struct LiveView: View {
 
     /// iPhone: logo, name and quality, then what is on air with its hours and its progress.
     private func phoneChannelRow(_ c: Channel) -> some View {
-        let now = env.guide(of: c).now ?? env.channelCache.cached(c.id).flatMap { env.guide(of: $0).now }
-        return Button { watch(c) } label: {
+        Button { watch(c) } label: {
             HStack(spacing: 14) {
                 ChannelLogo(channel: c, size: metrics.channelLogo)
                 VStack(alignment: .leading, spacing: 5) {
@@ -280,15 +291,7 @@ struct LiveView: View {
                         if let q = env.liveVersion(of: c)?.quality ?? c.maxQuality { Badge(q.rawValue, small: true) }
                         if c.isFavorite == true { Image(systemName: "heart.fill").font(.caption).foregroundStyle(Theme.accent) }
                     }
-                    if let now {
-                        Text(now.title).font(.subheadline).foregroundStyle(Theme.text.opacity(0.85)).lineLimit(1)
-                        HStack(spacing: 8) {
-                            ProgressBar(fraction: now.fraction(), height: 3).frame(maxWidth: 120)
-                            Text("\(Format.hour(now.start)) – \(Format.hour(now.end))").font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary)
-                        }
-                    } else {
-                        Text(env.guide(of: c).hasEPG == false ? "Pas de programme" : " ").font(.subheadline).foregroundStyle(Theme.secondary)
-                    }
+                    ChannelNow(channel: c, font: .subheadline, color: Theme.text.opacity(0.85), spacing: 5, bar: 120, barHeight: 3, hours: true)
                 }
                 Spacer(minLength: 0)
             }
@@ -300,9 +303,6 @@ struct LiveView: View {
         .touchContextMenu {
             Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
         }
-        .task {
-            if now == nil, env.guide(of: c).hasEPG != false { _ = await env.channelCache.channel(c.id) }
-        }
     }
 
     private func tvChannelRow(_ c: Channel) -> some View {
@@ -313,9 +313,8 @@ struct LiveView: View {
                 ChannelLogo(channel: c, size: metrics.channelLogo)
                 VStack(alignment: .leading, spacing: 8) {
                     Text(c.name).font(.callout.weight(.semibold)).lineLimit(1)
-                    if let now = env.channelCache.cached(c.id).flatMap({ env.guide(of: $0).now }) {
-                        Text(now.title).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-                    }
+                    // Nothing asked from here: the side column shows the focused channel's programme.
+                    if env.nowPlaying(on: c) != nil { ChannelNow(channel: c, loads: false) }
                     HStack(spacing: 6) { versionBadges(c, small: true) }
                 }
                 Spacer()
@@ -417,17 +416,24 @@ final class PreviewPlayer {
     @ObservationIgnored private var debounce: Task<Void, Never>?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var streamURL: URL?
+    @ObservationIgnored private var pendingURL: URL?
     /// Reloads of the current channel after a source reset: one at most, then the placeholder stays.
     @ObservationIgnored private var resets = 0
 
     func show(_ id: ContentID, url: URL) {
-        guard id != channelID else { return }
+        if id == channelID {
+            // Not started yet: a fresher link (the channel's detail, asked at focus) replaces the list's.
+            if debounce != nil { pendingURL = url }
+            return
+        }
         stop()
         channelID = id
         resets = 0
+        pendingURL = url
         debounce = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(400))
-            guard let self, !Task.isCancelled else { return }
+            guard let self, !Task.isCancelled, let url = pendingURL else { return }
+            debounce = nil
             streamURL = url
             start(url)
         }
@@ -440,6 +446,7 @@ final class PreviewPlayer {
         engine?.volume = 0
         engine?.stop()
         streamURL = nil
+        pendingURL = nil
         channelID = nil
         hasImage = false
     }

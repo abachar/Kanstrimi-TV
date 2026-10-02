@@ -113,6 +113,33 @@ struct ProgressQueueTests {
         #expect(sent == ["a", "b", "c"])
         #expect(queue.isEmpty)
     }
+
+    @Test("Un titre retiré du catalogue ne bloque pas la file : il en sort, le rejeu continue")
+    func flushDropsRemovedTitles() async {
+        let queue = ProgressQueue(fileURL: nil)
+        queue.enqueue(Fixtures.report("a", 10))
+        queue.enqueue(Fixtures.report("b", 20))
+        var sent: [String] = []
+        await queue.flush { r in
+            if r.contentID.rawValue == "a" { throw CatalogError.notFound }
+            sent.append(r.contentID.rawValue)
+        }
+        #expect(sent == ["b"])
+        #expect(queue.isEmpty)
+    }
+
+    @Test("Un seul rejeu à la fois : le second appel pendant le premier ne renvoie rien")
+    func flushIsNotReentrant() async {
+        let queue = ProgressQueue(fileURL: nil)
+        queue.enqueue(Fixtures.report("a", 10))
+        var sent: [String] = []
+        await queue.flush { r in
+            await queue.flush { sent.append("nested " + $0.contentID.rawValue) }
+            sent.append(r.contentID.rawValue)
+        }
+        #expect(sent == ["a"])
+        #expect(queue.isEmpty)
+    }
 }
 
 @MainActor

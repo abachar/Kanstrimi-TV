@@ -161,7 +161,7 @@ struct SettingsView: View {
             } header: {
                 Text("Démo · pilote le client mock")
             } footer: {
-                Text("Ces interrupteurs n'existent que dans la maquette : ils déclenchent les états hors ligne, erreur et vide de FLOW.md §3.")
+                Text("Ces interrupteurs n'existent que dans la maquette : ils déclenchent les états hors ligne, erreur et vide.")
             }
             }
         }
@@ -183,16 +183,7 @@ struct SettingsView: View {
     }
 
     private func play(_ id: ContentID) {
-        Task {
-            guard let card = try? await env.client.detail(id: id.seriesID ?? id) else { return }
-            let ctx: PlaybackContext?
-            if id.seriesID != nil, let ep = card.allEpisodes.first(where: { $0.id == id }) {
-                ctx = try? await env.playbackContext(for: ep, of: card)
-            } else {
-                ctx = try? await env.playbackContext(for: card)
-            }
-            if let ctx { env.player.play(ctx) }
-        }
+        Task { if let ctx = try? await env.playbackContext(for: id) { env.player.play(ctx) } }
     }
 
     private func playLive() {

@@ -68,7 +68,7 @@ nonisolated struct ListQuery: Hashable, Sendable {
     var cleared: ListQuery { var q = ListQuery(kind: kind, genre: genre); q.studio = studio; return q }
 }
 
-/// `/player`, one method per route. One implementation today: `MockCatalogClient`.
+/// `/player`, one method per route: `HTTPCatalogClient` (the server), `MockCatalogClient` (the demo fixtures).
 protocol CatalogClient: AnyObject {
     // Devices
     /// `POST /devices`

@@ -134,25 +134,13 @@ struct SearchView: View {
             }
         }
         .aspectRatio(16 / 9, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.compact ? 14 : 18))
+        .clipShape(RoundedRectangle(cornerRadius: metrics.wideRadius))
     }
 
     /// The title's logo over the picture; else the title, on a phone only: on TV it is written beside.
-    @ViewBuilder private func bestTitle(_ c: Card) -> some View {
-        if let logo = c.logo {
-            AsyncImage(url: logo) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFit()
-                        .frame(maxWidth: metrics.compact ? 180 : 320, maxHeight: metrics.compact ? 60 : 110, alignment: .bottomLeading)
-                        .shadow(color: .black.opacity(0.5), radius: 12)
-                        .accessibilityLabel(c.title)
-                } else {
-                    titleOverPicture(c)
-                }
-            }
-        } else {
-            titleOverPicture(c)
-        }
+    private func bestTitle(_ c: Card) -> some View {
+        LogoOrTitle(title: c.title, logo: c.logo, box: metrics.compact ? CGSize(width: 180, height: 60) : CGSize(width: 320, height: 110),
+                    alignment: .bottomLeading) { titleOverPicture(c) }
     }
 
     @ViewBuilder private func titleOverPicture(_ c: Card) -> some View {

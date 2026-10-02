@@ -27,6 +27,11 @@ nonisolated struct ContentID: RawRepresentable, Hashable, Codable, Sendable, Cus
 nonisolated enum ContentKind: String, Codable, Sendable, CaseIterable {
     case movie, series, episode, live
 
+    /// A kind this app does not know yet reads as a movie: one card must not fail a whole screen.
+    init(from decoder: Decoder) throws {
+        self = ContentKind(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .movie
+    }
+
     var label: String {
         switch self {
         case .movie: "Film"
@@ -81,6 +86,11 @@ nonisolated struct Language: RawRepresentable, Hashable, Codable, Sendable, Comp
 nonisolated enum Quality: String, Codable, Sendable, Comparable, CaseIterable {
     case sd = "SD", hd = "HD", fhd = "FHD", uhd = "4K"
 
+    /// Unknown to this app (a later « 8K »): read as HD rather than failing the screen that shows it.
+    init(from decoder: Decoder) throws {
+        self = Quality(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .hd
+    }
+
     private var rank: Int { Quality.allCases.firstIndex(of: self)! }
     static func < (lhs: Quality, rhs: Quality) -> Bool { lhs.rank < rhs.rank }
 
@@ -96,6 +106,11 @@ nonisolated enum Quality: String, Codable, Sendable, Comparable, CaseIterable {
 
 nonisolated enum DynamicRange: String, Codable, Sendable, Comparable, CaseIterable {
     case sdr = "SDR", hdr = "HDR", dolbyVision = "DV"
+
+    /// Unknown to this app: no badge rather than a failed screen.
+    init(from decoder: Decoder) throws {
+        self = DynamicRange(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .sdr
+    }
 
     private var rank: Int { DynamicRange.allCases.firstIndex(of: self)! }
     static func < (lhs: DynamicRange, rhs: DynamicRange) -> Bool { lhs.rank < rhs.rank }

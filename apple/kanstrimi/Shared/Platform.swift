@@ -118,6 +118,13 @@ nonisolated struct Metrics: Sendable {
     var castPhoto: CGFloat
     /// Subtitle text size, drawn by the app over the video.
     var subtitleSize: CGFloat
+    /// Corner radii: a poster or a tile, a wide 16:9 card, an episode still.
+    var cardRadius: CGFloat
+    var wideRadius: CGFloat
+    var thumbRadius: CGFloat
+
+    /// A poster's box, 2:3 at the platform's width.
+    var posterSize: CGSize { CGSize(width: posterWidth, height: posterWidth * 1.5) }
 
     static let tv = Metrics(compact: false, inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,
@@ -126,7 +133,8 @@ nonisolated struct Metrics: Sendable {
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
                             panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 460,
                             dialogTitle: 48, dialogWidth: 900, nextCard: 620, dialogMargin: 70,
-                            pickerWidth: 1200, toggleWidth: 420, iconButton: 76, castPhoto: 150, subtitleSize: 48)
+                            pickerWidth: 1200, toggleWidth: 420, iconButton: 76, castPhoto: 150, subtitleSize: 48,
+                            cardRadius: 14, wideRadius: 16, thumbRadius: 12)
     static let phone = Metrics(compact: true, inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,
                                artTitle: 14, badge: 12, badgeSmall: 10,
                                heroHeight: 470, heroTitle: 32, detailTitle: 30, detailTop: 40, detailLogo: CGSize(width: 260, height: 90), stillWidth: 140, textWidth: .infinity,
@@ -134,7 +142,8 @@ nonisolated struct Metrics: Sendable {
                                pairingTitle: 28, showsQR: false, codeCell: 40, pairingColumn: nil,
                                panelHeight: 300, panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
                                dialogTitle: 26, dialogWidth: 460, nextCard: 340, dialogMargin: 24,
-                               pickerWidth: nil, toggleWidth: nil, iconButton: 44, castPhoto: 72, subtitleSize: 17)
+                               pickerWidth: nil, toggleWidth: nil, iconButton: 44, castPhoto: 72, subtitleSize: 17,
+                               cardRadius: 10, wideRadius: 14, thumbRadius: 8)
     static var current: Metrics {
         #if os(tvOS)
         return .tv

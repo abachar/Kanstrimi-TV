@@ -106,7 +106,7 @@ struct VersionPicker: View {
         return sorted.flatMap { v in
             v.sources.enumerated().map { i, src in
                 Row(version: v, source: src, index: i,
-                    title: v.sources.count > 1 ? "\(v.label) · Source \(Character(UnicodeScalar(65 + i)!))" : v.label)
+                    title: v.sources.count > 1 ? "\(v.label) · \(Version.sourceName(i))" : v.label)
             }
         }
     }

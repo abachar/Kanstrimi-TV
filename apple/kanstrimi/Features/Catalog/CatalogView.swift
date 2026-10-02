@@ -239,26 +239,11 @@ struct GenreGridView: View {
                     query = query.cleared
                 }
             } else {
-                LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
-                    ForEach(Array(p.items.enumerated()), id: \.element.id) { index, card in
-                        Button { env.open(card.id) } label: {
-                            PosterCardLabel(card: card)
-                        }
+                PagedPosterGrid(paginator: p) { card in
+                    Button { env.open(card.id) } label: { PosterCardLabel(card: card) }
                         .cardButtonStyle()
                         .posterMenu(card)
-                        // A cell appearing near the end asks for the next page: works for a focus
-                        // walk on TV and for a scroll on a phone alike.
-                        .onAppear { Task { await p.loadMoreIfNeeded(reaching: index) } }
-                    }
-                    if let e = p.pageError {
-                        RetryCard(message: e.localizedDescription) { Task { await p.retry() } }
-                            .frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
-                    } else if p.isLoading {
-                        ProgressView().frame(width: metrics.posterWidth, height: metrics.posterWidth * 1.5)
-                    }
                 }
-                .padding(.horizontal, metrics.inset)
-                .padding(.vertical, metrics.rowPadding)
             }
         } else {
             ProgressView().frame(maxWidth: .infinity).padding(100)

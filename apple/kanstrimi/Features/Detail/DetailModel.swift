@@ -50,7 +50,7 @@ final class DetailModel {
         let target = episode?.id ?? id
         let dropped = season.map { episodes(in: $0).map(\.id) } ?? [target]
         dropped.forEach { env.progressQueue.drop($0) }
-        guard (try? await env.call { try await env.client.setWatched(id: target, watched, season: season) }) != nil else { return }
+        guard await env.attempt("Marquage", { try await env.call { try await env.client.setWatched(id: target, watched, season: season) } }) != nil else { return }
         await refresh()
     }
 

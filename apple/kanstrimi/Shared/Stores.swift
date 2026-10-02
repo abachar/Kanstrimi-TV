@@ -66,6 +66,7 @@ final class FailedSourcesStore {
 final class ProgressQueue {
     private(set) var pending: [ProgressReport]
     private let fileURL: URL?
+    private var isFlushing = false
 
     init(fileURL: URL? = ProgressQueue.defaultURL) {
         self.fileURL = fileURL
@@ -95,16 +96,23 @@ final class ProgressQueue {
         persist()
     }
 
-    /// Replays everything; stops at the first failure and keeps the rest.
+    /// Replays everything in order. A title the server no longer knows is dropped; any other failure stops the
+    /// replay and keeps the rest. One replay at a time: the player and the home both ask for one.
     func flush(using send: (ProgressReport) async throws -> Void) async {
+        guard !isFlushing else { return }
+        isFlushing = true
+        defer { isFlushing = false }
         while let first = pending.first {
             do {
                 try await send(first)
-                pending.removeFirst()
-                persist()
+            } catch CatalogError.notFound {
+                // Removed from the catalogue: kept, it would block every report behind it.
             } catch {
                 return
             }
+            // By identity: a newer report of the same title may have replaced it meanwhile.
+            pending.removeAll { $0 == first }
+            persist()
         }
     }
 
@@ -158,6 +166,9 @@ final class ChannelCache {
         guard let e = entries[id], Date.now.timeIntervalSince(e.at) < Self.ttl else { return nil }
         return e.value
     }
+
+    /// The last detail received, however old: `nowPlaying` keeps its programme while it airs.
+    func latest(_ id: ContentID) -> Channel? { entries[id]?.value }
 
     func channel(_ id: ContentID) async -> Channel? {
         if let c = cached(id) { return c }

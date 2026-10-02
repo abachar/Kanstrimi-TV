@@ -336,7 +336,9 @@
 /* Begin PBXTargetDependency section */
 		151C216B306EED4D008160AB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			platformFilters = (tvos, );
+			platformFilters = (
+				tvos,
+			);
 			target = 151C2161306EED4D008160AB /* TopShelf */;
 			targetProxy = 151C216A306EED4D008160AB /* PBXContainerItemProxy */;
 		};

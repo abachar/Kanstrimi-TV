@@ -9,16 +9,16 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 
 | Dossier | Rôle |
 |---|---|
-| `App/` | Démarrage, `AppEnvironment` (services partagés, navigation), `RootView` (appairage puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain), `DeepLink`. |
+| `App/` | Démarrage, `AppEnvironment` (services partagés, navigation), `RootView` (appairage puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants). |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`). |
 | `Client/` | `CatalogClient` : `HTTPCatalogClient` (le serveur), `MockCatalogClient` (fixtures JSON de démo), `SwitchingCatalogClient`. |
-| `Player/` | Le lecteur, service transverse unique : `PlayerService` (moteur, bascules, gels, zapping), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
+| `Player/` | Le lecteur, service transverse unique : `PlayerService` (moteur, bascules, gels, zapping), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
 | `Features/` | Un dossier par écran, une seule vue pour les deux plateformes. |
-| `Shared/` | `Platform.swift` (`Metrics` et modificateurs par plateforme), `Theme`, `CardViews`, `Stores`. |
+| `Shared/` | `Platform.swift` (`Metrics` et modificateurs par plateforme), `Theme`, `CardViews`, `ChannelViews` (logo, programme en cours, carte de chaîne), `Stores`. |
 | `../TopShelf/` | Extension Top Shelf (tvOS seul) : appelle `GET /player/top-shelf`, carrousel plein écran. |
 | `../Entitlements/` | Groupe de Keychain partagé par l'app et l'extension. |
 | `scripts/` | `shot.sh` / `shot-all.sh` : captures du client de démo dans `ui-review/` (hors git). |
-| `../kanstrimiTests/` | Swift Testing : client HTTP, choix de version, files et liens. |
+| `../kanstrimiTests/` | Swift Testing : client HTTP, choix de version, progression et file hors ligne, décision en cas de panne, liens. |
 
 ## Une vue, deux plateformes
 
@@ -41,14 +41,20 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **ATS** : `NSAllowsArbitraryLoads`, le `302` du serveur mène à des URL `http://` du fournisseur.
 - **Direct** : décodé par le moteur (`preferredDecodePath: .software`), image en 0,6 s contre 6 s par le HLS local
   d'AVPlayer ; jamais de pause, comme une télé.
-- **Pannes** : un seul chemin (`handleStreamFailure`) : source suivante, deux essais avec un nouveau jeton, puis le
-  dialogue. Seuils dans `PlayerService`.
+- **Pannes** : un seul chemin (`handleStreamFailure`) : source suivante, deux essais, puis le dialogue ; chaque reprise
+  redemande ses liens au serveur (`/playback`, `/channels/{id}`), ceux d'un écran resté ouvert ont pu expirer. Seuils
+  dans `PlayerService`.
+- **Retour après 10 min d'absence** : l'accueil et le Direct se rechargent (`resumeRevision`). Une action qui échoue
+  hors de la vue (Reprendre, lien, marquer vu) le dit par un message commun (`env.attempt`).
 - **Sous-titres** : dessinés par l'app (`SubtitleOverlay`), le moteur ne le fait pas ; placés sur le cadre de l'image.
 - **Picture-in-Picture (iPhone)** : le lecteur ne se cache qu'une fois l'image dans l'image démarrée, sinon iOS
   l'abandonne ; lancée par iOS au balayage vers l'accueil, elle ne cache rien.
 - **Carte « En lecture » (iPhone)** : par `MPNowPlayingInfoCenter` directement, la session du moteur laissant le direct sans carte.
 - **Version de départ** (`VersionChooser.start`) : celle mémorisée pour le titre ou la chaîne, sinon la meilleure. La
   lecture, l'aperçu du Direct et le guide affiché s'en servent : TF1 passée en FHD rouvre, s'aperçoit et se guide en FHD.
+- **Programme en cours** : une seule règle, `env.nowPlaying(on:)` (guide de la liste, sinon le détail reçu tant que
+  le programme dure), affichée par `ChannelNow`. Les lignes du Direct tvOS ne demandent rien : la colonne de droite
+  montre déjà celui de la chaîne en focus.
 - **Guide du direct** : celui de la version lue, ou de départ (`env.guide(of:)`) ; une qualité sans guide prend celui
   de la qualité inférieure la plus proche, sinon supérieure (calculé par le serveur).
 - **Chaînes les plus regardées** : `PlayerService` envoie le temps regardé (`POST /playback/{id}/watch-time`) ; l'accueil

@@ -18,7 +18,7 @@ nonisolated struct Saga: Codable, Hashable, Identifiable, Sendable {
     var ref: SagaRef { SagaRef(id: id, name: name, count: count) }
 }
 
-/// `GET /movies/sagas/{id}`: the saga and its visible movies, oldest release first.
+/// `GET /movies/sagas/{id}`: the saga and its visible movies, latest release first.
 nonisolated struct SagaSheet: Codable, Hashable, Sendable {
     let id: String
     let name: String
