@@ -129,6 +129,10 @@ struct ResumeCard: View {
     @Environment(\.metrics) private var metrics
     let card: Card
     var width: CGFloat? = nil
+    /// The line under the title; the episode and the time left by default.
+    var caption: String? = nil
+    /// The player's « Similaires »: the same card without the progress.
+    var showsProgress = true
     let action: () -> Void
 
     var body: some View {
@@ -153,7 +157,7 @@ struct ResumeCard: View {
                     CardTitle(title: card.title, logo: card.logo, box: CGSize(width: width * 0.6, height: width * 0.14))
                     Text(meta).font(metrics.compact ? .caption2.weight(.semibold) : .caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.85)).lineLimit(1)
-                    ProgressBar(fraction: card.progress?.fraction ?? 0, height: metrics.compact ? 4 : 6)
+                    if showsProgress { ProgressBar(fraction: card.progress?.fraction ?? 0, height: metrics.compact ? 4 : 6) }
                 }
                 .padding(pad)
             }
@@ -167,6 +171,7 @@ struct ResumeCard: View {
 
     /// « S2 · É4 · 1 h 08 restantes », « 1 h 42 restantes ».
     private var meta: String {
+        if let caption { return caption }
         var parts: [String] = []
         if let e = card.episode { parts.append(e.code) }
         if let p = card.progress { parts.append(Format.remaining(p.remaining)) }

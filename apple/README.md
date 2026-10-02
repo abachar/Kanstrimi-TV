@@ -58,6 +58,12 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
   `kanstrimi://play/<id>` et `kanstrimi://open/<id>`. L'extension ne partage aucun fichier avec l'app.
 - **Éditions** (« Version longue », « Director's Cut ») : une version à part, jamais choisie d'office tant que le
   montage habituel existe ; elle se prend dans le sélecteur, puis la langue de la série la garde.
+- **« Si vous avez aimé… »** : « Titres similaires » en bas de la fiche ; dans le lecteur, `PlayerService` demande
+  `/playback/{id}/suggestions` 3 s après le démarrage (panneau « Similaires », carte « À suivre » après un film ou le
+  dernier épisode). Une série suggérée se lit par `/playback/{série}`, qui renvoie l'épisode où elle reprend.
+- **Enchaînement** : les 15 dernières secondes du fichier se décomptent sur le temps restant (la carte atteint 0 à la
+  vraie fin), puis 1 s de noir et la suite, sa barre affichée. Sans fin du moteur 2 s après 0, la suite part quand même ;
+  lecture automatique coupée ou carte annulée : retour à la fiche.
 - **Accueil** : un type de rangée inconnu de l'app s'affiche en rangée simple au lieu de faire échouer l'écran.
 - **Carrousel de l'accueil** : les éléments du serveur, un toutes les 8 s, retenu tant que ses boutons ont le focus
   (tvOS), qu'un doigt le touche (iPhone) ou que le sélecteur de version est ouvert. tvOS : deux butées invisibles

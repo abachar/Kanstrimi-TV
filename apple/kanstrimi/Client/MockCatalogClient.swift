@@ -111,14 +111,35 @@ final class MockCatalogClient: CatalogClient {
                         genres: d.genres, hint: hint(for: d), addedAt: d.addedAt, originalTitle: d.originalTitle, endYear: d.endYear,
                         overview: d.overview, runtime: d.runtime, certification: d.certification, cast: d.cast, director: d.director,
                         trailer: d.trailer, hasTMDB: d.hasTMDB, providerCategory: d.providerCategory, rawTitle: d.rawTitle,
-                        versions: versions, isFavorite: favorites.contains(d.id), seasons: seasons, currentEpisode: current?.ref)
+                        versions: versions, isFavorite: favorites.contains(d.id), seasons: seasons, currentEpisode: current?.ref,
+                        related: related(to: d).prefix(10).map { card(for: $0) })
         }
         return Card(id: d.id, kind: d.kind, title: d.title, poster: d.poster, maxQuality: d.versions.maxQuality, dynamicRange: d.versions.maxDynamicRange,
                     languages: d.versions.languages, backdrop: d.backdrop, progress: progress[d.id], year: d.year, rating: d.rating,
                     genres: d.genres, hint: hint(for: d), addedAt: d.addedAt, originalTitle: d.originalTitle, endYear: d.endYear,
                     overview: d.overview, runtime: d.runtime, certification: d.certification, cast: d.cast, director: d.director,
                     trailer: d.trailer, hasTMDB: d.hasTMDB, providerCategory: d.providerCategory, rawTitle: d.rawTitle,
-                    versions: d.versions, isFavorite: favorites.contains(d.id), saga: sagaFixtures.first { $0.movies.contains(d.id) }?.saga.ref)
+                    versions: d.versions, isFavorite: favorites.contains(d.id), saga: sagaFixtures.first { $0.movies.contains(d.id) }?.saga.ref,
+                    related: related(to: d).prefix(10).map { card(for: $0) })
+    }
+
+    /// Stands for TMDB's recommendations: the same kind sharing a genre, best rated first, nothing seen.
+    private func related(to d: Card) -> [Card] {
+        (d.kind == .series ? series : movies)
+            .filter { $0.id != d.id && $0.isMatched && !isSeen($0) && !Set($0.genres).isDisjoint(with: d.genres) }
+            .sorted { ($0.rating ?? 0) > ($1.rating ?? 0) }
+    }
+
+    /// A movie watched to the end; a series whose last episode was.
+    private func isSeen(_ c: Card) -> Bool {
+        if c.kind == .series { return c.allEpisodes.last.flatMap { progress[$0.id] }?.isWatched == true }
+        return progress[c.id]?.isWatched == true
+    }
+
+    /// Something to resume: a movie, or an episode of the series.
+    private func isStarted(_ c: Card) -> Bool {
+        if c.kind == .series { return c.allEpisodes.contains { progress[$0.id] != nil } }
+        return progress[c.id] != nil
     }
 
     private func episode(_ id: ContentID) -> (series: Card, episode: Episode)? {
@@ -182,10 +203,13 @@ final class MockCatalogClient: CatalogClient {
         if !resume.isEmpty { rows.append(HomeRow(id: "resume", kind: .resume, title: "Reprendre", cards: resume)) }
         let watched = mostWatched.map { Card(id: $0.id, kind: .live, title: $0.name, poster: $0.logo) }
         rows.append(HomeRow(id: "most-watched-channels", kind: .mostWatchedChannels, title: "Chaînes les plus regardées", cards: watched))
+        let recommended = movies.filter { $0.isMatched && !isStarted($0) && !favorites.contains($0.id) }
+            .sorted { ($0.rating ?? 0) > ($1.rating ?? 0) }.prefix(6) + series.filter { !isStarted($0) }.prefix(4)
         rows.append(HomeRow(id: "recent-movies", kind: .recentMovies, title: "Nouveautés", cards: recentMovies.prefix(12).map { card(for: $0) }))
         rows.append(HomeRow(id: "recent-series", kind: .recentSeries, title: "Derniers épisodes", cards: recentSeries.prefix(12).map { card(for: $0) }))
         let favs = allCards.filter { favorites.contains($0.id) }.map { card(for: $0) }
         if !favs.isEmpty { rows.append(HomeRow(id: "favorites", kind: .favorites, title: "Ma liste", cards: favs)) }
+        rows.append(HomeRow(id: "recommended", kind: .recommended, title: "Recommandé pour vous", cards: recommended.map { card(for: $0) }))
         // The carousel as the server composes it: an awaited movie that arrived, a new episode, the week's top.
         let slides = recentMovies.filter { $0.backdrop != nil }.prefix(4)
         var heroes = slides.enumerated().map { i, m in
@@ -354,10 +378,37 @@ final class MockCatalogClient: CatalogClient {
                                                            languages: $0.languages, maxQuality: $0.versions.maxQuality,
                                                            dynamicRange: $0.versions.maxDynamicRange, still: $0.still) })
         }
+        // A series plays the episode it resumes on, as the server does.
+        if let s = series.first(where: { $0.id == id }) {
+            let eps = s.allEpisodes
+            guard let e = eps.first(where: { progress[$0.id]?.isResumable == true }) ?? eps.first(where: { progress[$0.id] == nil }) ?? eps.first
+            else { throw CatalogError.notFound }
+            var p = try await playback(id: e.id)
+            p.episode = PlaybackEpisode(id: e.id, season: e.season, number: e.number, title: e.title)
+            return p
+        }
         if let c = rawChannel(id) {
             return Playback(versions: c.versions, resumeAt: nil, duration: nil, next: nil)
         }
         throw CatalogError.notFound
+    }
+
+    func suggestions(id: ContentID) async throws -> Suggestions {
+        try await gate()
+        guard let d = allCards.first(where: { $0.id == id }) ?? episode(id)?.series else { throw CatalogError.notFound }
+        let related = related(to: d)
+        var next: Suggestion?
+        if d.kind == .movie {
+            if let saga = sagaFixtures.first(where: { $0.movies.contains(d.id) }),
+               let after = saga.movies.drop(while: { $0 != d.id }).dropFirst().compactMap({ id in movies.first { $0.id == id } }).first(where: { !isStarted($0) }) {
+                next = Suggestion(card: merged(after), reason: .saga)
+            } else if let first = related.first(where: { !isStarted($0) }) {
+                next = Suggestion(card: merged(first), reason: .recommended)
+            }
+        } else if d.allEpisodes.last?.id == id, let first = related.first(where: { !isStarted($0) }) {
+            next = Suggestion(card: merged(first), reason: .recommended)
+        }
+        return Suggestions(related: related.prefix(5).map { merged($0) }, next: next)
     }
 
     func report(_ report: ProgressReport) async throws {

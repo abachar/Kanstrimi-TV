@@ -39,6 +39,7 @@ private struct ScreenHost<Content: View>: View {
 }
 #Preview("Fiche · film") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:movie:535544")) } } }
 #Preview("Fiche · série") { ScreenHost { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } } }
+#Preview("Fiche · titres similaires") { ScreenHost { RelatedRowPreview() } }
 #Preview("Fiche · sans TMDB") { ScreenHost { NavigationStack { DetailView(id: ContentID("fallback:movie:avant-charlie-brown-il-y-avait-schulz:-")) } } }
 #Preview("Fiche · erreur") {
     ScreenHost(setup: { $0.scenario.failingDetail = true }) { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } }
@@ -53,6 +54,28 @@ private struct ScreenHost<Content: View>: View {
 #Preview("Recherche · résultats") { ScreenHost { SearchView(initialQuery: "le") } }
 #Preview("Recherche · vide") { ScreenHost { SearchView(initialQuery: "interstellar xyz") } }
 #Preview("Réglages") { ScreenHost { SettingsView() } }
+
+/// The bottom of a movie sheet: the cast row, then « Titres similaires ».
+private struct RelatedRowPreview: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
+    @State private var card: Card?
+    var body: some View {
+        // In a scroll view as on the sheet: outside one, the horizontal rows would share the spare height.
+        ScrollView {
+            VStack(alignment: .leading, spacing: metrics.compact ? 24 : 34) {
+                if let card {
+                    CastRow(cast: card.cast) { _ in }
+                    RelatedRow(cards: card.related) { _ in }
+                }
+            }
+            .padding(.horizontal, metrics.inset).padding(.top, 60)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Theme.background)
+        .task { card = try? await env.client.detail(id: ContentID("tmdb:movie:535544")) }
+    }
+}
 
 /// Loads the home online once to fill the cache, then goes offline and reloads from it.
 private struct HomeOfflinePreview: View {

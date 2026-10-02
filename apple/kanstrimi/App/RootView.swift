@@ -39,7 +39,7 @@ private extension RootView {
     ///   debug.open      — a content id whose detail opens
     ///   debug.search    — a query typed in the search screen (read and erased by `SearchView`, built later)
     ///   debug.autoplay  — live | live:<id> | <content id>, plus debug.resumeAt in seconds
-    ///   debug.playerState — vodPaused | failure | nextEpisode | livePlaying | panel | opening:
+    ///   debug.playerState — vodPaused | failure | nextEpisode | nextTitle | livePlaying | panel | opening:
     ///                     stages the player in that state instead of streaming (no flux in the mock)
     func debugHooks() async {
         #if DEBUG
@@ -88,7 +88,11 @@ private extension RootView {
             if resume > 0 {
                 ctx = PlaybackContext(content: ctx.content, versions: ctx.versions, resumeAt: resume, duration: ctx.duration, next: ctx.next)
             }
-            if let staged { env.player.debugPut(ctx, state: staged) } else { env.player.play(ctx) }
+            if let staged {
+                env.player.debugPut(ctx, state: staged, suggestions: try? await env.client.suggestions(id: ctx.content.id))
+            } else {
+                env.player.play(ctx)
+            }
         }
     }
     #endif

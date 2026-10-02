@@ -86,6 +86,7 @@ private struct DetailContent: View {
                         buttons(d)
                         if d.kind != .series { castRow(d) }
                         if d.kind == .series { seasons(d); castRow(d) }
+                        relatedRow(d)
                         Spacer(minLength: 80)
                     }
                     .padding(.horizontal, metrics.inset)
@@ -121,6 +122,7 @@ private struct DetailContent: View {
                     buttons(d)
                     if d.kind != .series { castRow(d) }
                     if d.kind == .series { seasons(d); castRow(d) }
+                    relatedRow(d)
                 }
                 .padding(.horizontal, metrics.inset)
                 .padding(.top, d.isMatched ? -90 : 0)
@@ -214,6 +216,11 @@ private struct DetailContent: View {
     /// The cast with photos, for a matched title that has one.
     @ViewBuilder private func castRow(_ d: Card) -> some View {
         if d.isMatched, !d.cast.isEmpty { CastRow(cast: d.cast, onSelect: openPerson) }
+    }
+
+    /// « Titres similaires », when the server found some in the catalogue.
+    @ViewBuilder private func relatedRow(_ d: Card) -> some View {
+        if !d.related.isEmpty { RelatedRow(cards: d.related) { env.open($0) } }
     }
 
     @ViewBuilder private func ratingAndCertification(_ d: Card) -> some View {

@@ -188,6 +188,32 @@ struct HTTPCatalogClientTests {
         #expect(try await client.detail(id: ContentID("tmdb:movie:2")).saga == nil)
     }
 
+    @Test("Si vous avez aimé… : titres similaires de la fiche, rangée d'accueil, suggestions du lecteur, série lue par son épisode")
+    func relatedTitlesTravel() async throws {
+        answer(200, #"{"id":"tmdb:movie:603","kind":"movie","title":"Matrix","related":[{"id":"tmdb:movie:604","kind":"movie","title":"Matrix Reloaded"},{"id":"tmdb:tv:1399","kind":"series","title":"Game of Thrones"}]}"#)
+        #expect(try await client.detail(id: ContentID("tmdb:movie:603")).related.map(\.title) == ["Matrix Reloaded", "Game of Thrones"])
+        answer(200, #"{"id":"tmdb:movie:2","kind":"movie","title":"Deux"}"#)
+        #expect(try await client.detail(id: ContentID("tmdb:movie:2")).related.isEmpty)
+
+        answer(200, #"{"heroes":[],"generated_at":"2026-10-02T18:00:00Z","rows":[{"id":"recommended","kind":"recommended","title":"Recommandé pour vous","cards":[]}]}"#)
+        #expect(try await client.home().rows.map(\.kind) == [.recommended])
+
+        answer(200, #"{"related":[{"id":"tmdb:movie:604","kind":"movie","title":"Matrix Reloaded","overview":"La suite.","runtime":138}],"next":{"card":{"id":"tmdb:movie:604","kind":"movie","title":"Matrix Reloaded"},"reason":"saga"}}"#)
+        let s = try await client.suggestions(id: ContentID("tmdb:movie:603"))
+        #expect(try last.url?.path() == "/player/playback/tmdb:movie:603/suggestions")
+        #expect(s.related.first?.overview == "La suite.")
+        #expect(s.next?.reason == .saga)
+        answer(200, #"{"related":[],"next":{"card":{"id":"tmdb:tv:1","kind":"series","title":"Un"},"reason":"not_yet_known"}}"#)
+        #expect(try await client.suggestions(id: ContentID("tmdb:movie:603")).next?.reason == .other)
+        answer(200, #"{"related":[],"next":null}"#)
+        #expect(try await client.suggestions(id: ContentID("tmdb:movie:603")).next == nil)
+
+        answer(200, #"{"versions":[],"resume_at":1140,"duration":4680,"next":null,"episode":{"id":"tmdb:tv:1396:s01e02","season":1,"number":2,"title":"Épisode 2"}}"#)
+        let p = try await client.playback(id: ContentID("tmdb:tv:1396"))
+        #expect(p.episode?.id == ContentID("tmdb:tv:1396:s01e02"))
+        #expect(p.episode?.ref.code == "S1 · É2")
+    }
+
     @Test func personTravelsAndTheCastDecodes() async throws {
         answer(200, #"{"id":"person:31","name":"Tom Hanks","photo":"https://kanstrimi.test/img/w185/h.jpg","movies":[{"id":"tmdb:movie:1","kind":"movie","title":"Un"}],"series":[{"id":"tmdb:tv:2","kind":"series","title":"Deux"}]}"#)
         let sheet = try await client.person(id: "person:31")

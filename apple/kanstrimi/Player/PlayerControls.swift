@@ -4,7 +4,7 @@ import SwiftUI
 /// The touch controls (iOS), laid out like the tvOS bar. At the top: close, Picture-in-Picture and the
 /// rotation. In the middle (films, episodes): −10 s, play/pause, +10 s. At the bottom: the title, the
 /// progress (the programme's in live), then on the left the buttons that open a panel above them
-/// (live: Programme · Récentes · Infos; episode: Épisodes · Infos; film: Infos) and on the right
+/// (live: Programme · Récentes · Infos; episode: Épisodes · Similaires · Infos; film: Similaires · Infos) and on the right
 /// the Versions, Audio and Sous-titres menus. A panel open hides the title and the progress.
 struct PlayerControls: View {
     typealias Panel = PlayerScreen.BarPanel
@@ -20,8 +20,10 @@ struct PlayerControls: View {
 
     private var panels: [Panel] {
         if player.isLive { return [.programme, .recents, .infos] }
-        if player.context?.content.kind == .episode { return [.episodes, .infos] }
-        return [.infos]
+        // Similaires once the server answered with some.
+        let related: [Panel] = player.suggestions?.related.isEmpty == false ? [.related] : []
+        if player.context?.content.kind == .episode { return [.episodes] + related + [.infos] }
+        return related + [.infos]
     }
 
     var body: some View {
@@ -283,6 +285,7 @@ struct PlayerControls: View {
         case .programme: ProgrammeStrip(onActivity: onActivity)
         case .recents: RecentChannelsStrip(onActivity: onActivity) { panel = nil }
         case .episodes: SeasonEpisodesStrip(onActivity: onActivity) { panel = nil }
+        case .related: RelatedStrip(onActivity: onActivity) { panel = nil }
         case .infos: PlayerInfos(logoSize: 64).padding(.bottom, 8)
         }
     }

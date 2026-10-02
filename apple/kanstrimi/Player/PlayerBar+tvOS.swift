@@ -6,7 +6,7 @@ import SwiftUI
 /// on the left the text buttons that open a panel above the bar, on the right the icons whose menu picks
 /// a version, an audio track or the subtitles.
 struct PlayerBar: View {
-    enum Panel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", infos = "Infos" }
+    enum Panel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", related = "Similaires", infos = "Infos" }
     private enum Focus: Hashable { case panel(Panel), versions, audio, subtitles }
 
     @Environment(AppEnvironment.self) private var env
@@ -25,8 +25,10 @@ struct PlayerBar: View {
 
     private var panels: [Panel] {
         if player.isLive { return [.programme, .recents, .infos] }
-        if player.context?.content.kind == .episode { return [.episodes, .infos] }
-        return [.infos]
+        // Similaires once the server answered with some.
+        let related: [Panel] = player.suggestions?.related.isEmpty == false ? [.related] : []
+        if player.context?.content.kind == .episode { return [.episodes] + related + [.infos] }
+        return related + [.infos]
     }
 
     var body: some View {
@@ -234,6 +236,7 @@ struct PlayerBar: View {
         case .programme: ProgrammeStrip(onActivity: onActivity)
         case .recents: RecentChannelsStrip(onActivity: onActivity) { onLeave(true) }
         case .episodes: SeasonEpisodesStrip(onActivity: onActivity) { onLeave(true) }
+        case .related: RelatedStrip(onActivity: onActivity) { onLeave(true) }
         case .infos: PlayerInfos()
         }
     }

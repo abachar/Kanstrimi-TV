@@ -101,7 +101,7 @@ struct SettingsView: View {
                     $0.map(\.rawValue).joined(separator: " › ")
                 }
                 ChoiceRow("Qualité maximale", selection: $prefs.maxQuality, options: Quality.allCases.reversed()) { $0.label }
-                Toggle("Épisode suivant automatique · 10 s", isOn: $prefs.autoPlayNext)
+                Toggle("Lecture automatique de la suite · 15 s", isOn: $prefs.autoPlayNext)
                 Toggle("Mémoriser la version par titre", isOn: $prefs.rememberVersionPerTitle)
                 Toggle("Changer de source en cas de panne", isOn: $prefs.switchSourceOnFailure)
                 InfoRow("Ordre utilisé par Lecture", value: "Un choix fait dans le sélecteur de versions est mémorisé pour le titre et prime sur ces réglages.")

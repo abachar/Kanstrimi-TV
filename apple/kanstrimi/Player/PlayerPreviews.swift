@@ -17,6 +17,11 @@ enum PreviewData {
         let ep = series.allEpisodes.first { $0.id == ContentID("tmdb:tv:300388:s01e02") }!
         return try! await env.playbackContext(for: ep, of: series)
     }
+    /// The last episode of the demo series: what follows is another series.
+    static func lastEpisodeContext(_ env: AppEnvironment) async -> PlaybackContext {
+        let series = try! await env.client.detail(id: ContentID("tmdb:tv:300388"))
+        return try! await env.playbackContext(for: series.allEpisodes.last!, of: series)
+    }
     static func channels(_ env: AppEnvironment) async -> [Channel] {
         (try! await env.client.channels()).flatMap(\.channels)
     }
@@ -48,6 +53,8 @@ struct PreviewFrame: View {
 
 private struct PlayerPreviewHost: View {
     let state: PlayerService.PreviewState
+    /// `.nextTitle`: after the last episode of a series rather than after a movie.
+    var lastEpisode = false
     @State private var env = PreviewData.makeEnv()
     @State private var ready = false
     var body: some View {
@@ -55,6 +62,7 @@ private struct PlayerPreviewHost: View {
             if ready { PlayerScreen() } else { Color.black }
         }
         .environment(env)
+        .preferredColorScheme(.dark)
         .task {
             switch state {
             case .livePlaying:
@@ -64,9 +72,33 @@ private struct PlayerPreviewHost: View {
                 env.player.debugPut(ctx, state: state, channels: list)
             case .nextEpisode:
                 env.player.debugPut(await PreviewData.episodeContext(env), state: state)
+            case .nextTitle where lastEpisode:
+                let ctx = await PreviewData.lastEpisodeContext(env)
+                env.player.debugPut(ctx, state: state, suggestions: try? await env.client.suggestions(id: ctx.content.id))
             default:
-                env.player.debugPut(await PreviewData.movieContext(env), state: state)
+                let ctx = await PreviewData.movieContext(env)
+                env.player.debugPut(ctx, state: state, suggestions: try? await env.client.suggestions(id: ctx.content.id))
             }
+            ready = true
+        }
+    }
+}
+
+/// Similaires on its own over a picture, laid out as in the panel: both platforms.
+private struct RelatedStripPreviewHost: View {
+    @State private var env = PreviewData.makeEnv()
+    @State private var ready = false
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            PreviewFrame().ignoresSafeArea()
+            LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+            if ready { RelatedStrip(onPick: {}).padding(.horizontal, 40).padding(.bottom, 30) }
+        }
+        .environment(env)
+        .preferredColorScheme(.dark)
+        .task {
+            let ctx = await PreviewData.movieContext(env)
+            env.player.debugPut(ctx, state: .panel, suggestions: try? await env.client.suggestions(id: ctx.content.id))
             ready = true
         }
     }
@@ -75,6 +107,9 @@ private struct PlayerPreviewHost: View {
 #Preview("Lecteur · VOD en pause") { PlayerPreviewHost(state: .vodPaused) }
 #Preview("Lecteur · échec") { PlayerPreviewHost(state: .failure) }
 #Preview("Lecteur · épisode suivant") { PlayerPreviewHost(state: .nextEpisode) }
+#Preview("Lecteur · film suivant") { PlayerPreviewHost(state: .nextTitle) }
+#Preview("Lecteur · série suivante") { PlayerPreviewHost(state: .nextTitle, lastEpisode: true) }
+#Preview("Lecteur · Similaires") { RelatedStripPreviewHost() }
 #Preview("Lecteur · direct") { PlayerPreviewHost(state: .livePlaying) }
 #Preview("Lecteur · chargement") { PlayerPreviewHost(state: .opening) }
 
@@ -101,9 +136,11 @@ private struct BarPreviewHost: View {
                                           playback: try! await env.client.playback(id: list[0].id))
                 env.player.debugPut(ctx, state: .livePlaying, channels: list)
             case .movie:
-                env.player.debugPut(await PreviewData.movieContext(env), state: .panel)
+                let ctx = await PreviewData.movieContext(env)
+                env.player.debugPut(ctx, state: .panel, suggestions: try? await env.client.suggestions(id: ctx.content.id))
             case .episode:
-                env.player.debugPut(await PreviewData.episodeContext(env), state: .panel)
+                let ctx = await PreviewData.episodeContext(env)
+                env.player.debugPut(ctx, state: .panel, suggestions: try? await env.client.suggestions(id: ctx.content.id))
             }
             ready = true
         }
@@ -143,6 +180,7 @@ private struct ChannelListPreviewHost: View {
 #Preview("Barre · direct · Infos") { BarPreviewHost(kind: .live, panel: .infos) }
 #Preview("Barre · film") { BarPreviewHost(kind: .movie) }
 #Preview("Barre · film · Infos") { BarPreviewHost(kind: .movie, panel: .infos) }
+#Preview("Barre · film · Similaires") { BarPreviewHost(kind: .movie, panel: .related) }
 #Preview("Barre · série · Épisodes") { BarPreviewHost(kind: .episode, panel: .episodes) }
 #Preview("Direct · chaînes ◀") { ChannelListPreviewHost() }
 #endif

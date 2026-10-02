@@ -249,3 +249,45 @@ struct SeasonEpisodesStrip: View {
         }
     }
 }
+
+/// Similaires: « Si vous avez aimé… », five titles as the home's « Reprendre » cards, a quarter larger and
+/// without the progress; a click plays one (a series where it resumes, its first episode when never started).
+struct RelatedStrip: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
+    @FocusState private var focused: ContentID?
+    var onActivity: () -> Void = { }
+    let onPick: () -> Void
+    private var player: PlayerService { env.player }
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: metrics.cardSpacing) {
+                ForEach(player.suggestions?.related ?? []) { c in
+                    ResumeCard(card: c, width: metrics.resumeWidth * 1.25, caption: facts(c), showsProgress: false) { play(c) }
+                        .focused($focused, equals: c.id)
+                }
+            }
+            .padding(.vertical, metrics.compact ? 8 : 20)
+        }
+        .scrollClipDisabled()
+        .onChange(of: focused) { _, _ in onActivity() }
+    }
+
+    /// « 2003 · Action · 2 h 18 », « Série · 2019 · Drame ».
+    private func facts(_ c: Card) -> String {
+        var parts: [String] = c.kind == .series ? ["Série"] : []
+        if let y = c.year { parts.append(String(y)) }
+        if let g = c.genres.first { parts.append(g) }
+        if c.kind != .series, let r = c.runtime { parts.append(Format.runtime(minutes: r)) }
+        return parts.joined(separator: " · ")
+    }
+
+    private func play(_ c: Card) {
+        Task {
+            guard let ctx = try? await env.playbackContext(suggested: c) else { return }
+            player.play(ctx)
+            onPick()
+        }
+    }
+}

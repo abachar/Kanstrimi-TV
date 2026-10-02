@@ -113,6 +113,9 @@ final class ScreenTour: XCTestCase {
         shot("d05-serie-episodes")
         launch(["debug.open": "fallback:movie:avant-charlie-brown-il-y-avait-schulz:-"])
         shot("d06-sans-tmdb")
+        launch(["debug.open": "tmdb:movie:535544"])
+        press(.down, 4)
+        shot("d07-film-titres-similaires")
     }
 
     func testTour08Player() {
@@ -128,6 +131,14 @@ final class ScreenTour: XCTestCase {
         shot("p05-episode-suivant")
         launch(["debug.autoplay": "tmdb:movie:535544", "debug.playerState": "opening"])
         shot("p06-chargement")
+        launch(["debug.autoplay": "tmdb:movie:535544", "debug.playerState": "nextTitle"])
+        shot("p07-film-suivant")
+        launch(["debug.autoplay": "tmdb:tv:300388:s02e02", "debug.playerState": "nextTitle"])
+        shot("p08-serie-suivante")
+        launch(["debug.autoplay": "tmdb:movie:535544", "debug.playerState": "panel"])
+        press(.down)
+        press(.select)
+        shot("p09-similaires")
     }
 
     func testTour09LivePlayer() {

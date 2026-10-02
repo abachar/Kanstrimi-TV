@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated enum HomeRowKind: String, Codable, Sendable {
-    case resume, mostWatchedChannels = "most_watched_channels", recentMovies = "recent_movies", recentSeries = "recent_series"
+    case resume, mostWatchedChannels = "most_watched_channels", recommended, recentMovies = "recent_movies", recentSeries = "recent_series"
     case favorites, collection
     /// A kind this version does not know: the row still shows, as a plain row of cards.
     case other

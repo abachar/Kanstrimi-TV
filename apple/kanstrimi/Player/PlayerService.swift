@@ -56,6 +56,18 @@ final class PlayerService {
     private(set) var failure: Failure?
     /// Set when the next-episode card is showing; counts down to 0.
     private(set) var nextCountdown: Int?
+    /// « Si vous avez aimé… » of the movie or episode playing, asked once it has started (TMDB may take
+    /// a few seconds); nil before, and for a channel.
+    private(set) var suggestions: Suggestions?
+    /// The second of black between a title and what follows it.
+    private(set) var isChangingTitle = false
+
+    /// What the « À suivre » card offers: the next episode, else the title the server suggests.
+    enum UpNext: Hashable { case episode(NextEpisode), title(Suggestion) }
+    var upNext: UpNext? {
+        if let next = context?.next { return .episode(next) }
+        return suggestions?.next.map { .title($0) }
+    }
     #if DEBUG
     /// Previews and debug states: a fake picture stands in for the video, so the overlays' transparency shows.
     private(set) var debugFrame = false
@@ -115,6 +127,7 @@ final class PlayerService {
     private var progressTicker: Task<Void, Never>?
     private var toastTask: Task<Void, Never>?
     private var countdownTask: Task<Void, Never>?
+    private var suggestionsTask: Task<Void, Never>?
     private var zapTask: Task<Void, Never>?
     private var nextTriggered = false
     var onExit: (() -> Void)?
@@ -126,8 +139,12 @@ final class PlayerService {
 
     static let startTimeout: Duration = .seconds(10)
     static let progressInterval: Duration = .seconds(30)
-    static let nextEpisodeLead: TimeInterval = 30
-    static let nextEpisodeCountdown = 10
+    /// The « À suivre » card counts down the last seconds of the file, then a second of black marks the change.
+    static let nextCountdownSeconds = 15
+    static let nextBlack: Duration = .seconds(1)
+    /// The countdown at 0 without the engine's end: past this, what follows starts anyway.
+    static let endWait: Duration = .seconds(2)
+    static let suggestionsDelay: Duration = .seconds(3)
     /// Live: no new picture for this long means the source froze.
     static let freezeTimeout: TimeInterval = 4
     /// Films and episodes: longer, a seek in a remote MKV can hold the image for a few seconds.
@@ -227,6 +244,7 @@ final class PlayerService {
         context = nil; version = nil; source = nil; channel = nil; channels = []
         phase = .idle; time = 0; duration = 0; isMinimized = false
         failure = nil; toast = nil; nextCountdown = nil; nextContext = nil; nextTriggered = false
+        suggestions = nil; suggestionsTask?.cancel(); isChangingTitle = false
         audioTracks = []; textTracks = []
         epg = .empty
         channelDetail = nil
@@ -400,6 +418,31 @@ final class PlayerService {
         sendProgress(final: true)
         play(next)
     }
+
+    /// The end of a title with something to follow and the automatic play on: a second of black, then
+    /// the next title, its bar showing. Otherwise back to the sheet, the title reported as seen to its end.
+    private func followUp() {
+        // Already changing: the engine's end after the countdown's own fallback.
+        guard !isChangingTitle else { return }
+        guard preferences.autoPlayNext, !nextTriggered, let next = nextContext else {
+            time = duration
+            stop()
+            return
+        }
+        countdownTask?.cancel()
+        nextCountdown = nil
+        nextContext = nil
+        nextTriggered = true
+        time = duration
+        sendProgress(final: true)
+        isChangingTitle = true
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.nextBlack)
+            guard let self, isChangingTitle else { return }
+            isChangingTitle = false
+            play(next)
+        }
+    }
     func cancelNext() {
         countdownTask?.cancel()
         nextCountdown = nil
@@ -416,6 +459,7 @@ final class PlayerService {
             nextCountdown = nil
             countdownTask?.cancel()
             prefetchNext(ctx)
+            fetchSuggestions(ctx)
         }
         cancelTimers(keepCountdown: true)
         context = ctx
@@ -591,19 +635,39 @@ final class PlayerService {
         }
     }
 
+    /// A moment after the start, so the first seconds of playback keep the connection to themselves.
+    private func fetchSuggestions(_ ctx: PlaybackContext) {
+        suggestions = nil
+        suggestionsTask?.cancel()
+        guard ctx.content.kind != .live else { return }
+        suggestionsTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.suggestionsDelay)
+            guard let self, !Task.isCancelled, let s = try? await client.suggestions(id: ctx.content.id) else { return }
+            guard context?.content.id == ctx.content.id else { return }
+            suggestions = s
+            // After a movie or the last episode: what follows is the suggestion, ready before the end.
+            guard ctx.next == nil, let next = s.next, let playback = try? await client.playback(id: next.card.id) else { return }
+            if context?.content.id == ctx.content.id { nextContext = PlaybackContext(suggested: next.card, playback: playback) }
+        }
+    }
+
+    /// The last fifteen seconds of the file, when something follows: the card counts them down on the time
+    /// left, so it reaches 0 at the real end; the engine's end then starts what follows (`followUp`).
     private func maybeStartCountdown() {
-        guard preferences.autoPlayNext, !nextTriggered, nextCountdown == nil, let _ = context?.next, duration > 0,
-              remaining <= Self.nextEpisodeLead, phase == .playing else { return }
-        nextCountdown = Self.nextEpisodeCountdown
+        guard preferences.autoPlayNext, !nextTriggered, nextCountdown == nil, upNext != nil, duration > 0,
+              remaining <= TimeInterval(Self.nextCountdownSeconds), phase == .playing else { return }
+        nextCountdown = Int(remaining.rounded(.up))
         countdownTask?.cancel()
         countdownTask = Task { [weak self] in
             while let self, let n = nextCountdown, n > 0, !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(for: .milliseconds(250))
                 if Task.isCancelled { return }
-                if phase == .playing { nextCountdown = n - 1 }
+                if phase == .playing { nextCountdown = min(n, Int(remaining.rounded(.up))) }
             }
-            guard let self, !Task.isCancelled, nextCountdown == 0 else { return }
-            if nextContext != nil { playNextNow() } else { nextCountdown = nil }
+            // A file whose announced length runs past its picture: no end from the engine, follow up anyway.
+            try? await Task.sleep(for: Self.endWait)
+            guard let self, !Task.isCancelled, nextCountdown == 0, phase != .ended else { return }
+            followUp()
         }
     }
 
@@ -730,15 +794,9 @@ final class PlayerService {
                 return
             }
             phase = .ended
-            if context?.next != nil, nextContext != nil, !nextTriggered, preferences.autoPlayNext {
-                playNextNow()
-            } else {
-                // Nothing follows (a film, the last episode, the countdown off or cancelled): back to the sheet,
-                // the title reported as seen to its end.
-                time = duration
-                stop()
-                return
-            }
+            // Nothing follows (no suggestion, the countdown off or cancelled): `followUp` goes back to the sheet.
+            followUp()
+            if phase == .idle { return }
         case .error:
             if let info = engine.errorInfo {
                 log.info("error \(String(describing: info.kind)) \(info.underlyingDomain ?? "-") \(info.underlyingCode ?? 0)")
@@ -791,11 +849,12 @@ final class PlayerService {
 #if DEBUG
 /// Preview scaffolding: puts the player in a given state without a stream.
 extension PlayerService {
-    enum PreviewState: String { case vodPaused, failure, nextEpisode, livePlaying, panel, opening }
+    enum PreviewState: String { case vodPaused, failure, nextEpisode, nextTitle, livePlaying, panel, opening }
 
-    func debugPut(_ ctx: PlaybackContext, state: PreviewState, channels list: [Channel] = []) {
+    func debugPut(_ ctx: PlaybackContext, state: PreviewState, channels list: [Channel] = [], suggestions: Suggestions? = nil) {
         debugFrame = true
         context = ctx
+        self.suggestions = suggestions
         version = ctx.versions.first
         source = ctx.versions.first?.sources.first
         duration = ctx.duration ?? 7620
@@ -807,9 +866,9 @@ extension PlayerService {
         case .failure:
             phase = .failed
             failure = Failure(attempts: 2, sourceLabel: "4K Dolby Vision · VF · Source A", hadAlternativeSource: false)
-        case .nextEpisode:
+        case .nextEpisode, .nextTitle:
             phase = .playing
-            time = duration - 28
+            time = duration - 8
             nextCountdown = 7
         case .livePlaying:
             phase = .playing

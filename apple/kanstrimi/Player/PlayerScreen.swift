@@ -8,7 +8,7 @@ import SwiftUI
 struct PlayerScreen: View {
     enum Sheet: Equatable { case none, channels }
     /// iPhone: what the bar of the touch controls opens above its buttons, like the tvOS bar's panels.
-    enum BarPanel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", infos = "Infos" }
+    enum BarPanel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", related = "Similaires", infos = "Infos" }
 
     @Environment(AppEnvironment.self) var env
     @State var controlsVisible = true
@@ -58,7 +58,7 @@ struct PlayerScreen: View {
                 surface
             }
 
-            if controlsVisible || barFocused, sheet == .none, player.failure == nil {
+            if controlsVisible || barFocused, sheet == .none, player.failure == nil, !player.isChangingTitle {
                 controls.transition(.opacity)
             }
 
@@ -70,10 +70,13 @@ struct PlayerScreen: View {
             LoadingBadge()
 
             if let toast = player.toast { ToastView(toast: toast) }
-            if player.nextCountdown != nil { NextEpisodeCard() }
+            // The second of black between a title and what follows it.
+            if player.isChangingTitle { Color.black.ignoresSafeArea().transition(.opacity) }
+            if player.nextCountdown != nil { NextEpisodeCard(barShown: (controlsVisible || barFocused) && sheet == .none) }
             if player.failure != nil { StreamFailureDialog() }
         }
         .animation(.easeInOut(duration: 0.25), value: controlsVisible)
+        .animation(.easeInOut(duration: 0.25), value: player.isChangingTitle)
         .animation(.easeInOut(duration: 0.25), value: sheet)
         .onChange(of: sheet) { _, s in
             if s == .none { sheetTimer?.cancel() } else { armSheetTimer() }

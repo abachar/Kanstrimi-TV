@@ -112,6 +112,8 @@ protocol CatalogClient: AnyObject {
     // Playback
     /// `GET /playback/{id}`: movie, episode or channel.
     func playback(id: ContentID) async throws -> Playback
+    /// « Si vous avez aimé… » and what follows a movie or the last episode of a series.
+    func suggestions(id: ContentID) async throws -> Suggestions
     /// `PUT /playback/{id}/progress`
     func report(_ progress: ProgressReport) async throws
     /// `POST /playback/{id}/watch-time`: seconds of a channel played since the last report (« Chaînes les plus regardées »).

@@ -131,6 +131,10 @@ final class AppEnvironment {
         let content = PlaybackContent(id: episode.id, kind: .episode, title: episode.title, subtitle: series.title, episode: episode.ref, backdrop: series.backdrop)
         return PlaybackContext(content: content, playback: playback)
     }
+    /// A suggested title: a movie as itself, a series through the episode the server resumes it on.
+    func playbackContext(suggested card: Card) async throws -> PlaybackContext {
+        PlaybackContext(suggested: card, playback: try await call { try await client.playback(id: card.id) })
+    }
     func playbackContext(for next: NextEpisode, seriesTitle: String) async throws -> PlaybackContext {
         let playback = try await call { try await client.playback(id: next.id) }
         let content = PlaybackContent(id: next.id, kind: .episode, title: next.title ?? "", subtitle: seriesTitle, episode: next.ref, backdrop: nil)
