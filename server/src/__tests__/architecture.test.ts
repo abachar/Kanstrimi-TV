@@ -42,7 +42,8 @@ const ALLOWED: Record<string, string[]> = {
   devices: ["config", "db", "shared"],
   player: ["catalog", "devices", "providers/xtream", "config", "db", "shared"],
   admin: ["player", "catalog", "devices", "providers/xtream", "providers/tmdb", "providers/iptv", "config", "db", "shared"],
-  "main.ts": ["player", "admin", "catalog", "providers/tmdb", "providers/iptv", "config", "db", "shared"],
+  "app.ts": ["player", "admin", "providers/tmdb", "providers/iptv", "config", "db", "shared"],
+  "main.ts": ["catalog", "config", "db", "shared"],
 };
 
 describe("architecture", () => {
@@ -57,6 +58,26 @@ describe("architecture", () => {
   });
   it("player ignores admin (admin may read player, never the reverse)", () => {
     expect(offenders((blk, imp) => blk === "player" && imp === "admin")).toEqual([]);
+  });
+  it("admin writes nothing to the database itself: it calls the domain", () => {
+    const writes = files
+      .filter((f) => block(f) === "admin")
+      .flatMap((f) => {
+        const src = fs.readFileSync(f, "utf8");
+        const found = [
+          ...src.matchAll(/\.(insert|update|delete)\(\s*schema\./g),
+          ...src.matchAll(/\b(insert\s+into|update\s+\w+\s+set|delete\s+from)\b/gi),
+        ];
+        return found.map((m) => `${path.relative(root, f)}: ${m[0]}`);
+      });
+    const setters = files.filter((f) => block(f) === "admin").flatMap((f) => named(f, "db").filter((n) => /^set[A-Z]/.test(n)));
+    expect([...writes, ...setters]).toEqual([]);
+  });
+  it("player reads no TMDB table: the catalogue answers for it", () => {
+    const reads = files.filter(
+      (f) => block(f) === "player" && /schema\.tmdb|tmdb_(cache|trending|recommendations)/.test(fs.readFileSync(f, "utf8")),
+    );
+    expect(reads.map((f) => path.relative(root, f))).toEqual([]);
   });
   it("player takes one pure function from the Xtream provider, and nothing from TMDB", () => {
     const fromXtream = files.filter((f) => block(f) === "player").flatMap((f) => named(f, "providers/xtream"));

@@ -102,7 +102,7 @@ describe("idEvidence", () => {
     videos: { results: [{ key: "SnuP9SjGq4w", site: "YouTube", type: "Trailer" }] },
   };
   it("accepts a provider title TMDB never recorded when cast, image or trailer agree", async () => {
-    const { idEvidence } = await import("../enrich");
+    const { idEvidence } = await import("../match");
     const ev = idEvidence(heritage, patriarche);
     expect(ev.similarity).toBeLessThan(0.3);
     expect(ev.castOverlap).toBe(2);
@@ -123,7 +123,7 @@ describe("idEvidence", () => {
     expect(idEvidence({ ...one, created_by: [], first_air_date: "2010-01-01" }, patriarche).accepted).toBe(false);
   });
   it("still rejects a wrong film that shares nothing", async () => {
-    const { idEvidence } = await import("../enrich");
+    const { idEvidence } = await import("../match");
     const other = {
       id: 1,
       title: "Titanic",

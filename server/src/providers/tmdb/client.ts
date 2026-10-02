@@ -85,6 +85,36 @@ export function trimTranslations(d: TmdbDetails): TmdbDetails {
   };
 }
 
+/** TMDB allows about 50 requests a second per address: 35 leaves room for the sheets opened during a run. */
+export const TMDB_PER_SECOND = 35;
+let perSecond = TMDB_PER_SECOND;
+let nextSlot = 0;
+/** Every client of the process shares one pace; a monotonic clock, untouched by a test's fake dates. */
+async function slot() {
+  const now = performance.now();
+  const at = Math.max(now, nextSlot);
+  nextSlot = at + 1000 / perSecond;
+  if (at > now) await new Promise((r) => setTimeout(r, at - now));
+}
+
+/** Tests only: a fake TMDB needs no pace. */
+export function setTmdbPace(n = TMDB_PER_SECOND) {
+  perSecond = n;
+  nextSlot = 0;
+}
+
+/** TMDB said no. A 429 that outlasts the retries is an outage of the way (`RATE_LIMITED`), not of the title asked. */
+export class TmdbError extends Error {
+  readonly code?: string;
+  constructor(
+    path: string,
+    readonly status: number,
+  ) {
+    super(`TMDB ${path}: HTTP ${status}`);
+    if (status === 429) this.code = "RATE_LIMITED";
+  }
+}
+
 export class TmdbClient {
   constructor(
     readonly apiKey: string,
@@ -92,7 +122,7 @@ export class TmdbClient {
   ) {}
 
   private async get<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
-    const u = new URL("https://api.themoviedb.org/3" + path);
+    const u = new URL(`https://api.themoviedb.org/3${path}`);
     u.searchParams.set("language", this.language);
     for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") u.searchParams.set(k, String(v));
     const headers: Record<string, string> = { Accept: "application/json" };
@@ -100,13 +130,14 @@ export class TmdbClient {
     if (this.apiKey.length > 40) headers.Authorization = `Bearer ${this.apiKey}`;
     else u.searchParams.set("api_key", this.apiKey);
     for (let attempt = 0; ; attempt++) {
+      await slot();
       const res = await fetch(u, { headers, signal: AbortSignal.timeout(20_000) });
       if (res.status === 429 && attempt < 3) {
         const wait = Number(res.headers.get("retry-after") ?? 2) * 1000;
         await new Promise((r) => setTimeout(r, wait));
         continue;
       }
-      if (!res.ok) throw new Error(`TMDB ${path}: HTTP ${res.status}`);
+      if (!res.ok) throw new TmdbError(path, res.status);
       return (await res.json()) as T;
     }
   }

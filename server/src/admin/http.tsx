@@ -14,11 +14,19 @@ export const page = (c: Context, title: string, body: unknown, loggedIn = true) 
     }) as never,
   );
 
-/** Redirect after a form post, carrying a flash message. */
+/**
+ * Redirect after a form post, carrying a flash message. A post htmx sent (a form behind
+ * `hx-confirm`) gets `HX-Redirect` instead: the browser would follow a 303 inside the request and
+ * htmx would swap the whole page into the form.
+ */
 export const back = (c: Context, to: string, msg: { ok?: string; err?: string }) => {
   const u = new URL(to, "http://x");
   if (msg.ok) u.searchParams.set("ok", msg.ok);
   if (msg.err) u.searchParams.set("err", msg.err);
+  if (c.req.header("HX-Request")) {
+    c.header("HX-Redirect", u.pathname + u.search);
+    return c.body(null, 204);
+  }
   return c.redirect(u.pathname + u.search, 303);
 };
 

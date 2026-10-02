@@ -4,7 +4,7 @@ import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Env, RestContext } from "./context";
-import { BadRequest, fail, json } from "./http";
+import { BadRequest, badQuery, fail, json } from "./http";
 import { visibleContent } from "./contents";
 import { getProgress } from "./progress";
 import { gridCard, imageUrl } from "./cards";
@@ -42,26 +42,36 @@ const sagaWire = (ctx: RestContext, r: SagaRow): SagaWire => ({
   backdrop: imageUrl(ctx.baseUrl, "w1280", r.backdrop) || null,
 });
 
-sagaRoutes.get("/", zValidator("query", z.object({ cursor: z.string().optional(), limit: z.string().optional() })), async (c) =>
-  json(await listSagas(c.get("ctx"), c.req.valid("query"))),
-);
+const sagaQuery = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce
+    .number({ error: "limit doit être un entier positif" })
+    .int("limit doit être un entier positif")
+    .positive("limit doit être un entier positif")
+    .optional(),
+});
+export type SagaQuery = z.infer<typeof sagaQuery>;
+
+sagaRoutes.get("/", zValidator("query", sagaQuery, badQuery), async (c) => json(await listSagas(c.get("ctx"), c.req.valid("query"))));
 sagaRoutes.get("/:id", async (c) => {
   const sheet = await sagaSheet(c.get("ctx"), c.req.param("id"));
   return sheet ? json(sheet) : fail("not_found", "Saga introuvable");
 });
 
-export async function listSagas(ctx: RestContext, q: { cursor?: string; limit?: string }): Promise<SagaPage> {
-  const limit = Math.min(PAGE_MAX, Math.max(1, Number(q.limit) || PAGE_DEFAULT));
+export async function listSagas(ctx: RestContext, q: SagaQuery): Promise<SagaPage> {
+  const limit = Math.min(PAGE_MAX, q.limit ?? PAGE_DEFAULT);
   let after = sql``;
   if (q.cursor) {
     const cur = decodeCursor(q.cursor);
     if (!cur || typeof cur[0] !== "string") throw new BadRequest("cursor invalide");
     after = sql`where (s.latest, s.id) < (${cur[0]}, ${cur[1]})`;
   }
-  const [rows, [{ total }]] = await Promise.all([
-    db.execute<SagaRow>(sql`select * from (${sagasOf(ctx)}) s ${after} order by s.latest desc, s.id desc limit ${limit + 1}`),
-    db.execute<{ total: number }>(sql`select count(*)::int as total from (${sagasOf(ctx)}) s`),
-  ]);
+  // One aggregation: the total is counted over every saga before the cursor narrows them.
+  const rows = await db.execute<SagaRow & { total: number }>(
+    sql`select * from (select s.*, (count(*) over ())::int as total from (${sagasOf(ctx)}) s) s ${after} order by s.latest desc, s.id desc limit ${limit + 1}`,
+  );
+  const total =
+    rows[0]?.total ?? (await db.execute<{ total: number }>(sql`select count(*)::int as total from (${sagasOf(ctx)}) s`))[0].total;
   const page = rows.slice(0, limit);
   const last = page[page.length - 1];
   return {

@@ -1,5 +1,5 @@
 import { sql, type Column, type SQL } from "drizzle-orm";
-import { schema, visibleItem, type Kind } from "@/db";
+import { schema, sqlTmdbMediaType, visibleItem, type Kind } from "@/db";
 import { stripAccents } from "@/shared";
 import type { CodeList } from "./codes";
 
@@ -47,11 +47,11 @@ const VOD_SERIES: Kind[] = ["vod", "series"];
 /** The variant's TMDB sheet in the cache, in the admin's language; `body` reads `t.data`. */
 const tmdbScalar = (ctx: FieldContext, body: SQL) =>
   sql`(select ${body} from tmdb_cache t where t.tmdb_id = ${v.tmdbId} and t.lang = ${ctx.lang}
-    and t.media_type = case ${v.kind} when 'vod' then 'movie' else 'tv' end)`;
+    and t.media_type = ${sqlTmdbMediaType(v.kind)})`;
 /** Any element of a JSON array of the sheet matching: `elements` yields rows `e(value text)`. */
 const tmdbAny = (ctx: FieldContext, elements: SQL, pred: Pred) =>
   sql`exists (select 1 from tmdb_cache t, ${elements} where t.tmdb_id = ${v.tmdbId} and t.lang = ${ctx.lang}
-    and t.media_type = case ${v.kind} when 'vod' then 'movie' else 'tv' end and ${pred(sql`e.value`)})`;
+    and t.media_type = ${sqlTmdbMediaType(v.kind)} and ${pred(sql`e.value`)})`;
 const contentScalar = (col: SQL) => sql`(select ${col} from catalog_contents cc where cc.id = ${v.contentId})`;
 const yesNo = (cond: SQL) => ({ oui: cond, non: sql`not coalesce(${cond}, false)` });
 const any = (...conds: SQL[]) =>

@@ -105,7 +105,7 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
 }
 
 export function RulePreview({ preview }: { preview?: Preview }) {
-  if (!preview) return <></>;
+  if (!preview) return null;
   if ("error" in preview)
     return (
       <p class="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">

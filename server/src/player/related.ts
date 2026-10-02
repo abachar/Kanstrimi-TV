@@ -159,7 +159,7 @@ export async function recommendedRow(ctx: RestContext): Promise<Card[]> {
   const recommended = await cachedRecommendedKeys([...seeds.keys()]);
   const scores = new Map<string, number>();
   for (const [seed, keys] of recommended)
-    keys.forEach((k, rank) => scores.set(k, (scores.get(k) ?? 0) + seeds.get(seed)! * Math.max(0.05, 1 - rank / 20)));
+    for (const [rank, k] of keys.entries()) scores.set(k, (scores.get(k) ?? 0) + seeds.get(seed)! * Math.max(0.05, 1 - rank / 20));
   const exclude = new Set([...seeds.keys(), ...favs]);
   const ranked = [...scores].filter(([k]) => !exclude.has(k)).sort((a, b) => b[1] - a[1]);
   const candidates = await contentsInOrder(

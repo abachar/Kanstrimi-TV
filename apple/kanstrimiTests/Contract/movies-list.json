@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "id": "tmdb:movie:604",
+      "kind": "movie",
+      "title": "Matrix Reloaded",
+      "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
+      "max_quality": "4K",
+      "dynamic_range": "DV",
+      "languages": [
+        "VF"
+      ],
+      "year": 2026,
+      "rating": 7.1,
+      "genres": [
+        "Action"
+      ],
+      "hint": null,
+      "added_at": "2026-09-28T18:30:00.000Z"
+    },
+    {
+      "id": "tmdb:movie:949",
+      "kind": "movie",
+      "title": "Heat",
+      "poster": "http://kanstrimi.test/img/w500/heat.jpg",
+      "languages": [
+        "VOSTFR"
+      ],
+      "progress": {
+        "position": 3000,
+        "duration": 10200
+      },
+      "year": 2026,
+      "rating": 7.9,
+      "genres": [
+        "Action",
+        "Crime"
+      ],
+      "hint": "VOSTFR seul",
+      "added_at": "2026-09-12T18:30:00.000Z"
+    }
+  ],
+  "next_cursor": null
+}

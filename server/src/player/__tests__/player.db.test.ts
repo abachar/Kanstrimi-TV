@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { player as api } from "..";
@@ -42,7 +42,7 @@ const call = (path: string, init: RequestInit = {}, auth = true) =>
       ...(init.headers ?? {}),
     },
   });
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: answers are read field by field, as the app would
 const get = async (path: string, auth = true): Promise<{ status: number; body: any }> => {
   const r = await call(path, {}, auth);
   return { status: r.status, body: r.status === 204 ? null : await r.json() };
@@ -379,6 +379,30 @@ describe("GET /movies and /series", () => {
     expect(s[0].series[0].id).toBe("tmdb:tv:20000".replace("20000", "1396"));
   });
 
+  it("genres: kept in memory until the grouping rewrites the contents", async () => {
+    const rowIds = async () => (await get("/movies")).body.map((r: { id: string }) => r.id);
+    const heat = eq(schema.catalogContents.key, "tmdb:movie:949"); // the only movie of « Crime »
+    const [{ id: heatId }] = await db.select({ id: schema.catalogContents.id }).from(schema.catalogContents).where(heat);
+    expect(await rowIds()).toContain("crime");
+    const shown = (hiddenManual: boolean) =>
+      db.update(schema.catalogVariants).set({ hiddenManual }).where(eq(schema.catalogVariants.contentId, heatId));
+    try {
+      // Hidden behind the pipeline's back: the genre list is not read again.
+      await db.update(schema.catalogContents).set({ visible: false }).where(heat);
+      expect(await rowIds()).toContain("crime");
+      // Hidden for real: the grouping writes it, and the genres follow.
+      await shown(true);
+      await runGrouping();
+      expect(await rowIds()).not.toContain("crime");
+      expect((await get("/movies?genre=crime")).body.items).toEqual([]);
+    } finally {
+      await shown(false);
+      await runGrouping();
+    }
+    expect(await rowIds()).toContain("crime");
+    expect((await get("/movies?genre=crime")).body.items.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
+  });
+
   it("list: cursor pagination, sort and filters", async () => {
     const p1 = (await get("/movies?genre=recent&limit=2")).body;
     expect(p1.items.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603", `fallback:movie:silver-book-of-dreams:${THIS_YEAR}`]);
@@ -404,7 +428,18 @@ describe("GET /movies and /series", () => {
     ]);
     expect((await get("/movies?genre=nope")).body).toEqual({ items: [], next_cursor: null });
     expect((await get("/movies?genre=recent&cursor=zzz")).status).toBe(400);
-    expect((await get("/movies?genre=recent&min_quality=8K")).body.error.code).toBe("bad_request");
+    expect((await get("/movies?genre=recent&min_quality=8K")).body).toEqual({
+      error: { code: "bad_request", message: "min_quality doit valoir SD, HD, FHD ou 4K" },
+    });
+    expect((await get("/movies?genre=recent&min_quality=4k")).body.items.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603"]);
+    expect((await get("/movies?sort=nope")).body.error.message).toMatch(/^sort doit valoir release/);
+    expect((await get("/movies?genre=recent&limit=abc")).body.error).toEqual({
+      code: "bad_request",
+      message: "limit doit être un entier positif",
+    });
+    expect((await get("/movies?genre=recent&limit=500")).status).toBe(200); // clamped, not refused
+    expect((await get("/movies/sagas?limit=0")).body.error.code).toBe("bad_request");
+    expect((await get("/search?scope=films")).body.error.message).toBe("scope doit valoir all, movies, series ou live");
   });
 });
 
@@ -1290,6 +1325,21 @@ describe("GET /stream/{source}", () => {
     // Never logged: the signature is redacted by the request logger.
     const { redactUrl } = await import("@/shared");
     expect(redactUrl(url.pathname + url.search)).not.toContain(url.searchParams.get("s")!);
+  });
+
+  it("a link lives a quarter of an hour: it carries the provider's credentials in its 302", async () => {
+    const sheet = (await get("/movies/tmdb:movie:603")).body;
+    const url = new URL(sheet.versions[0].sources[0].stream_url);
+    const exp = Number(url.searchParams.get("e")) * 1000;
+    expect(exp - Date.now()).toBeLessThanOrEqual(15 * 60_000);
+    expect(exp - Date.now()).toBeGreaterThan(14 * 60_000);
+    const later = Date.now() + 16 * 60_000;
+    vi.useFakeTimers({ toFake: ["Date"], now: later });
+    try {
+      expect((await api.request(url.pathname.replace("/player", "") + url.search, { redirect: "manual" })).status).toBe(401);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("DELETE /devices/{code}: only its own, then every call is 401 and the stream link dies", async () => {

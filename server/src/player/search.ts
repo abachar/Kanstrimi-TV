@@ -5,7 +5,7 @@ import { and, asc, desc, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { searchText, similarityKey } from "@/shared";
 import type { Env, RestContext } from "./context";
-import { fail, json } from "./http";
+import { badQuery, json } from "./http";
 import { liveCategories, visibleContent } from "./contents";
 import { getProgress } from "./progress";
 import { artBlock, baseCard, gridCard } from "./cards";
@@ -19,10 +19,11 @@ export const searchRoutes = new Hono<Env>();
 
 const searchQuery = zValidator(
   "query",
-  z.object({ q: z.string().default(""), scope: z.enum(["all", "movies", "series", "live"]).default("all") }),
-  (r) => {
-    if (!r.success) return fail("bad_request", "scope doit valoir all, movies, series ou live");
-  },
+  z.object({
+    q: z.string().default(""),
+    scope: z.enum(["all", "movies", "series", "live"], { error: "scope doit valoir all, movies, series ou live" }).default("all"),
+  }),
+  badQuery,
 );
 searchRoutes.get("/", searchQuery, async (c) => {
   const { q, scope } = c.req.valid("query");
@@ -31,6 +32,14 @@ searchRoutes.get("/", searchQuery, async (c) => {
 
 /** Shortest query given to the typo-tolerant fallback. */
 export const FUZZY_MIN_LENGTH = 3;
+/** Shortest term searched as a prefix: « a:* » alone matches half the catalogue. A shorter one is a whole word. */
+const PREFIX_MIN_LENGTH = 2;
+/**
+ * Comparing titles costs (accents, punctuation, similarity): a short query matches tens of thousands
+ * of contents, so only the most voted ones are compared, from the prefixes and from the whole words
+ * (a title equal to the query is made of its words, however little voted, as « Ma » among the « ma… »).
+ */
+export const SEARCH_CANDIDATES = 200;
 
 /** A title as `similarityKey` writes it, in SQL: accent-free, lower case, punctuation as spaces. */
 const titleKey = (col: unknown) =>
@@ -41,12 +50,19 @@ const titleKey = (col: unknown) =>
  * original and English titles too), then the titles closest to it, then popularity. The full-text
  * rank is left out: it weighs a title and a cast name alike. « I Robot » finds « I, Robot » first.
  */
-export async function search(ctx: RestContext, query: string, scope: "all" | "movies" | "series" | "live"): Promise<SearchResults> {
+export async function search(
+  ctx: RestContext,
+  query: string,
+  scope: "all" | "movies" | "series" | "live",
+  candidates = SEARCH_CANDIDATES,
+): Promise<SearchResults> {
   const q = searchText(query.trim());
   if (!q) return { query, best: null, movies: [], series: [], live: [] };
   const terms = q.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   if (!terms.length) return { query, best: null, movies: [], series: [], live: [] };
-  const tsq = terms.map((t) => `${t.replace(/'/g, "''")}:*`).join(" & ");
+  const word = (t: string) => t.replace(/'/g, "''");
+  const prefixes = terms.map((t) => (t.length >= PREFIX_MIN_LENGTH ? `${word(t)}:*` : word(t))).join(" & ");
+  const words = terms.map(word).join(" & ");
   const key = similarityKey(query);
   const t = schema.catalogContents;
   // Same expression as the `catalog_contents_titles_trgm_idx` index, or the planner cannot use it.
@@ -56,11 +72,22 @@ export async function search(ctx: RestContext, query: string, scope: "all" | "mo
     exact: sql<boolean>`(${titleKey(t.title)} = ${key} or ${titleKey(t.originalTitle)} = ${key} or ${titleKey(t.titleEn)} = ${key})`,
     closeness: sql<number>`word_similarity(${q}, ${titles})`,
   };
+  const mostVoted = (kind: "vod" | "series" | "live", tsq: string) =>
+    db
+      .select({ id: t.id })
+      .from(t)
+      .where(and(visibleContent(ctx, kind), sql`${t.search} @@ to_tsquery('simple', ${tsq})`))
+      .orderBy(sql`${t.voteCount} desc nulls last`, asc(t.id))
+      .limit(candidates);
   const find = (kind: "vod" | "series" | "live") =>
     db
       .select(fields)
       .from(t)
-      .where(and(visibleContent(ctx, kind), sql`${t.search} @@ to_tsquery('simple', ${tsq})`))
+      .where(
+        prefixes === words
+          ? sql`${t.id} in (${mostVoted(kind, words)})`
+          : sql`${t.id} in ((${mostVoted(kind, prefixes)}) union (${mostVoted(kind, words)}))`,
+      )
       .orderBy(desc(fields.exact), desc(fields.closeness), desc(t.voteCount), asc(t.title))
       .limit(20);
   const resembling = (kind: "vod" | "series" | "live") =>

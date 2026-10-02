@@ -46,7 +46,8 @@ export function FavoritesView({ rows }: { rows: FavoriteRow[] }) {
                 <form
                   method="post"
                   action={`/admin/favorites/${encodeURIComponent(r.key)}/remove`}
-                  onsubmit="return confirm('Retirer ce favori ?')"
+                  hx-post={`/admin/favorites/${encodeURIComponent(r.key)}/remove`}
+                  hx-confirm="Retirer ce favori ?"
                 >
                   <button class="btn" data-variant="destructive" data-size="sm">
                     Retirer

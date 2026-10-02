@@ -1,0 +1,57 @@
+[
+  {
+    "id": "tmdb:movie:604",
+    "reason": "available",
+    "context": "Enfin disponible",
+    "title": "Matrix Reloaded",
+    "summary": "Neo et ses alliés.",
+    "genre": "Action",
+    "duration": 8280,
+    "release_date": "2026-05-15",
+    "image": "http://kanstrimi.test/img/shelf/1x/reloadedb.jpg/reloaded-logo.png?layout=2",
+    "image_2x": "http://kanstrimi.test/img/shelf/2x/reloadedb.jpg/reloaded-logo.png?layout=2",
+    "cast": [
+      "Keanu Reeves"
+    ],
+    "max_quality": "4K",
+    "dynamic_range": "DV",
+    "play_id": "tmdb:movie:604",
+    "open_id": "tmdb:movie:604"
+  },
+  {
+    "id": "tmdb:movie:949",
+    "reason": "resume",
+    "context": "Reprendre · 2 h 00 restantes",
+    "title": "Heat",
+    "summary": null,
+    "genre": "Action",
+    "duration": 10200,
+    "release_date": "2026-08-20",
+    "image": "http://kanstrimi.test/img/shelf/1x/heatb.jpg/heat-logo.png?layout=2",
+    "image_2x": "http://kanstrimi.test/img/shelf/2x/heatb.jpg/heat-logo.png?layout=2",
+    "cast": [
+      "Al Pacino"
+    ],
+    "play_id": "tmdb:movie:949",
+    "open_id": "tmdb:movie:949"
+  },
+  {
+    "id": "tmdb:movie:603",
+    "reason": "top",
+    "context": "N° 2 cette semaine",
+    "title": "Matrix",
+    "summary": "Thomas Anderson mène une double vie.",
+    "genre": "Action",
+    "duration": 8160,
+    "release_date": "1999-03-31",
+    "image": "http://kanstrimi.test/img/shelf/1x/matrixb.jpg/matrix-logo.png?layout=2",
+    "image_2x": "http://kanstrimi.test/img/shelf/2x/matrixb.jpg/matrix-logo.png?layout=2",
+    "cast": [
+      "Keanu Reeves"
+    ],
+    "max_quality": "4K",
+    "dynamic_range": "DV",
+    "play_id": "tmdb:movie:603",
+    "open_id": "tmdb:movie:603"
+  }
+]

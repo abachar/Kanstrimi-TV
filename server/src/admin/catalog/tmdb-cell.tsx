@@ -25,7 +25,7 @@ export function TmdbCell({ it, results }: { it: Variant; results?: TmdbCandidate
             #{it.tmdbId}
           </a>
         ) : (
-          <span class="text-muted-foreground" aria-label="Sans fiche TMDB">
+          <span class="text-muted-foreground" role="img" aria-label="Sans fiche TMDB">
             —
           </span>
         )}

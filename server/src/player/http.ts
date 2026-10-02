@@ -16,7 +16,11 @@ export const fail = (code: ApiError["error"]["code"], message: string) =>
   new Response(JSON.stringify({ error: { code, message } } satisfies ApiError), { status: STATUS[code], headers });
 export const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers });
 export const noContent = () => new Response(null, { status: 204 });
-export const clientIp = (req: Request) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
 
 /** Thrown by a resource for a malformed query; the router turns it into a 400. */
 export class BadRequest extends Error {}
+
+/** The hook of a `zValidator`: a malformed query answers the contract's 400 with the schema's own messages. */
+export const badQuery = (r: { success: boolean; error?: { issues: { message: string }[] } }) => {
+  if (!r.success) return fail("bad_request", (r.error?.issues ?? []).map((i) => i.message).join(" ; ") || "requête invalide");
+};

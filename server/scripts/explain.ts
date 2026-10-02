@@ -1,8 +1,8 @@
 // Dev helper: replay the TMDB matching for a name (+ optional upstream tmdb id), without writing.
 // usage: node --import tsx --env-file-if-exists=.env scripts/explain.ts <admin password> "<name>" [tmdb_id] [vod|series]
 import { verify } from "@/config";
-import { getTmdbClient, explainMatch, namesOf } from "@/providers/tmdb";
-import { cleanTitle } from "@/catalog";
+import { getTmdbClient, namesOf } from "@/providers/tmdb";
+import { cleanTitle, explainMatch } from "@/catalog";
 const [, , pw, name, tmdb, kind = "vod"] = process.argv;
 if (!(await verify(pw ?? ""))) {
   console.error("mot de passe incorrect");

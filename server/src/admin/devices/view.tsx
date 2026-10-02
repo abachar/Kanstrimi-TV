@@ -116,7 +116,8 @@ export function DevicesView({ devices }: { devices: Device[] }) {
                       <form
                         method="post"
                         action={`/admin/devices/${d.code}/revoke`}
-                        onsubmit="return confirm('Dissocier cet appareil ? Il devra être appairé à nouveau.')"
+                        hx-post={`/admin/devices/${d.code}/revoke`}
+                        hx-confirm="Dissocier cet appareil ? Il devra être appairé à nouveau."
                       >
                         <button class="btn" data-variant="destructive" data-size="sm">
                           Dissocier

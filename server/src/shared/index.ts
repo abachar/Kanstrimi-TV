@@ -1,3 +1,4 @@
+export { clientIp } from "./client-ip";
 export { Cancelled, cancelGuard, checkCancelled, isCancelled, withCancel } from "./cancel";
 export { decrypt, deriveKey, encrypt, isEncrypted, safeEqual, sha256 } from "./crypto";
 export { env } from "./env";
@@ -5,4 +6,6 @@ export { describeError, isUnreachable } from "./errors";
 export { progress } from "./progress";
 export { redactText, redactUrl, requestLogger } from "./http-log";
 export { searchText, similarity, similarityKey, slug, stripAccents, stripOrnaments } from "./text";
+export { serveFile } from "./serve-file";
+export { type SingleFlight, singleFlight } from "./single-flight";
 export { within } from "./within";

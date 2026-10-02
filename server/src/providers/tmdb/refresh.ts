@@ -1,48 +1,36 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { describeError } from "@/shared";
-import { fetchDetails, getTmdbClient } from "./enrich";
+import { describeError, singleFlight } from "@/shared";
+import { fetchDetails, getTmdbClient } from "./details";
 
 /** An opened sheet re-reads its TMDB document past this age, or at once when it predates the logos. */
 const SHEET_TTL_MS = 7 * 24 * 3600 * 1000;
-/** After a failed read, that title leaves TMDB alone this long. */
-const RETRY_MS = 10 * 60 * 1000;
 
-const inFlight = new Map<string, Promise<boolean>>();
-const failedAt = new Map<string, number>();
+/** After a failed read, that title leaves TMDB alone ten minutes. */
+const once = singleFlight(false, {
+  retryAfterMs: 10 * 60 * 1000,
+  onError: (e, k) => console.error(`[sheet] rafraîchissement TMDB ${k.replace(":", " ")} : ${describeError(e)}`),
+});
 
 /**
  * The TMDB document of a sheet being opened, fetched again when old. True when it was fetched now;
  * false when it was fresh, TMDB is not set up, or TMDB failed. One fetch per title at a time; never fails.
  */
 export function refreshDetails(mediaType: "movie" | "tv", tmdbId: number): Promise<boolean> {
-  const k = `${mediaType}:${tmdbId}`;
-  if (Date.now() - (failedAt.get(k) ?? 0) < RETRY_MS) return Promise.resolve(false);
-  let run = inFlight.get(k);
-  if (!run) {
-    run = (async () => {
-      const client = await getTmdbClient();
-      if (!client) return false;
-      const [cached] = await db
-        .select({
-          fetchedAt: schema.tmdbCache.fetchedAt,
-          hasLogos: sql<boolean>`coalesce(${schema.tmdbCache.data} -> 'images' ? 'logos', false)`,
-        })
-        .from(schema.tmdbCache)
-        .where(
-          and(eq(schema.tmdbCache.mediaType, mediaType), eq(schema.tmdbCache.tmdbId, tmdbId), eq(schema.tmdbCache.lang, client.language)),
-        );
-      if (cached?.hasLogos && Date.now() - cached.fetchedAt.getTime() < SHEET_TTL_MS) return false;
-      await fetchDetails(client, mediaType, tmdbId);
-      return true;
-    })()
-      .catch((e) => {
-        failedAt.set(k, Date.now());
-        console.error(`[sheet] rafraîchissement TMDB ${mediaType} ${tmdbId} : ${describeError(e)}`);
-        return false;
+  return once(`${mediaType}:${tmdbId}`, async () => {
+    const client = await getTmdbClient();
+    if (!client) return false;
+    const [cached] = await db
+      .select({
+        fetchedAt: schema.tmdbCache.fetchedAt,
+        hasLogos: sql<boolean>`coalesce(${schema.tmdbCache.data} -> 'images' ? 'logos', false)`,
       })
-      .finally(() => inFlight.delete(k));
-    inFlight.set(k, run);
-  }
-  return run;
+      .from(schema.tmdbCache)
+      .where(
+        and(eq(schema.tmdbCache.mediaType, mediaType), eq(schema.tmdbCache.tmdbId, tmdbId), eq(schema.tmdbCache.lang, client.language)),
+      );
+    if (cached?.hasLogos && Date.now() - cached.fetchedAt.getTime() < SHEET_TTL_MS) return false;
+    await fetchDetails(client, mediaType, tmdbId);
+    return true;
+  });
 }

@@ -236,7 +236,9 @@ export const catalogContents = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    index("catalog_contents_list_idx").on(t.kind, t.visible, t.addedAt.desc(), t.id),
+    // « Nouveautés », « Derniers épisodes »: `order by added_at desc, id desc`, as Postgres sorts it (nulls
+    // first), or the planner cannot read the index in order and sorts the whole kind instead.
+    index("catalog_contents_list_idx").on(t.kind, t.visible, t.addedAt.desc().nullsFirst(), t.id.desc().nullsFirst()),
     // The sort keys of `player/lists.ts`, expression for expression, or the planner cannot use them.
     index("catalog_contents_release_idx").on(t.kind, t.visible, sql`coalesce(${t.releaseDate}, '0001-01-01'::date) desc`, t.id),
     index("catalog_contents_saga_idx").on(t.sagaId),
@@ -268,7 +270,14 @@ export const tmdbCache = pgTable(
     data: jsonb("data").$type<Record<string, unknown>>().notNull(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("tmdb_cache_idx").on(t.mediaType, t.tmdbId, t.lang)],
+  (t) => [
+    uniqueIndex("tmdb_cache_idx").on(t.mediaType, t.tmdbId, t.lang),
+    // The entries cached before the logos, which `enrich` fetches again: found without reading
+    // (and detoasting) every document. Empties itself as the backfill goes.
+    index("tmdb_cache_logoless_idx")
+      .on(t.lang, t.mediaType, t.tmdbId, t.fetchedAt)
+      .where(sql`not coalesce(${t.data} -> 'images' ? 'logos', false)`),
+  ],
 );
 
 /** Cached upstream get_vod_info / get_series_info responses. */

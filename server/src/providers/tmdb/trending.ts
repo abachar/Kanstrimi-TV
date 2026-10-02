@@ -1,5 +1,5 @@
 import { db, schema } from "@/db";
-import { getTmdbClient } from "./enrich";
+import { getTmdbClient } from "./details";
 
 /** Five pages of twenty: enough for ten of them to be in the catalogue most weeks. */
 const PAGES = 5;

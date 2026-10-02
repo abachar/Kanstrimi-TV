@@ -1,0 +1,1 @@
+CREATE INDEX "tmdb_cache_logoless_idx" ON "tmdb_cache" USING btree ("lang","media_type","tmdb_id","fetched_at") WHERE not coalesce("tmdb_cache"."data" -> 'images' ? 'logos', false);

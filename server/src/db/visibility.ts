@@ -1,5 +1,5 @@
 import { and, eq, or, sql, type SQL } from "drizzle-orm";
-import { db, schema } from "./client";
+import { schema } from "./client";
 import type { Category, Variant } from "./schema";
 
 /**
@@ -41,12 +41,4 @@ export function isItemHidden(
   category?: Pick<Category, "hiddenByRule" | "hiddenManual"> | null,
 ): boolean {
   return it.hiddenByRule || it.hiddenManual || isCategoryHidden(category);
-}
-
-/** The admin switch reads "Visible"; the column stores the opposite. */
-export async function setItemHiddenManual(id: number, hiddenManual: boolean) {
-  await db.update(schema.catalogVariants).set({ hiddenManual }).where(eq(schema.catalogVariants.id, id));
-}
-export async function setCategoryHiddenManual(id: number, hiddenManual: boolean) {
-  await db.update(schema.catalogCategories).set({ hiddenManual }).where(eq(schema.catalogCategories.id, id));
 }

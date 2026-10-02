@@ -1,4 +1,4 @@
-import { db, schema } from "@/db";
+import { client as pg, db, schema } from "@/db";
 import { desc, eq, inArray, sql } from "drizzle-orm";
 import { markWaitlistStarted } from "@/catalog";
 
@@ -60,16 +60,22 @@ export async function deleteProgress(contentKey: string): Promise<void> {
 }
 
 /**
- * Manual override from the admin. « Vu » sets the position to the end (or to 1/1 when the
- * duration is unknown); « non vu » drops the row, a position at 0 meaning nothing.
+ * Manual override from the admin, and the app's « Vu » / « Non vu ». « Vu » sets the position to the
+ * end (or to 1/1 when the duration is unknown); « non vu » drops the row, a position at 0 meaning nothing.
+ * A whole season is one statement.
  */
-export async function setFinished(contentKey: string, finished: boolean): Promise<void> {
-  if (!finished) return deleteProgress(contentKey);
-  const [row] = await db.select().from(schema.appWatchProgress).where(eq(schema.appWatchProgress.contentKey, contentKey));
-  const duration = row?.duration || 1;
-  await db
-    .insert(schema.appWatchProgress)
-    .values({ contentKey, position: duration, duration, finished: true, updatedAt: new Date() })
-    .onConflictDoUpdate({ target: schema.appWatchProgress.contentKey, set: { position: duration, finished: true, updatedAt: new Date() } });
-  await markWaitlistStarted(contentKey);
+export async function setFinished(contentKeys: string | string[], finished: boolean): Promise<void> {
+  const keys = [...new Set(typeof contentKeys === "string" ? [contentKeys] : contentKeys)];
+  if (!keys.length) return;
+  if (!finished) {
+    await db.delete(schema.appWatchProgress).where(inArray(schema.appWatchProgress.contentKey, keys));
+    return;
+  }
+  await pg`
+    insert into app_watch_progress as p (content_key, position, duration, finished, updated_at)
+    select k, coalesce(nullif(old.duration, 0), 1), coalesce(nullif(old.duration, 0), 1), true, now()
+    from unnest(${keys}::text[]) as k
+    left join app_watch_progress old on old.content_key = k
+    on conflict (content_key) do update set position = excluded.position, finished = true, updated_at = excluded.updated_at`;
+  await markWaitlistStarted(keys);
 }

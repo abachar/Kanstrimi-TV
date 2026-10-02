@@ -24,7 +24,7 @@ const Action = ({
   <form
     method="post"
     action={`/admin/history/${encodeURIComponent(row.key)}/${verb}`}
-    onsubmit={confirm ? `return confirm('${confirm}')` : undefined}
+    {...(confirm ? { "hx-post": `/admin/history/${encodeURIComponent(row.key)}/${verb}`, "hx-confirm": confirm } : {})}
   >
     <button class="btn" data-variant={variant} data-size="sm">
       {label}

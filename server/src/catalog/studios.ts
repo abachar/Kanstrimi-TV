@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { getSettings } from "@/config";
-import { db, schema, type Studio } from "@/db";
+import { db, schema, sqlTmdbMediaType, type Studio } from "@/db";
 
 /**
  * The studio hubs, chosen in the admin: a TMDB production company or a TV network. Names and
@@ -143,7 +143,7 @@ const cachedStudios = (lang: string) => sql`
   select 'company' as kind, (x->>'id')::int as "tmdbId", x->>'name' as name, x->>'logo_path' as "logoPath",
     nullif(x->>'origin_country', '') as country
   from ${schema.catalogContents} c
-  join ${schema.tmdbCache} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = case c.kind when 'vod' then 'movie' else 'tv' end
+  join ${schema.tmdbCache} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = ${sqlTmdbMediaType(sql`c.kind`)}
   cross join jsonb_array_elements(coalesce(t.data->'production_companies', '[]'::jsonb)) x
   where c.visible
   union all

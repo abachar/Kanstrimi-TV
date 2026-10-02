@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { resetDb, closeDb } from "@/test/db";
 import { setProgress, getProgress, resumeKeys, isResumable } from "../progress";
 import { setFavorite, favoriteKeys } from "../favorites";
@@ -22,8 +22,9 @@ describe("watch progress", () => {
     await setProgress("tmdb:movie:1", 10, 6000); // below 5 %
     await setProgress("tmdb:movie:2", 5900, 6000); // finished
     await setProgress("tmdb:movie:3", 0, 0); // no duration yet
-    await new Promise((r) => setTimeout(r, 5));
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + 60_000 }); // watched a minute later
     await setProgress("tmdb:movie:4", 1000, 6000);
+    vi.useRealTimers();
     const keys = (await resumeKeys()).map((r) => r.contentKey);
     expect(keys).toEqual(["tmdb:movie:4", "tmdb:tv:1396:s01e05"]);
     expect(isResumable((await getProgress(["tmdb:movie:1"])).get("tmdb:movie:1"))).toBe(false);

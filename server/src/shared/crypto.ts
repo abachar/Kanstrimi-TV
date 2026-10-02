@@ -14,7 +14,7 @@ export function isEncrypted(value: string) {
 /** AES-256-GCM → "enc:v1:<iv>:<tag>:<ciphertext>" (base64). */
 export function encrypt(key: Buffer, plaintext: string): string {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const cipher = createCipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
   const ct = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   return PREFIX + [iv, cipher.getAuthTag(), ct].map((b) => b.toString("base64")).join(":");
 }
@@ -26,7 +26,8 @@ export function decrypt(key: Buffer, value: string): string {
     .slice(PREFIX.length)
     .split(":")
     .map((s) => Buffer.from(s, "base64"));
-  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  // A full 16-byte tag, never a shorter one: Node would otherwise accept a truncated tag, easier to forge.
+  const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
 }

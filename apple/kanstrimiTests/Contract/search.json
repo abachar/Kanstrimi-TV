@@ -1,0 +1,68 @@
+{
+  "query": "matrix",
+  "best": {
+    "id": "tmdb:movie:603",
+    "kind": "movie",
+    "title": "Matrix",
+    "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
+    "max_quality": "4K",
+    "dynamic_range": "DV",
+    "languages": [
+      "VF",
+      "VOSTFR"
+    ],
+    "year": 1999,
+    "rating": 8.2,
+    "genres": [
+      "Action",
+      "Science-Fiction"
+    ],
+    "hint": null,
+    "added_at": "2026-09-22T18:30:00.000Z",
+    "backdrop": "http://kanstrimi.test/img/w1280/matrixb.jpg",
+    "logo": "http://kanstrimi.test/img/w500/matrix-logo.png",
+    "overview": "Thomas Anderson mène une double vie."
+  },
+  "movies": [
+    {
+      "id": "tmdb:movie:603",
+      "kind": "movie",
+      "title": "Matrix",
+      "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
+      "max_quality": "4K",
+      "dynamic_range": "DV",
+      "languages": [
+        "VF",
+        "VOSTFR"
+      ],
+      "year": 1999,
+      "rating": 8.2,
+      "genres": [
+        "Action",
+        "Science-Fiction"
+      ],
+      "hint": null,
+      "added_at": "2026-09-22T18:30:00.000Z"
+    },
+    {
+      "id": "tmdb:movie:604",
+      "kind": "movie",
+      "title": "Matrix Reloaded",
+      "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
+      "max_quality": "4K",
+      "dynamic_range": "DV",
+      "languages": [
+        "VF"
+      ],
+      "year": 2026,
+      "rating": 7.1,
+      "genres": [
+        "Action"
+      ],
+      "hint": null,
+      "added_at": "2026-09-28T18:30:00.000Z"
+    }
+  ],
+  "series": [],
+  "live": []
+}

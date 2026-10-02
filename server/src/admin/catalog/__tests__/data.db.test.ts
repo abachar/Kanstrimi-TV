@@ -4,7 +4,7 @@ import { resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
 import { countItems, pageItems, itemCountByCategory, NO_CATEGORY, type CatalogFilter } from "../data";
 import { counts } from "../../dashboard/data";
 import { categoryByXtreamId } from "@/catalog";
-import { setCategoryHiddenManual, setItemHiddenManual } from "@/db";
+import { setCategoryHiddenManual, setItemHiddenManual } from "@/catalog";
 
 const vod = (over: Partial<CatalogFilter> = {}): CatalogFilter => ({
   kind: "vod",

@@ -3,16 +3,21 @@ import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb, seedItems } from "@/test/db";
 import { setSettings, verify } from "@/config";
-import { runEnrich } from "../enrich";
+import { setTmdbPace } from "@/providers/tmdb";
+import { runEnrich } from "../matching";
 
 beforeAll(async () => {
   await resetDb();
   expect(await verify("test")).toBe(true);
   await setSettings({ tmdb_api_key: "k" });
+  setTmdbPace(100_000); // a fake TMDB: no need to spare it
   await seedItems(Array.from({ length: 60 }, (_, i) => ({ kind: "vod" as const, xtreamId: String(i), name: `|FR| Film ${i}` })));
 });
 afterEach(() => vi.unstubAllGlobals());
-afterAll(closeDb);
+afterAll(async () => {
+  setTmdbPace();
+  await closeDb();
+});
 
 describe("runEnrich", () => {
   it("stops after a streak of outages, leaves the rest pending and says so", async () => {
@@ -58,5 +63,18 @@ describe("runEnrich", () => {
     expect((c.data as { images: unknown }).images).toMatchObject({ logos: [{ file_path: "/m.png", iso_639_1: "fr" }] });
     // Once caught up, nothing left to fetch before the TTL.
     expect(await runEnrich()).toMatchObject({ refreshed: 0 });
+  });
+
+  it("leaves an entry pending when TMDB only answers 429: a question of rate, not of the title", async () => {
+    await db.update(schema.catalogVariants).set({ matchStatus: "pending", matchAttempts: 0, matchedAt: null });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("fetch", async () => new Response("", { status: 429, headers: { "retry-after": "0" } }));
+    await expect(runEnrich()).rejects.toThrow(/TMDB injoignable/);
+    const rows = await db
+      .select({ s: schema.catalogVariants.matchStatus, a: schema.catalogVariants.matchAttempts })
+      .from(schema.catalogVariants);
+    expect(new Set(rows.map((r) => r.s))).toEqual(new Set(["pending"]));
+    expect(new Set(rows.map((r) => r.a))).toEqual(new Set([0]));
+    logged.mockRestore();
   });
 });

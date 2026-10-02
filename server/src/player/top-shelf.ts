@@ -1,7 +1,8 @@
 import { Hono } from "hono";
-import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db, schema, type Content } from "@/db";
-import { availableWaitlistKeys, ensureEpisodes, isEpisodeKey, parseKey } from "@/catalog";
+import { describeError, within } from "@/shared";
+import { availableWaitlistKeys, ensureEpisodes, isEpisodeKey, parseKey, trendingContents, UpstreamUnavailable } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
 import { contentByKey, contentsInOrder, variantsOf, visibleContent } from "./contents";
@@ -16,6 +17,8 @@ topShelfRoutes.get("/", async (c) => json(await topShelf(c.get("ctx"))));
 
 /** Apple's advice for a carousel is five to ten items; six keeps it quick to browse. */
 export const TOP_SHELF_SIZE = 6;
+/** How long the carousel waits for the provider's episodes of a series. */
+const EPISODES_WAIT_MS = 1500;
 /** Series looked at for a new episode, the most recently watched first. */
 const NEW_EPISODE_CANDIDATES = 10;
 
@@ -115,10 +118,15 @@ async function newEpisodePick(ctx: RestContext, skip: Set<string>): Promise<Shel
     const content = await contentByKey(ctx, key);
     if (!hasShelfArt(content) || content.addedAt <= at) continue;
     const { items, categoryName } = await variantsOf(content);
+    // The provider gets a moment, not the home screen: past it, the rebuild lands for the next call
+    // and the episodes known so far answer now. Only its outage is forgiven, not a bug.
+    const rebuild = ensureEpisodes(content, items, ctx.tmdbLang);
+    rebuild.catch((e) => console.error(`[top-shelf] épisodes de ${key} : ${describeError(e)}`));
     try {
-      await ensureEpisodes(content, items, ctx.tmdbLang);
-    } catch {
-      continue; // The provider is unreachable: the episodes known so far will do next time.
+      await within(rebuild, EPISODES_WAIT_MS, null);
+    } catch (e) {
+      if (e instanceof UpstreamUnavailable) continue;
+      throw e;
     }
     const episodes = await loadEpisodes(content, items, categoryName);
     const progress = await getProgress(episodes.map((e) => e.key));
@@ -140,17 +148,12 @@ async function newEpisodePick(ctx: RestContext, skip: Set<string>): Promise<Shel
 
 /** The week's TMDB trending movies that the app sees, with a backdrop, in TMDB's order. */
 async function topMoviePicks(ctx: RestContext): Promise<ShelfPick[]> {
-  const rows = await db
-    .select({ content: schema.catalogContents })
-    .from(schema.catalogContents)
-    .innerJoin(
-      schema.tmdbTrending,
-      and(eq(schema.tmdbTrending.tmdbId, schema.catalogContents.tmdbId), eq(schema.tmdbTrending.mediaType, "movie")),
-    )
-    .where(and(visibleContent(ctx, "vod"), isNotNull(schema.catalogContents.backdropPath), isNotNull(schema.catalogContents.titleLogoPath)))
-    .orderBy(asc(schema.tmdbTrending.rank))
-    .limit(TOP_SHELF_SIZE);
-  return rows.map(({ content }, i) => moviePick(content, "top", `N° ${i + 1} cette semaine`));
+  const contents = await trendingContents(
+    "vod",
+    and(visibleContent(ctx, "vod"), isNotNull(schema.catalogContents.backdropPath), isNotNull(schema.catalogContents.titleLogoPath)),
+    TOP_SHELF_SIZE,
+  );
+  return contents.map((content, i) => moviePick(content, "top", `N° ${i + 1} cette semaine`));
 }
 
 function item(ctx: RestContext, p: ShelfPick): TopShelfItem {

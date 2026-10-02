@@ -1,13 +1,24 @@
 export { refreshCardOnOpen } from "./cards";
+export { setCategoryHiddenManual, setItemHiddenManual } from "./hiding";
+export { trendingContents } from "./trending";
 export { ensureEpisodes, seasonsOf, UpstreamUnavailable } from "./episodes";
-export { groupingCounts, runGrouping, runNaming } from "./grouping/group";
+export { contentsGeneration, groupingCounts, runGrouping, runNaming } from "./grouping/group";
 export { runMerge } from "./merge";
 export { type MergeCandidate, mergeCandidates, mergeVariantInto, resetVariant, splitVariant } from "./grouping/manual";
 export { closeOrphanLogs, recentRuns, runById, lastRunsByTask, type RunWithSteps } from "./journal";
 export { readRunLog, runLogPath } from "./runlog";
 export { iptvChannelById, setIptvMatch } from "./channels";
 export { hasFallbackKey, hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey, tmdbKey } from "./keys";
-export { assignManual, resetMatches, retryUnmatched, searchCandidates, type TmdbCandidate } from "./matching";
+export {
+  assignManual,
+  explainMatch,
+  type MatchExplanation,
+  resetMatches,
+  retryUnmatched,
+  runEnrich,
+  searchCandidates,
+  type TmdbCandidate,
+} from "./matching";
 export {
   cleanTitle,
   DYNAMIC_RANGE_RANK,

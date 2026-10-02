@@ -8,7 +8,7 @@ import { STAT_LABELS, TRIGGER_LABELS, jobLabel, taskLabel } from "../labels";
 /** Stats as readable chips; zeros and unknown keys stay, but the raw JSON never shows. */
 function StatChips({ stats }: { stats: Record<string, unknown> | null }) {
   const entries = Object.entries(stats ?? {}).filter(([, v]) => typeof v === "number" || typeof v === "string");
-  if (!entries.length) return <></>;
+  if (!entries.length) return null;
   return (
     <span class="inline-flex flex-wrap gap-1">
       {entries.map(([k, v]) => {
@@ -40,7 +40,7 @@ const DOT: Record<string, string> = {
 const STATUS_WORD: Record<string, string> = { success: "succès", error: "erreur", running: "en cours", killed: "arrêté" };
 function Dots({ runs }: { runs: RunWithSteps[] }) {
   return (
-    <div class="flex items-center gap-1.5" aria-label="Derniers passages">
+    <div class="flex items-center gap-1.5" role="group" aria-label="Derniers passages">
       {[...runs].reverse().map((r) => (
         <a
           href={`/admin/tasks/${r.id}`}
@@ -71,7 +71,7 @@ function StepBadges({ steps }: { steps: TaskStep[] }) {
  */
 function KillButton({ run }: { run: { id: number } }) {
   return (
-    <form method="post" action={`/admin/tasks/${run.id}/kill`} onsubmit="return confirm('Arrêter ce passage ?')">
+    <form method="post" action={`/admin/tasks/${run.id}/kill`} hx-post={`/admin/tasks/${run.id}/kill`} hx-confirm="Arrêter ce passage ?">
       <button class="btn" data-variant="destructive" data-size="sm">
         Arrêter
       </button>

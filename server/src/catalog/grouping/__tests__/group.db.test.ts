@@ -92,6 +92,10 @@ describe("runGrouping", () => {
       original_language: "en",
       translations: { translations: [{ iso_639_1: "en", data: { title: "Spider-Man" } }] },
       alternative_titles: { titles: [{ iso_3166_1: "FR", title: "L'Homme-Araignée" }] },
+      belongs_to_collection: { id: 556, name: "Spider-Man - Saga", poster_path: "/sp.jpg", backdrop_path: "/sb.jpg" },
+      production_companies: [{ id: 5, name: "Columbia Pictures" }],
+      images: { logos: [{ file_path: "/logo.png", iso_639_1: "fr", vote_average: 5 }] },
+      adult: false,
     });
     await seedTmdb("tv", 1396, {
       name: "Vincenzo",
@@ -102,6 +106,8 @@ describe("runGrouping", () => {
       episode_run_time: [80],
       genres: [{ id: 80, name: "Crime" }],
       created_by: [{ name: "Park Jae-bum" }],
+      networks: [{ id: 213, name: "Netflix" }],
+      content_ratings: { results: [{ iso_3166_1: "FR", rating: "12" }] },
     });
   });
   afterAll(closeDb);
@@ -139,6 +145,15 @@ describe("runGrouping", () => {
       ["3", "VOSTFR", null, null],
       ["4", "IT", null, null],
     ]);
+  });
+
+  it("writes every card column, from TMDB or from the variants", async () => {
+    const cards = await db.execute(sql`
+      select key, title, original_title, title_en, tmdb_adult, year, end_year, poster_path, backdrop_path, title_logo_path,
+        overview, rating, vote_count, genre_ids, genres, runtime, certification, "cast", director, trailer_key, status,
+        search::text as search, release_date, saga_id, saga_name, saga_poster_path, saga_backdrop_path, company_ids, network_ids, cards_lang
+      from catalog_contents order by key`);
+    expect(cards).toMatchSnapshot();
   });
 
   it("keeps unmatched variants in a fallback content, invisible when its variants are hidden", async () => {
@@ -203,6 +218,29 @@ describe("runGrouping", () => {
       .from(schema.catalogContents)
       .orderBy(schema.catalogContents.id);
     expect(after).toEqual(before);
+  });
+
+  it("rewrites a card only when it changes: a cache entry read again unchanged only moves the copy's date", async () => {
+    const stamp = async () =>
+      (
+        await db.execute<{ updated_at: string; cards_at: string }>(
+          sql`select updated_at::text, cards_at::text from catalog_contents where key = 'tmdb:movie:557'`,
+        )
+      )[0];
+    const before = await stamp();
+    await db.execute(sql`update tmdb_cache set fetched_at = now() + interval '1 minute' where tmdb_id = 557 and media_type = 'movie'`);
+    await runGrouping();
+    const same = await stamp();
+    expect(same.updated_at).toBe(before.updated_at);
+    expect(same.cards_at).not.toBe(before.cards_at);
+    await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{vote_average}', '8.1'), fetched_at = now() + interval '2 minutes'
+      where tmdb_id = 557 and media_type = 'movie'`);
+    await runGrouping();
+    expect((await stamp()).updated_at).not.toBe(before.updated_at);
+    expect((await content("tmdb:movie:557")).rating).toBe(8.1);
+    await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{vote_average}', '7.31'), fetched_at = now() + interval '3 minutes'
+      where tmdb_id = 557 and media_type = 'movie'`);
+    await runGrouping();
   });
 
   it("keeps the TMDB card's title when the variants' names change, and copies the card again when TMDB's is newer", async () => {

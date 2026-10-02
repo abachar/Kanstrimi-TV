@@ -1,7 +1,7 @@
-import { inArray, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { describeError, within } from "@/shared";
-import { getTmdbClient } from "./enrich";
+import { describeError, singleFlight, within } from "@/shared";
+import { getTmdbClient } from "./details";
 
 /**
  * TMDB's recommendations of a title, fetched on demand and kept a week in `tmdb_recommendations`
@@ -12,11 +12,11 @@ export type TitleRef = { mediaType: "movie" | "tv"; tmdbId: number };
 type Row = { ids: number[]; fetchedAt: Date };
 
 const TTL_MS = 7 * 24 * 3600 * 1000;
-/** After a failed fetch, that title leaves TMDB alone this long. */
-const RETRY_MS = 10 * 60 * 1000;
-
-const inFlight = new Map<string, Promise<number[] | null>>();
-const failedAt = new Map<string, number>();
+/** After a failed fetch, that title leaves TMDB alone ten minutes. */
+const once = singleFlight<number[] | null>(null, {
+  retryAfterMs: 10 * 60 * 1000,
+  onError: (e, k) => console.error(`[recommandations] TMDB ${k} : ${describeError(e)}`),
+});
 const queued = new Set<string>();
 let queue: Promise<void> = Promise.resolve();
 
@@ -25,42 +25,31 @@ const isFresh = (row: Row | undefined) => Boolean(row && Date.now() - row.fetche
 
 async function cachedRows(refs: TitleRef[]): Promise<Map<string, Row>> {
   if (!refs.length) return new Map();
+  // The primary key's two columns: by tmdb_id alone, the index is of no use.
+  const pairs = [...new Map(refs.map((r) => [refId(r), sql`(${r.mediaType}, ${r.tmdbId}::int)`])).values()];
   const rows = await db
     .select()
     .from(schema.tmdbRecommendations)
-    .where(inArray(schema.tmdbRecommendations.tmdbId, [...new Set(refs.map((r) => r.tmdbId))]));
+    .where(sql`(${schema.tmdbRecommendations.mediaType}, ${schema.tmdbRecommendations.tmdbId}) in (${sql.join(pairs, sql`, `)})`);
   return new Map(rows.map((r) => [refId(r), { ids: r.ids, fetchedAt: r.fetchedAt }]));
 }
 
 /** Ask TMDB and replace the cached list; one fetch per title at a time, null when TMDB is not set up or failed. */
 function fetchOnce(ref: TitleRef): Promise<number[] | null> {
-  const k = refId(ref);
-  if (Date.now() - (failedAt.get(k) ?? 0) < RETRY_MS) return Promise.resolve(null);
-  let run = inFlight.get(k);
-  if (!run) {
-    run = (async () => {
-      const client = await getTmdbClient();
-      if (!client) return null;
-      const res = await client.recommendations(ref.mediaType, ref.tmdbId);
-      const ids = [...new Set((res.results ?? []).map((r) => r.id).filter((id) => Number.isInteger(id) && id !== ref.tmdbId))];
-      await db
-        .insert(schema.tmdbRecommendations)
-        .values({ ...ref, ids, fetchedAt: new Date() })
-        .onConflictDoUpdate({
-          target: [schema.tmdbRecommendations.mediaType, schema.tmdbRecommendations.tmdbId],
-          set: { ids: sql`excluded.ids`, fetchedAt: sql`excluded.fetched_at` },
-        });
-      return ids;
-    })()
-      .catch((e) => {
-        failedAt.set(k, Date.now());
-        console.error(`[recommandations] TMDB ${k} : ${describeError(e)}`);
-        return null;
-      })
-      .finally(() => inFlight.delete(k));
-    inFlight.set(k, run);
-  }
-  return run;
+  return once(refId(ref), async () => {
+    const client = await getTmdbClient();
+    if (!client) return null;
+    const res = await client.recommendations(ref.mediaType, ref.tmdbId);
+    const ids = [...new Set((res.results ?? []).map((r) => r.id).filter((id) => Number.isInteger(id) && id !== ref.tmdbId))];
+    await db
+      .insert(schema.tmdbRecommendations)
+      .values({ ...ref, ids, fetchedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [schema.tmdbRecommendations.mediaType, schema.tmdbRecommendations.tmdbId],
+        set: { ids: sql`excluded.ids`, fetchedAt: sql`excluded.fetched_at` },
+      });
+    return ids;
+  });
 }
 
 /**
@@ -96,12 +85,14 @@ function refreshInBackground(refs: TitleRef[]) {
   });
 }
 
-/** Resolves once the background fetches started so far are done (tests). */
-export const recommendationsSettled = () => queue;
+/** Resolves once the fetches started so far, in the background or on demand, are done (tests). */
+export async function recommendationsSettled() {
+  await queue;
+  await once.idle();
+}
 
 /** Forget the failures and fetches in flight (tests). */
 export function resetRecommendations() {
-  inFlight.clear();
-  failedAt.clear();
+  once.reset();
   queued.clear();
 }

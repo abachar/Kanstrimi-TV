@@ -21,10 +21,15 @@ const post = (path: string, fields: Record<string, string>) =>
   });
 /** The flash message a redirect carries (`?ok=` / `?err=`, form-encoded). */
 const flash = (r: Response) => decodeURIComponent(r.headers.get("location")!.replace(/\+/g, " "));
+/** A page, checked against the admin's CSP (`script-src 'self'`): no inline handler, no script from elsewhere. */
 const html = async (path: string) => {
   const r = await call(path);
   expect(r.status, path).toBe(200);
-  return r.text();
+  const text = await r.text();
+  expect(text, path).not.toMatch(/\s(on[a-z]+|hx-on[:-][\w:-]*)=/i);
+  expect(text, path).not.toMatch(/<script(?![^>]*\ssrc="\/admin\/assets\/)[^>]*>/);
+  expect(text, path).not.toContain("javascript:");
+  return text;
 };
 
 beforeAll(async () => {
@@ -61,6 +66,15 @@ describe("admin", () => {
       headers: { "content-type": "application/x-www-form-urlencoded", origin: "http://evil.test" },
     });
     expect(r.status).toBe(403);
+    // Whatever the body says it is, or without any Content-Type at all.
+    const bare = (headers: Record<string, string>) =>
+      call("/admin/menu", { method: "POST", body: new Uint8Array([110, 101, 120, 116]), headers });
+    expect((await bare({ origin: "http://evil.test" })).status).toBe(403);
+    expect((await bare({ "sec-fetch-site": "cross-site" })).status).toBe(403);
+    expect((await bare({ origin: "http://evil.test", "content-type": "application/json" })).status).toBe(403);
+    expect((await call("/admin/menu", { method: "DELETE", headers: { origin: "http://evil.test" } })).status).toBe(403);
+    // The same site without a Content-Type goes on to the login guard.
+    expect((await bare({ origin: "http://localhost" })).status).toBe(302);
   });
 
   it("logs in with the admin e-mail and password", async () => {
@@ -152,6 +166,13 @@ describe("admin", () => {
     expect(await html("/admin/epg")).toContain("Corrections du guide");
     expect(await html("/admin/epg?channel=TF1.fr")).toContain("Décalage à appliquer");
     expect(await html("/admin/epg/preview/TF1.fr?minutes=-180&pattern=*.fr")).toContain("Aperçu avec −3 h");
+    // `back` lands in a link: anything outside the EPG page falls back to it.
+    expect(await html("/admin/epg/preview/TF1.fr?back=%2Fadmin%2Fepg%3Fq%3Dtf1")).toContain('href="/admin/epg?q=tf1"');
+    for (const bad of ["javascript:alert(1)", "https://evil.test/admin/epg", "//evil.test", "/admin/epgx"]) {
+      const panel = await html(`/admin/epg/preview/TF1.fr?back=${encodeURIComponent(bad)}`);
+      expect(panel, bad).toContain('href="/admin/epg"');
+      expect(panel, bad).not.toContain(bad.replace(/&/g, "&amp;"));
+    }
     expect(await html("/admin/settings")).toContain("Serveur Xtream");
     expect(await html("/admin/favorites")).toContain("Aucun favori");
     expect(await html("/admin/history")).toContain("En cours");
@@ -168,6 +189,30 @@ describe("admin", () => {
     expect(fold.headers.get("set-cookie")).toContain("kanstrimi_menu=collapsed");
     expect(fold.headers.get("location")).toBe("/admin/catalog?kind=vod");
     expect((await post("/admin/menu", { next: "https://evil.test/" })).headers.get("location")).toBe("/admin");
+  });
+
+  it("serves htmx from its own assets and asks for confirmation through htmx, without inline script", async () => {
+    const home = await html("/admin");
+    expect(home).toContain('<script src="/admin/assets/htmx.min.js');
+    expect(home).toContain('<meta name="htmx-config" content="{&quot;allowEval&quot;:false,&quot;includeIndicatorStyles&quot;:false}">');
+    // The phone menu opens by swapping in the menu, rendered open; the current page stays highlighted.
+    expect(home).toContain('hx-get="/admin/menu?path=%2Fadmin"');
+    const menu = await html("/admin/menu?path=%2Fadmin%2Fepg");
+    expect(menu).toMatch(/^<aside id="menu" class="sidebar" data-side="left" data-initial-mobile-open="true"/);
+    expect(menu).toMatch(/href="\/admin\/epg"[^>]*aria-current="page"/);
+    expect(await html("/admin/menu?path=https%3A%2F%2Fevil.test")).toMatch(/href="\/admin"[^>]*aria-current="page"/);
+    // A form behind a confirmation posts through htmx, which answers by a redirect htmx follows.
+    await setFavorite("tmdb:movie:603", true);
+    const key = encodeURIComponent("tmdb:movie:603");
+    expect(await html("/admin/favorites")).toMatch(
+      new RegExp(`hx-post="/admin/favorites/${key}/remove"[^>]*hx-confirm="Retirer ce favori \\?"`),
+    );
+    const r = await call(`/admin/favorites/${key}/remove`, {
+      method: "POST",
+      headers: { origin: "http://localhost", "HX-Request": "true" },
+    });
+    expect(r.status).toBe(204);
+    expect(r.headers.get("hx-redirect")).toBe("/admin/favorites?ok=Favori+retir%C3%A9");
   });
 
   it("favourites: a key the app stored shows up, then goes away by POST", async () => {
@@ -283,6 +328,22 @@ describe("admin", () => {
       vi.unstubAllGlobals();
       await setSettings({ tmdb_api_key: "" });
     }
+  });
+
+  it("answers an unexpected error as a page, or as a toast for an HTMX request, and logs it", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const full = await call("/admin/content/abc");
+    expect(full.status).toBe(500);
+    const body = await full.text();
+    expect(body).toContain('role="alert"');
+    expect(body).toContain('id="toaster"');
+    const htmx = await call("/admin/content/abc", { headers: { "HX-Request": "true" } });
+    expect(htmx.status).toBe(200); // htmx swaps no 5xx: the toast goes to the toaster
+    expect(htmx.headers.get("HX-Retarget")).toBe("#toaster");
+    expect(htmx.headers.get("HX-Reswap")).toBe("beforeend");
+    expect(await htmx.text()).toContain('class="toast"');
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
   });
 
   it("logs out", async () => {

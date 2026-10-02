@@ -1,5 +1,5 @@
-import type { TmdbSearchResult } from "./client";
-import { similarity } from "@/shared";
+import type { TmdbDetails, TmdbSearchResult } from "./client";
+import { similarity, similarityKey } from "@/shared";
 
 export { similarity };
 
@@ -63,3 +63,88 @@ export function pickBest(results: TmdbSearchResult[], title: string, year?: numb
 }
 
 export const MATCH_THRESHOLD = 0.72;
+
+/**
+ * A provider-supplied TMDB id is a hint, not a fact: it is accepted only when the title of
+ * the TMDB document resembles the cleaned name. Looser than the search threshold because the
+ * id already narrows the field; the check only has to catch a wrong film, not a wrong spelling.
+ */
+export const ID_THRESHOLD = 0.55;
+
+/** What the provider says of an entry: its cleaned name and the raw fields it sent. */
+export type EntryClues = { name: string; cleanTitle: string | null; year: number | null; raw: Record<string, unknown> };
+
+export type Evidence = {
+  similarity: number;
+  yearOk: boolean | null;
+  castOverlap: number;
+  directorMatch: boolean;
+  imageMatch: boolean;
+  trailerMatch: boolean;
+  accepted: boolean;
+  reasons: string[];
+};
+
+const splitNames = (v: unknown) =>
+  String(v ?? "")
+    .split(/[,;/]+/)
+    .map((x) => similarityKey(x))
+    .filter((x) => x.length > 2);
+/** "…/eDB1CCNcxnFANadgiWyFlzaqvK6..jpg" or "/eDB1CCNcxnFANadgiWyFlzaqvK6.jpg" → the TMDB file hash. */
+const imageHash = (u: unknown) => {
+  const m = /([A-Za-z0-9_-]{20,})\.*\.(?:jpg|jpeg|png|webp)$/i.exec(String(u ?? ""));
+  return m ? m[1] : null;
+};
+
+/**
+ * Is the TMDB document really this entry? Titles first; when they disagree (the provider
+ * uses a platform title TMDB never recorded), the other things it sends decide: the cast,
+ * the director, the year, the TMDB image hashes it copied, the trailer key.
+ */
+export function idEvidence(d: TmdbDetails, it: EntryClues): Evidence {
+  const title = it.cleanTitle || it.name;
+  const similarity = bestSimilarity(d, title);
+  const raw = it.raw ?? {};
+  const ry = Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || null;
+  const py = it.year ?? (Number(String(raw.year ?? raw.releaseDate ?? raw.release_date ?? "").slice(0, 4)) || null);
+  const yearOk = ry && py ? Math.abs(ry - py) <= 1 : null;
+  const tmdbCast = new Set((d.credits?.cast ?? []).slice(0, 15).map((c) => similarityKey(c.name)));
+  const castOverlap = splitNames(raw.cast).filter((n) => tmdbCast.has(n)).length;
+  const tmdbDirectors = new Set([
+    ...(d.credits?.crew ?? []).filter((c) => c.job === "Director").map((c) => similarityKey(c.name)),
+    ...((d as { created_by?: { name: string }[] }).created_by ?? []).map((c) => similarityKey(c.name)),
+  ]);
+  const directorMatch = splitNames(raw.director).some((n) => tmdbDirectors.has(n));
+  const tmdbImages = new Set(
+    [
+      d.backdrop_path,
+      d.poster_path,
+      ...(d.images?.backdrops ?? []).map((i) => i.file_path),
+      ...(d.images?.posters ?? []).map((i) => i.file_path),
+    ]
+      .map(imageHash)
+      .filter(Boolean),
+  );
+  const providerImages = [
+    ...(Array.isArray(raw.backdrop_path) ? raw.backdrop_path : [raw.backdrop_path]),
+    raw.cover,
+    raw.stream_icon,
+    raw.movie_image,
+  ]
+    .map(imageHash)
+    .filter(Boolean);
+  const imageMatch = providerImages.some((h) => tmdbImages.has(h));
+  const trailer = String(raw.youtube_trailer ?? "").trim();
+  const trailerMatch = Boolean(trailer) && (d.videos?.results ?? []).some((v) => v.site === "YouTube" && v.key === trailer);
+
+  const reasons: string[] = [];
+  if (similarity >= MATCH_THRESHOLD) reasons.push(`titre ${Math.round(similarity * 100)} %`);
+  else if (similarity >= ID_THRESHOLD && yearOk !== false) reasons.push(`titre ${Math.round(similarity * 100)} % et année compatible`);
+  if (imageMatch) reasons.push("image TMDB identique");
+  if (trailerMatch) reasons.push("bande-annonce identique");
+  if (castOverlap >= 2) reasons.push(`${castOverlap} acteurs en commun`);
+  else if (castOverlap === 1 && (yearOk || directorMatch))
+    reasons.push(`1 acteur en commun et ${directorMatch ? "même réalisateur" : "même année"}`);
+  if (directorMatch && yearOk && !reasons.length) reasons.push("même réalisateur et même année");
+  return { similarity, yearOk, castOverlap, directorMatch, imageMatch, trailerMatch, accepted: reasons.length > 0, reasons };
+}

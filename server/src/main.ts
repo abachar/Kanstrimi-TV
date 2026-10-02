@@ -1,49 +1,9 @@
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { HTTPException } from "hono/http-exception";
-import { secureHeaders } from "hono/secure-headers";
-import { bodyLimit } from "hono/body-limit";
-import { sql } from "drizzle-orm";
-import { db, client } from "@/db";
-import { getSettings, isUnlocked, onSettingsChange, verify } from "@/config";
-import { player } from "@/player";
-import { imgRoute } from "@/providers/tmdb";
-import { logoRoute } from "@/providers/iptv";
-import { admin } from "@/admin";
+import { client } from "@/db";
+import { getSettings, onSettingsChange, verify } from "@/config";
 import { schedule, closeOrphanLogs } from "@/catalog";
-import { requestLogger, describeError, env } from "@/shared";
-
-const app = new Hono();
-app.use(requestLogger());
-// Images and streams are fetched by players on other origins: no cross-origin resource policy.
-app.use(secureHeaders({ crossOriginResourcePolicy: false }));
-app.use(bodyLimit({ maxSize: 1024 * 1024 }));
-
-/**
- * `unlocked` is reported but never changes the status code: the vault is locked after
- * every restart until the first authenticated request, and a red healthcheck there
- * would restart a perfectly healthy container in a loop.
- */
-app.get("/health", async (c) => {
-  try {
-    await db.execute(sql`select 1`);
-    return c.json({ ok: true, unlocked: isUnlocked() });
-  } catch (e) {
-    return c.json({ ok: false, unlocked: isUnlocked(), error: describeError(e) }, 500);
-  }
-});
-app.get("/", (c) => c.redirect("/admin"));
-app.route("/img/logos", logoRoute); // before /img: « logos » is no TMDB size
-app.route("/img", imgRoute);
-app.route("/player", player);
-app.route("/admin", admin);
-
-// A 403 from the CSRF check or a 413 from the body limit must keep its status, not become a 500.
-app.onError((err, c) => {
-  if (err instanceof HTTPException) return err.getResponse();
-  console.error(err);
-  return c.text("Internal error: " + err.message, 500);
-});
+import { describeError, env } from "@/shared";
+import { app } from "./app";
 
 const server = serve({ fetch: app.fetch, port: env.port, hostname: "0.0.0.0" }, () => {
   console.log(`Kanstrimi server → port ${env.port}`);

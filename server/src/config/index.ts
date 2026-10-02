@@ -8,4 +8,4 @@ export {
   type SettingKey,
   type Settings,
 } from "./settings";
-export { isUnlocked, lockForTests, unlockWith, verify, wrapKeyWith } from "./vault";
+export { isUnlocked, lockForTests, unlockWith, verify, verifyLogin, wrapKeyWith } from "./vault";

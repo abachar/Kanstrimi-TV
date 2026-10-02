@@ -53,6 +53,12 @@ export type XServerInfo = {
 };
 export type XAccount = { user_info: XUserInfo; server_info: XServerInfo };
 
+/**
+ * get_series_info answers in a second when the provider is well: past this, it is down, and a sheet or
+ * the carousel would wait for it (the catalogue lists, much bigger, keep their minutes).
+ */
+export const SERIES_INFO_TIMEOUT_MS = 10_000;
+
 export class XtreamError extends Error {
   constructor(
     message: string,
@@ -71,11 +77,11 @@ export class XtreamClient {
     readonly password: string,
   ) {
     this.base = url.replace(/\/+$/, "");
-    if (!/^https?:\/\//i.test(this.base)) this.base = "http://" + this.base;
+    if (!/^https?:\/\//i.test(this.base)) this.base = `http://${this.base}`;
   }
 
   private url(action?: string, extra: Record<string, string | number> = {}) {
-    const u = new URL(this.base + "/player_api.php");
+    const u = new URL(`${this.base}/player_api.php`);
     u.searchParams.set("username", this.username);
     u.searchParams.set("password", this.password);
     if (action) u.searchParams.set("action", action);
@@ -119,7 +125,7 @@ export class XtreamClient {
     return this.call<XStream[]>("get_series", {}, 180_000);
   }
   seriesInfo(seriesId: string | number) {
-    return this.call<Record<string, unknown>>("get_series_info", { series_id: seriesId });
+    return this.call<Record<string, unknown>>("get_series_info", { series_id: seriesId }, SERIES_INFO_TIMEOUT_MS);
   }
 
   /** Absolute URL of a stream on the upstream server. */

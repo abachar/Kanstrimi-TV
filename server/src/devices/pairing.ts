@@ -80,7 +80,7 @@ export async function pollPairing(code: string): Promise<PollResult> {
 export async function approvePairing(code: string, name: string): Promise<Device> {
   if (!isUnlocked()) throw new Error("Coffre verrouillé");
   const [d] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, code));
-  if (!d || d.status !== "pending") throw new Error("Code d'appairage inconnu");
+  if (d?.status !== "pending") throw new Error("Code d'appairage inconnu");
   if (d.expiresAt.getTime() < Date.now()) throw new Error("Code d'appairage expiré");
   const token = TOKEN_PREFIX + randomBytes(32).toString("base64url");
   const [row] = await db
@@ -105,7 +105,7 @@ export async function authenticateToken(token: string, ip?: string): Promise<Dev
     .select()
     .from(schema.appDevices)
     .where(eq(schema.appDevices.tokenHash, hash(token)));
-  if (!d || d.status !== "approved") return null;
+  if (d?.status !== "approved") return null;
   if (!isUnlocked() && d.wrappedKey && !(await unlockWith(token, d.wrappedKey))) return null;
   // last_seen is informative: one write per minute per device is enough.
   if (!d.lastSeenAt || Date.now() - d.lastSeenAt.getTime() > 60_000 || (ip && ip !== d.lastIp)) {

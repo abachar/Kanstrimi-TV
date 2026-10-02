@@ -1,4 +1,4 @@
-import type { MatchExplanation } from "@/providers/tmdb";
+import type { MatchExplanation } from "@/catalog";
 import { tmdbMediaType } from "@/db";
 import { Table } from "../ui";
 

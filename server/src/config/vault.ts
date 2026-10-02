@@ -56,12 +56,24 @@ export function lockForTests() {
   pwFingerprint = null;
 }
 
-/** Verify a password; on success the vault is unlocked (cheap after the first time). */
+/**
+ * Verify a password; on success the vault is unlocked. Cheap once open (a SHA-256 against the
+ * fingerprint): for the internal paths only (`DEV_PASSWORD` on every request, scripts). A guess from
+ * outside goes through `verifyLogin`.
+ */
 export async function verify(password: string): Promise<boolean> {
   if (!password) return false;
   if (key && pwFingerprint) return safeEqual(sha256(password), pwFingerprint);
+  return verifyLogin(password);
+}
+
+/** The login form: bcrypt every time, so a guess costs the same whether the vault is open or not. Unlocks on success. */
+export async function verifyLogin(password: string): Promise<boolean> {
+  if (!password) return false;
   if (!(await bcrypt.compare(password, env.adminPasswordHash))) return false;
-  key = deriveKey(password, await salt());
-  pwFingerprint = sha256(password);
+  if (!key) {
+    key = deriveKey(password, await salt());
+    pwFingerprint = sha256(password);
+  }
   return true;
 }

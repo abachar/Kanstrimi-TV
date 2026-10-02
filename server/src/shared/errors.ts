@@ -29,9 +29,11 @@ const UNREACHABLE = new Set([
   "CONNECTION_ENDED",
   "CONNECTION_DESTROYED",
   "CONNECT_TIMEOUT",
+  // A service that keeps answering 429 (TMDB): the next request would be refused the same way.
+  "RATE_LIMITED",
 ]);
 
-/** A failure of the way to the service (DNS, network, database), not of the thing asked. */
+/** A failure of the way to the service (DNS, network, database, rate limit), not of the thing asked. */
 export function isUnreachable(e: unknown): boolean {
   const err = e as { code?: string; name?: string; cause?: { code?: string } } | undefined;
   return UNREACHABLE.has(err?.code ?? "") || UNREACHABLE.has(err?.cause?.code ?? "") || err?.name === "TimeoutError";

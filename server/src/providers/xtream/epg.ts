@@ -90,10 +90,11 @@ async function wantedChannelIds(): Promise<Set<string>> {
 }
 
 /**
- * Download the upstream XMLTV and replace the guide of our channels, in one transaction: the app
- * reads the old guide until the new one is whole, then the new one only. An upstream failure
- * midway, or a guide empty for our channels, rolls back and keeps the old guide (the cron runs
- * every three days, the provider gives six).
+ * Download the upstream XMLTV, then replace the guide of our channels in one short transaction: the
+ * app reads the old guide until the new one is whole, then the new one only. The download (minutes)
+ * happens before, outside it: no connection held, nothing locked meanwhile. An upstream failure
+ * midway, or a guide empty for our channels, keeps the old guide (the cron runs every three days,
+ * the provider gives six).
  */
 export async function runEpgRebuild(): Promise<{ channels: number; programmes: number }> {
   const client = xtreamFromSettings(await getSettings());
@@ -105,36 +106,33 @@ export async function runEpgRebuild(): Promise<{ channels: number; programmes: n
   const body = res.body;
   const importedAt = new Date();
   const rules = await offsetRules();
-  const seen = new Set<string>();
   // The provider lists some programmes twice (beIN MAX): one row per channel and start.
   const keys = new Set<string>();
-  let programmes = 0;
+  const rows: (typeof schema.catalogEpgProgrammes.$inferInsert)[] = [];
   let duplicates = 0;
-  await db.transaction(async (tx) => {
-    for await (const batch of parseXmltv(body.pipeThrough(new TextDecoderStream()), wanted)) {
-      checkCancelled();
-      const rows = batch.flatMap((r) => {
-        const key = `${r.channelId}|${r.startAt.getTime()}`;
-        if (keys.has(key)) {
-          duplicates++;
-          return [];
-        }
-        keys.add(key);
-        const offsetMinutes = offsetOf(rules, r.channelId);
-        const shift = (d: Date) => new Date(d.getTime() + offsetMinutes * 60_000);
-        return [{ ...r, startAt: shift(r.startAt), endAt: shift(r.endAt), offsetMinutes, importedAt }];
-      });
-      if (rows.length) await tx.insert(schema.catalogEpgProgrammes).values(rows);
-      for (const r of rows) seen.add(r.channelId);
-      programmes += rows.length;
+  for await (const batch of parseXmltv(body.pipeThrough(new TextDecoderStream()), wanted)) {
+    checkCancelled();
+    for (const r of batch) {
+      const key = `${r.channelId}|${r.startAt.getTime()}`;
+      if (keys.has(key)) {
+        duplicates++;
+        continue;
+      }
+      keys.add(key);
+      const offsetMinutes = offsetOf(rules, r.channelId);
+      const shift = (d: Date) => new Date(d.getTime() + offsetMinutes * 60_000);
+      rows.push({ ...r, startAt: shift(r.startAt), endAt: shift(r.endAt), offsetMinutes, importedAt });
     }
-    if (duplicates) console.log(`[epg] ${duplicates} programmes en double ignorés`);
-    if (!programmes) throw new Error("EPG amont sans aucun programme pour nos chaînes : guide précédent conservé");
+  }
+  if (duplicates) console.log(`[epg] ${duplicates} programmes en double ignorés`);
+  if (!rows.length) throw new Error("EPG amont sans aucun programme pour nos chaînes : guide précédent conservé");
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < rows.length; i += BATCH) await tx.insert(schema.catalogEpgProgrammes).values(rows.slice(i, i + BATCH));
     await tx.delete(schema.catalogEpgProgrammes).where(lt(schema.catalogEpgProgrammes.importedAt, importedAt));
     await tx.delete(schema.catalogEpgProgrammes).where(lt(schema.catalogEpgProgrammes.endAt, new Date(Date.now() - KEEP_PAST_MS)));
   });
   await setSettings({ last_epg_at: importedAt.toISOString() });
-  return { channels: seen.size, programmes };
+  return { channels: new Set(rows.map((r) => r.channelId)).size, programmes: rows.length };
 }
 
 export type EpgStat = { programmes: number; channels: number; from: string | null; to: string | null; importedAt: string | null };

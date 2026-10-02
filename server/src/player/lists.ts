@@ -4,9 +4,9 @@ import { zValidator } from "@hono/zod-validator";
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db, schema, type Content } from "@/db";
 import { slug } from "@/shared";
-import { QUALITY_RANK } from "@/catalog";
+import { contentsGeneration, QUALITY_RANK, trendingContents } from "@/catalog";
 import type { Env, RestContext } from "./context";
-import { BadRequest, json } from "./http";
+import { BadRequest, badQuery, json } from "./http";
 import { isNewRelease, visibleContent } from "./contents";
 import { studioFilter } from "./studios";
 import { getProgress } from "./progress";
@@ -19,37 +19,34 @@ const ROW_SIZE = 20,
   PAGE_DEFAULT = 30,
   PAGE_MAX = 100;
 
-const listQuery = zValidator(
-  "query",
-  z.object({
-    genre: z.string().optional(),
-    sort: z.string().optional(),
-    language: z.string().optional(),
-    min_quality: z.string().optional(),
-    dynamic_range: z.string().optional(),
-    vf_available: z.string().optional(),
-    studio: z.string().optional(),
-    cursor: z.string().optional(),
-    limit: z.string().optional(),
-  }),
-);
-export type ListQuery = {
-  genre?: string;
-  sort?: string;
-  language?: string;
-  min_quality?: string;
-  dynamic_range?: string;
-  vf_available?: string;
-  studio?: string;
-  cursor?: string;
-  limit?: string;
-};
+const SORTS = ["release", "recent", "latest_episodes", "title", "year", "rating"] as const;
+const upper = (v: unknown) => (typeof v === "string" ? v.toUpperCase() : v);
+const listSchema = z.object({
+  genre: z.string().optional(),
+  sort: z.enum(SORTS, { error: `sort doit valoir ${SORTS.join(", ")}` }).optional(),
+  language: z.string().optional(),
+  min_quality: z.preprocess(upper, z.enum(["SD", "HD", "FHD", "4K"], { error: "min_quality doit valoir SD, HD, FHD ou 4K" })).optional(),
+  dynamic_range: z.preprocess(upper, z.enum(["HDR", "DV"], { error: "dynamic_range doit valoir HDR ou DV" })).optional(),
+  vf_available: z
+    .enum(["1", "true", "0", "false"], { error: "vf_available doit valoir 1 ou 0" })
+    .transform((v) => v === "1" || v === "true")
+    .optional(),
+  studio: z.string().optional(),
+  cursor: z.string().optional(),
+  limit: z.coerce
+    .number({ error: "limit doit être un entier positif" })
+    .int("limit doit être un entier positif")
+    .positive("limit doit être un entier positif")
+    .optional(),
+});
+/** A query of `/movies`, `/series`, parsed: what `listContents` takes from the app and from the admin. */
+export type ListQuery = z.infer<typeof listSchema>;
 
 /** The router of one kind, mounted at `/movies` or `/series`. */
 export function listRoutes(kind: "vod" | "series") {
   const routes = new Hono<Env>();
-  routes.get("/", listQuery, async (c) => {
-    const q: ListQuery = c.req.valid("query");
+  routes.get("/", zValidator("query", listSchema, badQuery), async (c) => {
+    const q = c.req.valid("query");
     const isList = Boolean(
       q.genre || q.cursor || q.sort || q.language || q.min_quality || q.dynamic_range || q.vf_available || q.studio || q.limit,
     );
@@ -61,12 +58,27 @@ export function listRoutes(kind: "vod" | "series") {
 // ---------------------------------------------------------------- genres
 
 type Genre = { id: number; slug: string; name: string; total: number };
-async function genresOf(ctx: RestContext, kind: "vod" | "series"): Promise<Genre[]> {
-  const rows = await db.execute<{ id: number; name: string; n: number }>(sql`
-    select g.id, g.name, count(*)::int as n
-    from ${schema.catalogContents}, unnest(genre_ids, genres) as g(id, name)
-    where ${visibleContent(ctx, kind)} group by g.id, g.name order by n desc, g.name`);
-  return rows.map((r) => ({ id: r.id, slug: slug(r.name), name: r.name, total: r.n }));
+/**
+ * The genres and their totals take a scan of the visible contents (30 to 50 ms for the movies):
+ * kept per (kind, adult setting) until the grouping rewrites the contents (`contentsGeneration`).
+ */
+const genreCache = new Map<string, { generation: number; genres: Promise<Genre[]> }>();
+function genresOf(ctx: RestContext, kind: "vod" | "series"): Promise<Genre[]> {
+  const key = `${kind}:${ctx.serveAdult}`;
+  const generation = contentsGeneration(); // read before the query: a change during it makes the result stale
+  const hit = genreCache.get(key);
+  if (hit?.generation === generation) return hit.genres;
+  const genres = db
+    .execute<{ id: number; name: string; n: number }>(sql`
+      select g.id, g.name, count(*)::int as n
+      from ${schema.catalogContents}, unnest(genre_ids, genres) as g(id, name)
+      where ${visibleContent(ctx, kind)} group by g.id, g.name order by n desc, g.name`)
+    .then((rows) => rows.map((r) => ({ id: r.id, slug: slug(r.name), name: r.name, total: r.n })));
+  genreCache.set(key, { generation, genres }); // the promise: simultaneous requests share one query
+  genres.catch(() => {
+    if (genreCache.get(key)?.genres === genres) genreCache.delete(key); // a failure is not kept
+  });
+  return genres;
 }
 
 // ---------------------------------------------------------------- rows
@@ -91,15 +103,21 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
   if (top.length) rows.push({ id: "top10", name: "Top 10 de la semaine", total: top.length, cards: top });
   if (recent.length)
     rows.push({ id: "recent", name: kind === "series" ? "Derniers épisodes" : "Nouveautés", total: totalRecent, cards: recent });
-  for (const g of genres) {
-    const cards = await db
-      .select()
-      .from(schema.catalogContents)
-      .where(and(visibleContent(ctx, kind), sql`${schema.catalogContents.genreIds} @> array[${g.id}]::int[]`))
-      .orderBy(desc(byRelease), desc(schema.catalogContents.id))
-      .limit(ROW_SIZE);
-    rows.push({ id: g.slug, name: g.name, total: g.total, cards });
-  }
+  // One indexed query per genre (`contents_release_idx`, 1 to 3 ms each), side by side: a single
+  // `row_number()` over every genre sorts the whole catalogue and takes longer (65 to 115 ms).
+  const byGenre = await Promise.all(
+    genres.map((g) =>
+      db
+        .select()
+        .from(schema.catalogContents)
+        .where(and(visibleContent(ctx, kind), sql`${schema.catalogContents.genreIds} @> array[${g.id}]::int[]`))
+        .orderBy(desc(byRelease), desc(schema.catalogContents.id))
+        .limit(ROW_SIZE),
+    ),
+  );
+  genres.forEach((g, i) => {
+    rows.push({ id: g.slug, name: g.name, total: g.total, cards: byGenre[i] });
+  });
   const progress = await getProgress(rows.flatMap((r) => r.cards.map((c) => c.key)));
   const field = kind === "series" ? "series" : "movies";
   return rows.map(
@@ -108,22 +126,7 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
 }
 
 /** TMDB's weekly trending order (the `trending` step), kept to what the app sees. */
-async function topTen(ctx: RestContext, kind: "vod" | "series"): Promise<Content[]> {
-  const rows = await db
-    .select({ content: schema.catalogContents })
-    .from(schema.catalogContents)
-    .innerJoin(
-      schema.tmdbTrending,
-      and(
-        eq(schema.tmdbTrending.tmdbId, schema.catalogContents.tmdbId),
-        eq(schema.tmdbTrending.mediaType, kind === "vod" ? "movie" : "tv"),
-      ),
-    )
-    .where(visibleContent(ctx, kind))
-    .orderBy(asc(schema.tmdbTrending.rank))
-    .limit(10);
-  return rows.map((r) => r.content);
-}
+const topTen = (ctx: RestContext, kind: "vod" | "series") => trendingContents(kind, visibleContent(ctx, kind), 10);
 
 // ---------------------------------------------------------------- one list, by cursor
 
@@ -152,22 +155,14 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
     where.push(f);
   }
   if (q.language) where.push(sql`${schema.catalogContents.languages} @> array[${q.language.toUpperCase()}]::text[]`);
-  if (q.vf_available === "1" || q.vf_available === "true") where.push(sql`${schema.catalogContents.languages} @> array['VF']::text[]`);
-  if (q.min_quality) {
-    const r = QUALITY_RANK[q.min_quality.toUpperCase() as keyof typeof QUALITY_RANK];
-    if (!r) throw new BadRequest("min_quality doit valoir SD, HD, FHD ou 4K");
-    where.push(sql`${schema.catalogContents.maxQualityRank} >= ${r}`);
-  }
-  if (q.dynamic_range) {
-    const d = q.dynamic_range.toUpperCase();
-    if (d === "DV") where.push(eq(schema.catalogContents.dynamicRange, "DV"));
-    else if (d === "HDR") where.push(inArray(schema.catalogContents.dynamicRange, ["HDR", "DV"]));
-    else throw new BadRequest("dynamic_range doit valoir HDR ou DV");
-  }
-  const limit = Math.min(PAGE_MAX, Math.max(1, Number(q.limit) || PAGE_DEFAULT));
+  if (q.vf_available) where.push(sql`${schema.catalogContents.languages} @> array['VF']::text[]`);
+  if (q.min_quality) where.push(sql`${schema.catalogContents.maxQualityRank} >= ${QUALITY_RANK[q.min_quality]}`);
+  if (q.dynamic_range === "DV") where.push(eq(schema.catalogContents.dynamicRange, "DV"));
+  if (q.dynamic_range === "HDR") where.push(inArray(schema.catalogContents.dynamicRange, ["HDR", "DV"]));
+  const limit = Math.min(PAGE_MAX, q.limit ?? PAGE_DEFAULT);
   const sort = q.sort ?? (q.genre === "recent" ? (kind === "series" ? "latest_episodes" : "recent") : "release");
   type Key = { col: SQL; dir: "asc" | "desc"; of: (c: Content) => unknown };
-  const keys: Record<string, Key> = {
+  const keys: Record<(typeof SORTS)[number], Key> = {
     release: { col: byRelease, dir: "desc", of: (c) => c.releaseDate ?? NO_RELEASE },
     recent: { col: sql`${schema.catalogContents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
     latest_episodes: { col: sql`${schema.catalogContents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
@@ -176,7 +171,6 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
     rating: { col: sql`coalesce(${schema.catalogContents.rating}, 0)`, dir: "desc", of: (c) => c.rating ?? 0 },
   };
   const k = keys[sort];
-  if (!k) throw new BadRequest("sort inconnu");
   if (q.cursor) {
     const cur = decodeCursor(q.cursor);
     if (!cur) throw new BadRequest("cursor invalide");

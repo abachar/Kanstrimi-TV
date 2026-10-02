@@ -1,0 +1,71 @@
+[
+  {
+    "id": "top10",
+    "name": "Top 10 de la semaine",
+    "total": 1,
+    "series": [
+      {
+        "id": "tmdb:tv:1396",
+        "kind": "series",
+        "title": "Vincenzo",
+        "poster": "http://kanstrimi.test/img/w500/v.jpg",
+        "languages": [
+          "VF"
+        ],
+        "year": 2021,
+        "rating": 8.4,
+        "genres": [
+          "Crime"
+        ],
+        "hint": null,
+        "added_at": "2026-09-20T18:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "recent",
+    "name": "Derniers épisodes",
+    "total": 1,
+    "series": [
+      {
+        "id": "tmdb:tv:1396",
+        "kind": "series",
+        "title": "Vincenzo",
+        "poster": "http://kanstrimi.test/img/w500/v.jpg",
+        "languages": [
+          "VF"
+        ],
+        "year": 2021,
+        "rating": 8.4,
+        "genres": [
+          "Crime"
+        ],
+        "hint": null,
+        "added_at": "2026-09-20T18:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "crime",
+    "name": "Crime",
+    "total": 1,
+    "series": [
+      {
+        "id": "tmdb:tv:1396",
+        "kind": "series",
+        "title": "Vincenzo",
+        "poster": "http://kanstrimi.test/img/w500/v.jpg",
+        "languages": [
+          "VF"
+        ],
+        "year": 2021,
+        "rating": 8.4,
+        "genres": [
+          "Crime"
+        ],
+        "hint": null,
+        "added_at": "2026-09-20T18:30:00.000Z"
+      }
+    ]
+  }
+]

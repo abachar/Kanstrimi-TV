@@ -1,0 +1,286 @@
+{
+  "heroes": [
+    {
+      "card": {
+        "id": "tmdb:movie:604",
+        "kind": "movie",
+        "title": "Matrix Reloaded",
+        "poster": "http://kanstrimi.test/img/w780/reloaded.jpg",
+        "max_quality": "4K",
+        "dynamic_range": "DV",
+        "languages": [
+          "VF"
+        ],
+        "year": 2026,
+        "rating": 7.1,
+        "genres": [
+          "Action"
+        ],
+        "hint": null,
+        "added_at": "2026-09-28T18:30:00.000Z",
+        "backdrop": "http://kanstrimi.test/img/w1280/reloadedb.jpg",
+        "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png"
+      },
+      "tagline": "FILM · ENFIN DISPONIBLE",
+      "overview": "Neo et ses alliés.",
+      "runtime": 138,
+      "certification": null,
+      "versions": [
+        {
+          "id": "vf-4k-dv",
+          "language": "VF",
+          "quality": "4K",
+          "dynamic_range": "DV",
+          "sources": [
+            {
+              "id": "src-i3",
+              "container": "MKV",
+              "stream_url": "http://kanstrimi.test/player/stream/src-i3?d=SALN42&e=1790880300&s=QDrTC3zPhMfEaXpdJiF4eGJwOzc_KLcSuJQNGO_omm4",
+              "provider": {
+                "id": "xtream",
+                "name": "provider.test",
+                "kind": "xtream"
+              },
+              "origin": "|FR| FILMS 4K DV"
+            }
+          ]
+        }
+      ],
+      "play_id": "tmdb:movie:604"
+    },
+    {
+      "card": {
+        "id": "tmdb:movie:603",
+        "kind": "movie",
+        "title": "Matrix",
+        "poster": "http://kanstrimi.test/img/w780/matrix.jpg",
+        "max_quality": "4K",
+        "dynamic_range": "DV",
+        "languages": [
+          "VF",
+          "VOSTFR"
+        ],
+        "year": 1999,
+        "rating": 8.2,
+        "genres": [
+          "Action",
+          "Science-Fiction"
+        ],
+        "hint": null,
+        "added_at": "2026-09-22T18:30:00.000Z",
+        "backdrop": "http://kanstrimi.test/img/w1280/matrixb.jpg",
+        "logo": "http://kanstrimi.test/img/w500/matrix-logo.png"
+      },
+      "tagline": "FILM · N° 2 CETTE SEMAINE",
+      "overview": "Thomas Anderson mène une double vie.",
+      "runtime": 136,
+      "certification": "12",
+      "versions": [
+        {
+          "id": "vf-4k-dv",
+          "language": "VF",
+          "quality": "4K",
+          "dynamic_range": "DV",
+          "sources": [
+            {
+              "id": "src-i1",
+              "container": "MKV",
+              "stream_url": "http://kanstrimi.test/player/stream/src-i1?d=SALN42&e=1790880300&s=0dlEXXtH36mPSpp-6WByzq2pTOkB89J_Rcp-V2CeBW4",
+              "provider": {
+                "id": "xtream",
+                "name": "provider.test",
+                "kind": "xtream"
+              },
+              "origin": "|FR| FILMS 4K DV"
+            }
+          ]
+        },
+        {
+          "id": "vostfr-hd",
+          "language": "VOSTFR",
+          "quality": "HD",
+          "sources": [
+            {
+              "id": "src-i2",
+              "container": "MKV",
+              "stream_url": "http://kanstrimi.test/player/stream/src-i2?d=SALN42&e=1790880300&s=bhNQl_xhFX61YYEqYIlGIvMPk1-zClmWrDhXR4N-854",
+              "provider": {
+                "id": "xtream",
+                "name": "provider.test",
+                "kind": "xtream"
+              },
+              "origin": "|FR| FILMS VOST"
+            }
+          ]
+        }
+      ],
+      "play_id": "tmdb:movie:603"
+    }
+  ],
+  "rows": [
+    {
+      "id": "resume",
+      "kind": "resume",
+      "title": "Reprendre",
+      "cards": [
+        {
+          "id": "tmdb:movie:949",
+          "kind": "movie",
+          "title": "Heat",
+          "poster": "http://kanstrimi.test/img/w500/heat.jpg",
+          "languages": [
+            "VOSTFR"
+          ],
+          "backdrop": "http://kanstrimi.test/img/w1280/heatb.jpg",
+          "logo": "http://kanstrimi.test/img/w500/heat-logo.png",
+          "progress": {
+            "position": 3000,
+            "duration": 10200
+          }
+        }
+      ]
+    },
+    {
+      "id": "most-watched-channels",
+      "kind": "most_watched_channels",
+      "title": "Chaînes les plus regardées",
+      "cards": [
+        {
+          "id": "live:fr-tf1",
+          "kind": "live",
+          "title": "TF1",
+          "poster": "http://x/tf1-fhd.png",
+          "max_quality": "FHD",
+          "languages": [
+            "VF"
+          ],
+          "year": null,
+          "rating": null,
+          "genres": [],
+          "hint": null,
+          "added_at": "2026-09-20T04:10:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "recent-movies",
+      "kind": "recent_movies",
+      "title": "Nouveautés",
+      "cards": [
+        {
+          "id": "tmdb:movie:604",
+          "kind": "movie",
+          "title": "Matrix Reloaded",
+          "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
+          "max_quality": "4K",
+          "dynamic_range": "DV",
+          "languages": [
+            "VF"
+          ],
+          "year": 2026,
+          "rating": 7.1,
+          "genres": [
+            "Action"
+          ],
+          "hint": null,
+          "added_at": "2026-09-28T18:30:00.000Z"
+        },
+        {
+          "id": "tmdb:movie:949",
+          "kind": "movie",
+          "title": "Heat",
+          "poster": "http://kanstrimi.test/img/w500/heat.jpg",
+          "languages": [
+            "VOSTFR"
+          ],
+          "progress": {
+            "position": 3000,
+            "duration": 10200
+          },
+          "year": 2026,
+          "rating": 7.9,
+          "genres": [
+            "Action",
+            "Crime"
+          ],
+          "hint": "VOSTFR seul",
+          "added_at": "2026-09-12T18:30:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "recent-series",
+      "kind": "recent_series",
+      "title": "Derniers épisodes",
+      "cards": [
+        {
+          "id": "tmdb:tv:1396",
+          "kind": "series",
+          "title": "Vincenzo",
+          "poster": "http://kanstrimi.test/img/w500/v.jpg",
+          "languages": [
+            "VF"
+          ],
+          "year": 2021,
+          "rating": 8.4,
+          "genres": [
+            "Crime"
+          ],
+          "hint": null,
+          "added_at": "2026-09-20T18:30:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "favorites",
+      "kind": "favorites",
+      "title": "Ma liste",
+      "cards": [
+        {
+          "id": "tmdb:tv:1396",
+          "kind": "series",
+          "title": "Vincenzo",
+          "poster": "http://kanstrimi.test/img/w500/v.jpg",
+          "languages": [
+            "VF"
+          ],
+          "year": 2021,
+          "rating": 8.4,
+          "genres": [
+            "Crime"
+          ],
+          "hint": null,
+          "added_at": "2026-09-20T18:30:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "recommended",
+      "kind": "recommended",
+      "title": "Recommandé pour vous",
+      "cards": [
+        {
+          "id": "tmdb:movie:603",
+          "kind": "movie",
+          "title": "Matrix",
+          "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
+          "max_quality": "4K",
+          "dynamic_range": "DV",
+          "languages": [
+            "VF",
+            "VOSTFR"
+          ],
+          "year": 1999,
+          "rating": 8.2,
+          "genres": [
+            "Action",
+            "Science-Fiction"
+          ],
+          "hint": null,
+          "added_at": "2026-09-22T18:30:00.000Z"
+        }
+      ]
+    }
+  ],
+  "generated_at": "2026-10-01T18:30:00.000Z"
+}

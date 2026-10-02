@@ -15,7 +15,9 @@ export function progress(label: string, total: number, detail: () => string, eve
   }, everyMs);
   timer.unref();
   return {
-    tick: (k = 1) => void (done += k),
+    tick: (k = 1) => {
+      done += k;
+    },
     stop: () => clearInterval(timer),
   };
 }

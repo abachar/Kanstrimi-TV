@@ -1,0 +1,19 @@
+{
+  "server_version": "1.4.0",
+  "counts": {
+    "movies": 4,
+    "series": 1,
+    "channels": 2
+  },
+  "last_import": "2026-09-30T18:30:00.000Z",
+  "tmdb_rate": 0.83,
+  "catalog_languages": [
+    "VF",
+    "VOSTFR"
+  ],
+  "default_language_order": [
+    "VF",
+    "VOSTFR",
+    "VO"
+  ]
+}

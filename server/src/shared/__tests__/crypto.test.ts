@@ -20,4 +20,9 @@ describe("crypto", () => {
     const t = v.slice(0, -2) + (v.endsWith("A=") ? "B=" : "A=");
     expect(() => decrypt(key, t)).toThrow();
   });
+  it("rejects a shortened authentication tag: a forgery would only have to guess 4 bytes", () => {
+    const [iv, tag, ct] = encrypt(key, "secret").slice("enc:v1:".length).split(":");
+    const short = `enc:v1:${iv}:${Buffer.from(tag, "base64").subarray(0, 4).toString("base64")}:${ct}`;
+    expect(() => decrypt(key, short)).toThrow();
+  });
 });

@@ -1,0 +1,20 @@
+[
+  {
+    "title": "Journal",
+    "start": "2026-10-01T18:00:00.000Z",
+    "end": "2026-10-01T19:00:00.000Z",
+    "overview": "Les titres du jour."
+  },
+  {
+    "title": "Film du soir",
+    "start": "2026-10-01T19:00:00.000Z",
+    "end": "2026-10-01T21:00:00.000Z",
+    "overview": "Un film."
+  },
+  {
+    "title": "Magazine",
+    "start": "2026-10-01T21:00:00.000Z",
+    "end": "2026-10-01T22:30:00.000Z",
+    "overview": null
+  }
+]

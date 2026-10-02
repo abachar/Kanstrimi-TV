@@ -1,0 +1,2 @@
+DROP INDEX "catalog_contents_list_idx";--> statement-breakpoint
+CREATE INDEX "catalog_contents_list_idx" ON "catalog_contents" USING btree ("kind","visible","added_at" DESC NULLS FIRST,"id" DESC NULLS FIRST);

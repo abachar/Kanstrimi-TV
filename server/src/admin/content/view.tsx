@@ -8,7 +8,7 @@ import { KEY_KIND_LABELS, KIND_TITLES, MATCH_LABELS } from "../labels";
 import { TmdbCell } from "../catalog/tmdb-cell";
 import { VisibilityToggle } from "../catalog/visibility";
 import type { CatalogQuery } from "../catalog/query";
-import { Badge } from "../ui";
+import { Badge, BUSY } from "../ui";
 import { Icon } from "../icons";
 
 const empty = (v: unknown) => v === null || v === undefined || v === "" || (Array.isArray(v) && !v.length);
@@ -146,7 +146,7 @@ function TmdbPanel({ v, tmdbLang }: { v: VariantDetail; tmdbLang: string }) {
           title="Rejoue le matching sans rien écrire"
         >
           Pourquoi ce résultat ?
-          <span class="htmx-indicator inline-flex" role="status" aria-label="Analyse en cours">
+          <span class={BUSY} role="status" aria-label="Analyse en cours">
             <Icon name="loader" cls="size-4 animate-spin" />
           </span>
         </button>

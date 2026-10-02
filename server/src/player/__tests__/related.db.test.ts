@@ -16,11 +16,12 @@ const daysAgo = (d: number) => new Date(Date.now() - d * 86400000);
 /** TMDB's recommendations by title, as `/movie/603/recommendations` answers them. */
 let tmdb: Record<string, number[]> = {};
 let calls: string[] = [];
-function stubTmdb(delayMs = 0, status = 200) {
+/** `gate`: TMDB answers once it resolves (a slow TMDB, without a clock). */
+function stubTmdb(gate?: Promise<void>, status = 200) {
   vi.stubGlobal("fetch", async (u: URL) => {
     const m = /\/3\/(movie|tv)\/(\d+)\/recommendations/.exec(String(u));
     calls.push(m ? `${m[1]}:${m[2]}` : String(u));
-    if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+    if (gate) await gate;
     if (status !== 200) return new Response("", { status });
     return Response.json({ results: (tmdb[m ? `${m[1]}:${m[2]}` : ""] ?? []).map((id) => ({ id })) });
   });
@@ -103,16 +104,18 @@ describe("sheet", () => {
 
 describe("fetch on demand", () => {
   it("a slow TMDB answers nothing now, the list lands for the next call", async () => {
-    stubTmdb(60);
+    let answer!: () => void;
+    stubTmdb(new Promise((r) => (answer = r)));
     expect(await recommendedKeys("tmdb:movie:1", 5)).toEqual([]);
-    await new Promise((r) => setTimeout(r, 100));
+    answer();
+    await recommendationsSettled();
     expect(await recommendedKeys("tmdb:movie:1", 5)).toEqual(["tmdb:movie:2", "tmdb:movie:3", "tmdb:movie:5"]);
     expect(calls).toEqual(["movie:1"]);
   });
 
   it("past a week the list is fetched again; a failure keeps the old one and leaves TMDB alone", async () => {
     await db.insert(schema.tmdbRecommendations).values({ mediaType: "movie", tmdbId: 1, ids: [5], fetchedAt: daysAgo(8) });
-    stubTmdb(0, 500);
+    stubTmdb(undefined, 500);
     expect(await recommendedKeys("tmdb:movie:1", 1000)).toEqual(["tmdb:movie:5"]);
     expect(await recommendedKeys("tmdb:movie:1", 1000)).toEqual(["tmdb:movie:5"]);
     expect(calls).toEqual(["movie:1"]);
@@ -169,9 +172,11 @@ describe("home", () => {
 
   it("filled in the background, weighed by rank and recency, without what was seen, started or listed", async () => {
     stubTmdb();
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-02T20:00:00Z") });
     await setProgress("tmdb:movie:603", 5900, 6000);
-    await new Promise((r) => setTimeout(r, 5));
+    vi.setSystemTime(new Date("2026-10-02T20:01:00Z")); // watched later: the more recent seed
     await setProgress("tmdb:movie:1", 3000, 6000);
+    vi.useRealTimers();
     await setProgress("tmdb:tv:1399:s01e01", 10, 3000); // below 5 %: not a seed
     await setFavorite("tmdb:tv:66732", true);
     expect(await recommendedRow(ctx)).toEqual([]);

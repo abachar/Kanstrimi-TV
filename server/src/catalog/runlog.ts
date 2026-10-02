@@ -23,10 +23,10 @@ function write(sink: Sink, level: string, text: string) {
   if (sink.step && text.startsWith(`[${sink.step}] `)) text = text.slice(sink.step.length + 3);
   const prefix = `${stamp(new Date())} ${level.padEnd(5)} ${sink.step ? `[${sink.step}] ` : ""}`;
   sink.stream.write(
-    redactText(text)
+    `${redactText(text)
       .split("\n")
       .map((l) => prefix + l)
-      .join("\n") + "\n",
+      .join("\n")}\n`,
   );
 }
 

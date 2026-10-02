@@ -110,8 +110,8 @@ export async function runSync(opts: { acceptShrink?: boolean } = {}): Promise<Re
     const [getCats, getStreams] = fetchers[kind];
     const c = prepareCategories(asList(`${kind}_categories`, await getCats()));
     const s = prepareStreams(kind, asList(`${kind}_streams`, await getStreams()));
-    c.forEach((x, i) => cats.push({ kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> }));
-    s.forEach((x, i) => streams.push({ kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> }));
+    cats.push(...c.map((x, i) => ({ kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> })));
+    for (const [i, x] of s.entries()) streams.push({ kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> });
     received[kind] = s.length;
     stats[`${kind}_categories`] = c.length;
     stats[`${kind}_items`] = s.length;

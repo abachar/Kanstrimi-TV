@@ -45,6 +45,7 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
       - run: npm ci
+      - run: npm run check      # biome ci : format et linter, sans rien réécrire
       - run: npm run typecheck
       - run: npm test
       - run: npm run build   # le Containerfile fait le même build : échouer ici, pas là

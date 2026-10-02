@@ -18,6 +18,9 @@ function windowOf(at: string | undefined): { from: Date; to: Date } {
   return { from, to: new Date(from.getTime() + SLOTS * SLOT_MIN * 60_000) };
 }
 
+/** Where « fermer » and a saved correction lead: back to the EPG page only, it lands in a link and a redirect. */
+const epgBack = (url: string | undefined) => (url && /^\/admin\/epg(\/|\?|$)/.test(url) ? url : "/admin/epg");
+
 /** The programmes of a guide id over the day of `at`, for the correction panel. */
 async function panelProps(epgId: string, at: Date, minutes: number | null, pattern: string | null, backUrl: string) {
   const start = new Date(at);
@@ -79,14 +82,14 @@ epgRoutes.get("/preview/:id", async (c) => {
     new Date(),
     Number.isFinite(minutes) ? minutes : null,
     c.req.query("pattern") ?? null,
-    c.req.query("back") ?? "/admin/epg",
+    epgBack(c.req.query("back")),
   );
   return c.html(<OffsetPanel {...props} />);
 });
 
 epgRoutes.post("/offsets", async (c) => {
   const f = await form(c);
-  const to = f.back?.startsWith("/admin/epg") ? f.back : "/admin/epg";
+  const to = epgBack(f.back);
   const minutes = Number(f.minutes);
   try {
     const moved = await setOffset(f.pattern ?? "", minutes);

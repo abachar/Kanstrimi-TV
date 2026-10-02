@@ -1,6 +1,6 @@
 import { getSettings } from "@/config";
-import { db, schema, client as pg, tmdbMediaType, visibleItem } from "@/db";
-import { and, asc, gt, inArray, sql } from "drizzle-orm";
+import { db, schema, client as pg, sqlTmdbMediaType, tmdbMediaType, visibleItem, type Kind } from "@/db";
+import { and, asc, gt, inArray, sql, type SQL } from "drizzle-orm";
 import {
   liveTheme,
   parseName,
@@ -9,7 +9,6 @@ import {
   isAdultCategory,
   isAdultEntryName,
   QUALITY_RANK,
-  DYNAMIC_RANGE_RANK,
   type CategoryHints,
   type Quality,
   type DynamicRange,
@@ -45,46 +44,64 @@ export type GroupStats = {
   waitlist_available: number;
 };
 
+/**
+ * Moves each time the contents may have changed (cards, visibility, rows removed), even after a
+ * failure halfway: what the app's in-memory lists (`player`'s genres) compare to know they are stale.
+ */
+let generation = 0;
+export const contentsGeneration = () => generation;
+async function rewritingContents<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } finally {
+    generation++;
+  }
+}
+
 /** The pipeline's full pass and the admin's partial regroups touch the same rows: one at a time (`withCatalogLock`). */
 export async function runGrouping(): Promise<GroupStats> {
-  return withCatalogLock(async () => {
-    const n = await assignKeys();
-    await upsertContents();
-    await fillCardFields();
-    const available = await refreshAggregates();
-    const orphans = await deleteOrphans();
-    const [c] = await db
-      .select({ n: sql<number>`count(*)::int`, multi: sql<number>`count(*) filter (where variant_count > 1)::int` })
-      .from(schema.catalogContents);
-    return {
-      items_grouped: n,
-      contents: c.n,
-      multi_variant: c.multi,
-      orphans_removed: orphans,
-      waitlist_available: available,
-    } satisfies GroupStats;
-  });
+  return withCatalogLock(() =>
+    rewritingContents(async () => {
+      const n = await assignKeys();
+      await upsertContents();
+      await fillCardFields();
+      const available = await refreshAggregates();
+      const orphans = await deleteOrphans();
+      const [c] = await db
+        .select({ n: sql<number>`count(*)::int`, multi: sql<number>`count(*) filter (where variant_count > 1)::int` })
+        .from(schema.catalogContents);
+      return {
+        items_grouped: n,
+        contents: c.n,
+        multi_variant: c.multi,
+        orphans_removed: orphans,
+        waitlist_available: available,
+      } satisfies GroupStats;
+    }),
+  );
 }
 
 /** Regroup a handful of items (manual TMDB assignment, merge, split) without a full run. */
 export async function regroupItems(ids: number[]) {
   if (!ids.length) return;
-  return withCatalogLock(async () => {
-    const before = await db
-      .select({ id: schema.catalogVariants.contentId })
-      .from(schema.catalogVariants)
-      .where(inArray(schema.catalogVariants.id, ids));
-    await assignKeys(ids);
-    await upsertContents(ids);
-    const after = await db
-      .select({ id: schema.catalogVariants.contentId })
-      .from(schema.catalogVariants)
-      .where(inArray(schema.catalogVariants.id, ids));
-    const touched = [...new Set([...before, ...after].map((r) => r.id).filter((x): x is number => x !== null))];
-    await fillCardFields(touched);
-    await refreshAggregates(touched);
-    await deleteOrphans();
-  });
+  return withCatalogLock(() =>
+    rewritingContents(async () => {
+      const before = await db
+        .select({ id: schema.catalogVariants.contentId })
+        .from(schema.catalogVariants)
+        .where(inArray(schema.catalogVariants.id, ids));
+      await assignKeys(ids);
+      await upsertContents(ids);
+      const after = await db
+        .select({ id: schema.catalogVariants.contentId })
+        .from(schema.catalogVariants)
+        .where(inArray(schema.catalogVariants.id, ids));
+      const touched = [...new Set([...before, ...after].map((r) => r.id).filter((x): x is number => x !== null))];
+      await fillCardFields(touched);
+      await refreshAggregates(touched);
+      await deleteOrphans();
+    }),
+  );
 }
 
 /**
@@ -93,15 +110,31 @@ export async function regroupItems(ids: number[]) {
  * sheet must not wait behind a pipeline run.
  */
 export async function refreshCards(contentIds: number[]) {
-  if (contentIds.length) await fillCardFields(contentIds);
+  if (contentIds.length) await rewritingContents(() => fillCardFields(contentIds));
 }
 
 /** Aggregates only: what the admin visibility switches and the filters need. Takes no lock: its callers hold it. */
 export async function refreshVisibility() {
-  await refreshAggregates();
+  await rewritingContents(refreshAggregates);
 }
 
 // ---------------------------------------------------------------- 1. keys
+
+/**
+ * The variants by id, CHUNK at a time: all of them, or `onlyIds`. `select` runs one page from its
+ * condition, ordered by id, CHUNK at most; a stop request is checked before each page.
+ */
+async function* chunksOf<T extends { id: number }>(select: (where: SQL) => Promise<T[]>, onlyIds?: number[]): AsyncGenerator<T[]> {
+  let last = 0;
+  for (;;) {
+    checkCancelled();
+    const rows = await select(and(gt(schema.catalogVariants.id, last), onlyIds ? inArray(schema.catalogVariants.id, onlyIds) : undefined)!);
+    if (!rows.length) return;
+    last = rows[rows.length - 1].id;
+    yield rows;
+    if (rows.length < CHUNK) return;
+  }
+}
 
 async function categoryHints() {
   const cats = await db
@@ -120,27 +153,19 @@ async function categoryHints() {
  */
 export async function runNaming(onlyIds?: number[]): Promise<{ items_named: number }> {
   const hints = await categoryHints();
-  let last = 0,
-    written = 0;
-  for (;;) {
-    checkCancelled();
-    const where = [gt(schema.catalogVariants.id, last)];
-    if (onlyIds) where.push(inArray(schema.catalogVariants.id, onlyIds));
-    const rows = await db
-      .select({
-        id: schema.catalogVariants.id,
-        kind: schema.catalogVariants.kind,
-        name: schema.catalogVariants.name,
-        cat: schema.catalogVariants.categoryXtreamId,
-        section: schema.catalogVariants.section,
-      })
-      .from(schema.catalogVariants)
-      .where(and(...where))
-      .orderBy(asc(schema.catalogVariants.id))
-      .limit(CHUNK);
-    if (!rows.length) break;
-    last = rows[rows.length - 1].id;
-
+  let written = 0;
+  const v = schema.catalogVariants;
+  const chunks = chunksOf(
+    (where) =>
+      db
+        .select({ id: v.id, kind: v.kind, name: v.name, cat: v.categoryXtreamId, section: v.section })
+        .from(v)
+        .where(where)
+        .orderBy(asc(v.id))
+        .limit(CHUNK),
+    onlyIds,
+  );
+  for await (const rows of chunks) {
     const ids: number[] = [],
       titles: string[] = [],
       years: (number | null)[] = [],
@@ -191,37 +216,35 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
             is distinct from (u.title, u.year, u.market, u.lang, u.quality, u.qrank, u.dr, u.tags, u.season, u.edition, u.adult, u.theme)
       returning 1`;
     written += changed.length;
-    if (rows.length < CHUNK) break;
   }
   return { items_named: written };
 }
 
 /** content_key from the columns `runNaming` wrote and the TMDB match. */
 async function assignKeys(onlyIds?: number[]): Promise<number> {
-  let last = 0,
-    total = 0;
-  for (;;) {
-    checkCancelled();
-    const where = [gt(schema.catalogVariants.id, last)];
-    if (onlyIds) where.push(inArray(schema.catalogVariants.id, onlyIds));
-    const rows = await db
-      .select({
-        id: schema.catalogVariants.id,
-        kind: schema.catalogVariants.kind,
-        name: schema.catalogVariants.name,
-        cleanTitle: schema.catalogVariants.cleanTitle,
-        year: schema.catalogVariants.year,
-        market: schema.catalogVariants.market,
-        tmdbId: schema.catalogVariants.tmdbId,
-        matchStatus: schema.catalogVariants.matchStatus,
-        keyOverride: schema.catalogVariants.keyOverride,
-      })
-      .from(schema.catalogVariants)
-      .where(and(...where))
-      .orderBy(asc(schema.catalogVariants.id))
-      .limit(CHUNK);
-    if (!rows.length) break;
-    last = rows[rows.length - 1].id;
+  let total = 0;
+  const v = schema.catalogVariants;
+  const chunks = chunksOf(
+    (where) =>
+      db
+        .select({
+          id: v.id,
+          kind: v.kind,
+          name: v.name,
+          cleanTitle: v.cleanTitle,
+          year: v.year,
+          market: v.market,
+          tmdbId: v.tmdbId,
+          matchStatus: v.matchStatus,
+          keyOverride: v.keyOverride,
+        })
+        .from(v)
+        .where(where)
+        .orderBy(asc(v.id))
+        .limit(CHUNK),
+    onlyIds,
+  );
+  for await (const rows of chunks) {
     total += rows.length;
     const ids = rows.map((r) => r.id);
     const keys = rows.map((r) =>
@@ -239,7 +262,6 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
       update catalog_variants i set content_key = u.key
       from unnest(${ids}::int[], ${keys}::text[]) as u(id, key)
       where i.id = u.id and i.content_key is distinct from u.key`;
-    if (rows.length < CHUNK) break;
   }
   return total;
 }
@@ -280,161 +302,193 @@ async function upsertContents(onlyIds?: number[]) {
 
 // ---------------------------------------------------------------- 3. card fields
 
+/** One card as `fillCardFields` writes it, keyed by the columns of `catalog_contents`. */
+type Card = {
+  tmdb_adult: boolean;
+  title: string;
+  original_title: string | null;
+  title_en: string | null;
+  year: number | null;
+  end_year: number | null;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  title_logo_path: string | null;
+  overview: string | null;
+  rating: number | null;
+  vote_count: number | null;
+  genre_ids: number[];
+  genres: string[];
+  runtime: number | null;
+  certification: string | null;
+  cast: unknown[] | null;
+  director: string | null;
+  trailer_key: string | null;
+  status: string | null;
+  search: string;
+  release_date: string | null;
+  saga_id: number | null;
+  saga_name: string | null;
+  saga_poster_path: string | null;
+  saga_backdrop_path: string | null;
+  company_ids: number[];
+  network_ids: number[];
+};
+
+/**
+ * Every card column once: its type in the record `jsonb_to_recordset` reads, and what is written
+ * when it is not the record's value. A column left out here does not compile. Fallback rows keep the
+ * year computed from the variants: only TMDB rows overwrite it (`final_year`).
+ */
+const CARD_COLUMNS: Record<keyof Card, { type: string; value?: string }> = {
+  tmdb_adult: { type: "boolean" },
+  title: { type: "text" },
+  original_title: { type: "text" },
+  title_en: { type: "text" },
+  year: { type: "int", value: "u.final_year" },
+  end_year: { type: "int" },
+  poster_path: { type: "text" },
+  backdrop_path: { type: "text" },
+  title_logo_path: { type: "text" },
+  overview: { type: "text" },
+  rating: { type: "real" },
+  vote_count: { type: "int" },
+  genre_ids: { type: "int[]" },
+  genres: { type: "text[]" },
+  runtime: { type: "int" },
+  certification: { type: "text" },
+  cast: { type: "jsonb" },
+  director: { type: "text" },
+  trailer_key: { type: "text" },
+  status: { type: "text" },
+  search: { type: "text", value: "to_tsvector('simple', u.search)" },
+  release_date: {
+    type: "date",
+    value:
+      "coalesce(case when c.tmdb_id is not null then u.release_date end, case when u.final_year is not null then make_date(u.final_year, 1, 1) end)",
+  },
+  saga_id: { type: "int" },
+  saga_name: { type: "text" },
+  saga_poster_path: { type: "text" },
+  saga_backdrop_path: { type: "text" },
+  company_ids: { type: "int[]" },
+  network_ids: { type: "int[]" },
+};
+const cardColumns = Object.entries(CARD_COLUMNS).map(([name, c]) => ({ name: `"${name}"`, type: c.type, value: c.value ?? `u."${name}"` }));
+const CARD_RECORD = sql.raw(["id int", ...cardColumns.map((c) => `${c.name} ${c.type}`)].join(", "));
+const CARD_SET = sql.raw(cardColumns.map((c) => `${c.name} = ${c.value}`).join(", "));
+const CARD_CHANGED = sql.raw(
+  `(${cardColumns.map((c) => `c.${c.name}`).join(", ")}) is distinct from (${cardColumns.map((c) => c.value).join(", ")})`,
+);
+
+function cardOf(r: { kind: Kind; tmdb_id: number | null; title: string; data: TmdbDetails | null }, lang: string): Card {
+  if (r.data && r.tmdb_id) {
+    const c = cardFields(tmdbMediaType(r.kind), r.data, lang, r.title);
+    return {
+      tmdb_adult: c.adult,
+      title: c.title,
+      original_title: c.originalTitle,
+      title_en: c.titleEn,
+      year: c.year,
+      end_year: c.endYear,
+      poster_path: c.posterPath,
+      backdrop_path: c.backdropPath,
+      title_logo_path: c.logoPath,
+      overview: c.overview,
+      rating: c.rating,
+      vote_count: c.voteCount,
+      genre_ids: c.genreIds,
+      genres: c.genres,
+      runtime: c.runtime,
+      certification: c.certification,
+      cast: c.cast,
+      director: c.director,
+      trailer_key: c.trailerKey,
+      status: c.status,
+      search: searchText([...c.names, ...c.cast.map((p) => p.name), c.director].filter(Boolean).join(" ")),
+      release_date: c.releaseDate,
+      saga_id: c.saga?.id ?? null,
+      saga_name: c.saga?.name ?? null,
+      saga_poster_path: c.saga?.posterPath ?? null,
+      saga_backdrop_path: c.saga?.backdropPath ?? null,
+      company_ids: c.companyIds,
+      network_ids: c.networkIds,
+    };
+  }
+  // Fallback and live: keep what the variants gave, index the title only.
+  return {
+    tmdb_adult: false,
+    title: r.title,
+    original_title: null,
+    title_en: null,
+    year: null,
+    end_year: null,
+    poster_path: null,
+    backdrop_path: null,
+    title_logo_path: null,
+    overview: null,
+    rating: null,
+    vote_count: null,
+    genre_ids: [],
+    genres: [],
+    runtime: null,
+    certification: null,
+    cast: null,
+    director: null,
+    trailer_key: null,
+    status: null,
+    search: searchText(r.title),
+    release_date: null,
+    saga_id: null,
+    saga_name: null,
+    saga_poster_path: null,
+    saga_backdrop_path: null,
+    company_ids: [],
+    network_ids: [],
+  };
+}
+
+/**
+ * Card fields copied from the TMDB cache: the contents without a card, in another language, or
+ * whose cache entry is newer than their card. A card is written only when it changed; otherwise
+ * only the date of the copy moves, which touches no indexed column.
+ */
 async function fillCardFields(onlyIds?: number[]) {
   const lang = (await getSettings()).tmdb_language;
+  const c = schema.catalogContents;
   let last = 0;
   for (;;) {
     checkCancelled();
-    const rows = await pg<
-      { id: number; kind: "live" | "vod" | "series"; tmdb_id: number | null; title: string; data: TmdbDetails | null }[]
-    >`
+    const rows = await db.execute<{ id: number; kind: Kind; tmdb_id: number | null; title: string; data: TmdbDetails | null }>(sql`
       select c.id, c.kind, c.tmdb_id, c.title, t.data
-      from catalog_contents c
-      left join tmdb_cache t on t.tmdb_id = c.tmdb_id and t.lang = ${lang}
-        and t.media_type = case c.kind when 'vod' then 'movie' else 'tv' end
-      where c.id > ${last} ${onlyIds ? pg`and c.id = any(${onlyIds}::int[])` : pg``}
+      from ${c} c
+      left join ${schema.tmdbCache} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = ${sqlTmdbMediaType(sql`c.kind`)}
+      where c.id > ${last} ${onlyIds ? sql`and c.id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``}
         and (c.cards_at is null or c.cards_lang is distinct from ${lang} or t.fetched_at > c.cards_at)
-      order by c.id limit ${CARD_CHUNK}`;
+      order by c.id limit ${CARD_CHUNK}`);
     if (!rows.length) break;
     last = rows[rows.length - 1].id;
-
-    const ids: number[] = [],
-      f: Record<string, unknown[]> = {
-        tmdb_adult: [],
-        title: [],
-        original_title: [],
-        title_en: [],
-        year: [],
-        end_year: [],
-        poster: [],
-        backdrop: [],
-        title_logo: [],
-        overview: [],
-        rating: [],
-        votes: [],
-        genre_ids: [],
-        genres: [],
-        runtime: [],
-        cert: [],
-        cast: [],
-        director: [],
-        trailer: [],
-        status: [],
-        search: [],
-        release_date: [],
-        saga_id: [],
-        saga_name: [],
-        saga_poster: [],
-        saga_backdrop: [],
-        company_ids: [],
-        network_ids: [],
-      };
-    for (const r of rows) {
-      ids.push(r.id);
-      if (r.data && r.tmdb_id) {
-        const c = cardFields(tmdbMediaType(r.kind), r.data, lang, r.title);
-        f.tmdb_adult.push(c.adult);
-        f.title.push(c.title);
-        f.original_title.push(c.originalTitle);
-        f.title_en.push(c.titleEn);
-        f.year.push(c.year);
-        f.end_year.push(c.endYear);
-        f.poster.push(c.posterPath);
-        f.backdrop.push(c.backdropPath);
-        f.title_logo.push(c.logoPath);
-        f.overview.push(c.overview);
-        f.rating.push(c.rating);
-        f.votes.push(c.voteCount);
-        f.genre_ids.push(c.genreIds.join(","));
-        f.genres.push(c.genres.join("\u001f"));
-        f.runtime.push(c.runtime);
-        f.cert.push(c.certification);
-        f.cast.push(JSON.stringify(c.cast));
-        f.director.push(c.director);
-        f.trailer.push(c.trailerKey);
-        f.status.push(c.status);
-        f.search.push(searchText([...c.names, ...c.cast.map((p) => p.name), c.director].filter(Boolean).join(" ")));
-        f.release_date.push(c.releaseDate);
-        f.saga_id.push(c.saga?.id ?? null);
-        f.saga_name.push(c.saga?.name ?? null);
-        f.saga_poster.push(c.saga?.posterPath ?? null);
-        f.saga_backdrop.push(c.saga?.backdropPath ?? null);
-        f.company_ids.push(c.companyIds.join(","));
-        f.network_ids.push(c.networkIds.join(","));
-      } else {
-        // Fallback and live: keep what the variants gave, index the title only.
-        f.tmdb_adult.push(false);
-        f.title.push(r.title);
-        f.original_title.push(null);
-        f.title_en.push(null);
-        f.year.push(null);
-        f.end_year.push(null);
-        f.poster.push(null);
-        f.backdrop.push(null);
-        f.title_logo.push(null);
-        f.overview.push(null);
-        f.rating.push(null);
-        f.votes.push(null);
-        f.genre_ids.push("");
-        f.genres.push("");
-        f.runtime.push(null);
-        f.cert.push(null);
-        f.cast.push(null);
-        f.director.push(null);
-        f.trailer.push(null);
-        f.status.push(null);
-        f.search.push(searchText(r.title));
-        f.release_date.push(null);
-        f.saga_id.push(null);
-        f.saga_name.push(null);
-        f.saga_poster.push(null);
-        f.saga_backdrop.push(null);
-        f.company_ids.push("");
-        f.network_ids.push("");
-      }
-    }
-    // Fallback rows must keep the year computed from the variants: only TMDB rows overwrite it.
-    await pg`
-      with u_raw as (
-        select * from unnest(${ids}::int[], ${(f.tmdb_adult as boolean[]).map(String)}::text[], ${f.title as string[]}::text[], ${f.original_title as string[]}::text[], ${f.title_en as string[]}::text[], ${f.year as number[]}::int[], ${f.end_year as number[]}::int[],
-                  ${f.poster as string[]}::text[], ${f.backdrop as string[]}::text[], ${f.title_logo as string[]}::text[], ${f.overview as string[]}::text[], ${f.rating as number[]}::real[], ${f.votes as number[]}::int[],
-                  ${f.genre_ids as string[]}::text[], ${f.genres as string[]}::text[], ${f.runtime as number[]}::int[], ${f.cert as string[]}::text[],
-                  ${f.cast as string[]}::text[], ${f.director as string[]}::text[], ${f.trailer as string[]}::text[], ${f.status as string[]}::text[], ${f.search as string[]}::text[], ${f.release_date as string[]}::text[],
-                  ${f.saga_id as number[]}::int[], ${f.saga_name as string[]}::text[], ${f.saga_poster as string[]}::text[], ${f.saga_backdrop as string[]}::text[],
-                  ${f.company_ids as string[]}::text[], ${f.network_ids as string[]}::text[])
-        as u(id, tmdb_adult, title, original_title, title_en, year, end_year, poster, backdrop, title_logo, overview, rating, votes, genre_ids, genres, runtime, cert, "cast", director, trailer, status, search, release_date, saga_id, saga_name, saga_poster, saga_backdrop, company_ids, network_ids)
-      ),
-      u as (
-        select u_raw.*, case when c.tmdb_id is not null and u_raw.year is not null then u_raw.year else c.year end as final_year
-        from u_raw join catalog_contents c on c.id = u_raw.id
-      )
-      update catalog_contents c set
-        title = u.title, original_title = u.original_title, title_en = u.title_en, tmdb_adult = u.tmdb_adult::boolean,
-        year = u.final_year, end_year = u.end_year,
-        poster_path = u.poster, backdrop_path = u.backdrop, title_logo_path = u.title_logo, overview = u.overview, rating = u.rating, vote_count = u.votes,
-        genre_ids = coalesce(string_to_array(nullif(u.genre_ids, ''), ',')::int[], '{}'), genres = coalesce(string_to_array(nullif(u.genres, ''), E'\\x1f'), '{}'),
-        runtime = u.runtime, certification = u.cert, "cast" = u.cast::jsonb, director = u.director, trailer_key = u.trailer, status = u.status,
-        search = to_tsvector('simple', u.search),
-        release_date = coalesce(
-          case when c.tmdb_id is not null then u.release_date::date end,
-          case when u.final_year is not null then make_date(u.final_year, 1, 1) end
-        ),
-        saga_id = u.saga_id, saga_name = u.saga_name, saga_poster_path = u.saga_poster, saga_backdrop_path = u.saga_backdrop,
-        company_ids = coalesce(string_to_array(nullif(u.company_ids, ''), ',')::int[], '{}'),
-        network_ids = coalesce(string_to_array(nullif(u.network_ids, ''), ',')::int[], '{}'),
-        cards_at = now(), cards_lang = ${lang}, updated_at = now()
-      from u
-      where c.id = u.id`;
+    const cards = JSON.stringify(rows.map((r) => ({ id: r.id, ...cardOf(r, lang) })));
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        with u as (
+          select r.*, case when c.tmdb_id is not null and r.year is not null then r.year else c.year end as final_year
+          from jsonb_to_recordset(${cards}::jsonb) as r(${CARD_RECORD})
+          join ${c} c on c.id = r.id
+        )
+        update ${c} c set ${CARD_SET}, cards_at = now(), cards_lang = ${lang}, updated_at = now()
+        from u
+        where c.id = u.id and ${CARD_CHANGED}`);
+      // now() is the transaction's: the rows written above are left alone.
+      await tx.execute(sql`
+        update ${c} set cards_at = now(), cards_lang = ${lang}
+        where id = any(${`{${rows.map((r) => r.id).join(",")}}`}::int[]) and cards_at is distinct from now()`);
+    });
     if (rows.length < CARD_CHUNK) break;
   }
 }
 
 // ---------------------------------------------------------------- 4. aggregates
 
-/**
- * The variant visibility is the shared predicate, so the app and the admin can never disagree with the
- * aggregate. A content is written only when one of its aggregates moved.
- */
 /**
  * A variant's EPG id. A provider id naming another channel gives way to the iptv-org id of the channel
  * found by name, but only when the provider files no programme under it: a guide is never lost for nothing.
@@ -443,7 +497,11 @@ const variantEpgId = sql`case
   when epg_mismatch and not exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = raw->>'epg_channel_id')
   then iptv_id else nullif(raw->>'epg_channel_id', '') end`;
 
-/** Every visibility change goes through here: the waitlist learns of its arrivals at the same time. Returns those. */
+/**
+ * The variant visibility is the shared predicate, so the app and the admin can never disagree with the
+ * aggregate. A content is written only when one of its aggregates moved. Every visibility change goes
+ * through here: the waitlist learns of its arrivals at the same time. Returns those.
+ */
 async function refreshAggregates(onlyIds?: number[]): Promise<number> {
   const scope = onlyIds ? sql`and content_id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``;
   await db.execute(sql`

@@ -1,12 +1,12 @@
 import { tmdbMediaType, type Content } from "@/db";
-import { describeError, within } from "@/shared";
+import { describeError, singleFlight, within } from "@/shared";
 import { refreshDetails } from "@/providers/tmdb";
 import { refreshCards } from "./grouping/group";
 
 /** The sheet waits this long for TMDB, then answers with what it has; the refresh lands for the next opening. */
 const WAIT_MS = 2000;
 
-const inFlight = new Map<number, Promise<boolean>>();
+const once = singleFlight(false, { onError: (e, key) => console.error(`[sheet] copie de la carte ${key} : ${describeError(e)}`) });
 
 /**
  * The sheet being opened brings its TMDB card up to date: rating, status, logo. Returns true when
@@ -15,19 +15,11 @@ const inFlight = new Map<number, Promise<boolean>>();
  */
 export async function refreshCardOnOpen(content: Content): Promise<boolean> {
   if (content.tmdbId === null || content.kind === "live") return false;
-  let run = inFlight.get(content.id);
-  if (!run) {
-    run = refreshDetails(tmdbMediaType(content.kind), content.tmdbId)
-      .then(async (fetched) => {
-        if (fetched) await refreshCards([content.id]);
-        return fetched;
-      })
-      .catch((e) => {
-        console.error(`[sheet] copie de la carte ${content.key} : ${describeError(e)}`);
-        return false;
-      })
-      .finally(() => inFlight.delete(content.id));
-    inFlight.set(content.id, run);
-  }
+  const tmdbId = content.tmdbId;
+  const run = once(content.key, async () => {
+    const fetched = await refreshDetails(tmdbMediaType(content.kind), tmdbId);
+    if (fetched) await refreshCards([content.id]);
+    return fetched;
+  });
   return within(run, WAIT_MS, false);
 }

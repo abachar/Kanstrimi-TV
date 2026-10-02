@@ -63,7 +63,7 @@ describe("run log file", () => {
     console.log("after the run: not in the file");
     const text = readRunLog(file)!.text;
     expect(text).toMatch(
-      /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} info  \[source\] GET http:\/\/upstream\.test\/player_api\.php\?username=u&password=\*\*\*$/m,
+      /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} info {2}\[source\] GET http:\/\/upstream\.test\/player_api\.php\?username=u&password=\*\*\*$/m,
     );
     expect(text).toContain("error [source] boom");
     expect(text).toContain("info  [source] already tagged");

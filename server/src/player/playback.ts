@@ -72,7 +72,10 @@ playbackRoutes.put("/:id/watched", async (c) => {
       (e) => body.data.season === undefined || e.season === body.data.season,
     );
     if (!episodes.length) return fail("not_found", "Saison introuvable");
-    for (const e of episodes) await setFinished(e.key, body.data.watched);
+    await setFinished(
+      episodes.map((e) => e.key),
+      body.data.watched,
+    );
     return noContent();
   }
   if (!(await keyExists(ctx, key))) return fail("not_found", "Contenu introuvable");
@@ -97,7 +100,7 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
   if (!parsed) return null;
   if (parsed.episode !== undefined) {
     const content = await contentByKey(ctx, parsed.seriesKey);
-    if (!content || content.kind !== "series") return null;
+    if (content?.kind !== "series") return null;
     const { items, categoryName } = await variantsOf(content);
     await ensureEpisodes(content, items, ctx.tmdbLang);
     const episodes = await loadEpisodes(content, items, categoryName);

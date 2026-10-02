@@ -16,7 +16,7 @@ export async function shelvesOf(ctx: RestContext, kind: "vod" | "series"): Promi
   const [rows, studios, sagas] = await Promise.all([
     catalogRows(ctx, kind),
     studiosOf(ctx, kind),
-    kind === "vod" ? listSagas(ctx, { limit: "1" }) : null,
+    kind === "vod" ? listSagas(ctx, { limit: 1 }) : null,
   ]);
   const shelves: Shelf[] = [];
   const anchor = rows.find((r) => r.id === "recent")?.id ?? rows[0]?.id;
@@ -42,7 +42,7 @@ export type ShelfPage =
   | { type: "studios"; studios: StudioWire[] }
   | { type: "sagas"; sagas: SagaWire[]; next: string | null };
 
-const PAGE = "50";
+const PAGE = 50;
 
 /** One page of a shelf; `cursor` continues it. Null for an unknown shelf. */
 export async function shelfPage(ctx: RestContext, kind: "vod" | "series", shelf: string, cursor?: string): Promise<ShelfPage | null> {

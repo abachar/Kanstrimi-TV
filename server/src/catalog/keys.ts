@@ -30,7 +30,7 @@ export function contentKey(i: KeyInput): string {
   // key of its own instead of joining every other junk entry in one 400-variant group.
   const s = slug(i.title);
   const id = s === "-" ? `x${createHash("sha1").update(i.title).digest("hex").slice(0, 10)}` : s;
-  if (i.kind === "live") return `live:${i.market ? i.market + "-" : ""}${id}`;
+  if (i.kind === "live") return `live:${i.market ? `${i.market}-` : ""}${id}`;
   if (i.tmdbId && (i.matchStatus === "matched" || i.matchStatus === "manual")) return tmdbKey(i.kind, i.tmdbId);
   return `fallback:${i.kind === "vod" ? "movie" : "series"}:${id}:${i.year ?? "-"}`;
 }
@@ -51,11 +51,12 @@ export function parseKey(key: string): { kind: Kind; tmdbId?: number; season?: n
   const base = ep ? ep[1] : key;
   let kind: Kind;
   let tmdbId: number | undefined;
-  let m: RegExpExecArray | null;
-  if ((m = /^tmdb:(movie|tv):(\d+)$/.exec(base))) {
-    kind = m[1] === "movie" ? "vod" : "series";
-    tmdbId = Number(m[2]);
-  } else if ((m = /^fallback:(movie|series):.+$/.exec(base))) kind = m[1] === "movie" ? "vod" : "series";
+  const tmdb = /^tmdb:(movie|tv):(\d+)$/.exec(base);
+  const fallback = /^fallback:(movie|series):.+$/.exec(base);
+  if (tmdb) {
+    kind = tmdb[1] === "movie" ? "vod" : "series";
+    tmdbId = Number(tmdb[2]);
+  } else if (fallback) kind = fallback[1] === "movie" ? "vod" : "series";
   else if (/^live:.+$/.test(base)) kind = "live";
   else return null;
   if (ep && kind !== "series") return null;

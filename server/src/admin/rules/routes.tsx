@@ -40,7 +40,6 @@ rulesRoutes.post(
 );
 rulesRoutes.post("/:id/delete", async (c) => {
   await deleteRule(Number(c.req.param("id")));
-  c.header("HX-Redirect", "/admin/rules?ok=R%C3%A8gle+supprim%C3%A9e");
   return back(c, "/admin/rules", { ok: "Règle supprimée" });
 });
 /** The switch answers by reloading the page: the « to apply » banner may have to appear. */

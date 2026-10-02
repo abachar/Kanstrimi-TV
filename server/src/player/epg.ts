@@ -19,8 +19,11 @@ type Row = {
 const programme = (title: string | null, start: string | null, end: string | null, overview: string | null): Programme | null =>
   title && start && end ? { title, start: new Date(start).toISOString(), end: new Date(end).toISOString(), overview } : null;
 
-/** One query for any number of channels: the current programme, the following one, and the guide's coverage. */
-export async function epgOf(channelIds: string[]): Promise<Map<string, ChannelEpg>> {
+/**
+ * One query for any number of channels: the current programme, the following one, and the guide's
+ * coverage. `now` is the server's clock, as everywhere in `/player` (stream links, « Nouveautés »).
+ */
+export async function epgOf(channelIds: string[], now = new Date()): Promise<Map<string, ChannelEpg>> {
   const ids = [...new Set(channelIds.filter(Boolean))];
   if (!ids.length) return new Map();
   // postgres-js template, not drizzle's `sql`: the latter spreads an array parameter into a list.
@@ -32,11 +35,11 @@ export async function epgOf(channelIds: string[]): Promise<Map<string, ChannelEp
     from unnest(${ids}::text[]) as u(id)
     left join lateral (
       select title, start_at, end_at, overview from catalog_epg_programmes e
-      where e.channel_id = u.id and e.start_at <= now() and e.end_at > now()
+      where e.channel_id = u.id and e.start_at <= ${now.toISOString()}::timestamptz and e.end_at > ${now.toISOString()}::timestamptz
       order by e.start_at desc limit 1) n on true
     left join lateral (
       select title, start_at, end_at, overview from catalog_epg_programmes e
-      where e.channel_id = u.id and e.start_at > now()
+      where e.channel_id = u.id and e.start_at > ${now.toISOString()}::timestamptz
       order by e.start_at limit 1) x on true`;
   return new Map(
     rows.map((r) => [

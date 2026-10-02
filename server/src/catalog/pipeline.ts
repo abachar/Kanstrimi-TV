@@ -2,7 +2,8 @@ import { Cron } from "croner";
 import { getSettings, isUnlocked, isXtreamConfigured, type Settings } from "@/config";
 import { describeError, isCancelled, withCancel } from "@/shared";
 import { runSync, runEpgRebuild } from "@/providers/xtream";
-import { runEnrich, runTrending } from "@/providers/tmdb";
+import { runTrending } from "@/providers/tmdb";
+import { runEnrich } from "./matching";
 import { applyRules } from "./rules/apply";
 import { runGrouping } from "./grouping/group";
 import { runMerge } from "./merge";
@@ -11,11 +12,11 @@ import { startStep, finishStep, startRun, finishRun, purgeRuns, closeStaleRun, t
 import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
 
 /**
- * The catalogue pipeline. Seven steps, each a plain function of its own module:
+ * The catalogue pipeline. Eight steps, each a plain function of its own module:
  *   source  — read the provider's lists into their raw copy, checked (providers/xtream)
  *   merge   — raw copy → catalogue by difference, then parse the names (no network)
  *   channels — live variants matched to the iptv-org database: logo, theme, adult (providers/iptv)
- *   enrich  — TMDB matching of every pending entry, hidden ones included, and a share of the stale cache (providers/tmdb)
+ *   enrich  — TMDB matching of every pending entry, hidden ones included, and a share of the stale cache (matching.ts)
  *   filters — recompute hidden_by_rule from the rules (no network)
  *   group   — variants → contents, aggregates over the visible variants (no network)
  *   trending — TMDB's weekly trending lists, for the « Top 10 » rows
@@ -23,9 +24,10 @@ import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
  * Matching comes before the filters so that unhiding something never shows it unmatched;
  * grouping comes after them because its aggregates only count visible variants.
  *
- * Two tasks run them, by cron or from the admin: `pipeline` (the five catalogue steps) and
- * `epg`. A run is journalled twice: a `sync_runs` row with a `sync_logs` row per step (the
- * summary the admin lists), and a text file of everything printed meanwhile (the detail).
+ * Two tasks run them, by cron or from the admin: `pipeline` (the seven catalogue steps, the
+ * TMDB ones only with a key) and `epg`. A run is journalled twice: a `task_runs` row with a
+ * `task_steps` row per step (the summary the admin lists), and a text file of everything printed
+ * meanwhile (the detail).
  */
 export type Step = "source" | "merge" | "channels" | "filters" | "enrich" | "group" | "trending" | "epg";
 export type Task = "pipeline" | "epg";
@@ -65,6 +67,8 @@ export const runningSteps = () => [...running.entries()].map(([step, since]) => 
 export const isTaskRunning = (task: string) => runningTasks.has(task);
 export const getLastError = () => lastError;
 
+const unrecorded = (step: Step) => (e: unknown) => console.error(`[pipeline] ${step} : fin de l'étape non enregistrée,`, describeError(e));
+
 /** One step under the journal. Null when it went well, else what went wrong. */
 async function runStep(step: Step, runId: number, ctx: StepContext): Promise<string | null> {
   if (running.has(step)) return "déjà en cours";
@@ -82,14 +86,14 @@ async function runStep(step: Step, runId: number, ctx: StepContext): Promise<str
   } catch (e) {
     if (isCancelled(e)) {
       note(`── ${step} : arrêté après ${Math.round((Date.now() - started) / 1000)} s`);
-      if (stepId !== null) await finishStep(stepId, "killed", KILLED).catch(() => {});
+      if (stepId !== null) await finishStep(stepId, "killed", KILLED).catch(unrecorded(step));
       return KILLED;
     }
     const message = describeError(e);
     lastError = { step, message, at: new Date() };
     console.error(`[pipeline] ${step} :`, message);
     if (e instanceof Error && e.stack) note(e.stack);
-    if (stepId !== null) await finishStep(stepId, "error", message).catch(() => {});
+    if (stepId !== null) await finishStep(stepId, "error", message).catch(unrecorded(step));
     return message;
   } finally {
     running.delete(step);
@@ -146,7 +150,7 @@ async function runTask(task: string, trigger: Trigger, steps: Step[], opts: RunO
 
 function purge() {
   purgeRunLogs(RETENTION_DAYS);
-  purgeRuns(RETENTION_DAYS).catch(() => {});
+  purgeRuns(RETENTION_DAYS).catch((e) => console.error("[pipeline] purge du journal échouée :", describeError(e)));
 }
 
 /** The steps of the full pipeline: the TMDB ones only with a key. */
@@ -215,7 +219,7 @@ export function schedule(s: Settings) {
       jobs.push(
         new Cron(
           expr,
-          { protect: true, unref: true, catch: (e) => console.error(`[pipeline] ${name} :`, describeError(e)) },
+          { name, protect: true, unref: true, catch: (e) => console.error(`[pipeline] ${name} :`, describeError(e)) },
           guarded(name, fn),
         ),
       );
@@ -226,6 +230,9 @@ export function schedule(s: Settings) {
   add(s.sync_cron, "traitement complet", () => runAll("cron"));
   add(s.epg_cron, "EPG", () => runEpg("cron"));
 }
+
+/** The planned jobs and their next tick. */
+export const scheduledJobs = () => jobs.map((j) => ({ name: j.name ?? "", next: j.nextRun() }));
 
 /** Tests only. */
 export function stopSchedule() {

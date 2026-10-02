@@ -1,7 +1,7 @@
 import { and, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
 import { db, schema, type Content, type Variant } from "@/db";
 import { getSettings } from "@/config";
-import { XtreamClient, XtreamError, xtreamFromSettings } from "@/providers/xtream";
+import { type XtreamClient, XtreamError, xtreamFromSettings } from "@/providers/xtream";
 import { getCachedDetails, getTmdbClient } from "@/providers/tmdb";
 import { episodeKey } from "./keys";
 
@@ -101,13 +101,26 @@ function titleFromProvider(title: unknown): string | null {
   return m ? m[1].trim() || null : null;
 }
 
+const rebuilding = new Map<number, Promise<void>>();
+
 /**
  * Rebuild the merged episode tree of a series from its variants when it is stale.
  * Episodes are merged by (season, number); each keeps one source per variant that has it.
  * Titles, stills and runtimes come from TMDB when the series is matched, else from the
  * provider's own TMDB-like `seasons[].episodes[]`, else from the provider episode title.
+ * One rebuild per series at a time: a second caller joins the one running. The provider and TMDB
+ * are read first; the tree is then written in one transaction, never half.
  */
-export async function ensureEpisodes(content: Content, variants: Variant[], tmdbLang: string, force = false) {
+export function ensureEpisodes(content: Content, variants: Variant[], tmdbLang: string, force = false): Promise<void> {
+  let run = rebuilding.get(content.id);
+  if (!run) {
+    run = rebuildEpisodes(content, variants, tmdbLang, force).finally(() => rebuilding.delete(content.id));
+    rebuilding.set(content.id, run);
+  }
+  return run;
+}
+
+async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: string, force: boolean) {
   const client = xtreamFromSettings(await getSettings());
   const [fresh] = await db
     .select({ at: sql<Date | null>`max(${schema.catalogEpisodes.updatedAt})` })
@@ -202,62 +215,66 @@ export async function ensureEpisodes(content: Content, variants: Variant[], tmdb
     airDate: f.meta.airDate,
     updatedAt: now,
   }));
-  const ids = new Map<string, number>();
-  for (let i = 0; i < rows.length; i += 500) {
-    const inserted = await db
-      .insert(schema.catalogEpisodes)
-      .values(rows.slice(i, i + 500))
-      .onConflictDoUpdate({
-        target: [schema.catalogEpisodes.contentId, schema.catalogEpisodes.season, schema.catalogEpisodes.number],
-        set: {
-          key: sql`excluded.key`,
-          title: sql`excluded.title`,
-          overview: sql`excluded.overview`,
-          runtime: sql`excluded.runtime`,
-          stillPath: sql`excluded.still_path`,
-          airDate: sql`excluded.air_date`,
-          updatedAt: now,
-        },
-      })
-      .returning({ id: schema.catalogEpisodes.id, season: schema.catalogEpisodes.season, number: schema.catalogEpisodes.number });
-    for (const r of inserted) ids.set(`${r.season}:${r.number}`, r.id);
-  }
-  const srcRows = [...found.values()].flatMap((f) =>
-    f.sources.map((s) => ({
-      episodeId: ids.get(`${f.season}:${f.number}`)!,
-      itemId: s.itemId,
-      xtreamId: s.xtreamId,
-      container: s.container,
-      seenAt: now,
-    })),
-  );
-  for (let i = 0; i < srcRows.length; i += 500) {
-    if (!srcRows.length) break;
-    await db
-      .insert(schema.catalogEpisodeVariants)
-      .values(srcRows.slice(i, i + 500))
-      .onConflictDoUpdate({
-        target: [schema.catalogEpisodeVariants.episodeId, schema.catalogEpisodeVariants.itemId],
-        set: { xtreamId: sql`excluded.xtream_id`, container: sql`excluded.container`, seenAt: now },
-      });
-  }
-  // Sources the variants no longer list, then episodes left without any source.
-  const epIds = [...ids.values()];
-  if (epIds.length)
-    await db
-      .delete(schema.catalogEpisodeVariants)
-      .where(and(inArray(schema.catalogEpisodeVariants.episodeId, epIds), lt(schema.catalogEpisodeVariants.seenAt, now)));
-  await db
-    .delete(schema.catalogEpisodes)
-    .where(and(eq(schema.catalogEpisodes.contentId, content.id), epIds.length ? notInArray(schema.catalogEpisodes.id, epIds) : sql`true`));
-  await db
-    .delete(schema.catalogEpisodes)
-    .where(
-      and(
-        eq(schema.catalogEpisodes.contentId, content.id),
-        sql`not exists (select 1 from ${schema.catalogEpisodeVariants} s where s.episode_id = ${schema.catalogEpisodes.id})`,
-      ),
+  await db.transaction(async (tx) => {
+    const ids = new Map<string, number>();
+    for (let i = 0; i < rows.length; i += 500) {
+      const inserted = await tx
+        .insert(schema.catalogEpisodes)
+        .values(rows.slice(i, i + 500))
+        .onConflictDoUpdate({
+          target: [schema.catalogEpisodes.contentId, schema.catalogEpisodes.season, schema.catalogEpisodes.number],
+          set: {
+            key: sql`excluded.key`,
+            title: sql`excluded.title`,
+            overview: sql`excluded.overview`,
+            runtime: sql`excluded.runtime`,
+            stillPath: sql`excluded.still_path`,
+            airDate: sql`excluded.air_date`,
+            updatedAt: now,
+          },
+        })
+        .returning({ id: schema.catalogEpisodes.id, season: schema.catalogEpisodes.season, number: schema.catalogEpisodes.number });
+      for (const r of inserted) ids.set(`${r.season}:${r.number}`, r.id);
+    }
+    const srcRows = [...found.values()].flatMap((f) =>
+      f.sources.map((s) => ({
+        episodeId: ids.get(`${f.season}:${f.number}`)!,
+        itemId: s.itemId,
+        xtreamId: s.xtreamId,
+        container: s.container,
+        seenAt: now,
+      })),
     );
+    for (let i = 0; i < srcRows.length; i += 500) {
+      if (!srcRows.length) break;
+      await tx
+        .insert(schema.catalogEpisodeVariants)
+        .values(srcRows.slice(i, i + 500))
+        .onConflictDoUpdate({
+          target: [schema.catalogEpisodeVariants.episodeId, schema.catalogEpisodeVariants.itemId],
+          set: { xtreamId: sql`excluded.xtream_id`, container: sql`excluded.container`, seenAt: now },
+        });
+    }
+    // Sources the variants no longer list, then episodes left without any source.
+    const epIds = [...ids.values()];
+    if (epIds.length)
+      await tx
+        .delete(schema.catalogEpisodeVariants)
+        .where(and(inArray(schema.catalogEpisodeVariants.episodeId, epIds), lt(schema.catalogEpisodeVariants.seenAt, now)));
+    await tx
+      .delete(schema.catalogEpisodes)
+      .where(
+        and(eq(schema.catalogEpisodes.contentId, content.id), epIds.length ? notInArray(schema.catalogEpisodes.id, epIds) : sql`true`),
+      );
+    await tx
+      .delete(schema.catalogEpisodes)
+      .where(
+        and(
+          eq(schema.catalogEpisodes.contentId, content.id),
+          sql`not exists (select 1 from ${schema.catalogEpisodeVariants} s where s.episode_id = ${schema.catalogEpisodes.id})`,
+        ),
+      );
+  });
 }
 
 export type SeasonInfo = { number: number; title: string | null; year: number | null };

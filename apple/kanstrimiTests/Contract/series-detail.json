@@ -1,0 +1,128 @@
+{
+  "id": "tmdb:tv:1396",
+  "kind": "series",
+  "title": "Vincenzo",
+  "poster": "http://kanstrimi.test/img/w500/v.jpg",
+  "languages": [
+    "VF"
+  ],
+  "year": 2021,
+  "rating": 8.4,
+  "genres": [
+    "Crime"
+  ],
+  "hint": null,
+  "added_at": "2026-09-20T18:30:00.000Z",
+  "backdrop": "http://kanstrimi.test/img/w1280/vb.jpg",
+  "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png",
+  "original_title": "빈센조",
+  "end_year": 2021,
+  "overview": "Un avocat de la mafia.",
+  "runtime": 80,
+  "certification": "16",
+  "cast": [
+    {
+      "id": "person:6384",
+      "name": "Keanu Reeves",
+      "role": "Invité",
+      "photo": "http://kanstrimi.test/img/w185/keanu.jpg"
+    }
+  ],
+  "director": "Park Jae-bum",
+  "trailer": null,
+  "has_tmdb": true,
+  "provider_category": null,
+  "raw_title": null,
+  "max_quality": "HD",
+  "progress": null,
+  "versions": [
+    {
+      "id": "vf-hd",
+      "language": "VF",
+      "quality": "HD",
+      "sources": []
+    }
+  ],
+  "is_favorite": true,
+  "seasons": [
+    {
+      "number": 1,
+      "title": "Saison 1",
+      "year": null,
+      "episodes": [
+        {
+          "id": "tmdb:tv:1396:s01e01",
+          "season": 1,
+          "number": 1,
+          "title": "Épisode 1",
+          "overview": "Vincenzo arrive.",
+          "runtime": 80,
+          "still": "http://kanstrimi.test/img/w300/s1e1.jpg",
+          "air_date": "2021-02-20T00:00:00Z",
+          "versions": [
+            {
+              "id": "vf-hd",
+              "language": "VF",
+              "quality": "HD",
+              "sources": [
+                {
+                  "id": "src-e1",
+                  "container": "MKV",
+                  "stream_url": "http://kanstrimi.test/player/stream/src-e1?d=SALN42&e=1790880300&s=OAxYt-yIR2pBCRRhbmMOJeGaHSdYk0N5laPuxbSJ8qk",
+                  "provider": {
+                    "id": "xtream",
+                    "name": "provider.test",
+                    "kind": "xtream"
+                  },
+                  "origin": "|FR| SERIES"
+                }
+              ]
+            }
+          ],
+          "progress": {
+            "position": 4700,
+            "duration": 4800,
+            "finished": true
+          }
+        },
+        {
+          "id": "tmdb:tv:1396:s01e02",
+          "season": 1,
+          "number": 2,
+          "title": "Épisode 2",
+          "overview": "Le trésor.",
+          "runtime": 78,
+          "still": "http://kanstrimi.test/img/w300/s1e2.jpg",
+          "air_date": "2021-02-21T00:00:00Z",
+          "versions": [
+            {
+              "id": "vf-hd",
+              "language": "VF",
+              "quality": "HD",
+              "sources": [
+                {
+                  "id": "src-e2",
+                  "container": "MKV",
+                  "stream_url": "http://kanstrimi.test/player/stream/src-e2?d=SALN42&e=1790880300&s=LkcXXbjd_W66iFqDSvUkpkY0QUfdeszIKExJvNlJQfw",
+                  "provider": {
+                    "id": "xtream",
+                    "name": "provider.test",
+                    "kind": "xtream"
+                  },
+                  "origin": "|FR| SERIES"
+                }
+              ]
+            }
+          ],
+          "progress": null
+        }
+      ]
+    }
+  ],
+  "current_episode": {
+    "season": 1,
+    "number": 2,
+    "title": "Épisode 2"
+  },
+  "related": []
+}

@@ -61,9 +61,11 @@ settingsRoutes.post("/test-tmdb", async (c) => {
 });
 settingsRoutes.post("/retry-unmatched", async (c) => {
   const n = await retryUnmatched();
-  return back(c, "/admin/settings", { ok: `${n} élément(s) introuvable(s) remis en attente — relancer l'étape 3` });
+  return back(c, "/admin/settings", {
+    ok: `${n} élément(s) introuvable(s) remis en attente — relancer le traitement à partir de « enrich »`,
+  });
 });
 settingsRoutes.post("/reset-matches", async (c) => {
   await resetMatches(undefined, await checked(c, "overrides"));
-  return back(c, "/admin/settings", { ok: "Matching réinitialisé — relancer l'étape 3" });
+  return back(c, "/admin/settings", { ok: "Matching réinitialisé — relancer le traitement à partir de « enrich »" });
 });

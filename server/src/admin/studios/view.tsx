@@ -110,7 +110,8 @@ export function StudiosView({ studios, suggestions, q }: { studios: StudioRow[];
                     <form
                       method="post"
                       action={`/admin/studios/${s.id}/remove`}
-                      onsubmit={`return confirm('Retirer ${s.name.replace(/'/g, "")} ?')`}
+                      hx-post={`/admin/studios/${s.id}/remove`}
+                      hx-confirm={`Retirer ${s.name} ?`}
                     >
                       <button class="btn" data-variant="ghost" data-size="icon-sm" title="Retirer" aria-label="Retirer">
                         <Icon name="trash" />

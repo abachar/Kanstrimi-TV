@@ -1,0 +1,63 @@
+{
+  "id": "person:6384",
+  "name": "Keanu Reeves",
+  "photo": "http://kanstrimi.test/img/w185/keanu.jpg",
+  "movies": [
+    {
+      "id": "tmdb:movie:604",
+      "kind": "movie",
+      "title": "Matrix Reloaded",
+      "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
+      "max_quality": "4K",
+      "dynamic_range": "DV",
+      "languages": [
+        "VF"
+      ],
+      "year": 2026,
+      "rating": 7.1,
+      "genres": [
+        "Action"
+      ],
+      "hint": null,
+      "added_at": "2026-09-28T18:30:00.000Z"
+    },
+    {
+      "id": "tmdb:movie:603",
+      "kind": "movie",
+      "title": "Matrix",
+      "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
+      "max_quality": "4K",
+      "dynamic_range": "DV",
+      "languages": [
+        "VF",
+        "VOSTFR"
+      ],
+      "year": 1999,
+      "rating": 8.2,
+      "genres": [
+        "Action",
+        "Science-Fiction"
+      ],
+      "hint": null,
+      "added_at": "2026-09-22T18:30:00.000Z"
+    }
+  ],
+  "series": [
+    {
+      "id": "tmdb:tv:1396",
+      "kind": "series",
+      "title": "Vincenzo",
+      "poster": "http://kanstrimi.test/img/w500/v.jpg",
+      "languages": [
+        "VF"
+      ],
+      "year": 2021,
+      "rating": 8.4,
+      "genres": [
+        "Crime"
+      ],
+      "hint": null,
+      "added_at": "2026-09-20T18:30:00.000Z"
+    }
+  ]
+}

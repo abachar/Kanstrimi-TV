@@ -129,7 +129,7 @@ export function SettingsView({ s }: { s: Settings }) {
             <div class="flex flex-col items-start gap-4">
               <p class="text-sm text-muted-foreground">
                 Remet en attente les seuls éléments que TMDB n'a pas trouvés, pour profiter d'une règle améliorée ou de nouvelles fiches.
-                Relancer ensuite l'étape 3.
+                Relancer ensuite le traitement à partir de « enrich ».
               </p>
               <button class="btn" data-variant="outline" data-size="sm">
                 Retenter les introuvables
@@ -141,12 +141,13 @@ export function SettingsView({ s }: { s: Settings }) {
           method="post"
           action="/admin/settings/reset-matches"
           class="grid"
-          onsubmit="return confirm('Réinitialiser tous les matchings automatiques ?')"
+          hx-post="/admin/settings/reset-matches"
+          hx-confirm="Réinitialiser tous les matchings automatiques ?"
         >
           <Card title="Réinitialiser le matching TMDB">
             <div class="flex flex-col items-start gap-4">
               <p class="text-sm text-muted-foreground">
-                Remet tous les éléments (sauf associations manuelles) en attente. Relancer ensuite l'étape 3.
+                Remet tous les éléments (sauf associations manuelles) en attente. Relancer ensuite le traitement à partir de « enrich ».
               </p>
               <div class="field" data-orientation="horizontal">
                 <input class="input" type="checkbox" name="overrides" id="reset-overrides" />

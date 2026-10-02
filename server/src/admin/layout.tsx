@@ -64,6 +64,44 @@ function isActive(href: string, path: string) {
   return [...want].every(([k, v]) => (got.get(k) ?? (k === "kind" ? "vod" : null)) === v);
 }
 
+/**
+ * htmx under the admin's CSP (`script-src 'self'`): nothing evaluated from an attribute, and no
+ * `<style>` of its own — the busy spinners carry their classes (`Busy`).
+ */
+const HTMX_CONFIG = JSON.stringify({ allowEval: false, includeIndicatorStyles: false });
+
+/**
+ * The side menu. `open`: rendered open on a phone, where it is a drawer. Basecoat can only open it
+ * from script, which the CSP forbids inline: the menu button has htmx swap in this one instead,
+ * and Basecoat initialises it open.
+ */
+export function Menu({ path, collapsed, open = false }: { path: string; collapsed: boolean; open?: boolean }) {
+  const rail = (cls: string) => (collapsed ? ` ${cls}` : "");
+  return html`<aside id="menu" class="sidebar" data-side="left"${open ? raw(' data-initial-mobile-open="true"') : ""} aria-hidden="false">
+  <nav aria-label="Menu" class="${rail("md:w-13")}">
+    <header>
+      <a href="/admin" class="btn justify-start gap-2 text-base font-semibold${rail("md:justify-center md:px-0")}" data-variant="ghost" title="Kanstrimi">
+        <span class="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">${Icon({ name: "play", cls: "size-4" })}</span>
+        <span class="${rail("md:hidden")}">Kanstrimi</span>
+      </a>
+    </header>
+    <section class="scrollbar">
+      ${NAV.map(
+        ([group, items], i) => html`<div role="group"${group ? raw(` aria-labelledby="menu-g${i}"`) : ""}>
+        ${group ? html`<h3 id="menu-g${i}" class="${rail("md:hidden")}">${group}</h3>` : ""}
+        <ul>
+          ${items.map(([href, text, icon]) => html`<li><a href="${href}" class="${rail("md:justify-center")}"${collapsed ? html` title="${text}"` : ""}${isActive(href, path) ? raw(' aria-current="page"') : ""}>${Icon({ name: icon })}<span class="${rail("md:hidden")}">${text}</span></a></li>`)}
+        </ul>
+      </div>`,
+      )}
+    </section>
+    <footer>
+      <form method="post" action="/admin/logout"><button class="btn w-full justify-start${rail("md:justify-center md:px-0")}" data-variant="ghost" title="Quitter">${Icon({ name: "logout" })}<span class="${rail("md:hidden")}">Quitter</span></button></form>
+    </footer>
+  </nav>
+</aside>`;
+}
+
 export function Layout({
   title,
   path,
@@ -93,39 +131,19 @@ export function Layout({
 <title>${title} · Kanstrimi</title>
 <link href="/admin/assets/admin.css?v=${v}" rel="stylesheet">
 <script src="/admin/assets/basecoat.min.js?v=${v}" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+<script src="/admin/assets/htmx.min.js?v=${v}" defer></script>
+<meta name="htmx-config" content="${HTMX_CONFIG}">
 </head>
 <body class="bg-background text-foreground antialiased">
+<div id="toaster" class="toaster"></div>
 ${env.devPassword ? html`<div hx-get="/admin/dev/reload?boot=${env.bootId}" hx-trigger="every 1s" hx-swap="none" aria-hidden="true"></div>` : ""}
 ${
   loggedIn
     ? html`
-<aside id="menu" class="sidebar" data-side="left" aria-hidden="false">
-  <nav aria-label="Menu" class="${rail("md:w-13")}">
-    <header>
-      <a href="/admin" class="btn justify-start gap-2 text-base font-semibold${rail("md:justify-center md:px-0")}" data-variant="ghost" title="Kanstrimi">
-        <span class="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">${Icon({ name: "play", cls: "size-4" })}</span>
-        <span class="${rail("md:hidden")}">Kanstrimi</span>
-      </a>
-    </header>
-    <section class="scrollbar">
-      ${NAV.map(
-        ([group, items], i) => html`<div role="group"${group ? raw(` aria-labelledby="menu-g${i}"`) : ""}>
-        ${group ? html`<h3 id="menu-g${i}" class="${rail("md:hidden")}">${group}</h3>` : ""}
-        <ul>
-          ${items.map(([href, text, icon]) => html`<li><a href="${href}" class="${rail("md:justify-center")}"${collapsed ? html` title="${text}"` : ""}${isActive(href, path) ? raw(' aria-current="page"') : ""}>${Icon({ name: icon })}<span class="${rail("md:hidden")}">${text}</span></a></li>`)}
-        </ul>
-      </div>`,
-      )}
-    </section>
-    <footer>
-      <form method="post" action="/admin/logout"><button class="btn w-full justify-start${rail("md:justify-center md:px-0")}" data-variant="ghost" title="Quitter">${Icon({ name: "logout" })}<span class="${rail("md:hidden")}">Quitter</span></button></form>
-    </footer>
-  </nav>
-</aside>
+${Menu({ path, collapsed })}
 <main class="min-h-screen${rail("md:ml-13")}">
   <header class="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur md:px-6">
-    <button type="button" class="btn md:hidden" data-variant="ghost" data-size="icon" aria-label="Ouvrir le menu" aria-controls="menu" hx-on:click="document.getElementById('menu').open()">${Icon({ name: "menu" })}</button>
+    <button type="button" class="btn md:hidden" data-variant="ghost" data-size="icon" aria-label="Ouvrir le menu" aria-controls="menu" hx-get="/admin/menu?path=${encodeURIComponent(path)}" hx-target="#menu" hx-swap="outerHTML">${Icon({ name: "menu" })}</button>
     <form method="post" action="/admin/menu" class="max-md:hidden">
       <input type="hidden" name="next" value="${path}">
       <button class="btn" data-variant="ghost" data-size="icon" title="${fold}" aria-label="${fold}">${Icon({ name: "panel" })}</button>
@@ -146,6 +164,10 @@ ${
 </body>
 </html>`;
 }
+
+/** A Basecoat toast, appended to `#toaster` by an HTMX answer: what a fragment request shows of an error. */
+export const Toast = ({ title, msg }: { title: string; msg: string }) =>
+  html`<div class="toast" role="alert" aria-atomic="true" data-category="error"><div class="toast-content">${Icon({ name: "error" })}<section><h2>${title}</h2><p>${msg}</p></section></div></div>`;
 
 /** A flash message from `?ok=` / `?err=`. */
 const Flash = ({ ok, msg }: { ok: boolean; msg: string }) =>

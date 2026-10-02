@@ -22,12 +22,17 @@ déverrouille le coffre (refusé en production).
 | Script | Rôle |
 |---|---|
 | `npm run format` · `typecheck` · `test` · `build` | à lancer après chaque modification |
+| `npm run check` | linter et format sans rien réécrire (`biome ci`, comme la CI) |
 | `npm run db:generate` | migration après un changement de `src/db/schema.ts` |
 | `npm run db:migrate` | applique `drizzle/*.sql` (en production : le conteneur `kanstrimi-migrate`) |
 | `scripts/tmdb-cache-clean.sh [--fix]` | trouve, et vide avec `--fix`, les documents illisibles de `tmdb_cache` |
 
 Les tests `*.db.test.ts` utilisent une base de test (`TEST_DATABASE_URL`, sinon `kanstrimi_test`), jamais la base de dev.
 Les tests vivent dans un `__tests__/` à côté du code.
+
+**Contrat avec l'app** : `player/__tests__/contract.db.test.ts` écrit de vraies réponses de `/player` (horloge fixe) dans
+`apple/kanstrimiTests/Contract/`, que l'app décode. Une réponse dont la forme change fait échouer le test ;
+si le changement est voulu, réécrire les fichiers : `UPDATE_CONTRACT=1 npx vitest run src/player/__tests__/contract.db.test.ts`.
 
 ## Traitement
 
@@ -39,13 +44,16 @@ relancer seule (**Tâches → Lancer à partir de…**).
 | `source` | copie brute des listes Xtream ; refuse une réponse vide ou un catalogue qui fond de moitié (panne du fournisseur) |
 | `merge` | copie brute → variantes du catalogue, par différence ; analyse des noms (titre, année, marché, langue, qualité, édition) |
 | `channels` | rattache les chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région |
-| `enrich` | matching TMDB des éléments en attente ; relit peu à peu les fiches anciennes |
+| `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`) ; relit peu à peu les fiches anciennes |
 | `filters` | règles de masquage (langage de filtre), une variante masquée par la dernière règle qui correspond |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles, arrivées de la liste d'attente |
 | `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf) |
 | `epg` | guide des programmes des chaînes visibles, tous les trois jours, l'EPG de chaque variante ; décalages horaires corrigés dans l'admin |
 
 TMDB passe avant les filtres : tout est matché une fois, et démasquer ne fait jamais apparaître de titres non matchés.
+Le matching est un seul algorithme, `explainMatch` : `enrich` applique son verdict, l'admin l'affiche sous « Pourquoi ? ».
+Une panne de TMDB (réseau, 429 qui dure) laisse l'élément en attente, jamais `unmatched` ; le client TMDB ne dépasse
+pas 35 requêtes par seconde.
 Un passage s'arrête à la première étape en échec, sauf `channels`, `enrich` et `trending` (réseau externe). Chaque passage
 laisse une ligne dans `task_runs` / `task_steps` et un fichier de log dans `DATA_DIR/logs/` (90 jours) ; il peut être arrêté
 depuis l'admin.
@@ -64,7 +72,7 @@ Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_cont
 | `/player/*` | API de l'app Apple. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`) et `/stream/{source}` (lien signé, `302` vers le fournisseur). |
 | `/img/…` | images TMDB et logos iptv-org en cache disque ; `/img/shelf/…` = images du Top Shelf, logo du titre dessiné sur le fond par `sharp` |
 | `/admin` | administration |
-| `/health` | santé (base joignable) |
+| `/health` | santé (base joignable) ; en production, la cause d'une panne reste dans le journal |
 
 ## Structure
 
@@ -73,8 +81,9 @@ Dépendances de bas en haut, vérifiées par `src/__tests__/architecture.test.ts
 `shared ← db ← config ← providers/* ← catalog ← devices ← player ← admin`.
 
 ```
-main.ts     composition : montages, planification, arrêt propre
-admin/      pages de l'admin ; aucune écriture en base, elle appelle le domaine
+main.ts     démarrage : écoute, planification, arrêt propre
+app.ts      l'application HTTP : montages, /health, erreurs
+admin/      pages de l'admin ; aucune écriture en base (vérifié), elle appelle le domaine
 player/     /player, un fichier par ressource ; types.ts = le contrat
 catalog/    le domaine : grammaire des noms, clés, règles, groupement, épisodes, pipeline
 devices/    appairage, jetons, déverrouillage du coffre
@@ -84,13 +93,20 @@ db/         client, schéma, migrations, prédicats de visibilité
 shared/     utilitaires ; n'importe jamais `@/`
 ```
 
-`player` ne connaît pas TMDB et ne prend aux providers que `upstreamStreamUrl` ; `admin` lit `player` par son index.
+`player` ne connaît pas TMDB (ni ses tables) et ne prend aux providers que `upstreamStreamUrl` ; `admin` lit `player`
+par son index.
 
 ## Conventions et pièges
 
 - **Une lib plutôt qu'une roue réinventée** : `croner`, `cronstrue`, zod, `hono/secure-headers`. Restent maison à dessein :
-  la similarité de titres, les clients Xtream et TMDB, le logger.
-- **Admin** : uniquement des classes Tailwind et Basecoat écrites en entier, pas d'attribut `style`.
+  la similarité de titres, les clients Xtream et TMDB, le logger, `singleFlight` (un appel par clé à la fois : TMDB à
+  l'ouverture d'une fiche, téléchargements d'images).
+- **Biome** formate et vérifie (linter) ; `noUnusedLocals` côté TypeScript. Une erreur inattendue de l'admin s'affiche
+  en page, ou en toast pour une requête HTMX.
+- **Admin** : uniquement des classes Tailwind et Basecoat écrites en entier, pas d'attribut `style`. CSP stricte
+  (`script-src 'self'`, `app.ts`) : htmx et Basecoat servis depuis `/admin/assets` (copiés par `npm run css`), aucun
+  script ni gestionnaire en ligne (`onsubmit`, `hx-on`), une confirmation passe par `hx-confirm` (`back()` répond alors
+  `HX-Redirect`). Toute écriture (POST, PUT, PATCH, DELETE) doit venir du site, quel que soit son `Content-Type`.
 - **Langage de filtre** (`catalog/query/`, aide dans l'admin) : `genre:anim` contient, `genre:"animation"` égal,
   `a,b` l'un de, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; casse et accents ignorés. Une requête est une
   condition sur une variante (champs TMDB lus dans le cache de sa fiche), vérifiée champ par champ avant tout SQL, ses
@@ -103,14 +119,22 @@ shared/     utilitaires ; n'importe jamais `@/`
   (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream et les corrections (TMDB, iptv-org,
   séparer, fusionner) ; `/admin/item/:id` y redirige.
 - **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Tout ce que voit l'app (tris, dates, compteurs, rangées)
-  se calcule sur les seules variantes visibles.
+  se calcule sur les seules variantes visibles. Les genres de Films et Séries restent en mémoire jusqu'à ce que le
+  groupement réécrive les contenus (`contentsGeneration`) : une écriture directe dans `catalog_contents` ne les rafraîchit pas.
 - **Dates** : arrivée = date du fournisseur (`added`, `last_modified` pour une série) ; sortie = TMDB, tri par défaut.
 - **Données amont non fiables** : `xtream_id` n'est pas un identifiant, les champs manquent, l'identifiant TMDB fourni
   n'est jamais cru sur parole.
-- **Mises à jour massives** par `unnest()` avec le client postgres-js, pas le `sql` de Drizzle qui éclate les tableaux.
+- **Mises à jour massives** par `unnest()` avec le client postgres-js, pas le `sql` de Drizzle qui éclate les tableaux, ou
+  par `jsonb_to_recordset` d'un seul paramètre (les cartes, colonnes décrites une fois dans `group.ts`). Une carte
+  n'est réécrite que si elle change.
   Le merge, les règles et le groupement passent l'un après l'autre (`withCatalogLock`).
 - **Secrets** : un seul mot de passe ; réglages sensibles chiffrés avec une clé gardée en RAM. Après un redémarrage le
   serveur est verrouillé jusqu'à la première requête authentifiée (le premier appel d'un appareil appairé suffit).
+  `/admin/login` passe toujours par bcrypt et, par adresse, après cinq échecs, double l'attente à chaque nouvel échec (429).
+- **Recherche** (`player/search.ts`) : un terme d'un caractère est un mot entier, un préfixe à partir de deux ; seuls les
+  200 contenus les plus votés par type (préfixes, et mots entiers pour qu'un titre égal à la requête reste) sont classés.
+- **Liens de lecture** : signés par appareil, valables un quart d'heure, car leur `302` livre les identifiants du
+  fournisseur ; l'app redemande `/playback` après une panne.
 - **Ne jamais journaliser une URL brute** : le mot de passe Xtream y circule. Passer par `requestLogger()`.
 - **Liste d'attente** (`catalog/waitlist.ts`, admin › Application) : des films cherchés sur TMDB avant que le fournisseur ne les ait. Dès
   qu'un contenu visible porte leur clé `tmdb:movie:<id>`, ils passent en tête du Top Shelf et du carrousel de l'accueil,

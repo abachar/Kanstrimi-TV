@@ -5,7 +5,8 @@ Xtream Codes, importe son catalogue, le nettoie, l'enrichit via **TMDB** et le s
 l'app Apple maison (Apple TV et iPhone, iPad à venir).
 
 Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées et
-répond `302` vers le flux d'origine ; les identifiants du fournisseur ne sortent jamais du serveur.
+répond `302` vers le flux d'origine. Ce `302` porte les identifiants du fournisseur (dans son `Location`) :
+les liens de lecture sont signés par appareil et ne valent qu'un quart d'heure.
 
 ```
 Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enrichi, groupé)
@@ -21,8 +22,10 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enri
 | `server/` | Import, filtrage, enrichissement, groupement des variantes, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Tailwind 4 / Basecoat | [`server/README.md`](server/README.md) |
 | `apple/` | Client natif Apple TV 4K et iPhone (iPad à venir), consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27, AetherEngine 7 (FFmpeg + VideoToolbox), une cible et deux destinations | [`apple/README.md`](apple/README.md) |
 
-Le contrat entre les deux est le code : `server/src/player/types.ts` côté serveur,
-`apple/kanstrimi/Contract/` côté app, et les fixtures JSON de `apple/kanstrimi/Client/Fixtures/`.
+Le contrat entre les deux est le code : `server/src/player/types.ts` côté serveur, `apple/kanstrimi/Contract/` côté
+app. De vraies réponses du serveur (`apple/kanstrimiTests/Contract/`) le vérifient des deux côtés : le serveur échoue si
+leur forme change, l'app si elle ne les décode plus. Les fixtures de `apple/kanstrimi/Client/Fixtures/` ne servent
+qu'au client de démo.
 
 ## Conventions communes
 

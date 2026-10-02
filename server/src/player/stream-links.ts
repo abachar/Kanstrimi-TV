@@ -4,10 +4,12 @@ import type { RestContext } from "./context";
 
 /**
  * `stream_url` is opaque to the app and re-read at every playback: a signed link to our
- * `/player/stream/{source}` redirect, tied to the device and valid a day. The device token
- * never appears in a URL (VLC cannot send headers, logs must stay clean).
+ * `/player/stream/{source}` redirect, tied to the device and valid a quarter of an hour: its 302
+ * hands out the provider's credentials (`Location`), so a link that leaks must die soon. The app asks
+ * `/playback` again for a fresh one after a failure or a long pause. The device token never appears
+ * in a URL (the player cannot send headers, logs must stay clean).
  */
-export const STREAM_TTL_MS = 24 * 3600 * 1000;
+export const STREAM_TTL_MS = 15 * 60 * 1000;
 const sign = (src: string, code: string, exp: number) =>
   createHmac("sha256", env.sessionSecret).update(`${src}|${code}|${exp}`).digest("base64url");
 

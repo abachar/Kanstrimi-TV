@@ -1,0 +1,31 @@
+{
+  "versions": [
+    {
+      "id": "vf-hd",
+      "language": "VF",
+      "quality": "HD",
+      "sources": [
+        {
+          "id": "src-e2",
+          "container": "MKV",
+          "stream_url": "http://kanstrimi.test/player/stream/src-e2?d=SALN42&e=1790880300&s=LkcXXbjd_W66iFqDSvUkpkY0QUfdeszIKExJvNlJQfw",
+          "provider": {
+            "id": "xtream",
+            "name": "provider.test",
+            "kind": "xtream"
+          },
+          "origin": "|FR| SERIES"
+        }
+      ]
+    }
+  ],
+  "resume_at": null,
+  "duration": 4680,
+  "next": null,
+  "episode": {
+    "id": "tmdb:tv:1396:s01e02",
+    "season": 1,
+    "number": 2,
+    "title": "Épisode 2"
+  }
+}

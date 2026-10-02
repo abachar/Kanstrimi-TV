@@ -26,7 +26,7 @@ export async function ensureImage(size: string, file: string): Promise<{ path: s
   const res = await fetch(`https://image.tmdb.org/t/p/${size}/${file}`, { signal: AbortSignal.timeout(20_000) });
   if (!res.ok) return null;
   await fs.mkdir(dir, { recursive: true });
-  const tmp = p + ".part";
+  const tmp = `${p}.part`;
   await fs.writeFile(tmp, Buffer.from(await res.arrayBuffer()));
   await fs.rename(tmp, p);
   return { path: p, contentType };
@@ -104,7 +104,7 @@ export async function ensureShelfImage(
     .jpeg({ quality: 86, mozjpeg: true })
     .toBuffer();
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(p + ".part", out);
-  await fs.rename(p + ".part", p);
+  await fs.writeFile(`${p}.part`, out);
+  await fs.rename(`${p}.part`, p);
   return { path: p, contentType: "image/jpeg" };
 }

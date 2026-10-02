@@ -166,12 +166,12 @@ export async function markWaitlistAvailable(): Promise<number> {
 }
 
 /** The app played 5 % of it: the entry leaves the hero and the Top Shelf for « Reprendre ». */
-export async function markWaitlistStarted(contentKey: string) {
+export async function markWaitlistStarted(contentKeys: string | string[]) {
   const w = schema.curationWaitlist;
   await db
     .update(w)
     .set({ startedAt: new Date() })
-    .where(and(eq(w.contentKey, contentKey), isNull(w.startedAt)));
+    .where(and(inArray(w.contentKey, typeof contentKeys === "string" ? [contentKeys] : contentKeys), isNull(w.startedAt)));
 }
 
 /** Keys available and not started, the latest available first: what the hero and the Top Shelf announce. */

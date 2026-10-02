@@ -1,9 +1,11 @@
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { env } from "@/shared";
-import { sameOriginForms } from "./csrf";
+import { describeError, env } from "@/shared";
+import { sameOriginWrites } from "./csrf";
 import { isLoggedIn } from "./session";
-import { toggleMenu } from "./layout";
+import { isMenuCollapsed, Menu, Toast, toggleMenu } from "./layout";
+import { page } from "./http";
 import { loginRoutes, logoutRoutes } from "./login/routes";
 import { dashboardRoutes, jobRoutes } from "./dashboard/routes";
 import { cachesRoutes } from "./caches/routes";
@@ -24,8 +26,34 @@ import { settingsRoutes } from "./settings/routes";
  * renders, `data.ts` holds the page's own queries. Shared rules come from `@/catalog`, `@/devices`, `@/providers/*`, `@/config`.
  */
 export const admin = new Hono();
+/** A page of the admin, the only place a `next` or `path` from the request may lead. */
+const ADMIN_PATH = /^\/admin(\/|\?|$)/;
 
-admin.use("*", sameOriginForms());
+admin.use("*", sameOriginWrites());
+
+/**
+ * An unexpected error, logged, then shown where it happened: a page of its own, or for an HTMX
+ * request a toast (htmx swaps no 5xx answer, the fragment would vanish without a word).
+ */
+admin.onError((err, c) => {
+  if (err instanceof HTTPException) return err.getResponse();
+  const msg = describeError(err);
+  console.error(`[admin] ${c.req.method} ${new URL(c.req.url).pathname} :`, err);
+  if (c.req.header("HX-Request")) {
+    c.header("HX-Retarget", "#toaster");
+    c.header("HX-Reswap", "beforeend");
+    return c.html(Toast({ title: "Erreur", msg }));
+  }
+  c.status(500);
+  return page(
+    c,
+    "Erreur",
+    <div class="alert" data-variant="destructive" role="alert">
+      <h2>Erreur</h2>
+      <section>{msg}</section>
+    </div>,
+  );
+});
 
 /** The stylesheet and Basecoat's script, built by `npm run css`; served before the login guard, the login page needs them. */
 admin.use("/assets/*", serveStatic({ root: "./dist/assets", rewriteRequestPath: (p) => p.replace(/^\/admin\/assets/, "") }));
@@ -44,11 +72,17 @@ admin.get("/dev/reload", (c) => {
   return c.body(null, 204);
 });
 
+/** htmx: the side menu rendered open, swapped in by the phone's menu button (the CSP forbids opening it from an inline script). */
+admin.get("/menu", (c) => {
+  const path = c.req.query("path") ?? "";
+  return c.html(Menu({ path: ADMIN_PATH.test(path) ? path : "/admin", collapsed: isMenuCollapsed(c), open: true }));
+});
+
 /** Fold / unfold the side menu, then back to the page the button was on (`next`: no Referer, secure headers say `no-referrer`). */
 admin.post("/menu", async (c) => {
   toggleMenu(c);
   const next = (await c.req.formData()).get("next");
-  return c.redirect(typeof next === "string" && /^\/admin(\/|\?|$)/.test(next) ? next : "/admin", 303);
+  return c.redirect(typeof next === "string" && ADMIN_PATH.test(next) ? next : "/admin", 303);
 });
 
 admin.route("/login", loginRoutes);

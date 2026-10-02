@@ -1,0 +1,59 @@
+{
+  "id": "live:fr-tf1",
+  "name": "TF1",
+  "number": 2,
+  "logo": "http://x/tf1-fhd.png",
+  "max_quality": "FHD",
+  "has_epg": true,
+  "is_favorite": false,
+  "versions": [
+    {
+      "id": "vf-fhd",
+      "language": "VF",
+      "quality": "FHD",
+      "sources": [
+        {
+          "id": "src-i8",
+          "container": "TS",
+          "stream_url": "http://kanstrimi.test/player/stream/src-i8?d=SALN42&e=1790880300&s=n_wYr-eosI4slo8vS6xN9twsS2xJDdPaLYzC8K5_oI0",
+          "provider": {
+            "id": "xtream",
+            "name": "provider.test",
+            "kind": "xtream"
+          },
+          "origin": "FRANCE FHD | TV"
+        }
+      ]
+    },
+    {
+      "id": "vf-hd",
+      "language": "VF",
+      "quality": "HD",
+      "sources": [
+        {
+          "id": "src-i7",
+          "container": "TS",
+          "stream_url": "http://kanstrimi.test/player/stream/src-i7?d=SALN42&e=1790880300&s=aCgtOE2IALJQMjKCYBlV_b-FBgDwhUdkBd2CjJxK0Cc",
+          "provider": {
+            "id": "xtream",
+            "name": "provider.test",
+            "kind": "xtream"
+          },
+          "origin": "FRANCE FHD | TV"
+        }
+      ]
+    }
+  ],
+  "now": {
+    "title": "Journal",
+    "start": "2026-10-01T18:00:00.000Z",
+    "end": "2026-10-01T19:00:00.000Z",
+    "overview": "Les titres du jour."
+  },
+  "next": {
+    "title": "Film du soir",
+    "start": "2026-10-01T19:00:00.000Z",
+    "end": "2026-10-01T21:00:00.000Z",
+    "overview": "Un film."
+  }
+}

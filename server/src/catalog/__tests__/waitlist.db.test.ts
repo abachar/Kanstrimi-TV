@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { db, schema, setItemHiddenManual } from "@/db";
+import { db, schema } from "@/db";
+import { setItemHiddenManual } from "@/catalog";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
 import { setSettings, verify } from "@/config";
 import { runGrouping, runNaming } from "../grouping/group";

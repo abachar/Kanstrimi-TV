@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { countItems, pageItems, itemCountByCategory } from "./data";
-import { categoriesOfKind, categoryByXtreamId, itemById } from "@/catalog";
-import { isCategoryHidden, setItemHiddenManual, setCategoryHiddenManual } from "@/db";
+import { categoriesOfKind, categoryByXtreamId, itemById, setCategoryHiddenManual, setItemHiddenManual } from "@/catalog";
+import { isCategoryHidden } from "@/db";
 import { searchCandidates, assignManual } from "@/catalog";
 import { page, form, checked } from "../http";
 import { KIND_TITLES } from "../labels";

@@ -7,7 +7,7 @@
     "root": ".."
   },
   "files": {
-    "includes": ["src/**", "scripts/**", "*.ts", "*.json", "!drizzle/**", "!dist/**"]
+    "includes": ["src/**", "scripts/**", "*.ts", "*.json", "!drizzle", "!dist"]
   },
   "formatter": {
     "enabled": true,
@@ -24,7 +24,19 @@
     }
   },
   "linter": {
-    "enabled": false
+    "enabled": true,
+    "rules": {
+      "a11y": {
+        "useButtonType": "off",
+        "useSemanticElements": "off",
+        "useAriaPropsForRole": "off",
+        "noAriaHiddenOnFocusable": "off",
+        "useAnchorContent": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off"
+      }
+    }
   },
   "assist": {
     "actions": {

@@ -99,7 +99,8 @@ function Entry({ e }: { e: WaitlistRow }) {
             <form
               method="post"
               action={`/admin/waitlist/${e.tmdbId}/remove`}
-              onsubmit={`return confirm('Retirer ${e.title.replace(/['"\\]/g, "")} de la liste ?')`}
+              hx-post={`/admin/waitlist/${e.tmdbId}/remove`}
+              hx-confirm={`Retirer ${e.title} de la liste ?`}
             >
               <button class="btn" data-variant="ghost" data-size="sm" title="Retirer" aria-label={`Retirer ${e.title}`}>
                 <Icon name="trash" />

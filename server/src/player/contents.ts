@@ -16,9 +16,12 @@ export const visibleContent = (ctx: RestContext, kind?: "live" | "vod" | "series
 /** « Nouveautés » holds the movies released in the last twelve months. */
 export const NEW_RELEASE_MONTHS = 12;
 
-/** Released within `NEW_RELEASE_MONTHS` of `today` (a parameter so tests can pin it). */
+/**
+ * Released within `NEW_RELEASE_MONTHS` of `today` (a parameter so tests can pin it). Written with the
+ * expression of `contents_release_idx` (undated = year 1, never new): a range of the index, not a scan.
+ */
 export const isNewRelease = (today = new Date()): SQL =>
-  sql`${schema.catalogContents.releaseDate} >= ${today.toISOString().slice(0, 10)}::date - make_interval(months => ${NEW_RELEASE_MONTHS})`;
+  sql`coalesce(${schema.catalogContents.releaseDate}, '0001-01-01'::date) >= ${today.toISOString().slice(0, 10)}::date - make_interval(months => ${NEW_RELEASE_MONTHS})`;
 
 export async function contentByKey(ctx: RestContext, key: string): Promise<Content | null> {
   const [c] = await db

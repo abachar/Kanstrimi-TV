@@ -111,9 +111,16 @@ export const Spinner = ({ label }: { label?: string }) => (
   </span>
 );
 
-/** A busy spinner htmx shows while a request runs (`.htmx-indicator` is styled by htmx itself). */
+/**
+ * Shown while htmx runs a request: htmx marks the indicator, or an element around it, with
+ * `.htmx-request` (its own `.htmx-indicator` style is off, the CSP forbids its inline `<style>`).
+ */
+export const BUSY =
+  "inline-flex opacity-0 transition-opacity duration-200 ease-in in-[.htmx-request]:opacity-100 [&.htmx-request]:opacity-100";
+
+/** A busy spinner htmx shows while a request runs (see `BUSY`). */
 export const Busy = ({ id, label }: { id?: string; label: string }) => (
-  <span id={id} class="htmx-indicator inline-flex text-muted-foreground" role="status" aria-label={label}>
+  <span id={id} class={`${BUSY} text-muted-foreground`} role="status" aria-label={label}>
     <Icon name="loader" cls="size-4 animate-spin" />
   </span>
 );

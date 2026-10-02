@@ -1,0 +1,44 @@
+{
+  "versions": [
+    {
+      "id": "vf-4k-dv",
+      "language": "VF",
+      "quality": "4K",
+      "dynamic_range": "DV",
+      "sources": [
+        {
+          "id": "src-i1",
+          "container": "MKV",
+          "stream_url": "http://kanstrimi.test/player/stream/src-i1?d=SALN42&e=1790880300&s=0dlEXXtH36mPSpp-6WByzq2pTOkB89J_Rcp-V2CeBW4",
+          "provider": {
+            "id": "xtream",
+            "name": "provider.test",
+            "kind": "xtream"
+          },
+          "origin": "|FR| FILMS 4K DV"
+        }
+      ]
+    },
+    {
+      "id": "vostfr-hd",
+      "language": "VOSTFR",
+      "quality": "HD",
+      "sources": [
+        {
+          "id": "src-i2",
+          "container": "MKV",
+          "stream_url": "http://kanstrimi.test/player/stream/src-i2?d=SALN42&e=1790880300&s=bhNQl_xhFX61YYEqYIlGIvMPk1-zClmWrDhXR4N-854",
+          "provider": {
+            "id": "xtream",
+            "name": "provider.test",
+            "kind": "xtream"
+          },
+          "origin": "|FR| FILMS VOST"
+        }
+      ]
+    }
+  ],
+  "resume_at": null,
+  "duration": 8160,
+  "next": null
+}

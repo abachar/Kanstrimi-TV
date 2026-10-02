@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { getSettings } from "@/config";
 import { createPairing, pollPairing, revokeDevice, isCode } from "@/devices";
 import { publicBaseUrl, type Env } from "./context";
-import { clientIp, fail, json, noContent } from "./http";
+import { clientIp } from "@/shared";
+import { fail, json, noContent } from "./http";
 
 /** `/devices`: pairing by code (no token), and a TV unpairing itself (token). */
 

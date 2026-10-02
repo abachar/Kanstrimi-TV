@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { getSignedCookie, setSignedCookie, deleteCookie } from "hono/cookie";
 import { env } from "@/shared";
-import { verify, isUnlocked } from "@/config";
+import { verify, verifyLogin, isUnlocked } from "@/config";
 
 const COOKIE = "kanstrimi_admin";
 const MAX_AGE = 60 * 60 * 24 * 30;
@@ -13,7 +13,7 @@ export async function isLoggedIn(c: Context) {
 }
 export async function login(c: Context, email: string, password: string): Promise<boolean> {
   // Password checked even on a wrong email, so the answer time does not reveal which one failed.
-  const ok = await verify(password);
+  const ok = await verifyLogin(password);
   if (email.trim().toLowerCase() !== env.adminEmail || !ok) return false;
   // Derived from the request rather than hard-coded so `npm run dev` keeps working over http.
   const secure = c.req.header("x-forwarded-proto") === "https" || new URL(c.req.url).protocol === "https:";

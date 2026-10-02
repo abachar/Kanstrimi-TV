@@ -19,7 +19,7 @@ streamRoutes.get("/:source", async (c) => {
   if (!src || !isCode(code) || !verifyStreamSignature(c.req.param("source"), code, exp, sig))
     return fail("unauthorized", "Lien de lecture invalide ou expiré");
   const device = await getDevice(code);
-  if (!device || device.status !== "approved") return fail("unauthorized", "Appareil dissocié");
+  if (device?.status !== "approved") return fail("unauthorized", "Appareil dissocié");
   if (!isUnlocked()) return fail("locked", "Serveur verrouillé : rouvrir l'application");
   const s = await getSettings();
   const target = await upstreamOf(src);

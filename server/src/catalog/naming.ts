@@ -182,7 +182,7 @@ const BARE_TAG = new RegExp(`(?:^|[\\s\\-|:])(${WORDS_ALT}|\\d{3,4}[pi]|4k|8k)(?
 const MARKET_PREFIX = /^(?:[[|(]\s*([A-Za-z]{2,7}(?:-[A-Za-z]{2,3})?)\s*[\]|)]\s*[-:|]?\s*)/;
 const BARE_PREFIX = /^([A-Z]{2,7})\s*[-:|]\s+/;
 const TZ_DELAY = /\|?\s*[-+]?\d{1,2}H\s*\|?/gi;
-const SEASON_TAG = /(?:^|[\s\-(\[|])(?:S(\d{1,2})|(?:Saison|Season|Temporada|Stagione)\s*(\d{1,2}))(?=$|[\s\-)\]|])/i;
+const SEASON_TAG = /(?:^|[\s\-([|])(?:S(\d{1,2})|(?:Saison|Season|Temporada|Stagione)\s*(\d{1,2}))(?=$|[\s\-)\]|])/i;
 
 /** Edition words → the label the app shows. Case ignored, accents optional. */
 const EDITIONS: [string, string][] = [
@@ -274,7 +274,7 @@ function extractYear(s: string): { s: string; year?: number } {
     // A bare year counts as a year only when something follows it or a separator precedes it:
     // "Blade Runner 2049" keeps its number, "Ballerina | 2023" and "Life | 2015 (UHD)" lose theirs.
     if ((after.length > 0 && !/^[\s\-.|:]*$/.test(after)) || /[-|:]\s*$/.test(before)) {
-      return { s: s.slice(0, m.index) + " " + s.slice(m.index + m[0].length), year: Number(m[1]) };
+      return { s: `${s.slice(0, m.index)} ${s.slice(m.index + m[0].length)}`, year: Number(m[1]) };
     }
     if (/[-|:]\s*$/.test(before)) return { s: s.slice(0, m.index), year: Number(m[1]) };
   }
@@ -339,7 +339,7 @@ export function parseName(raw: string, kind: Kind): ParsedName {
     const m = EDITION_TAG.exec(s);
     if (m) {
       edition = EDITIONS[m.slice(1).findIndex(Boolean) % EDITIONS.length][1];
-      s = s.slice(0, m.index) + " " + s.slice(m.index + m[0].length);
+      s = `${s.slice(0, m.index)} ${s.slice(m.index + m[0].length)}`;
     }
   }
 
@@ -371,9 +371,9 @@ export function parseName(raw: string, kind: Kind): ParsedName {
 }
 
 const ADULT_WORDS =
-  /(^|[\s|\[\](){}:./-])(XXX|ADULTES?|ADULT(?!\s*SWIM)|PORN(?:O)?|\+18|18\+|EROTI(?:QUES?|CS?|K)|HENTAI|FOR ADULTS|ONLY ?FANS|BRAZZERS|PLAYBOY)(?=$|[\s|\[\](){}:./-])/i;
+  /(^|[\s|[\](){}:./-])(XXX|ADULTES?|ADULT(?!\s*SWIM)|PORN(?:O)?|\+18|18\+|EROTI(?:QUES?|CS?|K)|HENTAI|FOR ADULTS|ONLY ?FANS|BRAZZERS|PLAYBOY)(?=$|[\s|[\](){}:./-])/i;
 /** Only an explicit bracketed tag: « xXx : Reactivated » and « Bienvenue dans l'âge adulte » are films. */
-const ADULT_TAG = /[\[({]\s*(XXX|18\+|\+18|ADULTES?|PORNO?)\s*[\])}]/i;
+const ADULT_TAG = /[[({]\s*(XXX|18\+|\+18|ADULTES?|PORNO?)\s*[\])}]/i;
 /** Does a provider category announce adult content? Words are enough there. */
 export function isAdultCategory(name: string): boolean {
   return ADULT_WORDS.test(stripAccents(name));

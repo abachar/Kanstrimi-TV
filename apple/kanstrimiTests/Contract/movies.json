@@ -1,0 +1,214 @@
+[
+  {
+    "id": "top10",
+    "name": "Top 10 de la semaine",
+    "total": 2,
+    "movies": [
+      {
+        "id": "tmdb:movie:604",
+        "kind": "movie",
+        "title": "Matrix Reloaded",
+        "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
+        "max_quality": "4K",
+        "dynamic_range": "DV",
+        "languages": [
+          "VF"
+        ],
+        "year": 2026,
+        "rating": 7.1,
+        "genres": [
+          "Action"
+        ],
+        "hint": null,
+        "added_at": "2026-09-28T18:30:00.000Z"
+      },
+      {
+        "id": "tmdb:movie:603",
+        "kind": "movie",
+        "title": "Matrix",
+        "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
+        "max_quality": "4K",
+        "dynamic_range": "DV",
+        "languages": [
+          "VF",
+          "VOSTFR"
+        ],
+        "year": 1999,
+        "rating": 8.2,
+        "genres": [
+          "Action",
+          "Science-Fiction"
+        ],
+        "hint": null,
+        "added_at": "2026-09-22T18:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "recent",
+    "name": "Nouveautés",
+    "total": 2,
+    "movies": [
+      {
+        "id": "tmdb:movie:604",
+        "kind": "movie",
+        "title": "Matrix Reloaded",
+        "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
+        "max_quality": "4K",
+        "dynamic_range": "DV",
+        "languages": [
+          "VF"
+        ],
+        "year": 2026,
+        "rating": 7.1,
+        "genres": [
+          "Action"
+        ],
+        "hint": null,
+        "added_at": "2026-09-28T18:30:00.000Z"
+      },
+      {
+        "id": "tmdb:movie:949",
+        "kind": "movie",
+        "title": "Heat",
+        "poster": "http://kanstrimi.test/img/w500/heat.jpg",
+        "languages": [
+          "VOSTFR"
+        ],
+        "progress": {
+          "position": 3000,
+          "duration": 10200
+        },
+        "year": 2026,
+        "rating": 7.9,
+        "genres": [
+          "Action",
+          "Crime"
+        ],
+        "hint": "VOSTFR seul",
+        "added_at": "2026-09-12T18:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "action",
+    "name": "Action",
+    "total": 3,
+    "movies": [
+      {
+        "id": "tmdb:movie:949",
+        "kind": "movie",
+        "title": "Heat",
+        "poster": "http://kanstrimi.test/img/w500/heat.jpg",
+        "languages": [
+          "VOSTFR"
+        ],
+        "progress": {
+          "position": 3000,
+          "duration": 10200
+        },
+        "year": 2026,
+        "rating": 7.9,
+        "genres": [
+          "Action",
+          "Crime"
+        ],
+        "hint": "VOSTFR seul",
+        "added_at": "2026-09-12T18:30:00.000Z"
+      },
+      {
+        "id": "tmdb:movie:604",
+        "kind": "movie",
+        "title": "Matrix Reloaded",
+        "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
+        "max_quality": "4K",
+        "dynamic_range": "DV",
+        "languages": [
+          "VF"
+        ],
+        "year": 2026,
+        "rating": 7.1,
+        "genres": [
+          "Action"
+        ],
+        "hint": null,
+        "added_at": "2026-09-28T18:30:00.000Z"
+      },
+      {
+        "id": "tmdb:movie:603",
+        "kind": "movie",
+        "title": "Matrix",
+        "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
+        "max_quality": "4K",
+        "dynamic_range": "DV",
+        "languages": [
+          "VF",
+          "VOSTFR"
+        ],
+        "year": 1999,
+        "rating": 8.2,
+        "genres": [
+          "Action",
+          "Science-Fiction"
+        ],
+        "hint": null,
+        "added_at": "2026-09-22T18:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "crime",
+    "name": "Crime",
+    "total": 1,
+    "movies": [
+      {
+        "id": "tmdb:movie:949",
+        "kind": "movie",
+        "title": "Heat",
+        "poster": "http://kanstrimi.test/img/w500/heat.jpg",
+        "languages": [
+          "VOSTFR"
+        ],
+        "progress": {
+          "position": 3000,
+          "duration": 10200
+        },
+        "year": 2026,
+        "rating": 7.9,
+        "genres": [
+          "Action",
+          "Crime"
+        ],
+        "hint": "VOSTFR seul",
+        "added_at": "2026-09-12T18:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "science-fiction",
+    "name": "Science-Fiction",
+    "total": 1,
+    "movies": [
+      {
+        "id": "tmdb:movie:603",
+        "kind": "movie",
+        "title": "Matrix",
+        "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
+        "max_quality": "4K",
+        "dynamic_range": "DV",
+        "languages": [
+          "VF",
+          "VOSTFR"
+        ],
+        "year": 1999,
+        "rating": 8.2,
+        "genres": [
+          "Action",
+          "Science-Fiction"
+        ],
+        "hint": null,
+        "added_at": "2026-09-22T18:30:00.000Z"
+      }
+    ]
+  }
+]
