@@ -38,7 +38,6 @@ export {
 } from "./pipeline";
 export { compileQuery, FIELDS as QUERY_FIELDS, QueryError, type CompileOptions, type Field as QueryField } from "./query";
 export { categoriesOfKind, categoryByXtreamId, contentById, contentIdByKey, itemById, variantsOfContent } from "./queries";
-export { validatePattern } from "./rules/engine";
 export {
   addStudio,
   listStudios,
@@ -54,7 +53,8 @@ export {
   type StudioSuggestion,
   studioSuggestions,
 } from "./studios";
-export { deleteRule, listRules, previewRule, type RulePreview, saveRule, setRuleEnabled } from "./rules/manage";
+export { checkRuleQuery, deleteRule, listRules, previewRule, type RulePreview, saveRule, setRuleEnabled } from "./rules/manage";
+export { rulesPending } from "./rules/apply";
 export {
   addToWaitlist,
   availableWaitlistKeys,

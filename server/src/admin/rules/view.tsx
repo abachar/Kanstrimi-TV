@@ -2,6 +2,7 @@ import type { FilterRule } from "@/db";
 import type { RulePreview as Preview } from "@/catalog";
 import { Title, Card, Options, Busy, Badge, Empty } from "../ui";
 import { KIND_LABELS } from "../labels";
+import { QueryHelp } from "../catalog/search-bar";
 
 export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Preview }) {
   // Every field id carries the rule id: the same form is rendered once per rule on the page.
@@ -20,8 +21,8 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
   return (
     <form method="post" action="/admin/rules" class="flex flex-col gap-4">
       {rule && <input type="hidden" name="id" value={rule.id} />}
-      <div class="grid grid-cols-2 gap-3 md:grid-cols-12">
-        <div class="field col-span-2 gap-2 md:col-span-4">
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-6">
+        <div class="field col-span-2 gap-2 md:col-span-3">
           <label class="label" for={`name-${uid}`}>
             Nom
           </label>
@@ -37,58 +38,42 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
             ["series", "Séries"],
           ]}
           cur={rule?.kind ?? "all"}
-          col="md:col-span-2"
-        />
-        <Sel
-          name="target"
-          label="Cible"
-          opts={[
-            ["name", "Nom"],
-            ["category", "Catégorie"],
-          ]}
-          cur={rule?.target ?? "name"}
-          col="md:col-span-2"
+          col="md:col-span-1"
         />
         <Sel
           name="action"
           label="Action"
           opts={[
-            ["hide", "Masquer ce qui matche"],
-            ["keep", "Ne garder que ce qui matche"],
+            ["hide", "Masquer"],
+            ["keep", "Garder seulement"],
           ]}
           cur={rule?.action ?? "hide"}
-          col="md:col-span-2"
+          col="md:col-span-1"
         />
-        <div class="field gap-2 md:col-span-2">
+        <div class="field gap-2 md:col-span-1">
           <label class="label" for={`position-${uid}`}>
             Position
           </label>
           <input class="input" id={`position-${uid}`} name="position" type="number" inputmode="numeric" value={rule?.position ?? 0} />
         </div>
-        <div class="field col-span-2 gap-2 md:col-span-8">
-          <label class="label" for={`pattern-${uid}`}>
-            Regex
+        <div class="field col-span-2 gap-2 md:col-span-5">
+          <label class="label" for={`query-${uid}`}>
+            Requête
           </label>
           <input
             class="input font-mono"
             type="text"
-            id={`pattern-${uid}`}
-            name="pattern"
-            value={rule?.pattern ?? ""}
-            placeholder="XXX|ADULT|^(?!.*\bFR\b)"
+            id={`query-${uid}`}
+            name="query"
+            value={rule?.query ?? ""}
+            placeholder="nom:/\|IT\|/, langue-vo:hindi…"
             autocapitalize="off"
             autocorrect="off"
             spellcheck={false}
             required
           />
         </div>
-        <div class="field gap-2 md:col-span-2">
-          <label class="label" for={`flags-${uid}`}>
-            Flags
-          </label>
-          <input class="input font-mono" type="text" id={`flags-${uid}`} name="flags" value={rule?.flags ?? "i"} autocapitalize="off" />
-        </div>
-        <label class="label flex items-center gap-2 self-end pb-2 md:col-span-2" for={`en-${uid}`}>
+        <label class="label flex items-center gap-2 self-end pb-2 md:col-span-1" for={`en-${uid}`}>
           <input class="input" type="checkbox" role="switch" name="enabled" id={`en-${uid}`} checked={rule?.enabled ?? true} />
           Activée
         </label>
@@ -114,29 +99,55 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
       <div id={pid} aria-live="polite">
         <RulePreview preview={preview} />
       </div>
+      <QueryHelp kind={rule?.kind ?? null} />
     </form>
   );
 }
 
 export function RulePreview({ preview }: { preview?: Preview }) {
   if (!preview) return <></>;
+  if ("error" in preview)
+    return (
+      <p class="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+        {preview.error}
+      </p>
+    );
   return (
     <div class="flex flex-col gap-2">
       <div class="text-sm font-medium">
-        {preview.total} correspondance(s){preview.total > preview.matches.length ? ` (${preview.matches.length} premières)` : ""}
+        {preview.total} variante(s) concernée(s){preview.total > preview.matches.length ? ` (${preview.matches.length} premières)` : ""}
       </div>
       <pre class="max-h-80 overflow-auto rounded-md bg-muted p-3 font-mono text-xs">{preview.matches.join("\n")}</pre>
     </div>
   );
 }
 
-export function RulesView({ rules }: { rules: FilterRule[] }) {
+/** Rules changed since the last `filters` step: the catalogue does not follow them yet. */
+function PendingBanner({ busy }: { busy: boolean }) {
+  return (
+    <div class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm" role="status">
+      <span class="min-w-0 flex-1 text-amber-300">
+        Règles modifiées depuis le dernier passage : le catalogue ne les suit pas encore. Elles s'appliquent à l'étape « Filtres », au
+        prochain traitement planifié ou maintenant.
+      </span>
+      <form method="post" action="/admin/jobs/pipeline">
+        <input type="hidden" name="from" value="filters" />
+        <button class="btn" data-variant="secondary" data-size="sm" disabled={busy}>
+          {busy ? "Traitement en cours…" : "Appliquer (passage à partir de « Filtres »)"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pending: boolean; busy: boolean }) {
   return (
     <>
       <Title
         t="Règles de filtrage"
-        sub="Regex JavaScript sur le nom ou la catégorie, réappliquées à chaque lecture de la source. Une règle « keep » ne garde que ce qui matche, pour son type."
+        sub="Une requête du langage de recherche par règle, appliquée à l'étape « Filtres » du traitement. La dernière règle qui correspond l'emporte ; une règle « garder » ne garde que ce qui correspond, pour son type."
       />
+      {pending && <PendingBanner busy={busy} />}
       <Card title="Nouvelle règle">
         <RuleForm />
       </Card>
@@ -147,8 +158,8 @@ export function RulesView({ rules }: { rules: FilterRule[] }) {
           <div class="grid grid-cols-12 gap-2 pb-2 text-xs text-muted-foreground max-md:hidden">
             <div class="col-span-1">#</div>
             <div class="col-span-2">Nom</div>
-            <div class="col-span-4">Regex</div>
-            <div class="col-span-2">Type · cible · action</div>
+            <div class="col-span-4">Requête</div>
+            <div class="col-span-2">Type · action</div>
             <div class="col-span-1">Actif</div>
           </div>
           {rules.length === 0 && <Empty title="Aucune règle." />}
@@ -167,13 +178,10 @@ export function RulesView({ rules }: { rules: FilterRule[] }) {
                     aria-label={`Règle « ${r.name} » active`}
                     hx-post={`/admin/rules/${r.id}/toggle`}
                     hx-trigger="change"
-                    hx-swap="none"
                   />
                 </div>
                 <div class="order-3 col-span-2 md:col-span-4">
-                  <code class="font-mono text-xs break-all">
-                    /{r.pattern}/{r.flags}
-                  </code>
+                  <code class="font-mono text-xs break-all">{r.query}</code>
                 </div>
                 <div class="order-4 col-span-2 flex flex-wrap gap-1">
                   <span class="md:hidden">
@@ -182,7 +190,6 @@ export function RulesView({ rules }: { rules: FilterRule[] }) {
                     </Badge>
                   </span>
                   <Badge>{KIND_LABELS[r.kind ?? "all"]}</Badge>
-                  <Badge>{r.target === "category" ? "catégorie" : "nom"}</Badge>
                   <Badge tone={r.action === "hide" ? "bad" : "ok"}>{r.action === "hide" ? "masque" : "garde"}</Badge>
                 </div>
                 {/* "Éditer" is the label of a hidden checkbox: its `peer-checked` shows the form below, without script. */}

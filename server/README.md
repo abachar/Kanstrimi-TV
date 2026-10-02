@@ -40,7 +40,7 @@ relancer seule (**Tâches → Lancer à partir de…**).
 | `merge` | copie brute → variantes du catalogue, par différence ; analyse des noms (titre, année, marché, langue, qualité, édition) |
 | `channels` | rattache les chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région |
 | `enrich` | matching TMDB des éléments en attente ; relit peu à peu les fiches anciennes |
-| `filters` | règles regex de masquage |
+| `filters` | règles de masquage (langage de filtre), une variante masquée par la dernière règle qui correspond |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles, arrivées de la liste d'attente |
 | `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf) |
 | `epg` | guide des programmes des chaînes visibles, tous les trois jours, l'EPG de chaque variante ; décalages horaires corrigés dans l'admin |
@@ -94,7 +94,10 @@ shared/     utilitaires ; n'importe jamais `@/`
 - **Langage de filtre** (`catalog/query/`, aide dans l'admin) : `genre:anim` contient, `genre:"animation"` égal,
   `a,b` l'un de, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; casse et accents ignorés. Une requête est une
   condition sur une variante (champs TMDB lus dans le cache de sa fiche), vérifiée champ par champ avant tout SQL, ses
-  valeurs toujours en paramètres. Sert aux recherches de l'admin, puis aux règles.
+  valeurs toujours en paramètres. Sert aux recherches de l'admin et aux règles.
+- **Règles** : une requête chacune ; la dernière qui correspond l'emporte, une règle « garder » fait de son type une liste
+  blanche, une catégorie dont toutes les variantes sont masquées l'est aussi. Enregistrer une règle ne l'applique pas
+  (trop lent) : `rules_pending` affiche un bandeau, l'étape `filters` les applique.
 - **Écrans Live, Films, Séries de l'admin** : « Catalogue » (par défaut) montre ce que l'app affiche, par les fonctions
   mêmes de `/player` : ses rangées repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; « Xtream », les catégories et flux du fournisseur. Tout mène à la fiche d'un contenu
   (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream et les corrections (TMDB, iptv-org,

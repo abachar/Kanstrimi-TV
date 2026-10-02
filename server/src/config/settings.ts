@@ -15,6 +15,7 @@ export const SETTING_KEYS = [
   "serve_adult", // "1" = adult-flagged contents are served to the apps; off by default
   "last_sync_at",
   "last_epg_at",
+  "rules_pending", // "1": a rule changed since the last `filters` step, the catalogue does not follow it yet
 ] as const;
 export type SettingKey = (typeof SETTING_KEYS)[number];
 

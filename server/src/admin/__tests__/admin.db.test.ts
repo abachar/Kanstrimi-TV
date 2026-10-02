@@ -217,31 +217,24 @@ describe("admin", () => {
     await post("/admin/catalog/category/1/visible?kind=vod", { visible: "on" });
   });
 
-  it("rules: create with a preview, then delete", async () => {
-    const preview = await post("/admin/rules/preview", { pattern: "vost", flags: "i", kind: "vod", target: "name" });
-    expect(await preview.text()).toContain("1 correspondance(s)");
+  it("rules: preview, save without applying, the banner to apply them, delete", async () => {
+    const preview = await post("/admin/rules/preview", { query: "vost", kind: "vod" });
+    expect(await preview.text()).toContain("1 variante(s) concernée(s)");
+    expect(await (await post("/admin/rules/preview", { query: "genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
     const created = await post("/admin/rules", {
       name: "VOST",
       kind: "vod",
-      target: "name",
-      pattern: "vost",
-      flags: "i",
+      query: "vost",
       action: "hide",
       enabled: "true",
       position: "0",
     });
-    expect(flash(created)).toContain("1 éléments");
-    const invalid = await post("/admin/rules", {
-      name: "Cassée",
-      kind: "vod",
-      target: "name",
-      pattern: "(",
-      flags: "i",
-      action: "hide",
-      position: "0",
-    });
-    expect(flash(invalid)).toContain("Regex invalide");
+    expect(flash(created)).toContain("à appliquer");
     const page = await html("/admin/rules");
+    expect(page).toContain("Règles modifiées depuis le dernier passage");
+    expect(page).toContain('name="from" value="filters"');
+    const invalid = await post("/admin/rules", { name: "Cassée", kind: "vod", query: "nom:/(/", action: "hide", position: "0" });
+    expect(flash(invalid)).toContain("Requête invalide");
     const id = /hx-post="\/admin\/rules\/(\d+)\/delete"/.exec(page)![1];
     expect((await post(`/admin/rules/${id}/delete`, {})).status).toBe(303);
     expect(await html("/admin/rules")).toContain("Aucune règle");

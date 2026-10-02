@@ -218,6 +218,20 @@
       "when": 1790929911989,
       "tag": "0030_region-country",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790941094973,
+      "tag": "0031_rule-query",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790941095399,
+      "tag": "0032_rule-query-drop-regex",
+      "breakpoints": true
     }
   ]
 }

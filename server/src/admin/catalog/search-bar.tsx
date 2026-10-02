@@ -50,8 +50,10 @@ const PLACEHOLDER: Record<Kind, string> = {
   live: "Rechercher : tf1, thème:sport, pays:maroc…",
 };
 
-function QueryHelp({ kind }: { kind: Kind }) {
-  const fields = QUERY_FIELDS.filter((f) => !f.kinds || f.kinds.includes(kind));
+/** `kind` null: a rule for every kind, every field shown, with the films' examples. */
+export function QueryHelp({ kind }: { kind: Kind | null }) {
+  const fields = QUERY_FIELDS.filter((f) => !kind || !f.kinds || f.kinds.includes(kind));
+  const k = kind ?? "vod";
   return (
     <details class="group text-sm">
       <summary class="w-fit cursor-pointer text-muted-foreground hover:text-foreground">
@@ -63,7 +65,7 @@ function QueryHelp({ kind }: { kind: Kind }) {
           <h3 class="font-semibold">Syntaxe</h3>
           <p class="text-muted-foreground">La casse et les accents ne comptent jamais.</p>
           <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">
-            {SYNTAX[kind].map(([ex, what]) => (
+            {SYNTAX[k].map(([ex, what]) => (
               <>
                 <dt>
                   <code class="font-mono text-xs">{ex}</code>
@@ -84,7 +86,7 @@ function QueryHelp({ kind }: { kind: Kind }) {
                 <dd class="text-muted-foreground">
                   {f.doc}
                   {f.type === "number" || f.type === "quality" ? " · nombre" : ""} ·{" "}
-                  <code class="font-mono text-xs">{typeof f.example === "string" ? f.example : f.example[kind]}</code>
+                  <code class="font-mono text-xs">{typeof f.example === "string" ? f.example : f.example[k]}</code>
                 </dd>
               </>
             ))}

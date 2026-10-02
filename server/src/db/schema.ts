@@ -20,7 +20,6 @@ const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
 
 export const kindEnum = pgEnum("content_kind", ["live", "vod", "series"]);
 export const ruleActionEnum = pgEnum("rule_action", ["hide", "keep"]);
-export const ruleTargetEnum = pgEnum("rule_target", ["name", "category"]);
 export const matchStatusEnum = pgEnum("match_status", ["pending", "matched", "unmatched", "manual", "skipped"]);
 export const syncStatusEnum = pgEnum("sync_status", ["running", "success", "error", "killed"]);
 
@@ -290,9 +289,8 @@ export const curationFilterRules = pgTable("curation_filter_rules", {
   name: text("name").notNull(),
   /** null = all kinds */
   kind: kindEnum("kind"),
-  target: ruleTargetEnum("target").default("name").notNull(),
-  pattern: text("pattern").notNull(),
-  flags: text("flags").default("i").notNull(),
+  /** What the rule matches, in the filter language (`catalog/query`): `nom:/\|IT\|/`, `langue-vo:hindi`… */
+  query: text("query").notNull(),
   action: ruleActionEnum("action").default("hide").notNull(),
   enabled: boolean("enabled").default(true).notNull(),
   position: integer("position").default(0).notNull(),
