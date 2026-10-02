@@ -189,7 +189,7 @@ private struct FocusBackdrop: View {
             if let shown {
                 // The rectangle sets the size: the image fills it without dictating it.
                 Rectangle().fill(.clear)
-                    .overlay { shown.image.resizable().scaledToFill().blur(radius: 50, opaque: true) }
+                    .overlay { shown.image.resizable().scaledToFill().blur(radius: 20, opaque: true) }
                     .clipped()
                     .opacity(0.5)
                     .id(shown.url)
