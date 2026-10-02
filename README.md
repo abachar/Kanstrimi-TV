@@ -55,5 +55,3 @@ Ce qui vient après la V1.3 (tvOS et iPhone), par version, puis les idées non p
     début du générique (rien aujourd'hui) et de récupérer les mots-clés à l'enrichissement.
   - **Notification de la liste d'attente** : une alerte push (APNs) sur l'iPhone, une pastille sur l'Apple TV, quand un film
     attendu arrive. Demande le programme Apple Developer payant.
-  - **Vidéo d'aperçu du Top Shelf** : tvOS la joue quand on s'attarde sur un élément du carrousel, mais il lui faut une vidéo
-    directe (HLS ou MP4). Les bandes-annonces TMDB sont sur YouTube (pas de lien direct) : à reprendre si une source directe se présente.
