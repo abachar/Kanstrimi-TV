@@ -40,6 +40,8 @@ Ce qui vient après la V1.2 (tvOS et iPhone), par version, puis les idées non p
 - Non planifiées :
   - **Écran Films façon Prime Video (tvOS)** : deux rangées de films seulement en bas de l'écran ; le haut est un hero
     (fond, logo ou titre, infos) qui affiche le film en focus et change à chaque déplacement.
+  - **Direct « Monde arabe » par pays** : découper ce marché (le préfixe `AR` du fournisseur) en pays, par exemple
+    d'après le suffixe de la chaîne iptv-org (`MBC1.ae`, `AlJazeera.qa`) quand elle est reconnue.
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la
     fiche d'un film ou d'une série, et proposés à la fin d'un film ou du dernier épisode connu d'une série.
