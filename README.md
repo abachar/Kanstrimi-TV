@@ -35,9 +35,11 @@ Le contrat entre les deux est le code : `server/src/player/types.ts` côté serv
 Ce qui vient après la V1.2 (tvOS et iPhone), par version, puis les idées non planifiées.
 
 - **V1.3** :
-  - **Fond qui suit le focus (tvOS, POC)** : un film ou une série qui prend le focus change le fond de l'écran pour son
-    affiche, pour éviter les grands aplats noirs.
+  - **Fond qui suit le focus (tvOS, POC)** : un film qui prend le focus change le fond de l'écran pour son fond TMDB
+    flouté, pour éviter les grands aplats noirs. POC sur l'écran Films, branche `poc/fond-focus`, mis de côté.
 - Non planifiées :
+  - **Écran Films façon Prime Video (tvOS)** : deux rangées de films seulement en bas de l'écran ; le haut est un hero
+    (fond, logo ou titre, infos) qui affiche le film en focus et change à chaque déplacement.
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **« Si vous avez aimé… »** : titres proches (recommandations TMDB croisées avec le catalogue) dans un panneau de la
     fiche d'un film ou d'une série, et proposés à la fin d'un film ou du dernier épisode connu d'une série.
