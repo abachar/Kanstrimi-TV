@@ -157,7 +157,7 @@ struct LiveView: View {
             }
             ForEach(markets, id: \.name) { market in
                 Section(market.name) {
-                    ForEach(market.groups) { g in menuItem(.group(g.id), name: theme(of: g), count: g.channels.count, icon: nil) }
+                    ForEach(market.groups) { g in menuItem(.group(g.id), name: g.themeName, count: g.channels.count, icon: nil) }
                 }
             }
         } label: {
@@ -184,20 +184,14 @@ struct LiveView: View {
         }
     }
 
-    /// The groups by market, in the server's order: "France · Sport" goes under "France".
+    /// The groups by country, in the server's order: "France · Sport" goes under "France".
     private var markets: [(name: String, groups: [ChannelGroup])] {
         var result: [(name: String, groups: [ChannelGroup])] = []
         for g in groups {
-            let market = g.name.components(separatedBy: " · ").first ?? g.name
+            let market = g.sectionName
             if let i = result.firstIndex(where: { $0.name == market }) { result[i].groups.append(g) } else { result.append((market, [g])) }
         }
         return result
-    }
-
-    /// "Sport" for "France · Sport"; the whole name when there is no market in it.
-    private func theme(of g: ChannelGroup) -> String {
-        let parts = g.name.components(separatedBy: " · ")
-        return parts.count > 1 ? parts.dropFirst().joined(separator: " · ") : g.name
     }
 
     private var selectedName: String {
@@ -218,7 +212,13 @@ struct LiveView: View {
                 if !recents.isEmpty { categoryRow(.recent, name: "Récentes", count: recents.count, icon: "clock") }
                 if !mostWatched.isEmpty { categoryRow(.mostWatched, name: "Les plus regardées", count: mostWatched.count, icon: "flame") }
                 if !favorites.isEmpty { categoryRow(.favorites, name: "Favoris", count: favorites.count, icon: "heart") }
-                ForEach(groups) { g in categoryRow(.group(g.id), name: g.name, count: g.channels.count, icon: nil) }
+                // A grey heading per country, its themes under it.
+                ForEach(markets, id: \.name) { market in
+                    Text(market.name.uppercased())
+                        .font(.caption.weight(.semibold)).foregroundStyle(Theme.secondary)
+                        .padding(.horizontal, 16).padding(.top, 22).padding(.bottom, 2)
+                    ForEach(market.groups) { g in categoryRow(.group(g.id), name: g.themeName, count: g.channels.count, icon: nil) }
+                }
             }
             .padding(.trailing, 10)
         }

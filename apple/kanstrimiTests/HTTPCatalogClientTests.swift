@@ -319,7 +319,15 @@ struct HTTPCatalogClientTests {
         #expect(home.rows.map(\.kind) == [.mostWatchedChannels, .other])
 
         answer(200, #"[{"id":"fr-generalistes","name":"France · Généralistes","channels":[{"id":"live:fr-tf1","name":"TF1","number":1,"logo":null,"has_epg":false,"is_favorite":false,"versions":[],"watched_rank":1},{"id":"live:fr-m6","name":"M6","number":6,"logo":null,"has_epg":false,"is_favorite":false,"versions":[]}]}]"#)
-        let channels = try await client.channels().flatMap(\.channels)
-        #expect(channels.map(\.watchedRank) == [1, nil])
+        let groups = try await client.channels()
+        #expect(groups.flatMap(\.channels).map(\.watchedRank) == [1, nil])
+        // An older server sends only the name: the country and the theme are split from it.
+        #expect(groups.map(\.sectionName) == ["France"])
+        #expect(groups.map(\.themeName) == ["Généralistes"])
+
+        answer(200, #"[{"id":"ma-sport","name":"Maroc · Sport","section":"Maroc","theme":"Sport","channels":[]}]"#)
+        let maroc = try await client.channels()
+        #expect(maroc.map(\.sectionName) == ["Maroc"])
+        #expect(maroc.map(\.themeName) == ["Sport"])
     }
 }

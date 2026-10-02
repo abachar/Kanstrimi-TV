@@ -23,13 +23,70 @@ export const channelKey = (name: string) =>
     .replace(NOISE, " ")
     .replace(/[^a-z0-9]+/g, "");
 
-/** Our markets are mostly countries; « ar » is the Arabic-speaking world, « uk » is GB. */
-const ARAB = ["SA", "EG", "AE", "QA", "LB", "KW", "BH", "OM", "JO", "IQ", "SY", "MA", "DZ", "TN", "LY", "YE", "PS", "SD", "MR"];
+/** Our markets are mostly countries; « ar » is a region, the Arabic-speaking world; « uk » is GB. */
+const REGIONS: Record<string, string[]> = {
+  ar: ["SA", "EG", "AE", "QA", "LB", "KW", "BH", "OM", "JO", "IQ", "SY", "MA", "DZ", "TN", "LY", "YE", "PS", "SD", "MR"],
+};
 export function countriesOf(market: string | null): string[] {
   if (!market) return [];
-  if (market === "ar") return ARAB;
+  if (REGIONS[market]) return REGIONS[market];
   if (market === "uk") return ["GB", "UK"];
   return [market.toUpperCase()];
+}
+
+/**
+ * The provider's sections of a region that name a country (« |AR| EGYPTE |AR| »); « INDEFINI » tells
+ * nothing. Any other section gathers a theme or a bouquet (« SPORTS AR. », « OSN MOVIES »).
+ */
+const SECTION_COUNTRIES: Record<string, string> = {
+  EGYPTE: "EG",
+  MAROC: "MA",
+  ALGERIE: "DZ",
+  TUNISIE: "TN",
+  LIBYE: "LY",
+  IRAK: "IQ",
+  LIBAN: "LB",
+  "AR. SAOUDI": "SA",
+  "ARABIE SAOUDITE": "SA",
+  "E.A.U.": "AE",
+  DUBAI: "AE",
+  JORDANIE: "JO",
+  PALESTINE: "PS",
+  SYRIE: "SY",
+  KOWEIT: "KW",
+  YEMEN: "YE",
+  BAHRAIN: "BH",
+  BAHREIN: "BH",
+  QATAR: "QA",
+  OMAN: "OM",
+  SOUDAN: "SD",
+  MAURITANIE: "MR",
+  "ROYAUME-UNI": "GB",
+  INDEFINI: "",
+};
+/** A country code, "" when the section tells nothing, null when it gathers a theme or a bouquet. */
+function sectionCountry(section: string | null): string | null {
+  if (!section) return "";
+  const label = stripAccents(section.replace(/\|[^|]*\|/g, ""))
+    .trim()
+    .toUpperCase();
+  return SECTION_COUNTRIES[label] ?? null;
+}
+
+/**
+ * The country a channel of a region is shown under: iptv-org's when it lies in the region (the
+ * provider files Dubai channels under « JORDANIE »), else the section's. None for a channel the
+ * provider files under a theme or a bouquet only: beIN is pan-Arab, not Qatari. Null outside a region.
+ */
+export function regionCountry(market: string | null, iptvId: string | null, sections: (string | null)[]): string | null {
+  const region = market ? REGIONS[market] : undefined;
+  if (!region) return null;
+  const named = sections.map(sectionCountry);
+  const countries = named.filter((c): c is string => !!c && region.includes(c));
+  if (!countries.length && named.includes(null)) return null;
+  const iptv = iptvId?.split(".")[1]?.split("@")[0]?.toUpperCase();
+  if (iptv && region.includes(iptv)) return iptv;
+  return countries[0] ?? null;
 }
 
 /**
@@ -198,10 +255,19 @@ type LiveRow = {
   title: string | null;
   market: string | null;
   nameTheme: string | null;
+  section: string | null;
   iptvId: string | null;
   iptvMatch: string | null;
 };
-type Resolved = { id: number; iptv: string | null; how: string | null; theme: string | null; adult: boolean; epgMismatch: boolean };
+type Resolved = {
+  id: number;
+  iptv: string | null;
+  how: string | null;
+  theme: string | null;
+  adult: boolean;
+  epgMismatch: boolean;
+  country: string | null;
+};
 
 /** A pinned channel: the provider's EPG id is wrong when it names another channel. */
 function pinnedMismatch(idx: Index, epgId: string | null, pinned: IndexedChannel | undefined, title: string): boolean {
@@ -213,7 +279,8 @@ function pinnedMismatch(idx: Index, epgId: string | null, pinned: IndexedChannel
 /**
  * What a live variant becomes: its channel (kept when pinned by hand), the theme and adult flag the
  * channel gives (`iptv_theme`, `iptv_adult`: the name's own stay in `name_*`, the final values are
- * derived), and whether its EPG id is to be ignored. `theme` stays null when it would only repeat the name's.
+ * derived), whether its EPG id is to be ignored, and its country in a regional market.
+ * `theme` stays null when it would only repeat the name's.
  */
 function resolve(idx: Index, it: LiveRow): Resolved {
   const epgId = (it.raw as { epg_channel_id?: string }).epg_channel_id ?? null;
@@ -231,13 +298,15 @@ function resolve(idx: Index, it: LiveRow): Resolved {
     how = ch ? r.match!.how : null;
     epgMismatch = r.epgMismatch;
   }
+  const iptv = ch?.id ?? (manual ? it.iptvId : null);
   return {
     id: it.id,
-    iptv: ch?.id ?? (manual ? it.iptvId : null),
+    iptv,
     how,
     theme: ch ? nullIfSame(mergedTheme(iptvTheme(ch.categories), it.nameTheme), it.nameTheme) : null,
     adult: Boolean(ch?.isNsfw || ch?.categories.includes("xxx")),
     epgMismatch,
+    country: regionCountry(it.market, iptv, [it.section]),
   };
 }
 
@@ -252,27 +321,31 @@ const liveRows = (where = eq(schema.catalogVariants.kind, "live")) =>
       title: schema.catalogVariants.cleanTitle,
       market: schema.catalogVariants.market,
       nameTheme: schema.catalogVariants.nameTheme,
+      section: schema.catalogVariants.section,
       iptvId: schema.catalogVariants.iptvId,
       iptvMatch: schema.catalogVariants.iptvMatch,
     })
     .from(schema.catalogVariants)
     .where(where);
 
-/** Only the variants whose channel, theme, flag or EPG verdict moved are written. */
+/** Only the variants whose channel, theme, flag, EPG verdict or country moved are written. */
 async function write(rows: Resolved[]) {
   for (let i = 0; i < rows.length; i += CHUNK) {
     checkCancelled();
     const part = rows.slice(i, i + CHUNK);
     await pg`
-      update catalog_variants i set iptv_id = u.iptv, iptv_match = u.how, iptv_theme = u.theme, iptv_adult = u.adult, epg_mismatch = u.mismatch
+      update catalog_variants i set iptv_id = u.iptv, iptv_match = u.how, iptv_theme = u.theme, iptv_adult = u.adult, epg_mismatch = u.mismatch,
+        country = u.country
       from (
-        select id, iptv, how, theme, adult::boolean as adult, mismatch::boolean as mismatch
+        select id, iptv, how, theme, adult::boolean as adult, mismatch::boolean as mismatch, country
         from unnest(${part.map((r) => r.id)}::int[], ${part.map((r) => r.iptv)}::text[], ${part.map((r) => r.how)}::text[],
-                    ${part.map((r) => r.theme)}::text[], ${part.map((r) => String(r.adult))}::text[], ${part.map((r) => String(r.epgMismatch))}::text[])
-          as x(id, iptv, how, theme, adult, mismatch)
+                    ${part.map((r) => r.theme)}::text[], ${part.map((r) => String(r.adult))}::text[], ${part.map((r) => String(r.epgMismatch))}::text[],
+                    ${part.map((r) => r.country)}::text[])
+          as x(id, iptv, how, theme, adult, mismatch, country)
       ) u
       where i.id = u.id
-        and (i.iptv_id, i.iptv_match, i.iptv_theme, i.iptv_adult, i.epg_mismatch) is distinct from (u.iptv, u.how, u.theme, u.adult, u.mismatch)`;
+        and (i.iptv_id, i.iptv_match, i.iptv_theme, i.iptv_adult, i.epg_mismatch, i.country)
+            is distinct from (u.iptv, u.how, u.theme, u.adult, u.mismatch, u.country)`;
   }
 }
 

@@ -193,6 +193,7 @@ export function ItemView({ item: it, category: cat, content, siblings, tmdb, tmd
               ["Saison", it.seasonHint, true],
               ["Section", it.section, true],
               ["Thème", it.theme, true],
+              ["Pays", it.country, true],
               ["Adulte", it.adult ? "oui" : null, true],
             ]}
             extra={

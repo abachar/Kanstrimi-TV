@@ -39,8 +39,6 @@ Ce qui vient après la V1.3 (tvOS et iPhone), par version, puis les idées non p
     flouté, pour éviter les grands aplats noirs. POC sur l'écran Films, branche `poc/fond-focus`, mis de côté.
   - **Écran Films façon Prime Video (tvOS)** : deux rangées de films seulement en bas de l'écran ; le haut est un hero
     (fond, logo ou titre, infos) qui affiche le film en focus et change à chaque déplacement.
-  - **Direct « Monde arabe » par pays** : découper ce marché (le préfixe `AR` du fournisseur) en pays, par exemple
-    d'après le suffixe de la chaîne iptv-org (`MBC1.ae`, `AlJazeera.qa`) quand elle est reconnue.
   - **Règles de filtre sur les données enrichies** : les règles de masquage ne portent aujourd'hui que sur les noms du
     fournisseur (regex sur catégorie ou élément) ; en ajouter sur les champs TMDB (genre, année, langue d'origine, note…).
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.

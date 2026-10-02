@@ -74,9 +74,19 @@ extension Channel {
     }
 }
 
-/// One entry of `GET /channels`: a provider category with its channels.
+/// One entry of `GET /channels`: a country and a theme (« Maroc · Sport ») with its channels.
 nonisolated struct ChannelGroup: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let name: String
+    /// « Maroc » and « Sport »; an older server sends only `name`, split here.
+    var section: String? = nil
+    var theme: String? = nil
     let channels: [Channel]
+
+    var sectionName: String { section ?? name.components(separatedBy: " · ").first ?? name }
+    var themeName: String {
+        if let theme { return theme }
+        let parts = name.components(separatedBy: " · ")
+        return parts.count > 1 ? parts.dropFirst().joined(separator: " · ") : name
+    }
 }

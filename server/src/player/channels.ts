@@ -95,6 +95,22 @@ const MARKET_NAMES: Record<string, string> = {
   dz: "Algérie",
   tn: "Tunisie",
   ar: "Monde arabe",
+  eg: "Égypte",
+  sa: "Arabie saoudite",
+  ae: "Émirats arabes unis",
+  qa: "Qatar",
+  lb: "Liban",
+  kw: "Koweït",
+  bh: "Bahreïn",
+  om: "Oman",
+  jo: "Jordanie",
+  iq: "Irak",
+  sy: "Syrie",
+  ly: "Libye",
+  ye: "Yémen",
+  ps: "Palestine",
+  sd: "Soudan",
+  mr: "Mauritanie",
   us: "États-Unis",
   uk: "Royaume-Uni",
   gb: "Royaume-Uni",
@@ -132,8 +148,9 @@ const themeRank = (t: string) => {
 /**
  * One group per market × theme (« France · Sport »), the themes coming from the provider's own
  * separator lines and thematic categories. A channel with several themes sits in each of them.
- * Markets with the most channels first; within a market, the known themes in their order, then
- * the provider's own labels alphabetically.
+ * A region's channels go under their country (« Maroc · Sport »), the pan-Arab ones stay under
+ * « Monde arabe ». Markets with the most channels first; within a market, the known themes in
+ * their order, then the provider's own labels alphabetically.
  */
 export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[]> {
   const [channels, items, favs, watchedKeys] = await Promise.all([
@@ -171,9 +188,10 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
     const playables = byContent.get(c.id) ?? [];
     if (!playables.length) continue;
     const wire = channelWire(ctx, c, playables, favs, epg, watchedRank.get(c.key));
+    const market = c.country?.toLowerCase() ?? c.market;
     for (const theme of c.themes.length ? c.themes : [LIVE_THEMES[0]]) {
-      const key = `${c.market ?? ""}|${theme}`;
-      const g = groups.get(key) ?? { market: c.market, theme, channels: [] };
+      const key = `${market ?? ""}|${theme}`;
+      const g = groups.get(key) ?? { market, theme, channels: [] };
       g.channels.push(wire);
       groups.set(key, g);
     }
@@ -188,7 +206,13 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
         themeRank(a.theme) - themeRank(b.theme) ||
         a.theme.localeCompare(b.theme),
     )
-    .map((g) => ({ id: `${g.market ?? "intl"}-${slug(g.theme)}`, name: `${marketName(g.market)} · ${g.theme}`, channels: g.channels }));
+    .map((g) => ({
+      id: `${g.market ?? "intl"}-${slug(g.theme)}`,
+      name: `${marketName(g.market)} · ${g.theme}`,
+      section: marketName(g.market),
+      theme: g.theme,
+      channels: g.channels,
+    }));
 }
 
 export async function channelSheet(ctx: RestContext, content: Content): Promise<ChannelWire> {

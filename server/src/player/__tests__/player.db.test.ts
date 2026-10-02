@@ -547,6 +547,7 @@ describe("channels", () => {
       ["fr-generalistes", "France · Généralistes", ["live:fr-tf1"]],
       ["fr-sport", "France · Sport", ["live:fr-bein-sports-1"]],
     ]);
+    expect(body[1]).toMatchObject({ section: "France", theme: "Sport" });
     const tf1 = body[0].channels[0];
     expect(tf1).toMatchObject({
       name: "TF1",

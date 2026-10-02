@@ -151,6 +151,8 @@ export const catalogVariants = pgTable(
     iptvMatch: text("iptv_match"),
     /** Live: the provider's EPG id names another channel (iptv-org says so): its guide is not this channel's. */
     epgMismatch: boolean("epg_mismatch").default(false).notNull(),
+    /** Live, regional market only (« ar »): the country it is shown under (`MA`), written by `channels`; null = the whole region. */
+    country: text("country"),
   },
   (t) => [
     uniqueIndex("catalog_variants_kind_xtream_idx").on(t.kind, t.xtreamId),
@@ -198,6 +200,8 @@ export const catalogContents = pgTable(
     status: text("status"),
     // Live
     market: text("market"),
+    /** Regional market only: its variants' country (`MA`), the app's group « Maroc · … »; null = the market's. */
+    country: text("country"),
     /** iptv-org's logo through `/img/logos` when the channel is known there, else the provider's URL. */
     logoUrl: text("logo_url"),
     iptvId: text("iptv_id"),

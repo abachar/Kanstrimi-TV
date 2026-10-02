@@ -450,7 +450,7 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
     update catalog_contents c set
       variant_count = a.n, added_at = a.added_at, visible = a.visible,
       max_quality_rank = a.max_q, languages = a.langs, dynamic_range = a.dr, themes = a.themes,
-      market = coalesce(c.market, a.market), category_xtream_id = a.cat, iptv_id = a.iptv, logo_url = a.logo_url,
+      market = coalesce(c.market, a.market), country = a.country, category_xtream_id = a.cat, iptv_id = a.iptv, logo_url = a.logo_url,
       channel_number = a.num, epg_channel_id = a.epg, adult = c.tmdb_adult or a.all_adult, updated_at = now()
     from (
       select g.*, coalesce(ic.logo_path, g.logo) as logo_url
@@ -468,6 +468,7 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
             when 2 then 'DV' when 1 then 'HDR'
           end as dr,
           (array_agg(market order by vis desc, quality_rank desc, position, id))[1] as market,
+          (array_agg(country order by vis desc, quality_rank desc, position, id) filter (where country is not null))[1] as country,
           (array_agg(nullif(raw->>'stream_icon', '') order by vis desc, quality_rank desc, position, id))[1] as logo,
           (array_agg(iptv_id order by vis desc, quality_rank desc, position, id) filter (where iptv_id is not null))[1] as iptv,
           (array_agg(category_xtream_id order by vis desc, quality_rank desc, position, id))[1] as cat,
@@ -476,7 +477,7 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
           -- app's guide per quality (player/guides.ts) does for the channel's first version.
           (array_agg(epg_id order by vis desc, has_epg desc, quality_rank desc, position, id) filter (where epg_id is not null))[1] as epg
         from (
-          select id, content_id, added_at, quality_rank, lang, dynamic_range, market, position, category_xtream_id, raw, theme, adult, iptv_id,
+          select id, content_id, added_at, quality_rank, lang, dynamic_range, market, country, position, category_xtream_id, raw, theme, adult, iptv_id,
             ${variantEpgId} as epg_id,
             exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = ${variantEpgId}) as has_epg,
             (${visibleItem}) as vis,
@@ -488,10 +489,10 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
       left join ${schema.iptvorgChannels} ic on ic.id = g.iptv
     ) a
     where a.content_id = c.id
-      and (c.variant_count, c.added_at, c.visible, c.max_quality_rank, c.languages, c.dynamic_range, c.themes, c.market,
+      and (c.variant_count, c.added_at, c.visible, c.max_quality_rank, c.languages, c.dynamic_range, c.themes, c.market, c.country,
            c.category_xtream_id, c.iptv_id, c.logo_url, c.channel_number, c.epg_channel_id, c.adult)
           is distinct from
-          (a.n, a.added_at, a.visible, a.max_q, a.langs, a.dr, a.themes, coalesce(c.market, a.market),
+          (a.n, a.added_at, a.visible, a.max_q, a.langs, a.dr, a.themes, coalesce(c.market, a.market), a.country,
            a.cat, a.iptv, a.logo_url, a.num, a.epg, c.tmdb_adult or a.all_adult)`);
   return markWaitlistAvailable();
 }

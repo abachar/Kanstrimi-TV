@@ -38,7 +38,7 @@ relancer seule (**Tâches → Lancer à partir de…**).
 |---|---|
 | `source` | copie brute des listes Xtream ; refuse une réponse vide ou un catalogue qui fond de moitié (panne du fournisseur) |
 | `merge` | copie brute → variantes du catalogue, par différence ; analyse des noms (titre, année, marché, langue, qualité, édition) |
-| `channels` | rattache les chaînes du direct à iptv-org : thème, logo, drapeau adulte |
+| `channels` | rattache les chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région |
 | `enrich` | matching TMDB des éléments en attente ; relit peu à peu les fiches anciennes |
 | `filters` | règles regex de masquage |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles, arrivées de la liste d'attente |
@@ -106,6 +106,10 @@ shared/     utilitaires ; n'importe jamais `@/`
   jusqu'à 5 % de lecture.
 - **Carrousel de l'accueil** : le Top Shelf sans « Reprendre » (`shelfPicks`), six au plus ; sans rien à y mettre, les
   dernières nouveautés. `trending` refuse une liste vide et garde celle de la semaine précédente. Un film mal reconnu (clé `fallback:`) ne se détecte qu'une fois son match TMDB corrigé.
+- **Groupes du direct** : pays × thème (« France · Sport », `section` et `theme` dans `/channels`). Un marché
+  régional (`ar`) se découpe par pays : l'étape `channels` écrit `country` (`regionCountry`) : pays iptv-org s'il est
+  dans la région, sinon la section du fournisseur ; une chaîne rangée sous un thème ou un bouquet seulement (beIN,
+  OSN) reste sous « Monde arabe ».
 - **Top Shelf** : tvOS garde les images par adresse ; changer leur mise en page = changer `SHELF_LAYOUT` et `?layout=`.
 
 ## Déploiement

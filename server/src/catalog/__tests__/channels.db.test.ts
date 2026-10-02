@@ -6,7 +6,7 @@ import { db, schema } from "@/db";
 import { env } from "@/shared";
 import { resetDb, closeDb, seedItems } from "@/test/db";
 import { pickLogo } from "@/providers/iptv";
-import { channelKey, countriesOf, iptvTheme, mergedTheme, nameKeys, runChannels, setIptvMatch } from "../channels";
+import { channelKey, countriesOf, iptvTheme, mergedTheme, nameKeys, regionCountry, runChannels, setIptvMatch } from "../channels";
 import { runNaming, runGrouping } from "../grouping/group";
 
 const CHANNELS = [
@@ -67,6 +67,17 @@ describe("iptv-org helpers", () => {
     expect(countriesOf("ar")).toContain("AE");
     expect(countriesOf("uk")).toContain("GB");
   });
+  it("shows a region's channel under its country: iptv-org's in the region, else the section's, none for a theme", () => {
+    expect(regionCountry("ar", "NoorDubai.ae", ["|AR| JORDANIE |AR|"])).toBe("AE"); // the provider misfiles it
+    expect(regionCountry("ar", "2M.ma", ["|AR| MAROC |AR|"])).toBe("MA");
+    expect(regionCountry("ar", "ArabicaTV.nl", ["|AR| MAROC |AR|"])).toBe("MA"); // iptv-org outside the region
+    expect(regionCountry("ar", null, ["|AR| AR. SAOUDI |AR|"])).toBe("SA");
+    expect(regionCountry("ar", "SharjahTV.ae", ["|AR| ROYAUME-UNI |AR|"])).toBe("AE");
+    expect(regionCountry("ar", null, ["|AR| INDEFINI |AR|", null])).toBeNull();
+    expect(regionCountry("ar", "beINSports1.qa", ["|AR| SPORTS AR. |AR|"])).toBeNull(); // pan-Arab
+    expect(regionCountry("ar", "OSNMovies.ae", ["|AR| OSN MOVIES |AR|", "|AR| QATAR |AR|"])).toBe("AE");
+    expect(regionCountry("fr", "TF1.fr", ["|FR| FRANCE FHD |FR|"])).toBeNull(); // not a region
+  });
   it("takes the most telling category, and keeps a specific provider theme over « general »", () => {
     expect(iptvTheme(["general", "news"])).toBe("Infos");
     expect(iptvTheme(["xxx"])).toBeNull();
@@ -105,6 +116,8 @@ describe("runChannels", () => {
     expect(by("7")).toMatchObject({ iptvId: "ERTU1.eg", iptvMatch: "name", epgMismatch: true });
     expect(by("8")).toMatchObject({ iptvId: null, epgMismatch: false });
     expect(by("9")).toMatchObject({ iptvId: "AlResalah.sa", iptvMatch: "epg", theme: "Religion" });
+    // In the Arab world, iptv-org's country; outside a region, none.
+    expect([by("4").country, by("7").country, by("9").country, by("1").country]).toEqual(["AE", "EG", "SA", null]);
   });
 
   it("gives the content iptv-org's logo through this server, the provider's otherwise", async () => {
@@ -114,6 +127,7 @@ describe("runChannels", () => {
     // A contradicted EPG id gives way to the iptv-org id for the guide.
     const [ertu] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.iptvId, "ERTU1.eg"));
     expect(ertu.epgChannelId).toBe("ERTU1.eg");
+    expect(ertu.country).toBe("EG"); // the app's « Égypte · … »
     // …unless the provider files programmes under its own id: then its guide stays.
     await db.insert(schema.catalogEpgProgrammes).values({
       channelId: "DubaiAlOula.ae",

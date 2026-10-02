@@ -114,7 +114,11 @@ export type ChannelWire = {
   /** 1 = the most watched over the last 30 days (« Les plus regardées », 10 channels at most); absent otherwise. */
   watched_rank?: number;
 };
-export type ChannelGroupWire = { id: string; name: string; channels: ChannelWire[] };
+/**
+ * A country (« Maroc », the market name) and a theme (« Sport »); `name` = « Maroc · Sport », kept
+ * for the apps that split it themselves.
+ */
+export type ChannelGroupWire = { id: string; name: string; section: string; theme: string; channels: ChannelWire[] };
 
 export type HomeRow = {
   id: string;
