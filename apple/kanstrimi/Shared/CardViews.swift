@@ -123,7 +123,8 @@ struct PosterCardLabel: View {
     }
 }
 
-/// Landscape 16:9 card for the "Reprendre" row: version badge, progress, remaining time.
+/// Landscape 16:9 card for the "Reprendre" row, all on the picture: version badges at the top, then
+/// the title's logo (or the title), the episode and the time left, and the progress. Nothing under it.
 struct ResumeCard: View {
     @Environment(\.metrics) private var metrics
     let card: Card
@@ -132,36 +133,72 @@ struct ResumeCard: View {
 
     var body: some View {
         let width = width ?? metrics.resumeWidth
+        let pad = width * 0.04
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                ZStack(alignment: .topLeading) {
-                    ArtView(id: card.id, url: card.backdrop ?? card.poster)
-                        .frame(width: width, height: width * 9 / 16)
-                    HStack(spacing: 6) {
-                        if let q = card.qualityBadge { Badge(q) }
-                        if let l = card.languages.first { Badge(l.rawValue) }
+            ZStack(alignment: .bottomLeading) {
+                ArtView(id: card.id, url: card.backdrop ?? card.poster)
+                    .frame(width: width, height: width * 9 / 16)
+                    .overlay {
+                        // The lower half darkens under the title and the time left.
+                        LinearGradient(stops: [.init(color: .clear, location: 0.35), .init(color: .black.opacity(0.85), location: 1)],
+                                       startPoint: .top, endPoint: .bottom)
                     }
-                    .padding(12)
-                    VStack {
-                        Spacer()
-                        ProgressBar(fraction: card.progress?.fraction ?? 0).padding(.horizontal, 16).padding(.bottom, 14)
-                    }
+                HStack(spacing: 6) {
+                    if let q = card.qualityBadge { Badge(q) }
+                    if let l = card.languages.first { Badge(l.rawValue) }
                 }
-                .frame(width: width, height: width * 9 / 16)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                Text(card.title).font(.callout.weight(.semibold)).lineLimit(1)
-                Text(meta).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
+                .padding(pad)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                VStack(alignment: .leading, spacing: pad * 0.6) {
+                    CardTitle(title: card.title, logo: card.logo, box: CGSize(width: width * 0.6, height: width * 0.14))
+                    Text(meta).font(metrics.compact ? .caption2.weight(.semibold) : .caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.85)).lineLimit(1)
+                    ProgressBar(fraction: card.progress?.fraction ?? 0, height: metrics.compact ? 4 : 6)
+                }
+                .padding(pad)
             }
-            .frame(width: width)
+            .frame(width: width, height: width * 9 / 16)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(card.title), \(meta)")
         }
         .cardButtonStyle()
     }
 
+    /// « S2 · É4 · 1 h 08 restantes », « 1 h 42 restantes ».
     private var meta: String {
         var parts: [String] = []
-        if let e = card.episode { parts.append(e.code) } else { parts.append(card.kind.label) }
+        if let e = card.episode { parts.append(e.code) }
         if let p = card.progress { parts.append(Format.remaining(p.remaining)) }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// A title on a card's picture: its logo when TMDB has one, held in `box`; the text meanwhile and otherwise.
+private struct CardTitle: View {
+    let title: String
+    let logo: URL?
+    let box: CGSize
+
+    var body: some View {
+        if let logo {
+            AsyncImage(url: logo) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit()
+                        .frame(maxWidth: box.width, maxHeight: box.height, alignment: .bottomLeading)
+                        .shadow(color: .black.opacity(0.6), radius: 6)
+                } else {
+                    text
+                }
+            }
+        } else {
+            text
+        }
+    }
+
+    private var text: some View {
+        Text(title).font(.system(size: box.height * 0.55, weight: .heavy)).foregroundStyle(.white)
+            .lineLimit(2).minimumScaleFactor(0.7).shadow(color: .black.opacity(0.6), radius: 6)
     }
 }
 

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { db, schema, type Content } from "@/db";
+import { db, schema } from "@/db";
 import { hasTmdbKey, isEpisodeKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
@@ -8,7 +8,7 @@ import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./con
 import { getProgress, resumeKeys, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
-import { artBlock, baseCard, gridCard, progressWire, sheetCard } from "./cards";
+import { artBlock, baseCard, gridCard, imageUrl, progressWire } from "./cards";
 import { versionsOf, versionsSummary } from "./versions";
 import { type ShelfPick, shelfPicks, TOP_SHELF_SIZE } from "./top-shelf";
 import type { Card, Home, HomeHero, HomeRow } from "./types";
@@ -92,8 +92,14 @@ async function heroOf(
   const { content: c, episode: e } = p;
   const versions = versionsOf(ctx, e ? e.playables : (await variantsOf(c)).playables);
   return {
-    // The title's logo too: the slide draws it in place of the title, as the sheet does.
-    card: { ...gridCard(ctx, c, progress), ...artBlock(ctx, c), ...versionsSummary(versions) },
+    // The title's logo too: the slide draws it in place of the title, as the sheet does. The iPhone
+    // shows the poster full width: a larger one than the rows'.
+    card: {
+      ...gridCard(ctx, c, progress),
+      poster: imageUrl(ctx.baseUrl, "w780", c.posterPath) || null,
+      ...artBlock(ctx, c),
+      ...versionsSummary(versions),
+    },
     tagline: `${c.kind === "series" ? "Série" : "Film"} · ${p.context}`.toLocaleUpperCase("fr-FR"),
     overview: e?.overview || c.overview,
     runtime: e ? e.runtime : c.runtime,
@@ -123,14 +129,15 @@ async function resumeCardsOf(ctx: RestContext, resume: Progress[]): Promise<Card
         .where(and(inArray(schema.catalogEpisodes.key, episodeKeys), visibleContent(ctx)))
     : [];
   const byKey = new Map<string, Card>();
-  for (const c of movies) byKey.set(c.key, { ...baseCard(ctx, c), backdrop: backdropOf(ctx, c), progress: null });
+  // The card draws the title's logo on its picture: no title under it.
+  for (const c of movies) byKey.set(c.key, { ...baseCard(ctx, c), ...artBlock(ctx, c), progress: null });
   for (const { e, c } of episodes) {
     // Badges of the series: the episode's own sources are not loaded here.
     byKey.set(e.key, {
       ...baseCard(ctx, c),
       id: e.key,
       kind: "episode",
-      backdrop: backdropOf(ctx, c),
+      ...artBlock(ctx, c),
       progress: null,
       episode: { season: e.season, number: e.number, title: e.title },
     });
@@ -140,4 +147,3 @@ async function resumeCardsOf(ctx: RestContext, resume: Progress[]): Promise<Card
     return card ? [{ ...card, progress: progressWire(p, false) }] : [];
   });
 }
-const backdropOf = (ctx: RestContext, c: Content) => sheetCard(ctx, c, { providerCategory: null, rawTitle: null }).backdrop ?? null;

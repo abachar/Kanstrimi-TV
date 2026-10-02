@@ -664,6 +664,8 @@ describe("GET /home", () => {
     ]);
     const resume = body.rows[0].cards;
     expect(resume.map((c: { id: string }) => c.id)).toEqual(["tmdb:tv:1396:s01e02", "tmdb:movie:603"]);
+    // Logos too: the card draws the title on its picture (null when TMDB has none).
+    expect(resume[1]).toHaveProperty("logo");
     expect(resume[0]).toMatchObject({
       kind: "episode",
       title: "Vincenzo",
@@ -1151,6 +1153,8 @@ describe("GET /top-shelf", () => {
     ]);
     // Each slide carries the title's logo, drawn in place of the title.
     expect(heroes[0].card.logo).toBe("http://kanstrimi.test/img/w500/v-logo.png");
+    // The iPhone shows the poster full width: a larger size than the rows'.
+    expect(heroes[1].card.poster).toMatch(/\/img\/w780\//);
     // Lecture plays the episode, with its own versions.
     expect(heroes[0].episode).toEqual({ season: 1, number: 2, title: "Épisode 2" });
     expect(heroes[0].versions.length).toBeGreaterThan(0);

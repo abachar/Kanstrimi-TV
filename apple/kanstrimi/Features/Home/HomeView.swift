@@ -125,7 +125,8 @@ struct HomeView: View {
     /// Ma liste and the sheet. A tap on the picture opens the sheet too.
     private func phoneHero(_ hero: HomeHero, model: HomeModel) -> some View {
         ZStack(alignment: .bottom) {
-            ArtView(id: hero.card.id, url: hero.card.backdrop)
+            // The poster, made for a screen held upright; the backdrop when there is none.
+            ArtView(id: hero.card.id, url: hero.card.poster ?? hero.card.backdrop)
                 .frame(maxWidth: .infinity).frame(height: metrics.heroHeight)
                 .id(hero.playID).transition(.opacity)
                 .overlay {

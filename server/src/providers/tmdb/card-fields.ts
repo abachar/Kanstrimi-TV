@@ -108,15 +108,21 @@ export function cardFields(mediaType: "movie" | "tv", d: TmdbDetails, lang: stri
 
 /**
  * The logo that reads as the displayed title: one in the card's language, else an English one
- * when the title is the English title (« Inception »), else one without language. Best voted
- * first; PNG only (an SVG does not draw on the Apple TV). None fits = the title stays text.
+ * when the title is the English title (« Inception ») or the original title of an English work
+ * (« UNABOMBER », whose only US alternative is a working title), else one without language when the work is
+ * itself French or English: TMDB files under « no language » logos written in the original one
+ * (« УНАБОМБЕР »). Best voted first; PNG only (an SVG does not draw on the Apple TV). None fits =
+ * the title stays text.
  */
 export function logoOf(d: TmdbDetails, lang: string, title: string): string | null {
   const logos = (d.images?.logos ?? []).filter((l) => /\.png$/i.test(l.file_path));
   const code = lang.split("-")[0];
   const english = englishTitleOf(d);
-  const sameAsEnglish = english !== null && similarityKey(english) === similarityKey(title);
-  for (const fits of [code, ...(sameAsEnglish && code !== "en" ? ["en"] : []), null]) {
+  const original = typeof d.original_language === "string" ? d.original_language : null;
+  const originalTitle = original === "en" && typeof d.original_title === "string" ? d.original_title : null;
+  const sameAsEnglish = [english, originalTitle].some((t) => t !== null && similarityKey(t) === similarityKey(title));
+  const neutral = original === code || original === "en" ? [null] : [];
+  for (const fits of [code, ...(sameAsEnglish && code !== "en" ? ["en"] : []), ...neutral]) {
     const best = logos.filter((l) => (l.iso_639_1 ?? null) === fits).sort((a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0))[0];
     if (best) return best.file_path;
   }
