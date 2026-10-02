@@ -10,41 +10,45 @@ import {
   runLogPath,
   isTaskRunning,
   killRun,
-  runningSteps,
-  getLastError,
   pipelineSteps,
   TASKS,
   RETENTION_DAYS,
+  type Task,
 } from "@/catalog";
 import { back, page } from "../http";
-import { TasksView, RunView, RunLog, RUNS_PER_PAGE } from "./view";
+import { TasksView, TaskCard, RunView, RunLog, RUNS_PER_PAGE } from "./view";
 
 /** `/admin/tasks`: the scheduled tasks and the runs; `/admin/tasks/:id`: one run and its log file. */
 export const tasksRoutes = new Hono();
+
+/** What a task card shows: its schedule, its last runs, whether it runs now, where it may start from. */
+async function taskStates(tasks: readonly Task[]) {
+  const [s, steps, byTask] = await Promise.all([getSettings(), pipelineSteps(), lastRunsByTask(tasks, 5)]);
+  const cron = { pipeline: s.sync_cron, epg: s.epg_cron };
+  return tasks.map((t) => ({ task: t, cron: cron[t], runs: byTask[t], busy: isTaskRunning(t), steps: t === "pipeline" ? steps : [] }));
+}
 
 tasksRoutes.get("/", async (c) => {
   const task = c.req.query("task") ?? "";
   const errors = c.req.query("errors") === "1";
   const pageNo = Math.max(1, Number(c.req.query("page")) || 1);
-  const [s, steps, byTask, list] = await Promise.all([
-    getSettings(),
-    pipelineSteps(),
-    lastRunsByTask(TASKS, 5),
+  const [tasks, list] = await Promise.all([
+    taskStates(TASKS),
     recentRuns({ limit: RUNS_PER_PAGE, offset: (pageNo - 1) * RUNS_PER_PAGE, task: task || undefined, errors }),
   ]);
-  const cron = { pipeline: s.sync_cron, epg: s.epg_cron };
   return page(
     c,
     "Tâches",
-    <TasksView
-      tasks={TASKS.map((t) => ({ task: t, cron: cron[t], runs: byTask[t], busy: isTaskRunning(t), steps: t === "pipeline" ? steps : [] }))}
-      runs={list.runs}
-      total={list.total}
-      filter={{ task, errors, page: pageNo }}
-      jobs={{ running: runningSteps(), lastError: getLastError() }}
-      retentionDays={RETENTION_DAYS}
-    />,
+    <TasksView tasks={tasks} runs={list.runs} total={list.total} filter={{ task, errors, page: pageNo }} retentionDays={RETENTION_DAYS} />,
   );
+});
+
+/** One task card alone: polled by the card itself while its task runs. */
+tasksRoutes.get("/card/:task", async (c) => {
+  const task = TASKS.find((t) => t === c.req.param("task"));
+  if (!task) return c.notFound();
+  const [state] = await taskStates([task]);
+  return c.html(<TaskCard {...state} />);
 });
 
 const runOf = async (id: string) => (/^\d+$/.test(id) ? runById(Number(id)) : null);

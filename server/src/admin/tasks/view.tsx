@@ -4,7 +4,6 @@ import { SHRINK_HINT } from "@/providers/xtream";
 import { fmt, duration, ago, describeCron, nextCronRun } from "../format";
 import { Badge, Card, Empty, Options, Pagination, Status, Table, Title } from "../ui";
 import { STAT_LABELS, TRIGGER_LABELS, jobLabel, taskLabel } from "../labels";
-import { JobsStatus, type JobsState } from "../dashboard/jobs";
 
 /** Stats as readable chips; zeros and unknown keys stay, but the raw JSON never shows. */
 function StatChips({ stats }: { stats: Record<string, unknown> | null }) {
@@ -83,56 +82,68 @@ function KillButton({ run }: { run: { id: number } }) {
 /** `steps`: those a run may start from, the first being the whole task. */
 type TaskState = { task: Task; cron: string; runs: RunWithSteps[]; busy: boolean; steps: readonly Step[] };
 
-/** A scheduled task: its schedule, its last run, its recent history, and a way to run it now. */
+/**
+ * A scheduled task: its schedule, its last run, its recent history, and a way to run it now.
+ * While it runs, the card reloads itself: the steps move on, « Lancer » comes back at the end.
+ */
 export function TaskCard({ task, cron, runs, busy, steps }: TaskState) {
   const last = runs[0];
   const next = nextCronRun(cron);
   return (
-    <Card title={taskLabel(task)} hint={`${describeCron(cron)}${next ? ` · prochain passage ${when(next)}` : ""}`}>
-      <div class="flex flex-col gap-3">
-        {last ? (
-          <a href={`/admin/tasks/${last.id}`} class="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted">
-            <div class="flex items-center justify-between gap-2 text-sm">
-              <span>
-                Dernier passage {ago(last.startedAt.toISOString())} · {trigger(last.trigger)}
-              </span>
-              <Status status={last.status} />
-            </div>
-            <div class="text-xs text-muted-foreground tabular-nums">
-              {when(last.startedAt)} · {took(last)}
-            </div>
-            {last.message && <div class="break-words text-sm text-destructive">{last.message}</div>}
-            <StepBadges steps={last.steps} />
-          </a>
-        ) : (
-          <Empty title="Jamais lancé" />
-        )}
-        {last?.status === "running" && (
-          <div class="flex justify-end">
-            <KillButton run={last} />
-          </div>
-        )}
-        <Dots runs={runs} />
-        {/* On its own line: the step picker is as wide as its longest option. */}
-        <form method="post" action={`/admin/jobs/${task}`} id={`launch-${task}`} class="flex items-center justify-end gap-2">
-          {steps.length > 1 && (
-            <select name="from" class="select min-w-0 flex-1" data-size="sm" aria-label="Lancer à partir de l'étape" disabled={busy}>
-              <Options opts={steps.map((s, i) => [i ? s : "", i ? `À partir de : ${jobLabel(s)}` : "Toutes les étapes"] as const)} cur="" />
-            </select>
+    <div
+      id={`task-${task}`}
+      class="grid"
+      {...(busy ? { "hx-get": `/admin/tasks/card/${task}`, "hx-trigger": "every 3s", "hx-swap": "outerHTML" } : {})}
+    >
+      <Card title={taskLabel(task)} hint={`${describeCron(cron)}${next ? ` · prochain passage ${when(next)}` : ""}`}>
+        <div class="flex flex-col gap-3">
+          {last ? (
+            <a href={`/admin/tasks/${last.id}`} class="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted">
+              <div class="flex items-center justify-between gap-2 text-sm">
+                <span>
+                  Dernier passage {ago(last.startedAt.toISOString())} · {trigger(last.trigger)}
+                </span>
+                <Status status={last.status} />
+              </div>
+              <div class="text-xs text-muted-foreground tabular-nums">
+                {when(last.startedAt)} · {took(last)}
+              </div>
+              {last.message && <div class="break-words text-sm text-destructive">{last.message}</div>}
+              <StepBadges steps={last.steps} />
+            </a>
+          ) : (
+            <Empty title="Jamais lancé" />
           )}
-          <button class="btn shrink-0" data-variant="outline" data-size="sm" disabled={busy}>
-            {busy ? "En cours…" : "Lancer maintenant"}
-          </button>
-        </form>
-        {/* Offered only after a run refused a catalogue that shrank by half: a real cleanup goes through by hand. */}
-        {task === "pipeline" && last?.status === "error" && last.message?.includes(SHRINK_HINT) && (
-          <label class="label justify-end gap-2 text-xs font-normal">
-            <input type="checkbox" class="input" name="accept_shrink" value="1" form={`launch-${task}`} disabled={busy} />
-            Accepter la baisse du catalogue au prochain lancement
-          </label>
-        )}
-      </div>
-    </Card>
+          {last?.status === "running" && (
+            <div class="flex justify-end">
+              <KillButton run={last} />
+            </div>
+          )}
+          <Dots runs={runs} />
+          {/* On its own line: the step picker is as wide as its longest option. */}
+          <form method="post" action={`/admin/jobs/${task}`} id={`launch-${task}`} class="flex items-center justify-end gap-2">
+            {steps.length > 1 && (
+              <select name="from" class="select min-w-0 flex-1" data-size="sm" aria-label="Lancer à partir de l'étape" disabled={busy}>
+                <Options
+                  opts={steps.map((s, i) => [i ? s : "", i ? `À partir de : ${jobLabel(s)}` : "Toutes les étapes"] as const)}
+                  cur=""
+                />
+              </select>
+            )}
+            <button class="btn shrink-0" data-variant="outline" data-size="sm" disabled={busy}>
+              {busy ? "En cours…" : "Lancer maintenant"}
+            </button>
+          </form>
+          {/* Offered only after a run refused a catalogue that shrank by half: a real cleanup goes through by hand. */}
+          {task === "pipeline" && last?.status === "error" && last.message?.includes(SHRINK_HINT) && (
+            <label class="label justify-end gap-2 text-xs font-normal">
+              <input type="checkbox" class="input" name="accept_shrink" value="1" form={`launch-${task}`} disabled={busy} />
+              Accepter la baisse du catalogue au prochain lancement
+            </label>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }
 
@@ -206,21 +217,13 @@ export function RunsTable({ runs }: { runs: RunWithSteps[] }) {
 export type TasksFilter = { task: string; errors: boolean; page: number };
 export const RUNS_PER_PAGE = 30;
 
-export function TasksView(p: {
-  tasks: TaskState[];
-  runs: RunWithSteps[];
-  total: number;
-  filter: TasksFilter;
-  jobs: JobsState;
-  retentionDays: number;
-}) {
+export function TasksView(p: { tasks: TaskState[]; runs: RunWithSteps[]; total: number; filter: TasksFilter; retentionDays: number }) {
   const f = p.filter;
   const link = (page: number) =>
     `/admin/tasks?${new URLSearchParams({ ...(f.task && { task: f.task }), ...(f.errors && { errors: "1" }), page: String(page) })}`;
   return (
     <>
       <Title t="Tâches" sub={`Tâches planifiées, leurs passages et leurs logs, gardés ${p.retentionDays} jours`} />
-      <JobsStatus {...p.jobs} />
       <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
         {p.tasks.map((t) => (
           <TaskCard {...t} />

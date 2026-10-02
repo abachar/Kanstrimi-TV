@@ -102,6 +102,9 @@ describe("admin", () => {
     expect(logs).toContain("Groupement"); // the lone step run of beforeAll
     expect(logs).toContain("Traitement complet");
     expect(logs).toContain("Jamais lancé");
+    expect(logs).not.toContain('id="jobs-status"'); // the cards tell what runs, no second status above them
+    expect(await html("/admin/tasks/card/epg")).toContain('id="task-epg"');
+    expect((await call("/admin/tasks/card/nope")).status).toBe(404);
     const runId = /href="\/admin\/tasks\/(\d+)"/.exec(logs)![1];
     expect(await html(`/admin/tasks/${runId}`)).toContain("── group : terminé");
     expect((await call(`/admin/tasks/${runId}/raw`)).headers.get("content-disposition")).toContain(".log");
@@ -109,6 +112,7 @@ describe("admin", () => {
     // A run left « running » (its end never written): « Arrêter » closes it as killed.
     const stuck = await startRun("pipeline", "manual");
     expect(await html(`/admin/tasks/${stuck.id}`)).toContain(`/admin/tasks/${stuck.id}/kill`);
+    expect(await html("/admin/tasks/card/pipeline")).not.toContain("hx-get"); // shown running, but nothing runs it: no polling
     expect(flash(await post(`/admin/tasks/${stuck.id}/kill`, {}))).toContain("Passage marqué arrêté");
     const stopped = await html(`/admin/tasks/${stuck.id}`);
     expect(stopped).toContain("Arrêté");
