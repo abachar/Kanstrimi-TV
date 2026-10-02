@@ -38,8 +38,8 @@ Ce qui vient après la V1.3 (tvOS et iPhone), par version, puis les idées non p
 
 - **V1.4 « Si vous avez aimé… »** : des titres proches tirés des recommandations TMDB, croisées avec le catalogue visible.
   - **Données** : table `tmdb_recommendations` (type, id TMDB, ids recommandés dans l'ordre, date), remplie à la demande
-    par un appel `append_to_response=recommendations` et valable 7 jours. Le croisement avec le catalogue se fait à
-    chaque lecture, le pipeline ne change pas.
+    par un appel `/recommendations` et valable 7 jours. Le croisement avec le catalogue se fait à chaque lecture, le
+    pipeline ne change pas.
   - **Fiche** d'un film ou d'une série : une rangée de posters, 20 titres au plus, récupérée à l'ouverture.
   - **Lecteur** : un panneau de 5 suggestions détaillées (titre, année, durée, résumé) ; une sélection lance la lecture.
   - **Fin d'un film** : la carte « À suivre » propose le film suivant de la saga s'il est sorti après, sinon la première

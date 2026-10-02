@@ -37,6 +37,7 @@ export {
   type Task,
 } from "./pipeline";
 export { compileQuery, FIELDS as QUERY_FIELDS, QueryError, type CompileOptions, type Field as QueryField } from "./query";
+export { cachedRecommendedKeys, recommendedKeys } from "./recommendations";
 export { categoriesOfKind, categoryByXtreamId, contentById, contentIdByKey, itemById, variantsOfContent } from "./queries";
 export {
   addStudio,

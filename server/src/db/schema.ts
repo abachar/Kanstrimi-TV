@@ -538,6 +538,22 @@ export const tmdbTrending = pgTable(
   (t) => [primaryKey({ columns: [t.mediaType, t.rank] })],
 );
 
+/**
+ * TMDB's recommendations of a title (« Si vous avez aimé… »), fetched on demand: when its sheet opens, when it plays,
+ * when it seeds the home row. Ids only, in TMDB's order; crossed with the catalogue at every read, so a title that
+ * arrives shows up at once. Fetched again past a week.
+ */
+export const tmdbRecommendations = pgTable(
+  "tmdb_recommendations",
+  {
+    mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
+    tmdbId: integer("tmdb_id").notNull(),
+    ids: integer("ids").array().default([]).notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.mediaType, t.tmdbId] })],
+);
+
 export type Variant = typeof catalogVariants.$inferSelect;
 export type Episode = typeof catalogEpisodes.$inferSelect;
 export type Device = typeof appDevices.$inferSelect;

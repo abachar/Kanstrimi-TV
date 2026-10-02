@@ -6,16 +6,23 @@ import { fail, json, noContent } from "./http";
 import { contentByKey, keyExists, variantsOf } from "./contents";
 import { deleteProgress, getProgress, isResumable, setFinished, setProgress } from "./progress";
 import { versionsOf, versionsSummary } from "./versions";
-import { episodeWire, loadEpisodes } from "./episodes";
+import { currentEpisode, episodeWire, loadEpisodes } from "./episodes";
+import { suggestions } from "./related";
 import { addWatchTime } from "./watch-time";
 import type { Playback } from "./types";
 
 /**
- * `/playback/{id}`: versions, resume point and next episode; `PUT …/progress`: the position watched;
+ * `/playback/{id}`: versions, resume point and next episode (a series: of the episode it resumes on);
+ * `GET …/suggestions`: « Si vous avez aimé… » and what follows a movie or a series; `PUT …/progress`: the position watched;
  * `DELETE …/progress`: out of « Reprendre »; `PUT …/watched`: seen or not, a whole season on a series id;
  * `POST …/watch-time`: seconds of a channel played, for « Chaînes les plus regardées ».
  */
 export const playbackRoutes = new Hono<Env>();
+
+playbackRoutes.get("/:id/suggestions", async (c) => {
+  const s = await suggestions(c.get("ctx"), c.req.param("id"));
+  return s ? json(s) : fail("not_found", "Contenu introuvable");
+});
 
 playbackRoutes.get("/:id", async (c) => {
   const key = c.req.param("id");
@@ -121,7 +128,14 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
   if (!content) return null;
   const versions = versionsOf(ctx, (await variantsOf(content)).playables);
   if (content.kind === "live") return { versions, resume_at: null, duration: null, next: null };
-  if (content.kind === "series") return null;
+  if (content.kind === "series") {
+    const { items, categoryName } = await variantsOf(content);
+    await ensureEpisodes(content, items, ctx.tmdbLang);
+    const episodes = await loadEpisodes(content, items, categoryName);
+    const e = currentEpisode(episodes, await getProgress(episodes.map((e) => e.key))) ?? episodes[0];
+    const p = e ? await playback(ctx, e.key) : null;
+    return p && { ...p, episode: { id: e.key, season: e.season, number: e.number, title: e.title } };
+  }
   const p = (await getProgress([key])).get(key);
   return {
     versions,

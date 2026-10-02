@@ -80,6 +80,8 @@ export type Card = {
   current_episode?: EpisodeRef | null;
   /** Movie sheet: its saga, present only when two of its movies are visible. */
   saga?: SagaRef;
+  /** Sheet: « Si vous avez aimé… », TMDB's recommendations in the catalogue, nothing already seen, twenty at most. */
+  related?: Card[];
 };
 
 /** A TMDB collection with at least two visible movies. `id` = `saga:<TMDB collection id>`. */
@@ -122,7 +124,7 @@ export type ChannelGroupWire = { id: string; name: string; section: string; them
 
 export type HomeRow = {
   id: string;
-  kind: "resume" | "most_watched_channels" | "recent_movies" | "recent_series" | "favorites" | "collection";
+  kind: "resume" | "most_watched_channels" | "recommended" | "recent_movies" | "recent_series" | "favorites" | "collection";
   title: string;
   cards: Card[];
 };
@@ -188,7 +190,26 @@ export type NextEpisode = {
   dynamic_range?: DynamicRange;
   still: string | null;
 };
-export type Playback = { versions: Version[]; resume_at: number | null; duration: number | null; next: NextEpisode | null };
+/**
+ * `/playback/{id}`. On a series id, the episode to play (the one in progress, else the first not seen) is
+ * resolved and named in `episode`; the app reports progress on `episode.id`.
+ */
+export type Playback = {
+  versions: Version[];
+  resume_at: number | null;
+  duration: number | null;
+  next: NextEpisode | null;
+  episode?: EpisodeRef & { id: string };
+};
+
+/**
+ * `/playback/{id}/suggestions`, asked once playback has started (TMDB may take a few seconds). `related`:
+ * the player's « Si vous avez aimé… » panel, five at most, nothing already seen; a series plays through
+ * `/playback/{series id}`. `next`: what follows a movie, or the last known episode of a series, nothing
+ * seen or in progress: the saga's next movie, else TMDB's first recommendation; null when there is none.
+ */
+export type Suggestions = { related: Card[]; next: Suggestion | null };
+export type Suggestion = { card: Card; reason: "saga" | "recommended" };
 
 export type SearchResults = { query: string; best: Card | null; movies: Card[]; series: Card[]; live: Card[] };
 

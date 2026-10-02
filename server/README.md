@@ -121,6 +121,11 @@ shared/     utilitaires ; n'importe jamais `@/`
   régional (`ar`) se découpe par pays : l'étape `channels` écrit `country` (`regionCountry`) : pays iptv-org s'il est
   dans la région, sinon la section du fournisseur ; une chaîne rangée sous un thème ou un bouquet seulement (beIN,
   OSN) reste sous « Monde arabe ».
+- **« Si vous avez aimé… »** (`catalog/recommendations.ts`, `player/related.ts`) : recommandations TMDB (`/recommendations`,
+  une page) demandées à la volée (ouverture d'une fiche, lecture, graines de l'accueil en fond), gardées 7 jours dans
+  `tmdb_recommendations` (ids seuls), croisées avec le catalogue visible à chaque lecture. Jamais un titre vu ; la suite
+  d'un titre écarte aussi ceux en cours, l'accueil aussi « Ma liste ». `/playback/{id}/suggestions` : panneau du lecteur
+  et suite (saga d'abord) ; `/playback/{série}` lit l'épisode où elle reprend.
 - **Top Shelf** : tvOS garde les images par adresse ; changer leur mise en page = changer `SHELF_LAYOUT` et `?layout=`.
 
 ## Déploiement

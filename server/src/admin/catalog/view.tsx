@@ -32,8 +32,8 @@ export function CatalogShell({ qy, children }: { qy: CatalogQuery; children?: un
               const current = qy.view === view;
               return (
                 <a
-                  class="btn"
-                  data-variant={current ? "secondary" : "outline"}
+                  class={current ? "btn bg-secondary" : "btn"}
+                  data-variant="outline"
                   data-size="sm"
                   {...(current ? { "aria-current": "true" } : {})}
                   href={catalogLink(qy, { view, page: 1 })}
@@ -49,6 +49,7 @@ export function CatalogShell({ qy, children }: { qy: CatalogQuery; children?: un
     </>
   );
 }
+
 
 /** Filters, then the foldable categories (rows loaded on demand), or the flat, paginated hits of a search. */
 export function CatalogView({

@@ -5,3 +5,4 @@ export { describeError, isUnreachable } from "./errors";
 export { progress } from "./progress";
 export { redactText, redactUrl, requestLogger } from "./http-log";
 export { searchText, similarity, similarityKey, slug, stripAccents, stripOrnaments } from "./text";
+export { within } from "./within";

@@ -145,6 +145,10 @@ export class TmdbClient {
   trending(mediaType: "movie" | "tv", page: number) {
     return this.get<{ results: { id: number }[] }>(`/trending/${mediaType}/week`, { page });
   }
+  /** The first page (20 titles) of TMDB's recommendations for a title: the same kind, in its order. */
+  recommendations(mediaType: "movie" | "tv", id: number) {
+    return this.get<{ results?: { id: number }[] }>(`/${mediaType}/${id}/recommendations`, { page: 1 });
+  }
   tvSeason(id: number, season: number) {
     return this.get<{ episodes?: Record<string, unknown>[] }>(`/tv/${id}/season/${season}`);
   }

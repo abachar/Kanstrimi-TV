@@ -4,12 +4,13 @@ import { ensureEpisodes, parseKey, refreshCardOnOpen } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
 import { contentByKey, variantsOf } from "./contents";
-import { getProgress, isResumable } from "./progress";
+import { getProgress } from "./progress";
 import { favoriteSet } from "./favorites";
 import { progressWire, hintOf, sheetCard } from "./cards";
 import { versionsOf, versionsSummary } from "./versions";
 import { sagaRefOf } from "./sagas";
-import { loadEpisodes, seasonsWire, seriesVersions, type EpisodeRow } from "./episodes";
+import { sheetRelated } from "./related";
+import { currentEpisode, loadEpisodes, seasonsWire, seriesVersions, type EpisodeRow } from "./episodes";
 import type { Card, EpisodeRef, Version } from "./types";
 
 /** `/movies/{id}`, `/series/{id}`: the whole sheet in one call. */
@@ -21,8 +22,11 @@ export function sheetRoutes(kind: "vod" | "series") {
     if (!parsed || parsed.kind !== kind || parsed.episode !== undefined) return fail("not_found", "Contenu introuvable");
     let content = await contentByKey(c.get("ctx"), key);
     if (!content) return fail("not_found", "Contenu introuvable");
-    if (await refreshCardOnOpen(content)) content = (await contentByKey(c.get("ctx"), key)) ?? content;
-    return json(kind === "vod" ? await movieSheet(c.get("ctx"), content) : await seriesSheet(c.get("ctx"), content));
+    // TMDB is asked for the card and the recommendations at once, each within its own wait.
+    const [refreshed, related] = await Promise.all([refreshCardOnOpen(content), sheetRelated(c.get("ctx"), content)]);
+    if (refreshed) content = (await contentByKey(c.get("ctx"), key)) ?? content;
+    const sheet = kind === "vod" ? await movieSheet(c.get("ctx"), content) : await seriesSheet(c.get("ctx"), content);
+    return json({ ...sheet, related });
   });
   return routes;
 }
@@ -50,7 +54,7 @@ export async function seriesSheet(ctx: RestContext, content: Content): Promise<C
   const [progress, favs] = await Promise.all([getProgress(episodes.map((e) => e.key)), favoriteSet()]);
   const seasons = await seasonsWire(ctx, content, episodes, progress);
   const versions = seriesVersions(ctx, episodes);
-  const current = episodes.find((e) => isResumable(progress.get(e.key))) ?? episodes.find((e) => !progress.get(e.key));
+  const current = currentEpisode(episodes, progress);
   const best = items[0];
   const summary = versionsSummary(versions);
   return {

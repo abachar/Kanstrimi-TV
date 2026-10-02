@@ -4,7 +4,7 @@ import { seasonsOf } from "@/catalog";
 import { versionsOf, type Playable } from "./versions";
 import { imageUrl, progressWire } from "./cards";
 import type { RestContext } from "./context";
-import type { Progress } from "./progress";
+import { isResumable, type Progress } from "./progress";
 import type { EpisodeWire, SeasonWire, Version } from "./types";
 
 export type EpisodeRow = Episode & { playables: Playable[] };
@@ -52,6 +52,11 @@ export async function loadEpisodes(
     byEp.set(s.episodeId, list);
   }
   return eps.map((e) => ({ ...e, playables: byEp.get(e.id) ?? [] })).filter((e) => e.playables.length > 0);
+}
+
+/** The episode a series resumes on: the one in progress, else the first never started. */
+export function currentEpisode(episodes: EpisodeRow[], progress: Map<string, Progress>): EpisodeRow | undefined {
+  return episodes.find((e) => isResumable(progress.get(e.key))) ?? episodes.find((e) => !progress.get(e.key));
 }
 
 export function episodeWire(ctx: RestContext, e: EpisodeRow, progress?: Progress): EpisodeWire {

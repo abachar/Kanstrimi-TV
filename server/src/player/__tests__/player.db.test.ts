@@ -627,13 +627,25 @@ describe("playback and progress", () => {
     });
     expect((await get("/playback/tmdb:tv:1396:s02e01")).body.next).toBeNull();
     expect((await get("/playback/tmdb:tv:1396:s09e09")).status).toBe(404);
-    expect((await get("/playback/tmdb:tv:1396")).status).toBe(404);
+    // Before the last episode the next one follows; without TMDB, nothing related.
+    expect((await get("/playback/tmdb:tv:1396:s01e02/suggestions")).body).toEqual({ related: [], next: null });
+    expect((await get("/playback/tmdb:tv:1396/suggestions")).status).toBe(404);
+    expect((await get("/series/tmdb:tv:1396")).body.related).toEqual([]);
+    // A series id plays the episode it resumes on: the first one before anything was watched.
+    expect((await get("/playback/tmdb:tv:1396")).body).toMatchObject({
+      episode: { id: "tmdb:tv:1396:s01e01", season: 1, number: 1 },
+      next: { id: "tmdb:tv:1396:s01e02" },
+    });
     await call("/playback/tmdb:tv:1396:s01e01/progress", { method: "PUT", body: JSON.stringify({ position: 4700, duration: 4800 }) });
     await call("/playback/tmdb:tv:1396:s01e02/progress", { method: "PUT", body: JSON.stringify({ position: 1140, duration: 4680 }) });
     const sheet = (await get("/series/tmdb:tv:1396")).body;
     expect(sheet.current_episode).toEqual({ season: 1, number: 2, title: "Épisode 2" });
     expect(sheet.progress).toEqual({ position: 1140, duration: 4680, finished: false });
     expect(sheet.seasons[0].episodes[0].progress).toEqual({ position: 4700, duration: 4800, finished: true });
+    expect((await get("/playback/tmdb:tv:1396")).body).toMatchObject({
+      episode: { id: "tmdb:tv:1396:s01e02", season: 1, number: 2, title: "Épisode 2" },
+      resume_at: 1140,
+    });
   });
 
   it("channel: versions only", async () => {

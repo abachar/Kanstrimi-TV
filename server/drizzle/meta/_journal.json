@@ -232,6 +232,13 @@
       "when": 1790941095399,
       "tag": "0032_rule-query-drop-regex",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790951304842,
+      "tag": "0033_recommendations",
+      "breakpoints": true
     }
   ]
 }
