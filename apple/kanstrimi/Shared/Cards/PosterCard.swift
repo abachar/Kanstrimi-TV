@@ -2,12 +2,11 @@ import SwiftUI
 
 /// A 2:3 poster with, drawn on it, the facts, the badges, the hint, the progress and a check once seen: a movie, a
 /// series, a saga. No text under it: the poster carries the title (`ArtView` draws it until the artwork loads, or
-/// instead of it). Without `action` it is a bare label, for the grids that put their own button around it.
+/// instead of it). As wide as its parent makes it (`posterWidth` in a row, the column in a grid). Without `action` it
+/// is a bare label, for the grids that put their own button around it.
 struct PosterCard: View {
     @Environment(\.metrics) private var metrics
     let item: ContentItem
-    /// Defaults to the platform's poster width.
-    var width: CGFloat? = nil
     var action: (() -> Void)? = nil
 
     var body: some View {
@@ -19,7 +18,7 @@ struct PosterCard: View {
     }
 
     private var label: some View {
-        PosterFrame(id: item.id, url: item.poster, title: item.title, width: width) {
+        PosterFrame(id: item.id, url: item.poster, title: item.title) {
             if metrics.compact {
                 // Phone: the facts only, the hint as a small tag in the top corner.
                 if let hint = item.hint {

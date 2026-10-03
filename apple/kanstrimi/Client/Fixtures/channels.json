@@ -17,6 +17,7 @@
        "id": "vf-4k",
        "language": "VF",
        "quality": "4K",
+       "chip": "4K",
        "sources": [
         {
          "id": "src-i5",
@@ -35,6 +36,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i2",
@@ -53,6 +55,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i3",
@@ -71,6 +74,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i4",
@@ -100,6 +104,7 @@
        "id": "vf-4k",
        "language": "VF",
        "quality": "4K",
+       "chip": "4K",
        "sources": [
         {
          "id": "src-i9",
@@ -118,6 +123,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i6",
@@ -136,6 +142,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i7",
@@ -154,6 +161,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i8",
@@ -183,6 +191,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-ia",
@@ -201,6 +210,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ib",
@@ -219,6 +229,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-ic",
@@ -248,6 +259,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-id",
@@ -266,6 +278,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ie",
@@ -284,6 +297,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-if",
@@ -313,6 +327,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-ig",
@@ -331,6 +346,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ih",
@@ -349,6 +365,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-ii",
@@ -378,6 +395,7 @@
        "id": "vf-4k",
        "language": "VF",
        "quality": "4K",
+       "chip": "4K",
        "sources": [
         {
          "id": "src-im",
@@ -396,6 +414,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-ij",
@@ -414,6 +433,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ik",
@@ -432,6 +452,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-il",
@@ -461,6 +482,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-in",
@@ -479,6 +501,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-io",
@@ -497,6 +520,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-ip",
@@ -526,6 +550,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-iq",
@@ -544,6 +569,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ir",
@@ -562,6 +588,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-is",
@@ -591,6 +618,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-it",
@@ -609,6 +637,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-iu",
@@ -627,6 +656,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-iv",
@@ -656,6 +686,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-iw",
@@ -674,6 +705,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ix",
@@ -692,6 +724,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-iy",
@@ -721,6 +754,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-iz",
@@ -739,6 +773,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i10",
@@ -757,6 +792,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i11",
@@ -786,6 +822,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i12",
@@ -804,6 +841,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i13",
@@ -822,6 +860,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i14",
@@ -857,6 +896,7 @@
        "id": "vf-4k-hdr",
        "language": "VF",
        "quality": "4K",
+       "chip": "4K",
        "dynamic_range": "HDR",
        "sources": [
         {
@@ -876,6 +916,7 @@
        "id": "vf-4k",
        "language": "VF",
        "quality": "4K",
+       "chip": "4K",
        "sources": [
         {
          "id": "src-i1v",
@@ -894,6 +935,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i1s",
@@ -912,6 +954,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i1t",
@@ -930,6 +973,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i1u",
@@ -959,6 +1003,7 @@
        "id": "vf-4k",
        "language": "VF",
        "quality": "4K",
+       "chip": "4K",
        "sources": [
         {
          "id": "src-i1y",
@@ -977,6 +1022,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i1x",
@@ -995,6 +1041,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i1z",
@@ -1035,6 +1082,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i21",
@@ -1053,6 +1101,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i22",
@@ -1093,6 +1142,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i24",
@@ -1111,6 +1161,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i25",
@@ -1151,6 +1202,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i27",
@@ -1169,6 +1221,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i28",
@@ -1209,6 +1262,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i2a",
@@ -1227,6 +1281,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i2b",
@@ -1245,6 +1300,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i2c",
@@ -1280,6 +1336,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-icp",
@@ -1298,6 +1355,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-icq",
@@ -1316,6 +1374,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-icr",
@@ -1345,6 +1404,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-ics",
@@ -1363,6 +1423,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ict",
@@ -1381,6 +1442,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-icu",
@@ -1410,6 +1472,7 @@
        "id": "vf-4k-hdr",
        "language": "VF",
        "quality": "4K",
+       "chip": "4K",
        "dynamic_range": "HDR",
        "sources": [
         {
@@ -1429,6 +1492,7 @@
        "id": "vf-4k",
        "language": "VF",
        "quality": "4K",
+       "chip": "4K",
        "sources": [
         {
          "id": "src-icv",
@@ -1447,6 +1511,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-icm",
@@ -1465,6 +1530,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-icn",
@@ -1483,6 +1549,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-ico",
@@ -1512,6 +1579,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-icx",
@@ -1530,6 +1598,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-icy",
@@ -1548,6 +1617,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-icz",
@@ -1577,6 +1647,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-id0",
@@ -1595,6 +1666,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-id1",
@@ -1613,6 +1685,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-id2",
@@ -1642,6 +1715,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-id3",
@@ -1660,6 +1734,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-id4",
@@ -1678,6 +1753,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-id5",
@@ -1707,6 +1783,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-id6",
@@ -1725,6 +1802,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-id7",
@@ -1743,6 +1821,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-id8",
@@ -1772,6 +1851,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-id9",
@@ -1790,6 +1870,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ida",
@@ -1808,6 +1889,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-idb",
@@ -1843,6 +1925,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i7x",
@@ -1861,6 +1944,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i7y",
@@ -1901,6 +1985,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i80",
@@ -1919,6 +2004,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i81",
@@ -1937,6 +2023,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i82",
@@ -1966,6 +2053,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i83",
@@ -1984,6 +2072,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i84",
@@ -2002,6 +2091,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i85",
@@ -2031,6 +2121,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i86",
@@ -2049,6 +2140,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i87",
@@ -2067,6 +2159,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i88",
@@ -2102,6 +2195,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-ibe",
@@ -2120,6 +2214,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ibf",
@@ -2149,6 +2244,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-ibg",
@@ -2167,6 +2263,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ibh",
@@ -2196,6 +2293,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-ibi",
@@ -2214,6 +2312,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ibj",
@@ -2243,6 +2342,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-ibk",
@@ -2261,6 +2361,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-ibl",
@@ -2296,6 +2397,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i5u",
@@ -2314,6 +2416,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i5v",
@@ -2354,6 +2457,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i5x",
@@ -2372,6 +2476,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i5y",
@@ -2390,6 +2495,7 @@
        "id": "vf-sd",
        "language": "VF",
        "quality": "SD",
+       "chip": "SD",
        "sources": [
         {
          "id": "src-i5z",
@@ -2419,6 +2525,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i60",
@@ -2437,6 +2544,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i61",
@@ -2477,6 +2585,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i63",
@@ -2495,6 +2604,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i64",
@@ -2541,6 +2651,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-itq",
@@ -2559,6 +2670,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-itr",
@@ -2588,6 +2700,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-its",
@@ -2606,6 +2719,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-itt",
@@ -2635,6 +2749,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-itu",
@@ -2653,6 +2768,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-itv",
@@ -2699,6 +2815,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD/FR",
        "sources": [
         {
          "id": "src-i40g",
@@ -2717,6 +2834,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD/FR",
        "sources": [
         {
          "id": "src-i40h",
@@ -2735,6 +2853,7 @@
        "id": "ar-fhd",
        "language": "AR",
        "quality": "FHD",
+       "chip": "FHD/AR",
        "sources": [
         {
          "id": "src-i3yo",
@@ -2753,6 +2872,7 @@
        "id": "ar-hd",
        "language": "AR",
        "quality": "HD",
+       "chip": "HD/AR",
        "sources": [
         {
          "id": "src-i3yp",
@@ -2771,6 +2891,7 @@
        "id": "ar-sd",
        "language": "AR",
        "quality": "SD",
+       "chip": "SD/AR",
        "sources": [
         {
          "id": "src-i3yq",
@@ -2800,6 +2921,7 @@
        "id": "ar-fhd",
        "language": "AR",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i3yk",
@@ -2818,6 +2940,7 @@
        "id": "ar-hd",
        "language": "AR",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i3yl",
@@ -2847,6 +2970,7 @@
        "id": "ar-fhd",
        "language": "AR",
        "quality": "FHD",
+       "chip": "FHD",
        "sources": [
         {
          "id": "src-i3ym",
@@ -2865,6 +2989,7 @@
        "id": "ar-hd",
        "language": "AR",
        "quality": "HD",
+       "chip": "HD",
        "sources": [
         {
          "id": "src-i3yn",
@@ -2894,6 +3019,7 @@
        "id": "vf-fhd",
        "language": "VF",
        "quality": "FHD",
+       "chip": "FHD/FR",
        "sources": [
         {
          "id": "src-i40i",
@@ -2912,6 +3038,7 @@
        "id": "vf-hd",
        "language": "VF",
        "quality": "HD",
+       "chip": "HD/FR",
        "sources": [
         {
          "id": "src-i40j",
@@ -2930,6 +3057,7 @@
        "id": "ar-fhd",
        "language": "AR",
        "quality": "FHD",
+       "chip": "FHD/AR",
        "sources": [
         {
          "id": "src-i3yr",
@@ -2948,6 +3076,7 @@
        "id": "ar-hd",
        "language": "AR",
        "quality": "HD",
+       "chip": "HD/AR",
        "sources": [
         {
          "id": "src-i3ys",
@@ -2966,6 +3095,7 @@
        "id": "ar-sd",
        "language": "AR",
        "quality": "SD",
+       "chip": "SD/AR",
        "sources": [
         {
          "id": "src-i3yt",

@@ -43,13 +43,12 @@ struct LoadedChannelCard: View {
     @Environment(AppEnvironment.self) private var env
     let channel: Channel
     var status: ChannelItem.Status? = nil
-    var width: CGFloat? = nil
     var hours = false
     var loads = true
     let action: () -> Void
 
     var body: some View {
-        ChannelCard(item: env.channelItem(channel, status: status), width: width, hours: hours, action: action)
+        ChannelCard(item: env.channelItem(channel, status: status), hours: hours, action: action)
             .task(id: channel.id) { if loads { await env.loadNowPlaying(on: channel) } }
     }
 }

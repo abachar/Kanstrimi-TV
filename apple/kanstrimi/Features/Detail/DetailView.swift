@@ -395,7 +395,7 @@ struct EpisodeRow: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 14) {
-                    WideCard(item: episode.item, width: metrics.stillWidth, showsTitle: false)
+                    WideCard(item: episode.item, showsTitle: false).frame(width: metrics.stillWidth)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(episode.number). \(episode.title)").font(.subheadline.weight(.semibold)).lineLimit(2)
                         Text(facts).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
@@ -435,7 +435,7 @@ struct EpisodeRow: View {
     private var tvRow: some View {
         Button(action: action) {
             HStack(spacing: 24) {
-                WideCard(item: episode.item, width: metrics.stillWidth, showsTitle: false)
+                WideCard(item: episode.item, showsTitle: false).frame(width: metrics.stillWidth)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text("\(episode.number)").font(.headline).foregroundStyle(Theme.secondary)

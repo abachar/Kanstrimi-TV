@@ -50,26 +50,26 @@ struct ArtView: View {
     }
 }
 
-/// A poster's shell, 2:3: its art (the title stands in for it), a gradient that keeps the text drawn at the
-/// bottom readable, then `overlay` at the bottom left. Titles and sagas share it.
+/// A poster's shell, 2:3 at the width its parent gives: its art (the title stands in for it), a gradient that keeps
+/// the text drawn at the bottom readable, then `overlay` at the bottom left. Titles and sagas share it.
 struct PosterFrame<Overlay: View>: View {
     @Environment(\.metrics) private var metrics
     let id: ContentID
     let url: URL?
     let title: String
-    /// Defaults to the platform's poster width.
-    var width: CGFloat? = nil
     @ViewBuilder let overlay: () -> Overlay
 
     var body: some View {
-        let width = width ?? metrics.posterWidth
-        ZStack(alignment: .bottomLeading) {
-            ArtView(id: id, url: url, title: title).frame(width: width, height: width * 1.5)
-            LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-            overlay()
-        }
-        .frame(width: width, height: width * 1.5)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.cardRadius))
+        ArtView(id: id, url: url, title: title)
+            .aspectRatio(2 / 3, contentMode: .fit)
+            .fixedSize(horizontal: false, vertical: true)
+            .overlay(alignment: .bottomLeading) {
+                ZStack(alignment: .bottomLeading) {
+                    LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
+                    overlay()
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: metrics.cardRadius))
     }
 }
 
@@ -206,11 +206,12 @@ struct CardRow: View {
                     ForEach(cards) { c in
                         Group {
                             if landscape {
-                                WideCard(item: c) { onSelect(c) }
+                                WideCard(item: c) { onSelect(c) }.frame(width: metrics.resumeWidth)
                             } else if c.kind == .live {
-                                LoadedChannelCard(channel: Channel(id: c.id, name: c.title, logo: c.poster), width: metrics.resumeWidth) { onSelect(c) }
+                                LoadedChannelCard(channel: Channel(id: c.id, name: c.title, logo: c.poster)) { onSelect(c) }
+                                    .frame(width: metrics.resumeWidth)
                             } else {
-                                PosterCard(item: c) { onSelect(c) }
+                                PosterCard(item: c) { onSelect(c) }.frame(width: metrics.posterWidth)
                             }
                         }
                         .contextMenu {

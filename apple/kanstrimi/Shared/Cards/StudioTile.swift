@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A studio logo on a light tile (TMDB logos are drawn for a light background), its name when there
-/// is no logo. Nothing else, on it or under it.
+/// is no logo. Nothing else, on it or under it. As wide as its parent makes it, half as high.
 struct StudioTile: View {
     @Environment(\.metrics) private var metrics
     let studio: Studio
@@ -24,7 +24,8 @@ struct StudioTile: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: metrics.posterWidth * 1.5, height: metrics.posterWidth * 0.75)
+        .aspectRatio(2, contentMode: .fit)
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(studio.name)
     }
@@ -39,8 +40,8 @@ struct StudioTile: View {
 #if DEBUG
 #Preview("Studio") {
     HStack(spacing: 30) {
-        StudioTile(studio: Studio(id: "company:3", name: "Pixar", logo: nil, count: 3))
-        StudioTile(studio: Studio(id: "company:420", name: "Marvel Studios", logo: nil, count: 2))
+        StudioTile(studio: Studio(id: "company:3", name: "Pixar", logo: nil, count: 3)).frame(width: Metrics.current.studioWidth)
+        StudioTile(studio: Studio(id: "company:420", name: "Marvel Studios", logo: nil, count: 2)).frame(width: Metrics.current.studioWidth)
     }
     .padding(40)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

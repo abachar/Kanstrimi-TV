@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// A round photo (initials while it loads or when there is none), the name under it, then the role.
+/// A round photo (initials while it loads or when there is none), the name under it, then the role. As wide as its
+/// parent makes it (`castCell`): the name wraps within it.
 struct CastCell: View {
     @Environment(\.metrics) private var metrics
     @Environment(\.isFocused) private var focused
@@ -18,7 +19,7 @@ struct CastCell: View {
                 }
             }
         }
-        .frame(width: metrics.castPhoto + (metrics.compact ? 12 : 30), alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .top)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel([person.name, person.role].compactMap { $0 }.joined(separator: ", "))
     }
@@ -39,9 +40,9 @@ private struct CastFocus: ViewModifier {
 #if DEBUG
 #Preview("Distribution") {
     HStack(alignment: .top, spacing: 20) {
-        CastCell(person: Person(id: "person:1", name: "Hugh Bonneville", role: "Robert Crawley", photo: nil))
-        CastCell(person: Person(id: "person:2", name: "Michelle Dockery", role: "Mary Crawley", photo: nil))
-        CastCell(person: Person(id: nil, name: "Jim Carter", role: nil, photo: nil))
+        CastCell(person: Person(id: "person:1", name: "Hugh Bonneville", role: "Robert Crawley", photo: nil)).frame(width: Metrics.current.castCell)
+        CastCell(person: Person(id: "person:2", name: "Michelle Dockery", role: "Mary Crawley", photo: nil)).frame(width: Metrics.current.castCell)
+        CastCell(person: Person(id: nil, name: "Jim Carter", role: nil, photo: nil)).frame(width: Metrics.current.castCell)
     }
     .padding(40)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

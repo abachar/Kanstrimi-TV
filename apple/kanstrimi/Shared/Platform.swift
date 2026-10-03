@@ -125,6 +125,15 @@ nonisolated struct Metrics: Sendable {
 
     /// A poster's box, 2:3 at the platform's width.
     var posterSize: CGSize { CGSize(width: posterWidth, height: posterWidth * 1.5) }
+    /// Widths the parents give their cards: a studio tile, an actor's cell, the « À suivre » card.
+    var studioWidth: CGFloat { posterWidth * 1.5 }
+    var castCell: CGFloat { castPhoto + (compact ? 12 : 30) }
+    var upNextWidth: CGFloat { compact ? 300 : nextCard }
+    /// A programme of the player's strip, its margins included.
+    var programmeCard: CGSize {
+        let pad: CGFloat = compact ? 14 : 20
+        return CGSize(width: panelCard + 2 * pad, height: panelCard * 0.7 + 2 * pad)
+    }
 
     static let tv = Metrics(compact: false, inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,

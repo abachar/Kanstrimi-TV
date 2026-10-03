@@ -18,9 +18,9 @@ struct SagaShelf: View {
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
                     ForEach(sagas) { saga in
-                        PosterCard(item: saga) { onSelect(saga.id) }
+                        PosterCard(item: saga) { onSelect(saga.id) }.frame(width: metrics.posterWidth)
                     }
-                    if let onSeeAll { SeeAllCard(total: total, action: onSeeAll) }
+                    if let onSeeAll { SeeAllCard(total: total, action: onSeeAll).frame(width: metrics.posterWidth) }
                 }
                 .padding(.horizontal, metrics.inset)
                 .padding(.vertical, metrics.rowPadding)
@@ -137,7 +137,7 @@ struct StudioShelf: View {
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
                     ForEach(studios) { studio in
-                        Button { onSelect(studio) } label: { StudioTile(studio: studio) }
+                        Button { onSelect(studio) } label: { StudioTile(studio: studio).frame(width: metrics.studioWidth) }
                             .cardButtonStyle()
                     }
                 }

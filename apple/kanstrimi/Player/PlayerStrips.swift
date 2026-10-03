@@ -21,7 +21,7 @@ struct ProgrammeStrip: View {
                         HStack(spacing: 20) {
                             ForEach(programmes, id: \.start) { p in
                                 // Focusable so the remote can scroll the day; nothing to do on select.
-                                Button { onActivity() } label: { ProgrammeCard(programme: p) }
+                                Button { onActivity() } label: { ProgrammeCard(programme: p).frame(width: metrics.programmeCard.width, height: metrics.programmeCard.height) }
                                     .cardButtonStyle()
                                     .focused($focused, equals: p.start)
                             }
@@ -71,12 +71,12 @@ struct RecentChannelsStrip: View {
                 ScrollView(.horizontal) {
                     HStack(spacing: 20) {
                         ForEach(recents, id: \.entry.channelID) { r in
-                            LoadedChannelCard(channel: r.channel, status: r.channel.id == player.channel?.id ? .playing : .watched(r.entry.watchedAt),
-                                              width: metrics.recentCard) {
+                            LoadedChannelCard(channel: r.channel, status: r.channel.id == player.channel?.id ? .playing : .watched(r.entry.watchedAt)) {
                                 player.play(channel: r.channel, in: player.channels)
                                 env.recentChannels.record(r.channel.id)
                                 onPick()
                             }
+                            .frame(width: metrics.recentCard)
                             .focused($focused, equals: r.channel.id)
                         }
                     }
@@ -201,7 +201,8 @@ struct SeasonEpisodesStrip: View {
     private func card(_ ep: Episode) -> some View {
         let isCurrent = ep.id == player.context?.content.id
         return VStack(alignment: .leading, spacing: 10) {
-            WideCard(item: ep.item, width: metrics.stillWidth * 1.3, showsTitle: false, playing: isCurrent ? player.fraction : nil)
+            WideCard(item: ep.item, showsTitle: false, playing: isCurrent ? player.fraction : nil)
+                .frame(width: metrics.stillWidth * 1.3)
             HStack(spacing: 8) {
                 Text("É\(ep.number)").foregroundStyle(isCurrent ? Theme.accent : Theme.secondary)
                 Text(ep.title).lineLimit(1)
@@ -236,7 +237,8 @@ struct RelatedStrip: View {
         ScrollView(.horizontal) {
             HStack(spacing: metrics.cardSpacing) {
                 ForEach(player.suggestions?.related ?? []) { c in
-                    WideCard(item: c, width: metrics.resumeWidth * 1.25) { play(c) }
+                    WideCard(item: c) { play(c) }
+                        .frame(width: metrics.resumeWidth * 1.25)
                         .focused($focused, equals: c.id)
                 }
             }

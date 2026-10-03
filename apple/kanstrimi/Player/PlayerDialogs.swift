@@ -98,6 +98,7 @@ struct NextEpisodeCard: View {
         }
         return UpNextCard(heading: "\(label) · \(player.nextCountdown ?? 0) s", item: item, warning: warning, playFocus: $focused,
                           onPlay: { playNow(upNext) }, onCancel: { player.cancelNext() })
+            .frame(width: metrics.upNextWidth)
     }
 
     /// iPhone: at the top right, above the video upright and clear of the controls sideways.

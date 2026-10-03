@@ -20,7 +20,7 @@ struct LiveView: View {
     @State private var preview = PreviewPlayer()
     @State private var isVisible = false
     @FocusState private var focus: Focus?
-    private enum Focus: Hashable { case category(CategoryID), channel(ContentID), watch }
+    private enum Focus: Hashable { case category(CategoryID), channel(ContentID) }
 
     /// Every channel once, and by id: built at each load, read at every move of the focus.
     @State private var allChannels: [Channel] = []
@@ -314,37 +314,21 @@ struct LiveView: View {
                         versionBadges(c, small: false)
                     }
                     if let guide = focusedDetail.map(env.guide(of:)), let now = guide.now {
-                        ProgrammeCard(programme: now, width: metrics.panelCard * 1.4)
-                        if let next = guide.next {
-                            Text("Ensuite : \(next.title) · \(Format.hour(next.start))").font(.caption).foregroundStyle(Theme.secondary)
-                        }
+                        // The column's width, as tall as its text.
+                        ProgrammeCard(programme: now).fixedSize(horizontal: false, vertical: true)
                     } else if focusedDetail == nil {
                         ProgressView().padding(.vertical, 10)
                     } else {
                         Text("Programme inconnu").foregroundStyle(Theme.secondary)
                     }
                     HStack(spacing: 8) {
+                        // The server's chips, as the badges beside the name; the version the channel starts in is filled.
                         let start = env.liveVersion(of: c)?.id
                         ForEach(c.versions) { v in
-                            // "×3" = backup sources, the same mark as the version matrix of the detail page. The
-                            // version the channel starts in stands out.
-                            HStack(spacing: 6) {
-                                Text("\(v.quality.rawValue) · \(v.language.rawValue)")
-                                if v.sources.count > 1 {
-                                    Text("×\(v.sources.count)").foregroundStyle(v.id == start ? Color.black.opacity(0.6) : Theme.secondary)
-                                }
-                            }
-                            .font(.caption.weight(.semibold)).padding(.horizontal, 10).padding(.vertical, 5)
-                            .foregroundStyle(v.id == start ? Color.black : Theme.text)
-                            .background(v.id == start ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(.white.opacity(0.12)), in: Capsule())
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("\(v.quality.rawValue) \(v.language.label)\(v.sources.count > 1 ? ", \(v.sources.count) sources" : "")")
+                            Badge(v.chip ?? v.quality.rawValue, filled: v.id == start)
+                                .accessibilityLabel("\(v.quality.rawValue) \(v.language.label)")
                         }
                     }
-                    Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
-                        .prominentButtonStyle()
-                        .focused($focus, equals: .watch)
-                        .padding(.top, 6)
                 }
             }
         }

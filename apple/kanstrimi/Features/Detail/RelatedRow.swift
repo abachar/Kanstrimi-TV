@@ -13,7 +13,7 @@ struct RelatedRow: View {
             // Scrolls to the screen edge: the parent's margin moves inside the scroll content, as in the cast row.
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
-                    ForEach(cards) { c in PosterCard(item: c) { onSelect(c.id) } }
+                    ForEach(cards) { c in PosterCard(item: c) { onSelect(c.id) }.frame(width: metrics.posterWidth) }
                 }
                 .padding(.horizontal, metrics.inset)
                 .padding(.vertical, metrics.rowPadding)

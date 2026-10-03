@@ -21,12 +21,11 @@ struct ChannelItem: Hashable {
 }
 
 /// Every channel the same way: logo, name and favourite, then « EN COURS » or when it was watched, the quality last
-/// chosen; under them what is on air with its progress, its hours when `hours`. A tile of `width`, or the whole
-/// width of a list when `width` is nil: the home, the Direct screen, the player's list and its « Récentes ».
+/// chosen; under them what is on air with its progress, its hours when `hours`. As wide as its parent makes it (a
+/// tile in a row, the whole width of a list): the home, the Direct screen, the player's list and its « Récentes ».
 struct ChannelCard: View {
     @Environment(\.metrics) private var metrics
     let item: ChannelItem
-    var width: CGFloat? = nil
     var hours = false
     let action: () -> Void
 
@@ -48,8 +47,7 @@ struct ChannelCard: View {
                 now
             }
             .padding(metrics.compact ? 12 : 18)
-            .frame(width: width, alignment: .leading)
-            .frame(maxWidth: width == nil ? .infinity : nil, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .cardButtonStyle()
     }
@@ -92,11 +90,12 @@ private struct ChannelCardPreview: View {
         ScrollView {
             VStack(alignment: .leading, spacing: metrics.cardSpacing) {
                 HStack(alignment: .top, spacing: metrics.cardSpacing) {
-                    ChannelCard(item: ChannelItem(id: ContentID("live:fr-tf1"), name: "TF1", status: .playing, quality: "FHD", isFavorite: true, now: journal),
-                                width: metrics.recentCard) {}
+                    ChannelCard(item: ChannelItem(id: ContentID("live:fr-tf1"), name: "TF1", status: .playing, quality: "FHD", isFavorite: true, now: journal)) {}
+                        .frame(width: metrics.recentCard)
                     if !metrics.compact {
                         ChannelCard(item: ChannelItem(id: ContentID("live:fr-france2"), name: "FRANCE 2", status: .watched(now.addingTimeInterval(-1800)),
-                                                      quality: "4K", now: journal), width: metrics.recentCard) {}
+                                                      quality: "4K", now: journal)) {}
+                            .frame(width: metrics.recentCard)
                     }
                 }
                 VStack(spacing: metrics.compact ? 6 : 12) {

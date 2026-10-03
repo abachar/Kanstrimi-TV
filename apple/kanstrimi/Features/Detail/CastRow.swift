@@ -15,10 +15,10 @@ struct CastRow: View {
                 LazyHStack(alignment: .top, spacing: metrics.compact ? 8 : 24) {
                     ForEach(Array(cast.enumerated()), id: \.offset) { _, person in
                         if let ref = person.ref {
-                            Button { onSelect(ref) } label: { CastCell(person: person) }
+                            Button { onSelect(ref) } label: { CastCell(person: person).frame(width: metrics.castCell) }
                                 .buttonStyle(CastButtonStyle())
                         } else {
-                            CastCell(person: person)
+                            CastCell(person: person).frame(width: metrics.castCell)
                         }
                     }
                 }

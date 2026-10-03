@@ -65,7 +65,7 @@ struct SearchView: View {
     }
 
     private func items(_ items: [ContentItem]) -> some View {
-        ForEach(items) { item in PosterCard(item: item) { open(item) }.posterMenu(item) }
+        ForEach(items) { item in PosterCard(item: item) { open(item) }.frame(width: metrics.posterWidth).posterMenu(item) }
     }
 
     private func row(_ title: String, @ViewBuilder cards: () -> some View) -> some View {

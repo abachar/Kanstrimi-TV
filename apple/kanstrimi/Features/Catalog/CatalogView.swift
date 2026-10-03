@@ -136,10 +136,11 @@ struct ShelfRow: View {
                                     .offset(x: metrics.cardSpacing * 0.6)
                             }
                             PosterCard(item: c) { onSelect(c) }
+                                .frame(width: metrics.posterWidth)
                                 .posterMenu(c)
                         }
                     }
-                    if let onSeeAll { SeeAllCard(total: row.total, action: onSeeAll) }
+                    if let onSeeAll { SeeAllCard(total: row.total, action: onSeeAll).frame(width: metrics.posterWidth) }
                 }
                 .padding(.horizontal, metrics.inset)
                 .padding(.vertical, metrics.rowPadding)
@@ -217,7 +218,7 @@ struct GenreGridView: View {
 
     @ViewBuilder private var header: some View {
         if let studio {
-            StudioTile(studio: studio)
+            StudioTile(studio: studio).frame(width: metrics.studioWidth)
         } else {
             HStack(spacing: 14) {
                 Text(title).font(.largeTitle.weight(.bold))

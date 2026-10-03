@@ -2,8 +2,8 @@ import SwiftUI
 
 /// What follows the end of a title, the same for the next episode and the suggested title: the heading (with its
 /// countdown), the picture and its logo, the facts and badges, the overview, a language warning, then Lire
-/// maintenant and Annuler. iPhone: a small picture beside the title and the facts. `playFocus` is the focus of
-/// Lire maintenant, which the player gives it on arrival.
+/// maintenant and Annuler. iPhone: a small picture beside the title and the facts. As wide as its parent makes it.
+/// `playFocus` is the focus of Lire maintenant, which the player gives it on arrival.
 struct UpNextCard: View {
     @Environment(\.metrics) private var metrics
     /// « ÉPISODE SUIVANT · 7 s ».
@@ -31,8 +31,8 @@ struct UpNextCard: View {
                 Button("Annuler", role: .cancel, action: onCancel).font(metrics.compact ? .footnote : .body)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(metrics.compact ? 14 : metrics.panelPadding * 0.6)
-        .frame(width: metrics.compact ? 300 : metrics.nextCard, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: metrics.compact ? 20 : 26))
     }
 
@@ -48,9 +48,9 @@ struct UpNextCard: View {
     }
 
     @ViewBuilder private var tvContent: some View {
-        let width = metrics.nextCard - metrics.panelPadding * 1.2
         ArtView(id: item.id, url: item.picture ?? item.poster)
-            .frame(width: width, height: width * 9 / 16)
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .fixedSize(horizontal: false, vertical: true)
             .overlay { LinearGradient(colors: [.clear, .black.opacity(0.5)], startPoint: .center, endPoint: .bottom) }
             .overlay(alignment: .bottomLeading) {
                 TitleLogo(title: item.title, logo: item.logo, maxSize: CGSize(width: 300, height: 90)).padding(18)
@@ -73,7 +73,9 @@ private struct UpNextCardPreview: View {
         layout {
             UpNextCard(heading: "ÉPISODE SUIVANT · 7 s", item: .sampleNextEpisode,
                        warning: "Pas de VF pour cet épisode : lecture en VOSTFR, retour en VF ensuite.", playFocus: $focused, onPlay: {}, onCancel: {})
+                .frame(width: metrics.upNextWidth)
             UpNextCard(heading: "À SUIVRE · SUITE DE LA SAGA · 7 s", item: .sampleNextTitle, playFocus: $focused, onPlay: {}, onCancel: {})
+                .frame(width: metrics.upNextWidth)
         }
         .padding(metrics.inset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

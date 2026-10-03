@@ -33,6 +33,8 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let language: Language
     let quality: Quality
+    /// Live: the version's chip, written by the server: "FHD", or "FHD/EN" when the channel mixes languages.
+    var chip: String? = nil
     let dynamicRange: DynamicRange?
     let sources: [Source]
     /// A cut other than the theatrical one ("Version longue", "Director's Cut"); nil for the usual cut.
@@ -43,7 +45,7 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
     var next: Programme? = nil
 
     enum CodingKeys: String, CodingKey {
-        case id, language, quality, sources, edition, now, next
+        case id, language, quality, chip, sources, edition, now, next
         case dynamicRange = "dynamic_range"
         case hasEPG = "has_epg"
     }

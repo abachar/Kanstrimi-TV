@@ -23,7 +23,8 @@
           },
           "origin": "FRANCE FHD | TV"
         }
-      ]
+      ],
+      "chip": "FHD"
     },
     {
       "id": "vf-hd",
@@ -41,7 +42,8 @@
           },
           "origin": "FRANCE FHD | TV"
         }
-      ]
+      ],
+      "chip": "HD"
     }
   ],
   "now": {
