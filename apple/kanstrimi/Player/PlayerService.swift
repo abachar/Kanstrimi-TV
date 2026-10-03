@@ -544,7 +544,7 @@ final class PlayerService {
     }
 
     /// Error or no image after 10 s: switch source, retry twice, then ask. Every restart asks the server for
-    /// fresh links first: the ones a screen kept (home, Direct) may have expired, and would fail the same way.
+    /// fresh links first: the ones a screen kept (home, Direct) may be outdated, the catalogue having changed since.
     private func handleStreamFailure() {
         guard relinkTask == nil, context != nil, let version, let source else { return }
         startAttempts += 1

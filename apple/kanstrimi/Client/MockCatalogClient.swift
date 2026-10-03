@@ -237,7 +237,7 @@ final class MockCatalogClient: CatalogClient {
         let code = String((0..<6).map { _ in alphabet.randomElement()! })
         let ttl: TimeInterval = scenario.pairingExpires ? 6 : 600
         return PairingCode(code: code, expiresAt: .now.addingTimeInterval(ttl),
-                           url: URL(string: "https://kanstrimi.crafters.dev/admin/pair/\(code)")!)
+                           url: URL(string: "https://kanstrimi.crafters.dev/admin/pair/\(code)")!, token: "mock-" + UUID().uuidString.lowercased())
     }
 
     func pollDevice(code: String) async throws -> PairingStatus {
@@ -248,7 +248,7 @@ final class MockCatalogClient: CatalogClient {
         guard pairingApproved else { return .pending }
         // A freshly approved device gets a valid token: the "revoked" scenario ends here.
         scenario.unauthorized = false
-        return .approved(token: "mock-" + UUID().uuidString.lowercased(), deviceName: "Salon")
+        return .approved(deviceName: "Salon")
     }
 
     func deleteDevice(code: String) async throws { try await gate() }

@@ -59,9 +59,10 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func pairingCallsCarryNoTokenAndDecodeEveryStatus() async throws {
-        answer(201, #"{"code":"K7Q4MZ","expires_at":"2026-09-26T21:24:00.123Z","url":"https://kanstrimi.test/admin/pair/K7Q4MZ"}"#)
+        answer(201, #"{"code":"K7Q4MZ","expires_at":"2026-09-26T21:24:00.123Z","url":"https://kanstrimi.test/admin/pair/K7Q4MZ","token":"dvc_abc"}"#)
         let created = try await client.createDevice()
         #expect(created.code == "K7Q4MZ")
+        #expect(created.token == "dvc_abc")
         #expect(created.url.path() == "/admin/pair/K7Q4MZ")
         #expect(try last.httpMethod == "POST")
         #expect(try last.url?.path() == "/player/devices")
@@ -69,8 +70,8 @@ struct HTTPCatalogClientTests {
 
         answer(200, #"{"status":"pending"}"#)
         #expect(try await client.pollDevice(code: "K7Q4MZ") == .pending)
-        answer(200, #"{"status":"approved","token":"dvc_abc","device_name":"Salon"}"#)
-        #expect(try await client.pollDevice(code: "K7Q4MZ") == .approved(token: "dvc_abc", deviceName: "Salon"))
+        answer(200, #"{"status":"approved","device_name":"Salon"}"#)
+        #expect(try await client.pollDevice(code: "K7Q4MZ") == .approved(deviceName: "Salon"))
         answer(200, #"{"status":"expired"}"#)
         #expect(try await client.pollDevice(code: "K7Q4MZ") == .expired)
     }

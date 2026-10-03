@@ -170,7 +170,7 @@ final class HTTPCatalogClient: CatalogClient {
         [.networkConnectionLost, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed].contains(e.code)
     }
     /// 502-504 without the server's JSON error: the reverse proxy answering while the server
-    /// restarts. The server's own errors (`upstream`, `locked`) are answers, not hiccups.
+    /// restarts. The server's own errors (`upstream`) are answers, not hiccups.
     static func isTransient(status: Int, data: Data) -> Bool {
         (502...504).contains(status) && (try? JSONDecoder().decode(ErrorBody.self, from: data)) == nil
     }
@@ -195,7 +195,6 @@ final class HTTPCatalogClient: CatalogClient {
         switch status {
         case 401: return .unauthorized
         case 404: return .notFound
-        case 503 where body?.error.code == "locked": return .server(body?.error.message ?? "Serveur verrouillé")
         default: return .server(body?.error.message ?? "Erreur serveur (\(status))")
         }
     }

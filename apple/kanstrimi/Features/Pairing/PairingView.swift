@@ -276,11 +276,11 @@ final class PairingModel {
                 case .expired:
                     await expireAndRenew(env)
                     return
-                case .approved(let token, let deviceName):
+                case .approved(let deviceName):
                     status = .approved
                     env.preferences.deviceName = deviceName
                     try? await Task.sleep(for: .milliseconds(600))
-                    env.device.store(token: token, code: code.code)
+                    env.device.store(token: code.token, code: code.code)
                     return
                 }
             } catch {

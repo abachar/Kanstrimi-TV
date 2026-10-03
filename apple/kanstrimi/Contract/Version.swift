@@ -13,7 +13,7 @@ nonisolated struct Source: Codable, Hashable, Identifiable, Sendable {
     let id: String
     /// Container as the provider names it: "MKV", "MP4", "TS".
     let container: String
-    /// Ready-to-play URL on the Kanstrimi server (it answers 302 to the provider).
+    /// The provider's own URL, played as is (its account is in the path).
     let streamURL: URL
     let provider: Provider?
     /// Provider category, what tells two sources of the same provider apart for a human.

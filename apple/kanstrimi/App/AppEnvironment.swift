@@ -109,8 +109,8 @@ final class AppEnvironment {
         info = try? await call { try await client.info() }
     }
 
-    /// Bumped when the app comes back after a long absence: the screens that hold stream links and programmes
-    /// (home, Direct) reload, their links having expired meanwhile.
+    /// Bumped when the app comes back after a long absence: the home and the Direct reload, what is on air and the
+    /// rows having moved on meanwhile.
     private(set) var resumeRevision = 0
     @ObservationIgnored private var inactiveSince: Date?
     static let longAbsence: TimeInterval = 10 * 60

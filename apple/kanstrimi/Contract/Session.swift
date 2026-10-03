@@ -6,9 +6,11 @@ nonisolated struct PairingCode: Codable, Hashable, Sendable {
     let expiresAt: Date
     /// URL the phone opens after the scan.
     let url: URL
+    /// The device token, given with the code: it works once the code is approved, and is kept only then.
+    let token: String
 
     enum CodingKeys: String, CodingKey {
-        case code, url
+        case code, url, token
         case expiresAt = "expires_at"
     }
     /// "K7Q-4MZ"
@@ -18,19 +20,19 @@ nonisolated struct PairingCode: Codable, Hashable, Sendable {
     }
 }
 
-/// `GET /devices/{code}`: `{ "status": "pending" }`, `{ "status": "approved", "token": "…", "device_name": "Salon" }`,
+/// `GET /devices/{code}`: `{ "status": "pending" }`, `{ "status": "approved", "device_name": "Salon" }`,
 /// `{ "status": "expired" }`.
 nonisolated enum PairingStatus: Codable, Hashable, Sendable {
     case pending
-    case approved(token: String, deviceName: String)
+    case approved(deviceName: String)
     case expired
 
-    private enum CodingKeys: String, CodingKey { case status, token, deviceName = "device_name" }
+    private enum CodingKeys: String, CodingKey { case status, deviceName = "device_name" }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         switch try c.decode(String.self, forKey: .status) {
-        case "approved": self = .approved(token: try c.decode(String.self, forKey: .token), deviceName: try c.decode(String.self, forKey: .deviceName))
+        case "approved": self = .approved(deviceName: try c.decode(String.self, forKey: .deviceName))
         case "expired": self = .expired
         default: self = .pending
         }
@@ -40,9 +42,8 @@ nonisolated enum PairingStatus: Codable, Hashable, Sendable {
         switch self {
         case .pending: try c.encode("pending", forKey: .status)
         case .expired: try c.encode("expired", forKey: .status)
-        case .approved(let token, let name):
+        case .approved(let name):
             try c.encode("approved", forKey: .status)
-            try c.encode(token, forKey: .token)
             try c.encode(name, forKey: .deviceName)
         }
     }

@@ -130,7 +130,7 @@ struct LiveView: View {
             let c = await env.channelCache.channel(id)
             guard focusedChannelID == id else { return }
             focusedDetail = c
-            // The detail's links are fresh; the list's may have expired while the screen stayed open.
+            // The detail is the latest word on the channel; the list's copy may be outdated while the screen stayed open.
             if isVisible, !env.player.isPresented, let channel = focusedChannel { showPreview(channel) }
         }
         if isVisible, !env.player.isPresented, let c = focusedChannel { showPreview(c) }

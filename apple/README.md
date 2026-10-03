@@ -39,7 +39,7 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 
 - **Une seule connexion au fournisseur** : `maxConcurrentSourceRequests: 1`, et l'aperçu du Direct (son propre
   `PlayerCore`, sonore dès que l'image paraît) est coupé avant toute lecture. Pas d'option du moteur qui ouvrirait une seconde connexion (`confirmAtmos`).
-- **ATS** : `NSAllowsArbitraryLoads`, le `302` du serveur mène à des URL `http://` du fournisseur.
+- **ATS** : `NSAllowsArbitraryLoads`, les `stream_url` sont des URL `http://` du fournisseur.
 - **Direct** : décodé par le moteur (`preferredDecodePath: .software`), image en 0,6 s contre 6 s par le HLS local
   d'AVPlayer ; jamais de pause, comme une télé. Fenêtre de retour de 30 s (`dvrWindowSeconds`) : seule voie où le moteur
   décode le son à part, sinon une chaîne HE-AAC à 50 i/s (Canal+ Foot) saccade ; le son démarre ~0,8 s plus tard.
