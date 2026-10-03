@@ -48,6 +48,11 @@ function guided(ctx: RestContext, playables: Playable[], epg: Map<string, Channe
   return { versions, guides: guidesOf(versions, playables, (id) => epg.get(id)?.hasEpg ?? false) };
 }
 
+/** A live version's chip: its quality, then its language (« FR » for VF) when the channel mixes languages. */
+export function liveChip(v: Pick<Version, "quality" | "language">, mixed: boolean): string {
+  return mixed ? `${v.quality}/${v.language === "VF" ? "FR" : v.language}` : v.quality;
+}
+
 /**
  * Lists and sheets alike carry `now` / `next`: the app rolls over on `end` without asking again. The
  * channel's guide is its first version's; a version whose guide differs carries its own.
@@ -63,11 +68,13 @@ function channelWire(
   const { versions: all, guides } = guided(ctx, playables, epgs);
   const main = guides.get(all[0]?.id ?? "") ?? null;
   const epg = main ? epgs.get(main) : undefined;
+  const mixed = new Set(all.map((v) => v.language)).size > 1;
   const versions: Version[] = all.map((v) => {
     const own = guides.get(v.id) ?? null;
-    if (own === main) return v;
+    const labelled = { ...v, chip: liveChip(v, mixed) };
+    if (own === main) return labelled;
     const e = own ? epgs.get(own) : undefined;
-    return { ...v, has_epg: e?.hasEpg ?? false, now: e?.now ?? null, next: e?.next ?? null };
+    return { ...labelled, has_epg: e?.hasEpg ?? false, now: e?.now ?? null, next: e?.next ?? null };
   });
   return {
     id: c.key,

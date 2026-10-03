@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import { player as api } from "..";
 import { nightEnd } from "../epg";
 import { remaining } from "../cards";
+import { liveChip } from "../channels";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { verify, lockForTests, isUnlocked } from "@/config";
 import {
@@ -592,11 +593,18 @@ describe("channels", () => {
       is_favorite: false,
     });
     expect(tf1.versions.map((v: { id: string }) => v.id)).toEqual(["vf-fhd", "vf-hd"]);
+    // One language: the chips name the quality only.
+    expect(tf1.versions.map((v: { chip: string }) => v.chip)).toEqual(["FHD", "HD"]);
     expect(tf1.versions[0].sources[0].container).toBe("TS");
     // The guide: TF1 is on air and has a following programme; beIN has no id in the guide at all.
     expect(tf1.now).toMatchObject({ title: "Journal", overview: "Les titres" });
     expect(tf1.next).toMatchObject({ title: "Film du soir" });
     expect(body[1].channels[0]).toMatchObject({ has_epg: false, now: null, next: null });
+  });
+  it("a channel mixing languages names them on its chips, VF as FR", () => {
+    expect(liveChip({ quality: "HD", language: "VF" }, true)).toBe("HD/FR");
+    expect(liveChip({ quality: "FHD", language: "EN" }, true)).toBe("FHD/EN");
+    expect(liveChip({ quality: "FHD", language: "AR" }, false)).toBe("FHD");
   });
   it("GET /channels/{id} carries now/next too, in ISO UTC", async () => {
     const { status, body } = await get("/channels/live:fr-tf1");

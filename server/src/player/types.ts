@@ -12,12 +12,13 @@ export type Source = { id: string; container: string; stream_url: string; provid
 /**
  * `edition`: a cut other than the theatrical one (« Version longue », « Director's Cut »), absent for the usual cut.
  * Live: `has_epg`, `now`, `next` when this quality's guide is not the channel's (« M6 4K » has its own);
- * absent, the channel's apply.
+ * absent, the channel's apply. `chip`: the version's chip, « FHD », or « FHD/EN » when the channel mixes languages.
  */
 export type Version = {
   id: string;
   language: string;
   quality: Quality;
+  chip?: string;
   dynamic_range?: DynamicRange;
   edition?: string;
   sources: Source[];
