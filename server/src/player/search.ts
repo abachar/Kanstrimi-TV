@@ -6,14 +6,16 @@ import { db, schema, type Content } from "@/db";
 import { searchText, similarityKey } from "@/shared";
 import type { Env, RestContext } from "./context";
 import { badQuery, json } from "./http";
-import { liveCategories, visibleContent } from "./contents";
+import { visibleContent } from "./contents";
 import { getProgress, type Progress } from "./progress";
 import { contentItem } from "./cards";
+import { channelGroupName } from "./channels";
 import type { ContentItem, SearchResults } from "./types";
 
 /**
- * `/search?q=…&scope=…`: full-text on the accent-free index, twenty per kind, one "best" pick. When
- * that finds nothing, the titles that look like the query (trigrams, `pg_trgm`): typos are forgiven.
+ * `/search?q=…&scope=…`: full-text on the accent-free index, movies, series and channels in one list ranked by
+ * relevance, `SEARCH_RESULTS` at most. When that finds nothing, the titles that look like the query (trigrams,
+ * `pg_trgm`): typos are forgiven.
  */
 export const searchRoutes = new Hono<Env>();
 
@@ -30,6 +32,8 @@ searchRoutes.get("/", searchQuery, async (c) => {
   return json(await search(c.get("ctx"), q, scope));
 });
 
+/** The results of a search, every kind together. */
+export const SEARCH_RESULTS = 40;
 /** Shortest query given to the typo-tolerant fallback. */
 export const FUZZY_MIN_LENGTH = 3;
 /** Shortest term searched as a prefix: « a:* » alone matches half the catalogue. A shorter one is a whole word. */
@@ -57,9 +61,9 @@ export async function search(
   candidates = SEARCH_CANDIDATES,
 ): Promise<SearchResults> {
   const q = searchText(query.trim());
-  if (!q) return { query, best: null, movies: [], series: [], live: [] };
+  if (!q) return { query, items: [] };
   const terms = q.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  if (!terms.length) return { query, best: null, movies: [], series: [], live: [] };
+  if (!terms.length) return { query, items: [] };
   const word = (t: string) => t.replace(/'/g, "''");
   const prefixes = terms.map((t) => (t.length >= PREFIX_MIN_LENGTH ? `${word(t)}:*` : word(t))).join(" & ");
   const words = terms.map(word).join(" & ");
@@ -89,14 +93,14 @@ export async function search(
           : sql`${t.id} in ((${mostVoted(kind, prefixes)}) union (${mostVoted(kind, words)}))`,
       )
       .orderBy(desc(fields.exact), desc(fields.closeness), desc(t.voteCount), asc(t.title))
-      .limit(20);
+      .limit(SEARCH_RESULTS);
   const resembling = (kind: "vod" | "series" | "live") =>
     db
       .select(fields)
       .from(t)
       .where(and(visibleContent(ctx, kind), sql`${q} <% ${titles}`))
       .orderBy(desc(fields.exact), desc(fields.closeness), desc(t.voteCount), asc(t.title))
-      .limit(20);
+      .limit(SEARCH_RESULTS);
   const run = (query: typeof find) =>
     Promise.all([
       scope === "all" || scope === "movies" ? query("vod") : [],
@@ -106,37 +110,26 @@ export async function search(
   let [movies, series, live] = await run(find);
   // Below three characters, trigrams match about anything.
   if (!movies.length && !series.length && !live.length && q.length >= FUZZY_MIN_LENGTH) [movies, series, live] = await run(resembling);
-  const progress = await getProgress([...movies, ...series].map((r) => r.content.key));
-  const cats = live.length ? new Map((await liveCategories()).map((c) => [c.xtreamId, c.name])) : new Map<string, string>();
-  const categoryOf = (c: Content) => (c.categoryXtreamId && cats.get(c.categoryXtreamId)) || null;
-  const items = (rows: typeof movies) => rows.map((r) => contentItem(ctx, r.content, progress.get(r.content.key)));
-  // A channel: its logo for a poster, its category for facts.
-  const l = live.map(({ content: c }) => ({ ...contentItem(ctx, c), facts: categoryOf(c) }));
-  // The best across the three kinds: an equal title, then the closest one, then the most voted.
-  const all = [...movies, ...series, ...live];
-  const ranked = all
+  // One list: an equal title, then the closest one, then the most voted, whatever the kind.
+  const ranked = [...movies, ...series, ...live]
     .map((r, i) => ({ r, i }))
     .sort(
       (a, b) =>
         Number(b.r.exact) - Number(a.r.exact) ||
         b.r.closeness - a.r.closeness ||
-        (b.r.content.voteCount ?? 0) - (a.r.content.voteCount ?? 0),
-    );
-  const top = ranked[0]?.r.content;
-  return {
-    query,
-    best: top ? bestItem(ctx, top, progress.get(top.key), categoryOf(top)) : null,
-    movies: items(movies),
-    series: items(series),
-    live: l,
-  };
+        (b.r.content.voteCount ?? 0) - (a.r.content.voteCount ?? 0) ||
+        a.i - b.i,
+    )
+    .slice(0, SEARCH_RESULTS)
+    .map(({ r }) => r.content);
+  const progress = await getProgress(ranked.filter((c) => c.kind !== "live").map((c) => c.key));
+  return { query, items: ranked.map((c) => resultItem(ctx, c, progress.get(c.key))) };
 }
 
-/** The best result, shown wide: its picture and logo, « Film · 2019 · Drame », its overview. */
-function bestItem(ctx: RestContext, c: Content, progress: Progress | undefined, category: string | null): ContentItem {
-  const facts =
-    c.kind === "live"
-      ? category
-      : [c.kind === "series" ? "Série" : "Film", c.year ? String(c.year) : null, c.genres[0] ?? null].filter((t) => t !== null).join(" · ");
-  return { ...contentItem(ctx, c, progress), facts, overview: c.overview };
+/** A result as the grid shows it: a series says so (« Série · 2025 · ★ 8.3 »), a channel gives its group. */
+function resultItem(ctx: RestContext, c: Content, progress: Progress | undefined): ContentItem {
+  const item = contentItem(ctx, c, progress);
+  if (c.kind === "live") return { ...item, facts: channelGroupName(c) };
+  if (c.kind === "series") return { ...item, facts: ["Série", item.facts].filter((t) => t !== null).join(" · ") };
+  return item;
 }

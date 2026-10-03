@@ -317,13 +317,13 @@ describe("adult contents", () => {
     const key = "fallback:movie:clan-of-violence:-";
     expect((await get("/movies")).body[0].movies.map((c: { id: string }) => c.id)).not.toContain(key);
     expect((await get(`/movies/${key}`)).status).toBe(404);
-    expect((await get("/search?q=clan")).body.movies).toEqual([]);
+    expect((await get("/search?q=clan")).body.items).toEqual([]);
     expect((await call(`/favorites/${key}`, { method: "PUT" })).status).toBe(404);
     expect((await get("/info")).body.counts.movies).toBe(3);
     await setSettings({ serve_adult: "1" });
     expect((await get("/movies?limit=50")).body.items.map((c: { id: string }) => c.id)).toContain(key);
     expect((await get(`/movies/${key}`)).status).toBe(200);
-    expect((await get("/search?q=clan")).body.movies.map((c: { id: string }) => c.id)).toEqual([key]);
+    expect((await get("/search?q=clan")).body.items.map((c: { id: string }) => c.id)).toEqual([key]);
     expect((await get("/info")).body.counts.movies).toBe(4);
     await setSettings({ serve_adult: "0" });
   });
@@ -773,37 +773,30 @@ describe("GET /home", () => {
 });
 
 describe("search and favourites", () => {
-  it("GET /search: prefix, accent-insensitive, cast, scope, best", async () => {
+  it("GET /search: one list ranked by relevance, prefix, accent-insensitive, cast, scope", async () => {
+    const ids = (r: { items: { id: string }[] }) => r.items.map((c) => c.id);
     let r = (await get("/search?q=matr")).body;
-    expect(r.best).toMatchObject({
-      id: "tmdb:movie:603",
-      picture: "http://kanstrimi.test/img/w1280/bd.jpg",
-      logo: "http://kanstrimi.test/img/w500/logo-fr.png",
-      facts: expect.stringMatching(/^Film · \d{4} · Action$/),
-    });
-    expect(r.movies.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603"]);
-    // Only the best result carries the overview.
-    expect(r.movies[0].overview).toBeNull();
-    // An equal title wins, punctuation and case aside, the original title included; with its overview.
+    expect(ids(r)).toEqual(["tmdb:movie:603"]);
+    expect(r.items[0]).toMatchObject({ kind: "movie", facts: expect.stringMatching(/^\d{4} · ★ 8\.2$/), overview: null });
+    // An equal title comes first, punctuation and case aside, the original title included.
     r = (await get("/search?q=THE-MATRIX")).body;
-    expect(r.best).toMatchObject({ id: "tmdb:movie:603", overview: "Thomas Anderson…" });
+    expect(ids(r)[0]).toBe("tmdb:movie:603");
     r = (await get("/search?q=pacino")).body;
-    expect(r.movies.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
+    expect(ids(r)).toEqual(["tmdb:movie:949"]);
+    // A channel says which group of the Direct screen it sits in.
     r = (await get("/search?q=tf1&scope=live")).body;
-    expect(r.live).toEqual([expect.objectContaining({ id: "live:fr-tf1", kind: "live", title: "TF1", facts: "FRANCE FHD | TV" })]);
-    expect(r.movies).toEqual([]);
+    expect(r.items).toEqual([expect.objectContaining({ id: "live:fr-tf1", kind: "live", title: "TF1", facts: "France · Généralistes" })]);
     r = (await get("/search?q=vincenzo&scope=movies")).body;
-    expect(r).toEqual({ query: "vincenzo", best: null, movies: [], series: [], live: [] });
-    expect((await get("/search?q=")).body.best).toBeNull();
-    // Nothing on the prefixes: the titles that look like the query, typos forgiven.
+    expect(r).toEqual({ query: "vincenzo", items: [] });
+    expect((await get("/search?q=")).body.items).toEqual([]);
+    // Nothing on the prefixes: the titles that look like the query, typos forgiven; a series says so.
     r = (await get("/search?q=vincenso")).body;
-    expect(r.series.map((c: { id: string }) => c.id)).toEqual(["tmdb:tv:1396"]);
-    expect(r.best.id).toBe("tmdb:tv:1396");
+    expect(r.items[0]).toMatchObject({ id: "tmdb:tv:1396", facts: expect.stringMatching(/^Série · \d{4}/) });
     r = (await get("/search?q=matrixx")).body;
-    expect(r.movies.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603"]);
+    expect(ids(r)).toEqual(["tmdb:movie:603"]);
     // Nonsense and too short a query find nothing.
-    expect((await get("/search?q=xyzqw")).body.best).toBeNull();
-    expect((await get("/search?q=hx")).body.best).toBeNull();
+    expect((await get("/search?q=xyzqw")).body.items).toEqual([]);
+    expect((await get("/search?q=hx")).body.items).toEqual([]);
     expect((await get("/search?q=a&scope=x")).status).toBe(400);
   });
   it("PUT/DELETE /favorites/{id}: 204, reflected in sheets and channels", async () => {

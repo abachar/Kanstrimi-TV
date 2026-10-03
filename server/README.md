@@ -137,7 +137,8 @@ par son index.
 - **Textes des cartes** (`player/cards.ts`) : les listes, l'accueil, la recherche, « À suivre » et les épisodes envoient des
   `ContentItem` dont le serveur écrit les textes (« 2019 · ★ 8.5 », badges dans l'ordre, « S2 · É4 · 1 h 08 restantes »,
   en-têtes « À SUIVRE ») ; l'app les dispose sans les recalculer. La fiche reste un `Card`.
-- **Recherche** (`player/search.ts`) : un terme d'un caractère est un mot entier, un préfixe à partir de deux ; seuls les
+- **Recherche** (`player/search.ts`) : une seule liste de 40, films, séries et chaînes mêlés, triée par pertinence (titre égal, puis le
+  plus proche, puis le plus voté) ; une série le dit (« Série · 2025 »), une chaîne donne son groupe du Direct. un terme d'un caractère est un mot entier, un préfixe à partir de deux ; seuls les
   200 contenus les plus votés par type (préfixes, et mots entiers pour qu'un titre égal à la requête reste) sont classés.
 - **Appairage** : `POST /player/devices` rend le code et le jeton de l'appareil (seule son empreinte est en base) ; le jeton
   ne vaut qu'une fois le code approuvé dans l'admin, `GET /player/devices/{code}` ne donne que le statut.

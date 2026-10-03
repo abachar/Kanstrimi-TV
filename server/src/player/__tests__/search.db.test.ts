@@ -14,7 +14,7 @@ const ctx: RestContext = {
   upstreamUrl: () => null,
   serveAdult: false,
 };
-const titles = (r: { movies: { title: string }[] }) => r.movies.map((c) => c.title);
+const titles = (r: { items: { title: string }[] }) => r.items.map((c) => c.title);
 
 beforeAll(async () => {
   await resetDb();
@@ -52,6 +52,5 @@ describe("search", () => {
     // One candidate per side: the most voted prefix match, and « Ma », a title equal to the query despite its votes.
     const r = await search(ctx, "ma", "movies", 1);
     expect(titles(r)).toEqual(["Ma", "Mad Max"]);
-    expect(r.best?.title).toBe("Ma");
   });
 });

@@ -110,7 +110,7 @@ export type ContentItem = {
   progress: number | null;
   watched: boolean;
   caption: string | null;
-  /** Where the card tells it: the best search result, the carousel, « À suivre »; null in the lists. */
+  /** Where the card tells it: the carousel, « À suivre », an episode row; null in the lists. */
   overview: string | null;
 };
 
@@ -251,7 +251,8 @@ export type Suggestions = { related: ContentItem[]; next: Suggestion | null };
 /** `heading`: « À SUIVRE · SUITE DE LA SAGA », « À SUIVRE · NOUVELLE SÉRIE », « À SUIVRE »; the app adds the countdown. */
 export type Suggestion = { item: ContentItem; reason: "saga" | "recommended"; heading: string };
 
-export type SearchResults = { query: string; best: ContentItem | null; movies: ContentItem[]; series: ContentItem[]; live: ContentItem[] };
+/** `/search`: movies, series and channels in one list, the most relevant first. */
+export type SearchResults = { query: string; items: ContentItem[] };
 
 export type ServerInfo = {
   server_version: string;

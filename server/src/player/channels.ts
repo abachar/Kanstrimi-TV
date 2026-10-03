@@ -147,6 +147,11 @@ const MARKET_NAMES: Record<string, string> = {
   af: "Afrique",
 };
 const marketName = (m: string | null) => (m ? (MARKET_NAMES[m] ?? m.toUpperCase()) : "International");
+
+/** The first group a channel sits in on the Direct screen, « France · Sport »: what a search result says of it. */
+export function channelGroupName(c: Pick<Content, "country" | "market" | "themes">): string {
+  return `${marketName(c.country?.toLowerCase() ?? c.market)} · ${c.themes[0] ?? LIVE_THEMES[0]}`;
+}
 const themeRank = (t: string) => {
   const i = (LIVE_THEMES as readonly string[]).indexOf(t);
   return i === -1 ? LIVE_THEMES.length : i;

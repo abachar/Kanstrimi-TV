@@ -1,25 +1,6 @@
 {
   "query": "matrix",
-  "best": {
-    "id": "tmdb:movie:603",
-    "kind": "movie",
-    "title": "Matrix",
-    "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
-    "logo": "http://kanstrimi.test/img/w500/matrix-logo.png",
-    "picture": "http://kanstrimi.test/img/w1280/matrixb.jpg",
-    "facts": "Film · 1999 · Action",
-    "badges": [
-      "4K DV",
-      "VF",
-      "VOSTFR"
-    ],
-    "hint": null,
-    "progress": null,
-    "watched": false,
-    "caption": null,
-    "overview": "Thomas Anderson mène une double vie."
-  },
-  "movies": [
+  "items": [
     {
       "id": "tmdb:movie:603",
       "kind": "movie",
@@ -57,7 +38,5 @@
       "caption": null,
       "overview": null
     }
-  ],
-  "series": [],
-  "live": []
+  ]
 }
