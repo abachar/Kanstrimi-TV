@@ -171,13 +171,12 @@ final class AppEnvironment {
         return try await playbackContext(for: episode, of: card)
     }
 
-    /// `GET /playback/{id}` wrapped with what the player needs to know about the content.
+    /// `GET /playback/{id}` of a sheet: a movie as itself, a series through the episode the server resumes it on.
     func playbackContext(for card: Card) async throws -> PlaybackContext {
         let playback = try await call { try await client.playback(id: card.id) }
-        // A series card: the server answers with the episode where it resumes, the one to play and report.
-        if card.episode == nil, playback.episode != nil { return PlaybackContext(suggested: card, playback: playback) }
-        let content = PlaybackContent(id: card.id, kind: card.kind, title: card.episode?.title ?? card.title,
-                                      subtitle: card.episode != nil ? card.title : nil, episode: card.episode, backdrop: card.backdrop)
+        let content = playback.episode.map {
+            PlaybackContent(id: $0.id, kind: .episode, title: $0.title ?? card.title, subtitle: card.title, episode: $0.ref, backdrop: card.backdrop)
+        } ?? PlaybackContent(id: card.id, kind: card.kind, title: card.title, subtitle: nil, episode: nil, backdrop: card.backdrop)
         return PlaybackContext(content: content, playback: playback)
     }
     func playbackContext(for episode: Episode, of series: Card) async throws -> PlaybackContext {
@@ -185,9 +184,9 @@ final class AppEnvironment {
         let content = PlaybackContent(id: episode.id, kind: .episode, title: episode.title, subtitle: series.title, episode: episode.ref, backdrop: series.backdrop)
         return PlaybackContext(content: content, playback: playback)
     }
-    /// A suggested title: a movie as itself, a series through the episode the server resumes it on.
-    func playbackContext(suggested card: Card) async throws -> PlaybackContext {
-        PlaybackContext(suggested: card, playback: try await call { try await client.playback(id: card.id) })
+    /// A list item: a movie as itself, a series through the episode the server resumes it on.
+    func playbackContext(for item: ContentItem) async throws -> PlaybackContext {
+        PlaybackContext(item: item, playback: try await call { try await client.playback(id: item.id) })
     }
     func playbackContext(for next: NextEpisode, seriesTitle: String) async throws -> PlaybackContext {
         let playback = try await call { try await client.playback(id: next.id) }

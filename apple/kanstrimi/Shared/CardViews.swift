@@ -83,169 +83,20 @@ struct PosterFacts: View {
     }
 }
 
-/// Grid and row card: poster 2:3 with, drawn on it, year and rating, quality and language badges,
-/// optional hint and progress. No text under it: the poster carries the title (`ArtView` draws it
-/// until the artwork loads, or instead of it).
-struct PosterCard: View {
-    let card: Card
-    /// Defaults to the platform's poster width.
-    var width: CGFloat? = nil
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) { PosterCardLabel(card: card, width: width) }
-            .cardButtonStyle()
-    }
-}
-
 /// A grid of posters that are all loaded (an actor's titles, a saga's movies); a click opens the title.
 struct PosterGrid: View {
     @Environment(\.metrics) private var metrics
-    let cards: [Card]
+    let items: [ContentItem]
     let onSelect: (ContentID) -> Void
 
     var body: some View {
         LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
-            ForEach(cards) { card in
-                Button { onSelect(card.id) } label: { PosterCardLabel(card: card) }
-                    .cardButtonStyle()
+            ForEach(items) { item in
+                PosterCard(item: item) { onSelect(item.id) }
             }
         }
         .padding(.horizontal, metrics.inset)
         .padding(.vertical, metrics.rowPadding)
-    }
-}
-
-/// The poster card without its button: rows wrap it in `PosterCard`, grids in their own button.
-struct PosterCardLabel: View {
-    @Environment(\.metrics) private var metrics
-    let card: Card
-    var width: CGFloat? = nil
-
-    var body: some View {
-        PosterFrame(id: card.id, url: card.poster, title: card.title, width: width) {
-            if metrics.compact {
-                // Phone: the year and the rating only, the hint as a small tag in the top corner.
-                if let hint = card.hint {
-                    Text(hint).font(.system(size: 9, weight: .bold)).lineLimit(1)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
-                        .padding(6)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                }
-                if let facts {
-                    PosterFacts(text: facts)
-                        .padding(.horizontal, 8).padding(.bottom, card.progress?.isResumable == true ? 14 : 8)
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    if let hint = card.hint {
-                        Text(hint).font(.caption2.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
-                    }
-                    if let facts { PosterFacts(text: facts) }
-                    VersionBadges(quality: card.qualityBadge, languages: card.languages, compact: true)
-                        .scaleEffect(0.85, anchor: .bottomLeading)
-                }
-                .padding(12)
-            }
-            if let p = card.progress, p.isResumable {
-                ProgressBar(fraction: p.fraction, height: metrics.compact ? 3 : 5).padding(.horizontal, metrics.compact ? 8 : 12).padding(.bottom, 6)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel([card.title, facts].compactMap { $0 }.joined(separator: ", "))
-    }
-
-    /// "2024 · ★ 7.4", nil when neither is known.
-    private var facts: String? {
-        let parts = [card.year.map { String($0) }, card.rating.map { String(format: "★ %.1f", $0) }].compactMap { $0 }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-}
-
-/// Landscape 16:9 card for the "Reprendre" row, all on the picture: version badges at the top, then
-/// the title's logo (or the title), the episode and the time left, and the progress. Nothing under it.
-struct ResumeCard: View {
-    @Environment(\.metrics) private var metrics
-    let card: Card
-    var width: CGFloat? = nil
-    /// The line under the title; the episode and the time left by default.
-    var caption: String? = nil
-    /// The player's « Similaires »: the same card without the progress.
-    var showsProgress = true
-    let action: () -> Void
-
-    var body: some View {
-        let width = width ?? metrics.resumeWidth
-        let pad = width * 0.04
-        Button(action: action) {
-            ZStack(alignment: .bottomLeading) {
-                ArtView(id: card.id, url: card.backdrop ?? card.poster)
-                    .frame(width: width, height: width * 9 / 16)
-                    .overlay {
-                        // The lower half darkens under the title and the time left.
-                        LinearGradient(stops: [.init(color: .clear, location: 0.35), .init(color: .black.opacity(0.85), location: 1)],
-                                       startPoint: .top, endPoint: .bottom)
-                    }
-                HStack(spacing: 6) {
-                    if let q = card.qualityBadge { Badge(q) }
-                    if let l = card.languages.first { Badge(l.rawValue) }
-                }
-                .padding(pad)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                VStack(alignment: .leading, spacing: pad * 0.6) {
-                    CardTitle(title: card.title, logo: card.logo, box: CGSize(width: width * 0.6, height: width * 0.14))
-                    Text(meta).font(metrics.compact ? .caption2.weight(.semibold) : .caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.85)).lineLimit(1)
-                    if showsProgress { ProgressBar(fraction: card.progress?.fraction ?? 0, height: metrics.compact ? 4 : 6) }
-                }
-                .padding(pad)
-            }
-            .frame(width: width, height: width * 9 / 16)
-            .clipShape(RoundedRectangle(cornerRadius: metrics.wideRadius))
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(card.title), \(meta)")
-        }
-        .cardButtonStyle()
-    }
-
-    /// « S2 · É4 · 1 h 08 restantes », « 1 h 42 restantes ».
-    private var meta: String {
-        if let caption { return caption }
-        var parts: [String] = []
-        if let e = card.episode { parts.append(e.code) }
-        if let p = card.progress { parts.append(Format.remaining(p.remaining)) }
-        return parts.joined(separator: " · ")
-    }
-}
-
-/// An episode's still, 16:9: its progress at the bottom, a check once seen. Shared by the sheet's rows and the
-/// player's « Épisodes »; `playing` is the progress of the episode on screen, which hides the check.
-struct EpisodeStill: View {
-    @Environment(\.metrics) private var metrics
-    let episode: Episode
-    /// Defaults to the platform's still width.
-    var width: CGFloat? = nil
-    var playing: Double? = nil
-
-    var body: some View {
-        let width = width ?? metrics.stillWidth
-        let progress = playing ?? episode.progress.flatMap { $0.isResumable ? $0.fraction : nil }
-        ZStack(alignment: .bottomLeading) {
-            ArtView(id: episode.id, url: episode.still).frame(width: width, height: width * 9 / 16)
-            if let progress {
-                ProgressBar(fraction: progress, height: metrics.compact ? 3 : 5)
-                    .padding(.horizontal, metrics.compact ? 8 : 10).padding(.bottom, metrics.compact ? 6 : 8)
-            }
-            if playing == nil, episode.progress?.isWatched == true {
-                Image(systemName: "checkmark.circle.fill").font(metrics.compact ? .callout : .title2).padding(metrics.compact ? 6 : 10)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            }
-        }
-        .frame(width: width, height: width * 9 / 16)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.thumbRadius))
     }
 }
 
@@ -302,41 +153,32 @@ struct TitleLogo: View {
     }
 }
 
-/// A title on a card's picture: its logo when TMDB has one, held in `box`; the text meanwhile and otherwise.
-private struct CardTitle: View {
-    let title: String
-    let logo: URL?
-    let box: CGSize
-
-    var body: some View {
-        LogoOrTitle(title: title, logo: logo, box: box, alignment: .bottomLeading, shadowOpacity: 0.6, shadowRadius: 6) {
-            Text(title).font(.system(size: box.height * 0.55, weight: .heavy)).foregroundStyle(.white)
-                .lineLimit(2).minimumScaleFactor(0.7).shadow(color: .black.opacity(0.6), radius: 6)
-        }
-    }
-}
-
-/// iPhone: a long press on a poster offers to play it at once or to open its sheet. Nothing on tvOS.
+/// iPhone: a long press on a poster offers to play it at once or to open its sheet. Nothing on tvOS, nor for
+/// a channel or a saga.
 struct PosterMenu: ViewModifier {
     @Environment(AppEnvironment.self) private var env
-    let card: Card
+    let id: ContentID
+    let playable: Bool
+    let context: (AppEnvironment) async throws -> PlaybackContext
 
     func body(content: Content) -> some View {
         content.touchContextMenu {
-            if card.kind != .live {
+            if playable {
                 Button { play() } label: { Label("Lecture", systemImage: "play.fill") }
-                Button { env.open(card.id) } label: { Label("Voir la fiche", systemImage: "info.circle") }
+                Button { env.open(id) } label: { Label("Voir la fiche", systemImage: "info.circle") }
             }
         }
     }
 
     private func play() {
-        Task { if let ctx = await env.attempt("Lecture", { try await env.playbackContext(for: card) }) { env.player.play(ctx) } }
+        Task { if let ctx = await env.attempt("Lecture", { try await context(env) }) { env.player.play(ctx) } }
     }
 }
 
 extension View {
-    func posterMenu(_ card: Card) -> some View { modifier(PosterMenu(card: card)) }
+    func posterMenu(_ item: ContentItem) -> some View {
+        modifier(PosterMenu(id: item.id, playable: item.kind != .live && item.kind != .saga) { try await $0.playbackContext(for: item) })
+    }
 }
 
 /// Horizontal row with a title, used on the home screen and in search.
@@ -350,11 +192,11 @@ struct CardAction {
 struct CardRow: View {
     @Environment(\.metrics) private var metrics
     let title: String
-    let cards: [Card]
+    let cards: [ContentItem]
     var landscape = false
     /// The context menu of a card; none when empty.
-    var actions: (Card) -> [CardAction] = { _ in [] }
-    let onSelect: (Card) -> Void
+    var actions: (ContentItem) -> [CardAction] = { _ in [] }
+    let onSelect: (ContentItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -364,11 +206,11 @@ struct CardRow: View {
                     ForEach(cards) { c in
                         Group {
                             if landscape {
-                                ResumeCard(card: c) { onSelect(c) }
+                                WideCard(item: c) { onSelect(c) }
                             } else if c.kind == .live {
-                                ChannelCard(card: c) { onSelect(c) }
+                                LoadedChannelCard(channel: Channel(id: c.id, name: c.title, logo: c.poster), width: metrics.resumeWidth) { onSelect(c) }
                             } else {
-                                PosterCard(card: c) { onSelect(c) }
+                                PosterCard(item: c) { onSelect(c) }
                             }
                         }
                         .contextMenu {

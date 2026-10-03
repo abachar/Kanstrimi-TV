@@ -75,7 +75,8 @@ struct StreamFailureDialog: View {
 }
 
 /// The last 15 s of the file count down to what follows [14]: the next episode, or the title the server
-/// suggests after a movie or the last episode of a series.
+/// suggests after a movie or the last episode of a series. Places `UpNextCard` and gives it the countdown, the
+/// language warning and the focus.
 struct NextEpisodeCard: View {
     /// tvOS: the bar and its progress show under the card; hidden, the card comes down in their place.
     var barShown = true
@@ -86,42 +87,25 @@ struct NextEpisodeCard: View {
 
     var body: some View {
         if let upNext = player.upNext {
-            if metrics.compact { compactCard(upNext) } else { tvCard(upNext) }
+            if metrics.compact { compactPlacement(card(upNext)) } else { tvPlacement(card(upNext)) }
         }
     }
 
-    /// iPhone: a small card at the top right, above the video upright and clear of the controls sideways.
-    private func compactCard(_ upNext: PlayerService.UpNext) -> some View {
+    private func card(_ upNext: PlayerService.UpNext) -> some View {
+        let (label, item, warning): (String, ContentItem, String?) = switch upNext {
+        case .episode(let next): (next.heading, next.item, languageWarning(next))
+        case .title(let s): (s.heading, s.item, nil)
+        }
+        return UpNextCard(heading: "\(label) · \(player.nextCountdown ?? 0) s", item: item, warning: warning, playFocus: $focused,
+                          onPlay: { playNow(upNext) }, onCancel: { player.cancelNext() })
+    }
+
+    /// iPhone: at the top right, above the video upright and clear of the controls sideways.
+    private func compactPlacement(_ card: some View) -> some View {
         VStack {
             HStack {
                 Spacer()
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(heading(upNext)).font(.caption2.weight(.bold)).tracking(1.2).foregroundStyle(Theme.accent)
-                    switch upNext {
-                    case .episode(let next):
-                        Text("\(next.ref.code) · \(next.title ?? "")").font(.subheadline.weight(.semibold)).lineLimit(1)
-                        if let warning = languageWarning(next) {
-                            Text(warning).font(.caption).foregroundStyle(Theme.accent).lineLimit(2)
-                        }
-                    case .title(let s):
-                        HStack(spacing: 10) {
-                            ArtView(id: s.card.id, url: s.card.backdrop ?? s.card.poster).frame(width: 96, height: 54)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(s.card.title).font(.subheadline.weight(.semibold)).lineLimit(2)
-                                Text(facts(s.card)).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-                            }
-                        }
-                    }
-                    HStack(spacing: 10) {
-                        Button { playNow(upNext) } label: { Label("Lire maintenant", systemImage: "play.fill").font(.footnote.weight(.semibold)) }
-                            .prominentButtonStyle()
-                        Button("Annuler", role: .cancel) { player.cancelNext() }.font(.footnote)
-                    }
-                }
-                .padding(14)
-                .frame(width: 300, alignment: .leading)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                card
             }
             Spacer()
         }
@@ -130,47 +114,12 @@ struct NextEpisodeCard: View {
         .transition(.move(edge: .trailing).combined(with: .opacity))
     }
 
-    private func tvCard(_ upNext: PlayerService.UpNext) -> some View {
+    private func tvPlacement(_ card: some View) -> some View {
         VStack {
             Spacer()
             HStack {
                 Spacer()
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(heading(upNext)).font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.accent)
-                    switch upNext {
-                    case .episode(let next):
-                        Text("\(player.context?.content.subtitle ?? "") · \(next.ref.code)").font(.callout).foregroundStyle(Theme.secondary)
-                        Text(next.title ?? "").font(.title2.weight(.bold))
-                        HStack(spacing: 10) {
-                            if let r = next.runtime { Text("\(r) min").foregroundStyle(Theme.secondary) }
-                            VersionBadges(quality: next.maxQuality.map { q in next.dynamicRange.map { "\(q.rawValue) \($0.shortLabel)" } ?? q.rawValue }, languages: next.languages)
-                        }
-                        if let warning = languageWarning(next) {
-                            Text(warning).font(.callout).foregroundStyle(Theme.accent)
-                        }
-                    case .title(let s):
-                        ArtView(id: s.card.id, url: s.card.backdrop ?? s.card.poster)
-                            .frame(width: metrics.nextCard - metrics.panelPadding * 1.2, height: (metrics.nextCard - metrics.panelPadding * 1.2) * 9 / 16)
-                            .overlay(alignment: .bottomLeading) {
-                                TitleLogo(title: s.card.title, logo: s.card.logo, maxSize: CGSize(width: 300, height: 90))
-                                    .padding(18)
-                            }
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                        HStack(spacing: 10) {
-                            Text(facts(s.card)).foregroundStyle(Theme.secondary)
-                            VersionBadges(quality: s.card.qualityBadge, languages: s.card.languages)
-                        }
-                        .font(.callout)
-                        if let o = s.card.overview { Text(o).font(.callout).foregroundStyle(Theme.text.opacity(0.85)).lineLimit(3) }
-                    }
-                    HStack(spacing: 16) {
-                        Button("Lire maintenant") { playNow(upNext) }.focused($focused)
-                        Button("Annuler", role: .cancel) { player.cancelNext() }
-                    }
-                }
-                .padding(metrics.panelPadding * 0.6)
-                .frame(width: metrics.nextCard, alignment: .leading)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 26))
+                card
             }
             // Above the progress bar and its times while they show; down in their place once they hide.
             .padding(metrics.dialogMargin)
@@ -180,26 +129,6 @@ struct NextEpisodeCard: View {
         .transition(.move(edge: .trailing).combined(with: .opacity))
     }
 
-    /// « ÉPISODE SUIVANT · 7 s », « À SUIVRE · SAGA · 7 s ».
-    private func heading(_ upNext: PlayerService.UpNext) -> String {
-        let seconds = "\(player.nextCountdown ?? 0) s"
-        switch upNext {
-        case .episode: return "ÉPISODE SUIVANT · \(seconds)"
-        case .title(let s) where s.reason == .saga: return "À SUIVRE · SUITE DE LA SAGA · \(seconds)"
-        case .title(let s) where s.card.kind == .series: return "À SUIVRE · NOUVELLE SÉRIE · \(seconds)"
-        case .title: return "À SUIVRE · \(seconds)"
-        }
-    }
-
-    /// « 2003 · Action · 2 h 18 », « Série · 2018 · Drame ».
-    private func facts(_ c: Card) -> String {
-        var parts: [String] = c.kind == .series ? ["Série"] : []
-        if let y = c.year { parts.append(String(y)) }
-        if let g = c.genres.first { parts.append(g) }
-        if c.kind != .series, let r = c.runtime { parts.append(Format.runtime(minutes: r)) }
-        return parts.joined(separator: " · ")
-    }
-
     private func playNow(_ upNext: PlayerService.UpNext) {
         switch upNext {
         case .episode: player.playNextNow()
@@ -207,7 +136,7 @@ struct NextEpisodeCard: View {
         case .title(let s):
             // Its playback not fetched yet: asked now.
             Task {
-                guard let ctx = try? await env.playbackContext(suggested: s.card) else { return }
+                guard let ctx = try? await env.playbackContext(for: s.item) else { return }
                 player.play(ctx)
             }
         }

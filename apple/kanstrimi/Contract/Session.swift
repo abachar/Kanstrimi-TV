@@ -76,10 +76,10 @@ nonisolated struct ServerInfo: Codable, Hashable, Sendable {
 /// `GET /search`
 nonisolated struct SearchResults: Codable, Hashable, Sendable {
     let query: String
-    let best: Card?
-    let movies: [Card]
-    let series: [Card]
-    let live: [Card]
+    let best: ContentItem?
+    let movies: [ContentItem]
+    let series: [ContentItem]
+    let live: [ContentItem]
 
     var isEmpty: Bool { movies.isEmpty && series.isEmpty && live.isEmpty }
     var total: Int { movies.count + series.count + live.count }

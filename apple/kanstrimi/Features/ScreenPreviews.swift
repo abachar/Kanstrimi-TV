@@ -25,7 +25,7 @@ private struct ScreenHost<Content: View>: View {
 #Preview("Films") { ScreenHost { CatalogView(kind: .movie) } }
 #Preview("Séries") { ScreenHost { CatalogView(kind: .series) } }
 #Preview("Sagas") { ScreenHost { NavigationStack { SagasGridView() } } }
-#Preview("Saga") { ScreenHost { NavigationStack { SagaView(ref: SagaRef(id: "saga:1", name: "Pixar (démo)", count: 3)) } } }
+#Preview("Saga") { ScreenHost { NavigationStack { SagaView(id: ContentID("saga:1")) } } }
 #Preview("Acteur") { ScreenHost { NavigationStack { PersonView(ref: PersonRef(id: "person:7248", name: "Cliff Curtis",
                                                                 photo: URL(string: "https://kanstrimi.crafters.dev/img/w185/dfaElGoyJWseFWxXwEMLL9WTi7V.jpg"))) } } }
 #Preview("Studio · titres") {

@@ -6,7 +6,7 @@ struct DetailView: View {
     @Environment(AppEnvironment.self) private var env
     @State private var model: DetailModel?
     @State private var showPicker = false
-    @State private var saga: SagaRef?
+    @State private var saga: ContentID?
     @State private var person: PersonRef?
 
     var body: some View {
@@ -38,9 +38,9 @@ struct DetailView: View {
                 .environment(env)
             }
         }
-        .fullScreenCover(item: $saga) { ref in
+        .fullScreenCover(item: $saga) { id in
             // On tvOS the saga covers this sheet: close it before the chosen movie replaces the sheet.
-            SagaView(ref: ref, onSelect: { id in saga = nil; env.open(id) }).environment(env)
+            SagaView(id: id, onSelect: { id in saga = nil; env.open(id) }).environment(env)
         }
         .fullScreenCover(item: $person) { ref in
             // Same as the saga: on tvOS the actor's screen covers this sheet, so it closes before the chosen title replaces the sheet.
@@ -49,7 +49,7 @@ struct DetailView: View {
     }
 
     private func openSaga(_ ref: SagaRef) {
-        if Platform.isTV { saga = ref } else { env.navigate(.saga(ref)) }
+        if Platform.isTV { saga = ContentID(ref.id) } else { env.navigate(.saga(ContentID(ref.id))) }
     }
 
     private func openPerson(_ ref: PersonRef) {
@@ -395,7 +395,7 @@ struct EpisodeRow: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 14) {
-                    EpisodeStill(episode: episode)
+                    WideCard(item: episode.item, width: metrics.stillWidth, showsTitle: false)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(episode.number). \(episode.title)").font(.subheadline.weight(.semibold)).lineLimit(2)
                         Text(facts).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
@@ -435,7 +435,7 @@ struct EpisodeRow: View {
     private var tvRow: some View {
         Button(action: action) {
             HStack(spacing: 24) {
-                EpisodeStill(episode: episode)
+                WideCard(item: episode.item, width: metrics.stillWidth, showsTitle: false)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text("\(episode.number)").font(.headline).foregroundStyle(Theme.secondary)

@@ -51,15 +51,19 @@ struct PaginatorTests {
     }
 
     @Test("Changer de filtre repart de zéro")
-    func filterResets() async {
+    func filterResets() async throws {
         let scenario = MockScenario()
         scenario.latency = 0
-        let paginator = Paginator(client: MockCatalogClient(scenario: scenario), query: ListQuery(kind: .movie))
+        let client = MockCatalogClient(scenario: scenario)
+        let paginator = Paginator(client: client, query: ListQuery(kind: .movie))
         await paginator.loadFirstPage()
         var q = paginator.query
         q.genre = "drame"
         await paginator.apply(q)
-        #expect(paginator.items.allSatisfy { $0.genres.contains("Drame") })
+        // The first page of the new filter, nothing kept from the old one.
+        let drama = try await client.list(q).items.map(\.id)
+        #expect(!drama.isEmpty)
+        #expect(paginator.items.map(\.id) == drama)
         #expect(paginator.query.cursor == nil)
     }
 }

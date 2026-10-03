@@ -10,10 +10,10 @@ struct CatalogView: View {
     @State private var error: CatalogError?
     @State private var isLoading = false
     @State private var seeAll: CatalogRow?
-    @State private var sagas: Page<Saga>?
+    @State private var sagas: Page<ContentItem>?
     /// nil = not loaded yet (or the call failed): retried at the next appearance.
     @State private var studios: [Studio]?
-    @State private var openSaga: SagaRef?
+    @State private var openSaga: ContentID?
     @State private var openStudio: Studio?
     @State private var allSagas = false
 
@@ -40,7 +40,7 @@ struct CatalogView: View {
                             if row.id == hubsAnchor {
                                 if let studios, !studios.isEmpty { StudioShelf(studios: studios) { open($0) } }
                                 if let sagas, !sagas.items.isEmpty {
-                                    SagaShelf(sagas: sagas.items, total: sagas.total ?? sagas.items.count, onSelect: { open($0) },
+                                    SagaShelf(sagas: sagas.items, total: sagas.total ?? sagas.items.count, onSelect: { open(saga: $0) },
                                               onSeeAll: sagas.nextCursor != nil ? { seeAllSagas() } : nil)
                                 }
                             }
@@ -60,8 +60,8 @@ struct CatalogView: View {
         .fullScreenCover(item: $seeAll) { row in
             GenreGridView(kind: kind, row: row).environment(env)
         }
-        .fullScreenCover(item: $openSaga) { ref in
-            SagaView(ref: ref).environment(env)
+        .fullScreenCover(item: $openSaga) { id in
+            SagaView(id: id).environment(env)
         }
         .fullScreenCover(item: $openStudio) { studio in
             GenreGridView(studio: studio, kind: kind).environment(env)
@@ -75,8 +75,8 @@ struct CatalogView: View {
     private var hubsAnchor: String? { rows.first { $0.id == "recent" }?.id ?? rows.first?.id }
 
     // Like the genre grid: a cover on tvOS, a pushed screen elsewhere.
-    private func open(_ saga: SagaRef) {
-        if Platform.isTV { openSaga = saga } else { env.navigate(.saga(saga)) }
+    private func open(saga id: ContentID) {
+        if Platform.isTV { openSaga = id } else { env.navigate(.saga(id)) }
     }
     private func open(_ studio: Studio) {
         if Platform.isTV { openStudio = studio } else { env.navigate(.studio(kind, studio)) }
@@ -115,7 +115,7 @@ struct ShelfRow: View {
     @Environment(\.metrics) private var metrics
     let row: CatalogRow
     var ranked = false
-    let onSelect: (Card) -> Void
+    let onSelect: (ContentItem) -> Void
     var onSeeAll: (() -> Void)?
 
     var body: some View {
@@ -135,7 +135,7 @@ struct ShelfRow: View {
                                     .foregroundStyle(Theme.secondary.opacity(0.55))
                                     .offset(x: metrics.cardSpacing * 0.6)
                             }
-                            PosterCard(card: c) { onSelect(c) }
+                            PosterCard(item: c) { onSelect(c) }
                                 .posterMenu(c)
                         }
                     }
@@ -159,7 +159,7 @@ struct GenreGridView: View {
     private var studio: Studio?
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
-    @State private var paginator: Paginator<Card, ListQuery>?
+    @State private var paginator: Paginator<ContentItem, ListQuery>?
     @State private var query: ListQuery
 
     init(kind: ContentKind, row: CatalogRow) {
@@ -239,10 +239,9 @@ struct GenreGridView: View {
                     query = query.cleared
                 }
             } else {
-                PagedPosterGrid(paginator: p) { card in
-                    Button { env.open(card.id) } label: { PosterCardLabel(card: card) }
-                        .cardButtonStyle()
-                        .posterMenu(card)
+                PagedPosterGrid(paginator: p) { item in
+                    PosterCard(item: item) { env.open(item.id) }
+                        .posterMenu(item)
                 }
             }
         } else {

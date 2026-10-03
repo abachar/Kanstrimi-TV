@@ -276,55 +276,18 @@ struct LiveView: View {
         .scrollClipDisabled(!metrics.compact)
     }
 
+    /// iPhone: the programme's hours, a long press to watch. tvOS: nothing asked from the row, the side column shows the
+    /// focused channel's programme.
     @ViewBuilder private func channelRow(_ c: Channel) -> some View {
-        if metrics.compact { phoneChannelRow(c) } else { tvChannelRow(c) }
-    }
-
-    /// iPhone: logo, name and quality, then what is on air with its hours and its progress.
-    private func phoneChannelRow(_ c: Channel) -> some View {
-        Button { watch(c) } label: {
-            HStack(spacing: 14) {
-                ChannelLogo(channel: c, size: metrics.channelLogo)
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 8) {
-                        Text(c.name).font(.headline).lineLimit(1)
-                        if let q = env.liveVersion(of: c)?.quality ?? c.maxQuality { Badge(q.rawValue, small: true) }
-                        if c.isFavorite == true { Image(systemName: "heart.fill").font(.caption).foregroundStyle(Theme.accent) }
-                    }
-                    ChannelNow(channel: c, font: .subheadline, color: Theme.text.opacity(0.85), spacing: 5, bar: 120, barHeight: 3, hours: true)
+        if metrics.compact {
+            LoadedChannelCard(channel: c, hours: true) { watch(c) }
+                .touchContextMenu {
+                    Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
                 }
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+        } else {
+            LoadedChannelCard(channel: c, loads: false) { watch(c) }
+                .focused($focus, equals: .channel(c.id))
         }
-        .cardButtonStyle()
-        .touchContextMenu {
-            Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
-        }
-    }
-
-    private func tvChannelRow(_ c: Channel) -> some View {
-        Button {
-            watch(c)
-        } label: {
-            HStack(spacing: 18) {
-                ChannelLogo(channel: c, size: metrics.channelLogo)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(c.name).font(.callout.weight(.semibold)).lineLimit(1)
-                    // Nothing asked from here: the side column shows the focused channel's programme.
-                    if env.nowPlaying(on: c) != nil { ChannelNow(channel: c, loads: false) }
-                    HStack(spacing: 6) { versionBadges(c, small: true) }
-                }
-                Spacer()
-                if c.isFavorite == true { Image(systemName: "heart.fill").foregroundStyle(Theme.accent) }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .cardButtonStyle()
-        .focused($focus, equals: .channel(c.id))
     }
 
     // MARK: - Column 3: preview and programme
@@ -351,14 +314,7 @@ struct LiveView: View {
                         versionBadges(c, small: false)
                     }
                     if let guide = focusedDetail.map(env.guide(of:)), let now = guide.now {
-                        Text("En ce moment").font(.caption).foregroundStyle(Theme.secondary)
-                        Text(now.title).font(.title3.weight(.bold)).lineLimit(2)
-                        if let o = now.overview { Text(o).font(.caption).foregroundStyle(Theme.secondary).lineLimit(3) }
-                        ProgressBar(fraction: now.fraction(), height: 5)
-                        HStack {
-                            Text(Format.hour(now.start)); Spacer(); Text(Format.hour(now.end))
-                        }
-                        .font(.caption).foregroundStyle(Theme.secondary)
+                        ProgrammeCard(programme: now, width: metrics.panelCard * 1.4)
                         if let next = guide.next {
                             Text("Ensuite : \(next.title) · \(Format.hour(next.start))").font(.caption).foregroundStyle(Theme.secondary)
                         }

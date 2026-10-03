@@ -88,13 +88,13 @@ protocol CatalogClient: AnyObject {
     /// `GET /movies` · `GET /series`: rows by genre, twenty cards each.
     func rows(kind: ContentKind) async throws -> [CatalogRow]
     /// `GET /movies?genre=&cursor=` · `GET /series?genre=&cursor=`: "Voir tout".
-    func list(_ query: ListQuery) async throws -> Page<Card>
+    func list(_ query: ListQuery) async throws -> Page<ContentItem>
     /// `GET /movies/{id}` · `GET /series/{id}`: the full card, seasons and episodes included.
     func detail(id: ContentID) async throws -> Card
     /// `GET /movies/studios` · `GET /series/studios`: the studio hubs holding titles of that kind.
     func studios(kind: ContentKind) async throws -> [Studio]
     /// `GET /movies/sagas?cursor=`: the sagas with two visible movies or more, freshest first.
-    func sagas(cursor: String?) async throws -> Page<Saga>
+    func sagas(cursor: String?) async throws -> Page<ContentItem>
     /// `GET /movies/sagas/{id}`: one saga and its movies.
     func saga(id: String) async throws -> SagaSheet
     /// `GET /people/{id}`: an actor and their visible titles.

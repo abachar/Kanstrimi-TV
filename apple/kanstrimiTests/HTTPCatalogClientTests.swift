@@ -145,18 +145,19 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func datesDecodeWithAndWithoutFractionalSeconds() async throws {
-        answer(200, #"{"heroes":[],"rows":[{"id":"recent-movies","kind":"recent_movies","title":"Films récents","cards":[{"id":"tmdb:movie:603","kind":"movie","title":"Matrix","added_at":"2026-09-01T00:00:00Z"}]}],"generated_at":"2026-09-26T21:14:00.512Z"}"#)
+        answer(200, #"{"id":"tmdb:movie:603","kind":"movie","title":"Matrix","added_at":"2026-09-01T00:00:00Z"}"#)
+        #expect(try await client.detail(id: ContentID("tmdb:movie:603")).addedAt == HTTPCatalogClient.parseISO8601("2026-09-01T00:00:00Z"))
+        answer(200, #"{"heroes":[],"rows":[{"id":"recent-movies","kind":"recent_movies","title":"Films récents","cards":[{"id":"tmdb:movie:603","kind":"movie","title":"Matrix"}]}],"generated_at":"2026-09-26T21:14:00.512Z"}"#)
         let home = try await client.home()
-        #expect(home.rows[0].cards[0].addedAt == HTTPCatalogClient.parseISO8601("2026-09-01T00:00:00Z"))
         #expect(abs(home.generatedAt.timeIntervalSince1970 - 1790457240.512) < 0.001)
         #expect(home.heroes.isEmpty)
     }
 
     @Test func homeCarouselDecodesWhatLecturePlays() async throws {
-        answer(200, #"{"heroes":[{"card":{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo"},"tagline":"SÉRIE · NOUVEL ÉPISODE · S1 É2","overview":null,"runtime":80,"certification":null,"versions":[],"play_id":"tmdb:tv:1396:s01e02","episode":{"season":1,"number":2,"title":"Épisode 2"}},{"card":{"id":"tmdb:movie:603","kind":"movie","title":"Matrix"},"tagline":"FILM · N° 1 CETTE SEMAINE","overview":null,"runtime":136,"certification":"12","versions":[],"play_id":"tmdb:movie:603"}],"rows":[],"generated_at":"2026-10-03T08:00:00Z"}"#)
+        answer(200, #"{"heroes":[{"item":{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo"},"tagline":"SÉRIE · NOUVEL ÉPISODE · S1 É2","overview":null,"runtime":80,"certification":null,"versions":[],"play_id":"tmdb:tv:1396:s01e02","episode":{"season":1,"number":2,"title":"Épisode 2"}},{"item":{"id":"tmdb:movie:603","kind":"movie","title":"Matrix"},"tagline":"FILM · N° 1 CETTE SEMAINE","overview":null,"runtime":136,"certification":"12","versions":[],"play_id":"tmdb:movie:603"}],"rows":[],"generated_at":"2026-10-03T08:00:00Z"}"#)
         let home = try await client.home()
         #expect(home.heroes.map(\.playID) == [ContentID("tmdb:tv:1396:s01e02"), ContentID("tmdb:movie:603")])
-        #expect(home.heroes[0].card.id == ContentID("tmdb:tv:1396"))
+        #expect(home.heroes[0].item.id == ContentID("tmdb:tv:1396"))
         #expect(home.heroes[0].episode == EpisodeRef(season: 1, number: 2, title: "Épisode 2"))
         #expect(home.heroes[1].episode == nil)
     }
@@ -168,11 +169,13 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func sagasTravelAndDecode() async throws {
-        answer(200, #"{"items":[{"id":"saga:900","name":"Trilogie - Saga","count":3,"poster":null,"backdrop":"https://kanstrimi.test/img/w1280/b.jpg"}],"next_cursor":"xyz"}"#)
+        answer(200, #"{"items":[{"id":"saga:900","kind":"saga","title":"Trilogie - Saga","logo":null,"poster":null,"picture":"https://kanstrimi.test/img/w1280/b.jpg","facts":"3 films","badges":[],"hint":null,"progress":null,"watched":false,"caption":null}],"next_cursor":"xyz"}"#)
         let page = try await client.sagas(cursor: "abc")
         #expect(try last.url?.path() == "/player/movies/sagas")
         #expect(try query(last) == ["cursor": "abc"])
-        #expect(page.items[0].ref == SagaRef(id: "saga:900", name: "Trilogie - Saga", count: 3))
+        #expect(page.items[0].kind == .saga)
+        #expect(page.items[0].title == "Trilogie - Saga")
+        #expect(page.items[0].facts == "3 films")
         #expect(page.nextCursor == "xyz")
         #expect(page.total == nil)
 
@@ -198,12 +201,13 @@ struct HTTPCatalogClientTests {
         answer(200, #"{"heroes":[],"generated_at":"2026-10-02T18:00:00Z","rows":[{"id":"recommended","kind":"recommended","title":"Recommandé pour vous","cards":[]}]}"#)
         #expect(try await client.home().rows.map(\.kind) == [.recommended])
 
-        answer(200, #"{"related":[{"id":"tmdb:movie:604","kind":"movie","title":"Matrix Reloaded","overview":"La suite.","runtime":138}],"next":{"card":{"id":"tmdb:movie:604","kind":"movie","title":"Matrix Reloaded"},"reason":"saga"}}"#)
+        answer(200, #"{"related":[{"id":"tmdb:movie:604","kind":"movie","title":"Matrix Reloaded","caption":"2003 · Action · 2 h 18"}],"next":{"item":{"id":"tmdb:movie:604","kind":"movie","title":"Matrix Reloaded"},"reason":"saga","heading":"À SUIVRE · SUITE DE LA SAGA"}}"#)
         let s = try await client.suggestions(id: ContentID("tmdb:movie:603"))
         #expect(try last.url?.path() == "/player/playback/tmdb:movie:603/suggestions")
-        #expect(s.related.first?.overview == "La suite.")
+        #expect(s.related.first?.caption == "2003 · Action · 2 h 18")
         #expect(s.next?.reason == .saga)
-        answer(200, #"{"related":[],"next":{"card":{"id":"tmdb:tv:1","kind":"series","title":"Un"},"reason":"not_yet_known"}}"#)
+        #expect(s.next?.heading == "À SUIVRE · SUITE DE LA SAGA")
+        answer(200, #"{"related":[],"next":{"item":{"id":"tmdb:tv:1","kind":"series","title":"Un"},"reason":"not_yet_known","heading":"À SUIVRE"}}"#)
         #expect(try await client.suggestions(id: ContentID("tmdb:movie:603")).next?.reason == .other)
         answer(200, #"{"related":[],"next":null}"#)
         #expect(try await client.suggestions(id: ContentID("tmdb:movie:603")).next == nil)

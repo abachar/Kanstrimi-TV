@@ -38,7 +38,7 @@ struct HomeView: View {
         .onChange(of: env.resumeRevision) { Task { await model?.load() } }
         .platformSheet(isPresented: $showPicker) {
             if let model, let hero = model.hero {
-                VersionPicker(title: hero.card.title, versions: hero.versions, recommendedID: model.heroChoice?.version.id) { v, s in
+                VersionPicker(title: hero.item.title, versions: hero.versions, recommendedID: model.heroChoice?.version.id) { v, s in
                     Task {
                         try? await Task.sleep(for: .milliseconds(400))
                         model.playHero(hero, version: v, source: s)
@@ -50,7 +50,7 @@ struct HomeView: View {
     }
 
     /// Long press on a « Reprendre » card: out of the row, or seen (it leaves the row too).
-    private func resumeActions(_ card: Card, model: HomeModel) -> [CardAction] {
+    private func resumeActions(_ card: ContentItem, model: HomeModel) -> [CardAction] {
         [CardAction(title: "Retirer de « Reprendre »", systemImage: "xmark.circle") { Task { await model.removeFromResume(card) } },
          CardAction(title: "Marquer comme vu", systemImage: "checkmark.circle") { Task { await model.markWatched(card) } }]
     }
@@ -125,123 +125,50 @@ struct HomeView: View {
         if metrics.compact { phoneHero(hero, model: model) } else { tvHero(hero, model: model) }
     }
 
-    /// iPhone: the backdrop from the top edge, the logo (or the title), one line of facts, then Lecture,
-    /// Ma liste and the sheet. A tap on the picture opens the sheet too.
+    /// iPhone: Ma liste, Lecture (a long press offers the versions) and the sheet. A tap on the picture opens the sheet too.
     private func phoneHero(_ hero: HomeHero, model: HomeModel) -> some View {
-        ZStack(alignment: .bottom) {
-            // The poster, made for a screen held upright; the backdrop when there is none.
-            ArtView(id: hero.card.id, url: hero.card.poster ?? hero.card.backdrop)
-                .frame(maxWidth: .infinity).frame(height: metrics.heroHeight)
-                .id(hero.playID).transition(.opacity)
-                .overlay {
-                    // Dark under the status bar, then clear, then the background under the text.
-                    LinearGradient(stops: [.init(color: Theme.background.opacity(0.55), location: 0),
-                                           .init(color: .clear, location: 0.22),
-                                           .init(color: .clear, location: 0.4),
-                                           .init(color: Theme.background.opacity(0.85), location: 0.78),
-                                           .init(color: Theme.background, location: 1)],
-                                   startPoint: .top, endPoint: .bottom)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { env.open(hero.card.id) }
-            VStack(spacing: 12) {
-                VStack(spacing: 12) {
-                    Text(hero.tagline).font(.caption2.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
-                    TitleLogo(title: hero.card.title, logo: hero.card.logo, centered: true)
-                    HStack(spacing: 8) {
-                        Text(facts(hero)).foregroundStyle(Theme.secondary).lineLimit(1)
-                        if let c = hero.certification { Badge(c, small: true) }
-                    }
-                    .font(.subheadline)
-                }
-                .id(hero.playID).transition(.opacity)
-                HStack(spacing: 14) {
-                    let favorite = model.isFavorite(hero)
-                    Button { Task { await model.toggleFavorite(hero) } } label: { Image(systemName: favorite ? "heart.fill" : "heart") }
-                        .buttonStyle(RoundIconStyle(diameter: 46))
-                        .accessibilityLabel(favorite ? "Retirer de ma liste" : "Ajouter à ma liste")
-                        .sensoryFeedback(.selection, trigger: favorite)
-                    Button { model.playHero(hero, version: nil, source: nil) } label: {
-                        Label(hero.card.progress?.isResumable == true ? "Reprendre" : "Lecture", systemImage: "play.fill")
-                            .font(.headline).phoneFullWidth(metrics)
-                    }
-                    .prominentButtonStyle()
-                    .contextMenu {
-                        if VersionPicker.lineCount(hero.versions) > 1 {
-                            Button { showPicker = true } label: { Label("Choisir la version", systemImage: "rectangle.stack.badge.play") }
-                        }
-                    }
-                    Button { env.open(hero.card.id) } label: { Image(systemName: "info") }
-                        .buttonStyle(RoundIconStyle(diameter: 46))
-                        .accessibilityLabel("Fiche")
-                }
-                .padding(.top, 4)
+        HeroBanner(item: hero.item, tagline: hero.tagline, certification: hero.certification, slideID: hero.playID,
+                   onTapPicture: { env.open(hero.item.id) }) {
+            EmptyView()
+        } buttons: {
+            let favorite = model.isFavorite(hero)
+            Button { Task { await model.toggleFavorite(hero) } } label: { Image(systemName: favorite ? "heart.fill" : "heart") }
+                .buttonStyle(RoundIconStyle(diameter: 46))
+                .accessibilityLabel(favorite ? "Retirer de ma liste" : "Ajouter à ma liste")
+                .sensoryFeedback(.selection, trigger: favorite)
+            Button { model.playHero(hero, version: nil, source: nil) } label: {
+                Label(hero.item.progress != nil ? "Reprendre" : "Lecture", systemImage: "play.fill")
+                    .font(.headline).phoneFullWidth(metrics)
             }
-            .padding(.horizontal, metrics.inset + 8)
-            .padding(.bottom, 28)
+            .prominentButtonStyle()
+            .contextMenu {
+                if VersionPicker.lineCount(hero.versions) > 1 {
+                    Button { showPicker = true } label: { Label("Choisir la version", systemImage: "rectangle.stack.badge.play") }
+                }
+            }
+            Button { env.open(hero.item.id) } label: { Image(systemName: "info") }
+                .buttonStyle(RoundIconStyle(diameter: 46))
+                .accessibilityLabel("Fiche")
         }
     }
 
-    /// Year, genre, length: « 2026 · Drame · 2 h 16 ». An episode: its code first.
-    private func facts(_ hero: HomeHero) -> String {
-        [hero.episode?.shortCode, hero.card.year.map(String.init), hero.card.genres.first, hero.runtime.map(Format.runtime(minutes:))]
-            .compactMap { $0 }.joined(separator: " · ")
-    }
-
+    /// TV: the version chosen for this screen under the facts; Lecture, Versions and Fiche between two invisible
+    /// stops, focusable once the focus is in the row (coming up from a row below never lands on it): reaching one
+    /// turns the carousel.
     private func tvHero(_ hero: HomeHero, model: HomeModel) -> some View {
-        ZStack(alignment: .bottomLeading) {
-            ArtView(id: hero.card.id, url: hero.card.backdrop)
-                .frame(maxWidth: .infinity).frame(height: metrics.heroHeight)
-                .id(hero.playID).transition(.opacity)
-                .overlay {
-                    LinearGradient(colors: [Theme.background.opacity(0.95), Theme.background.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing)
-                    LinearGradient(colors: [.clear, Theme.background.opacity(0.6), Theme.background], startPoint: .center, endPoint: .bottom)
-                    // Keeps the tab bar readable over a bright backdrop.
-                    if Platform.isTV { LinearGradient(colors: [Theme.background.opacity(0.7), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.3)) }
+        HeroBanner(item: hero.item, tagline: hero.tagline, certification: hero.certification, slideID: hero.playID) {
+            if let c = model.heroChoice {
+                HStack(spacing: 10) {
+                    Image(systemName: "sparkles").foregroundStyle(Theme.accent)
+                    Text(c.version.label).font(.title3.weight(.semibold))
+                    Text(model.isOffline ? "— version connue à \(Format.hour(model.home?.generatedAt ?? .now)) · elle sera revérifiée au lancement" : "— choisi pour vous")
+                        .font(.title3).foregroundStyle(Theme.secondary)
                 }
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(hero.tagline).font(.caption.weight(.bold)).tracking(2.5).foregroundStyle(Theme.accent)
-                    if hero.card.logo != nil {
-                        // As high as the two lines of title it replaces: the slide keeps its height under the tab bar.
-                        TitleLogo(title: hero.card.title, logo: hero.card.logo,
-                                  maxSize: CGSize(width: metrics.textWidth * 0.6, height: metrics.heroTitle * 2.1))
-                    } else {
-                        // Wider than running text: a long title keeps two lines instead of being cut.
-                        Text(hero.card.title).font(.system(size: metrics.heroTitle, weight: .heavy)).lineLimit(2).minimumScaleFactor(0.85)
-                            .frame(maxWidth: metrics.textWidth * 1.4, alignment: .leading)
-                    }
-                    HStack(spacing: 12) {
-                        Text(facts(hero)).foregroundStyle(Theme.secondary)
-                        if let c = hero.certification { Badge(c) }
-                    }
-                    .font(.title3)
-                    if let c = model.heroChoice {
-                        HStack(spacing: 10) {
-                            Image(systemName: "sparkles").foregroundStyle(Theme.accent)
-                            Text(c.version.label).font(.title3.weight(.semibold))
-                            Text(model.isOffline ? "— version connue à \(Format.hour(model.home?.generatedAt ?? .now)) · elle sera revérifiée au lancement" : "— choisi pour vous")
-                                .font(.title3).foregroundStyle(Theme.secondary)
-                        }
-                    }
-                }
-                .id(hero.playID).transition(.opacity)
-                // The row never wraps a label: on a phone it scrolls sideways instead.
-                ScrollView(.horizontal) {
-                    // tvOS: an invisible stop on each side, outside the buttons' spacing, focusable once the
-                    // focus is in the row (coming up from a row below never lands on it): reaching one turns the carousel.
-                    HStack(spacing: 0) {
-                        if Platform.isTV { edge(.previous) }
-                        HStack(spacing: 18) { heroButtons(hero, model: model) }
-                        if Platform.isTV { edge(.next) }
-                    }
-                    .fixedSize()
-                }
-                .scrollClipDisabled()
-                .padding(.top, 8)
             }
-            .padding(.horizontal, metrics.inset)
-            .padding(.bottom, 40)
+        } buttons: {
+            if Platform.isTV { edge(.previous) }
+            HStack(spacing: 18) { heroButtons(hero, model: model) }
+            if Platform.isTV { edge(.next) }
         }
     }
 }
@@ -278,7 +205,7 @@ private struct PageDots: View {
 private extension HomeView {
     @ViewBuilder func heroButtons(_ hero: HomeHero, model: HomeModel) -> some View {
         Button { model.playHero(hero, version: nil, source: nil) } label: {
-            Label(hero.card.progress?.isResumable == true ? "Reprendre" : "Lecture", systemImage: "play.fill").font(.headline)
+            Label(hero.item.progress != nil ? "Reprendre" : "Lecture", systemImage: "play.fill").font(.headline)
         }
         .prominentButtonStyle()
         .focused($heroFocus, equals: .play)
@@ -288,7 +215,7 @@ private extension HomeView {
             Button("Versions · \(hero.versions.count)") { showPicker = true }.buttonStyle(.bordered)
                 .focused($heroFocus, equals: .versions)
         }
-        Button { env.open(hero.card.id) } label: { Label("Fiche", systemImage: "info.circle") }.buttonStyle(.bordered)
+        Button { env.open(hero.item.id) } label: { Label("Fiche", systemImage: "info.circle") }.buttonStyle(.bordered)
             .focused($heroFocus, equals: .sheet)
     }
 
@@ -357,10 +284,10 @@ final class HomeModel {
 
     /// Ma liste of each slide, as toggled here until the next load says otherwise.
     private var favoriteOverrides: [ContentID: Bool] = [:]
-    func isFavorite(_ hero: HomeHero) -> Bool { favoriteOverrides[hero.card.id] ?? hero.card.isFavorite ?? false }
+    func isFavorite(_ hero: HomeHero) -> Bool { favoriteOverrides[hero.item.id] ?? hero.isFavorite }
 
     func toggleFavorite(_ hero: HomeHero) async {
-        let id = hero.card.id
+        let id = hero.item.id
         let target = !isFavorite(hero)
         favoriteOverrides[id] = target
         do { try await env.call { try await env.client.setFavorite(id: id, target) } } catch { favoriteOverrides[id] = !target }
@@ -368,23 +295,22 @@ final class HomeModel {
 
     var heroChoice: VersionChooser.Choice? {
         guard let hero else { return nil }
-        let remembered = env.preferences.rememberVersionPerTitle ? env.preferences.rememberedVersion(for: hero.card.id) : nil
+        let remembered = env.preferences.rememberVersionPerTitle ? env.preferences.rememberedVersion(for: hero.item.id) : nil
         return env.player.chooser.choose(from: hero.versions, remembered: remembered)
     }
 
     /// A movie plays from what the home carries, offline included. An episode asks `/playback` first for
     /// the episode after it, and falls back on the slide's versions.
     func playHero(_ hero: HomeHero, version: Version?, source: Source?) {
-        let p = hero.card.progress
         let content: PlaybackContent
         if let e = hero.episode {
-            content = PlaybackContent(id: hero.playID, kind: .episode, title: e.title ?? hero.card.title, subtitle: hero.card.title,
-                                      episode: e, backdrop: hero.card.backdrop)
+            content = PlaybackContent(id: hero.playID, kind: .episode, title: e.title ?? hero.item.title, subtitle: hero.item.title,
+                                      episode: e, backdrop: hero.item.picture)
         } else {
-            content = PlaybackContent(id: hero.playID, kind: hero.card.kind, title: hero.card.title, subtitle: nil, episode: nil, backdrop: hero.card.backdrop)
+            content = PlaybackContent(id: hero.playID, kind: hero.item.kind.content ?? .movie, title: hero.item.title, subtitle: nil, episode: nil,
+                                      backdrop: hero.item.picture)
         }
-        let local = PlaybackContext(content: content, versions: hero.versions, resumeAt: hero.episode == nil && p?.isResumable == true ? p?.position : nil,
-                                    duration: hero.episode == nil ? p?.duration ?? hero.runtime.map { TimeInterval($0 * 60) } : hero.runtime.map { TimeInterval($0 * 60) })
+        let local = PlaybackContext(content: content, versions: hero.versions, resumeAt: hero.resumeAt, duration: hero.duration)
         Task {
             var ctx = local
             if hero.episode != nil, let playback = try? await env.call({ try await env.client.playback(id: hero.playID) }) {
@@ -394,22 +320,22 @@ final class HomeModel {
         }
     }
 
-    func removeFromResume(_ card: Card) async {
+    func removeFromResume(_ card: ContentItem) async {
         env.progressQueue.drop(card.id)
         guard await env.attempt("Retrait", { try await env.call { try await env.client.removeFromResume(id: card.id) } }) != nil else { return }
         await load()
     }
 
-    func markWatched(_ card: Card) async {
+    func markWatched(_ card: ContentItem) async {
         env.progressQueue.drop(card.id)
         guard await env.attempt("Marquage", { try await env.call { try await env.client.setWatched(id: card.id, true, season: nil) } }) != nil else { return }
         await load()
     }
 
     /// "Reprendre" launches the player directly: one call for the playback context, no sheet.
-    func resume(_ card: Card) {
+    func resume(_ card: ContentItem) {
         Task {
-            if let hero = home?.heroes.first(where: { $0.card.id == card.id }) {
+            if let hero = home?.heroes.first(where: { $0.item.id == card.id }) {
                 // The carousel already holds its versions: played even when the server does not answer.
                 if let ctx = try? await env.playbackContext(for: card) { env.player.play(ctx) } else { playHero(hero, version: nil, source: nil) }
             } else if let ctx = await env.attempt("Lecture", { try await env.playbackContext(for: card) }) {

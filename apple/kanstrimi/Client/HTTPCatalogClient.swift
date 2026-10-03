@@ -45,7 +45,7 @@ final class HTTPCatalogClient: CatalogClient {
     func rows(kind: ContentKind) async throws -> [CatalogRow] {
         try await send("GET", Self.collection(kind))
     }
-    func list(_ query: ListQuery) async throws -> Page<Card> {
+    func list(_ query: ListQuery) async throws -> Page<ContentItem> {
         var q: [URLQueryItem] = [URLQueryItem(name: "sort", value: query.sort.rawValue)]
         if let g = query.genre { q.append(URLQueryItem(name: "genre", value: g)) }
         if let l = query.language { q.append(URLQueryItem(name: "language", value: l.rawValue)) }
@@ -60,7 +60,7 @@ final class HTTPCatalogClient: CatalogClient {
         try await send("GET", "\(Self.collection(Self.kind(of: id)))/\(id.rawValue)")
     }
     func studios(kind: ContentKind) async throws -> [Studio] { try await send("GET", "\(Self.collection(kind))/studios") }
-    func sagas(cursor: String?) async throws -> Page<Saga> {
+    func sagas(cursor: String?) async throws -> Page<ContentItem> {
         try await send("GET", "movies/sagas", query: cursor.map { [URLQueryItem(name: "cursor", value: $0)] } ?? [])
     }
     func saga(id: String) async throws -> SagaSheet { try await send("GET", "movies/sagas/\(id)") }

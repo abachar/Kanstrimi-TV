@@ -683,8 +683,8 @@ final class PlayerService {
                                           episode: next.ref, backdrop: ctx.content.backdrop)
             return PlaybackContext(content: content, playback: playback)
         case .title(let suggestion):
-            guard let playback = try? await client.playback(id: suggestion.card.id) else { return nil }
-            return PlaybackContext(suggested: suggestion.card, playback: playback)
+            guard let playback = try? await client.playback(id: suggestion.item.id) else { return nil }
+            return PlaybackContext(item: suggestion.item, playback: playback)
         }
     }
 

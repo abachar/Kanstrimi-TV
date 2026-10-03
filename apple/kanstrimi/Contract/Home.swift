@@ -15,13 +15,14 @@ nonisolated struct HomeRow: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let kind: HomeRowKind
     let title: String
-    let cards: [Card]
+    let cards: [ContentItem]
 }
 
-/// A slide of the home carousel. `card` is what Fiche opens (the series for a new episode); `playID`
-/// what Lecture plays, `versions`, `runtime` and `overview` being that title's own; `episode` names it.
+/// A slide of the home carousel. `item` is what it draws and what Fiche opens (the series for a new episode);
+/// `playID` what Lecture plays, `versions`, `runtime`, `resumeAt` and `duration` being that title's own;
+/// `episode` names it.
 nonisolated struct HomeHero: Codable, Hashable, Sendable {
-    let card: Card
+    let item: ContentItem
     /// What the slide is: "FILM · N° 1 CETTE SEMAINE", "SÉRIE · NOUVEL ÉPISODE · S2 É5".
     let tagline: String
     let overview: String?
@@ -30,10 +31,39 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
     let versions: [Version]
     let playID: ContentID
     let episode: EpisodeRef?
+    let isFavorite: Bool
+    /// Seconds: where Lecture resumes a movie, nil from the start.
+    let resumeAt: TimeInterval?
+    let duration: TimeInterval?
 
     enum CodingKeys: String, CodingKey {
-        case card, tagline, overview, runtime, certification, versions, episode
+        case item, tagline, overview, runtime, certification, versions, episode
         case playID = "play_id"
+        case isFavorite = "is_favorite"
+        case resumeAt = "resume_at"
+        case duration
+    }
+
+    init(item: ContentItem, tagline: String, overview: String?, runtime: Int?, certification: String?, versions: [Version],
+         playID: ContentID, episode: EpisodeRef?, isFavorite: Bool = false, resumeAt: TimeInterval? = nil, duration: TimeInterval? = nil) {
+        self.item = item; self.tagline = tagline; self.overview = overview; self.runtime = runtime; self.certification = certification
+        self.versions = versions; self.playID = playID; self.episode = episode; self.isFavorite = isFavorite; self.resumeAt = resumeAt
+        self.duration = duration
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        item = try c.decode(ContentItem.self, forKey: .item)
+        tagline = try c.decode(String.self, forKey: .tagline)
+        overview = try c.decodeIfPresent(String.self, forKey: .overview)
+        runtime = try c.decodeIfPresent(Int.self, forKey: .runtime)
+        certification = try c.decodeIfPresent(String.self, forKey: .certification)
+        versions = try c.decodeIfPresent([Version].self, forKey: .versions) ?? []
+        playID = try c.decode(ContentID.self, forKey: .playID)
+        episode = try c.decodeIfPresent(EpisodeRef.self, forKey: .episode)
+        isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
+        resumeAt = try c.decodeIfPresent(TimeInterval.self, forKey: .resumeAt)
+        duration = try c.decodeIfPresent(TimeInterval.self, forKey: .duration)
     }
 }
 

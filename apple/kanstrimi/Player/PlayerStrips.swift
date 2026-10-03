@@ -21,7 +21,7 @@ struct ProgrammeStrip: View {
                         HStack(spacing: 20) {
                             ForEach(programmes, id: \.start) { p in
                                 // Focusable so the remote can scroll the day; nothing to do on select.
-                                Button { onActivity() } label: { card(p) }
+                                Button { onActivity() } label: { ProgrammeCard(programme: p) }
                                     .cardButtonStyle()
                                     .focused($focused, equals: p.start)
                             }
@@ -45,29 +45,13 @@ struct ProgrammeStrip: View {
         let version = player.version?.id
         programmes = (try? await env.call { try await env.client.programmes(channel: id, version: version) }) ?? []
     }
-
-    private func card(_ p: Programme) -> some View {
-        let onAir = p.start <= .now && p.end > .now
-        return VStack(alignment: .leading, spacing: 6) {
-            Text("\(Format.hour(p.start)) – \(Format.hour(p.end))").font(.caption2.weight(.semibold)).foregroundStyle(Theme.secondary)
-            Text(p.title).font(.headline).lineLimit(2)
-            if let o = p.overview { Text(o).font(.caption2).foregroundStyle(Theme.secondary).lineLimit(3) }
-            Spacer(minLength: 0)
-            if onAir {
-                Text("EN COURS").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
-                ProgressBar(fraction: p.fraction(), height: 4)
-            }
-        }
-        // A fixed height: the EN COURS mark sits at the bottom of the card, not of the screen.
-        .frame(width: metrics.panelCard, height: metrics.panelCard * 0.7, alignment: .topLeading)
-        .padding(20)
-    }
 }
 
 /// The 8 last channels, most recent first; a click switches at once. Shared by the ▲ overlay
 /// (iOS) and the Récentes panel of the tvOS bar.
 struct RecentChannelsStrip: View {
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
     @FocusState private var focused: ContentID?
     var onActivity: () -> Void = { }
     let onPick: () -> Void
@@ -87,7 +71,8 @@ struct RecentChannelsStrip: View {
                 ScrollView(.horizontal) {
                     HStack(spacing: 20) {
                         ForEach(recents, id: \.entry.channelID) { r in
-                            RecentChannelCard(channel: r.channel, watchedAt: r.entry.watchedAt, isCurrent: r.channel.id == player.channel?.id) {
+                            LoadedChannelCard(channel: r.channel, status: r.channel.id == player.channel?.id ? .playing : .watched(r.entry.watchedAt),
+                                              width: metrics.recentCard) {
                                 player.play(channel: r.channel, in: player.channels)
                                 env.recentChannels.record(r.channel.id)
                                 onPick()
@@ -216,7 +201,7 @@ struct SeasonEpisodesStrip: View {
     private func card(_ ep: Episode) -> some View {
         let isCurrent = ep.id == player.context?.content.id
         return VStack(alignment: .leading, spacing: 10) {
-            EpisodeStill(episode: ep, width: metrics.stillWidth * 1.3, playing: isCurrent ? player.fraction : nil)
+            WideCard(item: ep.item, width: metrics.stillWidth * 1.3, showsTitle: false, playing: isCurrent ? player.fraction : nil)
             HStack(spacing: 8) {
                 Text("É\(ep.number)").foregroundStyle(isCurrent ? Theme.accent : Theme.secondary)
                 Text(ep.title).lineLimit(1)
@@ -251,7 +236,7 @@ struct RelatedStrip: View {
         ScrollView(.horizontal) {
             HStack(spacing: metrics.cardSpacing) {
                 ForEach(player.suggestions?.related ?? []) { c in
-                    ResumeCard(card: c, width: metrics.resumeWidth * 1.25, caption: facts(c), showsProgress: false) { play(c) }
+                    WideCard(item: c, width: metrics.resumeWidth * 1.25) { play(c) }
                         .focused($focused, equals: c.id)
                 }
             }
@@ -261,18 +246,9 @@ struct RelatedStrip: View {
         .onChange(of: focused) { _, _ in onActivity() }
     }
 
-    /// « 2003 · Action · 2 h 18 », « Série · 2019 · Drame ».
-    private func facts(_ c: Card) -> String {
-        var parts: [String] = c.kind == .series ? ["Série"] : []
-        if let y = c.year { parts.append(String(y)) }
-        if let g = c.genres.first { parts.append(g) }
-        if c.kind != .series, let r = c.runtime { parts.append(Format.runtime(minutes: r)) }
-        return parts.joined(separator: " · ")
-    }
-
-    private func play(_ c: Card) {
+    private func play(_ c: ContentItem) {
         Task {
-            guard let ctx = try? await env.playbackContext(suggested: c) else { return }
+            guard let ctx = try? await env.playbackContext(for: c) else { return }
             player.play(ctx)
             onPick()
         }

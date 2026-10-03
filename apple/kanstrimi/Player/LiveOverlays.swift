@@ -22,7 +22,7 @@ struct ChannelListOverlay: View {
             LazyVStack(alignment: .leading, spacing: touch ? 4 : 14) {
                 Text("Chaînes").font(.title2.weight(.bold)).padding(.bottom, 6)
                 ForEach(player.channels) { c in
-                    ChannelListRow(channel: c, isCurrent: c.id == player.channel?.id, logoSize: touch ? 44 : 64) {
+                    LoadedChannelCard(channel: c, status: c.id == player.channel?.id ? .playing : nil) {
                         player.play(channel: c, in: player.channels)
                         env.recentChannels.record(c.id)
                         onClose()
@@ -84,61 +84,3 @@ struct ChannelListOverlay: View {
     }
 }
 
-/// A channel of the ◀ list: logo, name, the programme on air and its progress; the one playing marked.
-private struct ChannelListRow: View {
-    let channel: Channel
-    let isCurrent: Bool
-    var logoSize: CGFloat = 64
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 18) {
-                ChannelLogo(channel: channel, size: logoSize)
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 10) {
-                        Text(channel.name).font(.callout.weight(.semibold)).lineLimit(1)
-                        if isCurrent {
-                            Text("EN COURS").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
-                        }
-                    }
-                    ChannelNow(channel: channel, bar: 260)
-                }
-                Spacer(minLength: 0)
-                if let q = channel.maxQuality { Badge(q.rawValue, small: true) }
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .cardButtonStyle()
-    }
-}
-
-/// A channel of « Récentes »: logo, name and when it was watched, then the programme on air and its progress.
-struct RecentChannelCard: View {
-    @Environment(\.metrics) private var metrics
-    let channel: Channel
-    let watchedAt: Date
-    let isCurrent: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    ChannelLogo(channel: channel, size: 56)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(channel.name).font(.headline).lineLimit(1)
-                        Text(isCurrent ? "en cours" : Format.ago(watchedAt)).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-                    }
-                    Spacer()
-                    if let q = channel.maxQuality { Badge(q.rawValue) }
-                }
-                ChannelNow(channel: channel, font: .callout, color: nil, spacing: 8, bar: .infinity, fallback: .text(" "))
-            }
-            .padding(18)
-            .frame(width: metrics.recentCard)
-        }
-        .cardButtonStyle()
-    }
-}

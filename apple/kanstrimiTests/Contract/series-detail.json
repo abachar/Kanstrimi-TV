@@ -83,6 +83,21 @@
             "position": 4700,
             "duration": 4800,
             "finished": true
+          },
+          "item": {
+            "id": "tmdb:tv:1396:s01e01",
+            "kind": "episode",
+            "title": "Épisode 1",
+            "logo": null,
+            "poster": null,
+            "picture": "http://kanstrimi.test/img/w300/s1e1.jpg",
+            "facts": "É1 · 1 h 20",
+            "badges": [],
+            "hint": null,
+            "progress": null,
+            "watched": true,
+            "caption": "É1 · 1 h 20",
+            "overview": null
           }
         },
         {
@@ -114,7 +129,22 @@
               ]
             }
           ],
-          "progress": null
+          "progress": null,
+          "item": {
+            "id": "tmdb:tv:1396:s01e02",
+            "kind": "episode",
+            "title": "Épisode 2",
+            "logo": null,
+            "poster": null,
+            "picture": "http://kanstrimi.test/img/w300/s1e2.jpg",
+            "facts": "É2 · 1 h 18",
+            "badges": [],
+            "hint": null,
+            "progress": null,
+            "watched": false,
+            "caption": "É2 · 1 h 18",
+            "overview": null
+          }
         }
       ]
     }

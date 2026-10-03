@@ -10,7 +10,7 @@ enum MainTab: String, Hashable, CaseIterable {
 nonisolated enum Route: Hashable {
     case detail(ContentID)
     case genre(ContentKind, CatalogRow)
-    case saga(SagaRef)
+    case saga(ContentID)
     case sagas
     case person(PersonRef)
     case studio(ContentKind, Studio)
@@ -25,7 +25,7 @@ struct RouteView: View {
         switch route {
         case .detail(let id): DetailView(id: id)
         case .genre(let kind, let row): GenreGridView(kind: kind, row: row)
-        case .saga(let ref): SagaView(ref: ref)
+        case .saga(let id): SagaView(id: id)
         case .sagas: SagasGridView()
         case .person(let ref): PersonView(ref: ref)
         case .studio(let kind, let studio): GenreGridView(studio: studio, kind: kind)

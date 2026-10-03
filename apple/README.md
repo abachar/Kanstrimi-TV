@@ -14,7 +14,8 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 | `Client/` | `CatalogClient` : `HTTPCatalogClient` (le serveur), `MockCatalogClient` (fixtures JSON de démo), `SwitchingCatalogClient`. |
 | `Player/` | Le lecteur, service transverse unique : `PlayerService` (moteur, bascules, gels, zapping), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
 | `Features/` | Un dossier par écran, une seule vue pour les deux plateformes. |
-| `Shared/` | `Platform.swift` (`Metrics` et modificateurs par plateforme), `Theme`, `CardViews`, `ChannelViews` (logo, programme en cours, carte de chaîne), `Stores`. |
+| `Shared/` | `Platform.swift` (`Metrics` et modificateurs par plateforme), `Theme`, `CardViews` (images, rangées, grilles, menu d'une affiche), `ChannelViews` (logo, `LoadedChannelCard`, `channelItem`), `Stores`. |
+| `Shared/Cards/` | Les cartes (`PosterCard`, `WideCard`, `ChannelCard`, `ProgrammeCard`, `UpNextCard`, `HeroBanner`, `BestResult`, `SeeAllCard`, `RetryCard`, `StudioTile`, `CastCell`), un fichier chacune avec ses `#Preview` (données fixes). Composants bêtes : un modèle (`ContentItem` du contrat, `ChannelItem`…) et des actions en entrée, jamais `AppEnvironment` ni `.task` (vérifié par `CardsArchitectureTests`) ; charger, garder l'état, le focus et agir reste à l'écran. |
 | `../TopShelf/` | Extension Top Shelf (tvOS seul) : appelle `GET /player/top-shelf`, carrousel plein écran. |
 | `../Entitlements/` | Groupe de Keychain partagé par l'app et l'extension. |
 | `scripts/` | `shot.sh` / `shot-all.sh` : captures du client de démo dans `ui-review/` (hors git). |
@@ -53,8 +54,8 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **Version de départ** (`VersionChooser.start`) : celle mémorisée pour le titre ou la chaîne, sinon la meilleure. La
   lecture, l'aperçu du Direct et le guide affiché s'en servent : TF1 passée en FHD rouvre, s'aperçoit et se guide en FHD.
 - **Programme en cours** : une seule règle, `env.nowPlaying(on:)` (guide de la liste, sinon le détail reçu tant que
-  le programme dure), affichée par `ChannelNow`. Les lignes du Direct tvOS ne demandent rien : la colonne de droite
-  montre déjà celui de la chaîne en focus.
+  le programme dure), portée par `env.channelItem` jusqu'à `ChannelCard` ; `LoadedChannelCard` le demande. Les lignes
+  du Direct tvOS ne demandent rien : la colonne de droite montre déjà celui de la chaîne en focus.
 - **Guide du direct** : celui de la version lue, ou de départ (`env.guide(of:)`) ; une qualité sans guide prend celui
   de la qualité inférieure la plus proche, sinon supérieure (calculé par le serveur).
 - **Chaînes les plus regardées** : `PlayerService` envoie le temps regardé (`POST /playback/{id}/watch-time`) ; l'accueil

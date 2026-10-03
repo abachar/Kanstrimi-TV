@@ -5,22 +5,18 @@
     "kind": "movie",
     "title": "Matrix",
     "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
-    "max_quality": "4K",
-    "dynamic_range": "DV",
-    "languages": [
+    "logo": "http://kanstrimi.test/img/w500/matrix-logo.png",
+    "picture": "http://kanstrimi.test/img/w1280/matrixb.jpg",
+    "facts": "Film · 1999 · Action",
+    "badges": [
+      "4K DV",
       "VF",
       "VOSTFR"
     ],
-    "year": 1999,
-    "rating": 8.2,
-    "genres": [
-      "Action",
-      "Science-Fiction"
-    ],
     "hint": null,
-    "added_at": "2026-09-22T18:30:00.000Z",
-    "backdrop": "http://kanstrimi.test/img/w1280/matrixb.jpg",
-    "logo": "http://kanstrimi.test/img/w500/matrix-logo.png",
+    "progress": null,
+    "watched": false,
+    "caption": null,
     "overview": "Thomas Anderson mène une double vie."
   },
   "movies": [
@@ -29,38 +25,37 @@
       "kind": "movie",
       "title": "Matrix",
       "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
-      "max_quality": "4K",
-      "dynamic_range": "DV",
-      "languages": [
+      "logo": "http://kanstrimi.test/img/w500/matrix-logo.png",
+      "picture": "http://kanstrimi.test/img/w1280/matrixb.jpg",
+      "facts": "1999 · ★ 8.2",
+      "badges": [
+        "4K DV",
         "VF",
         "VOSTFR"
       ],
-      "year": 1999,
-      "rating": 8.2,
-      "genres": [
-        "Action",
-        "Science-Fiction"
-      ],
       "hint": null,
-      "added_at": "2026-09-22T18:30:00.000Z"
+      "progress": null,
+      "watched": false,
+      "caption": null,
+      "overview": null
     },
     {
       "id": "tmdb:movie:604",
       "kind": "movie",
       "title": "Matrix Reloaded",
       "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
-      "max_quality": "4K",
-      "dynamic_range": "DV",
-      "languages": [
+      "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png",
+      "picture": "http://kanstrimi.test/img/w1280/reloadedb.jpg",
+      "facts": "2026 · ★ 7.1",
+      "badges": [
+        "4K DV",
         "VF"
       ],
-      "year": 2026,
-      "rating": 7.1,
-      "genres": [
-        "Action"
-      ],
       "hint": null,
-      "added_at": "2026-09-28T18:30:00.000Z"
+      "progress": null,
+      "watched": false,
+      "caption": null,
+      "overview": null
     }
   ],
   "series": [],

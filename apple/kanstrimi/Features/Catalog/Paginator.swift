@@ -91,7 +91,7 @@ final class Paginator<Item: Codable & Hashable & Identifiable & Sendable, Query:
     }
 }
 
-extension Paginator where Item == Card, Query == ListQuery {
+extension Paginator where Item == ContentItem, Query == ListQuery {
     /// « Voir tout » of a genre, a studio or « Nouveautés ».
     convenience init(client: CatalogClient, query: ListQuery) {
         self.init(query: query) { try await client.list($0) }

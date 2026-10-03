@@ -39,7 +39,7 @@ struct SearchView: View {
         } else if let error {
             StatePanel(icon: "exclamationmark.triangle", title: "Recherche impossible", message: error.localizedDescription) { schedule(immediately: true) }
         } else if let r = results, r.query == text {
-            if let best = r.best ?? (r.live + r.movies + r.series).first {
+            if let best = r.best {
                 resultsView(r, best: best)
             } else {
                 StatePanel(icon: "magnifyingglass", title: "Aucun résultat pour « \(r.query) »",
@@ -50,13 +50,13 @@ struct SearchView: View {
         }
     }
 
-    private func resultsView(_ r: SearchResults, best: Card) -> some View {
+    private func resultsView(_ r: SearchResults, best: ContentItem) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: metrics.compact ? 20 : 30) {
-                bestView(best)
-                if !r.live.isEmpty { row("En direct", r.live) }
-                if !r.movies.isEmpty { row("Films", r.movies) }
-                if !r.series.isEmpty { row("Séries", r.series) }
+                BestResult(item: best) { open(best) }.posterMenu(best)
+                if !r.live.isEmpty { row("En direct") { items(r.live) } }
+                if !r.movies.isEmpty { row("Films") { items(r.movies) } }
+                if !r.series.isEmpty { row("Séries") { items(r.series) } }
             }
             .padding(.leading, metrics.inset)
             .padding(.vertical, metrics.compact ? 12 : 20)
@@ -64,14 +64,16 @@ struct SearchView: View {
         .scrollClipDisabled()
     }
 
-    private func row(_ title: String, _ cards: [Card]) -> some View {
+    private func items(_ items: [ContentItem]) -> some View {
+        ForEach(items) { item in PosterCard(item: item) { open(item) }.posterMenu(item) }
+    }
+
+    private func row(_ title: String, @ViewBuilder cards: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title).font(.title3.weight(.bold))
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
-                    ForEach(cards) { c in
-                        PosterCard(card: c) { open(c) }.posterMenu(c)
-                    }
+                    cards()
                 }
                 .padding(.vertical, metrics.rowPadding).padding(.horizontal, metrics.compact ? 0 : 10)
             }
@@ -79,88 +81,9 @@ struct SearchView: View {
         }
     }
 
-    /// The wide picture (a channel's logo on its colour) is the button, like any card: the sheet, or
-    /// the channel. On TV the title, facts and overview beside it, so the next row shows under it;
-    /// on a phone the facts alone, below it.
-    private func bestView(_ c: Card) -> some View {
-        let card = Button { open(c) } label: { widePicture(c) }
-            .cardButtonStyle()
-            .posterMenu(c)
-        return VStack(alignment: .leading, spacing: metrics.compact ? 12 : 18) {
-            Text("MEILLEUR RÉSULTAT").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(Theme.secondary)
-            if let width = metrics.searchBest {
-                HStack(alignment: .top, spacing: 40) {
-                    card.frame(width: width)
-                    bestFacts(c)
-                }
-            } else {
-                card
-                bestFacts(c)
-            }
-        }
-        .padding(.trailing, metrics.inset)
-    }
-
-    private func bestFacts(_ c: Card) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if !metrics.compact { Text(c.title).font(.title2.weight(.bold)).lineLimit(2) }
-            HStack(spacing: 12) {
-                Text([c.kind.label, c.year.map(String.init), c.genres.first].compactMap { $0 }.joined(separator: " · "))
-                    .foregroundStyle(Theme.secondary).lineLimit(1)
-                VersionBadges(quality: c.qualityBadge, languages: c.languages)
-            }
-            if !metrics.compact, let overview = c.overview, !overview.isEmpty {
-                Text(overview).font(.callout).foregroundStyle(Theme.secondary).lineLimit(4)
-            }
-        }
-    }
-
-    private func widePicture(_ c: Card) -> some View {
-        ZStack(alignment: .bottomLeading) {
-            if c.kind == .live {
-                Rectangle().fill(Theme.art(for: c.id))
-                    .overlay {
-                        AsyncImage(url: c.poster) { phase in
-                            if let image = phase.image { image.resizable().scaledToFit() }
-                        }
-                        .padding(metrics.compact ? 40 : 70)
-                    }
-            } else {
-                ArtView(id: c.id, url: c.backdrop ?? c.poster)
-                    .overlay {
-                        LinearGradient(colors: [.clear, .clear, Theme.background.opacity(0.85)], startPoint: .top, endPoint: .bottom)
-                    }
-                bestTitle(c).padding(metrics.compact ? 14 : 24)
-            }
-        }
-        .aspectRatio(16 / 9, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.wideRadius))
-    }
-
-    /// The title's logo over the picture; else the title, on a phone only: on TV it is written beside.
-    private func bestTitle(_ c: Card) -> some View {
-        LogoOrTitle(title: c.title, logo: c.logo, box: metrics.compact ? CGSize(width: 180, height: 60) : CGSize(width: 320, height: 110),
-                    alignment: .bottomLeading) { titleOverPicture(c) }
-    }
-
-    @ViewBuilder private func titleOverPicture(_ c: Card) -> some View {
-        if metrics.compact {
-            Text(c.title).font(.title3.weight(.bold)).lineLimit(2).shadow(color: .black.opacity(0.6), radius: 8)
-        }
-    }
-
-    private func open(_ c: Card) {
-        if c.kind == .live { play(c) } else { env.open(c.id) }
-    }
-
-    private func play(_ c: Card) {
-        Task {
-            if c.kind == .live {
-                await env.watchChannel(c.id)
-            } else if let ctx = try? await env.playbackContext(for: c) {
-                env.player.play(ctx)
-            }
-        }
+    /// A channel plays at once; anything else opens its sheet.
+    private func open(_ item: ContentItem) {
+        if item.kind == .live { Task { await env.watchChannel(item.id) } } else { env.open(item.id) }
     }
 
     /// 300 ms without a keystroke, the previous search cancelled.

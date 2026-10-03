@@ -3,9 +3,9 @@ import SwiftUI
 /// The « Sagas » shelf of the Films tab: one poster per TMDB collection with two visible movies or more.
 struct SagaShelf: View {
     @Environment(\.metrics) private var metrics
-    let sagas: [Saga]
+    let sagas: [ContentItem]
     let total: Int
-    let onSelect: (SagaRef) -> Void
+    let onSelect: (ContentID) -> Void
     var onSeeAll: (() -> Void)?
 
     var body: some View {
@@ -18,8 +18,7 @@ struct SagaShelf: View {
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
                     ForEach(sagas) { saga in
-                        Button { onSelect(saga.ref) } label: { SagaCardLabel(saga: saga) }
-                            .cardButtonStyle()
+                        PosterCard(item: saga) { onSelect(saga.id) }
                     }
                     if let onSeeAll { SeeAllCard(total: total, action: onSeeAll) }
                 }
@@ -31,31 +30,16 @@ struct SagaShelf: View {
     }
 }
 
-/// A saga poster with its number of movies drawn on it, like a movie's year on its poster. No text
-/// under it: the poster names the saga (`ArtView` draws the name until it loads, or instead of it).
-struct SagaCardLabel: View {
-    @Environment(\.metrics) private var metrics
-    let saga: Saga
-
-    var body: some View {
-        PosterFrame(id: ContentID(saga.id), url: saga.poster, title: saga.name) {
-            PosterFacts(text: filmCount(saga.count)).padding(metrics.compact ? 8 : 12)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(saga.name), \(filmCount(saga.count))")
-    }
-}
-
 /// One saga: its backdrop, its name, its movies in release order. A cover on tvOS, a pushed screen elsewhere.
 struct SagaView: View {
-    let ref: SagaRef
+    let id: ContentID
     /// What a movie does when chosen; the sheet opens it by default.
     var onSelect: ((ContentID) -> Void)?
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
 
     var body: some View {
-        LoadedScreen(errorTitle: "Saga indisponible", load: { try await env.call { try await env.client.saga(id: ref.id) } }) { s in
+        LoadedScreen(errorTitle: "Saga indisponible", load: { try await env.call { try await env.client.saga(id: id.rawValue) } }) { s in
             content(s)
         }
     }
@@ -76,7 +60,7 @@ struct SagaView: View {
                     }
                     .padding(.horizontal, metrics.inset)
                     .padding(.top, metrics.detailTop)
-                    PosterGrid(cards: s.movies, onSelect: onSelect ?? env.open)
+                    PosterGrid(items: s.movies, onSelect: onSelect ?? env.open)
                 }
                 .padding(.bottom, 60)
             }
@@ -88,9 +72,9 @@ struct SagaView: View {
 struct SagasGridView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
-    @State private var paginator: Paginator<Saga, SagaQuery>?
+    @State private var paginator: Paginator<ContentItem, SagaQuery>?
     @State private var total: Int?
-    @State private var openSaga: SagaRef?
+    @State private var openSaga: ContentID?
 
     var body: some View {
         ScrollView {
@@ -107,7 +91,7 @@ struct SagasGridView: View {
         .background(Theme.background)
         .task {
             guard paginator == nil else { return }
-            let p = Paginator<Saga, SagaQuery>(query: SagaQuery()) { q in
+            let p = Paginator<ContentItem, SagaQuery>(query: SagaQuery()) { q in
                 let page = try await env.call { try await env.client.sagas(cursor: q.cursor) }
                 if q.cursor == nil { total = page.total }
                 return page
@@ -115,8 +99,8 @@ struct SagasGridView: View {
             paginator = p
             await p.loadFirstPage()
         }
-        .fullScreenCover(item: $openSaga) { ref in
-            SagaView(ref: ref).environment(env)
+        .fullScreenCover(item: $openSaga) { id in
+            SagaView(id: id).environment(env)
         }
     }
 
@@ -128,8 +112,7 @@ struct SagasGridView: View {
                 }
             } else {
                 PagedPosterGrid(paginator: p) { saga in
-                    Button { open(saga.ref) } label: { SagaCardLabel(saga: saga) }
-                        .cardButtonStyle()
+                    PosterCard(item: saga) { open(saga.id) }
                 }
             }
         } else {
@@ -137,7 +120,7 @@ struct SagasGridView: View {
         }
     }
 
-    private func open(_ saga: SagaRef) {
+    private func open(_ saga: ContentID) {
         if Platform.isTV { openSaga = saga } else { env.navigate(.saga(saga)) }
     }
 }
@@ -163,61 +146,6 @@ struct StudioShelf: View {
             }
             .scrollClipDisabled()
         }
-    }
-}
-
-/// A studio logo on a light tile (TMDB logos are drawn for a light background), its name when there
-/// is no logo. Nothing else, on it or under it.
-struct StudioTile: View {
-    @Environment(\.metrics) private var metrics
-    let studio: Studio
-
-    var body: some View {
-        ZStack {
-            // Phone: without a logo the name sits on a dark tile, a white block glares on the dark screen.
-            RoundedRectangle(cornerRadius: metrics.cardRadius).fill(darkTile ? Color.white.opacity(0.1) : .white)
-            Group {
-                if let logo = studio.logo {
-                    AsyncImage(url: logo) { image in
-                        image.resizable().scaledToFit()
-                    } placeholder: {
-                        name
-                    }
-                    .padding(metrics.posterWidth * 0.12)
-                } else {
-                    name
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .frame(width: metrics.posterWidth * 1.5, height: metrics.posterWidth * 0.75)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(studio.name)
-    }
-
-    private var darkTile: Bool { metrics.compact && studio.logo == nil }
-
-    private var name: some View {
-        Text(studio.name).font(.headline).foregroundStyle(darkTile ? Theme.text : .black).multilineTextAlignment(.center).padding(8)
-    }
-}
-
-/// The last card of a shelf that has more: « Voir tout » and the total.
-struct SeeAllCard: View {
-    @Environment(\.metrics) private var metrics
-    let total: Int
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 12) {
-                Image(systemName: "square.grid.3x3").font(.system(size: metrics.stateIcon * 0.7))
-                Text("Voir tout").font(.headline)
-                Text(Format.count(total)).font(.caption).foregroundStyle(Theme.secondary)
-            }
-            .frame(width: metrics.posterSize.width, height: metrics.posterSize.height)
-        }
-        .cardButtonStyle()
     }
 }
 

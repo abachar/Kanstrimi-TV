@@ -127,19 +127,11 @@ final class DetailModel {
         if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
     }
 
-    /// The season carries the versions too; `next` is computed locally from the loaded seasons.
+    /// `/playback` of the episode: fresh links, and what follows written by the server (« À suivre »).
     func play(episode: Episode, fromStart: Bool = false) async {
-        guard let d = detail else { return }
-        let all = d.allEpisodes
-        let next = all.firstIndex(of: episode).flatMap { i in i + 1 < all.count ? all[i + 1] : nil }.map {
-            NextEpisode(id: $0.id, title: $0.title, season: $0.season, number: $0.number, runtime: $0.runtime, languages: $0.languages,
-                        maxQuality: $0.versions.maxQuality, dynamicRange: $0.versions.maxDynamicRange, still: $0.still)
-        }
-        let resume = !fromStart && episode.progress?.isResumable == true ? episode.progress?.position : nil
-        let ctx = PlaybackContext(content: PlaybackContent(id: episode.id, kind: .episode, title: episode.title, subtitle: d.title, episode: episode.ref, backdrop: d.backdrop),
-                                  versions: episode.versions, resumeAt: resume,
-                                  duration: episode.progress?.duration ?? episode.runtime.map { TimeInterval($0 * 60) }, next: next)
-        env.player.play(ctx)
+        guard let d = detail,
+              let ctx = await env.attempt("Lecture", { try await env.playbackContext(for: episode, of: d) }) else { return }
+        env.player.play(fromStart ? PlaybackContext(content: ctx.content, versions: ctx.versions, duration: ctx.duration, next: ctx.next) : ctx)
     }
 
     /// Picker result. A series keeps the language picked; a film plays the version, and forgets the

@@ -11,11 +11,36 @@ nonisolated struct NextEpisode: Codable, Hashable, Sendable {
     let maxQuality: Quality?
     let dynamicRange: DynamicRange?
     let still: URL?
+    /// What « À suivre » draws: the still, « Vincenzo · S1 · É3 · 1 h 20 », the badges, the overview.
+    let item: ContentItem
+    /// « ÉPISODE SUIVANT »: the player adds the countdown.
+    let heading: String
 
     enum CodingKeys: String, CodingKey {
-        case id, title, season, number, runtime, languages, still
+        case id, title, season, number, runtime, languages, still, item, heading
         case maxQuality = "max_quality"
         case dynamicRange = "dynamic_range"
+    }
+
+    init(id: ContentID, title: String?, season: Int, number: Int, runtime: Int?, languages: [Language], maxQuality: Quality?,
+         dynamicRange: DynamicRange?, still: URL?, item: ContentItem, heading: String) {
+        self.id = id; self.title = title; self.season = season; self.number = number; self.runtime = runtime; self.languages = languages
+        self.maxQuality = maxQuality; self.dynamicRange = dynamicRange; self.still = still; self.item = item; self.heading = heading
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(ContentID.self, forKey: .id)
+        title = try c.decodeIfPresent(String.self, forKey: .title)
+        season = try c.decode(Int.self, forKey: .season)
+        number = try c.decode(Int.self, forKey: .number)
+        runtime = try c.decodeIfPresent(Int.self, forKey: .runtime)
+        languages = try c.decodeIfPresent([Language].self, forKey: .languages) ?? []
+        maxQuality = try c.decodeIfPresent(Quality.self, forKey: .maxQuality)
+        dynamicRange = try c.decodeIfPresent(DynamicRange.self, forKey: .dynamicRange)
+        still = try c.decodeIfPresent(URL.self, forKey: .still)
+        item = try c.decodeIfPresent(ContentItem.self, forKey: .item) ?? ContentItem(id: id, kind: .episode, title: title ?? "", picture: still)
+        heading = try c.decodeIfPresent(String.self, forKey: .heading) ?? ""
     }
     var ref: EpisodeRef { EpisodeRef(season: season, number: number, title: title) }
 }
@@ -48,7 +73,7 @@ nonisolated struct PlaybackEpisode: Codable, Hashable, Sendable {
 /// avez aimé… » panel, five at most, a series playing through its own id. `next`: what follows a movie,
 /// or the last known episode of a series, nothing seen or in progress.
 nonisolated struct Suggestions: Codable, Hashable, Sendable {
-    let related: [Card]
+    let related: [ContentItem]
     let next: Suggestion?
 }
 
@@ -61,8 +86,11 @@ nonisolated struct Suggestion: Codable, Hashable, Sendable {
             self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .other
         }
     }
-    let card: Card
+    /// What « À suivre » draws: « 2003 · Action · 2 h 18 », the badges, the overview.
+    let item: ContentItem
     let reason: Reason
+    /// « À SUIVRE · SUITE DE LA SAGA »: the player adds the countdown.
+    let heading: String
 }
 
 /// `PUT /playback/{id}/progress` body.
@@ -104,11 +132,11 @@ nonisolated struct PlaybackContext: Hashable, Sendable {
         self.init(content: content, versions: playback.versions, resumeAt: playback.resumeAt, duration: playback.duration, next: playback.next)
     }
 
-    /// A suggested title: a movie as itself, a series through the episode `/playback/{series}` resolved.
-    init(suggested card: Card, playback: Playback) {
+    /// A list item: a movie as itself, a series through the episode `/playback/{series}` resolved.
+    init(item: ContentItem, playback: Playback) {
         let content = playback.episode.map {
-            PlaybackContent(id: $0.id, kind: .episode, title: $0.title ?? card.title, subtitle: card.title, episode: $0.ref, backdrop: card.backdrop)
-        } ?? PlaybackContent(id: card.id, kind: card.kind, title: card.title, subtitle: nil, episode: nil, backdrop: card.backdrop)
+            PlaybackContent(id: $0.id, kind: .episode, title: $0.title ?? item.title, subtitle: item.title, episode: $0.ref, backdrop: item.picture)
+        } ?? PlaybackContent(id: item.id, kind: item.kind.content ?? .movie, title: item.title, subtitle: nil, episode: nil, backdrop: item.picture)
         self.init(content: content, playback: playback)
     }
 

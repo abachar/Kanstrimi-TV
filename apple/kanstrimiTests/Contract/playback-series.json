@@ -1,4 +1,10 @@
 {
+  "episode": {
+    "id": "tmdb:tv:1396:s01e02",
+    "season": 1,
+    "number": 2,
+    "title": "Épisode 2"
+  },
   "versions": [
     {
       "id": "vf-hd",
@@ -21,11 +27,5 @@
   ],
   "resume_at": null,
   "duration": 4680,
-  "next": null,
-  "episode": {
-    "id": "tmdb:tv:1396:s01e02",
-    "season": 1,
-    "number": 2,
-    "title": "Épisode 2"
-  }
+  "next": null
 }

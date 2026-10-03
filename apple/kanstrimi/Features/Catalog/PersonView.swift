@@ -34,11 +34,11 @@ struct PersonView: View {
     }
 
     /// A titled grid; nothing at all when the actor has no title of that kind.
-    @ViewBuilder private func section(_ title: String, _ cards: [Card]) -> some View {
-        if !cards.isEmpty {
+    @ViewBuilder private func section(_ title: String, _ items: [ContentItem]) -> some View {
+        if !items.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
                 Text(title).font(.title3.weight(.bold)).padding(.horizontal, metrics.inset)
-                PosterGrid(cards: cards, onSelect: onSelect ?? env.open)
+                PosterGrid(items: items, onSelect: onSelect ?? env.open)
             }
         }
     }

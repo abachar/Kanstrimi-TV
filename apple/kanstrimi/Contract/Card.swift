@@ -50,10 +50,34 @@ nonisolated struct Episode: Codable, Hashable, Identifiable, Sendable {
     let airDate: Date?
     let versions: [Version]
     let progress: Progress?
+    /// What its card draws: the still, « É4 · 52 min », the progress, « vu ».
+    let item: ContentItem
 
     enum CodingKeys: String, CodingKey {
-        case id, season, number, title, overview, runtime, still, versions, progress
+        case id, season, number, title, overview, runtime, still, versions, progress, item
         case airDate = "air_date"
+    }
+
+    init(id: ContentID, season: Int, number: Int, title: String, overview: String?, runtime: Int?, still: URL?, airDate: Date?,
+         versions: [Version], progress: Progress?, item: ContentItem) {
+        self.id = id; self.season = season; self.number = number; self.title = title; self.overview = overview; self.runtime = runtime
+        self.still = still; self.airDate = airDate; self.versions = versions; self.progress = progress; self.item = item
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(ContentID.self, forKey: .id)
+        season = try c.decode(Int.self, forKey: .season)
+        number = try c.decode(Int.self, forKey: .number)
+        title = try c.decode(String.self, forKey: .title)
+        overview = try c.decodeIfPresent(String.self, forKey: .overview)
+        runtime = try c.decodeIfPresent(Int.self, forKey: .runtime)
+        still = try c.decodeIfPresent(URL.self, forKey: .still)
+        airDate = try c.decodeIfPresent(Date.self, forKey: .airDate)
+        versions = try c.decodeIfPresent([Version].self, forKey: .versions) ?? []
+        progress = try c.decodeIfPresent(Progress.self, forKey: .progress)
+        // The demo fixtures carry none: the still alone until the client writes it.
+        item = try c.decodeIfPresent(ContentItem.self, forKey: .item) ?? ContentItem(id: id, kind: .episode, title: title, picture: still)
     }
 
     var ref: EpisodeRef { EpisodeRef(season: season, number: number, title: title) }
@@ -114,7 +138,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
     /// Movie sheet: its saga, when the server lists it.
     let saga: SagaRef?
     /// Sheet: « Si vous avez aimé… », TMDB's recommendations in the catalogue, nothing already seen.
-    let related: [Card]
+    let related: [ContentItem]
 
     enum CodingKeys: String, CodingKey {
         case id, kind, title, poster, languages, backdrop, progress, episode, year, rating, genres, hint
@@ -137,7 +161,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
          originalTitle: String? = nil, endYear: Int? = nil, overview: String? = nil, runtime: Int? = nil, certification: String? = nil,
          cast: [Person] = [], director: String? = nil, trailer: URL? = nil, hasTMDB: Bool? = nil, providerCategory: String? = nil,
          rawTitle: String? = nil, versions: [Version] = [], isFavorite: Bool? = nil, seasons: [Season]? = nil, currentEpisode: EpisodeRef? = nil,
-         saga: SagaRef? = nil, related: [Card] = []) {
+         saga: SagaRef? = nil, related: [ContentItem] = []) {
         self.id = id; self.kind = kind; self.title = title; self.poster = poster; self.maxQuality = maxQuality; self.dynamicRange = dynamicRange
         self.languages = languages; self.backdrop = backdrop; self.progress = progress; self.episode = episode
         self.year = year; self.rating = rating; self.genres = genres; self.hint = hint; self.addedAt = addedAt; self.logo = logo
@@ -181,7 +205,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
         seasons = try c.decodeIfPresent([Season].self, forKey: .seasons)
         currentEpisode = try c.decodeIfPresent(EpisodeRef.self, forKey: .currentEpisode)
         saga = try c.decodeIfPresent(SagaRef.self, forKey: .saga)
-        related = try c.decodeIfPresent([Card].self, forKey: .related) ?? []
+        related = try c.decodeIfPresent([ContentItem].self, forKey: .related) ?? []
     }
 
     /// "4K DV" or nil.
@@ -194,12 +218,6 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
     var isMatched: Bool { hasTMDB ?? true }
     var allEpisodes: [Episode] { seasons?.flatMap(\.episodes) ?? [] }
 
-    /// The same card trimmed to what a list carries.
-    var listCard: Card {
-        Card(id: id, kind: kind, title: title, poster: poster, maxQuality: maxQuality ?? versions.maxQuality,
-             dynamicRange: dynamicRange ?? versions.maxDynamicRange, languages: languages.isEmpty ? versions.languages : languages,
-             backdrop: backdrop, progress: progress, episode: episode, year: year, rating: rating, genres: genres, hint: hint, addedAt: addedAt)
-    }
 }
 
 /// A row of `GET /movies` or `GET /series`: one genre, twenty cards, the total for "Voir tout".
@@ -207,11 +225,11 @@ nonisolated struct CatalogRow: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let name: String
     let total: Int
-    let cards: [Card]
+    let cards: [ContentItem]
 
     private enum CodingKeys: String, CodingKey { case id, name, total, movies, series }
 
-    init(id: String, name: String, total: Int, cards: [Card]) {
+    init(id: String, name: String, total: Int, cards: [ContentItem]) {
         self.id = id; self.name = name; self.total = total; self.cards = cards
     }
     init(from decoder: Decoder) throws {
@@ -219,7 +237,7 @@ nonisolated struct CatalogRow: Codable, Hashable, Identifiable, Sendable {
         id = try c.decode(String.self, forKey: .id)
         name = try c.decode(String.self, forKey: .name)
         total = try c.decodeIfPresent(Int.self, forKey: .total) ?? 0
-        cards = try c.decodeIfPresent([Card].self, forKey: .movies) ?? c.decodeIfPresent([Card].self, forKey: .series) ?? []
+        cards = try c.decodeIfPresent([ContentItem].self, forKey: .movies) ?? c.decodeIfPresent([ContentItem].self, forKey: .series) ?? []
     }
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
