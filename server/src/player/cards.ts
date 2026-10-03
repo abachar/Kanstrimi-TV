@@ -110,6 +110,9 @@ export function runtimeText(minutes: number): string {
   return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}` : `${minutes} min`;
 }
 
+/** « 1 film », « 3 films ». */
+export const filmCount = (n: number) => (n > 1 ? `${n} films` : `${n} film`);
+
 /** « S2 · É4 ». */
 export const episodeCode = (season: number, number: number) => `S${season} · É${number}`;
 

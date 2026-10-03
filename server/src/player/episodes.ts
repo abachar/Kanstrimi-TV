@@ -1,8 +1,8 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { db, schema, type Content, type Episode, type Variant } from "@/db";
 import { seasonsOf } from "@/catalog";
-import { versionsOf, type Playable } from "./versions";
-import { imageUrl, isWatched, progressWire, runtimeText } from "./cards";
+import { versionsOf, versionsSummary, type Playable } from "./versions";
+import { imageUrl, isWatched, progressWire, remaining, runtimeText } from "./cards";
 import type { RestContext } from "./context";
 import { isResumable, type Progress } from "./progress";
 import type { EpisodeWire, SeasonWire, Version } from "./types";
@@ -63,7 +63,12 @@ export function episodeWire(ctx: RestContext, e: EpisodeRow, progress?: Progress
   const title = e.title ?? `Épisode ${e.number}`;
   const still = imageUrl(ctx.baseUrl, "w300", e.stillPath) || null;
   const versions = versionsOf(ctx, e.playables);
-  const facts = [`É${e.number}`, e.runtime ? runtimeText(e.runtime) : null].filter((t) => t !== null).join(" · ");
+  const runtime = e.runtime ? runtimeText(e.runtime) : null;
+  const resumable = isResumable(progress);
+  const watched = isWatched(progress);
+  const facts = [runtime, resumable ? remaining(progress) : watched ? "Vu" : null].filter((t) => t !== null);
+  const summary = versionsSummary(versions);
+  const quality = summary.max_quality ? [summary.max_quality, summary.dynamic_range].filter(Boolean).join(" ") : null;
   return {
     id: e.key,
     season: e.season,
@@ -82,13 +87,13 @@ export function episodeWire(ctx: RestContext, e: EpisodeRow, progress?: Progress
       logo: null,
       poster: null,
       picture: still,
-      facts,
-      badges: [],
-      hint: null,
-      progress: isResumable(progress) ? progress.position / progress.duration : null,
-      watched: isWatched(progress),
-      caption: facts,
-      overview: null,
+      facts: facts.length ? facts.join(" · ") : null,
+      badges: [quality, ...summary.languages].filter((b) => b !== null),
+      hint: summary.languages.length === 1 ? `${summary.languages[0]} SEUL` : null,
+      progress: resumable ? progress.position / progress.duration : null,
+      watched,
+      caption: [`É${e.number}`, runtime].filter((t) => t !== null).join(" · "),
+      overview: e.overview,
     },
   };
 }

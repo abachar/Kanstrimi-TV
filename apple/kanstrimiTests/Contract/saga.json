@@ -4,6 +4,8 @@
   "count": 2,
   "poster": "http://kanstrimi.test/img/w500/saga.jpg",
   "backdrop": "http://kanstrimi.test/img/w1280/sagab.jpg",
+  "heading": "SAGA",
+  "facts": "2 films",
   "movies": [
     {
       "id": "tmdb:movie:604",

@@ -43,7 +43,11 @@ export type EpisodeWire = {
   air_date: string | null;
   versions: Version[];
   progress: ProgressWire | null;
-  /** What its card draws: the still, « É4 · 52 min », the progress, « vu ». */
+  /**
+   * What its card and its row draw: the still, the progress, « vu »; the sheet's row adds `facts` (« 52 min · 12 min
+   * restantes », « 52 min · Vu »), `badges` (« 4K HDR », « VF »…), `overview`, and `hint` (« VF SEUL ») with its
+   * only language, shown when the series' chosen language is another.
+   */
   item: ContentItem;
 };
 export type SeasonWire = { number: number; title: string | null; year: number | null; episodes: EpisodeWire[] };
@@ -122,8 +126,8 @@ export type SagaPage = { items: ContentItem[]; next_cursor: string | null; total
  * background of the studio's screen.
  */
 export type StudioWire = { id: string; name: string; logo: string | null; count: number; backdrop: string | null };
-/** `/movies/sagas/{id}`: the saga and its visible movies, latest release first. */
-export type SagaSheet = SagaWire & { movies: ContentItem[] };
+/** `/movies/sagas/{id}`: the saga, its header (« SAGA », « 3 films ») and its visible movies, latest release first. */
+export type SagaSheet = SagaWire & { heading: string; facts: string; movies: ContentItem[] };
 /** `/people/{id}`: an actor and their visible titles, latest release first. */
 export type PersonSheet = { id: string; name: string; photo: string | null; movies: ContentItem[]; series: ContentItem[] };
 

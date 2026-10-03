@@ -7,7 +7,7 @@ import type { Env, RestContext } from "./context";
 import { BadRequest, badQuery, fail, json } from "./http";
 import { visibleContent } from "./contents";
 import { getProgress } from "./progress";
-import { contentItem, imageUrl } from "./cards";
+import { contentItem, filmCount, imageUrl } from "./cards";
 import { decodeCursor, encodeCursor } from "./lists";
 import type { ContentItem, SagaPage, SagaRef, SagaSheet, SagaWire } from "./types";
 
@@ -50,7 +50,7 @@ const sagaItem = (w: SagaWire): ContentItem => ({
   logo: null,
   poster: w.poster,
   picture: w.backdrop,
-  facts: w.count > 1 ? `${w.count} films` : `${w.count} film`,
+  facts: filmCount(w.count),
   badges: [],
   hint: null,
   progress: null,
@@ -118,7 +118,12 @@ export async function sagaSheet(ctx: RestContext, key: string): Promise<SagaShee
     .where(and(visibleContent(ctx, "vod"), eq(schema.catalogContents.sagaId, id)))
     .orderBy(desc(sql`coalesce(${schema.catalogContents.releaseDate}, ${NO_RELEASE}::date)`), desc(schema.catalogContents.id));
   const progress = await getProgress(movies.map((m) => m.key));
-  return { ...sagaWire(ctx, saga), movies: movies.map((m) => contentItem(ctx, m, progress.get(m.key))) };
+  return {
+    ...sagaWire(ctx, saga),
+    heading: "SAGA",
+    facts: filmCount(saga.n),
+    movies: movies.map((m) => contentItem(ctx, m, progress.get(m.key))),
+  };
 }
 
 /** The saga line of a movie sheet, when its saga has enough visible movies. */

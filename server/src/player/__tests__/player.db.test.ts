@@ -557,6 +557,13 @@ describe("GET /series/{id}", () => {
       still: "http://kanstrimi.test/img/w300/s1e1.jpg",
       air_date: "2021-02-20T00:00:00Z",
       progress: null,
+      item: {
+        facts: "1 h 20",
+        badges: ["HD", "VF", "VOSTFR"],
+        hint: null,
+        caption: "É1 · 1 h 20",
+        overview: "Vincenzo arrive.",
+      },
     });
     expect(e1.versions.map((v: { id: string; sources: unknown[] }) => [v.id, v.sources.length])).toEqual([
       ["vf-hd", 1],
@@ -567,6 +574,8 @@ describe("GET /series/{id}", () => {
     const e21 = body.seasons[1].episodes[0];
     expect(e21).toMatchObject({ id: "tmdb:tv:1396:s02e01", title: "Marée haute", runtime: 80, overview: "Intrigue." });
     expect(e21.versions.map((v: { id: string }) => v.id)).toEqual(["vf-hd"]);
+    // One language: its warning, which the app shows when the series plays in another one.
+    expect(e21.item).toMatchObject({ badges: ["HD", "VF"], hint: "VF SEUL" });
     expect(body.versions).toEqual([
       { id: "vf-hd", language: "VF", quality: "HD", sources: [] },
       { id: "vostfr-hd", language: "VOSTFR", quality: "HD", sources: [] },
@@ -700,6 +709,10 @@ describe("playback and progress", () => {
     expect(sheet.current_episode).toEqual({ season: 1, number: 2, title: "Épisode 2" });
     expect(sheet.progress).toEqual({ position: 1140, duration: 4680, finished: false });
     expect(sheet.seasons[0].episodes[0].progress).toEqual({ position: 4700, duration: 4800, finished: true });
+    expect(sheet.seasons[0].episodes.map((e: { item: { facts: string } }) => e.item.facts)).toEqual([
+      "1 h 20 · Vu",
+      "1 h 18 · 59 min restantes",
+    ]);
     expect((await get("/playback/tmdb:tv:1396")).body).toMatchObject({
       episode: { id: "tmdb:tv:1396:s01e02", season: 1, number: 2, title: "Épisode 2" },
       resume_at: 1140,
@@ -943,7 +956,7 @@ describe("sagas", () => {
   it("GET /movies/sagas/{id}: its visible movies, latest release first; 404 below two", async () => {
     const { status, body } = await get("/movies/sagas/saga:900");
     expect(status).toBe(200);
-    expect(body).toMatchObject({ id: "saga:900", name: "Trilogie - Saga", count: 3 });
+    expect(body).toMatchObject({ id: "saga:900", name: "Trilogie - Saga", count: 3, heading: "SAGA", facts: "3 films" });
     expect(body.movies.map((c: { title: string }) => c.title)).toEqual(["Trilogie Trois", "Trilogie Deux", "Trilogie Un"]);
     expect((await get("/movies/sagas/saga:901")).status).toBe(404);
     expect((await get("/movies/sagas/nope")).status).toBe(404);

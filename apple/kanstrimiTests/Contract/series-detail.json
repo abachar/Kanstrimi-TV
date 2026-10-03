@@ -91,13 +91,16 @@
             "logo": null,
             "poster": null,
             "picture": "http://kanstrimi.test/img/w300/s1e1.jpg",
-            "facts": "É1 · 1 h 20",
-            "badges": [],
-            "hint": null,
+            "facts": "1 h 20 · Vu",
+            "badges": [
+              "HD",
+              "VF"
+            ],
+            "hint": "VF SEUL",
             "progress": null,
             "watched": true,
             "caption": "É1 · 1 h 20",
-            "overview": null
+            "overview": "Vincenzo arrive."
           }
         },
         {
@@ -137,13 +140,16 @@
             "logo": null,
             "poster": null,
             "picture": "http://kanstrimi.test/img/w300/s1e2.jpg",
-            "facts": "É2 · 1 h 18",
-            "badges": [],
-            "hint": null,
+            "facts": "1 h 18",
+            "badges": [
+              "HD",
+              "VF"
+            ],
+            "hint": "VF SEUL",
             "progress": null,
             "watched": false,
             "caption": "É2 · 1 h 18",
-            "overview": null
+            "overview": "Le trésor."
           }
         }
       ]
