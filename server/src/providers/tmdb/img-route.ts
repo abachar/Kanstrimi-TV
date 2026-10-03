@@ -5,6 +5,15 @@ import { ensureImage, ensureShelfImage, SHELF_SCALES, type ShelfScale } from "./
 /** `/img/{size}/{file}`: TMDB images through the local disk cache; every card URL points here. Mounted by `main.ts`. */
 export const imgRoute = new Hono();
 
+/**
+ * TMDB serves some logos as SVG, which may carry a script: opened as a page on this origin, it would reach the admin.
+ * Sandboxed, it runs none; drawn by an `<img>`, it is unchanged.
+ */
+imgRoute.use(async (c, next) => {
+  await next();
+  c.header("Content-Security-Policy", "sandbox");
+});
+
 /** One download (or composition) per file at a time: two requests would share its `.part`. */
 const once = singleFlight<{ path: string; contentType: string } | null>(null, {
   onError: (e, key) => console.error(`[img] ${key} : ${describeError(e)}`),

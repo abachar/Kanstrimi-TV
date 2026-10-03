@@ -9,7 +9,7 @@ traverse jamais (l'app lit l'URL du fournisseur).
 
 ```bash
 cp .env.example .env                       # DATABASE_URL, SESSION_SECRET (32+ car.), DATA_DIR, XTREAM_*, TMDB_API_KEY
-npm run hash-password -- <mot-de-passe>    # → ADMIN_PASSWORD_HASH dans .env
+npm run hash-password -- <mot-de-passe>    # 12 car. min → ADMIN_PASSWORD_HASH dans .env
 npm install
 npm run db:migrate
 npm run dev                                # http://localhost:3000/admin

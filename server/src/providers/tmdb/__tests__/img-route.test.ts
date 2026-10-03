@@ -18,6 +18,7 @@ describe("/img", () => {
     expect(res.headers.get("content-type")).toBe("image/jpeg");
     expect(res.headers.get("content-length")).toBe(String(JPEG.length));
     expect(res.headers.get("cache-control")).toContain("immutable");
+    expect(res.headers.get("content-security-policy")).toBe("sandbox"); // an SVG opened as a page runs no script
     expect(Buffer.from(await res.arrayBuffer())).toEqual(JPEG);
     expect(String(fetch.mock.calls[0][0])).toBe("https://image.tmdb.org/t/p/w500/poster.jpg");
     expect((await imgRoute.request("/w500/poster.jpg")).status).toBe(200);

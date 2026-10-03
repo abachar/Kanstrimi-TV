@@ -186,6 +186,14 @@ describe("admin", () => {
     expect((await call("/admin/studios/company:424242")).status).toBe(404);
     expect((await call("/admin/studios/3")).status).toBe(404);
     expect(await html("/admin/pair/K7Q4MZ")).toContain("Code inconnu");
+    // A pending code says where and when it was asked for, and whether that is the admin's own address.
+    const { createPairing } = await import("@/devices");
+    const asked = await createPairing("203.0.113.9");
+    const pair = await html(`/admin/pair/${asked.code}`);
+    expect(pair).toContain("203.0.113.9");
+    expect(pair).toContain("Une autre adresse que la vôtre");
+    const mine = await call(`/admin/pair/${asked.code}`, { headers: { "x-forwarded-for": "203.0.113.9" } });
+    expect(await mine.text()).toContain("la même adresse que vous");
     expect(await html("/admin/jobs/status")).toContain("Aucun job en cours");
     expect(await html("/admin/tasks")).toContain('name="from"');
     expect((await call("/admin/item/999999")).status).toBe(404);

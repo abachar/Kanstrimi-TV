@@ -5,7 +5,9 @@ import { Badge, Card, Empty, Title, type Tone } from "../ui";
 import { Icon } from "../icons";
 
 /** `/admin/pair/{code}`, opened from the QR code on the TV: name it, confirm. */
-export function PairView({ code, state, error }: { code: string; state: PairingState; error?: string }) {
+export type PairRequest = { at: Date; ip: string | null; sameAsYou: boolean };
+
+export function PairView({ code, state, request, error }: { code: string; state: PairingState; request?: PairRequest; error?: string }) {
   const display = `${code.slice(0, 3)}-${code.slice(3)}`;
   return (
     <section class="card mx-auto w-full max-w-md">
@@ -21,6 +23,15 @@ export function PairView({ code, state, error }: { code: string; state: PairingS
             <Icon name="error" />
             <h2>{error}</h2>
           </div>
+        )}
+        {state === "pending" && request && (
+          <p class="text-sm text-muted-foreground">
+            Demandé à <span class="text-foreground">{request.at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>{" "}
+            ({ago(request.at.toISOString())}) depuis <span class="font-mono text-foreground">{request.ip ?? "adresse inconnue"}</span>
+            {request.sameAsYou
+              ? ", la même adresse que vous."
+              : ". Une autre adresse que la vôtre : normal si l'appareil passe par un VPN ou un autre réseau, sinon vérifiez que ce code est bien sur votre écran."}
+          </p>
         )}
         {state === "pending" && (
           <form method="post" action={`/admin/pair/${code}`} class="flex flex-col gap-4">
