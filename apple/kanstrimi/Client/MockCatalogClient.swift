@@ -438,7 +438,7 @@ final class MockCatalogClient: CatalogClient {
         if let m = movies.first(where: { $0.id == id }) {
             let p = progress[id]
             return Playback(versions: m.versions, resumeAt: p?.isResumable == true ? p?.position : nil,
-                            duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) }, next: nil)
+                            duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) }, next: nil, cast: m.cast)
         }
         if let (s, e) = episode(id) {
             let eps = s.allEpisodes
@@ -450,7 +450,8 @@ final class MockCatalogClient: CatalogClient {
                                     next: nextEp.map { n in NextEpisode(id: n.id, title: n.title, season: n.season, number: n.number, runtime: n.runtime,
                                                                         languages: n.languages, maxQuality: n.versions.maxQuality,
                                                                         dynamicRange: n.versions.maxDynamicRange, still: n.still,
-                                                                        item: Self.nextEpisodeItem(n, series: s), heading: "ÉPISODE SUIVANT") })
+                                                                        item: Self.nextEpisodeItem(n, series: s), heading: "ÉPISODE SUIVANT") },
+                                    cast: s.cast)
             // Named, as the server does: « Reprendre » plays an episode from its id alone.
             playback.episode = PlaybackEpisode(id: e.id, season: e.season, number: e.number, title: e.title)
             return playback

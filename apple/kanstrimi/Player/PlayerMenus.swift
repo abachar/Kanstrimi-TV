@@ -3,12 +3,14 @@ import SwiftUI
 // What the tvOS bar and the touch controls share: their panels, their menus, the live caption.
 
 extension PlayerService {
-    /// The panels the bar offers: live, an episode, a film. Similaires once the server answered with some.
+    /// The panels the bar offers: live, an episode, a film. Similaires once the server answered with some,
+    /// Distribution when the title has a cast.
     var panels: [PlayerScreen.BarPanel] {
         if isLive { return [.programme, .recents, .infos] }
         let related: [PlayerScreen.BarPanel] = suggestions?.related.isEmpty == false ? [.related] : []
-        if context?.content.kind == .episode { return [.episodes] + related + [.infos] }
-        return related + [.infos]
+        let cast: [PlayerScreen.BarPanel] = context?.cast.isEmpty == false ? [.cast] : []
+        let episodes: [PlayerScreen.BarPanel] = context?.content.kind == .episode ? [.episodes] : []
+        return episodes + related + cast + [.infos]
     }
 
     // Each menu only when it offers a choice; the tracks are known once the player has read the stream.

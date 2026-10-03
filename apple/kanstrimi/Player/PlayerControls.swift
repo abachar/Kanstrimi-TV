@@ -223,6 +223,7 @@ struct PlayerControls: View {
         case .recents: RecentChannelsStrip(onActivity: onActivity) { panel = nil }
         case .episodes: SeasonEpisodesStrip(onActivity: onActivity) { panel = nil }
         case .related: RelatedStrip(onActivity: onActivity) { panel = nil }
+        case .cast: PlayerCastStrip(onActivity: onActivity)
         case .infos: PlayerInfos(logoSize: 64).padding(.bottom, 8)
         }
     }

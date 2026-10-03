@@ -17,7 +17,7 @@ struct LiveView: View {
     @State private var selected: CategoryID = .recent
     @State private var focusedChannelID: ContentID?
     @State private var focusedDetail: Channel?
-    @State private var preview = PreviewPlayer()
+    @State private var preview = LivePreview()
     @State private var isVisible = false
     @FocusState private var focus: Focus?
     private enum Focus: Hashable { case category(CategoryID), channel(ContentID) }
@@ -342,23 +342,23 @@ struct LiveView: View {
     }
 }
 
-/// Side preview of the focused channel: a second engine with its own surface, heard once its picture shows, created at the
-/// first `show` (a phone has no preview column and never creates it). The account allows one connection,
-/// so `LiveView` stops it before any playback starts.
+/// Side preview of the focused channel: a `PlayerCore` of its own, heard once its picture shows, created at the first
+/// `show` (a phone has no preview column and never creates it). The account allows one connection, so `LiveView` stops
+/// it before any playback starts. It leaves the audio session and the television's display mode to the player.
 @Observable
-final class PreviewPlayer {
-    /// The surface the engine draws into, kept here because the engine holds its views weakly.
-    let videoView = AetherPlayerView(frame: .zero)
+final class LivePreview {
     private(set) var channelID: ContentID?
     private(set) var hasImage = false
-    @ObservationIgnored private var engine: AetherEngine?
+    @ObservationIgnored private var core: PlayerCore?
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored private var debounce: Task<Void, Never>?
-    @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var streamURL: URL?
     @ObservationIgnored private var pendingURL: URL?
     /// Reloads of the current channel after a source reset: one at most, then the placeholder stays.
     @ObservationIgnored private var resets = 0
+
+    /// The surface of the preview, created with it.
+    var videoView: AetherPlayerView { makeCore().videoView }
 
     func show(_ id: ContentID, url: URL) {
         if id == channelID {
@@ -382,9 +382,8 @@ final class PreviewPlayer {
     /// Synchronous: nothing of the preview is still connecting or playing when it returns.
     func stop() {
         debounce?.cancel(); debounce = nil
-        loadTask?.cancel(); loadTask = nil
-        engine?.volume = 0
-        engine?.stop()
+        core?.engine.volume = 0
+        core?.stop()
         streamURL = nil
         pendingURL = nil
         channelID = nil
@@ -392,37 +391,29 @@ final class PreviewPlayer {
     }
 
     private func start(_ url: URL) {
-        let engine = makeEngine()
+        let core = makeCore()
         hasImage = false
-        loadTask?.cancel()
-        engine.stop()
+        core.stop()
         // Its sound needs the session active; the player screen activates it the same way.
         try? AVAudioSession.sharedInstance().setActive(true)
-        // Decoded in the app, like the live in the player: the picture comes within a second of the focus.
-        var options = LoadOptions(suppressDisplayCriteria: true, isLive: true, liveJoinProfile: .fastZap, maxConcurrentSourceRequests: 1)
-        options.preferredDecodePath = .software
-        loadTask = Task { _ = try? await engine.load(url: url, options: options) }
+        core.load(url, live: true, preview: true)
     }
 
-    private func makeEngine() -> AetherEngine {
-        if let engine { return engine }
-        let engine: AetherEngine
-        do { engine = try AetherEngine() } catch { fatalError("AetherEngine failed to start: \(error)") }
-        engine.volume = 0
-        // The player screen owns the audio session: the preview must not release it.
-        engine.deactivatesAudioSessionOnStop = false
-        engine.bind(view: videoView)
+    private func makeCore() -> PlayerCore {
+        if let core { return core }
+        let core = PlayerCore(ownsAudioSession: false)
+        core.engine.volume = 0
         // Each sink hops to the next main-queue turn: `@Published` emits before it stores the value.
-        engine.$hasFirstFrameReadyForDisplay
+        core.engine.$hasFirstFrameReadyForDisplay
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
                 guard let self else { return }
                 hasImage = $0 && channelID != nil
                 // The sound comes with the picture, not while the stream is still connecting.
-                self.engine?.volume = hasImage ? 1 : 0
+                self.core?.engine.volume = hasImage ? 1 : 0
             }
             .store(in: &cancellables)
-        engine.liveSourceReset
+        core.engine.liveSourceReset
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
                 guard let self, let streamURL, resets < 1 else { return }
@@ -430,7 +421,7 @@ final class PreviewPlayer {
                 start(streamURL)
             }
             .store(in: &cancellables)
-        self.engine = engine
-        return engine
+        self.core = core
+        return core
     }
 }

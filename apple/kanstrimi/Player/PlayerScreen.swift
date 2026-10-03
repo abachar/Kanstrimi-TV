@@ -8,7 +8,7 @@ import SwiftUI
 struct PlayerScreen: View {
     enum Sheet: Equatable { case none, channels }
     /// iPhone: what the bar of the touch controls opens above its buttons, like the tvOS bar's panels.
-    enum BarPanel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", related = "Similaires", infos = "Infos" }
+    enum BarPanel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", related = "Similaires", cast = "Distribution", infos = "Infos" }
 
     @Environment(AppEnvironment.self) var env
     @State var controlsVisible = true

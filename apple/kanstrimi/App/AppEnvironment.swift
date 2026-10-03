@@ -25,14 +25,21 @@ final class AppEnvironment {
     var paths: [MainTab: [Route]] = [:]
     /// tvOS: the detail shown full screen above the tabs, from any screen.
     var presentedDetail: ContentID?
+    /// tvOS: an actor's titles opened from the player, a cover above the tabs like a detail.
+    var presentedPerson: PersonRef?
 
     /// Opens a title's detail from anywhere: a cover on tvOS, a push on iOS.
     func open(_ id: ContentID) { navigate(.detail(id)) }
 
     func navigate(_ route: Route) {
         if Platform.isTV {
-            // The genre grid is a cover owned by the catalogue screen on tvOS; only details come here.
-            if case .detail(let id) = route { presentedDetail = id }
+            // The genre grid is a cover owned by the catalogue screen on tvOS; only details and, from the player,
+            // an actor come here.
+            switch route {
+            case .detail(let id): presentedDetail = id
+            case .person(let ref): presentedDetail = nil; presentedPerson = ref
+            default: break
+            }
         } else {
             paths[selectedTab, default: []].append(route)
         }

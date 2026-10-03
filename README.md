@@ -66,8 +66,6 @@ Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non p
     flouté, pour éviter les grands aplats noirs. POC sur l'écran Films, branche `poc/fond-focus`, mis de côté.
   - **Écran Films façon Prime Video (tvOS)** : deux rangées de films seulement en bas de l'écran ; le haut est un hero
     (fond, logo ou titre, infos) qui affiche le film en focus et change à chaque déplacement.
-  - **Distribution dans le lecteur** : les acteurs du film ou de la série dans les panneaux du lecteur (comme sur la
-    fiche), un acteur ouvrant ses titres.
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **Générique, intro et récap** : la carte « À suivre » au début du générique plutôt qu'à la fin du fichier, et
     « Passer l'intro » / « Passer le récap ». Sources possibles : TheIntroDB (par id TMDB) puis IntroDB (par IMDb),

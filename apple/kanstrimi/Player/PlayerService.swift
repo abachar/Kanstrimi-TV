@@ -96,10 +96,11 @@ final class PlayerService {
     private let preferences: Preferences
     private let failedSources: FailedSourcesStore
     private let reporter: PlaybackReporter
-    let engine: AetherEngine
-    /// The surface the engine draws into. Kept by the service, because the engine holds its views weakly:
-    /// it outlives the player screen, which hides while Picture-in-Picture runs.
-    let videoView = AetherPlayerView(frame: .zero)
+    /// The engine and its surface, shared with the Direct preview's way of playing. Kept by the service: the surface
+    /// outlives the player screen, which hides while Picture-in-Picture runs.
+    private let core = PlayerCore(ownsAudioSession: true)
+    var engine: AetherEngine { core.engine }
+    var videoView: AetherPlayerView { core.videoView }
     let pictureInPicture = PictureInPicture()
     private let nowPlaying = NowPlaying()
     private let capabilities: VersionChooser.Capabilities
@@ -119,7 +120,6 @@ final class PlayerService {
     private var pendingSeeks = 0
     /// Bumped at each start: a seek of the previous file landing late must not count against this one.
     private var seekGeneration = 0
-    private var loadTask: Task<Void, Never>?
     /// Asking the server for fresh links before a restart; further failures meanwhile are the same one.
     private var relinkTask: Task<Void, Never>?
     /// Live: restarts asked by the source itself on the chosen channel, and when the last one ran.
@@ -168,10 +168,6 @@ final class PlayerService {
         self.failedSources = failedSources
         self.reporter = PlaybackReporter(client: client, queue: progressQueue)
         self.capabilities = capabilities
-        do { self.engine = try AetherEngine() } catch { fatalError("AetherEngine failed to start: \(error)") }
-        // The app plays no other sound: give the audio session back when the player stops.
-        engine.deactivatesAudioSessionOnStop = true
-        engine.bind(view: videoView)
         observeEngine()
     }
 
@@ -243,9 +239,8 @@ final class PlayerService {
     func stop() {
         sendProgress(final: true)
         cancelTimers()
-        loadTask?.cancel(); loadTask = nil
         relinkTask?.cancel(); relinkTask = nil
-        engine.stop()
+        core.stop()
         context = nil; version = nil; source = nil; channel = nil; channels = []
         phase = .idle; time = 0; duration = 0; isMinimized = false
         failure = nil; toast = nil; nextCountdown = nil; nextContext = nil; nextTriggered = false
@@ -484,28 +479,9 @@ final class PlayerService {
         pendingSeeks = 0
         audioTracks = []; textTracks = []
 
-        // One connection at most: the account allows a single stream, and this also stops the
-        // speculative parallel requests. No `stop()` between two loads: `load` tears the previous session
-        // down and keeps the display criteria from one episode to the next.
-        var options = isLive
-            ? LoadOptions(isLive: true, liveJoinProfile: .fastZap, maxConcurrentSourceRequests: 1)
-            : LoadOptions(maxConcurrentSourceRequests: 1)
-        // Live decodes in the app: AVPlayer, fed by the engine's local HLS, waits for three whole GOPs
-        // before it starts (6 s on a channel with long GOPs), and does not deinterlace 1080i on tvOS.
-        if isLive { options.preferredDecodePath = .software }
         let resume = !isLive && (position ?? 0) > 1 ? position : nil
         activateAudioSession()
-        loadTask?.cancel()
-        loadTask = Task { [engine] in
-            do {
-                _ = try await engine.load(url: s.streamURL, startPosition: resume, options: options)
-            } catch is CancellationError {
-                // A newer load or a stop replaced this one: not a failure.
-            } catch {
-                // The same failure also arrives as the engine's `.error` state, counted there only.
-                log.info("load failed: \(error)")
-            }
-        }
+        core.load(s.streamURL, live: isLive, startPosition: resume)
         armStartDeadline()
         armWatchdog()
         startProgressTicker()
@@ -617,8 +593,7 @@ final class PlayerService {
         guard let version, let source else { return }
         sendWatchTime(final: true)
         cancelTimers(keepCountdown: true)
-        loadTask?.cancel(); loadTask = nil
-        engine.stop()
+        core.stop()
         phase = .failed
         failure = Failure(attempts: startAttempts, sourceLabel: "\(version.label) · \(sourceLabel(source, in: version))",
                           hadAlternativeSource: version.sources.count > 1)

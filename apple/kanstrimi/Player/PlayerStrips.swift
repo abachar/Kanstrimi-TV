@@ -256,3 +256,17 @@ struct RelatedStrip: View {
         }
     }
 }
+
+/// Distribution: the cast of the movie or of the series, as on its sheet. Choosing an actor leaves the player (its
+/// position is kept) for the actor's titles.
+struct PlayerCastStrip: View {
+    @Environment(AppEnvironment.self) private var env
+    var onActivity: () -> Void = { }
+
+    var body: some View {
+        CastStrip(cast: env.player.context?.cast ?? [], onFocusChange: onActivity) { ref in
+            env.player.stop()
+            env.navigate(.person(ref))
+        }
+    }
+}

@@ -40,6 +40,10 @@ private struct CastFocus: ViewModifier {
 #if DEBUG
 #Preview("Distribution") {
     HStack(alignment: .top, spacing: 20) {
+        // A real TMDB portrait (2:3): the circle must keep the face, forehead included.
+        CastCell(person: Person(id: "person:7248", name: "Cliff Curtis", role: "Ron",
+                                photo: URL(string: "https://kanstrimi.crafters.dev/img/w185/dfaElGoyJWseFWxXwEMLL9WTi7V.jpg")))
+            .frame(width: Metrics.current.castCell)
         CastCell(person: Person(id: "person:1", name: "Hugh Bonneville", role: "Robert Crawley", photo: nil)).frame(width: Metrics.current.castCell)
         CastCell(person: Person(id: "person:2", name: "Michelle Dockery", role: "Mary Crawley", photo: nil)).frame(width: Metrics.current.castCell)
         CastCell(person: Person(id: nil, name: "Jim Carter", role: nil, photo: nil)).frame(width: Metrics.current.castCell)

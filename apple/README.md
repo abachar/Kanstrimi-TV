@@ -12,7 +12,7 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 | `App/` | Démarrage, `AppEnvironment` (services partagés, navigation), `RootView` (appairage puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants). |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`). |
 | `Client/` | `CatalogClient` : `HTTPCatalogClient` (le serveur), `MockCatalogClient` (fixtures JSON de démo), `SwitchingCatalogClient`. |
-| `Player/` | Le lecteur, service transverse unique : `PlayerService` (moteur, bascules, gels, zapping), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
+| `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
 | `Features/` | Un dossier par écran, une seule vue pour les deux plateformes. |
 | `Shared/` | `Platform.swift` (`Metrics` et modificateurs par plateforme), `Theme`, `CardViews` (images, rangées, grilles, menu d'une affiche), `ChannelViews` (logo, `LoadedChannelCard`, `channelItem`), `Stores`. |
 | `Shared/Cards/` | Les cartes (`PosterCard`, `WideCard`, `ChannelCard`, `ProgrammeCard`, `UpNextCard`, `HeroBanner`, `BestResult`, `SeeAllCard`, `RetryCard`, `StudioTile`, `CastCell`), un fichier chacune avec ses `#Preview` (données fixes). Composants bêtes : un modèle (`ContentItem` du contrat, `ChannelItem`…) et des actions en entrée, jamais `AppEnvironment` ni `.task` (vérifié par `CardsArchitectureTests`) ; charger, garder l'état, le focus et agir reste à l'écran. Le parent (rangée, grille, colonne) fixe la largeur, souvent depuis `Metrics` ; la carte prend toute celle qu'on lui donne et en tire sa hauteur. |
@@ -37,11 +37,12 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 
 ## Choix et pièges
 
-- **Une seule connexion au fournisseur** : `maxConcurrentSourceRequests: 1`, et l'aperçu du Direct (un second moteur,
-  sonore dès que l'image paraît) est coupé avant toute lecture. Pas d'option du moteur qui ouvrirait une seconde connexion (`confirmAtmos`).
+- **Une seule connexion au fournisseur** : `maxConcurrentSourceRequests: 1`, et l'aperçu du Direct (son propre
+  `PlayerCore`, sonore dès que l'image paraît) est coupé avant toute lecture. Pas d'option du moteur qui ouvrirait une seconde connexion (`confirmAtmos`).
 - **ATS** : `NSAllowsArbitraryLoads`, le `302` du serveur mène à des URL `http://` du fournisseur.
 - **Direct** : décodé par le moteur (`preferredDecodePath: .software`), image en 0,6 s contre 6 s par le HLS local
-  d'AVPlayer ; jamais de pause, comme une télé.
+  d'AVPlayer ; jamais de pause, comme une télé. Fenêtre de retour de 30 s (`dvrWindowSeconds`) : seule voie où le moteur
+  décode le son à part, sinon une chaîne HE-AAC à 50 i/s (Canal+ Foot) saccade ; le son démarre ~0,8 s plus tard.
 - **Pannes** : un seul chemin (`handleStreamFailure`) : source suivante, deux essais, puis le dialogue ; chaque reprise
   redemande ses liens au serveur (`/playback`, `/channels/{id}`), ceux d'un écran resté ouvert ont pu expirer. Seuils
   dans `PlayerService`.
@@ -68,6 +69,9 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **« Si vous avez aimé… »** : « Titres similaires » en bas de la fiche ; dans le lecteur, `PlayerService` demande
   `/playback/{id}/suggestions` 3 s après le démarrage (panneau « Similaires », carte « À suivre » après un film ou le
   dernier épisode). Une série suggérée se lit par `/playback/{série}`, qui renvoie l'épisode où elle reprend.
+- **Distribution dans le lecteur** : panneau « Distribution » (film, ou série pour un épisode) tiré de `cast` de
+  `/playback`, la même bande que la fiche (`CastStrip`). Choisir un acteur quitte le lecteur (position gardée) pour ses
+  titres ; tvOS les montre en couverture (`presentedPerson`), comme une fiche.
 - **Enchaînement** : les 15 dernières secondes du fichier se décomptent sur le temps restant (la carte atteint 0 à la
   vraie fin), puis 1 s de noir et la suite, sa barre affichée. Sans fin du moteur 2 s après 0, la suite part quand même ;
   lecture automatique coupée ou carte annulée : retour à la fiche.

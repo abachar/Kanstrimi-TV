@@ -52,10 +52,12 @@ nonisolated struct Playback: Codable, Hashable, Sendable {
     let resumeAt: TimeInterval?
     let duration: TimeInterval?
     let next: NextEpisode?
+    /// The player's « Distribution » panel: the movie's cast, or the series'; empty for a channel.
+    var cast: [Person] = []
     var episode: PlaybackEpisode? = nil
 
     enum CodingKeys: String, CodingKey {
-        case versions, duration, next, episode
+        case versions, duration, next, cast, episode
         case resumeAt = "resume_at"
     }
 }
@@ -124,12 +126,15 @@ nonisolated struct PlaybackContext: Hashable, Sendable {
     let resumeAt: TimeInterval?
     let duration: TimeInterval?
     let next: NextEpisode?
+    let cast: [Person]
 
-    init(content: PlaybackContent, versions: [Version], resumeAt: TimeInterval? = nil, duration: TimeInterval? = nil, next: NextEpisode? = nil) {
-        self.content = content; self.versions = versions; self.resumeAt = resumeAt; self.duration = duration; self.next = next
+    init(content: PlaybackContent, versions: [Version], resumeAt: TimeInterval? = nil, duration: TimeInterval? = nil, next: NextEpisode? = nil,
+         cast: [Person] = []) {
+        self.content = content; self.versions = versions; self.resumeAt = resumeAt; self.duration = duration; self.next = next; self.cast = cast
     }
     init(content: PlaybackContent, playback: Playback) {
-        self.init(content: content, versions: playback.versions, resumeAt: playback.resumeAt, duration: playback.duration, next: playback.next)
+        self.init(content: content, versions: playback.versions, resumeAt: playback.resumeAt, duration: playback.duration, next: playback.next,
+                  cast: playback.cast)
     }
 
     /// A list item: a movie as itself, a series through the episode `/playback/{series}` resolved.

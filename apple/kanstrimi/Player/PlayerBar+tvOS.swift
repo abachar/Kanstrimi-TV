@@ -191,6 +191,7 @@ struct PlayerBar: View {
         case .recents: RecentChannelsStrip(onActivity: onActivity) { onLeave(true) }
         case .episodes: SeasonEpisodesStrip(onActivity: onActivity) { onLeave(true) }
         case .related: RelatedStrip(onActivity: onActivity) { onLeave(true) }
+        case .cast: PlayerCastStrip(onActivity: onActivity)
         case .infos: PlayerInfos()
         }
     }

@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// The « Distribution » row of the sheet: round photos with name and role. An actor with an `id`
-/// opens their screen; one without is the same cell, not clickable.
+/// The « Distribution » row of the sheet: its title over a `CastStrip` that scrolls to the screen edge.
 struct CastRow: View {
     @Environment(\.metrics) private var metrics
     let cast: [Person]
@@ -11,24 +10,42 @@ struct CastRow: View {
         VStack(alignment: .leading, spacing: metrics.compact ? 10 : 14) {
             Text("Distribution").font(metrics.compact ? .headline : .title3.weight(.bold))
             // Scrolls to the screen edge: the parent's margin moves inside the scroll content.
-            ScrollView(.horizontal) {
-                LazyHStack(alignment: .top, spacing: metrics.compact ? 8 : 24) {
-                    ForEach(Array(cast.enumerated()), id: \.offset) { _, person in
-                        if let ref = person.ref {
-                            Button { onSelect(ref) } label: { CastCell(person: person).frame(width: metrics.castCell) }
-                                .buttonStyle(CastButtonStyle())
-                        } else {
-                            CastCell(person: person).frame(width: metrics.castCell)
-                        }
+            CastStrip(cast: cast, inset: metrics.inset, onSelect: onSelect)
+                .padding(.horizontal, -metrics.inset)
+                .padding(.vertical, metrics.compact ? 0 : -28)
+        }
+    }
+}
+
+/// Round photos with name and role, scrolling sideways: the sheet's « Distribution » and the player's panel. An actor
+/// with an `id` is a button; one without is the same cell, not clickable. `inset`: the margin inside the scroll.
+struct CastStrip: View {
+    @Environment(\.metrics) private var metrics
+    @FocusState private var focused: Int?
+    let cast: [Person]
+    var inset: CGFloat = 0
+    /// The player's bar stays up while the focus moves along the strip.
+    var onFocusChange: () -> Void = { }
+    let onSelect: (PersonRef) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(alignment: .top, spacing: metrics.compact ? 8 : 24) {
+                ForEach(Array(cast.enumerated()), id: \.offset) { index, person in
+                    if let ref = person.ref {
+                        Button { onSelect(ref) } label: { CastCell(person: person).frame(width: metrics.castCell) }
+                            .buttonStyle(CastButtonStyle())
+                            .focused($focused, equals: index)
+                    } else {
+                        CastCell(person: person).frame(width: metrics.castCell)
                     }
                 }
-                .padding(.horizontal, metrics.inset)
-                .padding(.vertical, metrics.compact ? 4 : 28)
             }
-            .scrollClipDisabled()
-            .padding(.horizontal, -metrics.inset)
-            .padding(.vertical, metrics.compact ? 0 : -28)
+            .padding(.horizontal, inset)
+            .padding(.vertical, metrics.compact ? 4 : 28)
         }
+        .scrollClipDisabled()
+        .onChange(of: focused) { _, _ in onFocusChange() }
     }
 }
 
@@ -53,7 +70,11 @@ struct CastPhoto: View {
             Text(initials).font(.system(size: diameter * 0.34, weight: .semibold)).foregroundStyle(Theme.secondary)
             if let url {
                 AsyncImage(url: url) { phase in
-                    if let image = phase.image { image.resizable().scaledToFill() }
+                    // A TMDB portrait is 2:3, 1.5 diameters high. Centred, the circle cut every head at the forehead; at the
+                    // top, at the chin. An eighth of a diameter off the top keeps the whole face.
+                    if let image = phase.image {
+                        image.resizable().scaledToFill().frame(width: diameter, height: diameter * 1.5).offset(y: diameter / 8)
+                    }
                 }
             }
         }

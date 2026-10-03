@@ -45,6 +45,10 @@ extension View {
                 .environment(env)
                 .playerCover(env)
         }
+        // An actor opened from the player; a title chosen there replaces it by its sheet.
+        .fullScreenCover(item: $env.presentedPerson) { ref in
+            PersonView(ref: ref, onSelect: { id in env.presentedPerson = nil; env.open(id) }).environment(env)
+        }
         #else
         self
         #endif

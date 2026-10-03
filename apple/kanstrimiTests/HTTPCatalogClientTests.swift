@@ -124,7 +124,7 @@ struct HTTPCatalogClientTests {
         answer(200, #"{"id":"fallback:movie:tenet:2020","kind":"movie","title":"Tenet"}"#)
         _ = try await client.detail(id: ContentID("fallback:movie:tenet:2020"))
         #expect(try last.url?.path() == "/player/movies/fallback:movie:tenet:2020")
-        answer(200, #"{"versions":[],"resume_at":1140,"duration":3060,"next":null}"#)
+        answer(200, #"{"versions":[],"resume_at":1140,"duration":3060,"next":null,"cast":[]}"#)
         let p = try await client.playback(id: ContentID("tmdb:tv:1396:s01e05"))
         #expect(p.resumeAt == 1140)
         #expect(try last.url?.path() == "/player/playback/tmdb:tv:1396:s01e05")
@@ -212,7 +212,7 @@ struct HTTPCatalogClientTests {
         answer(200, #"{"related":[],"next":null}"#)
         #expect(try await client.suggestions(id: ContentID("tmdb:movie:603")).next == nil)
 
-        answer(200, #"{"versions":[],"resume_at":1140,"duration":4680,"next":null,"episode":{"id":"tmdb:tv:1396:s01e02","season":1,"number":2,"title":"Épisode 2"}}"#)
+        answer(200, #"{"versions":[],"resume_at":1140,"duration":4680,"next":null,"cast":[],"episode":{"id":"tmdb:tv:1396:s01e02","season":1,"number":2,"title":"Épisode 2"}}"#)
         let p = try await client.playback(id: ContentID("tmdb:tv:1396"))
         #expect(p.episode?.id == ContentID("tmdb:tv:1396:s01e02"))
         #expect(p.episode?.ref.code == "S1 · É2")
