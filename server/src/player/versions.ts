@@ -117,6 +117,12 @@ export function versionsOf(ctx: RestContext, rows: Playable[], withSources = tru
     .map(({ _q, _d, _e, ...v }) => v);
 }
 
+/** « 4K DV », « HD »: a quality and its dynamic range; null without a known quality. */
+export function qualityBadgeOf(s: { max_quality?: Quality; dynamic_range?: DynamicRange }): string | null {
+  if (!s.max_quality) return null;
+  return s.dynamic_range ? `${s.max_quality} ${s.dynamic_range}` : s.max_quality;
+}
+
 export function versionsSummary(versions: Version[]): { max_quality?: Quality; dynamic_range?: DynamicRange; languages: string[] } {
   let q = 0,
     d = 0;

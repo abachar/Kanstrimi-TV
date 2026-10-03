@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { cleanTitle } from "@/catalog";
-import { similarity, pickBest } from "../match";
+import { similarity, scoreAll } from "../match";
 
 describe("cleanTitle", () => {
   it.each([
@@ -23,9 +23,9 @@ describe("similarity", () => {
   it("is low for different titles", () => expect(similarity("The Matrix", "Titanic")).toBeLessThan(0.3));
 });
 
-describe("pickBest", () => {
-  it("prefers the year match", () => {
-    const best = pickBest(
+describe("scoreAll", () => {
+  it("ranks the year match first", () => {
+    const [best] = scoreAll(
       [
         { id: 1, title: "Dune", release_date: "1984-12-14", vote_count: 1000 },
         { id: 2, title: "Dune", release_date: "2021-10-22", vote_count: 9000 },

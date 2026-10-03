@@ -9,7 +9,7 @@ import { getProgress, isResumable, resumeKeys, type Progress } from "./progress"
 import { favoriteKeys } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
 import { contentItem, imageUrl, isWatched, resumeItem, runtimeText } from "./cards";
-import { versionsOf, versionsSummary } from "./versions";
+import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
 import { recommendedRow } from "./related";
 import { type ShelfPick, shelfPicks, TOP_SHELF_SIZE } from "./top-shelf";
 import type { ContentItem, Home, HomeHero, HomeRow } from "./types";
@@ -106,11 +106,7 @@ async function heroOf(
   ]
     .filter((t) => t !== null)
     .join(" · ");
-  const quality = summary.max_quality
-    ? summary.dynamic_range
-      ? `${summary.max_quality} ${summary.dynamic_range}`
-      : summary.max_quality
-    : null;
+  const quality = qualityBadgeOf(summary);
   const resumes = !e && isResumable(progress);
   return {
     // The iPhone shows the poster full width: a larger one than the rows'.

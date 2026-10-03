@@ -1,7 +1,7 @@
 import type { Content } from "@/db";
 import { qualityOfRank } from "@/catalog";
 import type { SagaWire, StudioWire } from "@/player";
-import { FOUND_PAGE, type Shelf, type ShelfPage } from "./app-data";
+import { PAGE, type Shelf, type ShelfPage } from "./app-data";
 import { fmt } from "../format";
 import { Badge, Busy, Empty } from "../ui";
 import { contentKeyLink } from "../content/links";
@@ -169,7 +169,7 @@ export function FoundRows({ kind, q, rows, total, n }: { kind: string; q: string
       {rows.map((c, i) => (
         <TitleRow c={c} rank={n + i + 1} />
       ))}
-      {n + rows.length < total && rows.length === FOUND_PAGE && <More link={foundLink(kind, q, n + rows.length)} />}
+      {n + rows.length < total && rows.length === PAGE && <More link={foundLink(kind, q, n + rows.length)} />}
     </>
   );
 }

@@ -81,7 +81,7 @@ describe("matching", () => {
     const { runNaming } = await import("@/catalog");
     await runNaming();
     vi.stubGlobal("fetch", fakeTmdb);
-    const client = new TmdbClient("k");
+    const client = new TmdbClient("k", "fr-FR");
     const variants = await db.select().from(schema.catalogVariants).orderBy(schema.catalogVariants.id);
     const explained = [];
     for (const v of variants) explained.push(await explainMatch(client, v));

@@ -11,7 +11,7 @@ import { logout, revokeSessions } from "../session";
 import { SettingsView } from "./view";
 
 const settingsSchema = z.object({
-  tmdb_language: z.string().trim().default("fr-FR"),
+  tmdb_language: z.string().trim().default(""), // empty = DEFAULTS, filled by getSettings
   sync_cron: z.string().trim().refine(isValidCron, "expression cron invalide (5 champs)"),
   epg_cron: z.string().trim().refine(isValidCron, "expression cron invalide (5 champs)"),
   public_base_url: z.string().trim(),

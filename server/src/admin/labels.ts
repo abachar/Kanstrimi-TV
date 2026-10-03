@@ -1,11 +1,10 @@
 import type { Kind } from "@/db";
 import type { Step, KeyKind, Task } from "@/catalog";
+import type { Tone } from "./ui";
 
 /** French vocabulary of the admin, in one place. */
 
 export const KIND_TITLES: Record<Kind, string> = { live: "Live", vod: "Films", series: "Séries" };
-/** Singular, for one entry. */
-export const KIND_NAMES: Record<Kind, string> = { live: "Chaîne", vod: "Film", series: "Série" };
 export const KIND_LABELS: Record<Kind | "all", string> = { all: "tous", live: "live", vod: "films", series: "séries" };
 
 /** How a content got its key, as shown on its page. */
@@ -24,6 +23,8 @@ export const MATCH_LABELS: Record<string, string> = {
   pending: "en attente",
   skipped: "sans objet",
 };
+/** The badge of each status, the same on every page. */
+export const MATCH_TONES: Record<string, Tone> = { matched: "ok", manual: "ok", unmatched: "bad", pending: "warn", skipped: "muted" };
 
 export const JOB_LABELS: Record<Step, string> = {
   source: "Lecture source",

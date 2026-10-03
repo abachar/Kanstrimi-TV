@@ -2,7 +2,7 @@ import { and, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
 import { db, schema, type Content, type Variant } from "@/db";
 import { getSettings } from "@/config";
 import { type XtreamClient, XtreamError, xtreamFromSettings } from "@/providers/xtream";
-import { getCachedDetails, getTmdbClient } from "@/providers/tmdb";
+import { getCachedDetails, getTmdbClient, readTmdbCache, writeTmdbCache } from "@/providers/tmdb";
 import { episodeKey } from "./keys";
 
 /** Provider data is re-read after 12 h; TMDB season data after 30 days. */
@@ -62,23 +62,14 @@ async function upstreamInfo(client: XtreamClient | null, xtreamId: string): Prom
 
 /** TMDB season document, cached under (`tv_season`, show id, `<lang>#s<n>`). */
 async function tmdbSeason(tmdbId: number, season: number, lang: string): Promise<TmdbEpisode[] | null> {
-  const key = `${lang}#s${season}`;
-  const [cached] = await db
-    .select()
-    .from(schema.tmdbCache)
-    .where(and(eq(schema.tmdbCache.mediaType, "tv_season"), eq(schema.tmdbCache.tmdbId, tmdbId), eq(schema.tmdbCache.lang, key)));
+  const key = { mediaType: "tv_season", tmdbId, lang: `${lang}#s${season}` };
+  const cached = await readTmdbCache(key);
   if (cached && Date.now() - cached.fetchedAt.getTime() < SEASON_TTL_MS) return (cached.data.episodes as TmdbEpisode[]) ?? null;
   const client = await getTmdbClient();
   if (!client) return (cached?.data.episodes as TmdbEpisode[]) ?? null;
   try {
     const data = await client.tvSeason(tmdbId, season);
-    await db
-      .insert(schema.tmdbCache)
-      .values({ mediaType: "tv_season", tmdbId, lang: key, data: data as Record<string, unknown> })
-      .onConflictDoUpdate({
-        target: [schema.tmdbCache.mediaType, schema.tmdbCache.tmdbId, schema.tmdbCache.lang],
-        set: { data: data as Record<string, unknown>, fetchedAt: new Date() },
-      });
+    await writeTmdbCache(key, data as Record<string, unknown>);
     return (data.episodes as TmdbEpisode[]) ?? null;
   } catch {
     return (cached?.data.episodes as TmdbEpisode[]) ?? null;
@@ -111,16 +102,16 @@ const rebuilding = new Map<number, Promise<void>>();
  * One rebuild per series at a time: a second caller joins the one running. The provider and TMDB
  * are read first; the tree is then written in one transaction, never half.
  */
-export function ensureEpisodes(content: Content, variants: Variant[], tmdbLang: string, force = false): Promise<void> {
+export function ensureEpisodes(content: Content, variants: Variant[], tmdbLang: string): Promise<void> {
   let run = rebuilding.get(content.id);
   if (!run) {
-    run = rebuildEpisodes(content, variants, tmdbLang, force).finally(() => rebuilding.delete(content.id));
+    run = rebuildEpisodes(content, variants, tmdbLang).finally(() => rebuilding.delete(content.id));
     rebuilding.set(content.id, run);
   }
   return run;
 }
 
-async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: string, force: boolean) {
+async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: string) {
   const client = xtreamFromSettings(await getSettings());
   const [fresh] = await db
     .select({ at: sql<Date | null>`max(${schema.catalogEpisodes.updatedAt})` })
@@ -131,7 +122,7 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
     .from(schema.catalogEpisodeVariants)
     .innerJoin(schema.catalogEpisodes, eq(schema.catalogEpisodes.id, schema.catalogEpisodeVariants.episodeId))
     .where(eq(schema.catalogEpisodes.contentId, content.id));
-  if (!force && fresh.at && sources > 0 && Date.now() - new Date(fresh.at).getTime() < INFO_TTL_MS) return;
+  if (fresh.at && sources > 0 && Date.now() - new Date(fresh.at).getTime() < INFO_TTL_MS) return;
 
   type Found = { season: number; number: number; sources: { itemId: number; xtreamId: string; container: string | null }[]; meta: Meta };
   const found = new Map<string, Found>();

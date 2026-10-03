@@ -1,10 +1,18 @@
 export { cardFields } from "./card-fields";
-export { setTmdbPace, TMDB_PER_SECOND, TmdbClient, type TmdbDetails, TmdbError } from "./client";
-export { DETAILS_TTL_MS, detailsWithNames, fetchDetails, getCachedDetails, getDetails, getTmdbClient } from "./details";
+export { setTmdbPace, TMDB_PER_SECOND, TmdbClient, type TmdbDetails } from "./client";
+export {
+  DETAILS_TTL_MS,
+  detailsWithNames,
+  fetchDetails,
+  getCachedDetails,
+  getDetails,
+  getTmdbClient,
+  readTmdbCache,
+  writeTmdbCache,
+} from "./details";
 export { cacheStats } from "./images";
 export { imgRoute } from "./img-route";
 export {
-  type EntryClues,
   type Evidence,
   ID_THRESHOLD,
   idEvidence,

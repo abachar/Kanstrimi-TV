@@ -4,7 +4,7 @@ import { isCategoryHidden, isItemHidden } from "@/db";
 import { isFallbackKey, keyKind, qualityOfRank } from "@/catalog";
 import type { ContentDetail, GuideLine, VariantDetail } from "./data";
 import { fmt } from "../format";
-import { KEY_KIND_LABELS, KIND_TITLES, MATCH_LABELS } from "../labels";
+import { KEY_KIND_LABELS, KIND_TITLES, MATCH_LABELS, MATCH_TONES } from "../labels";
 import { TmdbCell } from "../catalog/tmdb-cell";
 import { VisibilityToggle } from "../catalog/visibility";
 import type { CatalogQuery } from "../catalog/query";
@@ -236,8 +236,6 @@ const VariantHeader = ({ live }: { live: boolean }) => (
   </div>
 );
 
-const MATCH_TONE: Record<string, "ok" | "warn" | "bad" | "muted"> = { matched: "ok", manual: "ok", unmatched: "bad", pending: "warn" };
-
 /**
  * One provider entry, a row of the table; unfolded, what the naming read in it on a grey line, then
  * what the provider sends and its match side by side.
@@ -285,7 +283,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
             {live ? (
               <Badge tone={it.iptvId ? "ok" : "muted"}>{it.iptvId ?? "aucune"}</Badge>
             ) : (
-              <Badge tone={MATCH_TONE[it.matchStatus] ?? "muted"}>
+              <Badge tone={MATCH_TONES[it.matchStatus] ?? "muted"}>
                 {MATCH_LABELS[it.matchStatus] ?? it.matchStatus}
                 {it.matchScore != null ? ` ${Math.round(it.matchScore * 100)} %` : ""}
               </Badge>

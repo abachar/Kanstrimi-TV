@@ -42,7 +42,8 @@ export type ShelfPage =
   | { type: "studios"; studios: StudioWire[] }
   | { type: "sagas"; sagas: SagaWire[]; next: string | null };
 
-const PAGE = 50;
+/** One page of a shelf or of a search, in the admin's « vue de l'app ». */
+export const PAGE = 50;
 
 /** One page of a shelf; `cursor` continues it. Null for an unknown shelf. */
 export async function shelfPage(ctx: RestContext, kind: "vod" | "series", shelf: string, cursor?: string): Promise<ShelfPage | null> {
@@ -70,8 +71,6 @@ export async function shelfPage(ctx: RestContext, kind: "vod" | "series", shelf:
   return null;
 }
 
-export const FOUND_PAGE = 50;
-
 /** The « Catalogue » search: the contents with at least one variant meeting the query, latest first. */
 export async function searchContents(ex: Exec, kind: "live" | "vod" | "series", where: SQL, offset: number) {
   const cond = and(
@@ -85,7 +84,7 @@ export async function searchContents(ex: Exec, kind: "live" | "vod" | "series", 
       .from(schema.catalogContents)
       .where(cond)
       .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
-      .limit(FOUND_PAGE)
+      .limit(PAGE)
       .offset(offset),
   ]);
   return { rows, total: n };

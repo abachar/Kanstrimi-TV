@@ -3,7 +3,7 @@ import type { Content } from "@/db";
 import type { Card, ContentItem, Person, ProgressWire } from "./types";
 import type { RestContext } from "./context";
 import { FINISHED_AT, isResumable, type Progress } from "./progress";
-import { drOf, qualityOfRank, sortLanguages } from "./versions";
+import { drOf, qualityBadgeOf, qualityOfRank, sortLanguages } from "./versions";
 
 /** The one `Card` of the contract, in its three sizes: base (every list), grid (+ year, rating…), sheet (+ overview, cast…). */
 
@@ -121,11 +121,12 @@ export function isWatched(p: Progress | undefined): boolean {
   return Boolean(p && (p.finished || (p.duration > 0 && p.position / p.duration >= FINISHED_AT)));
 }
 
-/** « 4K DV », « HD »: the best quality and its dynamic range; null without a known quality. */
+/** « 4K DV », « HD »: the best quality of a content and its dynamic range. */
 export function qualityBadge(c: Content): string | null {
-  if (!c.maxQualityRank) return null;
-  const dr = drOf(c.dynamicRange);
-  return dr ? `${qualityOfRank(c.maxQualityRank)} ${dr}` : qualityOfRank(c.maxQualityRank);
+  return qualityBadgeOf({
+    max_quality: c.maxQualityRank ? qualityOfRank(c.maxQualityRank) : undefined,
+    dynamic_range: drOf(c.dynamicRange),
+  });
 }
 
 /** « 2019 · ★ 8.5 »: the year and the rating, null when neither is known. */

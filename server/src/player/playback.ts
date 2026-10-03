@@ -6,7 +6,7 @@ import type { Env, RestContext } from "./context";
 import { fail, json, noContent } from "./http";
 import { contentByKey, keyExists, variantsOf } from "./contents";
 import { deleteProgress, getProgress, isResumable, setFinished, setProgress } from "./progress";
-import { versionsOf, versionsSummary } from "./versions";
+import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
 import { currentEpisode, type EpisodeRow, episodeWire, loadEpisodes } from "./episodes";
 import { castOf, episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
@@ -148,9 +148,7 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
 function nextEpisodeOf(ctx: RestContext, series: Content, next: EpisodeRow, versions: Version[]): NextEpisode {
   const summary = versionsSummary(versions);
   const wire = episodeWire(ctx, next);
-  const quality = summary.max_quality
-    ? [summary.dynamic_range ? `${summary.max_quality} ${summary.dynamic_range}` : summary.max_quality]
-    : [];
+  const quality = [qualityBadgeOf(summary)].filter((b) => b !== null);
   return {
     id: next.key,
     title: next.title,

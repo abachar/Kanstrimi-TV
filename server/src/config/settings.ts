@@ -1,5 +1,5 @@
 import { db, schema } from "@/db";
-import { inArray, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { env } from "@/shared";
 
 /** The provider account and the TMDB key: from the environment (podman secrets in production), never stored. */
@@ -20,12 +20,12 @@ export const SETTING_KEYS = [
 ] as const;
 export type SettingKey = (typeof SETTING_KEYS)[number];
 
-export const DEFAULTS: Partial<Record<SettingKey, string>> = {
+export const DEFAULTS = {
   tmdb_language: "fr-FR",
   sync_cron: "0 */6 * * *",
   epg_cron: "0 3 */3 * *",
   serve_adult: "0",
-};
+} satisfies Partial<Record<SettingKey, string>>;
 
 export type Settings = Record<SettingKey | EnvKey, string>;
 
@@ -60,10 +60,6 @@ export async function getSettings(): Promise<Settings> {
   return { ...cache };
 }
 
-export async function getSetting(key: SettingKey | EnvKey): Promise<string> {
-  return (await getSettings())[key];
-}
-
 export async function setSettings(values: Partial<Record<SettingKey, string>>) {
   const entries = Object.entries(values).filter(([, v]) => v !== undefined) as [SettingKey, string][];
   if (!entries.length) return;
@@ -74,11 +70,6 @@ export async function setSettings(values: Partial<Record<SettingKey, string>>) {
   invalidateSettings();
   const fresh = await getSettings();
   for (const fn of listeners) fn(fresh);
-}
-
-export async function deleteSettings(keys: string[]) {
-  if (keys.length) await db.delete(schema.settings).where(inArray(schema.settings.key, keys));
-  invalidateSettings();
 }
 
 export function isXtreamConfigured(s: Settings) {

@@ -45,8 +45,11 @@ describe("ensureEpisodes", () => {
     vi.stubGlobal("fetch", fetch);
     await ensureEpisodes(content, variants, "fr-FR");
     expect(await episodes()).toEqual(["fallback:series:dark:-:s01e01", "fallback:series:dark:-:s01e02"]);
-    await ensureEpisodes(content, variants, "fr-FR", true);
-    expect(fetch).toHaveBeenCalledTimes(1); // forced, but the provider's answer is still fresh
+    await ensureEpisodes(content, variants, "fr-FR");
+    expect(fetch).toHaveBeenCalledTimes(1); // the tree is fresh
+    await db.update(schema.catalogEpisodes).set({ updatedAt: new Date(0) });
+    await ensureEpisodes(content, variants, "fr-FR");
+    expect(fetch).toHaveBeenCalledTimes(1); // the tree is stale, but the provider's answer is still fresh
   });
 
   it("falls back on the cached answer when the provider is down, and says so when there is none", async () => {
@@ -67,7 +70,7 @@ describe("ensureEpisodes", () => {
       return Response.json(info(2));
     });
     vi.stubGlobal("fetch", fetch);
-    const both = Promise.all([ensureEpisodes(content, variants, "fr-FR"), ensureEpisodes(content, variants, "fr-FR", true)]);
+    const both = Promise.all([ensureEpisodes(content, variants, "fr-FR"), ensureEpisodes(content, variants, "fr-FR")]);
     await vi.waitUntil(() => fetch.mock.calls.length > 0);
     answer();
     await both;

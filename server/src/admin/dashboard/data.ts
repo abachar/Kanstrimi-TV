@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db, schema, hiddenItem, visibleItem } from "@/db";
+import { db, schema, hiddenItem, visibleCategory, visibleItem } from "@/db";
 
 export type ItemCount = { kind: string; total: number; hidden: number; matched: number; unmatched: number; pending: number };
 export type CategoryCount = { kind: string; total: number; hidden: number };
@@ -21,7 +21,7 @@ export async function counts(): Promise<{ items: ItemCount[]; categories: Catego
     .select({
       kind: schema.catalogCategories.kind,
       total: sql<number>`count(*)::int`,
-      hidden: sql<number>`count(*) filter (where ${schema.catalogCategories.hiddenByRule} or ${schema.catalogCategories.hiddenManual})::int`,
+      hidden: sql<number>`count(*) filter (where not ${visibleCategory})::int`,
     })
     .from(schema.catalogCategories)
     .groupBy(schema.catalogCategories.kind);

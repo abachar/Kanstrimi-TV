@@ -3,8 +3,6 @@ import { similarity, similarityKey } from "@/shared";
 
 export { similarity };
 
-export type Scored = { result: TmdbSearchResult; score: number };
-
 type Named = {
   title?: string;
   name?: string;
@@ -39,7 +37,7 @@ export function bestSimilarity(d: Named, title: string): number {
   return Math.max(0, ...namesOf(d).map((n) => similarity(n, title)));
 }
 
-export type ScoredDetail = Scored & { similarity: number; year?: number };
+export type ScoredDetail = { result: TmdbSearchResult; score: number; similarity: number; year?: number };
 
 /** Every search result with its score: similarity, ± year, + a pinch of popularity. */
 export function scoreAll(results: TmdbSearchResult[], title: string, year?: number): ScoredDetail[] {
@@ -54,12 +52,6 @@ export function scoreAll(results: TmdbSearchResult[], title: string, year?: numb
       return { result: r, score, similarity: sim, year: ry };
     })
     .sort((a, b) => b.score - a.score);
-}
-
-/** Pick the best TMDB search result for a cleaned title (+ optional year). */
-export function pickBest(results: TmdbSearchResult[], title: string, year?: number): Scored | null {
-  const [best] = scoreAll(results, title, year);
-  return best ? { result: best.result, score: best.score } : null;
 }
 
 export const MATCH_THRESHOLD = 0.72;

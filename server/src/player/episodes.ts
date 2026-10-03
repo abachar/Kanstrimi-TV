@@ -1,9 +1,10 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { db, schema, type Content, type Episode, type Variant } from "@/db";
 import { seasonsOf } from "@/catalog";
-import { versionsOf, versionsSummary, type Playable } from "./versions";
+import { qualityBadgeOf, versionsOf, versionsSummary, type Playable } from "./versions";
 import { imageUrl, isWatched, progressWire, remaining, runtimeText } from "./cards";
 import type { RestContext } from "./context";
+import { sourceId } from "./stream-links";
 import { isResumable, type Progress } from "./progress";
 import type { EpisodeWire, SeasonWire, Version } from "./types";
 
@@ -37,7 +38,7 @@ export async function loadEpisodes(
     if (!it) continue; // hidden or gone
     const list = byEp.get(s.episodeId) ?? [];
     list.push({
-      sourceId: `src-e${s.id.toString(36)}`,
+      sourceId: sourceId("episode", s.id),
       container: (s.container ?? "mp4").toUpperCase(),
       upstream: { kind: "series", id: s.xtreamId, ext: s.container ?? "mp4" },
       lang: it.lang,
@@ -69,7 +70,7 @@ export function episodeWire(ctx: RestContext, e: EpisodeRow, progress?: Progress
   const watched = isWatched(progress);
   const facts = [runtime, resumable ? remaining(progress) : watched ? "Vu" : null].filter((t) => t !== null);
   const summary = versionsSummary(versions);
-  const quality = summary.max_quality ? [summary.max_quality, summary.dynamic_range].filter(Boolean).join(" ") : null;
+  const quality = qualityBadgeOf(summary);
   return {
     id: e.key,
     season: e.season,

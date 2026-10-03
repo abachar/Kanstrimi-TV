@@ -1,6 +1,5 @@
 export {
   DEFAULTS,
-  ENV_KEYS,
   getSettings,
   invalidateSettings,
   isXtreamConfigured,

@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { getSettings } from "@/config";
-import { db, schema, sqlTmdbMediaType, type Studio } from "@/db";
+import { db, schema, sqlTmdbMediaType, type Studio, visibleItem } from "@/db";
 
 /**
  * The studio hubs, chosen in the admin: a TMDB production company or a TV network. Names and
@@ -107,8 +107,9 @@ export async function studioDetail(kind: StudioKind, tmdbId: number): Promise<St
   const titles = await db.execute<StudioTitle>(sql`
     select ${schema.catalogContents.id}, ${schema.catalogContents.kind}, ${schema.catalogContents.title}, ${schema.catalogContents.year},
       ${schema.catalogContents.posterPath} as "posterPath",
-      (select i.id from ${schema.catalogVariants} i where i.content_id = ${schema.catalogContents.id}
-        order by (not i.hidden_by_rule and not i.hidden_manual) desc, i.quality_rank desc nulls last, i.id limit 1) as "itemId"
+      (select ${schema.catalogVariants.id} from ${schema.catalogVariants}
+        where ${schema.catalogVariants.contentId} = ${schema.catalogContents.id}
+        order by (${visibleItem}) desc, ${schema.catalogVariants.qualityRank} desc nulls last, ${schema.catalogVariants.id} limit 1) as "itemId"
     from ${schema.catalogContents}
     where ${schema.catalogContents.visible} and ${studioColumn(kind)} @> array[${tmdbId}]::int[]
     order by ${schema.catalogContents.year} desc nulls last, ${schema.catalogContents.title}`);

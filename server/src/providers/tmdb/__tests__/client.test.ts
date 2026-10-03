@@ -26,31 +26,31 @@ describe("TmdbClient", () => {
     vi.stubGlobal("fetch", async () =>
       ++n === 1 ? new Response("", { status: 429, headers: { "retry-after": "0" } }) : Response.json({ id: 603, title: "Matrix" }),
     );
-    expect((await new TmdbClient("k").movie(603)).title).toBe("Matrix");
+    expect((await new TmdbClient("k", "fr-FR").movie(603)).title).toBe("Matrix");
     expect(n).toBe(2);
   });
 
   it("fails with the path and the status on an HTTP error, and on a body that is not JSON", async () => {
     vi.stubGlobal("fetch", async () => new Response("{}", { status: 404 }));
-    await expect(new TmdbClient("k").tv(1)).rejects.toThrow("TMDB /tv/1: HTTP 404");
+    await expect(new TmdbClient("k", "fr-FR").tv(1)).rejects.toThrow("TMDB /tv/1: HTTP 404");
     vi.stubGlobal("fetch", async () => new Response("<html>oops</html>"));
-    await expect(new TmdbClient("k").tv(1)).rejects.toThrow();
+    await expect(new TmdbClient("k", "fr-FR").tv(1)).rejects.toThrow();
   });
 
   it("a 429 that lasts is an outage of the way to TMDB, not a failure of the title asked", async () => {
     vi.stubGlobal("fetch", async () => new Response("", { status: 429, headers: { "retry-after": "0" } }));
-    const e = await new TmdbClient("k").searchMovie("Dune").catch((x) => x);
+    const e = await new TmdbClient("k", "fr-FR").searchMovie("Dune").catch((x) => x);
     expect(e.message).toContain("HTTP 429");
     expect(isUnreachable(e)).toBe(true);
     vi.stubGlobal("fetch", async () => new Response("{}", { status: 404 }));
-    expect(isUnreachable(await new TmdbClient("k").movie(1).catch((x) => x))).toBe(false);
+    expect(isUnreachable(await new TmdbClient("k", "fr-FR").movie(1).catch((x) => x))).toBe(false);
   });
 
   it("spaces its requests: never more than TMDB_PER_SECOND a second, all clients together", async () => {
     vi.stubGlobal("fetch", async () => Response.json({ results: [] }));
     const n = 8;
     const started = performance.now();
-    await Promise.all(Array.from({ length: n }, (_, i) => new TmdbClient(`k${i}`).searchMovie("x")));
+    await Promise.all(Array.from({ length: n }, (_, i) => new TmdbClient(`k${i}`, "fr-FR").searchMovie("x")));
     expect(performance.now() - started).toBeGreaterThanOrEqual(((n - 1) * 1000) / TMDB_PER_SECOND - 5);
   });
 });

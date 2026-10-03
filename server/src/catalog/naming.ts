@@ -207,7 +207,7 @@ const EDITION_TAG = new RegExp(`(?:[[({]\\s*(?:${EDITION_ALT})\\s*[\\])}]|\\s*(?
 
 type Found = { language?: Language; quality?: Quality; dynamicRange?: DynamicRange; tags: Set<string> };
 
-function classify(word: string, f: Found, bracketed: boolean) {
+function classify(word: string, f: Found) {
   const w = word.toUpperCase().replace(/\s+/g, " ");
   if (LANG_WORDS[w]) {
     f.language ??= LANG_WORDS[w];
@@ -215,7 +215,7 @@ function classify(word: string, f: Found, bracketed: boolean) {
     return;
   }
   if (ISO_CODES.has(w)) {
-    if (bracketed || !f.language) f.language ??= w;
+    f.language ??= w;
     return;
   }
   if (QUALITY_WORDS[w]) {
@@ -245,15 +245,15 @@ function extractTags(s: string, f: Found): string {
       .slice(1, -1)
       .split(/[\s/,+\-|]+/)
       .filter(Boolean))
-      classify(w, f, true);
+      classify(w, f);
     // "DOLBY VISION" spans a space: catch it on the whole group too.
-    if (/DOLBY\s*VISION/i.test(m)) classify("DOLBY VISION", f, true);
+    if (/DOLBY\s*VISION/i.test(m)) classify("DOLBY VISION", f);
     return " ";
   });
   s = s.replace(BARE_TAG, (m, w: string) => {
     // A bare ISO code is a suffix only: it must be the last word (title words like "DE" stay).
     if (ISO_CODES.has(w.toUpperCase()) && /\S/.test(s.slice(s.indexOf(m) + m.length))) return m;
-    classify(w, f, false);
+    classify(w, f);
     return " ";
   });
   return s;
@@ -320,7 +320,7 @@ export function parseName(raw: string, kind: Kind): ParsedName {
   }
   // Leading language words without a separator: "VOSTFR Parasite - 2019".
   s = s.replace(new RegExp(`^(?:(?:${Object.keys(LANG_WORDS).map(esc).join("|")})\\s*[-:|]?\\s+)+`, ""), (m) => {
-    for (const w of m.split(/[\s\-:|]+/).filter(Boolean)) classify(w, f, false);
+    for (const w of m.split(/[\s\-:|]+/).filter(Boolean)) classify(w, f);
     return "";
   });
   if (kind === "live") s = s.replace(TZ_DELAY, " ");
@@ -330,7 +330,7 @@ export function parseName(raw: string, kind: Kind): ParsedName {
     const m = SEASON_TAG.exec(s);
     if (m) {
       seasonHint = Number(m[1] ?? m[2]);
-      s = s.replace(m[0], m[0].startsWith("(") || m[0].startsWith("[") ? " " : " ");
+      s = s.replace(m[0], " ");
     }
   }
 

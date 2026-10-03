@@ -1,9 +1,7 @@
 import type { TmdbCandidate } from "@/catalog";
 import { tmdbMediaType, type Variant } from "@/db";
-import { MATCH_LABELS } from "../labels";
-import { Badge, type Tone } from "../ui";
-
-const MATCH_TONES: Record<string, Tone> = { matched: "ok", manual: "ok", unmatched: "warn" };
+import { MATCH_LABELS, MATCH_TONES } from "../labels";
+import { Badge } from "../ui";
 
 /** The TMDB association of an entry, with the search-and-assign form folded under "Corriger". */
 export function TmdbCell({ it, results }: { it: Variant; results?: TmdbCandidate[] }) {
@@ -29,7 +27,7 @@ export function TmdbCell({ it, results }: { it: Variant; results?: TmdbCandidate
             —
           </span>
         )}
-        <Badge tone={MATCH_TONES[it.matchStatus] ?? "plain"}>
+        <Badge tone={MATCH_TONES[it.matchStatus] ?? "muted"}>
           {MATCH_LABELS[it.matchStatus] ?? it.matchStatus}
           {score}
         </Badge>

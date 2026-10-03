@@ -3,7 +3,8 @@
  * exactly these shapes. snake_case, ISO dates, explicit null where the
  * app expects a value, absent where it does not.
  */
-export type Kind = "movie" | "series" | "episode" | "live";
+/** The app's `ContentKind`, not the database's `Kind` (live, vod, series). */
+export type ContentKind = "movie" | "series" | "episode" | "live";
 export type Quality = "SD" | "HD" | "FHD" | "4K";
 export type DynamicRange = "HDR" | "DV";
 
@@ -54,7 +55,7 @@ export type SeasonWire = { number: number; title: string | null; year: number | 
 
 export type Card = {
   id: string;
-  kind: Kind;
+  kind: ContentKind;
   title: string;
   poster?: string | null;
   max_quality?: Quality;
@@ -99,7 +100,7 @@ export type Card = {
  */
 export type ContentItem = {
   id: string;
-  kind: Kind | "saga";
+  kind: ContentKind | "saga";
   title: string;
   logo: string | null;
   poster: string | null;

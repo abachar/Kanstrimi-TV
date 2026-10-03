@@ -118,7 +118,7 @@ export class TmdbError extends Error {
 export class TmdbClient {
   constructor(
     readonly apiKey: string,
-    readonly language = "fr-FR",
+    readonly language: string,
   ) {}
 
   private async get<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {

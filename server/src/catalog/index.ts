@@ -3,12 +3,11 @@ export { setCategoryHiddenManual, setItemHiddenManual } from "./hiding";
 export { trendingContents } from "./trending";
 export { ensureEpisodes, seasonsOf, UpstreamUnavailable } from "./episodes";
 export { contentsGeneration, groupingCounts, runGrouping, runNaming } from "./grouping/group";
-export { runMerge } from "./merge";
 export { type MergeCandidate, mergeCandidates, mergeVariantInto, resetVariant, splitVariant } from "./grouping/manual";
 export { closeOrphanLogs, recentRuns, runById, lastRunsByTask, type RunWithSteps } from "./journal";
 export { readRunLog, runLogPath } from "./runlog";
 export { iptvChannelById, setIptvMatch } from "./channels";
-export { hasFallbackKey, hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey, tmdbKey } from "./keys";
+export { hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
 export {
   assignManual,
   explainMatch,
@@ -24,12 +23,9 @@ export {
   DYNAMIC_RANGE_RANK,
   LIVE_THEMES,
   liveTheme,
-  parseCategory,
   parseName,
   QUALITY_RANK,
   qualityOfRank,
-  sectionLabel,
-  themeOf,
 } from "./naming";
 export {
   getLastError,
@@ -38,8 +34,6 @@ export {
   launch,
   pipelineSteps,
   run,
-  runAll,
-  runEpg,
   runningSteps,
   schedule,
   TASKS,

@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db, schema, client as pg } from "@/db";
-import { checkCancelled, similarity, stripAccents } from "@/shared";
+import { checkCancelled, similarity, similarityKey, stripAccents } from "@/shared";
 import { syncIptv } from "@/providers/iptv";
 import { regroupItems } from "./grouping/group";
 import { LIVE_THEMES, type LiveTheme } from "./naming";
@@ -171,11 +171,8 @@ export type IptvMatch = { id: string; how: "epg" | "name" | "name-global" } | nu
 
 /** A name that differs only by spelling (« AL RESALA » / « Al Resalah », « VIRGIN MEDIA 1 » / « One »). */
 export const FIT_THRESHOLD = 0.7;
-const compact = (s: string) =>
-  stripAccents(s)
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "");
+/** `similarityKey` without its spaces: « Al-Resala » and « AL RESALA » meet. */
+const compact = (s: string) => similarityKey(s).replace(/ /g, "");
 
 /**
  * Does the variant's name fit this channel? Its own name inside the variant's (« AL AOULA INTER »
