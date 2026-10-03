@@ -8,7 +8,7 @@ import { contentByKey, keyExists, variantsOf } from "./contents";
 import { deleteProgress, getProgress, isResumable, setFinished, setProgress } from "./progress";
 import { versionsOf, versionsSummary } from "./versions";
 import { currentEpisode, type EpisodeRow, episodeWire, loadEpisodes } from "./episodes";
-import { episodeCode, runtimeText } from "./cards";
+import { castOf, episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
 import { addWatchTime } from "./watch-time";
 import type { NextEpisode, Playback, Version } from "./types";
@@ -119,12 +119,13 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
       resume_at: isResumable(p) ? p.position : null,
       duration: p?.duration || (e.runtime ? e.runtime * 60 : null),
       next: next ? nextEpisodeOf(ctx, content, next, nextVersions) : null,
+      cast: castOf(ctx, content),
     };
   }
   const content = await contentByKey(ctx, key);
   if (!content) return null;
   const versions = versionsOf(ctx, (await variantsOf(content)).playables);
-  if (content.kind === "live") return { versions, resume_at: null, duration: null, next: null };
+  if (content.kind === "live") return { versions, resume_at: null, duration: null, next: null, cast: [] };
   if (content.kind === "series") {
     const { items, categoryName } = await variantsOf(content);
     await ensureEpisodes(content, items, ctx.tmdbLang);
@@ -139,6 +140,7 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
     resume_at: isResumable(p) ? p.position : null,
     duration: p?.duration || (content.runtime ? content.runtime * 60 : null),
     next: null,
+    cast: castOf(ctx, content),
   };
 }
 

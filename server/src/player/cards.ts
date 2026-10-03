@@ -1,6 +1,6 @@
 import { isTmdbKey } from "@/catalog";
 import type { Content } from "@/db";
-import type { Card, ContentItem, ProgressWire } from "./types";
+import type { Card, ContentItem, Person, ProgressWire } from "./types";
 import type { RestContext } from "./context";
 import { FINISHED_AT, isResumable, type Progress } from "./progress";
 import { drOf, qualityOfRank, sortLanguages } from "./versions";
@@ -67,6 +67,16 @@ export function artBlock(ctx: RestContext, c: Content): Pick<Card, "backdrop" | 
   };
 }
 
+/** The cast kept on a content, as the sheet and the player show it. */
+export function castOf(ctx: RestContext, c: Content): Person[] {
+  return (c.cast ?? []).map((p) => ({
+    id: p.id != null ? `person:${p.id}` : null,
+    name: p.name,
+    role: p.role,
+    photo: imageUrl(ctx.baseUrl, "w185", p.profile) || null,
+  }));
+}
+
 /** Base + sheet block, without versions and seasons (added by the caller). */
 export function sheetCard(ctx: RestContext, c: Content, extra: { providerCategory: string | null; rawTitle: string | null }): Card {
   const tmdb = isTmdbKey(c.key);
@@ -78,12 +88,7 @@ export function sheetCard(ctx: RestContext, c: Content, extra: { providerCategor
     overview: c.overview,
     runtime: c.runtime,
     certification: c.certification,
-    cast: (c.cast ?? []).map((p) => ({
-      id: p.id != null ? `person:${p.id}` : null,
-      name: p.name,
-      role: p.role,
-      photo: imageUrl(ctx.baseUrl, "w185", p.profile) || null,
-    })),
+    cast: castOf(ctx, c),
     director: c.director,
     trailer: c.trailerKey ? `https://www.youtube.com/watch?v=${c.trailerKey}` : null,
     has_tmdb: tmdb,

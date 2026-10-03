@@ -639,6 +639,8 @@ describe("playback and progress", () => {
     let p = (await get("/playback/tmdb:movie:603")).body;
     expect(p).toMatchObject({ resume_at: null, duration: 136 * 60, next: null });
     expect(p.versions.length).toBe(2);
+    // The player's « Distribution » panel: the sheet's cast.
+    expect(p.cast).toEqual([{ id: "person:6384", name: "Keanu Reeves", role: "Neo", photo: "http://kanstrimi.test/img/w185/keanu.jpg" }]);
     let r = await call("/playback/tmdb:movie:603/progress", { method: "PUT", body: JSON.stringify({ position: 4520, duration: 8280 }) });
     expect(r.status).toBe(204);
     p = (await get("/playback/tmdb:movie:603")).body;
@@ -658,6 +660,10 @@ describe("playback and progress", () => {
     const p = (await get("/playback/tmdb:tv:1396:s01e02")).body;
     expect(p.versions.map((v: { id: string }) => v.id)).toEqual(["vf-hd", "vostfr-hd"]);
     expect(p.duration).toBe(78 * 60);
+    // An episode shows the series' cast.
+    expect(p.cast).toEqual([
+      { id: "person:6384", name: "Keanu Reeves", role: "Invité", photo: "http://kanstrimi.test/img/w185/keanu.jpg" },
+    ]);
     expect(p.next).toMatchObject({
       id: "tmdb:tv:1396:s02e01",
       title: "Marée haute",

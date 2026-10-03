@@ -227,11 +227,13 @@ export type NextEpisode = {
  * `/playback/{id}`. On a series id, the episode to play (the one in progress, else the first not seen) is
  * resolved and named in `episode`; the app reports progress on `episode.id`.
  */
+/** `cast`: the player's « Distribution » panel, the movie's or the series' (empty for a channel). */
 export type Playback = {
   versions: Version[];
   resume_at: number | null;
   duration: number | null;
   next: NextEpisode | null;
+  cast: Person[];
   episode?: EpisodeRef & { id: string };
 };
 
