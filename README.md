@@ -35,6 +35,16 @@ qu'au client de démo.
 - **Une seule version** pour l'app et le serveur : `MARKETING_VERSION` de toutes les cibles Apple (extension Top Shelf
   comprise) et `version` de `server/package.json` (que l'app affiche dans ses réglages) avancent ensemble.
 
+## Licence
+
+Code source consultable, **non libre** : [PolyForm Strict 1.0.0](LICENSE.md).
+
+- Autorisé : lire le code et l'utiliser à des fins non commerciales (usage personnel compris).
+- Interdit sans accord écrit de l'auteur : toute distribution (gratuite ou payante), toute modification ou
+  œuvre dérivée, tout usage commercial.
+
+Copyright © 2026 Abdelhakim Bachar - Crafters.
+
 ## Pistes
 
 Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non planifiées.

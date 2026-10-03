@@ -161,3 +161,7 @@ seul `sharp` (libvips natif) reste hors du bundle et forme l'unique `node_module
 - Variables : `ADMIN_PASSWORD_HASH`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `DATA_DIR`, `PORT`, `TZ`.
 - `DATA_DIR` ne contient que des caches reconstructibles et les logs : seule la base se sauvegarde.
 - Le mot de passe circule en clair dans les URL Xtream : LAN ou HTTPS uniquement.
+
+## Licence
+
+[PolyForm Strict 1.0.0](../LICENSE.md) — voir le [README principal](../README.md#licence).

@@ -2,6 +2,7 @@
   "name": "kanstrimi-server",
   "version": "1.4.0",
   "private": true,
+  "license": "SEE LICENSE IN ../LICENSE.md",
   "type": "module",
   "scripts": {
     "dev": "npm run -s css && { tailwindcss -i src/admin/assets/admin.css -o dist/assets/admin.css --watch=always & node --env-file-if-exists=.env --import tsx --watch src/main.ts; }",

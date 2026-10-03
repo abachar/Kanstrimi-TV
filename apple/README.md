@@ -104,3 +104,7 @@ Pas de `Simulator.app` : ni télécommande ni doigt à piloter.
 
 - Atmos par une barre de son en HDMI.
 - Sous-titres en image (PGS) sur Apple TV, film à bandes noires.
+
+## Licence
+
+[PolyForm Strict 1.0.0](../LICENSE.md) — voir le [README principal](../README.md#licence).
