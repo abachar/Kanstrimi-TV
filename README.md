@@ -22,10 +22,11 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enri
 | `server/` | Import, filtrage, enrichissement, groupement des variantes, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Tailwind 4 / Basecoat | [`server/README.md`](server/README.md) |
 | `apple/` | Client natif Apple TV 4K et iPhone (iPad à venir), consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27, AetherEngine 7 (FFmpeg + VideoToolbox), une cible et deux destinations | [`apple/README.md`](apple/README.md) |
 
-Le contrat entre les deux est le code : `server/src/player/types.ts` côté serveur, `apple/kanstrimi/Contract/` côté
-app. De vraies réponses du serveur (`apple/kanstrimiTests/Contract/`) le vérifient des deux côtés : le serveur échoue si
-leur forme change, l'app si elle ne les décode plus. Les fixtures de `apple/kanstrimi/Client/Fixtures/` ne servent
-qu'au client de démo.
+Le serveur porte la logique, l'app affiche : les listes envoient des `ContentItem` dont les textes (« 2019 · ★ 8.5 »,
+badges, « 1 h 08 restantes ») sont déjà écrits, pour qu'un autre client n'ait rien à refaire. Le contrat entre les deux
+est le code : `server/src/player/types.ts` côté serveur, `apple/kanstrimi/Contract/` côté app. De vraies réponses du
+serveur (`apple/kanstrimiTests/Contract/`) le vérifient des deux côtés : le serveur échoue si leur forme change, l'app
+si elle ne les décode plus. Les fixtures de `apple/kanstrimi/Client/Fixtures/` ne servent qu'au client de démo.
 
 ## Conventions communes
 
@@ -69,6 +70,8 @@ Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non p
     flouté, pour éviter les grands aplats noirs. POC sur l'écran Films, branche `poc/fond-focus`, mis de côté.
   - **Écran Films façon Prime Video (tvOS)** : deux rangées de films seulement en bas de l'écran ; le haut est un hero
     (fond, logo ou titre, infos) qui affiche le film en focus et change à chaque déplacement.
+  - **Distribution dans le lecteur** : les acteurs du film ou de la série dans les panneaux du lecteur (comme sur la
+    fiche), un acteur ouvrant ses titres.
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **Générique, intro et récap** : la carte « À suivre » au début du générique plutôt qu'à la fin du fichier, et
     « Passer l'intro » / « Passer le récap ». Sources possibles : TheIntroDB (par id TMDB) puis IntroDB (par IMDb),

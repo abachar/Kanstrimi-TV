@@ -1,15 +1,17 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { ensureEpisodes, parseKey } from "@/catalog";
+import type { Content } from "@/db";
 import type { Env, RestContext } from "./context";
 import { fail, json, noContent } from "./http";
 import { contentByKey, keyExists, variantsOf } from "./contents";
 import { deleteProgress, getProgress, isResumable, setFinished, setProgress } from "./progress";
 import { versionsOf, versionsSummary } from "./versions";
-import { currentEpisode, episodeWire, loadEpisodes } from "./episodes";
+import { currentEpisode, type EpisodeRow, episodeWire, loadEpisodes } from "./episodes";
+import { episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
 import { addWatchTime } from "./watch-time";
-import type { Playback } from "./types";
+import type { NextEpisode, Playback, Version } from "./types";
 
 /**
  * `/playback/{id}`: versions, resume point and next episode (a series: of the episode it resumes on);
@@ -111,20 +113,12 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
     const p = (await getProgress([key])).get(key);
     const nextVersions = next ? versionsOf(ctx, next.playables, false) : [];
     return {
+      // Named for whoever plays it from its id alone (« Reprendre »): the app titles the player with it.
+      episode: { id: e.key, season: e.season, number: e.number, title: e.title },
       versions: versionsOf(ctx, e.playables),
       resume_at: isResumable(p) ? p.position : null,
       duration: p?.duration || (e.runtime ? e.runtime * 60 : null),
-      next: next
-        ? {
-            id: next.key,
-            title: next.title,
-            season: next.season,
-            number: next.number,
-            runtime: next.runtime,
-            ...versionsSummary(nextVersions),
-            still: episodeWire(ctx, next).still,
-          }
-        : null,
+      next: next ? nextEpisodeOf(ctx, content, next, nextVersions) : null,
     };
   }
   const content = await contentByKey(ctx, key);
@@ -145,5 +139,35 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
     resume_at: isResumable(p) ? p.position : null,
     duration: p?.duration || (content.runtime ? content.runtime * 60 : null),
     next: null,
+  };
+}
+
+/** The episode that follows, and what « À suivre » draws of it. */
+function nextEpisodeOf(ctx: RestContext, series: Content, next: EpisodeRow, versions: Version[]): NextEpisode {
+  const summary = versionsSummary(versions);
+  const wire = episodeWire(ctx, next);
+  const quality = summary.max_quality
+    ? [summary.dynamic_range ? `${summary.max_quality} ${summary.dynamic_range}` : summary.max_quality]
+    : [];
+  return {
+    id: next.key,
+    title: next.title,
+    season: next.season,
+    number: next.number,
+    runtime: next.runtime,
+    ...summary,
+    still: wire.still,
+    item: {
+      ...wire.item,
+      facts: [series.title, episodeCode(next.season, next.number), next.runtime ? runtimeText(next.runtime) : null]
+        .filter((t) => t !== null)
+        .join(" · "),
+      badges: [...quality, ...summary.languages],
+      progress: null,
+      watched: false,
+      caption: null,
+      overview: next.overview,
+    },
+    heading: "ÉPISODE SUIVANT",
   };
 }

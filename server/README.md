@@ -131,6 +131,9 @@ par son index.
 - **Secrets** : un seul mot de passe ; réglages sensibles chiffrés avec une clé gardée en RAM. Après un redémarrage le
   serveur est verrouillé jusqu'à la première requête authentifiée (le premier appel d'un appareil appairé suffit).
   `/admin/login` passe toujours par bcrypt et, par adresse, après cinq échecs, double l'attente à chaque nouvel échec (429).
+- **Textes des cartes** (`player/cards.ts`) : les listes, l'accueil, la recherche, « À suivre » et les épisodes envoient des
+  `ContentItem` dont le serveur écrit les textes (« 2019 · ★ 8.5 », badges dans l'ordre, « S2 · É4 · 1 h 08 restantes »,
+  en-têtes « À SUIVRE ») ; l'app les dispose sans les recalculer. La fiche reste un `Card`.
 - **Recherche** (`player/search.ts`) : un terme d'un caractère est un mot entier, un préfixe à partir de deux ; seuls les
   200 contenus les plus votés par type (préfixes, et mots entiers pour qu'un titre égal à la requête reste) sont classés.
 - **Liens de lecture** : signés par appareil, valables un quart d'heure, car leur `302` livre les identifiants du

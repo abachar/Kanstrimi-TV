@@ -65,7 +65,7 @@ export { setFavorite } from "./favorites";
 export { channelGroups } from "./channels";
 export { catalogRows, listContents } from "./lists";
 export { studiosOf } from "./studios";
-export { listSagas, sagaSheet } from "./sagas";
+export { listSagas, listSagaWires, sagaSheet } from "./sagas";
 export { gridCard } from "./cards";
 export { listProgress, deleteProgress, setFinished, setProgress, type Progress } from "./progress";
 export type { Card, CatalogRow, ChannelGroupWire, ChannelWire, SagaWire, StudioWire, Version } from "./types";

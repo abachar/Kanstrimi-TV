@@ -5,7 +5,7 @@ import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
 import { visibleContent } from "./contents";
 import { getProgress } from "./progress";
-import { gridCard, imageUrl } from "./cards";
+import { contentItem, imageUrl } from "./cards";
 import type { PersonSheet } from "./types";
 
 /**
@@ -39,7 +39,7 @@ export async function personSheet(ctx: RestContext, key: string): Promise<Person
   if (rows.length === 0) return null;
   const me = rows[0].cast?.find((p) => p.id === id);
   const progress = await getProgress(rows.map((r) => r.key));
-  const cards = (kind: "vod" | "series") => rows.filter((r) => r.kind === kind).map((r) => gridCard(ctx, r, progress.get(r.key)));
+  const cards = (kind: "vod" | "series") => rows.filter((r) => r.kind === kind).map((r) => contentItem(ctx, r, progress.get(r.key)));
   return {
     id: `person:${id}`,
     name: me?.name ?? "",

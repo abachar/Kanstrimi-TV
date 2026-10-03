@@ -5,9 +5,9 @@ import type { RestContext } from "./context";
 import { contentByKey, contentsInOrder, variantsOf, visibleContent } from "./contents";
 import { getProgress, isResumable, listProgress, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
-import { artBlock, gridCard } from "./cards";
+import { contentItem, relatedItem, upNextItem } from "./cards";
 import { loadEpisodes } from "./episodes";
-import type { Card, Suggestion, Suggestions } from "./types";
+import type { ContentItem, Suggestion, Suggestions } from "./types";
 
 /**
  * « Si vous avez aimé… »: TMDB's recommendations crossed with what the app may see, on the sheet, in
@@ -76,18 +76,13 @@ async function recommendedContents(ctx: RestContext, content: Content, waitMs: n
   return contentsInOrder(ctx, keys);
 }
 
-/** The grid card, the wide picture and what the player's panel tells: overview, runtime. */
-function detailCard(ctx: RestContext, c: Content, progress?: Progress): Card {
-  return { ...gridCard(ctx, c, progress), ...artBlock(ctx, c), overview: c.overview, runtime: c.runtime };
-}
-
 /** The sheet's row: nothing seen, ten at most. */
-export async function sheetRelated(ctx: RestContext, content: Content): Promise<Card[]> {
+export async function sheetRelated(ctx: RestContext, content: Content): Promise<ContentItem[]> {
   const candidates = await recommendedContents(ctx, content, SHEET_WAIT_MS);
   const states = await watchStates(candidates);
   const kept = candidates.filter((c) => states.get(c.key) !== "seen").slice(0, SHEET_RELATED);
   const progress = await getProgress(kept.map((c) => c.key));
-  return kept.map((c) => gridCard(ctx, c, progress.get(c.key)));
+  return kept.map((c) => contentItem(ctx, c, progress.get(c.key)));
 }
 
 /** `/playback/{id}/suggestions`: null when the id is not a visible movie or episode. */
@@ -101,17 +96,21 @@ export async function suggestions(ctx: RestContext, key: string): Promise<Sugges
   const candidates = await recommendedContents(ctx, content, PLAYER_WAIT_MS);
   const states = await watchStates(candidates);
   const related = candidates.filter((c) => states.get(c.key) !== "seen").slice(0, PLAYER_RELATED);
-  const progress = await getProgress(related.map((c) => c.key));
   const fresh = candidates.filter((c) => !states.has(c.key));
 
   let next: Suggestion | null = null;
   // An episode before the last one: the next episode follows, as `/playback` says.
   if (!episode || !(await hasEpisodeAfter(content, key))) {
     const saga = episode ? null : await nextInSaga(ctx, content);
-    if (saga) next = { card: detailCard(ctx, saga), reason: "saga" };
-    else if (fresh[0]) next = { card: detailCard(ctx, fresh[0]), reason: "recommended" };
+    if (saga) next = { item: upNextItem(ctx, saga), reason: "saga", heading: "À SUIVRE · SUITE DE LA SAGA" };
+    else if (fresh[0])
+      next = {
+        item: upNextItem(ctx, fresh[0]),
+        reason: "recommended",
+        heading: fresh[0].kind === "series" ? "À SUIVRE · NOUVELLE SÉRIE" : "À SUIVRE",
+      };
   }
-  return { related: related.map((c) => detailCard(ctx, c, progress.get(c.key))), next };
+  return { related: related.map((c) => relatedItem(ctx, c)), next };
 }
 
 /** The saga's first movie released after this one, neither seen nor in progress. */
@@ -144,7 +143,7 @@ async function hasEpisodeAfter(series: Content, key: string): Promise<boolean> {
  * weighed by the rank TMDB gives it and by how recent its seed is. From the cache only: the seeds
  * without recommendations yet are fetched in the background, the row fills at a later visit.
  */
-export async function recommendedRow(ctx: RestContext): Promise<Card[]> {
+export async function recommendedRow(ctx: RestContext): Promise<ContentItem[]> {
   const [history, favs] = await Promise.all([listProgress(), favoriteKeys()]);
   const seeds = new Map<string, number>();
   for (const p of history) {
@@ -170,5 +169,5 @@ export async function recommendedRow(ctx: RestContext): Promise<Card[]> {
   return candidates
     .filter((c) => !states.has(c.key))
     .slice(0, HOME_RELATED)
-    .map((c) => gridCard(ctx, c));
+    .map((c) => contentItem(ctx, c));
 }

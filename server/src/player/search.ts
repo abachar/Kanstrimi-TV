@@ -2,14 +2,14 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { and, asc, desc, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, type Content } from "@/db";
 import { searchText, similarityKey } from "@/shared";
 import type { Env, RestContext } from "./context";
 import { badQuery, json } from "./http";
 import { liveCategories, visibleContent } from "./contents";
-import { getProgress } from "./progress";
-import { artBlock, baseCard, gridCard } from "./cards";
-import type { Card, SearchResults } from "./types";
+import { getProgress, type Progress } from "./progress";
+import { contentItem } from "./cards";
+import type { ContentItem, SearchResults } from "./types";
 
 /**
  * `/search?q=…&scope=…`: full-text on the accent-free index, twenty per kind, one "best" pick. When
@@ -108,15 +108,12 @@ export async function search(
   if (!movies.length && !series.length && !live.length && q.length >= FUZZY_MIN_LENGTH) [movies, series, live] = await run(resembling);
   const progress = await getProgress([...movies, ...series].map((r) => r.content.key));
   const cats = live.length ? new Map((await liveCategories()).map((c) => [c.xtreamId, c.name])) : new Map<string, string>();
-  const m = movies.map((r) => gridCard(ctx, r.content, progress.get(r.content.key)));
-  const s = series.map((r) => gridCard(ctx, r.content, progress.get(r.content.key)));
-  const l = live.map(({ content: c }) => ({
-    ...baseCard(ctx, c),
-    genres: c.categoryXtreamId && cats.get(c.categoryXtreamId) ? [cats.get(c.categoryXtreamId)!] : [],
-  }));
+  const categoryOf = (c: Content) => (c.categoryXtreamId && cats.get(c.categoryXtreamId)) || null;
+  const items = (rows: typeof movies) => rows.map((r) => contentItem(ctx, r.content, progress.get(r.content.key)));
+  // A channel: its logo for a poster, its category for facts.
+  const l = live.map(({ content: c }) => ({ ...contentItem(ctx, c), facts: categoryOf(c) }));
   // The best across the three kinds: an equal title, then the closest one, then the most voted.
   const all = [...movies, ...series, ...live];
-  const cards: Card[] = [...m, ...s, ...l];
   const ranked = all
     .map((r, i) => ({ r, i }))
     .sort(
@@ -125,8 +122,21 @@ export async function search(
         b.r.closeness - a.r.closeness ||
         (b.r.content.voteCount ?? 0) - (a.r.content.voteCount ?? 0),
     );
-  const i = ranked[0]?.i ?? -1;
-  // The app shows the best result wide: its backdrop, logo and overview, which the rows do not need.
-  const best = i < 0 ? null : { ...cards[i], ...artBlock(ctx, all[i].content), overview: all[i].content.overview };
-  return { query, best, movies: m, series: s, live: l };
+  const top = ranked[0]?.r.content;
+  return {
+    query,
+    best: top ? bestItem(ctx, top, progress.get(top.key), categoryOf(top)) : null,
+    movies: items(movies),
+    series: items(series),
+    live: l,
+  };
+}
+
+/** The best result, shown wide: its picture and logo, « Film · 2019 · Drame », its overview. */
+function bestItem(ctx: RestContext, c: Content, progress: Progress | undefined, category: string | null): ContentItem {
+  const facts =
+    c.kind === "live"
+      ? category
+      : [c.kind === "series" ? "Série" : "Film", c.year ? String(c.year) : null, c.genres[0] ?? null].filter((t) => t !== null).join(" · ");
+  return { ...contentItem(ctx, c, progress), facts, overview: c.overview };
 }

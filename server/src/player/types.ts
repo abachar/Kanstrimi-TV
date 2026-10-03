@@ -42,6 +42,8 @@ export type EpisodeWire = {
   air_date: string | null;
   versions: Version[];
   progress: ProgressWire | null;
+  /** What its card draws: the still, « É4 · 52 min », the progress, « vu ». */
+  item: ContentItem;
 };
 export type SeasonWire = { number: number; title: string | null; year: number | null; episodes: EpisodeWire[] };
 
@@ -81,14 +83,37 @@ export type Card = {
   /** Movie sheet: its saga, present only when two of its movies are visible. */
   saga?: SagaRef;
   /** Sheet: « Si vous avez aimé… », TMDB's recommendations in the catalogue, nothing already seen, ten at most. */
-  related?: Card[];
+  related?: ContentItem[];
+};
+
+/**
+ * What a content card draws, written here: the app lays it out and decides nothing. A list item; the
+ * sheet stays a `Card`. `kind` says where a click goes (the sheet, the saga). Texts are final:
+ * `facts` « 2019 · ★ 8.5 », « 3 films »; `badges` « 4K DV », « VF », « VOSTFR », in order;
+ * `caption` « 1 h 08 restantes ». `progress` (0…1) only while resumable.
+ */
+export type ContentItem = {
+  id: string;
+  kind: Kind | "saga";
+  title: string;
+  logo: string | null;
+  poster: string | null;
+  picture: string | null;
+  facts: string | null;
+  badges: string[];
+  hint: string | null;
+  progress: number | null;
+  watched: boolean;
+  caption: string | null;
+  /** Where the card tells it: the best search result, the carousel, « À suivre »; null in the lists. */
+  overview: string | null;
 };
 
 /** A TMDB collection with at least two visible movies. `id` = `saga:<TMDB collection id>`. */
 export type SagaRef = { id: string; name: string; count: number };
 export type SagaWire = SagaRef & { poster: string | null; backdrop: string | null };
 /** `/movies/sagas`: freshest first. */
-export type SagaPage = { items: SagaWire[]; next_cursor: string | null; total: number };
+export type SagaPage = { items: ContentItem[]; next_cursor: string | null; total: number };
 /**
  * `/movies/studios`, `/series/studios`: the studio hubs chosen in the admin that hold visible titles
  * of that kind, in the admin's order. `id` = `company:<TMDB id>` or `network:<TMDB id>`, the
@@ -97,9 +122,9 @@ export type SagaPage = { items: SagaWire[]; next_cursor: string | null; total: n
  */
 export type StudioWire = { id: string; name: string; logo: string | null; count: number; backdrop: string | null };
 /** `/movies/sagas/{id}`: the saga and its visible movies, latest release first. */
-export type SagaSheet = SagaWire & { movies: Card[] };
+export type SagaSheet = SagaWire & { movies: ContentItem[] };
 /** `/people/{id}`: an actor and their visible titles, latest release first. */
-export type PersonSheet = { id: string; name: string; photo: string | null; movies: Card[]; series: Card[] };
+export type PersonSheet = { id: string; name: string; photo: string | null; movies: ContentItem[]; series: ContentItem[] };
 
 export type Programme = { title: string; start: string; end: string; overview?: string | null };
 export type ChannelWire = {
@@ -126,15 +151,16 @@ export type HomeRow = {
   id: string;
   kind: "resume" | "most_watched_channels" | "recommended" | "recent_movies" | "recent_series" | "favorites" | "collection";
   title: string;
-  cards: Card[];
+  cards: ContentItem[];
 };
 /**
- * A slide of the home carousel. `card` is what Fiche opens (the series for a new episode); `play_id`
- * what Lecture plays, `versions`, `runtime` and `overview` being that title's own; `episode` names the
- * episode played. `tagline`: what the slide is, « FILM · N° 1 CETTE SEMAINE ».
+ * A slide of the home carousel. `item` is what it draws and what Fiche opens (the series for a new episode):
+ * its picture, logo, « S2 É5 · 2026 · Drame · 2 h 16 », `progress` when it resumes. `play_id` is what Lecture
+ * plays, `versions`, `runtime`, `resume_at` and `duration` (seconds) being that title's own; `episode` names
+ * the episode played. `tagline`: what the slide is, « FILM · N° 1 CETTE SEMAINE ».
  */
 export type HomeHero = {
-  card: Card;
+  item: ContentItem;
   tagline: string;
   overview: string | null;
   runtime: number | null;
@@ -142,6 +168,9 @@ export type HomeHero = {
   versions: Version[];
   play_id: string;
   episode?: EpisodeRef;
+  is_favorite: boolean;
+  resume_at: number | null;
+  duration: number | null;
 };
 /**
  * `heroes`: the Top Shelf without the title in progress (« Reprendre » is a row), at most six; the
@@ -176,8 +205,8 @@ export type TopShelfItem = {
   open_id: string;
 };
 
-export type CatalogRow = { id: string; name: string; total: number } & ({ movies: Card[] } | { series: Card[] });
-export type Page = { items: Card[]; next_cursor: string | null };
+export type CatalogRow = { id: string; name: string; total: number } & ({ movies: ContentItem[] } | { series: ContentItem[] });
+export type Page = { items: ContentItem[]; next_cursor: string | null };
 
 export type NextEpisode = {
   id: string;
@@ -189,6 +218,9 @@ export type NextEpisode = {
   max_quality?: Quality;
   dynamic_range?: DynamicRange;
   still: string | null;
+  /** « À suivre »: its still, « Vincenzo · S1 · É3 · 1 h 20 », its badges, its overview. */
+  item: ContentItem;
+  heading: string;
 };
 /**
  * `/playback/{id}`. On a series id, the episode to play (the one in progress, else the first not seen) is
@@ -208,10 +240,11 @@ export type Playback = {
  * `/playback/{series id}`. `next`: what follows a movie, or the last known episode of a series, nothing
  * seen or in progress: the saga's next movie, else TMDB's first recommendation; null when there is none.
  */
-export type Suggestions = { related: Card[]; next: Suggestion | null };
-export type Suggestion = { card: Card; reason: "saga" | "recommended" };
+export type Suggestions = { related: ContentItem[]; next: Suggestion | null };
+/** `heading`: « À SUIVRE · SUITE DE LA SAGA », « À SUIVRE · NOUVELLE SÉRIE », « À SUIVRE »; the app adds the countdown. */
+export type Suggestion = { item: ContentItem; reason: "saga" | "recommended"; heading: string };
 
-export type SearchResults = { query: string; best: Card | null; movies: Card[]; series: Card[]; live: Card[] };
+export type SearchResults = { query: string; best: ContentItem | null; movies: ContentItem[]; series: ContentItem[]; live: ContentItem[] };
 
 export type ServerInfo = {
   server_version: string;

@@ -10,7 +10,7 @@ import { BadRequest, badQuery, json } from "./http";
 import { isNewRelease, visibleContent } from "./contents";
 import { studioFilter } from "./studios";
 import { getProgress } from "./progress";
-import { gridCard } from "./cards";
+import { contentItem } from "./cards";
 import type { CatalogRow, Page } from "./types";
 
 /** `/movies`, `/series`: the rows of the catalogue screen, or one filtered, cursor-paginated list ("Voir tout"). */
@@ -121,7 +121,8 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
   const progress = await getProgress(rows.flatMap((r) => r.cards.map((c) => c.key)));
   const field = kind === "series" ? "series" : "movies";
   return rows.map(
-    (r) => ({ id: r.id, name: r.name, total: r.total, [field]: r.cards.map((c) => gridCard(ctx, c, progress.get(c.key))) }) as CatalogRow,
+    (r) =>
+      ({ id: r.id, name: r.name, total: r.total, [field]: r.cards.map((c) => contentItem(ctx, c, progress.get(c.key))) }) as CatalogRow,
   );
 }
 
@@ -193,7 +194,7 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
   const progress = await getProgress(pageRows.map((c) => c.key));
   const last = pageRows[pageRows.length - 1];
   return {
-    items: pageRows.map((c) => gridCard(ctx, c, progress.get(c.key))),
+    items: pageRows.map((c) => contentItem(ctx, c, progress.get(c.key))),
     next_cursor: rows.length > limit && last ? encodeCursor(k.of(last), last.id) : null,
   };
 }

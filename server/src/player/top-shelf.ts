@@ -6,9 +6,10 @@ import { availableWaitlistKeys, ensureEpisodes, isEpisodeKey, parseKey, trending
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
 import { contentByKey, contentsInOrder, variantsOf, visibleContent } from "./contents";
-import { getProgress, resumeKeys, type Progress } from "./progress";
+import { getProgress, resumeKeys } from "./progress";
 import { type EpisodeRow, loadEpisodes } from "./episodes";
 import { drOf, qualityOfRank } from "./versions";
+import { remaining } from "./cards";
 import type { TopShelfItem } from "./types";
 
 /** `/top-shelf`: the Apple TV home screen's carousel. */
@@ -185,11 +186,3 @@ const hasShelfArt = (c: Content | null): c is Content => Boolean(c?.backdropPath
  */
 const shelfImage = (ctx: RestContext, c: Content, scale: "1x" | "2x") =>
   `${ctx.baseUrl}/img/shelf/${scale}/${c.backdropPath!.replace(/^\//, "")}/${c.titleLogoPath!.replace(/^\//, "")}?layout=2`;
-
-/** « 40 min restantes », « 1 h 08 restantes ». */
-export function remaining(p: Pick<Progress, "position" | "duration">): string {
-  const minutes = Math.max(1, Math.round((p.duration - p.position) / 60));
-  const h = Math.floor(minutes / 60),
-    m = minutes % 60;
-  return `${h ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min`} restantes`;
-}

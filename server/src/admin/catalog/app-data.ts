@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db, schema, type Content } from "@/db";
 import type { Exec } from "./search";
-import { catalogRows, listContents, listSagas, sagaSheet, studiosOf, type RestContext, type SagaWire, type StudioWire } from "@/player";
+import { catalogRows, listContents, listSagaWires, sagaSheet, studiosOf, type RestContext, type SagaWire, type StudioWire } from "@/player";
 
 /**
  * The « Catalogue » view of films and series, shelf by shelf, through the app's own functions:
@@ -16,7 +16,7 @@ export async function shelvesOf(ctx: RestContext, kind: "vod" | "series"): Promi
   const [rows, studios, sagas] = await Promise.all([
     catalogRows(ctx, kind),
     studiosOf(ctx, kind),
-    kind === "vod" ? listSagas(ctx, { limit: 1 }) : null,
+    kind === "vod" ? listSagaWires(ctx, { limit: 1 }) : null,
   ]);
   const shelves: Shelf[] = [];
   const anchor = rows.find((r) => r.id === "recent")?.id ?? rows[0]?.id;
@@ -60,7 +60,7 @@ export async function shelfPage(ctx: RestContext, kind: "vod" | "series", shelf:
   if (shelf === "studios") return { type: "studios", studios: await studiosOf(ctx, kind) };
   if (shelf.startsWith("studio:")) return list({ studio: shelf.slice(7) });
   if (shelf === "sagas" && kind === "vod") {
-    const page = await listSagas(ctx, { cursor, limit: PAGE });
+    const page = await listSagaWires(ctx, { cursor, limit: PAGE });
     return { type: "sagas", sagas: page.items, next: page.next_cursor };
   }
   if (shelf.startsWith("saga:") && kind === "vod") {

@@ -5,14 +5,14 @@ import { hasTmdbKey, isEpisodeKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
 import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./contents";
-import { getProgress, resumeKeys, type Progress } from "./progress";
+import { getProgress, isResumable, resumeKeys, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
-import { artBlock, baseCard, gridCard, imageUrl, progressWire } from "./cards";
+import { contentItem, imageUrl, isWatched, resumeItem, runtimeText } from "./cards";
 import { versionsOf, versionsSummary } from "./versions";
 import { recommendedRow } from "./related";
 import { type ShelfPick, shelfPicks, TOP_SHELF_SIZE } from "./top-shelf";
-import type { Card, Home, HomeHero, HomeRow } from "./types";
+import type { ContentItem, Home, HomeHero, HomeRow } from "./types";
 
 /**
  * `/home`: the carousel (the Top Shelf without « Reprendre »), "Reprendre", "Chaînes les plus
@@ -52,7 +52,7 @@ export async function home(ctx: RestContext): Promise<Home> {
       id: "most-watched-channels",
       kind: "most_watched_channels",
       title: "Chaînes les plus regardées",
-      cards: watched.slice(0, MOST_WATCHED_LIMIT).map((c) => gridCard(ctx, c)),
+      cards: watched.slice(0, MOST_WATCHED_LIMIT).map((c) => contentItem(ctx, c)),
     });
   }
   // A lifeboat: no pick at all (no TMDB trend in the catalogue, nothing awaited) still leaves a carousel.
@@ -68,7 +68,7 @@ export async function home(ctx: RestContext): Promise<Home> {
       id: "recent-movies",
       kind: "recent_movies",
       title: "Nouveautés",
-      cards: recentMovies.map((c) => gridCard(ctx, c, progress.get(c.key))),
+      cards: recentMovies.map((c) => contentItem(ctx, c, progress.get(c.key))),
     });
   }
   if (recentSeries.length) {
@@ -76,45 +76,69 @@ export async function home(ctx: RestContext): Promise<Home> {
       id: "recent-series",
       kind: "recent_series",
       title: "Derniers épisodes",
-      cards: recentSeries.map((c) => gridCard(ctx, c, progress.get(c.key))),
+      cards: recentSeries.map((c) => contentItem(ctx, c, progress.get(c.key))),
     });
   }
   const favs = await contentsInOrder(ctx, favKeys);
-  if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => gridCard(ctx, c)) });
+  if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => contentItem(ctx, c)) });
   if (recommended.length) rows.push({ id: "recommended", kind: "recommended", title: "Recommandé pour vous", cards: recommended });
-  const heroes = await Promise.all(slides.map((p) => heroOf(ctx, p, progress.get(p.content.key))));
+  const favSet = new Set(favKeys);
+  const heroes = await Promise.all(slides.map((p) => heroOf(ctx, p, progress.get(p.content.key), favSet.has(p.content.key))));
   return { heroes, rows, generated_at: new Date().toISOString() };
 }
 
-/** A slide: the content's card, and what Lecture plays with its own versions (an episode for a series). */
+/** A slide: what it draws, and what Lecture plays with its own versions (an episode for a series). */
 async function heroOf(
   ctx: RestContext,
   p: Pick<ShelfPick, "content" | "playId" | "context" | "episode">,
   progress: Progress | undefined,
+  favorite: boolean,
 ): Promise<HomeHero> {
   const { content: c, episode: e } = p;
   const versions = versionsOf(ctx, e ? e.playables : (await variantsOf(c)).playables);
+  const summary = versionsSummary(versions);
+  const runtime = e ? e.runtime : c.runtime;
+  const facts = [
+    e ? `S${e.season} É${e.number}` : null,
+    c.year ? String(c.year) : null,
+    c.genres[0] ?? null,
+    runtime ? runtimeText(runtime) : null,
+  ]
+    .filter((t) => t !== null)
+    .join(" · ");
+  const quality = summary.max_quality
+    ? summary.dynamic_range
+      ? `${summary.max_quality} ${summary.dynamic_range}`
+      : summary.max_quality
+    : null;
+  const resumes = !e && isResumable(progress);
   return {
-    // The title's logo too: the slide draws it in place of the title, as the sheet does. The iPhone
-    // shows the poster full width: a larger one than the rows'.
-    card: {
-      ...gridCard(ctx, c, progress),
+    // The iPhone shows the poster full width: a larger one than the rows'.
+    item: {
+      ...contentItem(ctx, c, progress),
       poster: imageUrl(ctx.baseUrl, "w780", c.posterPath) || null,
-      ...artBlock(ctx, c),
-      ...versionsSummary(versions),
+      facts: facts || null,
+      badges: [quality, ...summary.languages].filter((b) => b !== null),
+      progress: resumes ? progress.position / progress.duration : null,
+      watched: isWatched(progress),
+      caption: null,
+      overview: e?.overview || c.overview,
     },
     tagline: `${c.kind === "series" ? "Série" : "Film"} · ${p.context}`.toLocaleUpperCase("fr-FR"),
     overview: e?.overview || c.overview,
-    runtime: e ? e.runtime : c.runtime,
+    runtime,
     certification: c.certification,
     versions,
     play_id: p.playId,
     ...(e ? { episode: { season: e.season, number: e.number, title: e.title } } : {}),
+    is_favorite: favorite,
+    resume_at: resumes ? progress.position : null,
+    duration: resumes ? progress.duration : runtime ? runtime * 60 : null,
   };
 }
 
-/** Resume cards: a movie card, or the series card wearing the episode's progress and reference. */
-async function resumeCardsOf(ctx: RestContext, resume: Progress[]): Promise<Card[]> {
+/** « Reprendre »: a movie, or an episode under its series' title and picture with its code. */
+async function resumeCardsOf(ctx: RestContext, resume: Progress[]): Promise<ContentItem[]> {
   if (!resume.length) return [];
   const movieKeys = resume.filter((p) => !isEpisodeKey(p.contentKey)).map((p) => p.contentKey);
   const episodeKeys = resume.filter((p) => isEpisodeKey(p.contentKey)).map((p) => p.contentKey);
@@ -131,22 +155,13 @@ async function resumeCardsOf(ctx: RestContext, resume: Progress[]): Promise<Card
         .innerJoin(schema.catalogContents, eq(schema.catalogContents.id, schema.catalogEpisodes.contentId))
         .where(and(inArray(schema.catalogEpisodes.key, episodeKeys), visibleContent(ctx)))
     : [];
-  const byKey = new Map<string, Card>();
-  // The card draws the title's logo on its picture: no title under it.
-  for (const c of movies) byKey.set(c.key, { ...baseCard(ctx, c), ...artBlock(ctx, c), progress: null });
-  for (const { e, c } of episodes) {
-    // Badges of the series: the episode's own sources are not loaded here.
-    byKey.set(e.key, {
-      ...baseCard(ctx, c),
-      id: e.key,
-      kind: "episode",
-      ...artBlock(ctx, c),
-      progress: null,
-      episode: { season: e.season, number: e.number, title: e.title },
-    });
-  }
+  const movieOf = new Map(movies.map((c) => [c.key, c]));
+  const episodeOf = new Map(episodes.map((r) => [r.e.key, r]));
+  // Badges of the series: the episode's own sources are not loaded here.
   return resume.flatMap((p) => {
-    const card = byKey.get(p.contentKey);
-    return card ? [{ ...card, progress: progressWire(p, false) }] : [];
+    const movie = movieOf.get(p.contentKey);
+    if (movie) return [resumeItem(ctx, movie, p)];
+    const ep = episodeOf.get(p.contentKey);
+    return ep ? [resumeItem(ctx, ep.c, p, ep.e)] : [];
   });
 }

@@ -89,7 +89,7 @@ describe("sheet", () => {
     await setProgress("tmdb:movie:2", 1000, 6000);
     const cards = await sheetRelated(ctx, (await contentByKey(ctx, "tmdb:movie:603"))!);
     expect(ids(cards)).toEqual(["tmdb:movie:2", "tmdb:movie:3", "tmdb:movie:604"]);
-    expect(cards[0].progress).toEqual({ position: 1000, duration: 6000 });
+    expect(cards[0]).toMatchObject({ progress: 1000 / 6000, watched: false, caption: "1 h 23 restantes" });
   });
 
   it("a series is seen once its last episode is", async () => {
@@ -136,16 +136,24 @@ describe("player", () => {
     stubTmdb();
     const s = (await suggestions(ctx, "tmdb:movie:603"))!;
     expect(ids(s.related)).toEqual(["tmdb:movie:1", "tmdb:movie:2", "tmdb:movie:3", "tmdb:movie:604"]);
-    expect(s.next).toMatchObject({ reason: "saga", card: { id: "tmdb:movie:604", title: "Matrix Reloaded", overview: "La suite." } });
+    expect(s.next).toMatchObject({
+      reason: "saga",
+      heading: "À SUIVRE · SUITE DE LA SAGA",
+      item: { id: "tmdb:movie:604", title: "Matrix Reloaded", overview: "La suite." },
+    });
   });
 
   it("the saga's next movie seen: the one after it; none left: TMDB's first, nothing seen or in progress", async () => {
     stubTmdb();
     await setProgress("tmdb:movie:604", 5900, 6000);
-    expect((await suggestions(ctx, "tmdb:movie:603"))!.next).toMatchObject({ reason: "saga", card: { id: "tmdb:movie:605" } });
+    expect((await suggestions(ctx, "tmdb:movie:603"))!.next).toMatchObject({ reason: "saga", item: { id: "tmdb:movie:605" } });
     await setProgress("tmdb:movie:605", 1000, 6000);
     await setProgress("tmdb:movie:1", 1000, 6000);
-    expect((await suggestions(ctx, "tmdb:movie:603"))!.next).toMatchObject({ reason: "recommended", card: { id: "tmdb:movie:2" } });
+    expect((await suggestions(ctx, "tmdb:movie:603"))!.next).toMatchObject({
+      reason: "recommended",
+      heading: "À SUIVRE",
+      item: { id: "tmdb:movie:2" },
+    });
   });
 
   it("the last episode of a series: another series, never started", async () => {
@@ -153,7 +161,11 @@ describe("player", () => {
     await setProgress("tmdb:tv:4607:s01e01", 1000, 2600);
     const s = (await suggestions(ctx, "tmdb:tv:1399:s08e06"))!;
     expect(ids(s.related)).toEqual(["tmdb:tv:4607", "tmdb:tv:66732"]);
-    expect(s.next).toMatchObject({ reason: "recommended", card: { id: "tmdb:tv:66732", kind: "series" } });
+    expect(s.next).toMatchObject({
+      reason: "recommended",
+      heading: "À SUIVRE · NOUVELLE SÉRIE",
+      item: { id: "tmdb:tv:66732", kind: "series" },
+    });
   });
 
   it("not a movie or an episode: nothing", async () => {

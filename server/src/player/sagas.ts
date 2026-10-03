@@ -7,9 +7,9 @@ import type { Env, RestContext } from "./context";
 import { BadRequest, badQuery, fail, json } from "./http";
 import { visibleContent } from "./contents";
 import { getProgress } from "./progress";
-import { gridCard, imageUrl } from "./cards";
+import { contentItem, imageUrl } from "./cards";
 import { decodeCursor, encodeCursor } from "./lists";
-import type { SagaPage, SagaRef, SagaSheet, SagaWire } from "./types";
+import type { ContentItem, SagaPage, SagaRef, SagaSheet, SagaWire } from "./types";
 
 /**
  * `/movies/sagas`: the TMDB collections of the catalogue. A saga exists for the app only with at
@@ -42,6 +42,23 @@ const sagaWire = (ctx: RestContext, r: SagaRow): SagaWire => ({
   backdrop: imageUrl(ctx.baseUrl, "w1280", r.backdrop) || null,
 });
 
+/** A saga in a list: its poster and its number of movies, drawn like a title's year. */
+const sagaItem = (w: SagaWire): ContentItem => ({
+  id: w.id,
+  kind: "saga",
+  title: w.name,
+  logo: null,
+  poster: w.poster,
+  picture: w.backdrop,
+  facts: w.count > 1 ? `${w.count} films` : `${w.count} film`,
+  badges: [],
+  hint: null,
+  progress: null,
+  watched: false,
+  caption: null,
+  overview: null,
+});
+
 const sagaQuery = z.object({
   cursor: z.string().optional(),
   limit: z.coerce
@@ -59,6 +76,15 @@ sagaRoutes.get("/:id", async (c) => {
 });
 
 export async function listSagas(ctx: RestContext, q: SagaQuery): Promise<SagaPage> {
+  const page = await listSagaWires(ctx, q);
+  return { ...page, items: page.items.map(sagaItem) };
+}
+
+/** A page of sagas with their name and count: the app's list, and the admin's folds. */
+export async function listSagaWires(
+  ctx: RestContext,
+  q: SagaQuery,
+): Promise<{ items: SagaWire[]; next_cursor: string | null; total: number }> {
   const limit = Math.min(PAGE_MAX, q.limit ?? PAGE_DEFAULT);
   let after = sql``;
   if (q.cursor) {
@@ -92,7 +118,7 @@ export async function sagaSheet(ctx: RestContext, key: string): Promise<SagaShee
     .where(and(visibleContent(ctx, "vod"), eq(schema.catalogContents.sagaId, id)))
     .orderBy(desc(sql`coalesce(${schema.catalogContents.releaseDate}, ${NO_RELEASE}::date)`), desc(schema.catalogContents.id));
   const progress = await getProgress(movies.map((m) => m.key));
-  return { ...sagaWire(ctx, saga), movies: movies.map((m) => gridCard(ctx, m, progress.get(m.key))) };
+  return { ...sagaWire(ctx, saga), movies: movies.map((m) => contentItem(ctx, m, progress.get(m.key))) };
 }
 
 /** The saga line of a movie sheet, when its saga has enough visible movies. */

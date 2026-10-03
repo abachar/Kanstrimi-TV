@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { player as api } from "..";
 import { nightEnd } from "../epg";
-import { remaining } from "../top-shelf";
+import { remaining } from "../cards";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { verify, lockForTests, isUnlocked } from "@/config";
 import {
@@ -359,21 +359,20 @@ describe("GET /movies and /series", () => {
       `fallback:movie:silver-book-of-dreams:${THIS_YEAR}`,
       "tmdb:movie:949",
     ]);
+    // A list item: every text written by the server.
     expect(recent[0]).toMatchObject({
       kind: "movie",
       title: "Matrix",
       poster: "http://kanstrimi.test/img/w500/abc.jpg",
-      max_quality: "4K",
-      dynamic_range: "DV",
-      languages: ["VF", "VOSTFR"],
-      year: monthsAgo(11).getFullYear(),
-      rating: 8.2,
-      genres: ["Action", "Science-Fiction"],
+      facts: `${monthsAgo(11).getFullYear()} · ★ 8.2`,
+      badges: ["4K DV", "VF", "VOSTFR"],
       hint: null,
-      added_at: expect.any(String),
+      progress: null,
+      watched: false,
+      caption: null,
     });
     expect(recent[2].hint).toBe("VOSTFR seul");
-    expect(recent[1]).toMatchObject({ title: "Silver Book of Dreams", year: THIS_YEAR, poster: null, genres: [] });
+    expect(recent[1]).toMatchObject({ title: "Silver Book of Dreams", facts: String(THIS_YEAR), poster: null });
     const s = (await get("/series")).body;
     expect(s[0]).toMatchObject({ id: "recent", name: "Derniers épisodes", total: 1 });
     expect(s[0].series[0].id).toBe("tmdb:tv:20000".replace("20000", "1396"));
@@ -412,7 +411,7 @@ describe("GET /movies and /series", () => {
     expect(p2.next_cursor).toBeNull();
     expect((await get("/movies?genre=action&sort=title")).body.items.map((c: { title: string }) => c.title)).toEqual(["Heat", "Matrix"]);
     expect((await get("/movies?genre=action&sort=rating")).body.items.map((c: { title: string }) => c.title)).toEqual(["Matrix", "Heat"]);
-    expect((await get("/movies?genre=action&sort=year")).body.items.map((c: { year: number }) => c.year)).toEqual([
+    expect((await get("/movies?genre=action&sort=year")).body.items.map((c: { facts: string }) => Number(c.facts.slice(0, 4)))).toEqual([
       monthsAgo(1).getFullYear(),
       monthsAgo(11).getFullYear(),
     ]);
@@ -659,7 +658,17 @@ describe("playback and progress", () => {
       runtime: 80,
       languages: ["VF"],
       max_quality: "HD",
+      // What « À suivre » draws, written here; the episode playing is named too.
+      heading: "ÉPISODE SUIVANT",
+      item: {
+        id: "tmdb:tv:1396:s02e01",
+        kind: "episode",
+        title: "Marée haute",
+        facts: "Vincenzo · S2 · É1 · 1 h 20",
+        badges: ["HD", "VF"],
+      },
     });
+    expect(p.episode).toMatchObject({ id: "tmdb:tv:1396:s01e02", season: 1, number: 2 });
     expect((await get("/playback/tmdb:tv:1396:s02e01")).body.next).toBeNull();
     expect((await get("/playback/tmdb:tv:1396:s09e09")).status).toBe(404);
     // Before the last episode the next one follows; without TMDB, nothing related.
@@ -698,10 +707,19 @@ describe("GET /home", () => {
       ["FILM · NOUVEAUTÉ", "tmdb:movie:949"],
     ]);
     expect(body.heroes[0]).toMatchObject({
-      card: { id: "tmdb:movie:603", backdrop: "http://kanstrimi.test/img/w1280/bd.jpg", max_quality: "4K", languages: ["VF", "VOSTFR"] },
+      item: {
+        id: "tmdb:movie:603",
+        picture: "http://kanstrimi.test/img/w1280/bd.jpg",
+        badges: ["4K DV", "VF", "VOSTFR"],
+        facts: expect.stringMatching(/^\d{4} · Action · 2 h 16$/),
+      },
       runtime: 136,
       certification: "12",
+      is_favorite: false,
+      // Matrix is in progress: Lecture resumes it, the slide says so.
+      resume_at: 4520,
     });
+    expect(body.heroes[0].item.progress).toBeGreaterThan(0);
     expect(body.heroes[0].versions.length).toBe(2);
     expect(body.heroes[0].episode).toBeUndefined();
     expect(body.rows.map((r: { id: string; kind: string }) => [r.id, r.kind])).toEqual([
@@ -714,14 +732,15 @@ describe("GET /home", () => {
     expect(resume.map((c: { id: string }) => c.id)).toEqual(["tmdb:tv:1396:s01e02", "tmdb:movie:603"]);
     // Logos too: the card draws the title on its picture (null when TMDB has none).
     expect(resume[1]).toHaveProperty("logo");
+    // The episode under its series' title and picture, its code and the time left written.
     expect(resume[0]).toMatchObject({
       kind: "episode",
       title: "Vincenzo",
-      episode: { season: 1, number: 2, title: "Épisode 2" },
-      progress: { position: 1140, duration: 4680 },
-      backdrop: "http://kanstrimi.test/img/w1280/vb.jpg",
+      progress: 1140 / 4680,
+      picture: "http://kanstrimi.test/img/w1280/vb.jpg",
+      caption: "S1 · É2 · 59 min restantes",
+      watched: false,
     });
-    expect(resume[0].progress.finished).toBeUndefined();
     expect(body.rows[1].cards.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603", "tmdb:movie:949"]);
     expect(body.rows[3].cards.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
     expect(Date.parse(body.generated_at)).toBeGreaterThan(0);
@@ -733,19 +752,20 @@ describe("search and favourites", () => {
     let r = (await get("/search?q=matr")).body;
     expect(r.best).toMatchObject({
       id: "tmdb:movie:603",
-      backdrop: "http://kanstrimi.test/img/w1280/bd.jpg",
+      picture: "http://kanstrimi.test/img/w1280/bd.jpg",
       logo: "http://kanstrimi.test/img/w500/logo-fr.png",
+      facts: expect.stringMatching(/^Film · \d{4} · Action$/),
     });
     expect(r.movies.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:603"]);
-    // Only the best result carries the wide picture.
-    expect(r.movies[0].backdrop).toBeUndefined();
+    // Only the best result carries the overview.
+    expect(r.movies[0].overview).toBeNull();
     // An equal title wins, punctuation and case aside, the original title included; with its overview.
     r = (await get("/search?q=THE-MATRIX")).body;
     expect(r.best).toMatchObject({ id: "tmdb:movie:603", overview: "Thomas Anderson…" });
     r = (await get("/search?q=pacino")).body;
     expect(r.movies.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
     r = (await get("/search?q=tf1&scope=live")).body;
-    expect(r.live).toEqual([expect.objectContaining({ id: "live:fr-tf1", kind: "live", title: "TF1", genres: ["FRANCE FHD | TV"] })]);
+    expect(r.live).toEqual([expect.objectContaining({ id: "live:fr-tf1", kind: "live", title: "TF1", facts: "FRANCE FHD | TV" })]);
     expect(r.movies).toEqual([]);
     r = (await get("/search?q=vincenzo&scope=movies")).body;
     expect(r).toEqual({ query: "vincenzo", best: null, movies: [], series: [], live: [] });
@@ -818,9 +838,10 @@ describe("Nouveautés, release order and visible variants", () => {
 
   it("aggregates ignore hidden variants: quality, languages and arrival", async () => {
     const alpha = (await get("/movies?genre=recent&limit=50")).body.items.find((c: { id: string }) => c.id === "tmdb:movie:2001");
-    expect(alpha.max_quality).not.toBe("4K");
-    expect(alpha.languages).toEqual(["VF"]);
-    expect(Date.parse(alpha.added_at)).toBeLessThan(daysAgo(4).getTime());
+    expect(alpha.badges).not.toContain("4K");
+    expect(alpha.badges.filter((b: string) => !/^(SD|HD|FHD|4K)\b/.test(b))).toEqual(["VF"]);
+    const [row] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "tmdb:movie:2001"));
+    expect(row.addedAt.getTime()).toBeLessThan(daysAgo(4).getTime());
   });
 
   it("sort=release: newest first, ties by id, undated last, stable across pages", async () => {
@@ -887,12 +908,20 @@ describe("sagas", () => {
     expect(items).toEqual([
       {
         id: "saga:900",
-        name: "Trilogie - Saga",
-        count: 3,
+        kind: "saga",
+        title: "Trilogie - Saga",
+        logo: null,
         poster: "http://kanstrimi.test/img/w500/saga900.jpg",
-        backdrop: "http://kanstrimi.test/img/w1280/sagab900.jpg",
+        picture: "http://kanstrimi.test/img/w1280/sagab900.jpg",
+        facts: "3 films",
+        badges: [],
+        hint: null,
+        progress: null,
+        watched: false,
+        caption: null,
+        overview: null,
       },
-      expect.objectContaining({ id: "saga:902", count: 2 }),
+      expect.objectContaining({ id: "saga:902", facts: "2 films" }),
     ]);
     expect((await get("/movies/sagas?cursor=zzz")).status).toBe(400);
   });
@@ -1194,15 +1223,15 @@ describe("GET /top-shelf", () => {
 
     // The home carousel repeats it without the title in progress: « Reprendre » is a row there.
     const heroes = (await get("/home")).body.heroes;
-    expect(heroes.map((h: { tagline: string; play_id: string; card: { id: string } }) => [h.tagline, h.play_id, h.card.id])).toEqual([
+    expect(heroes.map((h: { tagline: string; play_id: string; item: { id: string } }) => [h.tagline, h.play_id, h.item.id])).toEqual([
       ["SÉRIE · NOUVEL ÉPISODE · S1 É2", "tmdb:tv:1396:s01e02", "tmdb:tv:1396"],
       ["FILM · N° 1 CETTE SEMAINE", "tmdb:movie:949", "tmdb:movie:949"],
       ["FILM · N° 2 CETTE SEMAINE", "tmdb:movie:603", "tmdb:movie:603"],
     ]);
     // Each slide carries the title's logo, drawn in place of the title.
-    expect(heroes[0].card.logo).toBe("http://kanstrimi.test/img/w500/v-logo.png");
+    expect(heroes[0].item.logo).toBe("http://kanstrimi.test/img/w500/v-logo.png");
     // The iPhone shows the poster full width: a larger size than the rows'.
-    expect(heroes[1].card.poster).toMatch(/\/img\/w780\//);
+    expect(heroes[1].item.poster).toMatch(/\/img\/w780\//);
     // Lecture plays the episode, with its own versions.
     expect(heroes[0].episode).toEqual({ season: 1, number: 2, title: "Épisode 2" });
     expect(heroes[0].versions.length).toBeGreaterThan(0);
@@ -1241,7 +1270,7 @@ describe("« Liste d'attente »: hero and Top Shelf", () => {
     await db.insert(schema.curationWaitlist).values({ contentKey: "tmdb:movie:949", tmdbId: 949, title: "Heat" });
     // Heat is visible already: the next regroup flags it available.
     expect((await runGrouping()).waitlist_available).toBe(1);
-    expect((await get("/home")).body.heroes[0]).toMatchObject({ tagline: "FILM · ENFIN DISPONIBLE", card: { id: "tmdb:movie:949" } });
+    expect((await get("/home")).body.heroes[0]).toMatchObject({ tagline: "FILM · ENFIN DISPONIBLE", item: { id: "tmdb:movie:949" } });
     const [first] = (await get("/top-shelf")).body;
     expect([first.reason, first.play_id, first.open_id, first.context]).toEqual([
       "available",
@@ -1251,7 +1280,7 @@ describe("« Liste d'attente »: hero and Top Shelf", () => {
     ]);
     // Opened a minute: still announced.
     await call("/playback/tmdb:movie:949/progress", { method: "PUT", body: JSON.stringify({ position: 60, duration: 6000 }) });
-    expect((await get("/home")).body.heroes[0].card.id).toBe("tmdb:movie:949");
+    expect((await get("/home")).body.heroes[0].item.id).toBe("tmdb:movie:949");
     // Started: « Reprendre » takes it over, the carousel announces it no more.
     await call("/playback/tmdb:movie:949/progress", { method: "PUT", body: JSON.stringify({ position: 600, duration: 6000 }) });
     const { body } = await get("/home");

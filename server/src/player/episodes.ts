@@ -2,7 +2,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { db, schema, type Content, type Episode, type Variant } from "@/db";
 import { seasonsOf } from "@/catalog";
 import { versionsOf, type Playable } from "./versions";
-import { imageUrl, progressWire } from "./cards";
+import { imageUrl, isWatched, progressWire, runtimeText } from "./cards";
 import type { RestContext } from "./context";
 import { isResumable, type Progress } from "./progress";
 import type { EpisodeWire, SeasonWire, Version } from "./types";
@@ -60,17 +60,36 @@ export function currentEpisode(episodes: EpisodeRow[], progress: Map<string, Pro
 }
 
 export function episodeWire(ctx: RestContext, e: EpisodeRow, progress?: Progress): EpisodeWire {
+  const title = e.title ?? `Épisode ${e.number}`;
+  const still = imageUrl(ctx.baseUrl, "w300", e.stillPath) || null;
+  const versions = versionsOf(ctx, e.playables);
+  const facts = [`É${e.number}`, e.runtime ? runtimeText(e.runtime) : null].filter((t) => t !== null).join(" · ");
   return {
     id: e.key,
     season: e.season,
     number: e.number,
-    title: e.title ?? `Épisode ${e.number}`,
+    title,
     overview: e.overview,
     runtime: e.runtime,
-    still: imageUrl(ctx.baseUrl, "w300", e.stillPath) || null,
+    still,
     air_date: e.airDate ? `${e.airDate}T00:00:00Z` : null,
-    versions: versionsOf(ctx, e.playables),
+    versions,
     progress: progressWire(progress, true),
+    item: {
+      id: e.key,
+      kind: "episode",
+      title,
+      logo: null,
+      poster: null,
+      picture: still,
+      facts,
+      badges: [],
+      hint: null,
+      progress: isResumable(progress) ? progress.position / progress.duration : null,
+      watched: isWatched(progress),
+      caption: facts,
+      overview: null,
+    },
   };
 }
 
