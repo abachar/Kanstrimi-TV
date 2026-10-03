@@ -10,7 +10,7 @@ const app = new Hono().route("/admin", admin);
 const login = (password: string, ip = "203.0.113.7") =>
   app.request("/admin/login", {
     method: "POST",
-    body: new URLSearchParams({ email: "a.bachar@hotmail.fr", password }),
+    body: new URLSearchParams({ email: "admin@kanstrimi.test", password }),
     headers: { "content-type": "application/x-www-form-urlencoded", origin: "http://localhost", "x-forwarded-for": ip },
   });
 

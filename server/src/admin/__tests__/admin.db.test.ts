@@ -77,13 +77,13 @@ describe("admin", () => {
   });
 
   it("logs in with the admin e-mail and password", async () => {
-    const bad = await post("/admin/login", { email: "a.bachar@hotmail.fr", password: "nope" });
+    const bad = await post("/admin/login", { email: "admin@kanstrimi.test", password: "nope" });
     expect(bad.headers.get("location")).toContain("err=");
     const wrongEmail = await post("/admin/login", { email: "someone@else.test", password: "test" });
     expect(wrongEmail.headers.get("location")).toContain("err=");
     const noEmail = await post("/admin/login", { password: "test" });
     expect(noEmail.headers.get("location")).toContain("err=");
-    const ok = await post("/admin/login?next=/admin/rules", { email: " A.Bachar@hotmail.fr ", password: "test" });
+    const ok = await post("/admin/login?next=/admin/rules", { email: " Admin@Kanstrimi.test ", password: "test" });
     expect(ok.status).toBe(303);
     expect(ok.headers.get("location")).toBe("/admin/rules");
     cookie = ok.headers.get("set-cookie")!.split(";")[0];

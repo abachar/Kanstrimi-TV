@@ -56,7 +56,7 @@ Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non p
     `intParam()` pour les identifiants de route.
   - **Switch « Visible »** de l'admin : recalculer les contenus aussitôt, l'app attend aujourd'hui le prochain `group`.
   - **Petits durcissements** : SVG de TMDB sous `/img` (`Content-Security-Policy: sandbox` ou plus de SVG) ;
-    `ADMIN_EMAIL` obligatoire en production ; mot de passe de 12 caractères et bcrypt au coût 12 ; IP et heure de la
+    mot de passe de 12 caractères et bcrypt au coût 12 ; IP et heure de la
     demande sur `/admin/pair/:code` ; `/img/shelf` limité aux paires du Top Shelf ; logos iptv-org en https vers une IP
     publique seulement.
   - **App** : une qualité, une plage dynamique ou un type inconnus ne font plus échouer un écran (cas `.unknown`) ;
