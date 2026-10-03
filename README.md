@@ -50,10 +50,6 @@ Copyright © 2026 Abdelhakim Bachar - Crafters.
 
 Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non planifiées.
 
-- Avant de pousser la revue du 2026-10-02 (serveur et app ensemble, liens de lecture de 15 min) : valider sur appareil
-  les cartes de chaîne, une lecture relancée après plus de 15 min (accueil, Direct), l'aperçu du Direct après un long
-  arrêt, les menus du lecteur, la carte « À suivre », le message d'erreur commun ; et l'admin sous Safari (CSP : menu
-  mobile, confirmations).
 - Reste de la revue :
   - **Admin** : ne plus renvoyer les secrets dans la page Paramètres (champ vide = inchangé) ; cookie de session
     révocable (date d'émission et génération, 30 jours) ; page d'erreur sans le détail (gardé au journal) et un
