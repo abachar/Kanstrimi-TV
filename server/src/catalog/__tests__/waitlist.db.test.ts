@@ -5,6 +5,7 @@ import { setItemHiddenManual } from "@/catalog";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { runGrouping, runNaming } from "../grouping/group";
+import { withCatalogLock } from "../lock";
 import {
   addToWaitlist,
   availableWaitlistKeys,
@@ -142,8 +143,10 @@ describe("« Liste d'attente »", () => {
 
   it("flags an arrival once its content turns visible, once", async () => {
     expect((await runGrouping()).waitlist_available).toBe(0);
+    // The switch recomputes its content in the background: the arrival is flagged there, before any `group`.
     await setItemHiddenManual(duneId, false);
-    expect((await runGrouping()).waitlist_available).toBe(1);
+    await withCatalogLock(async () => {});
+    expect((await runGrouping()).waitlist_available).toBe(0);
     const { availableAt } = await entry("tmdb:movie:1100");
     expect(availableAt).not.toBeNull();
     expect(await availableWaitlistKeys()).toEqual(["tmdb:movie:1100"]);

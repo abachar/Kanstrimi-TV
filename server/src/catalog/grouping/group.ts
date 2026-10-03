@@ -113,9 +113,12 @@ export async function refreshCards(contentIds: number[]) {
   if (contentIds.length) await rewritingContents(() => fillCardFields(contentIds));
 }
 
-/** Aggregates only: what the admin visibility switches and the filters need. Takes no lock: its callers hold it. */
-export async function refreshVisibility() {
-  await rewritingContents(refreshAggregates);
+/**
+ * Aggregates only, of every content or of `contentIds`: what the filters and the admin visibility switches need.
+ * Takes no lock: its callers hold it.
+ */
+export async function refreshVisibility(contentIds?: number[]) {
+  await rewritingContents(() => refreshAggregates(contentIds));
 }
 
 // ---------------------------------------------------------------- 1. keys

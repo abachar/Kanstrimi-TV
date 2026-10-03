@@ -5,6 +5,9 @@ import { setSecretsForTests } from "@/config";
 import { itemById } from "@/catalog";
 import { run, runNaming } from "@/catalog";
 import { startRun } from "@/catalog/journal";
+import { withCatalogLock } from "@/catalog/lock";
+import { db, schema } from "@/db";
+import { eq } from "drizzle-orm";
 import { setFavorite, setProgress, listProgress } from "@/player";
 import { admin } from "..";
 
@@ -262,17 +265,28 @@ describe("admin", () => {
     expect(await html("/admin/caches")).toMatch(/1 <span[^>]*>fiches/);
   });
 
-  it("toggles visibility and answers with the row (item) or a refresh (category)", async () => {
+  it("toggles visibility and answers with the row (item) or a refresh (category); the content follows at once", async () => {
+    const contentOf = async () => {
+      await withCatalogLock(async () => {}); // the background refresh queued before this one is done
+      const it = await itemById(matrixId);
+      const [c] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.id, it!.contentId!));
+      return c;
+    };
+    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
     const hide = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&q=matrix`, {});
     expect(hide.status).toBe(200);
     expect(await hide.text()).toContain("<s>|FR| Matrix (4K)</s>");
     expect((await itemById(matrixId))?.hiddenManual).toBe(true);
+    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 1 }); // without a `group` run; the VOST stays
     const show = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&q=matrix`, { visible: "on" });
     expect(await show.text()).not.toContain("<s>");
+    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
     const cat = await post("/admin/catalog/category/1/visible?kind=vod", {});
     expect(cat.status).toBe(204);
     expect(cat.headers.get("hx-refresh")).toBe("true");
+    expect((await contentOf()).visible).toBe(false); // both Matrix variants sit in category 1
     await post("/admin/catalog/category/1/visible?kind=vod", { visible: "on" });
+    expect((await contentOf()).visible).toBe(true);
   });
 
   it("rules: preview, save without applying, the banner to apply them, delete", async () => {

@@ -54,11 +54,8 @@ Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non p
   - **Admin** : cookie de session
     révocable (date d'émission et génération, 30 jours) ; page d'erreur sans le détail (gardé au journal) et un
     `intParam()` pour les identifiants de route.
-  - **Switch « Visible »** de l'admin : recalculer les contenus aussitôt, l'app attend aujourd'hui le prochain `group`.
   - **Petits durcissements** : `/img/shelf` limité aux paires du Top Shelf ; logos iptv-org en https vers une IP
     publique seulement.
-  - **App** : une qualité, une plage dynamique ou un type inconnus ne font plus échouer un écran (cas `.unknown`) ;
-    façade du moteur de lecture pour tester `PlayerService` (pannes, bascules, enchaînement).
 - Non planifiées :
   - **Fond qui suit le focus (tvOS, POC)** : un film qui prend le focus change le fond de l'écran pour son fond TMDB
     flouté, pour éviter les grands aplats noirs. POC sur l'écran Films, branche `poc/fond-focus`, mis de côté.
