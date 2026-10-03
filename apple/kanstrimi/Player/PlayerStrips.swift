@@ -43,7 +43,7 @@ struct ProgrammeStrip: View {
         programmes = nil
         // An unreliable guide is no reason for an error screen: a failure reads as an unknown programme.
         let version = player.version?.id
-        programmes = (try? await env.call { try await env.client.programmes(channel: id, version: version) }) ?? []
+        programmes = (try? await env.client.programmes(channel: id, version: version)) ?? []
     }
 }
 

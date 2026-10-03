@@ -93,6 +93,20 @@ struct HTTPCatalogClientTests {
         await #expect(throws: CatalogError.self) { try await client.home() }
     }
 
+    @Test("Un 401 dissocie l'appareil quel que soit l'appelant, jamais pendant l'appairage")
+    func unauthorizedReachesTheAppFromAnyCall() async {
+        let preferences = Preferences(defaults: UserDefaults(suiteName: "tests-\(UUID().uuidString)")!)
+        let switching = SwitchingCatalogClient(mock: MockCatalogClient(scenario: MockScenario()), http: client, preferences: preferences)
+        var revoked = 0
+        switching.onUnauthorized = { revoked += 1 }
+        answer(401, #"{"error":{"code":"unauthorized","message":"Appareil inconnu"}}"#)
+        await #expect(throws: CatalogError.unauthorized) { try await switching.channels() }
+        await #expect(throws: CatalogError.unauthorized) { try await switching.programmes(channel: ContentID("live:fr-tf1"), version: nil) }
+        #expect(revoked == 2)
+        await #expect(throws: CatalogError.unauthorized) { try await switching.pollDevice(code: "K7Q4MZ") }
+        #expect(revoked == 2)
+    }
+
     @Test func withoutTokenAnAuthenticatedCallIsUnauthorizedBeforeAnyRequest() async {
         device.forget(reason: nil)
         await #expect(throws: CatalogError.unauthorized) { try await client.home() }

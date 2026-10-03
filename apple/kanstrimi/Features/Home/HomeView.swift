@@ -243,7 +243,7 @@ final class HomeModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            let h = try await env.call { try await env.client.home() }
+            let h = try await env.client.home()
             // The same slide stays on screen when it is still there.
             let current = hero?.playID
             home = h
@@ -290,7 +290,7 @@ final class HomeModel {
         let id = hero.item.id
         let target = !isFavorite(hero)
         favoriteOverrides[id] = target
-        do { try await env.call { try await env.client.setFavorite(id: id, target) } } catch { favoriteOverrides[id] = !target }
+        do { try await env.client.setFavorite(id: id, target) } catch { favoriteOverrides[id] = !target }
     }
 
     var heroChoice: VersionChooser.Choice? {
@@ -313,7 +313,7 @@ final class HomeModel {
         let local = PlaybackContext(content: content, versions: hero.versions, resumeAt: hero.resumeAt, duration: hero.duration)
         Task {
             var ctx = local
-            if let playback = try? await env.call({ try await env.client.playback(id: hero.playID) }) {
+            if let playback = try? await env.client.playback(id: hero.playID) {
                 ctx = PlaybackContext(content: content, playback: playback)
             }
             if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
@@ -322,13 +322,13 @@ final class HomeModel {
 
     func removeFromResume(_ card: ContentItem) async {
         env.progressQueue.drop(card.id)
-        guard await env.attempt("Retrait", { try await env.call { try await env.client.removeFromResume(id: card.id) } }) != nil else { return }
+        guard await env.attempt("Retrait", { try await env.client.removeFromResume(id: card.id) }) != nil else { return }
         await load()
     }
 
     func markWatched(_ card: ContentItem) async {
         env.progressQueue.drop(card.id)
-        guard await env.attempt("Marquage", { try await env.call { try await env.client.setWatched(id: card.id, true, season: nil) } }) != nil else { return }
+        guard await env.attempt("Marquage", { try await env.client.setWatched(id: card.id, true, season: nil) }) != nil else { return }
         await load()
     }
 

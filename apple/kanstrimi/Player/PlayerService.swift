@@ -459,6 +459,7 @@ final class PlayerService {
     private func start(_ ctx: PlaybackContext, version v: Version, source s: Source, reason: VersionChooser.Choice.Reason?, at position: TimeInterval?) {
         if context?.content.id != ctx.content.id {
             sendProgress(final: true)
+            startAttempts = 0
             nextTriggered = false
             nextContext = nil
             nextCountdown = nil

@@ -75,7 +75,7 @@ struct SearchView: View {
             if !immediately { try? await Task.sleep(for: .milliseconds(300)) }
             if Task.isCancelled { return }
             do {
-                let r = try await env.call { try await env.client.search(q) }
+                let r = try await env.client.search(q)
                 if !Task.isCancelled { results = r; error = nil }
             } catch {
                 if !Task.isCancelled { self.error = (error as? CatalogError) ?? .server(error.localizedDescription) }

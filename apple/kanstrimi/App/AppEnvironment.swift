@@ -67,19 +67,15 @@ final class AppEnvironment {
         self.homeCache = HomeCache()
         self.channelCache = ChannelCache(client: client)
         self.player = PlayerService(client: client, preferences: preferences, failedSources: failed, progressQueue: progressQueue)
+        client.onUnauthorized = { [weak self] in self?.handleUnauthorized() }
     }
 
-    /// A 401 anywhere: token gone, cache gone, back to the QR code.
+    /// A 401 anywhere: token gone, cache gone, back to the QR code. Once: the calls already in flight answer 401 too.
     func handleUnauthorized() {
+        guard device.isPaired else { return }
         homeCache.clear()
         device.forget(reason: "L'appareil « \(preferences.deviceName.isEmpty ? "Salon" : preferences.deviceName) » a été retiré depuis l'admin du serveur. Vos favoris et vos reprises sont conservés côté serveur ; il suffit de l'ajouter à nouveau.")
         info = nil
-    }
-
-    /// Wraps a client call: converts a 401 into the unpairing flow, rethrows the rest.
-    func call<T>(_ work: () async throws -> T) async throws -> T {
-        do { return try await work() }
-        catch CatalogError.unauthorized { handleUnauthorized(); throw CatalogError.unauthorized }
     }
 
     /// A short message over the screens after an action that failed out of sight (Reprendre, a link, a mark).
@@ -106,7 +102,7 @@ final class AppEnvironment {
     }
 
     func loadInfo() async {
-        info = try? await call { try await client.info() }
+        info = try? await client.info()
     }
 
     /// Bumped when the app comes back after a long absence: the home and the Direct reload, what is on air and the
@@ -151,7 +147,7 @@ final class AppEnvironment {
 
     /// Plays a channel from a card (search, home): its versions and the zapping order come with the channel list.
     func watchChannel(_ id: ContentID) async {
-        guard let groups = await attempt("Lecture", { try await call { try await client.channels() } }) else { return }
+        guard let groups = await attempt("Lecture", { try await client.channels() }) else { return }
         let all = groups.flatMap(\.channels)
         guard let channel = all.first(where: { $0.id == id }) else { return }
         player.play(channel: channel, in: all)
@@ -172,7 +168,7 @@ final class AppEnvironment {
 
     /// A movie or an episode from its id alone (Top Shelf, debug hooks): its sheet gives the title and the episode.
     func playbackContext(for id: ContentID) async throws -> PlaybackContext? {
-        let card = try await call { try await client.detail(id: id.seriesID ?? id) }
+        let card = try await client.detail(id: id.seriesID ?? id)
         guard id.seriesID != nil else { return try await playbackContext(for: card) }
         guard let episode = card.allEpisodes.first(where: { $0.id == id }) else { return nil }
         return try await playbackContext(for: episode, of: card)
@@ -180,23 +176,23 @@ final class AppEnvironment {
 
     /// `GET /playback/{id}` of a sheet: a movie as itself, a series through the episode the server resumes it on.
     func playbackContext(for card: Card) async throws -> PlaybackContext {
-        let playback = try await call { try await client.playback(id: card.id) }
+        let playback = try await client.playback(id: card.id)
         let content = playback.episode.map {
             PlaybackContent(id: $0.id, kind: .episode, title: $0.title ?? card.title, subtitle: card.title, episode: $0.ref, backdrop: card.backdrop)
         } ?? PlaybackContent(id: card.id, kind: card.kind, title: card.title, subtitle: nil, episode: nil, backdrop: card.backdrop)
         return PlaybackContext(content: content, playback: playback)
     }
     func playbackContext(for episode: Episode, of series: Card) async throws -> PlaybackContext {
-        let playback = try await call { try await client.playback(id: episode.id) }
+        let playback = try await client.playback(id: episode.id)
         let content = PlaybackContent(id: episode.id, kind: .episode, title: episode.title, subtitle: series.title, episode: episode.ref, backdrop: series.backdrop)
         return PlaybackContext(content: content, playback: playback)
     }
     /// A list item: a movie as itself, a series through the episode the server resumes it on.
     func playbackContext(for item: ContentItem) async throws -> PlaybackContext {
-        PlaybackContext(item: item, playback: try await call { try await client.playback(id: item.id) })
+        PlaybackContext(item: item, playback: try await client.playback(id: item.id))
     }
     func playbackContext(for next: NextEpisode, seriesTitle: String) async throws -> PlaybackContext {
-        let playback = try await call { try await client.playback(id: next.id) }
+        let playback = try await client.playback(id: next.id)
         let content = PlaybackContent(id: next.id, kind: .episode, title: next.title ?? "", subtitle: seriesTitle, episode: next.ref, backdrop: nil)
         return PlaybackContext(content: content, playback: playback)
     }

@@ -39,7 +39,7 @@ struct SagaView: View {
     @Environment(\.metrics) private var metrics
 
     var body: some View {
-        LoadedScreen(errorTitle: "Saga indisponible", load: { try await env.call { try await env.client.saga(id: id.rawValue) } }) { s in
+        LoadedScreen(errorTitle: "Saga indisponible", load: { try await env.client.saga(id: id.rawValue) }) { s in
             content(s)
         }
     }
@@ -92,7 +92,7 @@ struct SagasGridView: View {
         .task {
             guard paginator == nil else { return }
             let p = Paginator<ContentItem, SagaQuery>(query: SagaQuery()) { q in
-                let page = try await env.call { try await env.client.sagas(cursor: q.cursor) }
+                let page = try await env.client.sagas(cursor: q.cursor)
                 if q.cursor == nil { total = page.total }
                 return page
             }

@@ -9,7 +9,7 @@ struct PersonView: View {
     @Environment(\.metrics) private var metrics
 
     var body: some View {
-        LoadedScreen(errorTitle: "Acteur indisponible", load: { try await env.call { try await env.client.person(id: ref.id) } }) { s in
+        LoadedScreen(errorTitle: "Acteur indisponible", load: { try await env.client.person(id: ref.id) }) { s in
             content(s)
         }
     }

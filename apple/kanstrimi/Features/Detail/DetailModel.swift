@@ -25,7 +25,7 @@ final class DetailModel {
         error = nil
         defer { isLoading = false }
         do {
-            let d = try await env.call { try await env.client.detail(id: id) }
+            let d = try await env.client.detail(id: id)
             detail = d
             if d.kind == .series {
                 selectedSeason = d.currentEpisode?.season ?? d.seasons?.first?.number
@@ -37,7 +37,7 @@ final class DetailModel {
 
     /// After a playback: the new progress, without moving the season shown nor flashing an error.
     func refresh() async {
-        guard let d = try? await env.call({ try await env.client.detail(id: id) }) else { return }
+        guard let d = try? await env.client.detail(id: id) else { return }
         detail = d
     }
 
@@ -50,7 +50,7 @@ final class DetailModel {
         let target = episode?.id ?? id
         let dropped = season.map { episodes(in: $0).map(\.id) } ?? [target]
         dropped.forEach { env.progressQueue.drop($0) }
-        guard await env.attempt("Marquage", { try await env.call { try await env.client.setWatched(id: target, watched, season: season) } }) != nil else { return }
+        guard await env.attempt("Marquage", { try await env.client.setWatched(id: target, watched, season: season) }) != nil else { return }
         await refresh()
     }
 
@@ -61,7 +61,7 @@ final class DetailModel {
         let target = !(d.isFavorite ?? false)
         d.isFavorite = target
         detail = d
-        do { try await env.call { try await env.client.setFavorite(id: id, target) } }
+        do { try await env.client.setFavorite(id: id, target) }
         catch { d.isFavorite = !target; detail = d }
     }
 

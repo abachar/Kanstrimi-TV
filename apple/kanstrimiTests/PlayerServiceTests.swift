@@ -64,11 +64,11 @@ struct PlayerServiceTests {
     private static func url(_ name: String) -> URL { URL(string: "http://provider.test/movie/u/p/\(name).mkv")! }
 
     /// A film in HD, its sources in that order.
-    private static func film(sources: [String], duration: TimeInterval = 6000) -> PlaybackContext {
+    private static func film(_ id: String = "tmdb:movie:603", sources: [String], duration: TimeInterval = 6000) -> PlaybackContext {
         let version = Version(id: "vf-hd", language: .vf, quality: .hd, dynamicRange: nil,
                               sources: sources.map { Source(id: $0, container: "MKV", streamURL: url($0), provider: nil, origin: nil) },
                               edition: nil)
-        return PlaybackContext(content: PlaybackContent(id: ContentID("tmdb:movie:603"), kind: .movie, title: "Matrix", subtitle: nil,
+        return PlaybackContext(content: PlaybackContent(id: ContentID(id), kind: .movie, title: "Matrix", subtitle: nil,
                                                         episode: nil, backdrop: nil),
                                versions: [version], duration: duration)
     }
@@ -104,6 +104,23 @@ struct PlayerServiceTests {
         try await settle { player.phase == .failed }
         #expect(engine.loads.count == 3)
         #expect(player.failure != nil)
+        player.stop()
+    }
+
+    @Test("Les essais ratés d'un titre ne comptent pas pour le suivant")
+    func attemptsResetWithTheTitle() async throws {
+        player.play(Self.film(sources: ["a"]))
+        for n in 2...3 {
+            engine.emit(.loading)
+            engine.emit(.error("connexion fermée"))
+            try await settle { engine.loads.count == n }
+        }
+        player.play(Self.film("tmdb:movie:949", sources: ["b"]))
+        engine.emit(.loading)
+        engine.emit(.error("connexion fermée"))
+        try await settle { engine.loads.count == 5 }
+        #expect(player.phase == .opening)
+        #expect(player.failure == nil)
         player.stop()
     }
 

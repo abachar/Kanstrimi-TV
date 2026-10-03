@@ -97,15 +97,15 @@ struct CatalogView: View {
             isLoading = true
             defer { isLoading = false }
             do {
-                rows = try await env.call { try await env.client.rows(kind: kind) }
+                rows = try await env.client.rows(kind: kind)
                 error = nil
             } catch {
                 if !Task.isCancelled { self.error = (error as? CatalogError) ?? .server(error.localizedDescription) }
                 return
             }
         }
-        if studios == nil { studios = try? await env.call { try await env.client.studios(kind: kind) } }
-        if kind == .movie, sagas == nil { sagas = try? await env.call { try await env.client.sagas(cursor: nil) } }
+        if studios == nil { studios = try? await env.client.studios(kind: kind) }
+        if kind == .movie, sagas == nil { sagas = try? await env.client.sagas(cursor: nil) }
     }
 }
 

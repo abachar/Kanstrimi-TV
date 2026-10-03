@@ -107,7 +107,7 @@ struct LiveView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            groups = try await env.call { try await env.client.channels() }
+            groups = try await env.client.channels()
             allChannels = groups.flatMap(\.channels)
             // A channel sits in several groups: the first one wins, as `first(where:)` did.
             channelByID = Dictionary(allChannels.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
