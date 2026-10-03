@@ -50,12 +50,6 @@ Copyright © 2026 Abdelhakim Bachar - Crafters.
 
 Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non planifiées.
 
-- Reste de la revue :
-  - **Admin** : cookie de session
-    révocable (date d'émission et génération, 30 jours) ; page d'erreur sans le détail (gardé au journal) et un
-    `intParam()` pour les identifiants de route.
-  - **Petits durcissements** : `/img/shelf` limité aux paires du Top Shelf ; logos iptv-org en https vers une IP
-    publique seulement.
 - Non planifiées :
   - **Fond qui suit le focus (tvOS, POC)** : un film qui prend le focus change le fond de l'écran pour son fond TMDB
     flouté, pour éviter les grands aplats noirs. POC sur l'écran Films, branche `poc/fond-focus`, mis de côté.

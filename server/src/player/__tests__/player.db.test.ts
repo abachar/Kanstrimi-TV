@@ -1245,6 +1245,11 @@ describe("GET /top-shelf", () => {
       max_quality: "4K",
     });
     expect(body[1]).toMatchObject({ title: "Vincenzo", image: "http://kanstrimi.test/img/shelf/1x/vb.jpg/v-logo.png?layout=2" });
+    // Only those pairs compose: Matrix's backdrop with Vincenzo's logo is no Top Shelf image.
+    const { isShelfPair } = await import("..");
+    expect(await isShelfPair("bd.jpg", matrix.titleLogoPath!.slice(1))).toBe(true);
+    expect(await isShelfPair("vb.jpg", "v-logo.png")).toBe(true);
+    expect(await isShelfPair("bd.jpg", "v-logo.png")).toBe(false);
 
     // The home carousel repeats it without the title in progress: « Reprendre » is a row there.
     const heroes = (await get("/home")).body.heroes;

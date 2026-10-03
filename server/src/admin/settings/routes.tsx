@@ -7,6 +7,7 @@ import { testXtream } from "@/providers/xtream";
 import { TmdbClient } from "@/providers/tmdb";
 import { retryUnmatched, resetMatches } from "@/catalog";
 import { page, back, form, checked, zerr } from "../http";
+import { logout, revokeSessions } from "../session";
 import { SettingsView } from "./view";
 
 const settingsSchema = z.object({
@@ -54,6 +55,11 @@ settingsRoutes.post("/test-tmdb", async (c) => {
   } catch (e) {
     return c.html(ko((e as Error).message));
   }
+});
+settingsRoutes.post("/revoke-sessions", async (c) => {
+  await revokeSessions();
+  logout(c);
+  return back(c, "/admin/login", {});
 });
 settingsRoutes.post("/retry-unmatched", async (c) => {
   const n = await retryUnmatched();

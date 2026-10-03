@@ -131,6 +131,9 @@ par son index.
 - **Secrets** : le compte du fournisseur et la clé TMDB viennent de l'environnement (secrets podman en production), jamais
   de la base ; l'admin les montre sans les modifier, un changement demande un redémarrage. Un seul mot de passe (bcrypt),
   celui de l'admin : `/admin/login` passe toujours par bcrypt et, par adresse, après cinq échecs, double l'attente à chaque nouvel échec (429).
+  Le cookie de session porte sa génération, sa date et une empreinte du hash : « Déconnecter toutes les sessions »
+  (Paramètres), un nouveau mot de passe ou 30 jours le rendent caduc. Une erreur inattendue s'affiche sans son détail,
+  avec une référence à chercher dans le journal ; un identifiant de route passe par `intParam()` (404 sinon).
 - **Textes des cartes** (`player/cards.ts`) : les listes, l'accueil, la recherche, « À suivre » et les épisodes envoient des
   `ContentItem` dont le serveur écrit les textes (« 2019 · ★ 8.5 », badges dans l'ordre, « S2 · É4 · 1 h 08 restantes »,
   en-têtes « À SUIVRE ») ; l'app les dispose sans les recalculer. La fiche reste un `Card`.

@@ -184,5 +184,24 @@ const hasShelfArt = (c: Content | null): c is Content => Boolean(c?.backdropPath
  * `/img/shelf/…`: the backdrop with the title logo drawn on it (`providers/tmdb`, `ensureShelfImage`).
  * `layout` follows `SHELF_LAYOUT` there: tvOS caches by URL, a new layout needs a new one.
  */
+/**
+ * `/img/shelf/{scale}/{backdrop}/{logo}` composes only the pair of a visible content: anything else would let anyone
+ * have this server draw every backdrop with every logo, in 4K, and keep them all on its disk.
+ */
+export async function isShelfPair(backdrop: string, logo: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: schema.catalogContents.id })
+    .from(schema.catalogContents)
+    .where(
+      and(
+        eq(schema.catalogContents.visible, true),
+        eq(schema.catalogContents.backdropPath, `/${backdrop}`),
+        eq(schema.catalogContents.titleLogoPath, `/${logo}`),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
 const shelfImage = (ctx: RestContext, c: Content, scale: "1x" | "2x") =>
   `${ctx.baseUrl}/img/shelf/${scale}/${c.backdropPath!.replace(/^\//, "")}/${c.titleLogoPath!.replace(/^\//, "")}?layout=2`;

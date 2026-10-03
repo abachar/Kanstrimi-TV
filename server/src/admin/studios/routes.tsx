@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { addStudio, listStudios, moveStudio, parseStudioRef, removeStudio, studioDetail, studioSuggestions } from "@/catalog";
-import { back, page, zerr } from "../http";
+import { back, page, zerr, intParam } from "../http";
 import { StudiosView, StudioDetailView } from "./view";
 
 /** `/admin/studios`: the studio hubs of the app, chosen among the companies and networks of the catalogue. */
@@ -35,14 +35,14 @@ studiosRoutes.post(
   },
 );
 studiosRoutes.post("/:id/up", async (c) => {
-  await moveStudio(Number(c.req.param("id")), "up");
+  await moveStudio(intParam(c, "id"), "up");
   return back(c, "/admin/studios", {});
 });
 studiosRoutes.post("/:id/down", async (c) => {
-  await moveStudio(Number(c.req.param("id")), "down");
+  await moveStudio(intParam(c, "id"), "down");
   return back(c, "/admin/studios", {});
 });
 studiosRoutes.post("/:id/remove", async (c) => {
-  await removeStudio(Number(c.req.param("id")));
+  await removeStudio(intParam(c, "id"));
   return back(c, "/admin/studios", { ok: "Studio retiré" });
 });

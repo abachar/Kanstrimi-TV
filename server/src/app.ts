@@ -4,7 +4,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { bodyLimit } from "hono/body-limit";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { player } from "@/player";
+import { isShelfPair, player } from "@/player";
 import { imgRoute } from "@/providers/tmdb";
 import { logoRoute } from "@/providers/iptv";
 import { admin } from "@/admin";
@@ -46,6 +46,10 @@ app.get("/health", async (c) => {
 });
 app.get("/", (c) => c.redirect("/admin"));
 app.route("/img/logos", logoRoute); // before /img: « logos » is no TMDB size
+// The Top Shelf composition lives with the TMDB images, which do not know the catalogue: the player says which pairs exist.
+app.use("/img/shelf/:scale/:backdrop/:logo", async (c, next) =>
+  (await isShelfPair(c.req.param("backdrop"), c.req.param("logo"))) ? next() : c.text("Not found", 404),
+);
 app.route("/img", imgRoute);
 app.route("/player", player);
 app.route("/admin", admin);

@@ -11,7 +11,7 @@ import {
 } from "@/catalog";
 import { getTmdbClient } from "@/providers/tmdb";
 import { describeError } from "@/shared";
-import { back, form, page } from "../http";
+import { back, form, page, intParam } from "../http";
 import { contentDetail, orphanDetail } from "./data";
 import { ContentView, MergeForm } from "./view";
 import { ExplainView } from "./explain";
@@ -26,7 +26,7 @@ contentRoutes.get("/k/:key", async (c) => {
 });
 
 contentRoutes.get("/:id", async (c) => {
-  const detail = await contentDetail(Number(c.req.param("id")));
+  const detail = await contentDetail(intParam(c, "id"));
   if (!detail?.content) return c.notFound();
   return page(c, detail.content.title, <ContentView {...detail} open={Number(c.req.query("v")) || null} />);
 });
@@ -35,7 +35,7 @@ contentRoutes.get("/:id", async (c) => {
 export const itemRoutes = new Hono();
 
 itemRoutes.get("/:id", async (c) => {
-  const it = await itemById(Number(c.req.param("id")));
+  const it = await itemById(intParam(c, "id"));
   if (!it) return c.notFound();
   if (it.contentId) return c.redirect(contentLink(it.contentId, it.id), 302);
   const detail = (await orphanDetail(it.id))!;
@@ -44,7 +44,7 @@ itemRoutes.get("/:id", async (c) => {
 
 /** Live: pins the variant to an iptv-org channel, to none, or back to the automatic matching. */
 itemRoutes.post("/:id/iptv", async (c) => {
-  const id = Number(c.req.param("id"));
+  const id = intParam(c, "id");
   const f = await form(c);
   const target = f.action === "auto" ? "auto" : f.action === "none" ? null : f.iptv_id?.trim() || null;
   const to = async () => contentLink((await itemById(id))?.contentId ?? null, id);
@@ -57,7 +57,7 @@ itemRoutes.post("/:id/iptv", async (c) => {
 });
 
 itemRoutes.get("/:id/explain", async (c) => {
-  const it = await itemById(Number(c.req.param("id")));
+  const it = await itemById(intParam(c, "id"));
   if (!it || it.kind === "live") return c.notFound();
   const client = await getTmdbClient();
   if (!client) return c.html(<span class="text-sm text-destructive">Clé TMDB absente.</span>);
@@ -77,18 +77,18 @@ async function followVariant(c: Context, id: number, ok: string) {
 }
 
 itemRoutes.post("/:id/split", async (c) => {
-  const it = await itemById(Number(c.req.param("id")));
+  const it = await itemById(intParam(c, "id"));
   if (!it) return c.notFound();
   await splitVariant(it);
   return followVariant(c, it.id, "Variante séparée : elle forme un contenu à part");
 });
 itemRoutes.post("/:id/reset", async (c) => {
-  const it = await itemById(Number(c.req.param("id")));
+  const it = await itemById(intParam(c, "id"));
   if (!it) return c.notFound();
   await resetVariant(it);
   return followVariant(c, it.id, "Variante rendue au groupement automatique");
 });
-itemRoutes.get("/:id/merge-form", (c) => c.html(<MergeForm itemId={Number(c.req.param("id"))} />));
+itemRoutes.get("/:id/merge-form", (c) => c.html(<MergeForm itemId={intParam(c, "id")} />));
 itemRoutes.post("/merge-search", async (c) => {
   const f = await form(c);
   const it = await itemById(Number(f.id));

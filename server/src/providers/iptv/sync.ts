@@ -76,7 +76,8 @@ const DRAWABLE: Record<string, string> = { PNG: "png", JPEG: "jpg", WebP: "webp"
  * retired, drawable formats only, then the widest. Tags stay out of it: 98 % of logos have none.
  */
 export function pickLogo(logos: IptvApiLogo[]): IptvApiLogo | null {
-  const ok = logos.filter((l) => l.format && DRAWABLE[l.format] && /^https?:\/\//.test(l.url));
+  // https only: the download refuses anything else (`logos.ts`).
+  const ok = logos.filter((l) => l.format && DRAWABLE[l.format] && /^https:\/\//.test(l.url));
   ok.sort(
     (a, b) =>
       Number(a.feed !== null) - Number(b.feed !== null) ||

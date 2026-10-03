@@ -127,14 +127,27 @@ export function SettingsView({ s }: { s: Settings }) {
 
       {/* A form around a card is the grid cell: `grid` on it stretches the card to the row's height. */}
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card title="Mot de passe">
-          <p class="text-sm text-muted-foreground">
-            Défini par <code class="font-mono text-foreground">ADMIN_PASSWORD_HASH</code> dans{" "}
-            <code class="font-mono text-foreground">.env</code> (
-            <code class="font-mono text-foreground">npm run hash-password -- &lt;mot-de-passe&gt;</code>
-            ).
-          </p>
-        </Card>
+        <form
+          method="post"
+          action="/admin/settings/revoke-sessions"
+          class="grid"
+          hx-post="/admin/settings/revoke-sessions"
+          hx-confirm="Déconnecter toutes les sessions, celle-ci comprise ?"
+        >
+          <Card title="Mot de passe et sessions">
+            <div class="flex flex-col items-start gap-4">
+              <p class="text-sm text-muted-foreground">
+                Défini par <code class="font-mono text-foreground">ADMIN_PASSWORD_HASH</code> dans{" "}
+                <code class="font-mono text-foreground">.env</code> (
+                <code class="font-mono text-foreground">npm run hash-password -- &lt;mot-de-passe&gt;</code>
+                ). Un nouveau mot de passe ferme toutes les sessions ; une session dure 30 jours au plus.
+              </p>
+              <button class="btn" data-variant="outline" data-size="sm">
+                Déconnecter toutes les sessions
+              </button>
+            </div>
+          </Card>
+        </form>
         <form method="post" action="/admin/settings/retry-unmatched" class="grid">
           <Card title="Retenter les introuvables">
             <div class="flex flex-col items-start gap-4">

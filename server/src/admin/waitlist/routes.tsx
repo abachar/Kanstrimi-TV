@@ -3,7 +3,7 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { addToWaitlist, listWaitlist, removeFromWaitlist, searchWaitlistCandidates, type WaitlistAddResult } from "@/catalog";
 import { describeError } from "@/shared";
-import { back, page, zerr } from "../http";
+import { back, page, zerr, intParam } from "../http";
 import { WaitlistView } from "./view";
 
 /** `/admin/waitlist`: the movies awaited before the provider has them, added from a TMDB search. */
@@ -50,6 +50,6 @@ waitlistRoutes.post(
   },
 );
 waitlistRoutes.post("/:tmdbId{\\d+}/remove", async (c) => {
-  await removeFromWaitlist(Number(c.req.param("tmdbId")));
+  await removeFromWaitlist(intParam(c, "tmdbId"));
   return back(c, "/admin/waitlist", { ok: "Film retiré de la liste" });
 });

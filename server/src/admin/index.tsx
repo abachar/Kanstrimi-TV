@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -32,13 +33,15 @@ const ADMIN_PATH = /^\/admin(\/|\?|$)/;
 admin.use("*", sameOriginWrites());
 
 /**
- * An unexpected error, logged, then shown where it happened: a page of its own, or for an HTMX
- * request a toast (htmx swaps no 5xx answer, the fragment would vanish without a word).
+ * An unexpected error, logged with its detail, then shown where it happened without it (a database host, a query,
+ * a path say too much to whoever is looking): a page of its own, or for an HTMX request a toast (htmx swaps no 5xx
+ * answer, the fragment would vanish without a word). The reference finds it in the log.
  */
 admin.onError((err, c) => {
   if (err instanceof HTTPException) return err.getResponse();
-  const msg = describeError(err);
-  console.error(`[admin] ${c.req.method} ${new URL(c.req.url).pathname} :`, err);
+  const ref = randomBytes(3).toString("hex");
+  const msg = `Erreur interne, détail dans le journal du serveur (réf. ${ref})`;
+  console.error(`[admin] ${ref} ${c.req.method} ${new URL(c.req.url).pathname} : ${describeError(err)}`, err);
   if (c.req.header("HX-Request")) {
     c.header("HX-Retarget", "#toaster");
     c.header("HX-Reswap", "beforeend");

@@ -1,5 +1,13 @@
 import type { Context } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { isMenuCollapsed, Layout } from "./layout";
+
+/** A route's numeric identifier: a positive integer, else 404 — never a `NaN` down to the database. */
+export function intParam(c: Context, name: string): number {
+  const v = c.req.param(name) ?? "";
+  if (!/^[1-9]\d{0,9}$/.test(v) || Number(v) > 2_147_483_647) throw new HTTPException(404, { message: "Introuvable" });
+  return Number(v);
+}
 
 /** A full page in the admin layout; flash messages travel in `?ok=` / `?err=`. */
 export const page = (c: Context, title: string, body: unknown, loggedIn = true) =>

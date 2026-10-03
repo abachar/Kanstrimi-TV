@@ -357,20 +357,52 @@ describe("admin", () => {
     }
   });
 
-  it("answers an unexpected error as a page, or as a toast for an HTMX request, and logs it", async () => {
+  it("answers an unexpected error as a page, or as a toast for an HTMX request, without its detail, which goes to the log", async () => {
+    // Mounted again: a route added after `app` was built is not in it.
+    admin.get("/__test/boom", () => {
+      throw new Error("connect ECONNREFUSED 10.0.0.5:5432");
+    });
+    const boom = new Hono().route("/admin", admin);
+    const call = (path: string, init: RequestInit = {}) => boom.request(path, { ...init, headers: { cookie, ...(init.headers ?? {}) } });
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    const full = await call("/admin/content/abc");
+    const full = await call("/admin/__test/boom");
     expect(full.status).toBe(500);
     const body = await full.text();
     expect(body).toContain('role="alert"');
     expect(body).toContain('id="toaster"');
-    const htmx = await call("/admin/content/abc", { headers: { "HX-Request": "true" } });
+    expect(body).not.toContain("10.0.0.5");
+    const ref = /réf\. ([0-9a-f]{6})/.exec(body)?.[1];
+    expect(String(logged.mock.calls[0][0])).toContain(`${ref} GET /admin/__test/boom : `);
+    expect(String(logged.mock.calls[0][0])).toContain("10.0.0.5:5432");
+    const htmx = await call("/admin/__test/boom", { headers: { "HX-Request": "true" } });
     expect(htmx.status).toBe(200); // htmx swaps no 5xx: the toast goes to the toaster
     expect(htmx.headers.get("HX-Retarget")).toBe("#toaster");
     expect(htmx.headers.get("HX-Reswap")).toBe("beforeend");
-    expect(await htmx.text()).toContain('class="toast"');
-    expect(logged).toHaveBeenCalled();
+    const toast = await htmx.text();
+    expect(toast).toContain('class="toast"');
+    expect(toast).not.toContain("10.0.0.5");
     logged.mockRestore();
+  });
+
+  it("a route identifier that is no positive integer is a 404, before any query", async () => {
+    for (const p of [
+      "/admin/content/abc",
+      "/admin/content/0",
+      "/admin/content/1.5",
+      "/admin/content/99999999999",
+      "/admin/item/-3/merge-form",
+    ])
+      expect((await call(p)).status, p).toBe(404);
+  });
+
+  it("ends every session, this one included; a new login opens one again", async () => {
+    expect((await call("/admin")).status).toBe(200);
+    const r = await post("/admin/settings/revoke-sessions", {});
+    expect(r.headers.get("hx-redirect") ?? r.headers.get("location")).toBe("/admin/login");
+    expect((await call("/admin")).headers.get("location")).toBe("/admin/login"); // the cookie still sent is refused
+    const ok = await post("/admin/login", { email: "admin@kanstrimi.test", password: "test" });
+    cookie = ok.headers.get("set-cookie")!.split(";")[0];
+    expect((await call("/admin")).status).toBe(200);
   });
 
   it("logs out", async () => {

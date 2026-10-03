@@ -3,7 +3,7 @@ import { countItems, pageItems, itemCountByCategory } from "./data";
 import { categoriesOfKind, categoryByXtreamId, itemById, setCategoryHiddenManual, setItemHiddenManual } from "@/catalog";
 import { isCategoryHidden } from "@/db";
 import { searchCandidates, assignManual } from "@/catalog";
-import { page, form, checked } from "../http";
+import { page, form, checked, intParam } from "../http";
 import { KIND_TITLES } from "../labels";
 import { getSettings } from "@/config";
 import { channelGroups, contextFor } from "@/player";
@@ -114,7 +114,7 @@ catalogRoutes.get("/items", async (c) => {
  * A category carries every row under it: reload rather than patch each one back into shape.
  */
 catalogRoutes.post("/:scope{item|category}/:id/visible", async (c) => {
-  const id = Number(c.req.param("id"));
+  const id = intParam(c, "id");
   const hiddenManual = !(await checked(c, "visible"));
   if (c.req.param("scope") === "category" || c.req.query("reload")) {
     await setCategoryHiddenManual(id, hiddenManual);

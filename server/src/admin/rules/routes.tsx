@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { checkRuleQuery, listRules, saveRule, deleteRule, setRuleEnabled, previewRule, rulesPending, isTaskRunning } from "@/catalog";
-import { page, back, checked, zerr } from "../http";
+import { page, back, checked, zerr, intParam } from "../http";
 import { RulesView, RulePreview } from "./view";
 
 const ruleSchema = z.object({
@@ -39,12 +39,12 @@ rulesRoutes.post(
   },
 );
 rulesRoutes.post("/:id/delete", async (c) => {
-  await deleteRule(Number(c.req.param("id")));
+  await deleteRule(intParam(c, "id"));
   return back(c, "/admin/rules", { ok: "Règle supprimée" });
 });
 /** The switch answers by reloading the page: the « to apply » banner may have to appear. */
 rulesRoutes.post("/:id/toggle", async (c) => {
-  await setRuleEnabled(Number(c.req.param("id")), await checked(c, "enabled"));
+  await setRuleEnabled(intParam(c, "id"), await checked(c, "enabled"));
   c.header("HX-Refresh", "true");
   return c.body(null, 204);
 });

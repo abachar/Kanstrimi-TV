@@ -16,6 +16,7 @@ export const SETTING_KEYS = [
   "last_sync_at",
   "last_epg_at",
   "rules_pending", // "1": a rule changed since the last `filters` step, the catalogue does not follow it yet
+  "session_generation", // bumped by « Déconnecter toutes les sessions »: every admin cookie issued before is refused
 ] as const;
 export type SettingKey = (typeof SETTING_KEYS)[number];
 
