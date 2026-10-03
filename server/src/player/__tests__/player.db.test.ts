@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { player as api } from "..";
@@ -6,7 +6,7 @@ import { nightEnd } from "../epg";
 import { remaining } from "../cards";
 import { liveChip } from "../channels";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
-import { verify, lockForTests, isUnlocked } from "@/config";
+
 import {
   addStudio,
   listStudios,
@@ -19,7 +19,7 @@ import {
   studioSuggestions,
 } from "@/catalog";
 import { resetPairingState } from "@/devices";
-import { setSettings } from "@/config";
+import { setSecretsForTests, setSettings } from "@/config";
 
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400000);
 const monthsAgo = (m: number) => {
@@ -52,11 +52,8 @@ const get = async (path: string, auth = true): Promise<{ status: number; body: a
 beforeAll(async () => {
   await resetDb();
   resetPairingState();
-  expect(await verify("test")).toBe(true);
+  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await setSettings({
-    xtream_url: "http://provider.test",
-    xtream_username: "u",
-    xtream_password: "p",
     last_sync_at: "2026-09-26T02:10:00.000Z",
   });
   await seedCategories([
@@ -276,23 +273,24 @@ beforeAll(async () => {
 afterAll(closeDb);
 
 describe("pairing", () => {
-  it("POST /devices → code, GET /devices/{code} → pending then approved once", async () => {
+  it("POST /devices → code and token, GET /devices/{code} → pending then approved", async () => {
     const r = await call("/devices", { method: "POST" }, false);
     expect(r.status).toBe(201);
-    const body = (await r.json()) as { code: string; url: string; expires_at: string };
+    const body = (await r.json()) as { code: string; url: string; expires_at: string; token: string };
     expect(body.code).toMatch(/^[A-Z2-9]{6}$/);
+    expect(body.token).toMatch(/^dvc_/);
     expect(body.url).toBe(`http://kanstrimi.test/admin/pair/${body.code}`);
     expect(Date.parse(body.expires_at)).toBeGreaterThan(Date.now());
     code = body.code;
+    token = body.token;
     expect((await get(`/devices/${code}`, false)).body).toEqual({ status: "pending" });
+    expect((await get("/info")).status).toBe(401); // not approved yet
     expect((await get("/devices/nope", false)).status).toBe(400);
     expect((await get("/devices/ZZZZZZ", false)).body).toEqual({ status: "expired" });
     const { approvePairing } = await import("@/devices");
     await approvePairing(code, "Salon");
-    const approved = (await get(`/devices/${code}`, false)).body;
-    expect(approved).toMatchObject({ status: "approved", device_name: "Salon" });
-    token = approved.token;
-    expect((await get(`/devices/${code}`, false)).body).toEqual({ status: "expired" });
+    expect((await get(`/devices/${code}`, false)).body).toEqual({ status: "approved", device_name: "Salon" });
+    expect((await get("/info")).status).toBe(200);
   });
 
   it("401 without or with a bad token, on every authenticated route", async () => {
@@ -479,7 +477,7 @@ describe("GET /movies/{id}", () => {
       origin: "|FR| FILMS 4K DV",
     });
     expect(src.id).toMatch(/^src-i[0-9a-z]+$/);
-    expect(src.stream_url).toMatch(new RegExp(`^http://kanstrimi\\.test/player/stream/${src.id}\\?d=${code}&e=\\d+&s=[A-Za-z0-9_-]+$`));
+    expect(src.stream_url).toMatch(/^http:\/\/provider\.test\/movie\/u\/p\/\d+\.mkv$/);
   });
 
   it("an edition is a version of its own, after the usual cut", async () => {
@@ -1360,67 +1358,17 @@ describe("guide per quality", () => {
   });
 });
 
-describe("GET /stream/{source}", () => {
-  it("302 to the provider for a signed link, 401 when tampered, expired or revoked", async () => {
+describe("stream_url", () => {
+  it("the provider's own URL, played as is: no redirect through this server", async () => {
     const sheet = (await get("/movies/tmdb:movie:603")).body;
-    const url = new URL(sheet.versions[0].sources[0].stream_url);
-    const r = await api.request(url.pathname.replace("/player", "") + url.search, { redirect: "manual" });
-    expect(r.status).toBe(302);
-    expect(r.headers.get("location")).toBe("http://provider.test/movie/u/p/1.mkv");
+    expect(sheet.versions[0].sources[0].stream_url).toBe("http://provider.test/movie/u/p/1.mkv");
     const ep = (await get("/series/tmdb:tv:1396")).body.seasons[1].episodes[0].versions[0].sources[0].stream_url;
-    const eu = new URL(ep);
-    const re = await api.request(eu.pathname.replace("/player", "") + eu.search, { redirect: "manual" });
-    expect(re.headers.get("location")).toBe("http://provider.test/series/u/p/e21.mkv");
-    // Tampered signature
-    const bad = await api.request(url.pathname.replace("/player", "") + url.search.replace(/s=[^&]+/, "s=forged"), { redirect: "manual" });
-    expect(bad.status).toBe(401);
-    // Expired
-    const exp = new URL(url);
-    exp.searchParams.set("e", "1");
-    expect((await api.request(exp.pathname.replace("/player", "") + exp.search)).status).toBe(401);
-    // Never logged: the signature is redacted by the request logger.
-    const { redactUrl } = await import("@/shared");
-    expect(redactUrl(url.pathname + url.search)).not.toContain(url.searchParams.get("s")!);
+    expect(ep).toBe("http://provider.test/series/u/p/e21.mkv");
   });
 
-  it("a link lives a quarter of an hour: it carries the provider's credentials in its 302", async () => {
-    const sheet = (await get("/movies/tmdb:movie:603")).body;
-    const url = new URL(sheet.versions[0].sources[0].stream_url);
-    const exp = Number(url.searchParams.get("e")) * 1000;
-    expect(exp - Date.now()).toBeLessThanOrEqual(15 * 60_000);
-    expect(exp - Date.now()).toBeGreaterThan(14 * 60_000);
-    const later = Date.now() + 16 * 60_000;
-    vi.useFakeTimers({ toFake: ["Date"], now: later });
-    try {
-      expect((await api.request(url.pathname.replace("/player", "") + url.search, { redirect: "manual" })).status).toBe(401);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("DELETE /devices/{code}: only its own, then every call is 401 and the stream link dies", async () => {
-    const sheet = (await get("/movies/tmdb:movie:603")).body;
-    const url = new URL(sheet.versions[0].sources[0].stream_url);
+  it("DELETE /devices/{code}: only its own, then every call is 401", async () => {
     expect((await call("/devices/ZZZZZZ", { method: "DELETE" })).status).toBe(404);
     expect((await call(`/devices/${code}`, { method: "DELETE" })).status).toBe(204);
     expect((await get("/info")).status).toBe(401);
-    expect((await api.request(url.pathname.replace("/player", "") + url.search, { redirect: "manual" })).status).toBe(401);
-  });
-});
-
-describe("vault", () => {
-  it("the first call of a paired device after a restart unlocks the vault", async () => {
-    resetPairingState();
-    const { approvePairing, createPairing } = await import("@/devices");
-    const { code: c2 } = await createPairing("1.2.3.4");
-    await approvePairing(c2, "Chambre");
-    const t2 = ((await get(`/devices/${c2}`, false)).body as { token: string }).token;
-    lockForTests();
-    expect(isUnlocked()).toBe(false);
-    const r = await api.request("/info", { headers: { authorization: `Bearer ${t2}` } });
-    expect(r.status).toBe(200);
-    expect(isUnlocked()).toBe(true);
-    const [d] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, c2));
-    expect(d.lastIp).toBe("local");
   });
 });

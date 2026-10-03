@@ -1,5 +1,6 @@
 import type { Device } from "@/db";
 import type { Settings } from "@/config";
+import { upstreamStreamUrl } from "@/providers/xtream";
 
 /** What every authenticated request carries: who asks, and how to spell URLs and titles for them. */
 export type RestContext = {
@@ -10,6 +11,8 @@ export type RestContext = {
   tmdbLang: string;
   /** Display name of the single Xtream account (its host). */
   providerName: string;
+  /** The provider's URL of a stream, its account in the path; null until the account is configured. */
+  upstreamUrl: (kind: "live" | "movie" | "series", id: string, ext: string) => string | null;
   /** Paramètres › « Servir les contenus adultes » ; off by default. */
   serveAdult: boolean;
 };
@@ -32,5 +35,12 @@ export function contextFor(req: Request, device: Device | null, s: Settings): Re
   } catch {
     /* keep default */
   }
-  return { baseUrl: publicBaseUrl(req, s), device, tmdbLang: s.tmdb_language, providerName, serveAdult: s.serve_adult === "1" };
+  return {
+    baseUrl: publicBaseUrl(req, s),
+    device,
+    tmdbLang: s.tmdb_language,
+    providerName,
+    upstreamUrl: (kind, id, ext) => upstreamStreamUrl(s, kind, id, ext),
+    serveAdult: s.serve_adult === "1",
+  };
 }

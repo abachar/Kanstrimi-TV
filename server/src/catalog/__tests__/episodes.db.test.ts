@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll, afterEach, vi } from "vites
 import { eq } from "drizzle-orm";
 import { db, schema, type Content, type Variant } from "@/db";
 import { resetDb, closeDb, seedItems } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { runGrouping, runNaming } from "../grouping/group";
 import { ensureEpisodes, UpstreamUnavailable } from "../episodes";
 
@@ -29,8 +29,7 @@ const episodes = async () =>
 
 beforeEach(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
-  await setSettings({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
+  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await seedItems([{ kind: "series", xtreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
   await runNaming();
   await runGrouping();

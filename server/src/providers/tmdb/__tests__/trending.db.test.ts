@@ -1,15 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { db, schema } from "@/db";
 import { resetDb, closeDb } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { runTrending } from "../trending";
 
 const ranks = async () => (await db.select().from(schema.tmdbTrending)).map((r) => [r.mediaType, r.tmdbId]).sort();
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
-  await setSettings({ tmdb_api_key: "k" });
+  setSecretsForTests({ tmdb_api_key: "k" });
 });
 afterEach(() => vi.unstubAllGlobals());
 afterAll(closeDb);

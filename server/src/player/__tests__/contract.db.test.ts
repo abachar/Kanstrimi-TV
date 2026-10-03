@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { sha256 } from "@/shared";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests, setSettings } from "@/config";
 import { addStudio, runGrouping, runNaming } from "@/catalog";
 import { player as api } from "..";
 
@@ -78,11 +78,8 @@ beforeAll(async () => {
   process.env.TZ = "Europe/Paris";
   vi.useFakeTimers({ toFake: ["Date"], now: NOW });
   await resetDb();
-  expect(await verify("test")).toBe(true);
+  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await setSettings({
-    xtream_url: "http://provider.test",
-    xtream_username: "u",
-    xtream_password: "p",
     last_sync_at: daysAgo(1).toISOString(),
     last_epg_at: daysAgo(1).toISOString(),
   });

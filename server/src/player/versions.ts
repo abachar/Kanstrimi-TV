@@ -3,7 +3,7 @@ import type { Variant } from "@/db";
 import type { DynamicRange, Quality, Version } from "./types";
 import { slug } from "@/shared";
 import type { RestContext } from "./context";
-import { sourceId, streamUrl } from "./stream-links";
+import { sourceId } from "./stream-links";
 
 /** A version = language × quality × dynamic range × edition; its sources are the playable variants behind it. */
 
@@ -24,6 +24,8 @@ export const drOf = (d: string | null | undefined): DynamicRange | undefined => 
 export type Playable = {
   sourceId: string;
   container: string;
+  /** Where the provider serves it: `/{kind}/{user}/{password}/{id}.{ext}`. */
+  upstream: { kind: "live" | "movie" | "series"; id: string; ext: string };
   lang: string | null;
   quality: string | null;
   dynamicRange: string | null;
@@ -44,9 +46,11 @@ function epgIdsOf(it: Variant): string[] {
 }
 
 export function playableOfItem(it: Variant, categoryName: string | null): Playable {
+  const ext = String(it.raw.container_extension ?? (it.kind === "live" ? "ts" : "mp4"));
   return {
     sourceId: sourceId("item", it.id),
-    container: String(it.raw.container_extension ?? (it.kind === "live" ? "ts" : "mp4")).toUpperCase(),
+    container: ext.toUpperCase(),
+    upstream: { kind: it.kind === "live" ? "live" : "movie", id: it.xtreamId, ext },
     lang: it.lang,
     quality: it.quality,
     dynamicRange: it.dynamicRange,
@@ -58,6 +62,12 @@ export function playableOfItem(it: Variant, categoryName: string | null): Playab
     id: it.id,
   };
 }
+
+/**
+ * The provider's own URL, played as is: its account is in the path, so it goes to the paired devices only
+ * (the admin reads the catalogue without one and never plays).
+ */
+const streamUrl = (ctx: RestContext, r: Playable) => (ctx.device && ctx.upstreamUrl(r.upstream.kind, r.upstream.id, r.upstream.ext)) || "";
 
 /** Group playable rows by language × quality × dynamic range × edition; sources in server order. */
 export function versionsOf(ctx: RestContext, rows: Playable[], withSources = true): Version[] {
@@ -88,7 +98,7 @@ export function versionsOf(ctx: RestContext, rows: Playable[], withSources = tru
       v.sources.push({
         id: r.sourceId,
         container: r.container,
-        stream_url: streamUrl(ctx, r.sourceId),
+        stream_url: streamUrl(ctx, r),
         provider: { id: "xtream", name: ctx.providerName, kind: "xtream" },
         origin: r.categoryName,
       });

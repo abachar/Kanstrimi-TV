@@ -2,14 +2,13 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb, seedItems } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { setTmdbPace } from "@/providers/tmdb";
 import { runEnrich } from "../matching";
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
-  await setSettings({ tmdb_api_key: "k" });
+  setSecretsForTests({ tmdb_api_key: "k" });
   setTmdbPace(100_000); // a fake TMDB: no need to spare it
   await seedItems(Array.from({ length: 60 }, (_, i) => ({ kind: "vod" as const, xtreamId: String(i), name: `|FR| Film ${i}` })));
 });

@@ -22,7 +22,7 @@
               {
                 "id": "src-i8",
                 "container": "TS",
-                "stream_url": "http://kanstrimi.test/player/stream/src-i8?d=SALN42&e=1790880300&s=n_wYr-eosI4slo8vS6xN9twsS2xJDdPaLYzC8K5_oI0",
+                "stream_url": "http://provider.test/live/u/p/101.ts",
                 "provider": {
                   "id": "xtream",
                   "name": "provider.test",
@@ -41,7 +41,7 @@
               {
                 "id": "src-i7",
                 "container": "TS",
-                "stream_url": "http://kanstrimi.test/player/stream/src-i7?d=SALN42&e=1790880300&s=aCgtOE2IALJQMjKCYBlV_b-FBgDwhUdkBd2CjJxK0Cc",
+                "stream_url": "http://provider.test/live/u/p/100.ts",
                 "provider": {
                   "id": "xtream",
                   "name": "provider.test",
@@ -92,7 +92,7 @@
               {
                 "id": "src-i9",
                 "container": "TS",
-                "stream_url": "http://kanstrimi.test/player/stream/src-i9?d=SALN42&e=1790880300&s=efh2l-znYq-mK0rmpPMmrn2Bl4hYNs4Po8DVJerMoh8",
+                "stream_url": "http://provider.test/live/u/p/102.ts",
                 "provider": {
                   "id": "xtream",
                   "name": "provider.test",

@@ -1,6 +1,5 @@
 import { randomBytes, randomInt } from "node:crypto";
 import { db, schema, type Device } from "@/db";
-import { isUnlocked, wrapKeyWith, unlockWith } from "@/config";
 import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { sha256 } from "@/shared";
 
@@ -27,8 +26,11 @@ export class TooManyRequests extends Error {
   }
 }
 
-/** `POST /devices`: a pending device with a code valid ten minutes. */
-export async function createPairing(ip: string): Promise<{ code: string; expiresAt: Date }> {
+/**
+ * `POST /devices`: a pending device with a code valid ten minutes, and its token at once. The token is
+ * stored hashed only and authenticates nothing until the admin approves the code.
+ */
+export async function createPairing(ip: string): Promise<{ code: string; expiresAt: Date; token: string }> {
   const now = Date.now();
   const mine = (recent.get(ip) ?? []).filter((t) => now - t < CODE_TTL_MS);
   if (mine.length >= MAX_PER_IP) throw new TooManyRequests();
@@ -42,63 +44,45 @@ export async function createPairing(ip: string): Promise<{ code: string; expires
   await db
     .delete(schema.appDevices)
     .where(and(eq(schema.appDevices.status, "pending"), lt(schema.appDevices.expiresAt, new Date(now - CODE_TTL_MS))));
+  const token = TOKEN_PREFIX + randomBytes(32).toString("base64url");
   for (let attempt = 0; ; attempt++) {
     const code = newCode();
     const expiresAt = new Date(now + CODE_TTL_MS);
     const inserted = await db
       .insert(schema.appDevices)
-      .values({ code, expiresAt, createdIp: ip })
+      .values({ code, expiresAt, createdIp: ip, tokenHash: hash(token) })
       .onConflictDoNothing()
       .returning({ code: schema.appDevices.code });
-    if (inserted.length) return { code, expiresAt };
+    if (inserted.length) return { code, expiresAt, token };
     if (attempt > 5) throw new Error("Impossible de générer un code d'appairage");
   }
 }
 
-export type PollResult = { status: "pending" } | { status: "expired" } | { status: "approved"; token: string; deviceName: string };
+export type PollResult = { status: "pending" } | { status: "expired" } | { status: "approved"; deviceName: string };
 
-/**
- * `GET /devices/{code}`: the token is handed over exactly once, at the first poll after the
- * approval; it is kept in memory until then and never written anywhere but hashed.
- */
-const handover = new Map<string, { token: string; at: number }>();
-
+/** `GET /devices/{code}`: where the code stands; approved, the token the device holds since `POST /devices` works. */
 export async function pollPairing(code: string): Promise<PollResult> {
   const [d] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, code));
   if (!d) return { status: "expired" };
-  if (d.status === "approved") {
-    const h = handover.get(code);
-    if (!h) return { status: "expired" }; // already collected, or approved before a restart
-    handover.delete(code);
-    return { status: "approved", token: h.token, deviceName: d.name ?? "" };
-  }
+  if (d.status === "approved") return { status: "approved", deviceName: d.name ?? "" };
   if (d.status === "revoked" || d.expiresAt.getTime() < Date.now()) return { status: "expired" };
   return { status: "pending" };
 }
 
-/** Admin: name and approve a pending code. The vault must be open (the admin is logged in). */
+/** Admin: name and approve a pending code. */
 export async function approvePairing(code: string, name: string): Promise<Device> {
-  if (!isUnlocked()) throw new Error("Coffre verrouillé");
   const [d] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, code));
   if (d?.status !== "pending") throw new Error("Code d'appairage inconnu");
   if (d.expiresAt.getTime() < Date.now()) throw new Error("Code d'appairage expiré");
-  const token = TOKEN_PREFIX + randomBytes(32).toString("base64url");
   const [row] = await db
     .update(schema.appDevices)
-    .set({
-      name: name.trim() || "Appareil",
-      status: "approved",
-      approvedAt: new Date(),
-      tokenHash: hash(token),
-      wrappedKey: await wrapKeyWith(token),
-    })
+    .set({ name: name.trim() || "Appareil", status: "approved", approvedAt: new Date() })
     .where(eq(schema.appDevices.id, d.id))
     .returning();
-  handover.set(code, { token, at: Date.now() });
   return row;
 }
 
-/** Bearer token → approved device, unlocking the vault on the way when it is locked. Null = 401. */
+/** Bearer token → approved device. Null = 401. */
 export async function authenticateToken(token: string, ip?: string): Promise<Device | null> {
   if (!token.startsWith(TOKEN_PREFIX)) return null;
   const [d] = await db
@@ -106,7 +90,6 @@ export async function authenticateToken(token: string, ip?: string): Promise<Dev
     .from(schema.appDevices)
     .where(eq(schema.appDevices.tokenHash, hash(token)));
   if (d?.status !== "approved") return null;
-  if (!isUnlocked() && d.wrappedKey && !(await unlockWith(token, d.wrappedKey))) return null;
   // last_seen is informative: one write per minute per device is enough.
   if (!d.lastSeenAt || Date.now() - d.lastSeenAt.getTime() > 60_000 || (ip && ip !== d.lastIp)) {
     await db
@@ -117,14 +100,13 @@ export async function authenticateToken(token: string, ip?: string): Promise<Dev
   return d;
 }
 
-/** Revoke: the token stops working and the wrapped vault key is destroyed with it. */
+/** Revoke: the token stops working. */
 export async function revokeDevice(code: string): Promise<boolean> {
   const rows = await db
     .update(schema.appDevices)
-    .set({ status: "revoked", tokenHash: null, wrappedKey: null })
+    .set({ status: "revoked", tokenHash: null })
     .where(and(eq(schema.appDevices.code, code), eq(schema.appDevices.status, "approved")))
     .returning({ id: schema.appDevices.id });
-  handover.delete(code);
   return rows.length > 0;
 }
 
@@ -154,5 +136,4 @@ export async function pairingState(code: string): Promise<PairingState> {
 /** Tests only. */
 export function resetPairingState() {
   recent.clear();
-  handover.clear();
 }

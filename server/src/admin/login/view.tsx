@@ -1,11 +1,8 @@
-export function LoginView({ locked, error, next }: { locked: boolean; error?: string; next?: string }) {
+export function LoginView({ error, next }: { error?: string; next?: string }) {
   return (
     <section class="card w-full max-w-sm">
       <header>
         <h2>Connexion</h2>
-        {locked && (
-          <p>Serveur verrouillé depuis le redémarrage : le mot de passe déchiffre les identifiants et relance la planification.</p>
-        )}
       </header>
       <section class="flex flex-col gap-4">
         {error && (

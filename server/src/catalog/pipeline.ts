@@ -1,5 +1,5 @@
 import { Cron } from "croner";
-import { getSettings, isUnlocked, isXtreamConfigured, type Settings } from "@/config";
+import { getSettings, isXtreamConfigured, type Settings } from "@/config";
 import { describeError, isCancelled, withCancel } from "@/shared";
 import { runSync, runEpgRebuild } from "@/providers/xtream";
 import { runTrending } from "@/providers/tmdb";
@@ -103,10 +103,10 @@ async function runStep(step: Step, runId: number, ctx: StepContext): Promise<str
 /**
  * One run of a task: its row, its file, its steps in order until the first failure (a TMDB
  * step's failure is noted and skipped).
- * False when it could not start (already running, vault locked, database down) or failed.
+ * False when it could not start (already running, database down) or failed.
  */
 async function runTask(task: string, trigger: Trigger, steps: Step[], opts: RunOptions = {}): Promise<boolean> {
-  if (runningTasks.has(task) || !isUnlocked()) return false;
+  if (runningTasks.has(task)) return false;
   runningTasks.add(task);
   try {
     let run: { id: number; logFile: string };
@@ -175,10 +175,10 @@ export const run = (step: Step, trigger: Trigger = "manual") => runTask(step, tr
 
 /**
  * Start a task in the background from the admin, the pipeline from `from` on when given.
- * False if it is already running or the vault is locked.
+ * False if it is already running.
  */
 export function launch(task: Task, from?: Step, opts: RunOptions = {}): boolean {
-  if (runningTasks.has(task) || !isUnlocked()) return false;
+  if (runningTasks.has(task)) return false;
   void (task === "pipeline" ? runAll("manual", from, opts) : runEpg("manual"));
   return true;
 }
@@ -203,14 +203,14 @@ let jobs: Cron[] = [];
 
 /**
  * (Re)create the two cron jobs from the settings; called at boot and whenever the settings
- * change. `protect` skips a tick while the previous run is still going. Locked vault or
- * unconfigured provider are checked at fire time, not here: at boot the vault is always locked.
+ * change. `protect` skips a tick while the previous run is still going. An unconfigured
+ * provider is checked at fire time.
  */
 export function schedule(s: Settings) {
   for (const j of jobs) j.stop();
   jobs = [];
   const guarded = (name: string, fn: () => Promise<unknown>) => async () => {
-    if (!isUnlocked() || !isXtreamConfigured(await getSettings())) return;
+    if (!isXtreamConfigured(await getSettings())) return;
     console.log(`[pipeline] ${name} planifié`);
     await fn();
   };

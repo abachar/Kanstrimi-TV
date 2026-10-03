@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb, seedItems } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { setTmdbPace } from "@/providers/tmdb";
 import { TmdbClient } from "@/providers/tmdb";
 import { explainMatch, resetMatches, retryUnmatched, runEnrich } from "../matching";
@@ -66,8 +66,7 @@ const CASES = [
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
-  await setSettings({ tmdb_api_key: "k" });
+  setSecretsForTests({ tmdb_api_key: "k" });
   setTmdbPace(100_000); // a fake TMDB: no need to spare it
 });
 afterEach(() => vi.unstubAllGlobals());

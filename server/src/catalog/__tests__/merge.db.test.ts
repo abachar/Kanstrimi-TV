@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { runSync, type XStream } from "@/providers/xtream";
 import { runMerge, RADIO_CATEGORY_ID } from "../merge";
 
@@ -29,8 +29,7 @@ vi.mock("@/providers/xtream/client", async (importOriginal) => {
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
-  await setSettings({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
+  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
 });
 afterAll(closeDb);
 

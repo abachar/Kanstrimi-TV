@@ -14,7 +14,7 @@
         {
           "id": "src-e2",
           "container": "MKV",
-          "stream_url": "http://kanstrimi.test/player/stream/src-e2?d=SALN42&e=1790880300&s=LkcXXbjd_W66iFqDSvUkpkY0QUfdeszIKExJvNlJQfw",
+          "stream_url": "http://provider.test/series/u/p/e12.mkv",
           "provider": {
             "id": "xtream",
             "name": "provider.test",

@@ -1,6 +1,6 @@
 export { clientIp } from "./client-ip";
 export { Cancelled, cancelGuard, checkCancelled, isCancelled, withCancel } from "./cancel";
-export { decrypt, deriveKey, encrypt, isEncrypted, safeEqual, sha256 } from "./crypto";
+export { sha256 } from "./crypto";
 export { env } from "./env";
 export { describeError, isUnreachable } from "./errors";
 export { progress } from "./progress";

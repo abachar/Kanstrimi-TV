@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import bcrypt from "bcryptjs";
 import { Hono } from "hono";
 import { resetDb, closeDb } from "@/test/db";
-import { verify } from "@/config";
+
 import { admin } from "../..";
 import { resetLoginAttempts } from "../attempts";
 
@@ -16,7 +16,6 @@ const login = (password: string, ip = "203.0.113.7") =>
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true); // the vault already open: the cheap path exists, the login must not take it
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -26,7 +25,7 @@ afterEach(() => {
 afterAll(closeDb);
 
 describe("/admin/login", () => {
-  it("checks the password with bcrypt every time, even with the vault open", async () => {
+  it("checks the password with bcrypt every time", async () => {
     const compare = vi.spyOn(bcrypt, "compare");
     expect((await login("test")).headers.get("set-cookie")).toMatch(/^kanstrimi_admin=/);
     expect((await login("nope")).headers.get("location")).toContain("err=");

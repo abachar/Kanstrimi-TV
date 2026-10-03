@@ -48,7 +48,7 @@
         {
           "id": "src-i1",
           "container": "MKV",
-          "stream_url": "http://kanstrimi.test/player/stream/src-i1?d=SALN42&e=1790880300&s=0dlEXXtH36mPSpp-6WByzq2pTOkB89J_Rcp-V2CeBW4",
+          "stream_url": "http://provider.test/movie/u/p/1.mkv",
           "provider": {
             "id": "xtream",
             "name": "provider.test",
@@ -66,7 +66,7 @@
         {
           "id": "src-i2",
           "container": "MKV",
-          "stream_url": "http://kanstrimi.test/player/stream/src-i2?d=SALN42&e=1790880300&s=bhNQl_xhFX61YYEqYIlGIvMPk1-zClmWrDhXR4N-854",
+          "stream_url": "http://provider.test/movie/u/p/2.mkv",
           "provider": {
             "id": "xtream",
             "name": "provider.test",

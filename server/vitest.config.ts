@@ -17,6 +17,11 @@ export default defineConfig({
       ADMIN_PASSWORD_HASH: "$2b$04$5/zpgMxPMh1UdeIEbJ8/jux0XzSTWJE/.6fHMMMb47MeNOrHhPiF.", // "test", cost 4
       SESSION_SECRET: "test-only-secret-not-for-production-32chars",
       DATA_DIR: "/tmp/kanstrimi-test-data",
+      // Never the real account from the shell: a test sets what it needs (`setSecretsForTests`).
+      XTREAM_URL: "",
+      XTREAM_USERNAME: "",
+      XTREAM_PASSWORD: "",
+      TMDB_API_KEY: "",
     },
   },
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },

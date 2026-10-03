@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb, seedItems } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { runGrouping, runNaming } from "@/catalog";
 import { home } from "../home";
 import { shelfPicks } from "../top-shelf";
@@ -18,12 +18,18 @@ vi.mock("@/catalog", async (importOriginal) => {
   };
 });
 
-const ctx = { baseUrl: "http://x", device: null, tmdbLang: "fr-FR", providerName: "provider.test", serveAdult: false };
+const ctx = {
+  baseUrl: "http://x",
+  device: null,
+  tmdbLang: "fr-FR",
+  providerName: "provider.test",
+  upstreamUrl: () => null,
+  serveAdult: false,
+};
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
-  await setSettings({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
+  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await seedItems([{ kind: "series", xtreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
   await runNaming();
   await runGrouping();

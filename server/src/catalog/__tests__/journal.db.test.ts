@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { db, schema } from "@/db";
 import { resetDb, closeDb } from "@/test/db";
-import { verify } from "@/config";
+
 import { startStep, finishStep, closeOrphanLogs, startRun, runById, recentRuns } from "../journal";
 import { logDir, readRunLog, withRunLog, withStep } from "../runlog";
 import { isTaskRunning, killRun, run, runAll } from "../pipeline";
@@ -29,7 +29,6 @@ vi.mock("../channels", async (importOriginal) => {
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true); // a run needs the vault open
 });
 afterAll(closeDb);
 

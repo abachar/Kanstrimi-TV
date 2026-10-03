@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { resetDb, closeDb } from "@/test/db";
-import { DEFAULTS, lockForTests, verify, type Settings } from "@/config";
+import { DEFAULTS, type Settings } from "@/config";
 import { isTaskRunning, launch, scheduledJobs, schedule, stopSchedule } from "../pipeline";
 
 beforeAll(resetDb);
@@ -8,14 +8,7 @@ afterEach(stopSchedule);
 afterAll(closeDb);
 
 describe("launch", () => {
-  it("refuses while the vault is locked: no key, no provider", async () => {
-    lockForTests();
-    expect(launch("epg")).toBe(false);
-    expect(isTaskRunning("epg")).toBe(false);
-  });
-
   it("starts a task in the background, once at a time", async () => {
-    expect(await verify("test")).toBe(true);
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(launch("epg")).toBe(true); // fails at once (no provider set up), but it ran
     expect(isTaskRunning("epg")).toBe(true);

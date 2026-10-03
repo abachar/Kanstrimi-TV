@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { resetDb, closeDb } from "@/test/db";
-import { verify, isUnlocked, lockForTests } from "@/config";
+
 import {
   createPairing,
   pollPairing,
@@ -19,7 +19,6 @@ describe("device pairing", () => {
   beforeAll(async () => {
     await resetDb();
     resetPairingState();
-    expect(await verify("test")).toBe(true);
   });
   afterAll(closeDb);
 
@@ -31,38 +30,28 @@ describe("device pairing", () => {
     expect(await pollPairing("ZZZZZZ")).toEqual({ status: "expired" });
   });
 
-  it("hands the token over once, then the token authenticates and unlocks the vault", async () => {
-    const { code } = await createPairing("10.0.0.1");
+  it("issues the token with the code; it authenticates once the code is approved", async () => {
+    const { code, token } = await createPairing("10.0.0.1");
+    expect(token).toMatch(/^dvc_[A-Za-z0-9_-]{40,}$/);
+    expect(await authenticateToken(token)).toBeNull(); // pending: nothing yet
     const d = await approvePairing(code, "  Salon ");
     expect(d.status).toBe("approved");
     expect(d.name).toBe("Salon");
-    const r = await pollPairing(code);
-    expect(r.status).toBe("approved");
-    if (r.status !== "approved") return;
-    expect(r.token).toMatch(/^dvc_[A-Za-z0-9_-]{40,}$/);
-    expect(r.deviceName).toBe("Salon");
-    // A second poll must not leak the token again.
-    expect(await pollPairing(code)).toEqual({ status: "expired" });
+    // The poll says so, again and again, without the token.
+    expect(await pollPairing(code)).toEqual({ status: "approved", deviceName: "Salon" });
+    expect(await pollPairing(code)).toEqual({ status: "approved", deviceName: "Salon" });
     // The token is stored hashed only.
     const [row] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, code));
-    expect(row.tokenHash).not.toContain(r.token.slice(4, 20));
-    expect(row.wrappedKey).toMatch(/^enc:v1:/);
+    expect(row.tokenHash).not.toContain(token.slice(4, 20));
 
-    expect((await authenticateToken(r.token, "10.0.0.2"))?.code).toBe(code);
+    expect((await authenticateToken(token, "10.0.0.2"))?.code).toBe(code);
     expect(await authenticateToken("dvc_nope")).toBeNull();
     expect(await authenticateToken("")).toBeNull();
 
-    // After a "restart" the first authenticated call opens the vault without the password.
-    lockForTests();
-    expect(isUnlocked()).toBe(false);
-    expect((await authenticateToken(r.token))?.code).toBe(code);
-    expect(isUnlocked()).toBe(true);
-
-    // Revoked: 401 from now on, and the wrap is gone.
+    // Revoked: 401 from now on.
     expect(await revokeDevice(code)).toBe(true);
-    expect(await authenticateToken(r.token)).toBeNull();
+    expect(await authenticateToken(token)).toBeNull();
     const [after] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, code));
-    expect(after.wrappedKey).toBeNull();
     expect(after.tokenHash).toBeNull();
     expect(await revokeDevice(code)).toBe(false);
     expect((await listDevices()).map((x) => x.status)).toContain("revoked");

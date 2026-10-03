@@ -172,7 +172,7 @@ export function WaitlistView({
 
 function Results({ q, candidates, error }: { q: string; candidates: WaitlistCandidate[] | null | undefined; error: string | null }) {
   if (error) return <Empty title="TMDB injoignable" sub={error} />;
-  if (candidates === null) return <Empty title="Clé API TMDB non configurée" sub="Renseignez-la dans les Paramètres." />;
+  if (candidates === null) return <Empty title="Clé API TMDB non configurée" sub="TMDB_API_KEY manque dans l'environnement." />;
   if (candidates === undefined) return null;
   if (candidates.length === 0) return <Empty title="Aucun résultat" sub={`TMDB ne connaît aucun film pour « ${q} ».`} />;
   return (

@@ -263,5 +263,5 @@ export type ServerInfo = {
 };
 
 export type ApiError = {
-  error: { code: "unauthorized" | "not_found" | "bad_request" | "upstream" | "locked" | "too_many_requests"; message: string };
+  error: { code: "unauthorized" | "not_found" | "bad_request" | "upstream" | "too_many_requests"; message: string };
 };

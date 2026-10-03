@@ -39,6 +39,7 @@ export async function loadEpisodes(
     list.push({
       sourceId: `src-e${s.id.toString(36)}`,
       container: (s.container ?? "mp4").toUpperCase(),
+      upstream: { kind: "series", id: s.xtreamId, ext: s.container ?? "mp4" },
       lang: it.lang,
       quality: it.quality,
       dynamicRange: it.dynamicRange,

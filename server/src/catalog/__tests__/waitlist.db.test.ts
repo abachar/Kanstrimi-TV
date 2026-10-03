@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { setItemHiddenManual } from "@/catalog";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { runGrouping, runNaming } from "../grouping/group";
 import {
   addToWaitlist,
@@ -20,8 +20,7 @@ const entry = async (key: string) =>
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
-  await setSettings({ tmdb_api_key: "k" });
+  setSecretsForTests({ tmdb_api_key: "k" });
   await seedCategories([{ kind: "vod", xtreamId: "10", name: "|FR| FILMS" }]);
   await seedTmdb("movie", 603, { title: "Matrix", release_date: "1999-03-31" });
   await seedTmdb("movie", 1100, { title: "Dune : Troisième partie", release_date: "2026-12-16" });

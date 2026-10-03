@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { Hono } from "hono";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { itemById } from "@/catalog";
 import { run, runNaming } from "@/catalog";
 import { startRun } from "@/catalog/journal";
@@ -34,7 +34,6 @@ const html = async (path: string) => {
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
   await seedCategories([
     { kind: "vod", xtreamId: "10", name: "|FR| FILMS" },
     { kind: "live", xtreamId: "20", name: "FRANCE | TV" },
@@ -174,6 +173,12 @@ describe("admin", () => {
       expect(panel, bad).not.toContain(bad.replace(/&/g, "&amp;"));
     }
     expect(await html("/admin/settings")).toContain("Serveur Xtream");
+    // The environment's values, in clear; never a field the form sends back.
+    setSecretsForTests({ xtream_password: "s3cret", tmdb_api_key: "" });
+    const settings = await html("/admin/settings");
+    expect(settings).toContain('value="s3cret"');
+    expect(settings).toContain('value="non défini"');
+    expect(settings).not.toMatch(/name="(xtream_\w+|tmdb_api_key)"/);
     expect(await html("/admin/favorites")).toContain("Aucun favori");
     expect(await html("/admin/history")).toContain("En cours");
     expect(await html("/admin/caches")).toContain("Fiches TMDB");
@@ -300,7 +305,7 @@ describe("admin", () => {
   it("waitlist: search TMDB, add a movie, remove it", async () => {
     expect(await html("/admin/waitlist")).toContain("Aucun film attendu");
     expect(await html("/admin/waitlist?q=mission")).toContain("Clé API TMDB non configurée");
-    await setSettings({ tmdb_api_key: "k" });
+    setSecretsForTests({ tmdb_api_key: "k" });
     vi.stubGlobal("fetch", async (u: URL) =>
       String(u).includes("/search/movie")
         ? Response.json({
@@ -326,7 +331,7 @@ describe("admin", () => {
       expect(await html("/admin/waitlist")).toContain("Aucun film attendu");
     } finally {
       vi.unstubAllGlobals();
-      await setSettings({ tmdb_api_key: "" });
+      setSecretsForTests({ tmdb_api_key: "" });
     }
   });
 

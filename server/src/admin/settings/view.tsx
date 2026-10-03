@@ -2,6 +2,8 @@ import type { Settings } from "@/config";
 import { describeCron } from "../format";
 import { Title, Card, Busy } from "../ui";
 
+const ENV_HINT = "Variables d'environnement (secrets podman en production) : redémarrer le serveur après un changement.";
+
 export function SettingsView({ s }: { s: Settings }) {
   const F = ({
     name,
@@ -36,6 +38,15 @@ export function SettingsView({ s }: { s: Settings }) {
       )}
     </div>
   );
+  /** A value of the environment, in clear (selectable to copy); never sent back (no `name`). */
+  const Env = ({ name, label, col = "" }: { name: keyof Settings; label: string; col?: string }) => (
+    <div class={`field ${col}`}>
+      <label class="label" for={`e-${name}`}>
+        {label} <code class="font-mono text-xs text-muted-foreground">{name.toUpperCase()}</code>
+      </label>
+      <input class="input font-mono" id={`e-${name}`} readonly value={s[name] || "non défini"} />
+    </div>
+  );
   /** htmx test buttons: the answer lands in `#target`, the spinner shows meanwhile. */
   const Test = ({ url, target, label }: { url: string; target: string; label: string }) => (
     <div class="mt-4 flex flex-wrap items-center gap-2">
@@ -61,30 +72,30 @@ export function SettingsView({ s }: { s: Settings }) {
       <Title t="Paramètres" sub="Source Xtream, compte client, TMDB, planification, sécurité" />
       <form method="post" action="/admin/settings" class="flex flex-col gap-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title="Serveur Xtream (source)">
+          <Card title="Serveur Xtream (source)" hint={ENV_HINT}>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <F name="xtream_url" label="URL" hint="http://host:port" col="md:col-span-2" />
-              <F name="xtream_username" label="Utilisateur" />
-              <F name="xtream_password" label="Mot de passe" type="password" />
+              <Env name="xtream_url" label="URL" col="md:col-span-2" />
+              <Env name="xtream_username" label="Utilisateur" />
+              <Env name="xtream_password" label="Mot de passe" />
             </div>
             <Test url="/admin/settings/test-xtream" target="xt-result" label="Tester la connexion" />
           </Card>
           <Card title="TMDB">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <F name="tmdb_api_key" label="Clé API (v3) ou token v4" type="password" col="md:col-span-2" />
+              <Env name="tmdb_api_key" label="Clé API (v3) ou token v4" col="md:col-span-2" />
               <F name="tmdb_language" label="Langue" hint="fr-FR, en-US…" />
             </div>
             <Test url="/admin/settings/test-tmdb" target="tm-result" label="Tester TMDB" />
           </Card>
           <Card
             title="Application Apple"
-            hint="Les appareils s'appairent par QR code (page Appareils) ; les flux passent par ce serveur (302), les identifiants Xtream ne sont jamais transmis."
+            hint="Les appareils s'appairent par QR code (page Appareils) ; ils lisent les flux chez le fournisseur, avec ses URL : seuls les appareils appairés les reçoivent."
           >
             <div class="flex flex-col gap-4">
               <F
                 name="public_base_url"
                 label="URL publique de ce serveur"
-                hint="Optionnel, ex : https://kanstrimi.example.org — utilisée dans le QR code d'appairage et les liens de lecture"
+                hint="Optionnel, ex : https://kanstrimi.example.org — utilisée dans le QR code d'appairage et les liens des images"
               />
               <div class="field" data-orientation="horizontal">
                 <input class="input" type="checkbox" role="switch" name="serve_adult" id="serve-adult" checked={s.serve_adult === "1"} />
@@ -121,7 +132,7 @@ export function SettingsView({ s }: { s: Settings }) {
             Défini par <code class="font-mono text-foreground">ADMIN_PASSWORD_HASH</code> dans{" "}
             <code class="font-mono text-foreground">.env</code> (
             <code class="font-mono text-foreground">npm run hash-password -- &lt;mot-de-passe&gt;</code>
-            ). Il chiffre les identifiants Xtream et la clé TMDB en base : en cas de changement, ressaisissez-les ici.
+            ).
           </p>
         </Card>
         <form method="post" action="/admin/settings/retry-unmatched" class="grid">

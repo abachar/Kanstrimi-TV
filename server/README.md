@@ -3,21 +3,21 @@
 Node 22 · Hono · TypeScript · Postgres + Drizzle · Biome · Vitest · esbuild. Admin rendue côté serveur (Hono JSX, HTMX,
 Tailwind CSS 4 et Basecoat, icônes Lucide ; **aucun CSS ni JS maison**).
 Le serveur importe le catalogue du fournisseur, le nettoie, l'enrichit et le sert à l'app Apple ; la vidéo ne le
-traverse jamais (`302` vers le fournisseur).
+traverse jamais (l'app lit l'URL du fournisseur).
 
 ## Démarrage
 
 ```bash
-cp .env.example .env                       # DATABASE_URL, SESSION_SECRET (32+ car.), DATA_DIR
+cp .env.example .env                       # DATABASE_URL, SESSION_SECRET (32+ car.), DATA_DIR, XTREAM_*, TMDB_API_KEY
 npm run hash-password -- <mot-de-passe>    # → ADMIN_PASSWORD_HASH dans .env
 npm install
 npm run db:migrate
 npm run dev                                # http://localhost:3000/admin
 ```
 
-Puis dans l'admin : **Paramètres** (Xtream, clé TMDB, URL publique), **Tâches → Traitement complet**, et
-**Appareils** pour appairer l'Apple TV ou l'iPhone. En local, `DEV_PASSWORD` dans `.env` saute la connexion et
-déverrouille le coffre (refusé en production).
+Puis dans l'admin : **Paramètres** (URL publique, langue TMDB, planification), **Tâches → Traitement complet**, et
+**Appareils** pour appairer l'Apple TV ou l'iPhone. En local, `DEV_PASSWORD` dans `.env` saute la connexion (refusé en
+production).
 
 | Script | Rôle |
 |---|---|
@@ -69,7 +69,7 @@ Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_cont
 
 | Route | Rôle |
 |---|---|
-| `/player/*` | API de l'app Apple. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`) et `/stream/{source}` (lien signé, `302` vers le fournisseur). |
+| `/player/*` | API de l'app Apple. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`). |
 | `/img/…` | images TMDB et logos iptv-org en cache disque ; `/img/shelf/…` = images du Top Shelf, logo du titre dessiné sur le fond par `sharp` |
 | `/admin` | administration |
 | `/health` | santé (base joignable) ; en production, la cause d'une panne reste dans le journal |
@@ -86,9 +86,9 @@ app.ts      l'application HTTP : montages, /health, erreurs
 admin/      pages de l'admin ; aucune écriture en base (vérifié), elle appelle le domaine
 player/     /player, un fichier par ressource ; types.ts = le contrat
 catalog/    le domaine : grammaire des noms, clés, règles, groupement, épisodes, pipeline
-devices/    appairage, jetons, déverrouillage du coffre
+devices/    appairage, jetons
 providers/  xtream/, tmdb/ (dont le cache d'images), iptv/ ; un provider ne connaît pas le catalogue
-config/     réglages chiffrés, coffre
+config/     réglages (base et environnement), mot de passe
 db/         client, schéma, migrations, prédicats de visibilité
 shared/     utilitaires ; n'importe jamais `@/`
 ```
@@ -128,16 +128,18 @@ par son index.
   par `jsonb_to_recordset` d'un seul paramètre (les cartes, colonnes décrites une fois dans `group.ts`). Une carte
   n'est réécrite que si elle change.
   Le merge, les règles et le groupement passent l'un après l'autre (`withCatalogLock`).
-- **Secrets** : un seul mot de passe ; réglages sensibles chiffrés avec une clé gardée en RAM. Après un redémarrage le
-  serveur est verrouillé jusqu'à la première requête authentifiée (le premier appel d'un appareil appairé suffit).
-  `/admin/login` passe toujours par bcrypt et, par adresse, après cinq échecs, double l'attente à chaque nouvel échec (429).
+- **Secrets** : le compte du fournisseur et la clé TMDB viennent de l'environnement (secrets podman en production), jamais
+  de la base ; l'admin les montre sans les modifier, un changement demande un redémarrage. Un seul mot de passe (bcrypt),
+  celui de l'admin : `/admin/login` passe toujours par bcrypt et, par adresse, après cinq échecs, double l'attente à chaque nouvel échec (429).
 - **Textes des cartes** (`player/cards.ts`) : les listes, l'accueil, la recherche, « À suivre » et les épisodes envoient des
   `ContentItem` dont le serveur écrit les textes (« 2019 · ★ 8.5 », badges dans l'ordre, « S2 · É4 · 1 h 08 restantes »,
   en-têtes « À SUIVRE ») ; l'app les dispose sans les recalculer. La fiche reste un `Card`.
 - **Recherche** (`player/search.ts`) : un terme d'un caractère est un mot entier, un préfixe à partir de deux ; seuls les
   200 contenus les plus votés par type (préfixes, et mots entiers pour qu'un titre égal à la requête reste) sont classés.
-- **Liens de lecture** : signés par appareil, valables un quart d'heure, car leur `302` livre les identifiants du
-  fournisseur ; l'app redemande `/playback` après une panne.
+- **Appairage** : `POST /player/devices` rend le code et le jeton de l'appareil (seule son empreinte est en base) ; le jeton
+  ne vaut qu'une fois le code approuvé dans l'admin, `GET /player/devices/{code}` ne donne que le statut.
+- **Liens de lecture** : `stream_url` est l'URL du fournisseur, compte compris, envoyée aux seuls appareils appairés ;
+  l'app la lit elle-même (le fournisseur répond encore un `302` vers son backend) et redemande `/playback` après une panne.
 - **Ne jamais journaliser une URL brute** : le mot de passe Xtream y circule. Passer par `requestLogger()`.
 - **Liste d'attente** (`catalog/waitlist.ts`, admin › Application) : des films cherchés sur TMDB avant que le fournisseur ne les ait. Dès
   qu'un contenu visible porte leur clé `tmdb:movie:<id>`, ils passent en tête du Top Shelf et du carrousel de l'accueil,
@@ -161,7 +163,9 @@ Image `linux/amd64` construite par GitHub Actions et publiée sur `ghcr.io` ; Ha
 Quadlet, derrière Caddy) la récupère seul. esbuild produit `dist/main.js` et `dist/db/migrate.js`, dépendances incluses ;
 seul `sharp` (libvips natif) reste hors du bundle et forme l'unique `node_modules` de l'image.
 
-- Variables : `ADMIN_PASSWORD_HASH`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `DATA_DIR`, `PORT`, `TZ`.
+- Variables : `ADMIN_PASSWORD_HASH`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `DATA_DIR`, `PORT`, `TZ`, et le
+  compte du fournisseur `XTREAM_URL`, `XTREAM_USERNAME`, `XTREAM_PASSWORD` avec `TMDB_API_KEY` (secrets podman,
+  `Secret=…,type=env,target=…` dans le Quadlet).
 - `DATA_DIR` ne contient que des caches reconstructibles et les logs : seule la base se sauvegarde.
 - Le mot de passe circule en clair dans les URL Xtream : LAN ou HTTPS uniquement.
 

@@ -481,15 +481,13 @@ export const deviceStatusEnum = pgEnum("device_status", ["pending", "approved", 
 
 /**
  * A paired TV. The 6-character code is its public identifier for life; the token (stored
- * hashed) authenticates every REST call; `wrapped_key` is the vault key encrypted with a
- * key derived from the token, so the first call after a restart unlocks the vault.
+ * hashed), issued with the code, authenticates every REST call once the code is approved.
  */
 export const appDevices = pgTable("app_devices", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),
   name: text("name"),
   tokenHash: text("token_hash").unique(),
-  wrappedKey: text("wrapped_key"),
   status: deviceStatusEnum("status").default("pending").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

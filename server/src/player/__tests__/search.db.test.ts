@@ -6,7 +6,14 @@ import { resetDb, closeDb } from "@/test/db";
 import { search } from "../search";
 import type { RestContext } from "../context";
 
-const ctx: RestContext = { baseUrl: "http://k.test", device: null, tmdbLang: "fr-FR", providerName: "p", serveAdult: false };
+const ctx: RestContext = {
+  baseUrl: "http://k.test",
+  device: null,
+  tmdbLang: "fr-FR",
+  providerName: "p",
+  upstreamUrl: () => null,
+  serveAdult: false,
+};
 const titles = (r: { movies: { title: string }[] }) => r.movies.map((c) => c.title);
 
 beforeAll(async () => {

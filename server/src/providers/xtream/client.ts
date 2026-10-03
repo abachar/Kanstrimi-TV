@@ -137,12 +137,12 @@ export class XtreamClient {
   }
 }
 
-/** The upstream URL of a stream, from the saved settings; null until the provider is configured. Pure: no network. */
+/** The upstream URL of a stream, from the settings; null until the provider is configured. Pure: no network. */
 export function upstreamStreamUrl(s: Settings, kind: "live" | "movie" | "series", id: number | string, ext: string): string | null {
   return xtreamFromSettings(s)?.streamUrl(kind, id, ext) ?? null;
 }
 
-/** The upstream client from the saved settings; null until URL, user and password are all filled in. */
+/** The upstream client from the settings; null until URL, user and password are all set in the environment. */
 export function xtreamFromSettings(s: Settings): XtreamClient | null {
   return isXtreamConfigured(s) ? new XtreamClient(s.xtream_url, s.xtream_username, s.xtream_password) : null;
 }

@@ -52,9 +52,8 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
           <Icon name="alert" />
           <h2>Serveur Xtream non configuré</h2>
           <section>
-            <a href="/admin/settings" class="underline underline-offset-4">
-              Ouvrir les paramètres
-            </a>
+            <code class="font-mono">XTREAM_URL</code>, <code class="font-mono">XTREAM_USERNAME</code> et{" "}
+            <code class="font-mono">XTREAM_PASSWORD</code> manquent dans l'environnement.
           </section>
         </div>
       )}

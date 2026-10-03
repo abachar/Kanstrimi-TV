@@ -2,11 +2,10 @@ import type { MiddlewareHandler } from "hono";
 
 /**
  * The Xtream protocol carries the password in every URL — as a query parameter
- * (`?username=…&password=…`) and as a path segment (`/live/<user>/<pass>/<id>.ts`).
- * That password is also the key that decrypts the settings, so it must never reach
- * journald. Hono's own logger prints the raw URL, hence this replacement.
+ * (`?username=…&password=…`) and as a path segment (`/live/<user>/<pass>/<id>.ts`):
+ * it must never reach journald. Hono's own logger prints the raw URL, hence this replacement.
  */
-const SECRET_PARAMS = new Set(["password", "pass", "tmdb_api_key", "api_key", "token", "s", "sig"]);
+const SECRET_PARAMS = new Set(["password", "pass", "tmdb_api_key", "api_key", "token"]);
 const STREAM_PATH = /^\/(live|movie|series)\/([^/]+)\/[^/]+\//;
 const MASK = "***";
 

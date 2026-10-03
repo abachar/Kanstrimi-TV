@@ -23,8 +23,13 @@ const schema = z
     DATABASE_URL: z.string().optional(),
     DATA_DIR: z.string().default("./data"),
     PORT: z.coerce.number().int().positive().default(3000),
-    /** Local development only: logs the admin in and unlocks the vault without the login page. */
+    /** Local development only: logs the admin in without the login page. */
     DEV_PASSWORD: z.string().optional(),
+    /** The provider account and the TMDB key: podman secrets in production, never stored in the database. */
+    XTREAM_URL: z.string().trim().default(""),
+    XTREAM_USERNAME: z.string().trim().default(""),
+    XTREAM_PASSWORD: z.string().default(""),
+    TMDB_API_KEY: z.string().trim().default(""),
   })
   .superRefine((v, ctx) => {
     if (!isProd) return;
@@ -53,6 +58,13 @@ export const env = {
   port: parsed.data.PORT,
   /** Set (outside production) = no login page, and the admin pages reload themselves after every restart. */
   devPassword: isProd ? undefined : parsed.data.DEV_PASSWORD,
+  /** The provider account and the TMDB key, as `getSettings` hands them out. */
+  secrets: {
+    xtream_url: parsed.data.XTREAM_URL,
+    xtream_username: parsed.data.XTREAM_USERNAME,
+    xtream_password: parsed.data.XTREAM_PASSWORD,
+    tmdb_api_key: parsed.data.TMDB_API_KEY,
+  },
   /** Changes at every start: what the dev reload poll compares. */
   bootId: randomBytes(6).toString("hex"),
 };

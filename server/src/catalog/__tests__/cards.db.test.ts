@@ -2,15 +2,14 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb, seedTmdb } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { refreshCardOnOpen } from "../cards";
 
 const content = async (key: string) => (await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, key)))[0];
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
-  await setSettings({ tmdb_api_key: "k" });
+  setSecretsForTests({ tmdb_api_key: "k" });
   // Cached before the logos were kept.
   await seedTmdb("movie", 603, { title: "Matrix" });
   await seedTmdb("movie", 949, { title: "Heat" });

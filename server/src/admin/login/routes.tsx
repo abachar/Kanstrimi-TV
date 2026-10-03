@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { clientIp } from "@/shared";
 import { login, logout } from "../session";
-import { isUnlocked } from "@/config";
 import { page, back, form } from "../http";
 import { LoginView } from "./view";
 import { loginFailed, loginSucceeded, loginWait } from "./attempts";
@@ -13,9 +12,7 @@ export const safeNext = (s?: string) => (s && /^\/admin\/[A-Za-z0-9/_-]*$/.test(
 export const loginRoutes = new Hono();
 export const logoutRoutes = new Hono();
 
-loginRoutes.get("/", (c) =>
-  page(c, "Connexion", <LoginView locked={!isUnlocked()} error={c.req.query("err")} next={c.req.query("next")} />, false),
-);
+loginRoutes.get("/", (c) => page(c, "Connexion", <LoginView error={c.req.query("err")} next={c.req.query("next")} />, false));
 loginRoutes.post("/", async (c) => {
   const next = safeNext(c.req.query("next"));
   const ip = clientIp(c.req.raw);
@@ -24,12 +21,7 @@ loginRoutes.post("/", async (c) => {
     const seconds = Math.ceil(wait / 1000);
     c.status(429);
     c.header("Retry-After", String(seconds));
-    return page(
-      c,
-      "Connexion",
-      <LoginView locked={!isUnlocked()} error={`Trop de tentatives : réessayez dans ${seconds} s`} next={next} />,
-      false,
-    );
+    return page(c, "Connexion", <LoginView error={`Trop de tentatives : réessayez dans ${seconds} s`} next={next} />, false);
   }
   const { email, password } = await form(c);
   if (!(await login(c, email ?? "", password ?? ""))) {

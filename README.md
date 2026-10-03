@@ -4,15 +4,15 @@ Système de streaming **personnel et mono-utilisateur**. Il se branche sur **un*
 Xtream Codes, importe son catalogue, le nettoie, l'enrichit via **TMDB** et le sert à
 l'app Apple maison (Apple TV et iPhone, iPad à venir).
 
-Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées et
-répond `302` vers le flux d'origine. Ce `302` porte les identifiants du fournisseur (dans son `Location`) :
-les liens de lecture sont signés par appareil et ne valent qu'un quart d'heure.
+Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées, et chaque source porte l'URL
+du fournisseur, que l'app lit directement (sans passer par le serveur, donc par le VPN de l'appareil s'il en a un).
+Cette URL contient le compte du fournisseur : seuls les appareils appairés la reçoivent.
 
 ```
 Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enrichi, groupé)
                           │
                           ├──► API REST /player + images ──► apple/
-                          └──► 302 ──────────────────────► le flux vidéo, en direct
+                          └──► URL du fournisseur ─────────► le flux vidéo, lu par l'app
 ```
 
 ## Composants
@@ -51,7 +51,7 @@ Copyright © 2026 Abdelhakim Bachar - Crafters.
 Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non planifiées.
 
 - Reste de la revue :
-  - **Admin** : ne plus renvoyer les secrets dans la page Paramètres (champ vide = inchangé) ; cookie de session
+  - **Admin** : cookie de session
     révocable (date d'émission et génération, 30 jours) ; page d'erreur sans le détail (gardé au journal) et un
     `intParam()` pour les identifiants de route.
   - **Switch « Visible »** de l'admin : recalculer les contenus aussitôt, l'app attend aujourd'hui le prochain `group`.

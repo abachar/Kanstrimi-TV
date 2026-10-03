@@ -5,7 +5,6 @@ import type { Env } from "./context";
 import { BadRequest, fail } from "./http";
 import { bearer } from "./auth";
 import { deviceRoutes, pairingRoutes } from "./devices";
-import { streamRoutes } from "./stream";
 import { infoRoutes } from "./info";
 import { homeRoutes } from "./home";
 import { listRoutes } from "./lists";
@@ -37,7 +36,6 @@ player.notFound(() => fail("not_found", "Route inconnue"));
 
 // Without a token: pairing and the signed stream links.
 player.route("/devices", pairingRoutes);
-player.route("/stream", streamRoutes);
 
 // Everything else carries the device token.
 player.use("*", bearer());

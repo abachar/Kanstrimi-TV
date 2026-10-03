@@ -24,7 +24,7 @@ describe("app", () => {
   it("/health: the database answers, the vault state is reported without changing the status", async () => {
     const res = await app.request("/health");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, unlocked: expect.any(Boolean) });
+    expect(await res.json()).toEqual({ ok: true });
   });
 
   it("/health: a database down is a 500 that tells why in development only; the cause is logged", async () => {
@@ -36,7 +36,7 @@ describe("app", () => {
       expect(((await dev.json()) as { error: string }).error).toContain("ECONNREFUSED");
       const prod = await inProduction(() => app.request("/health"));
       expect(prod.status).toBe(500);
-      expect(await prod.json()).toEqual({ ok: false, unlocked: expect.any(Boolean) });
+      expect(await prod.json()).toEqual({ ok: false });
       expect(logged).toHaveBeenCalledWith(expect.stringContaining("ECONNREFUSED"));
     } finally {
       down.mockRestore();

@@ -1,11 +1,14 @@
 export {
   DEFAULTS,
+  ENV_KEYS,
   getSettings,
   invalidateSettings,
   isXtreamConfigured,
   onSettingsChange,
+  setSecretsForTests,
   setSettings,
+  type EnvKey,
   type SettingKey,
   type Settings,
 } from "./settings";
-export { isUnlocked, lockForTests, unlockWith, verify, verifyLogin, wrapKeyWith } from "./vault";
+export { verifyPassword } from "./password";

@@ -1,20 +1,18 @@
 import { serve } from "@hono/node-server";
 import { client } from "@/db";
-import { getSettings, onSettingsChange, verify } from "@/config";
+import { getSettings, onSettingsChange, verifyPassword } from "@/config";
 import { schedule, closeOrphanLogs } from "@/catalog";
 import { describeError, env } from "@/shared";
 import { app } from "./app";
 
 const server = serve({ fetch: app.fetch, port: env.port, hostname: "0.0.0.0" }, () => {
   console.log(`Kanstrimi server → port ${env.port}`);
-  // Local development: unlock at boot so the schedule runs and the login page is skipped.
+  // Local development: the login page is skipped when the password matches.
   if (env.devPassword)
-    void verify(env.devPassword)
+    void verifyPassword(env.devPassword)
       .then((ok) =>
         console.log(
-          ok
-            ? "[boot] DEV_PASSWORD : coffre déverrouillé, connexion admin automatique"
-            : "[boot] DEV_PASSWORD ne correspond pas à ADMIN_PASSWORD_HASH",
+          ok ? "[boot] DEV_PASSWORD : connexion admin automatique" : "[boot] DEV_PASSWORD ne correspond pas à ADMIN_PASSWORD_HASH",
         ),
       )
       .catch((e) => console.error("[boot] DEV_PASSWORD :", describeError(e)));

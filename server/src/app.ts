@@ -4,7 +4,6 @@ import { secureHeaders } from "hono/secure-headers";
 import { bodyLimit } from "hono/body-limit";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { isUnlocked } from "@/config";
 import { player } from "@/player";
 import { imgRoute } from "@/providers/tmdb";
 import { logoRoute } from "@/providers/iptv";
@@ -34,20 +33,15 @@ app.use("/admin/*", secureHeaders({ crossOriginResourcePolicy: false, contentSec
 app.use(secureHeaders({ crossOriginResourcePolicy: false }));
 app.use(bodyLimit({ maxSize: 1024 * 1024 }));
 
-/**
- * `unlocked` is reported but never changes the status code: the vault is locked after
- * every restart until the first authenticated request, and a red healthcheck there
- * would restart a perfectly healthy container in a loop. Anyone may ask: in production the
- * cause of a failure stays in the log (host and port of the database).
- */
+/** Anyone may ask: in production the cause of a failure stays in the log (host and port of the database). */
 app.get("/health", async (c) => {
   try {
     await db.execute(sql`select 1`);
-    return c.json({ ok: true, unlocked: isUnlocked() });
+    return c.json({ ok: true });
   } catch (e) {
     const error = describeError(e);
     console.error(`[health] base injoignable : ${error}`);
-    return c.json({ ok: false, unlocked: isUnlocked(), ...(env.isProd ? {} : { error }) }, 500);
+    return c.json({ ok: false, ...(env.isProd ? {} : { error }) }, 500);
   }
 });
 app.get("/", (c) => c.redirect("/admin"));

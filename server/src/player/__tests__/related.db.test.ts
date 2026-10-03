@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { db, schema } from "@/db";
 import { resetDb, closeDb } from "@/test/db";
-import { setSettings, verify } from "@/config";
+import { setSecretsForTests } from "@/config";
 import { recommendedKeys } from "@/catalog";
 import { recommendationsSettled, resetRecommendations } from "@/providers/tmdb";
 import { contentByKey } from "../contents";
@@ -10,7 +10,14 @@ import { setProgress } from "../progress";
 import { setFavorite } from "../favorites";
 import type { RestContext } from "../context";
 
-const ctx: RestContext = { baseUrl: "http://k.test", device: null, tmdbLang: "fr-FR", providerName: "p", serveAdult: false };
+const ctx: RestContext = {
+  baseUrl: "http://k.test",
+  device: null,
+  tmdbLang: "fr-FR",
+  providerName: "p",
+  upstreamUrl: () => null,
+  serveAdult: false,
+};
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400000);
 
 /** TMDB's recommendations by title, as `/movie/603/recommendations` answers them. */
@@ -38,8 +45,7 @@ async function content(key: string, title: string, extra: Partial<typeof schema.
 
 beforeAll(async () => {
   await resetDb();
-  expect(await verify("test")).toBe(true);
-  await setSettings({ tmdb_api_key: "k" });
+  setSecretsForTests({ tmdb_api_key: "k" });
   await content("tmdb:movie:603", "Matrix", { sagaId: 2344, releaseDate: "1999-03-31" });
   await content("tmdb:movie:604", "Matrix Reloaded", { sagaId: 2344, releaseDate: "2003-05-15", overview: "La suite." });
   await content("tmdb:movie:605", "Matrix Revolutions", { sagaId: 2344, releaseDate: "2003-11-05" });
