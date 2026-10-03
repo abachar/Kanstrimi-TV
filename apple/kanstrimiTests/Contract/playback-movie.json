@@ -40,5 +40,13 @@
   ],
   "resume_at": null,
   "duration": 8160,
-  "next": null
+  "next": null,
+  "cast": [
+    {
+      "id": "person:6384",
+      "name": "Keanu Reeves",
+      "role": "Neo",
+      "photo": "http://kanstrimi.test/img/w185/keanu.jpg"
+    }
+  ]
 }

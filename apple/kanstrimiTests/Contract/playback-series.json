@@ -27,5 +27,13 @@
   ],
   "resume_at": null,
   "duration": 4680,
-  "next": null
+  "next": null,
+  "cast": [
+    {
+      "id": "person:6384",
+      "name": "Keanu Reeves",
+      "role": "Invité",
+      "photo": "http://kanstrimi.test/img/w185/keanu.jpg"
+    }
+  ]
 }
