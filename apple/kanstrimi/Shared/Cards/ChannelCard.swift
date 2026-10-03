@@ -23,6 +23,7 @@ struct ChannelItem: Hashable {
 /// Every channel the same way: logo, name and favourite, then « EN COURS » or when it was watched, the quality last
 /// chosen; under them what is on air with its progress, its hours when `hours`. As wide as its parent makes it (a
 /// tile in a row, the whole width of a list): the home, the Direct screen, the player's list and its « Récentes ».
+/// On iPhone it draws its own background, which the tvOS card style draws there.
 struct ChannelCard: View {
     @Environment(\.metrics) private var metrics
     let item: ChannelItem
@@ -48,6 +49,10 @@ struct ChannelCard: View {
             }
             .padding(metrics.compact ? 12 : 18)
             .frame(maxWidth: .infinity, alignment: .leading)
+            // tvOS: the card style draws the platter; touch screens have none, so the card draws its own.
+            .background {
+                if !Platform.isTV { RoundedRectangle(cornerRadius: metrics.cardRadius).fill(.white.opacity(0.08)) }
+            }
         }
         .cardButtonStyle()
     }

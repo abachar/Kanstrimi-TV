@@ -54,9 +54,9 @@ struct SagaView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("SAGA").font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
+                        Text(s.heading).font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
                         Text(s.name).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(2)
-                        Text(filmCount(s.count)).font(.title3).foregroundStyle(Theme.secondary)
+                        Text(s.facts).font(.title3).foregroundStyle(Theme.secondary)
                     }
                     .padding(.horizontal, metrics.inset)
                     .padding(.top, metrics.detailTop)
@@ -149,4 +149,3 @@ struct StudioShelf: View {
     }
 }
 
-private func filmCount(_ n: Int) -> String { n > 1 ? "\(n) films" : "\(n) film" }

@@ -48,21 +48,6 @@ struct Badge: View {
     }
 }
 
-/// Row of quality and language badges a card or a sheet shows.
-struct VersionBadges: View {
-    let quality: String?
-    let languages: [Language]
-    var compact = false
-
-    var body: some View {
-        HStack(spacing: compact ? 4 : 6) {
-            if let quality { Badge(quality, small: compact) }
-            ForEach(compact ? Array(languages.prefix(2)) : languages, id: \.self) { Badge($0.rawValue, small: compact) }
-            if compact, languages.count > 2 { Badge("+\(languages.count - 2)", small: compact) }
-        }
-    }
-}
-
 /// Thin progress bar drawn on cards and episodes.
 struct ProgressBar: View {
     let fraction: Double

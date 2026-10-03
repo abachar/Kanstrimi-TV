@@ -395,18 +395,15 @@ struct EpisodeRow: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 14) {
-                    WideCard(item: episode.item, showsTitle: false).frame(width: metrics.stillWidth)
+                    WideCard(item: item, showsTitle: false).frame(width: metrics.stillWidth)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("\(episode.number). \(episode.title)").font(.subheadline.weight(.semibold)).lineLimit(2)
-                        Text(facts).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-                        if let warning = languageWarning {
-                            Text(warning).font(.caption2.weight(.bold)).padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
-                        }
+                        Text("\(episode.number). \(item.title)").font(.subheadline.weight(.semibold)).lineLimit(2)
+                        if let facts = item.facts { Text(facts).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1) }
+                        if let warning { warningTag(warning) }
                     }
                     Spacer(minLength: 0)
                 }
-                if let o = episode.overview {
+                if let o = item.overview {
                     Text(o).font(.caption).foregroundStyle(Theme.secondary).lineLimit(3).multilineTextAlignment(.leading)
                 }
             }
@@ -418,42 +415,34 @@ struct EpisodeRow: View {
         .disabled(episode.versions.isEmpty)
     }
 
-    /// "45 min · 12 min restantes".
-    private var facts: String {
-        var parts: [String] = []
-        if let r = episode.runtime { parts.append("\(r) min") }
-        if let p = episode.progress, p.isResumable { parts.append(Format.remaining(p.remaining)) }
-        else if episode.progress?.isWatched == true { parts.append("Vu") }
-        return parts.joined(separator: " · ")
+    private var item: ContentItem { episode.item }
+
+    /// « VF SEUL », written by the server for a one-language episode: shown when the series plays in another one.
+    private var warning: String? {
+        guard let l = seriesLanguage, !episode.languages.contains(l) else { return nil }
+        return item.hint
     }
 
-    private var languageWarning: String? {
-        guard let l = seriesLanguage, !episode.languages.contains(l), let only = episode.languages.first else { return nil }
-        return "\(only.rawValue) SEUL"
+    private func warningTag(_ text: String) -> some View {
+        Text(text).font(.caption2.weight(.bold)).padding(.horizontal, metrics.compact ? 6 : 8).padding(.vertical, metrics.compact ? 2 : 3)
+            .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
     }
 
     private var tvRow: some View {
         Button(action: action) {
             HStack(spacing: 24) {
-                WideCard(item: episode.item, showsTitle: false).frame(width: metrics.stillWidth)
+                WideCard(item: item, showsTitle: false).frame(width: metrics.stillWidth)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text("\(episode.number)").font(.headline).foregroundStyle(Theme.secondary)
-                        Text(episode.title).font(.headline).lineLimit(2)
+                        Text(item.title).font(.headline).lineLimit(2)
                     }
-                    if let o = episode.overview { Text(o).font(.callout).foregroundStyle(Theme.secondary).lineLimit(2) }
-                    // Badges and times on one line that scrolls when the row is narrow.
+                    if let o = item.overview { Text(o).font(.callout).foregroundStyle(Theme.secondary).lineLimit(2) }
+                    // Times, badges and warning on one line that scrolls when the row is narrow.
                     ScrollView(.horizontal) { HStack(spacing: 8) {
-                        if let r = episode.runtime { Text("\(r) min").font(.caption).foregroundStyle(Theme.secondary) }
-                        VersionBadges(quality: episode.versions.maxQuality.map { q in episode.versions.maxDynamicRange.map { $0 == .sdr ? q.rawValue : "\(q.rawValue) \($0.shortLabel)" } ?? q.rawValue },
-                                      languages: episode.languages)
-                        if let l = seriesLanguage, !episode.languages.contains(l), let only = episode.languages.first {
-                            Text("\(only.rawValue) SEUL").font(.caption2.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 3)
-                                .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
-                        }
-                        if let p = episode.progress, p.isResumable {
-                            Text(Format.remaining(p.remaining)).font(.caption).foregroundStyle(Theme.secondary)
-                        }
+                        if let facts = item.facts { Text(facts).font(.caption).foregroundStyle(Theme.secondary) }
+                        ForEach(item.badges, id: \.self) { Badge($0) }
+                        if let warning { warningTag(warning) }
                     } .fixedSize() }
                     .scrollClipDisabled()
                 }

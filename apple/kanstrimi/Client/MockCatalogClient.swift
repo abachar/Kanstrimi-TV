@@ -133,11 +133,17 @@ final class MockCatalogClient: CatalogClient {
                            badges: [quality].compactMap { $0 } + e.languages.map(\.rawValue), overview: e.overview)
     }
 
-    /// An episode's card, written as the server writes it (`episodeWire`).
+    /// An episode's card and row, written as the server writes it (`episodeWire`).
     private static func episodeItem(_ e: Episode, progress p: Progress?) -> ContentItem {
-        let facts = ["É\(e.number)", e.runtime.map(Format.runtime(minutes:))].compactMap { $0 }.joined(separator: " · ")
-        return ContentItem(id: e.id, kind: .episode, title: e.title, picture: e.still, facts: facts,
-                           progress: p?.isResumable == true ? p?.fraction : nil, watched: p?.isWatched ?? false, caption: facts)
+        let runtime = e.runtime.map(Format.runtime(minutes:))
+        let state = p.flatMap { $0.isResumable ? Format.remaining($0.remaining) : $0.isWatched ? "Vu" : nil }
+        let facts = [runtime, state].compactMap { $0 }
+        let quality = e.versions.maxQuality.map { q in e.versions.maxDynamicRange.flatMap { $0 == .sdr ? nil : "\(q.rawValue) \($0.shortLabel)" } ?? q.rawValue }
+        return ContentItem(id: e.id, kind: .episode, title: e.title, picture: e.still, facts: facts.isEmpty ? nil : facts.joined(separator: " · "),
+                           badges: [quality].compactMap { $0 } + e.languages.map(\.rawValue),
+                           hint: e.languages.count == 1 ? "\(e.languages[0].rawValue) SEUL" : nil,
+                           progress: p?.isResumable == true ? p?.fraction : nil, watched: p?.isWatched ?? false,
+                           caption: ["É\(e.number)", runtime].compactMap { $0 }.joined(separator: " · "), overview: e.overview)
     }
 
     /// Resume card for an episode: the series card, the episode's progress and reference.
@@ -363,7 +369,8 @@ final class MockCatalogClient: CatalogClient {
         try await gate()
         guard let f = sagaFixtures.first(where: { $0.id == id }) else { throw CatalogError.notFound }
         let cards = movies.filter { f.movies.contains($0.id) }.sorted { ($0.year ?? 0) > ($1.year ?? 0) }.map { item(for: $0) }  // latest first, like the server
-        return SagaSheet(id: f.id, name: f.name, count: cards.count, poster: f.poster, backdrop: f.backdrop, movies: cards)
+        return SagaSheet(id: f.id, name: f.name, count: cards.count, poster: f.poster, backdrop: f.backdrop, heading: "SAGA",
+                         facts: cards.count > 1 ? "\(cards.count) films" : "\(cards.count) film", movies: cards)
     }
 
     func person(id: String) async throws -> PersonSheet {

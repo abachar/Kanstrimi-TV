@@ -179,10 +179,11 @@ struct HTTPCatalogClientTests {
         #expect(page.nextCursor == "xyz")
         #expect(page.total == nil)
 
-        answer(200, #"{"id":"saga:900","name":"Trilogie - Saga","count":1,"poster":null,"backdrop":null,"movies":[{"id":"tmdb:movie:1","kind":"movie","title":"Un"}]}"#)
+        answer(200, #"{"id":"saga:900","name":"Trilogie - Saga","count":1,"poster":null,"backdrop":null,"heading":"SAGA","facts":"1 film","movies":[{"id":"tmdb:movie:1","kind":"movie","title":"Un"}]}"#)
         let sheet = try await client.saga(id: "saga:900")
         #expect(try last.url?.path() == "/player/movies/sagas/saga:900")
         #expect(sheet.movies.map(\.title) == ["Un"])
+        #expect(sheet.facts == "1 film")
 
         // The sheet carries its saga when it has one, and decodes without it.
         answer(200, #"{"id":"tmdb:movie:1","kind":"movie","title":"Un","saga":{"id":"saga:900","name":"Trilogie - Saga","count":3}}"#)
