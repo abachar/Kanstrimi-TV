@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import { db, schema, visibleItem } from "@/db";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { db, schema } from "@/db";
+import { and, inArray, sql } from "drizzle-orm";
 import { getSettings } from "@/config";
 import pkg from "../../package.json";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
-import { visibleContent } from "./contents";
+import { servedVariant, visibleContent } from "./contents";
 import { DEFAULT_LANGUAGE_ORDER, sortLanguages } from "./versions";
 import type { ServerInfo } from "./types";
 
@@ -26,13 +26,7 @@ export async function serverInfo(ctx: RestContext): Promise<ServerInfo> {
         decided: sql<number>`count(*) filter (where ${schema.catalogVariants.matchStatus} in ('matched','manual','unmatched'))::int`,
       })
       .from(schema.catalogVariants)
-      .where(
-        and(
-          inArray(schema.catalogVariants.kind, ["vod", "series"]),
-          visibleItem,
-          ctx.serveAdult ? undefined : eq(schema.catalogVariants.adult, false),
-        ),
-      ),
+      .where(and(inArray(schema.catalogVariants.kind, ["vod", "series"]), servedVariant(ctx))),
     db.execute<{ l: string }>(
       sql`select distinct unnest(languages) as l from ${schema.catalogContents} where ${visibleContent(ctx)} and kind <> 'live'`,
     ),

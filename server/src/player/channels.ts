@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import { db, schema, type Content, visibleItem } from "@/db";
+import { db, schema, type Content } from "@/db";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { slug } from "@/shared";
 import { LIVE_THEMES, parseKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
-import { contentByKey, liveCategories, variantsOf, visibleContent } from "./contents";
+import { contentByKey, liveCategories, servedVariant, variantsOf, visibleContent } from "./contents";
 import { favoriteSet } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
 import { playableOfItem, qualityOfRank, versionsOf, type Playable } from "./versions";
@@ -35,7 +35,7 @@ channelRoutes.get("/:id/programmes", async (c) => {
   const ctx = c.get("ctx");
   const content = await contentByKey(ctx, key);
   if (!content) return fail("not_found", "Chaîne introuvable");
-  const { playables } = await variantsOf(content);
+  const { playables } = await variantsOf(ctx, content);
   const { versions, guides } = guided(ctx, playables, await epgOf(playables.flatMap((p) => p.epgIds)));
   const version = c.req.query("version");
   const id = (version && guides.has(version) ? guides.get(version) : guides.get(versions[0]?.id ?? "")) ?? null;
@@ -174,7 +174,7 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
     db
       .select()
       .from(schema.catalogVariants)
-      .where(and(eq(schema.catalogVariants.kind, "live"), visibleItem, sql`${schema.catalogVariants.contentId} is not null`)),
+      .where(and(eq(schema.catalogVariants.kind, "live"), servedVariant(ctx), sql`${schema.catalogVariants.contentId} is not null`)),
     favoriteSet(),
     mostWatchedKeys(),
   ]);
@@ -228,6 +228,6 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
 }
 
 export async function channelSheet(ctx: RestContext, content: Content): Promise<ChannelWire> {
-  const [{ playables }, favs] = await Promise.all([variantsOf(content), favoriteSet()]);
+  const [{ playables }, favs] = await Promise.all([variantsOf(ctx, content), favoriteSet()]);
   return channelWire(ctx, content, playables, favs, await epgOf(playables.flatMap((p) => p.epgIds)));
 }

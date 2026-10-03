@@ -327,6 +327,24 @@ describe("adult contents", () => {
     expect((await get("/info")).body.counts.movies).toBe(4);
     await setSettings({ serve_adult: "0" });
   });
+
+  it("an adult variant of a content that is not adult is never played without the setting", async () => {
+    const flag = (xtreamId: string, nameAdult: boolean) =>
+      db.update(schema.catalogVariants).set({ nameAdult }).where(eq(schema.catalogVariants.xtreamId, xtreamId));
+    await flag("7", true); // Heat, Director's Cut
+    await flag("100", true); // TF1 HD
+    const heatVersions = async () => (await get("/movies/tmdb:movie:949")).body.versions.map((v: { id: string }) => v.id);
+    const tf1Versions = async () => (await get("/channels")).body[0].channels[0].versions.map((v: { id: string }) => v.id);
+    expect(await heatVersions()).toEqual(["vostfr-hd"]);
+    expect((await get("/playback/tmdb:movie:949")).body.versions.length).toBe(1);
+    expect(await tf1Versions()).toEqual(["vf-fhd"]);
+    await setSettings({ serve_adult: "1" });
+    expect(await heatVersions()).toEqual(["vostfr-hd", "vostfr-hd-director-s-cut"]);
+    expect(await tf1Versions()).toEqual(["vf-fhd", "vf-hd"]);
+    await setSettings({ serve_adult: "0" });
+    await flag("7", false);
+    await flag("100", false);
+  });
 });
 
 describe("GET /info", () => {

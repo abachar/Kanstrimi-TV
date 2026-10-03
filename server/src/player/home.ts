@@ -95,7 +95,7 @@ async function heroOf(
   favorite: boolean,
 ): Promise<HomeHero> {
   const { content: c, episode: e } = p;
-  const versions = versionsOf(ctx, e ? e.playables : (await variantsOf(c)).playables);
+  const versions = versionsOf(ctx, e ? e.playables : (await variantsOf(ctx, c)).playables);
   const summary = versionsSummary(versions);
   const runtime = e ? e.runtime : c.runtime;
   const facts = [

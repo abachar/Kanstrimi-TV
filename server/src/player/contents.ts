@@ -13,6 +13,13 @@ export const visibleContent = (ctx: RestContext, kind?: "live" | "vod" | "series
     ctx.serveAdult ? undefined : eq(schema.catalogContents.adult, false),
   )!;
 
+/**
+ * What the app may play: a visible variant, flagged adult only when the setting allows it. A content
+ * is adult when all its variants are, so a mixed one stays served without its adult variants.
+ */
+export const servedVariant = (ctx: RestContext): SQL =>
+  and(visibleItem, ctx.serveAdult ? undefined : eq(schema.catalogVariants.adult, false))!;
+
 /** « Nouveautés » holds the movies released in the last twelve months. */
 export const NEW_RELEASE_MONTHS = 12;
 
@@ -56,11 +63,11 @@ export async function keyExists(ctx: RestContext, key: string): Promise<boolean>
 
 /** Visible variants of a content, best first, already turned into playables with their category names. */
 export type Variants = { items: Variant[]; playables: Playable[]; categoryName: (it: Variant) => string | null };
-export async function variantsOf(content: Content): Promise<Variants> {
+export async function variantsOf(ctx: RestContext, content: Content): Promise<Variants> {
   const items = await db
     .select()
     .from(schema.catalogVariants)
-    .where(and(eq(schema.catalogVariants.contentId, content.id), visibleItem))
+    .where(and(eq(schema.catalogVariants.contentId, content.id), servedVariant(ctx)))
     .orderBy(desc(schema.catalogVariants.qualityRank), asc(schema.catalogVariants.position), asc(schema.catalogVariants.id));
   const catIds = [...new Set(items.map((i) => i.categoryXtreamId).filter((x): x is string => x !== null))];
   const cats = catIds.length

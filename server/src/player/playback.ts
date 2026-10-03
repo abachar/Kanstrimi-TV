@@ -68,7 +68,7 @@ playbackRoutes.put("/:id/watched", async (c) => {
   if (parsed.kind === "series" && parsed.episode === undefined) {
     const content = await contentByKey(ctx, key);
     if (!content) return fail("not_found", "Contenu introuvable");
-    const { items, categoryName } = await variantsOf(content);
+    const { items, categoryName } = await variantsOf(ctx, content);
     await ensureEpisodes(content, items, ctx.tmdbLang);
     const episodes = (await loadEpisodes(content, items, categoryName)).filter(
       (e) => body.data.season === undefined || e.season === body.data.season,
@@ -103,7 +103,7 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
   if (parsed.episode !== undefined) {
     const content = await contentByKey(ctx, parsed.seriesKey);
     if (content?.kind !== "series") return null;
-    const { items, categoryName } = await variantsOf(content);
+    const { items, categoryName } = await variantsOf(ctx, content);
     await ensureEpisodes(content, items, ctx.tmdbLang);
     const episodes = await loadEpisodes(content, items, categoryName);
     const idx = episodes.findIndex((e) => e.key === key);
@@ -124,10 +124,10 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
   }
   const content = await contentByKey(ctx, key);
   if (!content) return null;
-  const versions = versionsOf(ctx, (await variantsOf(content)).playables);
+  const versions = versionsOf(ctx, (await variantsOf(ctx, content)).playables);
   if (content.kind === "live") return { versions, resume_at: null, duration: null, next: null, cast: [] };
   if (content.kind === "series") {
-    const { items, categoryName } = await variantsOf(content);
+    const { items, categoryName } = await variantsOf(ctx, content);
     await ensureEpisodes(content, items, ctx.tmdbLang);
     const episodes = await loadEpisodes(content, items, categoryName);
     const e = currentEpisode(episodes, await getProgress(episodes.map((e) => e.key))) ?? episodes[0];

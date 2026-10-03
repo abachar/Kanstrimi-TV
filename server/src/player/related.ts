@@ -100,7 +100,7 @@ export async function suggestions(ctx: RestContext, key: string): Promise<Sugges
 
   let next: Suggestion | null = null;
   // An episode before the last one: the next episode follows, as `/playback` says.
-  if (!episode || !(await hasEpisodeAfter(content, key))) {
+  if (!episode || !(await hasEpisodeAfter(ctx, content, key))) {
     const saga = episode ? null : await nextInSaga(ctx, content);
     if (saga) next = { item: upNextItem(ctx, saga), reason: "saga", heading: "À SUIVRE · SUITE DE LA SAGA" };
     else if (fresh[0])
@@ -131,8 +131,8 @@ async function nextInSaga(ctx: RestContext, movie: Content): Promise<Content | n
   return later.find((c) => !states.has(c.key)) ?? null;
 }
 
-async function hasEpisodeAfter(series: Content, key: string): Promise<boolean> {
-  const { items, categoryName } = await variantsOf(series);
+async function hasEpisodeAfter(ctx: RestContext, series: Content, key: string): Promise<boolean> {
+  const { items, categoryName } = await variantsOf(ctx, series);
   const episodes = await loadEpisodes(series, items, categoryName);
   const idx = episodes.findIndex((e) => e.key === key);
   return idx !== -1 && idx < episodes.length - 1;

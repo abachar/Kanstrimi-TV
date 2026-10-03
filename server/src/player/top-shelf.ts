@@ -118,7 +118,7 @@ async function newEpisodePick(ctx: RestContext, skip: Set<string>): Promise<Shel
     if (skip.has(key)) continue;
     const content = await contentByKey(ctx, key);
     if (!hasShelfArt(content) || content.addedAt <= at) continue;
-    const { items, categoryName } = await variantsOf(content);
+    const { items, categoryName } = await variantsOf(ctx, content);
     // The provider gets a moment, not the home screen: past it, the rebuild lands for the next call
     // and the episodes known so far answer now. Only its outage is forgiven, not a bug.
     const rebuild = ensureEpisodes(content, items, ctx.tmdbLang);

@@ -119,8 +119,10 @@ par son index.
   (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream et les corrections (TMDB, iptv-org,
   séparer, fusionner) ; `/admin/item/:id` y redirige.
 - **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Tout ce que voit l'app (tris, dates, compteurs, rangées)
-  se calcule sur les seules variantes visibles. Les genres de Films et Séries restent en mémoire jusqu'à ce que le
-  groupement réécrive les contenus (`contentsGeneration`) : une écriture directe dans `catalog_contents` ne les rafraîchit pas.
+  se calcule sur les seules variantes visibles. Côté app, `player/contents.ts` y ajoute le réglage adulte : `visibleContent`
+  pour les contenus, `servedVariant` pour les variantes (un contenu mixte reste servi, sans ses variantes adultes).
+  Les genres de Films et Séries restent en mémoire jusqu'à ce que le groupement réécrive les contenus
+  (`contentsGeneration`) : une écriture directe dans `catalog_contents` ne les rafraîchit pas.
 - **Dates** : arrivée = date du fournisseur (`added`, `last_modified` pour une série) ; sortie = TMDB, tri par défaut.
 - **Données amont non fiables** : `xtream_id` n'est pas un identifiant, les champs manquent, l'identifiant TMDB fourni
   n'est jamais cru sur parole.

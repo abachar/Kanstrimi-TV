@@ -32,7 +32,7 @@ export function sheetRoutes(kind: "vod" | "series") {
 }
 
 export async function movieSheet(ctx: RestContext, content: Content): Promise<Card> {
-  const { items, playables, categoryName } = await variantsOf(content);
+  const { items, playables, categoryName } = await variantsOf(ctx, content);
   const best = items[0];
   const versions = versionsOf(ctx, playables);
   const [progress, favs, saga] = await Promise.all([getProgress([content.key]), favoriteSet(), sagaRefOf(ctx, content.sagaId)]);
@@ -48,7 +48,7 @@ export async function movieSheet(ctx: RestContext, content: Content): Promise<Ca
 
 /** Seasons, episodes with versions and progress, current episode. */
 export async function seriesSheet(ctx: RestContext, content: Content): Promise<Card> {
-  const { items, categoryName } = await variantsOf(content);
+  const { items, categoryName } = await variantsOf(ctx, content);
   await ensureEpisodes(content, items, ctx.tmdbLang);
   const episodes = await loadEpisodes(content, items, categoryName);
   const [progress, favs] = await Promise.all([getProgress(episodes.map((e) => e.key)), favoriteSet()]);
