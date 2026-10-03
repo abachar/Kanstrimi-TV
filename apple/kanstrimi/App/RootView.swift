@@ -93,7 +93,7 @@ private extension RootView {
             guard var ctx = try? await env.playbackContext(for: ContentID(what)) else { return }
             let resume = defaults.double(forKey: "debug.resumeAt")
             if resume > 0 {
-                ctx = PlaybackContext(content: ctx.content, versions: ctx.versions, resumeAt: resume, duration: ctx.duration, next: ctx.next)
+                ctx = ctx.resuming(at: resume)
             }
             if let staged {
                 env.player.debugPut(ctx, state: staged, suggestions: try? await env.client.suggestions(id: ctx.content.id))

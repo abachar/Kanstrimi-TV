@@ -299,8 +299,8 @@ final class HomeModel {
         return env.player.chooser.choose(from: hero.versions, remembered: remembered)
     }
 
-    /// A movie plays from what the home carries, offline included. An episode asks `/playback` first for
-    /// the episode after it, and falls back on the slide's versions.
+    /// Asks `/playback` first (the episode after it, the cast of the Distribution panel), and falls back on what the
+    /// slide carries, offline included.
     func playHero(_ hero: HomeHero, version: Version?, source: Source?) {
         let content: PlaybackContent
         if let e = hero.episode {
@@ -313,7 +313,7 @@ final class HomeModel {
         let local = PlaybackContext(content: content, versions: hero.versions, resumeAt: hero.resumeAt, duration: hero.duration)
         Task {
             var ctx = local
-            if hero.episode != nil, let playback = try? await env.call({ try await env.client.playback(id: hero.playID) }) {
+            if let playback = try? await env.call({ try await env.client.playback(id: hero.playID) }) {
                 ctx = PlaybackContext(content: content, playback: playback)
             }
             if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }

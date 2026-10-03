@@ -123,7 +123,8 @@ final class DetailModel {
     func play(movie d: Card, version: Version?, source: Source?, fromStart: Bool = false) {
         let resume = !fromStart && d.progress?.isResumable == true ? d.progress?.position : nil
         let ctx = PlaybackContext(content: PlaybackContent(id: d.id, kind: .movie, title: d.title, subtitle: nil, episode: nil, backdrop: d.backdrop),
-                                  versions: d.versions, resumeAt: resume, duration: d.progress?.duration ?? d.runtime.map { TimeInterval($0 * 60) })
+                                  versions: d.versions, resumeAt: resume, duration: d.progress?.duration ?? d.runtime.map { TimeInterval($0 * 60) },
+                                  cast: d.cast)
         if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
     }
 
@@ -131,7 +132,7 @@ final class DetailModel {
     func play(episode: Episode, fromStart: Bool = false) async {
         guard let d = detail,
               let ctx = await env.attempt("Lecture", { try await env.playbackContext(for: episode, of: d) }) else { return }
-        env.player.play(fromStart ? PlaybackContext(content: ctx.content, versions: ctx.versions, duration: ctx.duration, next: ctx.next) : ctx)
+        env.player.play(fromStart ? ctx.resuming(at: nil) : ctx)
     }
 
     /// Picker result. A series keeps the language picked; a film plays the version, and forgets the

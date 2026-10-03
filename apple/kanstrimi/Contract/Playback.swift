@@ -137,6 +137,11 @@ nonisolated struct PlaybackContext: Hashable, Sendable {
                   cast: playback.cast)
     }
 
+    /// The same title from `position` (nil: from the start), everything else kept.
+    func resuming(at position: TimeInterval?) -> PlaybackContext {
+        PlaybackContext(content: content, versions: versions, resumeAt: position, duration: duration, next: next, cast: cast)
+    }
+
     /// A list item: a movie as itself, a series through the episode `/playback/{series}` resolved.
     init(item: ContentItem, playback: Playback) {
         let content = playback.episode.map {

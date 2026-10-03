@@ -45,6 +45,9 @@ struct CastStrip: View {
             .padding(.vertical, metrics.compact ? 4 : 28)
         }
         .scrollClipDisabled()
+        // As tall as the cells: a sideways scroll otherwise takes all the height it is offered, which pushed the
+        // player's bar to the top of the screen.
+        .fixedSize(horizontal: false, vertical: true)
         .onChange(of: focused) { _, _ in onFocusChange() }
     }
 }
