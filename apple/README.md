@@ -12,14 +12,14 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 | `App/` | Démarrage, `AppEnvironment` (services partagés, navigation), `RootView` (appairage puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants). |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`). |
 | `Client/` | `CatalogClient` : `HTTPCatalogClient` (le serveur), `MockCatalogClient` (fixtures JSON de démo), `SwitchingCatalogClient`. |
-| `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
+| `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping ; il parle au moteur par la façade `PlaybackEngine`, que les tests remplacent), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
 | `Features/` | Un dossier par écran, une seule vue pour les deux plateformes. |
 | `Shared/` | `Platform.swift` (`Metrics` et modificateurs par plateforme), `Theme`, `CardViews` (images, rangées, grilles, menu d'une affiche), `ChannelViews` (logo, `LoadedChannelCard`, `channelItem`), `Stores`. |
 | `Shared/Cards/` | Les cartes (`PosterCard`, `WideCard`, `ChannelCard`, `ProgrammeCard`, `UpNextCard`, `HeroBanner`, `BestResult`, `SeeAllCard`, `RetryCard`, `StudioTile`, `CastCell`), un fichier chacune avec ses `#Preview` (données fixes). Composants bêtes : un modèle (`ContentItem` du contrat, `ChannelItem`…) et des actions en entrée, jamais `AppEnvironment` ni `.task` (vérifié par `CardsArchitectureTests`) ; charger, garder l'état, le focus et agir reste à l'écran. Le parent (rangée, grille, colonne) fixe la largeur, souvent depuis `Metrics` ; la carte prend toute celle qu'on lui donne et en tire sa hauteur. |
 | `../TopShelf/` | Extension Top Shelf (tvOS seul) : appelle `GET /player/top-shelf`, carrousel plein écran. |
 | `../Entitlements/` | Groupe de Keychain partagé par l'app et l'extension. |
 | `scripts/` | `shot.sh` / `shot-all.sh` : captures du client de démo dans `ui-review/` (hors git). |
-| `../kanstrimiTests/` | Swift Testing : client HTTP, choix de version, progression et file hors ligne, décision en cas de panne, liens. |
+| `../kanstrimiTests/` | Swift Testing : client HTTP, choix de version, progression et file hors ligne, pannes du lecteur (faux moteur `FakePlaybackEngine` : bascule de source, essais, dialogue, coupure), liens. |
 
 ## Une vue, deux plateformes
 
@@ -43,9 +43,9 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **Direct** : décodé par le moteur (`preferredDecodePath: .software`), image en 0,6 s contre 6 s par le HLS local
   d'AVPlayer ; jamais de pause, comme une télé. Fenêtre de retour de 30 s (`dvrWindowSeconds`) : seule voie où le moteur
   décode le son à part, sinon une chaîne HE-AAC à 50 i/s (Canal+ Foot) saccade ; le son démarre ~0,8 s plus tard.
-- **Pannes** : un seul chemin (`handleStreamFailure`) : source suivante, deux essais, puis le dialogue ; chaque reprise
-  redemande ses liens au serveur (`/playback`, `/channels/{id}`), ceux d'un écran resté ouvert ont pu expirer. Seuils
-  dans `PlayerService`.
+- **Pannes** : un seul chemin (`handleStreamFailure`) : source suivante, deux essais, puis le dialogue ; une reprise
+  rouvre les liens du fournisseur tels quels (ils n'expirent pas), seul « Réessayer » les redemande au serveur
+  (`/playback`, `/channels/{id}`). Seuils dans `PlayerService`.
 - **Retour après 10 min d'absence** : l'accueil et le Direct se rechargent (`resumeRevision`). Une action qui échoue
   hors de la vue (Reprendre, lien, marquer vu) le dit par un message commun (`env.attempt`).
 - **Sous-titres** : dessinés par l'app (`SubtitleOverlay`), le moteur ne le fait pas ; placés sur le cadre de l'image.

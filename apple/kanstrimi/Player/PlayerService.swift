@@ -98,8 +98,11 @@ final class PlayerService {
     private let reporter: PlaybackReporter
     /// The engine and its surface, shared with the Direct preview's way of playing. Kept by the service: the surface
     /// outlives the player screen, which hides while Picture-in-Picture runs.
-    private let core = PlayerCore(ownsAudioSession: true)
+    private let core: PlayerCore
+    /// The engine for the views that draw from it (subtitles, stream facts, Picture-in-Picture).
     var engine: AetherEngine { core.engine }
+    /// What plays, as the service drives it: the core in the app, a fake in the tests.
+    private let playback: any PlaybackEngine
     var videoView: AetherPlayerView { core.videoView }
     let pictureInPicture = PictureInPicture()
     private let nowPlaying = NowPlaying()
@@ -120,8 +123,8 @@ final class PlayerService {
     private var pendingSeeks = 0
     /// Bumped at each start: a seek of the previous file landing late must not count against this one.
     private var seekGeneration = 0
-    /// Asking the server for fresh links before a restart; further failures meanwhile are the same one.
-    private var relinkTask: Task<Void, Never>?
+    /// A restart under way (the next turn, or fresh links asked for by « Réessayer »); failures meanwhile are the same one.
+    private var restartTask: Task<Void, Never>?
     /// Live: restarts asked by the source itself on the chosen channel, and when the last one ran.
     private var liveResets = 0
     private var lastLiveReset: Date?
@@ -162,7 +165,10 @@ final class PlayerService {
     static let scanRates: [TimeInterval] = [10, 30, 60, 120, 300]
 
     init(client: CatalogClient, preferences: Preferences, failedSources: FailedSourcesStore, progressQueue: ProgressQueue,
-         capabilities: VersionChooser.Capabilities = .current) {
+         capabilities: VersionChooser.Capabilities = .current, playback: (any PlaybackEngine)? = nil) {
+        let core = PlayerCore(ownsAudioSession: true)
+        self.core = core
+        self.playback = playback ?? core
         self.client = client
         self.preferences = preferences
         self.failedSources = failedSources
@@ -239,8 +245,8 @@ final class PlayerService {
     func stop() {
         sendProgress(final: true)
         cancelTimers()
-        relinkTask?.cancel(); relinkTask = nil
-        core.stop()
+        restartTask?.cancel(); restartTask = nil
+        playback.stop()
         context = nil; version = nil; source = nil; channel = nil; channels = []
         phase = .idle; time = 0; duration = 0; isMinimized = false
         failure = nil; toast = nil; nextCountdown = nil; nextContext = nil; nextTriggered = false
@@ -264,8 +270,8 @@ final class PlayerService {
     /// Live never pauses, like a TV: only a stall or an interruption can stop it, and Play resumes it.
     func togglePlayPause() {
         switch phase {
-        case .playing: if !isLive { engine.pause() }
-        case .paused: engine.play()
+        case .playing: if !isLive { playback.pause() }
+        case .paused: playback.play()
         // `.ended` is terminal for the engine: playing again is a new load from the start.
         case .ended:
             guard let context, let version, let source else { return }
@@ -273,7 +279,7 @@ final class PlayerService {
         default: break
         }
     }
-    func pause() { if phase == .playing, !isLive { engine.pause() } }
+    func pause() { if phase == .playing, !isLive { playback.pause() } }
 
     func seek(by delta: TimeInterval) {
         guard !isLive, duration > 0 else { return }
@@ -286,8 +292,8 @@ final class PlayerService {
         lastSeek = .now
         pendingSeeks += 1
         let generation = seekGeneration
-        Task { [weak self, engine] in
-            await engine.seek(to: target)
+        Task { [weak self, playback] in
+            await playback.seek(to: target)
             guard let self, seekGeneration == generation else { return }
             pendingSeeks = max(0, pendingSeeks - 1)
         }
@@ -336,10 +342,10 @@ final class PlayerService {
     /// A short reload with a black picture for about a second: the engine rebuilds the session on the new track.
     func select(audio track: Track) {
         guard let index = Int(track.id) else { return }
-        engine.selectAudioTrack(index: index)
+        playback.selectAudioTrack(index: index)
     }
     func select(text track: Track?) {
-        if let track, let index = Int(track.id) { engine.selectSubtitleTrack(index: index) } else { engine.clearSubtitle() }
+        if let track, let index = Int(track.id) { playback.selectSubtitleTrack(index: index) } else { playback.clearSubtitle() }
     }
 
     // MARK: - Picture-in-Picture
@@ -375,7 +381,7 @@ final class PlayerService {
         return chooser.alternatives(to: version, in: context.versions).first
     }
 
-    /// "Réessayer" from the failure dialog: fresh links from the server, same version, same position.
+    /// "Réessayer" from the failure dialog: links asked for again, same version, same position.
     func retryFromServer() {
         guard let version else { return }
         failure = nil
@@ -461,7 +467,7 @@ final class PlayerService {
             fetchSuggestions(ctx)
         }
         cancelTimers(keepCountdown: true)
-        relinkTask?.cancel(); relinkTask = nil
+        restartTask?.cancel(); restartTask = nil
         context = ctx
         let changedVersion = version?.id != v.id
         version = v
@@ -481,7 +487,7 @@ final class PlayerService {
 
         let resume = !isLive && (position ?? 0) > 1 ? position : nil
         activateAudioSession()
-        core.load(s.streamURL, live: isLive, startPosition: resume)
+        playback.load(s.streamURL, live: isLive, startPosition: resume)
         armStartDeadline()
         armWatchdog()
         startProgressTicker()
@@ -514,7 +520,7 @@ final class PlayerService {
                 guard isStarted, phase == .playing else { still = 0; continue }
                 // Just after a seek the engine may take a few seconds to fetch the new position.
                 if let lastSeek, Date.now.timeIntervalSince(lastSeek) < Self.vodFreezeTimeout { still = 0; continue }
-                switch engine.playbackPhase {
+                switch playback.playbackPhase {
                 case .rebuffering, .stalled: still += tick
                 default: still = 0
                 }
@@ -532,7 +538,7 @@ final class PlayerService {
         startDeadline = Task { [weak self] in
             try? await Task.sleep(for: Self.startTimeout)
             guard let self, !Task.isCancelled else { return }
-            if !engine.hasFirstFrameReadyForDisplay || engine.playbackPhase != .playing { handleStreamFailure() }
+            if !playback.hasFirstFrameReadyForDisplay || playback.playbackPhase != .playing { handleStreamFailure() }
         }
     }
 
@@ -543,35 +549,49 @@ final class PlayerService {
         return attempts <= 2 ? .sameSource : .giveUp
     }
 
-    /// Error or no image after 10 s: switch source, retry twice, then ask. Every restart asks the server for
-    /// fresh links first: the ones a screen kept (home, Direct) may be outdated, the catalogue having changed since.
+    /// Error or no image after 10 s: switch source, retry twice, then ask. The links held are the provider's own and
+    /// do not expire: a restart reopens them, the provider handing out a fresh token of its own.
     private func handleStreamFailure() {
-        guard relinkTask == nil, context != nil, let version, let source else { return }
+        guard restartTask == nil, context != nil, let version, let source else { return }
         startAttempts += 1
         failedSources.markFailed(source.id)
         switch Self.failureStep(attempts: startAttempts, switchesSources: preferences.switchSourceOnFailure,
                                 nextSource: chooser.nextSource(after: source, in: version)) {
         case .otherSource(let other):
             showToast("Source changée automatiquement", detail: "\(sourceLabel(source, in: version)) → \(sourceLabel(other, in: version)) · même version \(version.label)")
-            restartWithFreshLinks(version: version, source: other)
+            restart(version: version, source: other)
         case .sameSource:
-            restartWithFreshLinks(version: version, source: source)
+            restart(version: version, source: source)
         case .giveUp:
             presentFailure()
         }
     }
 
-    /// Asks `/playback` (`/channels/{id}` in live) again, then restarts on the same version and the given source
-    /// (nil: the best) at the same position. Offline, the links held are tried anyway.
+    /// Restarts on the given source at the same position, on the next turn: a failure is noticed inside the engine's
+    /// own callbacks, which must not be torn down from within.
+    private func restart(version: Version, source: Source) {
+        guard let context else { return }
+        let at = time
+        restartTask?.cancel()
+        restartTask = Task { [weak self] in
+            guard let self, !Task.isCancelled, self.context?.content.id == context.content.id else { return }
+            restartTask = nil
+            start(context, version: version, source: source, reason: choiceReason, at: at)
+        }
+    }
+
+    /// « Réessayer »: asks `/playback` (`/channels/{id}` in live) again, in case the catalogue changed since, then
+    /// restarts on the same version and the given source (nil: the best) at the same position. Offline, the links
+    /// held are tried anyway.
     private func restartWithFreshLinks(version: Version, source: Source?) {
         guard let context else { return }
         let at = time
-        relinkTask?.cancel()
-        relinkTask = Task { [weak self] in
+        restartTask?.cancel()
+        restartTask = Task { [weak self] in
             guard let self else { return }
             let fresh = await freshLinks(context) ?? context
             guard !Task.isCancelled, self.context?.content.id == context.content.id else { return }
-            relinkTask = nil
+            restartTask = nil
             let v = fresh.versions.first { $0.id == version.id } ?? version
             guard let s = source.flatMap({ s in v.sources.first { $0.id == s.id } }) ?? source ?? chooser.bestSource(of: v) ?? v.sources.first
             else { return }
@@ -593,7 +613,7 @@ final class PlayerService {
         guard let version, let source else { return }
         sendWatchTime(final: true)
         cancelTimers(keepCountdown: true)
-        core.stop()
+        playback.stop()
         phase = .failed
         failure = Failure(attempts: startAttempts, sourceLabel: "\(version.label) · \(sourceLabel(source, in: version))",
                           hadAlternativeSource: version.sources.count > 1)
@@ -754,17 +774,17 @@ final class PlayerService {
     /// Mirrors the engine's published state. Each sink hops to the next main-queue turn first: `@Published`
     /// emits before it stores the value, and the handlers read the engine.
     private func observeEngine() {
-        engine.$playbackPhase
+        playback.phaseChanges
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.handle(enginePhase: $0) }
             .store(in: &cancellables)
         // Half a second, like the sampling the chrome has always had: every tick is a render transaction.
-        engine.clock.$currentTime
+        playback.timeChanges
             .throttle(for: .milliseconds(500), scheduler: DispatchQueue.main, latest: true)
             .sink { [weak self] in self?.handle(time: $0) }
             .store(in: &cancellables)
-        engine.$duration
+        playback.durationChanges
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
                 guard $0 > 0, let self else { return }
@@ -772,21 +792,15 @@ final class PlayerService {
                 nowPlaying.update()
             }
             .store(in: &cancellables)
-        engine.$startupProgress
+        playback.startupChanges
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.bufferingProgress = Float(($0?.fraction ?? 0) * 100) }
+            .sink { [weak self] in self?.bufferingProgress = Float(($0 ?? 0) * 100) }
             .store(in: &cancellables)
-        Publishers.MergeMany([
-            engine.$audioTracks.map { _ in }.eraseToAnyPublisher(),
-            engine.$activeAudioTrackIndex.map { _ in }.eraseToAnyPublisher(),
-            engine.$subtitleTracks.map { _ in }.eraseToAnyPublisher(),
-            engine.$activeSubtitleTrackIndex.map { _ in }.eraseToAnyPublisher(),
-            engine.$isSubtitleActive.map { _ in }.eraseToAnyPublisher(),
-        ])
-        .receive(on: DispatchQueue.main)
-        .sink { [weak self] in self?.refreshTracks() }
-        .store(in: &cancellables)
-        engine.liveSourceReset
+        playback.trackChanges
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.refreshTracks() }
+            .store(in: &cancellables)
+        playback.liveSourceResets
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.handleLiveSourceReset() }
             .store(in: &cancellables)
@@ -808,7 +822,7 @@ final class PlayerService {
         case .paused:
             phase = .paused
         case .seeking, .rebuffering, .stalled:
-            phase = !hasPlayed ? .opening : engine.state == .paused ? .paused : .playing
+            phase = !hasPlayed ? .opening : playback.state == .paused ? .paused : .playing
         case .ended:
             // A live has no end, and a film ending far from its end was cut.
             if isLive || !hasPlayed || (duration > 0 && duration - time > Self.endMargin) {
@@ -821,7 +835,7 @@ final class PlayerService {
             followUp()
             if phase == .idle { return }
         case .error:
-            if let info = engine.errorInfo {
+            if let info = playback.errorInfo {
                 log.info("error \(String(describing: info.kind)) \(info.underlyingDomain ?? "-") \(info.underlyingCode ?? 0)")
             }
             handleStreamFailure()
@@ -832,7 +846,7 @@ final class PlayerService {
     }
 
     private func handle(time engineTime: TimeInterval) {
-        guard phase != .opening, phase != .idle, !engine.isSeeking, pendingSeeks == 0 else { return }
+        guard phase != .opening, phase != .idle, !playback.isSeeking, pendingSeeks == 0 else { return }
         time = engineTime
         markStartedIfReady()
         maybeStartCountdown()
@@ -841,18 +855,18 @@ final class PlayerService {
 
     /// Started: the first picture is on screen and the session is playing.
     private func markStartedIfReady() {
-        guard phase == .playing, engine.hasFirstFrameReadyForDisplay, engine.playbackPhase == .playing else { return }
+        guard phase == .playing, playback.hasFirstFrameReadyForDisplay, playback.playbackPhase == .playing else { return }
         markStarted()
     }
 
     private func refreshTracks() {
-        let audio = engine.audioTracks.map { info in
+        let audio = playback.audioTracks.map { info in
             Track(id: String(info.id), name: Self.name(of: info, audio: true), language: info.language,
-                  isSelected: info.id == engine.activeAudioTrackIndex)
+                  isSelected: info.id == playback.activeAudioTrackIndex)
         }
-        let text = engine.subtitleTracks.map { info in
+        let text = playback.subtitleTracks.map { info in
             Track(id: String(info.id), name: Self.name(of: info, audio: false), language: info.language,
-                  isSelected: engine.isSubtitleActive && info.id == engine.activeSubtitleTrackIndex)
+                  isSelected: playback.isSubtitleActive && info.id == playback.activeSubtitleTrackIndex)
         }
         if audio != audioTracks { audioTracks = audio }
         if text != textTracks { textTracks = text }
