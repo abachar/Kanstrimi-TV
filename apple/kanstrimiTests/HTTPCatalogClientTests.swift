@@ -257,7 +257,7 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func searchSendsTheQueryOnly() async throws {
-        answer(200, #"{"query":"heures","best":null,"movies":[],"series":[],"live":[]}"#)
+        answer(200, #"{"query":"heures","items":[]}"#)
         _ = try await client.search("heures")
         #expect(try query(last) == ["q": "heures"])
     }

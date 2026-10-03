@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// A 2:3 poster with, drawn on it, the facts, the badges, the hint, the progress and a check once seen: a movie, a
-/// series, a saga. No text under it: the poster carries the title (`ArtView` draws it until the artwork loads, or
+/// series, a saga. A channel (the search mixes them in) takes the same shape: its logo whole on its colour, « DIRECT »,
+/// its group. No text under it: the poster carries the title (`ArtView` draws it until the artwork loads, or
 /// instead of it). As wide as its parent makes it (`posterWidth` in a row, the column in a grid). Without `action` it
 /// is a bare label, for the grids that put their own button around it.
 struct PosterCard: View {
@@ -17,7 +18,39 @@ struct PosterCard: View {
         Button(action: action) { label }.cardButtonStyle()
     }
 
-    private var label: some View {
+    @ViewBuilder private var label: some View {
+        if item.kind == .live { channel } else { poster }
+    }
+
+    private var channel: some View {
+        Rectangle().fill(Theme.art(for: item.id))
+            .aspectRatio(2 / 3, contentMode: .fit)
+            .overlay {
+                AsyncImage(url: item.poster) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFit()
+                    } else {
+                        Text(item.title).font(.system(size: metrics.artTitle, weight: .heavy)).foregroundStyle(.white.opacity(0.85))
+                            .multilineTextAlignment(.center).minimumScaleFactor(0.5)
+                    }
+                }
+                .padding(metrics.compact ? 14 : 28)
+            }
+            .overlay(alignment: .topLeading) {
+                Text("DIRECT").font(.system(size: metrics.badge, weight: .bold)).tracking(1)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Theme.live, in: RoundedRectangle(cornerRadius: 4)).foregroundStyle(.white)
+                    .padding(metrics.compact ? 6 : 10)
+            }
+            .overlay(alignment: .bottomLeading) {
+                if let facts = item.facts { PosterFacts(text: facts).padding(metrics.compact ? 8 : 12) }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: metrics.cardRadius))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel([item.title, "en direct", item.facts].compactMap { $0 }.joined(separator: ", "))
+    }
+
+    private var poster: some View {
         PosterFrame(id: item.id, url: item.poster, title: item.title) {
             if metrics.compact {
                 // Phone: the facts only, the hint as a small tag in the top corner.
@@ -80,6 +113,7 @@ private struct PosterCardPreview: View {
                 PosterCard(item: .sampleWatched) {}
                 PosterCard(item: .sampleHint)
                 PosterCard(item: .sampleNoPoster)
+                PosterCard(item: .sampleChannel) {}
             }
             .padding(metrics.inset)
         }

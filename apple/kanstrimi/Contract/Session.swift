@@ -75,13 +75,8 @@ nonisolated struct ServerInfo: Codable, Hashable, Sendable {
 }
 
 /// `GET /search`
+/// `/search`: movies, series and channels in one list, the most relevant first.
 nonisolated struct SearchResults: Codable, Hashable, Sendable {
     let query: String
-    let best: ContentItem?
-    let movies: [ContentItem]
-    let series: [ContentItem]
-    let live: [ContentItem]
-
-    var isEmpty: Bool { movies.isEmpty && series.isEmpty && live.isEmpty }
-    var total: Int { movies.count + series.count + live.count }
+    let items: [ContentItem]
 }

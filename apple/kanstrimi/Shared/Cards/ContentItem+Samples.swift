@@ -24,10 +24,7 @@ extension ContentItem {
                                            facts: "É2 · 52 min", progress: 0.3, caption: "É2 · 52 min")
     static let sampleWatchedEpisode = ContentItem(id: ContentID("tmdb:tv:300388:s01e01"), kind: .episode, title: "Épisode 1",
                                                   facts: "É1 · 48 min", watched: true, caption: "É1 · 48 min")
-    static let sampleBest = ContentItem(id: ContentID("tmdb:movie:331482"), kind: .movie, title: "Les Filles du docteur March",
-                                        facts: "Film · 2019 · Drame", badges: ["4K", "VF", "VOSTFR"],
-                                        overview: "Aux États-Unis, pendant la guerre de Sécession, quatre sœurs font face aux difficultés de la vie quotidienne.")
-    static let sampleBestChannel = ContentItem(id: ContentID("live:fr-tf1"), kind: .live, title: "TF1", facts: "FRANCE FHD | TV", badges: ["FHD"])
+    static let sampleChannel = ContentItem(id: ContentID("live:fr-tf1"), kind: .live, title: "TF1", facts: "France · Généralistes", badges: ["FHD"])
     static let sampleNextEpisode = ContentItem(id: ContentID("tmdb:tv:300388:s01e03"), kind: .episode, title: "Épisode 3",
                                                facts: "Güller ve Günahlar · S1 · É3 · 2 h 23", badges: ["HD", "VOSTFR"],
                                                overview: "Serhat découvre ce que sa femme lui cachait.")

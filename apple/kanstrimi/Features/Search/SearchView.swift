@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// System search field, then one column: the best result wide, then the channels, films and series
-/// that match, a row each [6] [19]. No filters: the search covers everything at once.
+/// System search field, then one grid of posters, films, series and channels mixed, the most relevant first: the
+/// server ranks them. No filters: the search covers everything at once.
 struct SearchView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
@@ -39,8 +39,8 @@ struct SearchView: View {
         } else if let error {
             StatePanel(icon: "exclamationmark.triangle", title: "Recherche impossible", message: error.localizedDescription) { schedule(immediately: true) }
         } else if let r = results, r.query == text {
-            if let best = r.best {
-                resultsView(r, best: best)
+            if !r.items.isEmpty {
+                resultsView(r.items)
             } else {
                 StatePanel(icon: "magnifyingglass", title: "Aucun résultat pour « \(r.query) »",
                            message: "Essayez un autre titre, un nom d'acteur ou de réalisateur. La recherche couvre films, séries et chaînes.", actionTitle: nil)
@@ -50,35 +50,15 @@ struct SearchView: View {
         }
     }
 
-    private func resultsView(_ r: SearchResults, best: ContentItem) -> some View {
+    private func resultsView(_ items: [ContentItem]) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: metrics.compact ? 20 : 30) {
-                BestResult(item: best) { open(best) }.posterMenu(best)
-                if !r.live.isEmpty { row("En direct") { items(r.live) } }
-                if !r.movies.isEmpty { row("Films") { items(r.movies) } }
-                if !r.series.isEmpty { row("Séries") { items(r.series) } }
+            LazyVGrid(columns: metrics.posterColumns, alignment: .leading, spacing: metrics.cardSpacing) {
+                ForEach(items) { item in PosterCard(item: item) { open(item) }.posterMenu(item) }
             }
-            .padding(.leading, metrics.inset)
+            .padding(.horizontal, metrics.inset)
             .padding(.vertical, metrics.compact ? 12 : 20)
         }
         .scrollClipDisabled()
-    }
-
-    private func items(_ items: [ContentItem]) -> some View {
-        ForEach(items) { item in PosterCard(item: item) { open(item) }.frame(width: metrics.posterWidth).posterMenu(item) }
-    }
-
-    private func row(_ title: String, @ViewBuilder cards: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.title3.weight(.bold))
-            ScrollView(.horizontal) {
-                LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
-                    cards()
-                }
-                .padding(.vertical, metrics.rowPadding).padding(.horizontal, metrics.compact ? 0 : 10)
-            }
-            .scrollClipDisabled()
-        }
     }
 
     /// A channel plays at once; anything else opens its sheet.

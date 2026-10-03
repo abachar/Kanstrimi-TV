@@ -511,7 +511,7 @@ final class MockCatalogClient: CatalogClient {
     func search(_ query: String) async throws -> SearchResults {
         try await gate()
         let q = query.trimmingCharacters(in: .whitespaces).folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-        if q.isEmpty || scenario.emptySearch { return SearchResults(query: query, best: nil, movies: [], series: [], live: []) }
+        if q.isEmpty || scenario.emptySearch { return SearchResults(query: query, items: []) }
         func matches(_ d: Card) -> Bool {
             let hay = ([d.title, d.director ?? ""] + d.cast.map(\.name)).joined(separator: " ")
                 .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
@@ -524,22 +524,27 @@ final class MockCatalogClient: CatalogClient {
         }.map { c in
             Card(id: c.id, kind: .live, title: c.name, poster: c.logo, maxQuality: c.maxQuality, languages: c.versions.languages, genres: [g.name])
         } }
-        let best = (m + s + l).min { a, b in
-            let ta = a.title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).hasPrefix(q)
-            let tb = b.title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).hasPrefix(q)
-            if ta != tb { return ta }
-            return (a.rating ?? 0) > (b.rating ?? 0)
+        // Ranked as the server ranks them: a title that starts with the query first, then the best rated, every kind
+        // together; a series says so, a channel gives its group.
+        let ranked = (m + s + l).enumerated().sorted { x, y in
+            let tx = x.element.title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).hasPrefix(q)
+            let ty = y.element.title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).hasPrefix(q)
+            if tx != ty { return tx }
+            if (x.element.rating ?? 0) != (y.element.rating ?? 0) { return (x.element.rating ?? 0) > (y.element.rating ?? 0) }
+            return x.offset < y.offset
+        }.map(\.element)
+        let items = ranked.prefix(40).map { c -> ContentItem in
+            if c.kind == .live {
+                return ContentItem(id: c.id, kind: .live, title: c.title, poster: c.poster, facts: c.genres.first,
+                                   badges: [c.qualityBadge].compactMap { $0 })
+            }
+            let i = Self.item(c)
+            guard c.kind == .series else { return i }
+            return ContentItem(id: i.id, kind: i.kind, title: i.title, logo: i.logo, poster: i.poster, picture: i.picture,
+                               facts: ["Série", i.facts].compactMap { $0 }.joined(separator: " · "), badges: i.badges, hint: i.hint,
+                               progress: i.progress, watched: i.watched, caption: i.caption)
         }
-        // Written as the server writes them: a channel's category as its facts, the best one wide with its overview.
-        let live = l.map { ContentItem(id: $0.id, kind: .live, title: $0.title, poster: $0.poster, facts: $0.genres.first,
-                                       badges: [$0.qualityBadge].compactMap { $0 }) }
-        let bestItem = best.map { b -> ContentItem in
-            let i = Self.item(b)
-            let facts = b.kind == .live ? b.genres.first : [b.kind.label, b.year.map { String($0) }, b.genres.first].compactMap { $0 }.joined(separator: " · ")
-            return ContentItem(id: i.id, kind: i.kind, title: i.title, logo: i.logo, poster: i.poster, picture: i.picture, facts: facts,
-                               badges: i.badges, hint: i.hint, progress: i.progress, watched: i.watched, caption: i.caption, overview: b.overview)
-        }
-        return SearchResults(query: query, best: bestItem, movies: m.map(Self.item), series: s.map(Self.item), live: live)
+        return SearchResults(query: query, items: Array(items))
     }
 
     func removeFromResume(id: ContentID) async throws {
