@@ -290,7 +290,8 @@ final class MockCatalogClient: CatalogClient {
             let p = progress[m.id]?.isResumable == true ? progress[m.id] : nil
             return HomeHero(item: heroItem(m, episode: nil, runtime: m.runtime), tagline: i == 0 ? "FILM · ENFIN DISPONIBLE" : "FILM · N° \(i) CETTE SEMAINE",
                             overview: m.overview, runtime: m.runtime, certification: m.certification, versions: m.versions, playID: m.id, episode: nil,
-                            isFavorite: favorites.contains(m.id), resumeAt: p?.position, duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) })
+                            isFavorite: favorites.contains(m.id),
+                            playLabel: p.map { "Reprendre · \(Format.remaining($0.duration - $0.position))" } ?? "Lecture", resumeAt: p?.position, duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) })
         }
         if let s = recentSeries.first(where: { $0.backdrop != nil }), let e = s.allEpisodes.last {
             heroes.insert(HomeHero(item: heroItem(s, episode: e, runtime: e.runtime), tagline: "SÉRIE · NOUVEL ÉPISODE · \(e.ref.shortCode)",

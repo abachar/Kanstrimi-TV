@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// A slide of the home carousel: the picture (the poster held upright on a phone, the backdrop on TV), the tagline,
-/// the logo or the title, the facts and the certification, an optional line under them, then `buttons`. The
+/// the logo or the title, the facts and the certification (with the badges and the overview on TV), then `buttons`. The
 /// carousel, its timer, the focus and the actions stay with the home: they come in `buttons` and `onTapPicture`.
 /// `slideID` marks a new slide, which fades in.
-struct HeroBanner<Extra: View, Buttons: View>: View {
+struct HeroBanner<Buttons: View>: View {
     @Environment(\.metrics) private var metrics
     let item: ContentItem
     /// « FILM · N° 1 CETTE SEMAINE ».
@@ -13,7 +13,6 @@ struct HeroBanner<Extra: View, Buttons: View>: View {
     let slideID: ContentID
     /// iPhone: a tap on the picture (the sheet).
     var onTapPicture: () -> Void = {}
-    @ViewBuilder var extra: () -> Extra
     @ViewBuilder var buttons: () -> Buttons
 
     var body: some View {
@@ -47,7 +46,6 @@ struct HeroBanner<Extra: View, Buttons: View>: View {
                         if let certification { Badge(certification, small: true) }
                     }
                     .font(.subheadline)
-                    extra()
                 }
                 .id(slideID).transition(.opacity)
                 HStack(spacing: 14) { buttons() }.padding(.top, 4)
@@ -57,46 +55,61 @@ struct HeroBanner<Extra: View, Buttons: View>: View {
         }
     }
 
-    /// TV: the backdrop under the floating tab bar, the text and the buttons at the bottom left.
+    /// TV, after Prime Video: the backdrop held in the top right corner over four fifths of the width, fading into a
+    /// black halo on its left and its bottom; the text and the buttons stand on that halo, bottom left. Only the text
+    /// counts in the layout (`heroHeight`): the picture runs on under the first row and scrolls away with the page.
     private var tv: some View {
-        ZStack(alignment: .bottomLeading) {
-            ArtView(id: item.id, url: item.picture)
-                .frame(maxWidth: .infinity).frame(height: metrics.heroHeight)
-                .id(slideID).transition(.opacity)
-                .overlay {
-                    LinearGradient(colors: [Theme.background.opacity(0.95), Theme.background.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing)
-                    LinearGradient(colors: [.clear, Theme.background.opacity(0.6), Theme.background], startPoint: .center, endPoint: .bottom)
-                    // Keeps the tab bar readable over a bright backdrop.
-                    if Platform.isTV { LinearGradient(colors: [Theme.background.opacity(0.7), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.3)) }
-                }
+        VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(tagline).font(.caption.weight(.bold)).tracking(2.5).foregroundStyle(Theme.accent)
-                    if item.logo != nil {
-                        // As high as the two lines of title it replaces: the slide keeps its height under the tab bar.
-                        TitleLogo(title: item.title, logo: item.logo, maxSize: CGSize(width: metrics.textWidth * 0.6, height: metrics.heroTitle * 2.1))
-                    } else {
-                        // Wider than running text: a long title keeps two lines instead of being cut.
-                        Text(item.title).font(.system(size: metrics.heroTitle, weight: .heavy)).lineLimit(2).minimumScaleFactor(0.85)
-                            .frame(maxWidth: metrics.textWidth * 1.4, alignment: .leading)
-                    }
-                    HStack(spacing: 12) {
-                        if let facts = item.facts { Text(facts).foregroundStyle(Theme.secondary) }
-                        if let certification { Badge(certification) }
-                    }
-                    .font(.title3)
-                    extra()
+                Text(tagline).font(.caption.weight(.bold)).tracking(2.5).foregroundStyle(Theme.accent)
+                if item.logo != nil {
+                    // As high as the two lines of title it replaces: the slide keeps its height under the tab bar.
+                    TitleLogo(title: item.title, logo: item.logo, maxSize: CGSize(width: metrics.textWidth * 0.6, height: metrics.heroTitle * 2.1))
+                } else {
+                    // Wider than running text: a long title keeps two lines instead of being cut.
+                    Text(item.title).font(.system(size: metrics.heroTitle, weight: .heavy)).lineLimit(2).minimumScaleFactor(0.85)
+                        .frame(maxWidth: metrics.textWidth * 1.4, alignment: .leading)
                 }
-                .id(slideID).transition(.opacity)
-                // The row never wraps a label: on a phone it scrolls sideways instead.
-                ScrollView(.horizontal) {
-                    HStack(spacing: 0) { buttons() }.fixedSize()
+                HStack(spacing: 12) {
+                    if let facts = item.facts { Text(facts).font(.callout).foregroundStyle(Theme.secondary) }
+                    if let certification { Badge(certification) }
+                    ForEach(item.badges, id: \.self) { Badge($0) }
                 }
-                .scrollClipDisabled()
-                .padding(.top, 8)
+                if let overview = item.overview {
+                    Text(overview).font(.callout).foregroundStyle(Theme.secondary).lineLimit(2)
+                        .frame(maxWidth: metrics.textWidth * 0.75, alignment: .leading)
+                }
             }
-            .padding(.horizontal, metrics.inset)
-            .padding(.bottom, 40)
+            .id(slideID).transition(.opacity)
+            HStack(spacing: 0) { buttons() }.fixedSize().padding(.top, 8)
+        }
+        .padding(.horizontal, metrics.inset)
+        .padding(.bottom, 40)
+        .frame(maxWidth: .infinity, minHeight: metrics.heroHeight, alignment: .bottomLeading)
+        .background(alignment: .topLeading) {
+            GeometryReader { geo in
+                let width = geo.size.width * 0.8
+                // The halo is a layer of its own above the pictures, not a part of one: while a slide fades into the
+                // next, both pictures stay under it and neither shows its edges.
+                ZStack {
+                    ArtView(id: item.id, url: item.picture)
+                        .id(slideID).transition(.opacity)
+                    // Black on the left where the text stands, then on the bottom under the rows, and a veil on top
+                    // that keeps the tab bar readable over a bright picture.
+                    LinearGradient(stops: [.init(color: Theme.background, location: 0),
+                                           .init(color: Theme.background.opacity(0.85), location: 0.3),
+                                           .init(color: Theme.background.opacity(0.4), location: 0.55),
+                                           .init(color: .clear, location: 0.8)],
+                                   startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(stops: [.init(color: .clear, location: 0.45),
+                                           .init(color: Theme.background.opacity(0.7), location: 0.75),
+                                           .init(color: Theme.background, location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                    LinearGradient(colors: [Theme.background.opacity(0.6), .clear], startPoint: .top, endPoint: .init(x: 0.5, y: 0.2))
+                }
+                .frame(width: width, height: width * 9 / 16)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
         }
     }
 }
@@ -105,8 +118,6 @@ struct HeroBanner<Extra: View, Buttons: View>: View {
 #Preview("Héros") {
     ScrollView {
         HeroBanner(item: .sampleHero, tagline: "FILM · N° 1 CETTE SEMAINE", certification: "12", slideID: ContentItem.sampleHero.id) {
-            EmptyView()
-        } buttons: {
             HStack(spacing: 18) {
                 Button {} label: { Label("Lecture", systemImage: "play.fill").font(.headline) }.prominentButtonStyle()
                 Button {} label: { Image(systemName: "info") }.buttonStyle(RoundIconStyle(diameter: 46))

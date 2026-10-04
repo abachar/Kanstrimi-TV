@@ -189,6 +189,15 @@ struct CardAction {
     let action: () -> Void
 }
 
+/// The title over a row or a section, the same on every screen: below a heading and a little dimmed, the cards lead.
+struct RowTitle: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+    var body: some View {
+        Text(text).font(.headline).foregroundStyle(Theme.text.opacity(0.8))
+    }
+}
+
 struct CardRow: View {
     @Environment(\.metrics) private var metrics
     let title: String
@@ -200,7 +209,7 @@ struct CardRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(title).font(.title3.weight(.bold)).padding(.horizontal, metrics.inset)
+            RowTitle(title).padding(.horizontal, metrics.inset)
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
                     ForEach(cards) { c in

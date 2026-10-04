@@ -8,7 +8,7 @@ struct CastRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: metrics.compact ? 10 : 14) {
-            Text("Distribution").font(metrics.compact ? .headline : .title3.weight(.bold))
+            RowTitle("Distribution")
             // Scrolls to the screen edge: the parent's margin moves inside the scroll content.
             CastStrip(cast: cast, inset: metrics.inset, onSelect: onSelect)
                 .padding(.horizontal, -metrics.inset)

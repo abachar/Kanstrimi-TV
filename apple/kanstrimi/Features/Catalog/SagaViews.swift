@@ -11,7 +11,7 @@ struct SagaShelf: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
-                Text("Sagas").font(.title3.weight(.bold))
+                RowTitle("Sagas")
                 Text(Format.count(total)).font(.callout).foregroundStyle(Theme.secondary)
             }
             .padding(.horizontal, metrics.inset)
@@ -133,7 +133,7 @@ struct StudioShelf: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Studios").font(.title3.weight(.bold)).padding(.horizontal, metrics.inset)
+            RowTitle("Studios").padding(.horizontal, metrics.inset)
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {
                     ForEach(studios) { studio in

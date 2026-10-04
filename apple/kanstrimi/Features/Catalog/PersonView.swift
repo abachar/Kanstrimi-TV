@@ -37,7 +37,7 @@ struct PersonView: View {
     @ViewBuilder private func section(_ title: String, _ items: [ContentItem]) -> some View {
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 16) {
-                Text(title).font(.title3.weight(.bold)).padding(.horizontal, metrics.inset)
+                RowTitle(title).padding(.horizontal, metrics.inset)
                 PosterGrid(items: items, onSelect: onSelect ?? env.open)
             }
         }

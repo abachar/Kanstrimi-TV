@@ -169,12 +169,13 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func homeCarouselDecodesWhatLecturePlays() async throws {
-        answer(200, #"{"heroes":[{"item":{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo"},"tagline":"SÉRIE · NOUVEL ÉPISODE · S1 É2","overview":null,"runtime":80,"certification":null,"versions":[],"play_id":"tmdb:tv:1396:s01e02","episode":{"season":1,"number":2,"title":"Épisode 2"}},{"item":{"id":"tmdb:movie:603","kind":"movie","title":"Matrix"},"tagline":"FILM · N° 1 CETTE SEMAINE","overview":null,"runtime":136,"certification":"12","versions":[],"play_id":"tmdb:movie:603"}],"rows":[],"generated_at":"2026-10-03T08:00:00Z"}"#)
+        answer(200, #"{"heroes":[{"item":{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo"},"tagline":"SÉRIE · NOUVEL ÉPISODE · S1 É2","overview":null,"runtime":80,"certification":null,"versions":[],"play_id":"tmdb:tv:1396:s01e02","play_label":"Lecture","episode":{"season":1,"number":2,"title":"Épisode 2"}},{"item":{"id":"tmdb:movie:603","kind":"movie","title":"Matrix"},"tagline":"FILM · N° 1 CETTE SEMAINE","overview":null,"runtime":136,"certification":"12","versions":[],"play_id":"tmdb:movie:603","play_label":"Reprendre · 40 min restantes"}],"rows":[],"generated_at":"2026-10-03T08:00:00Z"}"#)
         let home = try await client.home()
         #expect(home.heroes.map(\.playID) == [ContentID("tmdb:tv:1396:s01e02"), ContentID("tmdb:movie:603")])
         #expect(home.heroes[0].item.id == ContentID("tmdb:tv:1396"))
         #expect(home.heroes[0].episode == EpisodeRef(season: 1, number: 2, title: "Épisode 2"))
         #expect(home.heroes[1].episode == nil)
+        #expect(home.heroes[1].playLabel == "Reprendre · 40 min restantes")
     }
 
     @Test func aHomeCachedWithASingleHeroStillReads() throws {

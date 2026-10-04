@@ -121,7 +121,7 @@ struct ShelfRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
-                Text(row.name).font(.title3.weight(.bold))
+                RowTitle(row.name)
                 Text(Format.count(row.total)).font(.callout).foregroundStyle(Theme.secondary)
             }
             .padding(.horizontal, metrics.inset)

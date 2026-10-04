@@ -33,7 +33,8 @@ extension ContentItem {
                                              overview: "Neo et ses alliés défendent Zion contre l'assaut des machines.")
     static let sampleHero = ContentItem(id: ContentID("tmdb:movie:496243"), kind: .movie, title: "Parasite",
                                         poster: image("w780/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg"), picture: image("w1280/TU9NIjwzjoKPwQHoHshkFcQUCG.jpg"),
-                                        facts: "2019 · Thriller · 2 h 13", badges: ["4K", "VF", "VOSTFR"])
+                                        facts: "2019 · Thriller · 2 h 13", badges: ["4K", "VF", "VOSTFR"],
+                                        overview: "Toute la famille de Ki-taek est au chômage. Elle s'intéresse au train de vie de la richissime famille Park, jusqu'au jour où le fils réussit à s'y faire recommander pour donner des cours d'anglais.")
     static let sampleNoPoster = ContentItem(id: ContentID("fallback:movie:silver-book-of-dreams:2026"), kind: .movie,
                                             title: "Silver Book of Dreams", facts: "2026")
 }

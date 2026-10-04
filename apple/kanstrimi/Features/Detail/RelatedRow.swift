@@ -9,7 +9,7 @@ struct RelatedRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: metrics.compact ? 10 : 14) {
-            Text("Titres similaires").font(metrics.compact ? .headline : .title3.weight(.bold))
+            RowTitle("Titres similaires")
             // Scrolls to the screen edge: the parent's margin moves inside the scroll content, as in the cast row.
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: metrics.cardSpacing) {

@@ -129,15 +129,13 @@ struct HomeView: View {
     private func phoneHero(_ hero: HomeHero, model: HomeModel) -> some View {
         HeroBanner(item: hero.item, tagline: hero.tagline, certification: hero.certification, slideID: hero.playID,
                    onTapPicture: { env.open(hero.item.id) }) {
-            EmptyView()
-        } buttons: {
             let favorite = model.isFavorite(hero)
             Button { Task { await model.toggleFavorite(hero) } } label: { Image(systemName: favorite ? "heart.fill" : "heart") }
                 .buttonStyle(RoundIconStyle(diameter: 46))
                 .accessibilityLabel(favorite ? "Retirer de ma liste" : "Ajouter à ma liste")
                 .sensoryFeedback(.selection, trigger: favorite)
             Button { model.playHero(hero, version: nil, source: nil) } label: {
-                Label(hero.item.progress != nil ? "Reprendre" : "Lecture", systemImage: "play.fill")
+                Label(hero.playLabel, systemImage: "play.fill")
                     .font(.headline).phoneFullWidth(metrics)
             }
             .prominentButtonStyle()
@@ -152,20 +150,10 @@ struct HomeView: View {
         }
     }
 
-    /// TV: the version chosen for this screen under the facts; Lecture, Versions and Fiche between two invisible
-    /// stops, focusable once the focus is in the row (coming up from a row below never lands on it): reaching one
-    /// turns the carousel.
+    /// TV: Lecture (a long press offers the versions), Ma liste and Fiche between two invisible stops, focusable
+    /// once the focus is in the row (coming up from a row below never lands on it): reaching one turns the carousel.
     private func tvHero(_ hero: HomeHero, model: HomeModel) -> some View {
         HeroBanner(item: hero.item, tagline: hero.tagline, certification: hero.certification, slideID: hero.playID) {
-            if let c = model.heroChoice {
-                HStack(spacing: 10) {
-                    Image(systemName: "sparkles").foregroundStyle(Theme.accent)
-                    Text(c.version.label).font(.title3.weight(.semibold))
-                    Text(model.isOffline ? "— version connue à \(Format.hour(model.home?.generatedAt ?? .now)) · elle sera revérifiée au lancement" : "— choisi pour vous")
-                        .font(.title3).foregroundStyle(Theme.secondary)
-                }
-            }
-        } buttons: {
             if Platform.isTV { edge(.previous) }
             HStack(spacing: 18) { heroButtons(hero, model: model) }
             if Platform.isTV { edge(.next) }
@@ -173,7 +161,7 @@ struct HomeView: View {
     }
 }
 
-enum HeroFocus: Hashable { case previous, play, versions, sheet, next }
+enum HeroFocus: Hashable { case previous, play, favorite, sheet, next }
 
 /// The carousel's timer: a new slide, a new count or a hold restarts it.
 private struct SlideTimer: Equatable {
@@ -205,16 +193,18 @@ private struct PageDots: View {
 private extension HomeView {
     @ViewBuilder func heroButtons(_ hero: HomeHero, model: HomeModel) -> some View {
         Button { model.playHero(hero, version: nil, source: nil) } label: {
-            Label(hero.item.progress != nil ? "Reprendre" : "Lecture", systemImage: "play.fill").font(.headline)
+            Label(hero.playLabel, systemImage: "play.fill").font(.headline)
         }
         .prominentButtonStyle()
         .focused($heroFocus, equals: .play)
         .onLongPressGesture(minimumDuration: 0.5) { if VersionPicker.lineCount(hero.versions) > 1 { showPicker = true } }
-        // Only when the picker has more than one line to offer.
-        if VersionPicker.lineCount(hero.versions) > 1 {
-            Button("Versions · \(hero.versions.count)") { showPicker = true }.buttonStyle(.bordered)
-                .focused($heroFocus, equals: .versions)
+        // Said in words, not by a colour: « Ma liste », then « Dans ma liste » with a tick.
+        let favorite = model.isFavorite(hero)
+        Button { Task { await model.toggleFavorite(hero) } } label: {
+            Label(favorite ? "Dans ma liste" : "Ma liste", systemImage: favorite ? "checkmark" : "plus")
         }
+        .buttonStyle(.bordered)
+        .focused($heroFocus, equals: .favorite)
         Button { env.open(hero.item.id) } label: { Label("Fiche", systemImage: "info.circle") }.buttonStyle(.bordered)
             .focused($heroFocus, equals: .sheet)
     }

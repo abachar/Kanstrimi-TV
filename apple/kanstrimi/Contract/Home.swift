@@ -32,6 +32,8 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
     let playID: ContentID
     let episode: EpisodeRef?
     let isFavorite: Bool
+    /// The play button: "Lecture", "Reprendre · 40 min restantes".
+    let playLabel: String
     /// Seconds: where Lecture resumes a movie, nil from the start.
     let resumeAt: TimeInterval?
     let duration: TimeInterval?
@@ -40,14 +42,16 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
         case item, tagline, overview, runtime, certification, versions, episode
         case playID = "play_id"
         case isFavorite = "is_favorite"
+        case playLabel = "play_label"
         case resumeAt = "resume_at"
         case duration
     }
 
     init(item: ContentItem, tagline: String, overview: String?, runtime: Int?, certification: String?, versions: [Version],
-         playID: ContentID, episode: EpisodeRef?, isFavorite: Bool = false, resumeAt: TimeInterval? = nil, duration: TimeInterval? = nil) {
+         playID: ContentID, episode: EpisodeRef?, isFavorite: Bool = false, playLabel: String = "Lecture", resumeAt: TimeInterval? = nil,
+         duration: TimeInterval? = nil) {
         self.item = item; self.tagline = tagline; self.overview = overview; self.runtime = runtime; self.certification = certification
-        self.versions = versions; self.playID = playID; self.episode = episode; self.isFavorite = isFavorite; self.resumeAt = resumeAt
+        self.versions = versions; self.playID = playID; self.episode = episode; self.isFavorite = isFavorite; self.playLabel = playLabel; self.resumeAt = resumeAt
         self.duration = duration
     }
 
@@ -62,6 +66,7 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
         playID = try c.decode(ContentID.self, forKey: .playID)
         episode = try c.decodeIfPresent(EpisodeRef.self, forKey: .episode)
         isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
+        playLabel = try c.decode(String.self, forKey: .playLabel)
         resumeAt = try c.decodeIfPresent(TimeInterval.self, forKey: .resumeAt)
         duration = try c.decodeIfPresent(TimeInterval.self, forKey: .duration)
     }

@@ -72,7 +72,7 @@ nonisolated struct Metrics: Sendable {
     /// Badge font sizes, regular and small.
     var badge: CGFloat
     var badgeSmall: CGFloat
-    /// Home hero: height of the backdrop and size of the title.
+    /// Home hero: its height in the page (the TV backdrop runs on under the first row) and the size of the title.
     var heroHeight: CGFloat
     var heroTitle: CGFloat
     /// Detail sheet title size, the top padding above it, and the episode still width (16:9).
@@ -135,7 +135,7 @@ nonisolated struct Metrics: Sendable {
 
     static let tv = Metrics(compact: false, inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,
-                            heroHeight: 600, heroTitle: 64, detailTitle: 76, detailTop: 160, detailLogo: CGSize(width: 640, height: 200), stillWidth: 260, textWidth: 1000,
+                            heroHeight: 680, heroTitle: 64, detailTitle: 76, detailTop: 160, detailLogo: CGSize(width: 640, height: 200), stillWidth: 260, textWidth: 1000,
                             stateIcon: 56, statePadding: 60, liveColumns: true, channelLogo: 96,
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
                             panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 460,
