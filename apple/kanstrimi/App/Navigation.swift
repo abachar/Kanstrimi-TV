@@ -47,7 +47,10 @@ extension View {
         #if os(tvOS)
         @Bindable var env = env
         fullScreenCover(item: $env.presentedDetail) { id in
+            // A title chosen from a saga, an actor or the related row replaces the cover's content in place:
+            // the identity makes it a new sheet, which loads that title instead of keeping the previous one.
             DetailView(id: id)
+                .id(id)
                 .environment(env)
                 .playerCover(env)
         }
