@@ -117,7 +117,9 @@ par son index.
 - **Écrans Live, Films, Séries de l'admin** : « Catalogue » (par défaut) montre ce que l'app affiche, par les fonctions
   mêmes de `/player` : ses rangées repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; « Xtream », les catégories et flux du fournisseur. Tout mène à la fiche d'un contenu
   (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream et les corrections (TMDB, iptv-org,
-  séparer, fusionner) ; `/admin/item/:id` y redirige.
+  séparer, fusionner) ; `/admin/item/:id` y redirige. La fiche d'une chaîne montre aussi son rapprochement EPG (les
+  identifiants que chaque variante essaie, dans l'ordre de l'app, et la source de secours) et tous ses programmes en base.
+  Un fil d'Ariane dans l'en-tête place chaque page sous son entrée du menu (`page(…, { under })` pour une page de détail).
 - **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Tout ce que voit l'app (tris, dates, compteurs, rangées)
   se calcule sur les seules variantes visibles. Côté app, `player/contents.ts` y ajoute le réglage adulte : `visibleContent`
   pour les contenus, `servedVariant` pour les variantes (un contenu mixte reste servi, sans ses variantes adultes).

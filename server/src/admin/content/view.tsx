@@ -4,9 +4,10 @@ import { isCategoryHidden, isItemHidden } from "@/db";
 import { isFallbackKey, keyKind, qualityOfRank } from "@/catalog";
 import { runtimeText } from "@/player";
 import { signedImagePath } from "@/shared";
-import type { ContentDetail, GuideLine, VariantDetail } from "./data";
-import { fmt, hhmm } from "../format";
-import { KEY_KIND_LABELS, KIND_TITLES, MATCH_LABELS, MATCH_TONES } from "../labels";
+import type { ContentDetail, VariantDetail } from "./data";
+import { GuideCard } from "./guide";
+import { fmt } from "../format";
+import { KEY_KIND_LABELS, MATCH_LABELS, MATCH_TONES } from "../labels";
 import { TmdbCell } from "../catalog/tmdb-cell";
 import { VisibilityToggle } from "../catalog/visibility";
 import type { CatalogQuery } from "../catalog/query";
@@ -342,7 +343,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
 }
 
 /** The sheet as the app receives it: picture, titles, what it plays in, its story; the bookkeeping on a grey line. */
-function Hero({ c, guide, total }: { c: Content; guide: GuideLine[]; total: number }) {
+function Hero({ c, total }: { c: Content; total: number }) {
   const live = c.kind === "live";
   const quality = [qualityOfRank(c.maxQualityRank), c.dynamicRange].filter(Boolean);
   const originals = [c.originalTitle, c.titleEn].filter((t) => t && t !== c.title);
@@ -391,25 +392,10 @@ function Hero({ c, guide, total }: { c: Content; guide: GuideLine[]; total: numb
           {c.adult && <Badge tone="warn">adulte</Badge>}
           <span class="text-sm text-muted-foreground">{meta.filter(Boolean).join(" · ")}</span>
         </div>
-        {live && guide.length > 0 && (
-          <div class="flex flex-col gap-1 text-sm">
-            {guide.map((p, i) => (
-              <p>
-                <span class="text-muted-foreground tabular-nums">
-                  {hhmm(p.startAt)}–{hhmm(p.endAt)}
-                </span>{" "}
-                {i === 0 && p.startAt <= new Date() ? <Badge tone="bad">en ce moment</Badge> : <Badge tone="muted">ensuite</Badge>}{" "}
-                {p.title}
-              </p>
-            ))}
-          </div>
-        )}
         {c.overview && <p class="text-sm leading-relaxed">{c.overview}</p>}
         <p class="mt-auto text-xs text-muted-foreground">
           <code class="font-mono">{c.key}</code> · ajouté le {c.addedAt.toLocaleDateString("fr-FR")} · {fmt(c.variantCount)} variante
           {c.variantCount > 1 ? "s" : ""} visible{c.variantCount > 1 ? "s" : ""} sur {fmt(total)}
-          {live && c.epgChannelId ? ` · guide ${c.epgChannelId}` : ""}
-          {live && c.epgFallbackId ? ` · guide de secours ${c.epgFallbackId}` : ""}
           {c.adult && c.visible ? " · servi seulement si les contenus adultes sont activés" : ""}
         </p>
       </div>
@@ -426,15 +412,8 @@ export function ContentView({ content, variants, tmdbLang, guide, open }: Conten
   const alone = variants.length < 2;
   return (
     <>
-      <a
-        class="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        href={`/admin/catalog?kind=${kind}`}
-      >
-        <Icon name="chevron-left" cls="size-4" />
-        {KIND_TITLES[kind]}
-      </a>
       {content ? (
-        <Hero c={content} guide={guide} total={variants.length} />
+        <Hero c={content} total={variants.length} />
       ) : (
         <div>
           <h1 class="text-2xl font-semibold tracking-tight break-words">{variants[0].item.name}</h1>
@@ -457,6 +436,7 @@ export function ContentView({ content, variants, tmdbLang, guide, open }: Conten
           ))}
         </div>
       </section>
+      {content && guide && <GuideCard c={content} g={guide} />}
     </>
   );
 }

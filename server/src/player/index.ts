@@ -65,6 +65,7 @@ export { catalogRows, listContents } from "./lists";
 export { studiosOf } from "./studios";
 export { listSagaWires, sagaSheet } from "./sagas";
 export { gridCard, runtimeText } from "./cards";
+export { epgIdsOf } from "./versions";
 export { isShelfPair } from "./top-shelf";
 export { listProgress, deleteProgress, setFinished, setProgress, type Progress } from "./progress";
 export type { Card, CatalogRow, ChannelGroupWire, ChannelWire, SagaWire, StudioWire, Version } from "./types";

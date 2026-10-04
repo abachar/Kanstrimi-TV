@@ -43,7 +43,7 @@ export type Playable = {
 };
 
 /** The provider's EPG id, then iptv-org's when they name different channels: the first with programmes wins. */
-function epgIdsOf(it: Variant): string[] {
+export function epgIdsOf(it: Variant): string[] {
   if (it.kind !== "live") return [];
   const own = String(it.raw.epg_channel_id ?? "") || null;
   return [own, it.epgMismatch ? it.iptvId : null].filter((x): x is string => Boolean(x));

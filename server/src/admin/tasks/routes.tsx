@@ -55,7 +55,9 @@ tasksRoutes.get("/card/:task", async (c) => {
 tasksRoutes.get("/:id", async (c) => {
   const run = await runById(intParam(c, "id"));
   if (!run) return c.notFound();
-  return page(c, `Passage n° ${run.id}`, <RunView run={run} log={run.logFile ? readRunLog(run.logFile) : null} />);
+  return page(c, `Passage n° ${run.id}`, <RunView run={run} log={run.logFile ? readRunLog(run.logFile) : null} />, {
+    under: "/admin/tasks",
+  });
 });
 
 tasksRoutes.get("/:id/log", async (c) => {

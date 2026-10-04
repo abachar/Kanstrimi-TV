@@ -133,9 +133,6 @@ export function SourcePage(p: SourcePageProps) {
                 Importer l'EPG maintenant
               </button>
             </form>
-            <a class="btn" data-variant="outline" href="/admin/epg">
-              EPG
-            </a>
           </>
         }
       />

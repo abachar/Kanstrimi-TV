@@ -16,7 +16,7 @@ export const logoutRoutes = new Hono();
 const LOGIN_ERRORS: Record<string, string> = { bad: "E-mail ou mot de passe incorrect" };
 
 loginRoutes.get("/", (c) =>
-  page(c, "Connexion", <LoginView error={LOGIN_ERRORS[c.req.query("e") ?? ""]} next={c.req.query("next")} />, false),
+  page(c, "Connexion", <LoginView error={LOGIN_ERRORS[c.req.query("e") ?? ""]} next={c.req.query("next")} />, { loggedIn: false }),
 );
 loginRoutes.post("/", async (c) => {
   const next = safeNext(c.req.query("next"));
@@ -26,12 +26,14 @@ loginRoutes.post("/", async (c) => {
     const seconds = Math.ceil(wait / 1000);
     c.status(429);
     c.header("Retry-After", String(seconds));
-    return page(c, "Connexion", <LoginView error={`Trop de tentatives : réessayez dans ${seconds} s`} next={next} />, false);
+    return page(c, "Connexion", <LoginView error={`Trop de tentatives : réessayez dans ${seconds} s`} next={next} />, { loggedIn: false });
   }
   if (!beginAttempt()) {
     c.status(429);
     c.header("Retry-After", "1");
-    return page(c, "Connexion", <LoginView error="Une tentative est déjà en cours : réessayez dans un instant" next={next} />, false);
+    return page(c, "Connexion", <LoginView error="Une tentative est déjà en cours : réessayez dans un instant" next={next} />, {
+      loggedIn: false,
+    });
   }
   try {
     const { email, password } = await form(c);

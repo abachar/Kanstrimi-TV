@@ -225,10 +225,6 @@ export function StudioDetailView({ d }: { d: StudioDetail }) {
   return (
     <>
       <div class="flex flex-col gap-3">
-        <a class="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground" href="/admin/studios">
-          <Icon name="chevron-left" cls="size-4" />
-          Studios
-        </a>
         <div class="flex flex-wrap items-center gap-4">
           <Logo path={d.logoPath} name={d.name} />
           <div class="flex min-w-0 flex-1 flex-col gap-1">

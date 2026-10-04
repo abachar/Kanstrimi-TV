@@ -292,9 +292,6 @@ export function RunView({ run, log }: { run: RunWithSteps; log: { text: string; 
         sub={`${when(run.startedAt)} · ${took(run)} · ${trigger(run.trigger)}`}
         actions={
           <>
-            <a class="btn" data-variant="outline" href="/admin/tasks">
-              Tâches
-            </a>
             {log && (
               <a class="btn" data-variant="outline" href={`/admin/tasks/${run.id}/raw`}>
                 Télécharger le log

@@ -29,7 +29,9 @@ contentRoutes.get("/k/:key", async (c) => {
 contentRoutes.get("/:id", async (c) => {
   const detail = await contentDetail(intParam(c, "id"));
   if (!detail?.content) return c.notFound();
-  return page(c, detail.content.title, <ContentView {...detail} open={Number(c.req.query("v")) || null} />);
+  return page(c, detail.content.title, <ContentView {...detail} open={Number(c.req.query("v")) || null} />, {
+    under: `/admin/catalog?kind=${detail.content.kind}`,
+  });
 });
 
 /** `/admin/item/:id`: a provider entry, shown on its content's page; the actions on one entry. */
@@ -40,7 +42,7 @@ itemRoutes.get("/:id", async (c) => {
   if (!it) return c.notFound();
   if (it.contentId) return c.redirect(contentLink(it.contentId, it.id), 302);
   const detail = (await orphanDetail(it.id))!;
-  return page(c, it.name, <ContentView {...detail} open={it.id} />);
+  return page(c, it.name, <ContentView {...detail} open={it.id} />, { under: `/admin/catalog?kind=${it.kind}` });
 });
 
 /** Live: pins the variant to an iptv-org channel, to none, or back to the automatic matching. */

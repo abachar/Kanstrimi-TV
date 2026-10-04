@@ -64,6 +64,26 @@ function isActive(href: string, path: string) {
   return [...want].every(([k, v]) => (got.get(k) ?? (k === "kind" ? "vod" : null)) === v);
 }
 
+/** The menu entry a page sits under: the one `href` names (a detail page's parent), else the one `path` matches. */
+function navEntry(href: string): { group: string | null; href: string; label: string } | null {
+  for (const [group, items] of NAV) for (const [h, label] of items) if (isActive(h, href)) return { group, href: h, label };
+  return null;
+}
+
+/**
+ * The trail in the header: the menu group, the menu entry when the page is one of its details
+ * (`under`), then the page itself. The group has no page of its own: it is not a link.
+ */
+function Breadcrumb({ title, path, under }: { title: string; path: string; under?: string }) {
+  const entry = navEntry(under ?? path);
+  const sep = (cls = "") => html`<li aria-hidden="true" class="${cls}">${Icon({ name: "chevron-right", cls: "size-3.5" })}</li>`;
+  // On a phone the group goes: the page and its parent are what the narrow header has room for.
+  const group = entry?.group ? html`<li class="max-sm:hidden">${entry.group}</li>${sep("max-sm:hidden")}` : "";
+  const parent =
+    under && entry ? html`<li class="shrink-0"><a href="${entry.href}" class="hover:text-foreground">${entry.label}</a></li>${sep()}` : "";
+  return html`<nav aria-label="Fil d'Ariane" class="min-w-0"><ol class="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">${group}${parent}<li class="min-w-0 truncate font-medium text-foreground" aria-current="page">${title}</li></ol></nav>`;
+}
+
 /**
  * htmx under the admin's CSP (`script-src 'self'`): nothing evaluated from an attribute, and no
  * `<style>` of its own — the busy spinners carry their classes (`Busy`).
@@ -106,12 +126,15 @@ export function Layout({
   title,
   path,
   flash,
+  under,
   loggedIn = true,
   collapsed = false,
   children,
 }: {
   title: string;
   path: string;
+  /** A detail page: the menu entry it belongs to (`/admin/studios`), the parent in its breadcrumb. */
+  under?: string;
   flash?: { ok?: string; err?: string };
   loggedIn?: boolean;
   /** md+ only: the menu shows its icons alone; the phone drawer keeps its labels. */
@@ -148,7 +171,7 @@ ${Menu({ path, collapsed })}
       <input type="hidden" name="next" value="${path}">
       <button class="btn" data-variant="ghost" data-size="icon" title="${fold}" aria-label="${fold}">${Icon({ name: "panel" })}</button>
     </form>
-    <span class="text-sm font-medium">${title}</span>
+    ${Breadcrumb({ title, path, under })}
   </header>
   <div class="mx-auto flex max-w-7xl flex-col gap-6 p-4 pb-12 md:p-6">
     ${flashes}

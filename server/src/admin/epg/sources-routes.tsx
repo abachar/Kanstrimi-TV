@@ -36,6 +36,7 @@ sourceRoutes.get("/:id", async (c) => {
     c,
     source.name,
     <SourcePage source={source} query={query} {...data} sourceNames={new Map(sources.map((s) => [s.id, s.name]))} />,
+    { under: "/admin/epg" },
   );
 });
 

@@ -16,16 +16,20 @@ async function requestOf(c: Context, code: string) {
   return { at: d.createdAt, ip: d.createdIp, sameAsYou: Boolean(d.createdIp) && d.createdIp === you };
 }
 
+/** A pairing page sits under « Appareils » in the breadcrumb. */
+const PAIR = { under: "/admin/devices" };
+
 pairRoutes.get("/:code", async (c) => {
   const code = c.req
     .param("code")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
-  if (!isCode(code)) return page(c, "Appairage", <PairView code={code} state="unknown" />);
+  if (!isCode(code)) return page(c, "Appairage", <PairView code={code} state="unknown" />, PAIR);
   return page(
     c,
     "Appairage",
     <PairView code={code} state={await pairingState(code)} request={await requestOf(c, code)} error={c.req.query("err")} />,
+    PAIR,
   );
 });
 pairRoutes.post("/:code", async (c) => {
@@ -38,9 +42,10 @@ pairRoutes.post("/:code", async (c) => {
       c,
       "Appairage",
       <PairView code={code} state={await pairingState(code)} request={await requestOf(c, code)} error={(e as Error).message} />,
+      PAIR,
     );
   }
-  return page(c, "Appairage", <PairView code={code} state="done" />);
+  return page(c, "Appairage", <PairView code={code} state="done" />, PAIR);
 });
 /** `/admin/devices`: the paired TVs. */
 export const devicesRoutes = new Hono();

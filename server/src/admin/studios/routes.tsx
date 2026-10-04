@@ -20,7 +20,7 @@ studiosRoutes.get("/:ref{(?:company|network):\\d+}", async (c) => {
   const ref = parseStudioRef(c.req.param("ref"));
   const detail = ref && (await studioDetail(ref.kind, ref.tmdbId));
   if (!detail) return c.notFound();
-  return page(c, detail.name, <StudioDetailView d={detail} />);
+  return page(c, detail.name, <StudioDetailView d={detail} />, { under: "/admin/studios" });
 });
 studiosRoutes.post(
   "/",

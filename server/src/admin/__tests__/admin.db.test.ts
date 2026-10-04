@@ -484,6 +484,14 @@ describe("admin", () => {
       expect(neg).not.toContain("Journal du Golfe");
       expect(await html(`/admin/epg?q=${encodeURIComponent("champ:x")}`)).toContain('role="alert"');
       expect(await html(`/admin/epg?channel=${encodeURIComponent(guide)}`)).toContain("source de secours");
+      // The channel's page says how it finds its guide and lists what the base holds, under « Live » in the breadcrumb.
+      const sheet = await html(`/admin/content/${tf1.id}`);
+      expect(sheet).toContain("Rapprochement EPG");
+      expect(sheet).toMatch(/Secours : <span[^>]*>qatar1<\/span>, chaîne <code[^>]*>TF1\.qa<\/code>,\s*rattachée à la main/);
+      expect(sheet).toContain("Journal du Golfe");
+      expect(sheet).toContain("en ce moment");
+      expect(sheet).toMatch(/aria-label="Fil d'Ariane".*<a href="\/admin\/catalog\?kind=live"[^>]*>Live<\/a>.*aria-current="page">TF1</s);
+      expect(await html(base)).toMatch(/aria-label="Fil d'Ariane".*<a href="\/admin\/epg"[^>]*>EPG<\/a>/s);
       expect(flash(await post(base, { name: "Qatar", url, offset: "-180" }))).toContain("Source enregistrée");
       expect((await db.select().from(schema.curationEpgSources))[0]).toMatchObject({ name: "Qatar", enabled: false, offsetMinutes: -180 });
       expect(flash(await post(`${base}/delete`, {}))).toContain("Source supprimée");
