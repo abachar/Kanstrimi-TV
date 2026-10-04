@@ -4,7 +4,8 @@ import SwiftUI
 /// The touch controls (iOS), laid out like the tvOS bar. At the top: close, Picture-in-Picture and the
 /// rotation. In the middle (films, episodes): −10 s, play/pause, +10 s. At the bottom: the title, the
 /// progress (the programme's in live), then on the left the buttons that open a panel above them
-/// (live: Programme · Récentes · Infos; episode: Épisodes · Similaires · Infos; film: Similaires · Infos) and on the right
+/// (live: Programme · Récentes · Infos; episode: Épisodes · Similaires · Distribution · Infos; film: Similaires · Distribution · Infos,
+/// Similaires and Distribution only when the title has some) and on the right
 /// the Versions, Audio and Sous-titres menus. A panel open hides the title and the progress.
 struct PlayerControls: View {
     typealias Panel = PlayerScreen.BarPanel
@@ -37,7 +38,7 @@ struct PlayerControls: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity)
                 } else {
-                    header
+                    PlayerHeader()
                     progress
                     buttons
                 }
@@ -79,7 +80,7 @@ struct PlayerControls: View {
                         Image(systemName: player.phase == .playing ? "pause.fill" : "play.fill")
                             .font(.system(size: 38, weight: .semibold))
                             .frame(width: 76, height: 76)
-                            .background(.white.opacity(0.16), in: Circle())
+                            .background(Theme.surfaceRaised, in: Circle())
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -96,7 +97,7 @@ struct PlayerControls: View {
         Image(systemName: forward ? "goforward.10" : "gobackward.10")
             .font(.system(size: 26, weight: .semibold))
             .frame(width: 54, height: 54)
-            .background(.white.opacity(0.12), in: Circle())
+            .background(Theme.surfaceButton, in: Circle())
             .contentShape(Circle())
             .onTapGesture { player.seek(by: forward ? 10 : -10); onActivity() }
             .onLongPressGesture(minimumDuration: 0.4) {
@@ -110,40 +111,15 @@ struct PlayerControls: View {
 
     // MARK: - Bottom
 
-    @ViewBuilder private var header: some View {
-        if player.isLive {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 10) {
-                    Text("EN DIRECT").font(.caption2.weight(.bold)).tracking(1.2)
-                        .padding(.horizontal, 6).padding(.vertical, 2).background(Theme.live, in: RoundedRectangle(cornerRadius: 4))
-                    Text(player.channel?.name ?? "").font(.headline).lineLimit(1)
-                }
-                if let now = player.epg.now { Text(now.title).font(.subheadline).foregroundStyle(Theme.secondary).lineLimit(1) }
-            }
-        } else if let c = player.context?.content {
-            VStack(alignment: .leading, spacing: 2) {
-                if let ep = c.episode, let s = c.subtitle {
-                    Text("\(s) · \(ep.shortCode)").font(.subheadline).foregroundStyle(Theme.secondary).lineLimit(1)
-                }
-                Text(c.title).font(.headline).lineLimit(1)
-            }
-        }
-    }
-
     @ViewBuilder private var progress: some View {
         if player.isLive {
-            let now = player.epg.now
-            VStack(spacing: 6) {
-                // Without a guide the bar is full: a live is always at its end.
-                ProgressBar(fraction: now?.fraction() ?? 1, height: 4)
-                LiveProgressCaption().font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary)
-            }
+            PlayerLiveProgress()
         } else {
             VStack(spacing: 6) {
                 GeometryReader { geo in
                     let fraction = player.duration > 0 ? (scrubTime ?? player.shownTime) / player.duration : 0
                     ZStack(alignment: .leading) {
-                        Capsule().fill(.white.opacity(0.28)).frame(height: 5)
+                        Capsule().fill(Theme.track).frame(height: 5)
                         Capsule().fill(.white).frame(width: max(0, geo.size.width * fraction), height: 5)
                         Circle().fill(.white).frame(width: 14, height: 14).offset(x: max(0, geo.size.width * fraction - 7))
                     }
@@ -156,12 +132,7 @@ struct PlayerControls: View {
                     })
                 }
                 .frame(height: 22)
-                HStack {
-                    Text(player.scanLabel + Format.clock(scrubTime ?? player.shownTime)).foregroundStyle(Theme.text)
-                    Spacer()
-                    Text("−\(Format.clock(player.remaining)) · fin à \(Format.hour(player.endDate))")
-                }
-                .font(.caption.monospacedDigit()).foregroundStyle(Theme.secondary)
+                PlayerTimeLine(elapsed: player.scanLabel + Format.clock(scrubTime ?? player.shownTime))
             }
         }
     }
@@ -177,7 +148,10 @@ struct PlayerControls: View {
                 if player.offersSubtitles { subtitlesMenu }
             }
             HStack(spacing: 10) {
-                panelButtons
+                // Too many panels for the width: the chips scroll, the menu stays fixed on the right.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) { panelButtons }
+                }
                 Spacer(minLength: 8)
                 if player.offersVersions || player.offersAudio || player.offersSubtitles {
                     Menu {
@@ -198,7 +172,7 @@ struct PlayerControls: View {
             Button { panel = panel == p ? nil : p; onActivity() } label: {
                 Text(p.rawValue).font(.footnote.weight(.semibold)).lineLimit(1).fixedSize()
                     .padding(.horizontal, 14).frame(height: 36)
-                    .background(Capsule().fill(panel == p ? Color.white : Color.white.opacity(0.16)))
+                    .background(Capsule().fill(panel == p ? Color.white : Theme.surfaceRaised))
                     .foregroundStyle(panel == p ? Color.black : Theme.text)
             }
             .buttonStyle(.plain)
@@ -234,7 +208,7 @@ struct PlayerControls: View {
         Image(systemName: symbol)
             .font(.system(size: 17, weight: .semibold))
             .frame(width: 40, height: 40)
-            .background(.white.opacity(0.16), in: Circle())
+            .background(Theme.surfaceRaised, in: Circle())
             .contentShape(Circle())
     }
 

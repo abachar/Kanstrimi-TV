@@ -7,8 +7,6 @@ final class AppEnvironment {
     let scenario: MockScenario
     /// Mock or HTTP, switched from Réglages without a relaunch.
     let client: SwitchingCatalogClient
-    let mock: MockCatalogClient
-    let http: HTTPCatalogClient
     let preferences: Preferences
     let device: DeviceStore
     let recentChannels: RecentChannelsStore
@@ -26,19 +24,19 @@ final class AppEnvironment {
     /// tvOS: the detail shown full screen above the tabs, from any screen.
     var presentedDetail: ContentID?
     /// tvOS: an actor's titles opened from the player, a cover above the tabs like a detail.
-    var presentedPerson: PersonRef?
+    var presentedCover: Route?
 
     /// Opens a title's detail from anywhere: a cover on tvOS, a push on iOS.
     func open(_ id: ContentID) { navigate(.detail(id)) }
 
     func navigate(_ route: Route) {
         if Platform.isTV {
-            // The genre grid is a cover owned by the catalogue screen on tvOS; only details and, from the player,
-            // an actor come here.
+            // The other routes are covers owned by the screen that opens them: `open(_:cover:)`. Only details and,
+            // from the player, an actor come here.
             switch route {
             case .detail(let id): presentedDetail = id
-            case .person(let ref): presentedDetail = nil; presentedPerson = ref
-            default: break
+            case .person: presentedDetail = nil; presentedCover = route
+            default: assertionFailure("\(route) is a cover owned by its screen on tvOS: use open(_:cover:)")
             }
         } else {
             paths[selectedTab, default: []].append(route)
@@ -46,22 +44,22 @@ final class AppEnvironment {
     }
 
     /// - Parameter forceMock: previews and the demo scenarios never touch the network.
-    init(forceMock: Bool = false) {
+    /// - Parameters `defaults`, `secrets`, `now`: tests inject their own so the real settings, Keychain and clock stay untouched.
+    init(forceMock: Bool = false, defaults: UserDefaults = .standard, secrets: SecretStore = KeychainStore(), now: @escaping () -> Date = Date.init) {
+        self.now = now
         let scenario = MockScenario()
         let mock = MockCatalogClient(scenario: scenario)
-        let preferences = Preferences()
+        let preferences = Preferences(defaults: defaults)
         if forceMock { preferences.useMockClient = true }
-        let device = DeviceStore()
+        let device = DeviceStore(secrets: secrets)
         let http = HTTPCatalogClient(baseURL: URL(string: preferences.serverURL) ?? URL(string: Preferences.compiledServerURL)!, device: device)
         let client = SwitchingCatalogClient(mock: mock, http: http, preferences: preferences)
         let failed = FailedSourcesStore()
         self.scenario = scenario
-        self.mock = mock
-        self.http = http
         self.client = client
         self.preferences = preferences
         self.device = device
-        self.recentChannels = RecentChannelsStore()
+        self.recentChannels = RecentChannelsStore(defaults: defaults)
         self.failedSources = failed
         self.progressQueue = ProgressQueue()
         self.homeCache = HomeCache()
@@ -101,6 +99,22 @@ final class AppEnvironment {
         }
     }
 
+    /// Ma liste as toggled in the app, until the server's own answer says the same: the one owner for the home
+    /// and the detail sheet. `favoriteRevision` moves after each saved change so the home reloads its rows.
+    private(set) var favoriteOverrides: [ContentID: Bool] = [:]
+    private(set) var favoriteRevision = 0
+
+    func isFavorite(_ id: ContentID, else served: Bool) -> Bool { favoriteOverrides[id] ?? served }
+
+    func setFavorite(_ id: ContentID, _ on: Bool) async {
+        favoriteOverrides[id] = on
+        if await attempt("Ma liste", { try await client.setFavorite(id: id, on) }) == nil {
+            favoriteOverrides[id] = !on
+        } else {
+            favoriteRevision += 1
+        }
+    }
+
     func loadInfo() async {
         info = try? await client.info()
     }
@@ -109,14 +123,15 @@ final class AppEnvironment {
     /// rows having moved on meanwhile.
     private(set) var resumeRevision = 0
     @ObservationIgnored private var inactiveSince: Date?
+    @ObservationIgnored private let now: () -> Date
     static let longAbsence: TimeInterval = 10 * 60
 
     func sceneBecame(active: Bool) {
         if !active {
-            if inactiveSince == nil { inactiveSince = .now }
+            if inactiveSince == nil { inactiveSince = now() }
             return
         }
-        if let since = inactiveSince, Date.now.timeIntervalSince(since) > Self.longAbsence { resumeRevision += 1 }
+        if let since = inactiveSince, now().timeIntervalSince(since) > Self.longAbsence { resumeRevision += 1 }
         inactiveSince = nil
     }
 
@@ -190,10 +205,5 @@ final class AppEnvironment {
     /// A list item: a movie as itself, a series through the episode the server resumes it on.
     func playbackContext(for item: ContentItem) async throws -> PlaybackContext {
         PlaybackContext(item: item, playback: try await client.playback(id: item.id))
-    }
-    func playbackContext(for next: NextEpisode, seriesTitle: String) async throws -> PlaybackContext {
-        let playback = try await client.playback(id: next.id)
-        let content = PlaybackContent(id: next.id, kind: .episode, title: next.title ?? "", subtitle: seriesTitle, episode: next.ref, backdrop: nil)
-        return PlaybackContext(content: content, playback: playback)
     }
 }

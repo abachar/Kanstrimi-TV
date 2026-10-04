@@ -48,6 +48,8 @@ private extension RootView {
     ///   debug.autoplay  — live | live:<id> | <content id>, plus debug.resumeAt in seconds
     ///   debug.playerState — vodPaused | failure | nextEpisode | nextTitle | livePlaying | panel | opening:
     ///                     stages the player in that state instead of streaming (no flux in the mock)
+    ///   debug.landscape — iPhone, read by `PlayerScreen+iOS`: the player in landscape
+    ///   debug.panel     — iPhone, read by `PlayerScreen+iOS`: that player panel open
     func debugHooks() async {
         #if DEBUG
         let defaults = UserDefaults.standard

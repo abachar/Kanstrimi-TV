@@ -3,10 +3,11 @@ import SwiftUI
 /// The Réglages tab: Lecture · Appareil · À propos, plus a Démo section that drives the mock.
 struct SettingsView: View {
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
     @State private var confirmUnpair = false
 
     var body: some View {
-        if Platform.isTV {
+        if !metrics.compact {
             // Like the Réglages of the Apple TV: the app's name centred on the left, the list on the right half.
             HStack(spacing: 0) {
                 brand.frame(maxWidth: .infinity)
@@ -27,7 +28,7 @@ struct SettingsView: View {
     private var brand: some View {
         VStack(spacing: 64) {
             VStack(spacing: 18) {
-                Text("Kanstrimi").font(.system(size: 64, weight: .bold)).tracking(6).foregroundStyle(Theme.accent)
+                Wordmark(size: 64, tracking: 6)
                 Text("Réglages").font(.title2.weight(.semibold))
                 Text("Version \(appVersion)").font(.callout).foregroundStyle(Theme.secondary)
             }
@@ -79,7 +80,7 @@ struct SettingsView: View {
         @Bindable var scenario = env.scenario
         Form {
             // tvOS: the device, the server and À propos sit in the left column (`brand`).
-            if !Platform.isTV {
+            if metrics.compact {
             Section {
                 // iPhone: who this device is and which server it talks to, like the account card atop the iOS Réglages.
                 HStack(spacing: 14) {
@@ -96,20 +97,28 @@ struct SettingsView: View {
             }
             }
 
-            Section("Lecture") {
+            Section {
                 ChoiceRow("Langue audio", selection: languageBinding(prefs), options: languageOrders) {
                     $0.map(\.short).joined(separator: " › ")
                 }
                 ChoiceRow("Qualité maximale", selection: $prefs.maxQuality, options: Quality.allCases.reversed()) { $0.label }
-                Toggle("Lecture automatique de la suite · 15 s", isOn: $prefs.autoPlayNext)
+                Toggle(isOn: $prefs.autoPlayNext) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Lecture automatique de la suite")
+                        Text("Démarre 15 s avant la fin").font(.footnote).foregroundStyle(Theme.secondary)
+                    }
+                }
                 Toggle("Mémoriser la version par titre", isOn: $prefs.rememberVersionPerTitle)
                 Toggle("Changer de source en cas de panne", isOn: $prefs.switchSourceOnFailure)
-                InfoRow("Ordre utilisé par Lecture", value: "Un choix fait dans le sélecteur de versions est mémorisé pour le titre et prime sur ces réglages.")
-                    .font(.callout)
+            } header: {
+                Text("Lecture")
+            } footer: {
+                // A note, not a setting: a footer, so nothing focusable on tvOS.
+                Text("Un choix fait dans le sélecteur de versions est mémorisé pour le titre et prime sur ces réglages.")
             }
 
             Section("Appareil") {
-                if !Platform.isTV {
+                if metrics.compact {
                     InfoRow("Nom de cet appareil", value: deviceName)
                     InfoRow("Serveur", value: prefs.serverURL)
                 }
@@ -125,7 +134,7 @@ struct SettingsView: View {
                 }
             }
 
-            if !Platform.isTV {
+            if metrics.compact {
             Section("À propos") {
                 InfoRow("Application", value: appVersion)
                 InfoRow("Serveur", value: env.info != nil ? serverLine : "—")
@@ -316,7 +325,7 @@ private struct RowButtonStyle: ButtonStyle {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, minHeight: 66, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 30, style: .continuous).fill(isFocused ? Color.white : Color.white.opacity(0.1)))
+                .background(RoundedRectangle(cornerRadius: 30, style: .continuous).fill(isFocused ? Color.white : Theme.surfaceControl))
                 .scaleEffect(isFocused ? (configuration.isPressed ? 1 : 1.03) : 1)
                 .shadow(color: .black.opacity(isFocused ? 0.4 : 0), radius: 16, y: 8)
                 .animation(.easeOut(duration: 0.15), value: isFocused)

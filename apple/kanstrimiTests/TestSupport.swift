@@ -8,8 +8,8 @@ enum Fixtures {
     static func version(_ id: String, _ lang: Language, _ q: Quality, dr: DynamicRange? = nil, sources: Int = 1, edition: String? = nil) -> Version {
         Version(id: id, language: lang, quality: q, dynamicRange: dr, sources: (0..<sources).map { source("\(id)-s\($0)") }, edition: edition)
     }
-    /// The seven versions of the canvas sheet: VF ×3, VOSTFR ×2, VO ×1 (+ one duplicated source).
-    static let sevenVersions: [Version] = [
+    /// The canvas sheet: six versions (VF ×3, VOSTFR ×2, VO ×1) and seven sources, one version having two.
+    static let canvasVersions: [Version] = [
         version("vf-4k-dv", .vf, .uhd, dr: .dolbyVision),
         version("vf-4k-hdr", .vf, .uhd, dr: .hdr, sources: 2),
         version("vf-fhd", .vf, .fhd),

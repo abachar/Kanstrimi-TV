@@ -55,11 +55,6 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
         guard let dynamicRange, dynamicRange != .sdr else { return quality.label }
         return "\(quality.label) \(dynamicRange.label)"
     }
-    /// "4K DV", "HD".
-    var shortQualityLabel: String {
-        guard let dynamicRange, dynamicRange != .sdr else { return quality.rawValue }
-        return "\(quality.rawValue) \(dynamicRange.shortLabel)"
-    }
     /// "4K Dolby Vision · FR", "HD · FR · Version longue".
     var label: String { ["\(qualityLabel) · \(language.short)", edition].compactMap(\.self).joined(separator: " · ") }
     /// "Source A", "Source B": the sources of a version by their place.
@@ -70,27 +65,4 @@ nonisolated extension Array where Element == Version {
     var languages: [Language] { Set(map(\.language)).sorted() }
     var maxQuality: Quality? { map(\.quality).max() }
     var maxDynamicRange: DynamicRange? { compactMap(\.dynamicRange).max() }
-    var sourceCount: Int { reduce(0) { $0 + $1.sources.count } }
-    var qualities: [Quality] { Set(map(\.quality)).sorted(by: >) }
-    func version(language: Language, quality: Quality, dynamicRange: DynamicRange?) -> Version? {
-        first { $0.language == language && $0.quality == quality && ($0.dynamicRange ?? .sdr) == (dynamicRange ?? .sdr) }
-    }
-    /// Distinct quality rows for the matrix, best first.
-    var qualityRows: [QualityRow] {
-        var seen = Set<String>()
-        return sorted { a, b in
-            if a.quality != b.quality { return a.quality > b.quality }
-            return (a.dynamicRange ?? .sdr) > (b.dynamicRange ?? .sdr)
-        }.compactMap { v in
-            let key = "\(v.quality.rawValue)/\(v.dynamicRange?.rawValue ?? "")"
-            guard seen.insert(key).inserted else { return nil }
-            return QualityRow(quality: v.quality, dynamicRange: v.dynamicRange)
-        }
-    }
-}
-
-nonisolated struct QualityRow: Hashable, Sendable {
-    let quality: Quality
-    let dynamicRange: DynamicRange?
-    var key: String { "\(quality.rawValue)/\(dynamicRange?.rawValue ?? "")" }
 }

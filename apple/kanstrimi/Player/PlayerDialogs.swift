@@ -19,7 +19,7 @@ struct StreamFailureDialog: View {
                 }
                 // One button per row, like a tvOS alert: the version label can be long and the dialog is narrow.
                 VStack(alignment: .leading, spacing: 14) {
-                    if Platform.isTV {
+                    if !metrics.compact {
                         // The current version retries; every other one, on a single line, plays instead.
                         if let v = player.version {
                             Button { player.retryFromServer() } label: { Label("Réessayer · \(v.label)", systemImage: "arrow.clockwise") }
@@ -34,9 +34,12 @@ struct StreamFailureDialog: View {
                                         Button(v.label) { player.playInstead(v) }
                                     }
                                 }
+                                // Room for the focus enlargement, now that the scroll is clipped to the panel.
                                 .padding(.vertical, 12)
+                                .padding(.horizontal, 12)
                             }
-                            .scrollClipDisabled()
+                            // The same room taken back outside: the chips stay aligned with the text above.
+                            .padding(.horizontal, -12)
                         }
                     } else {
                         // Réessayer is the answer most of the time: the one filled button, as wide as the dialog.
@@ -45,20 +48,20 @@ struct StreamFailureDialog: View {
                         }
                         .prominentButtonStyle()
                         .focused($focused)
-                        if let alt = player.alternativeVersion {
-                            Button { player.playAlternative() } label: {
+                        if let alt = player.alternativeVersions.first {
+                            Button { player.playInstead(alt) } label: {
                                 Label("Autre version · \(alt.label)", systemImage: "rectangle.stack.badge.play").phoneFullWidth(metrics, height: 40)
                             }
                             .buttonStyle(.bordered)
                         }
                     }
-                    if Platform.isTV {
+                    if !metrics.compact {
                         Button("Quitter", role: .cancel) { player.stop() }
                     } else {
                         Button("Quitter", role: .cancel) { player.stop() }.frame(maxWidth: .infinity).padding(.top, 2)
                     }
                 }
-                if !Platform.isTV {
+                if metrics.compact {
                     Text("Réessayer suffit souvent : la source change d'une tentative à l'autre.")
                         .font(.footnote).foregroundStyle(Theme.secondary)
                 }
@@ -93,7 +96,8 @@ struct NextEpisodeCard: View {
 
     private func card(_ upNext: PlayerService.UpNext) -> some View {
         let (label, item, warning): (String, ContentItem, String?) = switch upNext {
-        case .episode(let next): (next.heading, next.item, languageWarning(next))
+        case .episode(let next):
+            (next.heading, next.item, languageWarning(next))
         case .title(let s): (s.heading, s.item, nil)
         }
         return UpNextCard(heading: "\(label) · \(player.nextCountdown ?? 0) s", item: item, warning: warning, playFocus: $focused,
@@ -136,15 +140,13 @@ struct NextEpisodeCard: View {
         case .title where player.nextContext != nil: player.playNextNow()
         case .title(let s):
             // Its playback not fetched yet: asked now.
-            Task {
-                guard let ctx = try? await env.playbackContext(for: s.item) else { return }
-                player.play(ctx)
-            }
+            Task { _ = await player.playPicked({ await env.attempt("Lecture") { try await env.playbackContext(for: s.item) } }) }
         }
     }
 
+    /// The chain's following episodes are not known here: no return announced.
     private func languageWarning(_ next: NextEpisode) -> String? {
-        guard let current = player.version, !next.languages.contains(current.language), let alt = next.languages.first else { return nil }
-        return "Pas de \(current.language.short) pour cet épisode : lecture en \(alt.short), retour en \(current.language.short) ensuite."
+        guard let current = player.version?.language, let alternative = next.languages.first, !next.languages.contains(current) else { return nil }
+        return VersionChooser.languageWarning(episode: next.number, alternative: alternative, current: current, returnsAt: nil)
     }
 }

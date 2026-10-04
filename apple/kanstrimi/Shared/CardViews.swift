@@ -36,7 +36,7 @@ struct ArtView: View {
                     .lineLimit(5)
                     .minimumScaleFactor(0.5)
                     .padding(pad)
-                    // The upper part only: the bottom carries the year, the rating and the badges.
+                    // The upper part only: the bottom is left to the hint, the quality and the progress.
                     .frame(width: geo.size.width, height: geo.size.height * 0.7)
             }
         }
@@ -51,12 +51,14 @@ struct ArtView: View {
 }
 
 /// A poster's shell, 2:3 at the width its parent gives: its art (the title stands in for it), a gradient that keeps
-/// the text drawn at the bottom readable, then `overlay` at the bottom left. Titles and sagas share it.
+/// the text drawn at the bottom readable (`veil`: only where there is some, the TV's hint and quality), then
+/// `overlay` at the bottom left. Titles and sagas share it.
 struct PosterFrame<Overlay: View>: View {
     @Environment(\.metrics) private var metrics
     let id: ContentID
     let url: URL?
     let title: String
+    var veil = true
     @ViewBuilder let overlay: () -> Overlay
 
     var body: some View {
@@ -65,7 +67,7 @@ struct PosterFrame<Overlay: View>: View {
             .fixedSize(horizontal: false, vertical: true)
             .overlay(alignment: .bottomLeading) {
                 ZStack(alignment: .bottomLeading) {
-                    LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
+                    if veil { LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom) }
                     overlay()
                 }
             }
@@ -73,13 +75,14 @@ struct PosterFrame<Overlay: View>: View {
     }
 }
 
-/// The short line drawn on a poster: « 2024 · ★ 7.4 », « 5 films ».
+/// The short line under a poster, small and grey on the page: « 2024 · ★ 7.4 », « 5 films ». It shrinks a little
+/// before it truncates (« Série · 2025 · ★ 8.3 » in a phone's grid).
 struct PosterFacts: View {
     @Environment(\.metrics) private var metrics
     let text: String
     var body: some View {
-        Text(text).font(.system(size: metrics.badge, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
-            .shadow(color: .black.opacity(0.6), radius: 3)
+        Text(text).font(.system(size: metrics.badge, weight: .medium)).foregroundStyle(Theme.secondary)
+            .lineLimit(1).minimumScaleFactor(0.8)
     }
 }
 
@@ -157,31 +160,28 @@ struct TitleLogo: View {
 /// a channel or a saga.
 struct PosterMenu: ViewModifier {
     @Environment(AppEnvironment.self) private var env
-    let id: ContentID
-    let playable: Bool
-    let context: (AppEnvironment) async throws -> PlaybackContext
+    let item: ContentItem
 
     func body(content: Content) -> some View {
         content.touchContextMenu {
-            if playable {
+            if item.kind != .live && item.kind != .saga {
                 Button { play() } label: { Label("Lecture", systemImage: "play.fill") }
-                Button { env.open(id) } label: { Label("Voir la fiche", systemImage: "info.circle") }
+                Button { env.open(item.id) } label: { Label("Voir la fiche", systemImage: "info.circle") }
             }
         }
     }
 
     private func play() {
-        Task { if let ctx = await env.attempt("Lecture", { try await context(env) }) { env.player.play(ctx) } }
+        Task { if let ctx = await env.attempt("Lecture", { try await env.playbackContext(for: item) }) { env.player.play(ctx) } }
     }
 }
 
 extension View {
     func posterMenu(_ item: ContentItem) -> some View {
-        modifier(PosterMenu(id: item.id, playable: item.kind != .live && item.kind != .saga) { try await $0.playbackContext(for: item) })
+        modifier(PosterMenu(item: item))
     }
 }
 
-/// Horizontal row with a title, used on the home screen and in search.
 /// An entry of a card's context menu (long press on tvOS and iOS).
 struct CardAction {
     let title: String
@@ -198,6 +198,7 @@ struct RowTitle: View {
     }
 }
 
+/// Horizontal row with a title, used on the home screen.
 struct CardRow: View {
     @Environment(\.metrics) private var metrics
     let title: String

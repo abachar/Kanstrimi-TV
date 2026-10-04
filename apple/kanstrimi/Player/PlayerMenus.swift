@@ -25,12 +25,70 @@ extension PlayerService {
     }
 }
 
+/// The player's header, live or not: the channel and its programme, or the episode and the title.
+struct PlayerHeader: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
+    private var player: PlayerService { env.player }
+    private var text: Metrics.PlayerText { metrics.playerText }
+
+    var body: some View {
+        if player.isLive {
+            VStack(alignment: .leading, spacing: text.liveSpacing) {
+                HStack(spacing: text.tagSpacing) {
+                    LiveTag("EN DIRECT", size: text.liveTag)
+                    Text(player.channel?.name ?? "").font(text.name).lineLimit(text.lines)
+                }
+                if let now = player.epg.now { Text(now.title).font(text.programme).foregroundStyle(Theme.secondary).lineLimit(text.lines) }
+            }
+        } else if let c = player.context?.content {
+            VStack(alignment: .leading, spacing: text.vodSpacing) {
+                if let ep = c.episode, let s = c.subtitle {
+                    Text("\(s) · \(ep.shortCode)").font(text.episode).foregroundStyle(Theme.secondary).lineLimit(text.lines)
+                }
+                Text(c.title).font(text.title).lineLimit(text.lines)
+            }
+        }
+    }
+}
+
+/// The live bar: where the programme stands (full without a guide, a live is always at its end) and its caption.
+struct PlayerLiveProgress: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
+
+    var body: some View {
+        VStack(spacing: metrics.playerText.liveBarSpacing) {
+            ProgressBar(fraction: env.player.epg.now?.fraction() ?? 1, height: metrics.playerText.liveBarHeight)
+            LiveProgressCaption().font(metrics.playerText.time).foregroundStyle(Theme.secondary)
+        }
+    }
+}
+
+/// What has been played, then what remains and when it ends.
+struct PlayerTimeLine: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
+    /// The elapsed time, as the bar shows it (with its scan label on the phone).
+    let elapsed: String
+
+    var body: some View {
+        let player = env.player
+        HStack {
+            Text(elapsed).foregroundStyle(Theme.text)
+            Spacer()
+            Text("−\(Format.clock(player.remaining)) · fin à \(Format.hour(player.endDate))")
+        }
+        .font(metrics.playerText.time).foregroundStyle(Theme.secondary)
+    }
+}
+
 /// The Versions menu: by language, the one playing checked.
 struct VersionMenuItems: View {
     @Environment(AppEnvironment.self) private var env
     var body: some View {
         let player = env.player
-        let versions = player.context?.versions ?? []
+        let versions = VersionChooser.ordered(player.context?.versions ?? [], recommended: nil)
         let languages = versions.map(\.language).reduce(into: [Language]()) { if !$0.contains($1) { $0.append($1) } }
         ForEach(languages, id: \.self) { language in
             Section(language.label) {
@@ -78,6 +136,11 @@ private struct TrackLabel: View {
     }
 }
 
+extension Programme {
+    /// "Ensuite : Le Journal · 20:00": how the programme after the one on air is announced, everywhere.
+    var nextLine: String { "Ensuite : \(title) · \(Format.hour(start))" }
+}
+
 /// Under the live progress: when the programme on air started, then what follows (or when it ends).
 struct LiveProgressCaption: View {
     @Environment(AppEnvironment.self) private var env
@@ -87,7 +150,7 @@ struct LiveProgressCaption: View {
             if let now = epg.now {
                 Text(Format.hour(now.start))
                 Spacer()
-                Text(epg.next.map { "Ensuite : \($0.title) · \(Format.hour($0.start))" } ?? Format.hour(now.end)).lineLimit(1)
+                Text(epg.next?.nextLine ?? Format.hour(now.end)).lineLimit(1)
             } else {
                 Text("Programme inconnu")
                 Spacer()

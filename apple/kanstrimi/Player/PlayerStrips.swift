@@ -99,8 +99,8 @@ struct PlayerInfos: View {
     @Environment(AppEnvironment.self) private var env
     /// The channel logo in live: large on the television, smaller on a phone.
     var logoSize: CGFloat = 120
-    @State private var card: Card?
     private var player: PlayerService { env.player }
+    private var card: Card? { player.titleCard }
 
     var body: some View {
         HStack(alignment: .top, spacing: 36) {
@@ -116,13 +116,13 @@ struct PlayerInfos: View {
                         Text("Programme inconnu pour cette chaîne").foregroundStyle(Theme.secondary)
                     }
                     if let next = player.epg.next {
-                        Text("Ensuite · \(Format.hour(next.start)) · \(next.title)").font(.callout).foregroundStyle(Theme.secondary)
+                        Text(next.nextLine).font(.callout).foregroundStyle(Theme.secondary)
                     }
                     StreamFacts(player: player)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 10) {
-                    if !facts.isEmpty { Text(facts).font(.callout).foregroundStyle(Theme.secondary) }
+                    if let facts { Text(facts).font(.callout).foregroundStyle(Theme.secondary) }
                     if let o = overview { Text(o).font(.callout).lineLimit(4) }
                     StreamFacts(player: player)
                 }
@@ -130,7 +130,7 @@ struct PlayerInfos: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: 1300, alignment: .leading)
-        .task(id: player.context?.content.id) { await load() }
+        .task(id: player.context?.content.id) { await player.loadTitleCard() }
     }
 
 
@@ -139,21 +139,17 @@ struct PlayerInfos: View {
         return card?.allEpisodes.first { $0.id == id }
     }
 
-    private var facts: String {
-        guard let card else { return "" }
-        if let episode {
-            return [episode.airDate.map { String(Calendar.current.component(.year, from: $0)) }, episode.runtime.map { "\($0) min" }].compactMap { $0 }.joined(separator: " · ")
-        }
-        return ([card.year.map(String.init)] + card.genres.prefix(3).map(Optional.some) + [card.runtime.map { "\($0) min" }])
-            .compactMap { $0 }.joined(separator: " · ")
+    /// The sheet's facts; an episode keeps its air year and runtime: its list facts carry the progress of when the
+    /// sheet was loaded, stale while it plays.
+    private var facts: String? {
+        guard let episode else { return card?.facts }
+        let parts = [episode.airDate.map { String(Calendar.current.component(.year, from: $0)) }, episode.runtime.map { "\($0) min" }]
+        let text = parts.compactMap { $0 }.joined(separator: " · ")
+        return text.isEmpty ? nil : text
     }
 
     private var overview: String? { episode?.overview ?? card?.overview }
 
-    private func load() async {
-        guard let c = player.context, !player.isLive else { return }
-        card = try? await env.client.detail(id: c.seriesID ?? c.content.id)
-    }
 }
 
 /// Épisodes: the season playing, the current episode marked; a click plays another.
@@ -163,8 +159,8 @@ struct SeasonEpisodesStrip: View {
     @FocusState private var focused: ContentID?
     var onActivity: () -> Void = { }
     let onPick: () -> Void
-    @State private var series: Card?
     private var player: PlayerService { env.player }
+    private var series: Card? { player.titleCard }
 
     private var episodes: [Episode] {
         guard let season = player.context?.content.episode?.season else { return [] }
@@ -173,7 +169,9 @@ struct SeasonEpisodesStrip: View {
 
     var body: some View {
         Group {
-            if series == nil {
+            if player.titleCardFailed {
+                Text("Épisodes indisponibles").foregroundStyle(Theme.secondary).padding(.vertical, 30)
+            } else if series == nil {
                 ProgressView()
             } else {
                 ScrollView(.horizontal) {
@@ -192,10 +190,7 @@ struct SeasonEpisodesStrip: View {
         }
         .defaultFocus($focused, player.context?.content.id)
         .onChange(of: focused) { _, _ in onActivity() }
-        .task(id: player.context?.seriesID) {
-            guard let id = player.context?.seriesID else { return }
-            series = try? await env.client.detail(id: id)
-        }
+        .task(id: player.context?.seriesID) { await player.loadTitleCard() }
     }
 
     private func card(_ ep: Episode) -> some View {
@@ -216,9 +211,7 @@ struct SeasonEpisodesStrip: View {
     private func play(_ ep: Episode) {
         guard ep.id != player.context?.content.id, let series else { return }
         Task {
-            guard let ctx = try? await env.playbackContext(for: ep, of: series) else { return }
-            player.play(ctx)
-            onPick()
+            if await player.playPicked({ await env.attempt("Lecture") { try await env.playbackContext(for: ep, of: series) } }) { onPick() }
         }
     }
 }
@@ -250,9 +243,7 @@ struct RelatedStrip: View {
 
     private func play(_ c: ContentItem) {
         Task {
-            guard let ctx = try? await env.playbackContext(for: c) else { return }
-            player.play(ctx)
-            onPick()
+            if await player.playPicked({ await env.attempt("Lecture") { try await env.playbackContext(for: c) } }) { onPick() }
         }
     }
 }

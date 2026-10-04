@@ -70,6 +70,8 @@ struct PlayerScreen: View {
             LoadingBadge()
 
             if let toast = player.toast { ToastView(toast: toast) }
+            // The app's own notice is drawn under this cover: shown here while the player is up.
+            else if let notice = env.notice { ToastView(text: notice) }
             // The second of black between a title and what follows it.
             if player.isChangingTitle { Color.black.ignoresSafeArea().transition(.opacity) }
             if player.nextCountdown != nil { NextEpisodeCard(barShown: (controlsVisible || barFocused) && sheet == .none) }
@@ -164,6 +166,9 @@ struct LoadingBadge: View {
     @Environment(\.metrics) private var metrics
     private var player: PlayerService { env.player }
     private var isLoading: Bool { player.phase == .opening || player.phase == .buffering }
+    private var caption: String {
+        player.phase == .opening ? "Ouverture du flux…" : "Chargement · \(Int(player.bufferingProgress)) %"
+    }
 
     var body: some View {
         if metrics.compact { centred } else { corner }
@@ -174,7 +179,7 @@ struct LoadingBadge: View {
         VStack(spacing: 12) {
             if isLoading {
                 ProgressView().controlSize(.large).tint(.white)
-                Text(player.phase == .opening ? "Ouverture du flux…" : "Chargement · \(Int(player.bufferingProgress)) %")
+                Text(caption)
                     .font(.footnote.weight(.semibold)).foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.6), radius: 4)
             }
@@ -188,10 +193,10 @@ struct LoadingBadge: View {
         VStack {
             HStack {
                 Spacer()
-                if player.phase == .opening || player.phase == .buffering {
+                if isLoading {
                     HStack(spacing: 12) {
                         ProgressView().controlSize(.small)
-                        Text(player.phase == .opening ? "Ouverture du flux…" : "Chargement · \(Int(player.bufferingProgress)) %")
+                        Text(caption)
                             .font(.callout.weight(.semibold))
                     }
                     .padding(.horizontal, 20).padding(.vertical, 12)
@@ -215,6 +220,7 @@ struct ToastView: View {
     var icon = "arrow.triangle.2.circlepath"
 
     init(toast: PlayerService.Toast) { text = toast.text; detail = toast.detail }
+    init(text: String) { self.text = text; icon = "exclamationmark.triangle" }
     init(text: String, detail: String? = nil, icon: String) { self.text = text; self.detail = detail; self.icon = icon }
 
     var body: some View {

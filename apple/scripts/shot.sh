@@ -2,6 +2,7 @@
 # usage: shot.sh <écran> <tvos|iphone> [horodatage]
 # Capture un écran de l'app (client de démo) dans apple/ui-review/<écran>/<horodatage>-<cible>.png (hors git).
 # L'app Debug doit être installée sur le simulateur (shot-all.sh la compile et l'installe).
+# Sagas, Saga, Acteur et les grilles genre/studio ne se capturent pas : leurs `#Preview` sont dans `Features/ScreenPreviews.swift`.
 # Simulateurs : TVOS_UDID / IPHONE_UDID pour changer ; WAIT=<s> pour attendre plus longtemps.
 # LANDSCAPE=1 : iPhone, le lecteur en paysage (fichier …-iphone-paysage.png).
 # PANEL=<Programme|Récentes|Épisodes|Infos|Chaînes> : iPhone, ce panneau du lecteur ouvert (ou la liste des chaînes).
@@ -21,7 +22,7 @@ case $target in
   *) echo "cible inconnue : $target (tvos|iphone)"; exit 1 ;;
 esac
 
-# Réglages de lancement (clés debug.* lues par RootView.debugHooks, Debug seulement)
+# Réglages de lancement (clés debug.* lues par RootView.debugHooks, sauf debug.landscape et debug.panel lues par PlayerScreen+iOS ; Debug seulement)
 typeset -A kv
 case $screen in
   Appairage)               kv=(debug.unpair YES) ;;

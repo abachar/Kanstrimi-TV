@@ -5,6 +5,8 @@ nonisolated struct SagaRef: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let name: String
     let count: Int
+    /// « Trilogie - Saga · 3 films ».
+    let label: String
 }
 
 /// `GET /movies/sagas/{id}`: the saga, its header (« SAGA », « 3 films ») and its visible movies, latest release first.

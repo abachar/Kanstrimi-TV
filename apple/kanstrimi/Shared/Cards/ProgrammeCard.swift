@@ -15,13 +15,13 @@ struct ProgrammeCard: View {
             if let o = programme.overview { Text(o).font(.caption2).foregroundStyle(Theme.secondary).lineLimit(3) }
             Spacer(minLength: 0)
             if onAir {
-                Text("EN COURS").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
+                OnAirLabel()
                 ProgressBar(fraction: programme.fraction(), height: 4)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(metrics.compact ? 14 : 20)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: metrics.cardRadius))
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: metrics.cardRadius))
     }
 }
 

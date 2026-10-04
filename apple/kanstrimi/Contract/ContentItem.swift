@@ -1,8 +1,8 @@
 import Foundation
 
 /// What a content card draws, written by the server: the app lays it out and decides nothing. A list item;
-/// the sheet stays a `Card`. Texts are final: `facts` « 2019 · ★ 8.5 », « 3 films »; `badges` « 4K DV »,
-/// « VF », « VOSTFR », in order; `caption` « 1 h 08 restantes ». `progress` (0…1) only while resumable.
+/// the sheet stays a `Card`. Texts are final: `facts` « 2019 · ★ 8.5 », « 3 films »; `quality` « 4K DV »
+/// alone; `badges` « 4K DV », « FR », « VOSTF », in order; `caption` « 1 h 08 restantes ». `progress` (0…1) only while resumable.
 nonisolated struct ContentItem: Codable, Hashable, Identifiable, Sendable {
     /// Where a click goes: the sheet, the saga, the player.
     enum Kind: String, Codable, Sendable {
@@ -32,6 +32,8 @@ nonisolated struct ContentItem: Codable, Hashable, Identifiable, Sendable {
     let poster: URL?
     let picture: URL?
     let facts: String?
+    /// The quality badge alone, the one `badges` starts with; nil when unknown.
+    let quality: String?
     let badges: [String]
     let hint: String?
     let progress: Double?
@@ -41,10 +43,10 @@ nonisolated struct ContentItem: Codable, Hashable, Identifiable, Sendable {
     let overview: String?
 
     init(id: ContentID, kind: Kind, title: String, logo: URL? = nil, poster: URL? = nil, picture: URL? = nil, facts: String? = nil,
-         badges: [String] = [], hint: String? = nil, progress: Double? = nil, watched: Bool = false, caption: String? = nil,
+         quality: String? = nil, badges: [String] = [], hint: String? = nil, progress: Double? = nil, watched: Bool = false, caption: String? = nil,
          overview: String? = nil) {
         self.id = id; self.kind = kind; self.title = title; self.logo = logo; self.poster = poster; self.picture = picture
-        self.facts = facts; self.badges = badges; self.hint = hint; self.progress = progress; self.watched = watched; self.caption = caption
+        self.facts = facts; self.quality = quality; self.badges = badges; self.hint = hint; self.progress = progress; self.watched = watched; self.caption = caption
         self.overview = overview
     }
 
@@ -57,6 +59,7 @@ nonisolated struct ContentItem: Codable, Hashable, Identifiable, Sendable {
         poster = try c.decodeIfPresent(URL.self, forKey: .poster)
         picture = try c.decodeIfPresent(URL.self, forKey: .picture)
         facts = try c.decodeIfPresent(String.self, forKey: .facts)
+        quality = try c.decodeIfPresent(String.self, forKey: .quality)
         badges = try c.decodeIfPresent([String].self, forKey: .badges) ?? []
         hint = try c.decodeIfPresent(String.self, forKey: .hint)
         progress = try c.decodeIfPresent(Double.self, forKey: .progress)

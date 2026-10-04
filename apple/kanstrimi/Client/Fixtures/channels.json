@@ -3,6 +3,8 @@
   {
    "id": "fr-generalistes",
    "name": "France · Généralistes",
+   "section": "France",
+   "theme": "Généralistes",
    "channels": [
     {
      "id": "live:fr-tf1",
@@ -882,6 +884,8 @@
   {
    "id": "fr-cinema",
    "name": "France · Cinéma",
+   "section": "France",
+   "theme": "Cinéma",
    "channels": [
     {
      "id": "live:fr-canal",
@@ -1322,6 +1326,8 @@
   {
    "id": "fr-sport",
    "name": "France · Sport",
+   "section": "France",
+   "theme": "Sport",
    "channels": [
     {
      "id": "live:fr-canal-sport",
@@ -1911,6 +1917,8 @@
   {
    "id": "fr-jeunesse",
    "name": "France · Jeunesse",
+   "section": "France",
+   "theme": "Jeunesse",
    "channels": [
     {
      "id": "live:fr-canal-kids",
@@ -2181,6 +2189,8 @@
   {
    "id": "fr-infos",
    "name": "France · Infos",
+   "section": "France",
+   "theme": "Infos",
    "channels": [
     {
      "id": "live:fr-la-chaine-meteo",
@@ -2383,6 +2393,8 @@
   {
    "id": "fr-decouverte",
    "name": "France · Découverte",
+   "section": "France",
+   "theme": "Découverte",
    "channels": [
     {
      "id": "live:fr-canal-docs",
@@ -2637,6 +2649,8 @@
   {
    "id": "fr-musique",
    "name": "France · Musique",
+   "section": "France",
+   "theme": "Musique",
    "channels": [
     {
      "id": "live:fr-europe-2-pop-tv",
@@ -2801,6 +2815,8 @@
   {
    "id": "ar-sport",
    "name": "Monde arabe · Sport",
+   "section": "Monde arabe",
+   "theme": "Sport",
    "channels": [
     {
      "id": "live:ar-bein-sports-1",

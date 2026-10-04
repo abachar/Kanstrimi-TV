@@ -36,13 +36,11 @@ struct HomeView: View {
         }
         .onChange(of: env.player.progressRevision) { Task { await model?.load() } }
         .onChange(of: env.resumeRevision) { Task { await model?.load() } }
+        .onChange(of: env.favoriteRevision) { Task { await model?.load() } }
         .platformSheet(isPresented: $showPicker) {
             if let model, let hero = model.hero {
                 VersionPicker(title: hero.item.title, versions: hero.versions, recommendedID: model.heroChoice?.version.id) { v, s in
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(400))
-                        model.playHero(hero, version: v, source: s)
-                    }
+                    model.playHero(hero, version: v, source: s)
                 }
                 .environment(env)
             }
@@ -225,20 +223,16 @@ final class HomeModel {
     private(set) var heroIndex = 0
     private(set) var error: CatalogError?
     private(set) var isOffline = false
-    private(set) var isLoading = false
 
     init(env: AppEnvironment) { self.env = env }
 
     func load() async {
-        isLoading = true
-        defer { isLoading = false }
         do {
             let h = try await env.client.home()
             // The same slide stays on screen when it is still there.
             let current = hero?.playID
             home = h
             heroIndex = h.heroes.firstIndex { $0.playID == current } ?? 0
-            favoriteOverrides = [:]
             error = nil
             isOffline = false
             env.homeCache.save(h)
@@ -272,15 +266,10 @@ final class HomeModel {
         heroIndex = ((heroIndex + step) % count + count) % count
     }
 
-    /// Ma liste of each slide, as toggled here until the next load says otherwise.
-    private var favoriteOverrides: [ContentID: Bool] = [:]
-    func isFavorite(_ hero: HomeHero) -> Bool { favoriteOverrides[hero.item.id] ?? hero.isFavorite }
+    func isFavorite(_ hero: HomeHero) -> Bool { env.isFavorite(hero.item.id, else: hero.isFavorite) }
 
     func toggleFavorite(_ hero: HomeHero) async {
-        let id = hero.item.id
-        let target = !isFavorite(hero)
-        favoriteOverrides[id] = target
-        do { try await env.client.setFavorite(id: id, target) } catch { favoriteOverrides[id] = !target }
+        await env.setFavorite(hero.item.id, !isFavorite(hero))
     }
 
     var heroChoice: VersionChooser.Choice? {

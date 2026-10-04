@@ -131,7 +131,7 @@ struct StreamFacts: View {
     private func sound(_ reading: Reading?, announced version: Version) -> [Fact] {
         var facts = [Fact(text: version.language.label)]
         guard let reading, let codec = reading.audioCodec else { return facts }
-        facts.append(Fact(text: [Self.audioCodecs[codec] ?? codec.uppercased(), Self.layouts[reading.channels]].compactMap { $0 }.joined(separator: " ")))
+        facts.append(Fact(text: Self.soundLabel(codec: codec, channels: reading.channels)))
         if reading.atmos { facts.append(Fact(text: "Atmos")) }
         switch reading.delivery {
         case .bridged: facts.append(Fact(text: "Réencodé", warning: true))
@@ -139,6 +139,13 @@ struct StreamFacts: View {
         default: break
         }
         return facts
+    }
+
+    /// "E-AC-3 5.1", "OPUS 3 ch", "AAC": the codec's name, then the channel layout; a part that is unknown is left out.
+    static func soundLabel(codec: String, channels: Int) -> String {
+        let name = audioCodecs[codec] ?? codec.uppercased()
+        let layout = layouts[channels] ?? (channels > 0 ? "\(channels) ch" : "")
+        return [name, layout].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     /// By the width: a 2.39:1 film in 4K is 3840×1606.

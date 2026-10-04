@@ -44,14 +44,15 @@ struct WideCard: View {
                     }
                 }
             if showsTitle, !item.badges.isEmpty {
+                // On a dark plate: the picture behind can be bright (a sky), and white on it is unreadable.
                 HStack(spacing: 6) { ForEach(item.badges.prefix(2), id: \.self) { Badge($0) } }
+                    .padding(4)
+                    .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
                     .padding(pad)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             if playing == nil, item.watched {
-                Image(systemName: "checkmark.circle.fill").font(metrics.compact ? .callout : .title2).foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 4)
-                    .padding(metrics.compact ? 6 : 10)
+                WatchedCheck()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
             VStack(alignment: .leading, spacing: pad * 0.6) {

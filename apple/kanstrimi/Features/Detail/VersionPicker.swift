@@ -15,7 +15,7 @@ struct VersionPicker: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // A floating panel over the dimmed screen on TV; the sheet is the panel on iOS.
-            if Platform.isTV { Color.black.opacity(0.6).ignoresSafeArea() }
+            if !metrics.compact { Color.black.opacity(0.6).ignoresSafeArea() }
             VStack(alignment: .leading, spacing: 26) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(isSeries ? "Langue de la série" : "Choisir une version").font(.title2.weight(.bold))
@@ -25,8 +25,12 @@ struct VersionPicker: View {
                     VStack(alignment: .leading, spacing: 14) {
                         ForEach(rows, id: \.source.id) { row in
                             Button {
-                                onPick(row.version, row.source)
                                 dismiss()
+                                // Let the sheet finish dismissing before what the pick presents (the player cover).
+                                Task {
+                                    try? await Task.sleep(for: .milliseconds(400))
+                                    onPick(row.version, row.source)
+                                }
                             } label: {
                                 label(row).frame(maxWidth: .infinity, alignment: .leading)
                             }
@@ -37,7 +41,7 @@ struct VersionPicker: View {
                     .padding(.horizontal, Platform.isTV ? 40 : 0)
                 }
                 .padding(.horizontal, Platform.isTV ? -40 : 0)
-                .frame(maxHeight: Platform.isTV ? 560 : .infinity)
+                .frame(maxHeight: metrics.compact ? .infinity : 560)
             }
             .padding(metrics.panelPadding)
             .frame(maxWidth: metrics.pickerWidth ?? .infinity, alignment: .leading)
@@ -55,7 +59,7 @@ struct VersionPicker: View {
     /// The version and its source side by side on TV; stacked on a phone, where they do not fit.
     @ViewBuilder private func label(_ row: Row) -> some View {
         let recommended = row.version.id == recommendedID && row.index == 0
-        if Platform.isTV {
+        if !metrics.compact {
             HStack(spacing: 18) {
                 Text(row.title).font(.headline)
                 Text(row.source.label).foregroundStyle(Theme.secondary)
@@ -77,8 +81,7 @@ struct VersionPicker: View {
     }
 
     private var recommendedBadge: some View {
-        Text("RECOMMANDÉ").font(.caption2.weight(.bold)).tracking(1).padding(.horizontal, 8).padding(.vertical, 4)
-            .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
+        AccentTag("RECOMMANDÉ", style: .spaced)
     }
 
     private struct Row {
@@ -95,14 +98,7 @@ struct VersionPicker: View {
     static func lineCount(_ versions: [Version]) -> Int { versions.reduce(0) { $0 + $1.sources.count } }
 
     private var rows: [Row] {
-        let order = versions.languages
-        let sorted = versions.sorted { a, b in
-            if (a.id == recommendedID) != (b.id == recommendedID) { return a.id == recommendedID }
-            let la = order.firstIndex(of: a.language) ?? 0, lb = order.firstIndex(of: b.language) ?? 0
-            if la != lb { return la < lb }
-            if (a.edition == nil) != (b.edition == nil) { return a.edition == nil }
-            return a.quality != b.quality ? a.quality > b.quality : (a.dynamicRange ?? .sdr) > (b.dynamicRange ?? .sdr)
-        }
+        let sorted = VersionChooser.ordered(versions, recommended: recommendedID)
         return sorted.flatMap { v in
             v.sources.enumerated().map { i, src in
                 Row(version: v, source: src, index: i,

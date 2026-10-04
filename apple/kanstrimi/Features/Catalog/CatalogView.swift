@@ -8,14 +8,14 @@ struct CatalogView: View {
     @Environment(\.metrics) private var metrics
     @State private var rows: [CatalogRow] = []
     @State private var error: CatalogError?
-    @State private var isLoading = false
-    @State private var seeAll: CatalogRow?
+    @State private var isLoading = true
+    /// Set by a successful answer only: empty before it (or after a cancelled load) is not an empty catalogue.
+    @State private var loaded = false
     @State private var sagas: Page<ContentItem>?
     /// nil = not loaded yet (or the call failed): retried at the next appearance.
     @State private var studios: [Studio]?
-    @State private var openSaga: ContentID?
-    @State private var openStudio: Studio?
-    @State private var allSagas = false
+    /// tvOS: the grid, saga or studio opened from here, a cover above this screen.
+    @State private var cover: Route?
 
     var body: some View {
         Group {
@@ -23,7 +23,7 @@ struct CatalogView: View {
                 StatePanel(icon: "exclamationmark.triangle", title: "Impossible de charger la liste", message: error.localizedDescription) {
                     Task { await load() }
                 }
-            } else if rows.isEmpty, isLoading {
+            } else if rows.isEmpty, isLoading || !loaded {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if rows.isEmpty {
                 StatePanel(icon: "film", title: kind == .series ? "Aucune série" : "Aucun film", message: "Le catalogue est vide.", actionTitle: nil)
@@ -36,12 +36,12 @@ struct CatalogView: View {
                         }
                         ForEach(rows) { row in
                             ShelfRow(row: row, ranked: row.id == "top10", onSelect: { env.open($0.id) },
-                                     onSeeAll: row.total > row.cards.count ? { seeAll(row) } : nil)
+                                     onSeeAll: row.total > row.cards.count ? { env.open(.genre(kind, row), cover: $cover) } : nil)
                             if row.id == hubsAnchor {
-                                if let studios, !studios.isEmpty { StudioShelf(studios: studios) { open($0) } }
+                                if let studios, !studios.isEmpty { StudioShelf(studios: studios) { env.open(.studio(kind, $0), cover: $cover) } }
                                 if let sagas, !sagas.items.isEmpty {
-                                    SagaShelf(sagas: sagas.items, total: sagas.total ?? sagas.items.count, onSelect: { open(saga: $0) },
-                                              onSeeAll: sagas.nextCursor != nil ? { seeAllSagas() } : nil)
+                                    SagaShelf(sagas: sagas.items, total: sagas.total ?? sagas.items.count, onSelect: { env.open(.saga($0), cover: $cover) },
+                                              onSeeAll: sagas.nextCursor != nil ? { env.open(.sagas, cover: $cover) } : nil)
                                 }
                             }
                         }
@@ -57,38 +57,11 @@ struct CatalogView: View {
         .phoneLargeTitle(kind == .series ? "Séries" : "Films")
         // Every appearance: on tvOS, crossing the tab bar selects then leaves this tab, which cancels the load midway.
         .task { await load() }
-        .fullScreenCover(item: $seeAll) { row in
-            GenreGridView(kind: kind, row: row).environment(env)
-        }
-        .fullScreenCover(item: $openSaga) { id in
-            SagaView(id: id).environment(env)
-        }
-        .fullScreenCover(item: $openStudio) { studio in
-            GenreGridView(studio: studio, kind: kind).environment(env)
-        }
-        .fullScreenCover(isPresented: $allSagas) {
-            SagasGridView().environment(env)
-        }
+        .routeCover($cover)
     }
 
     /// Studios and sagas come after « Nouveautés », or after the first shelf when there is none.
     private var hubsAnchor: String? { rows.first { $0.id == "recent" }?.id ?? rows.first?.id }
-
-    // Like the genre grid: a cover on tvOS, a pushed screen elsewhere.
-    private func open(saga id: ContentID) {
-        if Platform.isTV { openSaga = id } else { env.navigate(.saga(id)) }
-    }
-    private func open(_ studio: Studio) {
-        if Platform.isTV { openStudio = studio } else { env.navigate(.studio(kind, studio)) }
-    }
-    private func seeAllSagas() {
-        if Platform.isTV { allSagas = true } else { env.navigate(.sagas) }
-    }
-
-    /// The grid is a cover above this screen on tvOS and a pushed screen on iOS.
-    private func seeAll(_ row: CatalogRow) {
-        if Platform.isTV { seeAll = row } else { env.navigate(.genre(kind, row)) }
-    }
 
     /// Loads what is still missing: the shelves once, then the studios and sagas, whose failure just
     /// leaves them out until the next appearance.
@@ -98,6 +71,7 @@ struct CatalogView: View {
             defer { isLoading = false }
             do {
                 rows = try await env.client.rows(kind: kind)
+                loaded = true
                 error = nil
             } catch {
                 if !Task.isCancelled { self.error = (error as? CatalogError) ?? .server(error.localizedDescription) }
@@ -197,7 +171,7 @@ struct GenreGridView: View {
                 if let studio, let backdrop = studio.backdrop {
                     ZStack {
                         ArtView(id: ContentID(studio.id), url: backdrop)
-                        LinearGradient(colors: [.clear, Theme.background.opacity(0.9), Theme.background], startPoint: .top, endPoint: .bottom)
+                        BackdropFade()
                     }
                     .frame(height: metrics.heroHeight * 1.2)
                 }

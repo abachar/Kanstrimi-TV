@@ -12,6 +12,8 @@ nonisolated struct PersonSheet: Codable, Hashable, Sendable {
     let id: String
     let name: String
     let photo: URL?
+    /// « 12 titres », « 1 titre ».
+    let facts: String
     let movies: [ContentItem]
     let series: [ContentItem]
 }

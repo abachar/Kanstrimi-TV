@@ -26,7 +26,6 @@ final class Paginator<Item: Codable & Hashable & Identifiable & Sendable, Query:
         self.fetch = fetch
     }
 
-    var hasMore: Bool { nextCursor != nil }
     var isEmpty: Bool { loadedOnce && items.isEmpty && firstPageError == nil }
 
     func loadFirstPage() async {

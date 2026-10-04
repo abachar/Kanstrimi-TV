@@ -116,8 +116,6 @@ final class ProgressQueue {
         }
     }
 
-    var isEmpty: Bool { pending.isEmpty }
-
     private func persist() {
         guard let fileURL else { return }
         try? JSONEncoder().encode(pending).write(to: fileURL, options: .atomic)
@@ -140,6 +138,11 @@ final class HomeCache {
     func save(_ home: HomeScreen) {
         guard let fileURL else { return }
         try? encoder.encode(home).write(to: fileURL, options: .atomic)
+        // The sources carry the provider's account: kept out of the backup, like the token.
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        var url = fileURL
+        try? url.setResourceValues(values)
     }
     func load() -> HomeScreen? {
         guard let fileURL, let data = try? Data(contentsOf: fileURL) else { return nil }
@@ -180,6 +183,4 @@ final class ChannelCache {
         if let value { entries[id] = Entry(value: value, at: .now) }
         return value
     }
-
-    func clear() { entries = [:] }
 }

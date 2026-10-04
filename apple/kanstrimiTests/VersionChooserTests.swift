@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 struct VersionChooserTests {
-    let versions = Fixtures.sevenVersions
+    let versions = Fixtures.canvasVersions
 
     @Test("Préférences : VF puis meilleure qualité qui tient dans le plafond")
     func preferencesPickBestVF() {
@@ -148,6 +148,35 @@ struct VersionChooserTests {
         #expect(chooser.choose(from: []) == nil)
         let empty = Version(id: "x", language: .vf, quality: .hd, dynamicRange: nil, sources: [])
         #expect(chooser.choose(from: [empty]) == nil)
+    }
+
+    @Test("Avertissement de langue : une seule phrase, avec le retour seulement s'il existe")
+    func languageWarning() {
+        let back = VersionChooser.languageWarning(episode: 3, alternative: .vo, current: .vf, returnsAt: 5)
+        #expect(back.contains("É3"))
+        #expect(back.contains("VO"))
+        #expect(back.contains("retour en FR à l'épisode 5"))
+        let none = VersionChooser.languageWarning(episode: 3, alternative: .vo, current: .vf, returnsAt: nil)
+        #expect(!none.contains("retour"))
+        let quality = VersionChooser.languageWarning(episode: 3, alternative: .vo, current: .vf, returnsAt: nil, quality: .fhd)
+        #expect(quality.contains(Quality.fhd.rawValue))
+    }
+
+    @Test("Versions classées : recommandée, langue préférée, montage habituel avant édition, meilleure qualité")
+    func orderedVersions() {
+        let list = [
+            Fixtures.version("vf-long", .vf, .uhd, edition: "Version longue"),
+            Fixtures.version("vf-fhd", .vf, .fhd),
+            Fixtures.version("vo-fhd", .vo, .fhd),
+            Fixtures.version("vf-4k", .vf, .uhd),
+            Fixtures.version("vf-4k-dv", .vf, .uhd, dr: .dolbyVision),
+        ]
+        let order = Array(list.languages)
+        #expect(order.first == .vf)
+        let plain = VersionChooser.ordered(list, recommended: nil).map(\.id)
+        #expect(plain == ["vf-4k-dv", "vf-4k", "vf-fhd", "vf-long", "vo-fhd"])
+        let withRecommended = VersionChooser.ordered(list, recommended: "vo-fhd").map(\.id)
+        #expect(withRecommended == ["vo-fhd", "vf-4k-dv", "vf-4k", "vf-fhd", "vf-long"])
     }
 }
 

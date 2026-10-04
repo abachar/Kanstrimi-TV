@@ -9,7 +9,7 @@ struct StudioTile: View {
     var body: some View {
         ZStack {
             // Phone: without a logo the name sits on a dark tile, a white block glares on the dark screen.
-            RoundedRectangle(cornerRadius: metrics.cardRadius).fill(darkTile ? Color.white.opacity(0.1) : .white)
+            RoundedRectangle(cornerRadius: metrics.cardRadius).fill(darkTile ? Theme.surfaceControl : .white)
             Group {
                 if let logo = studio.logo {
                     AsyncImage(url: logo) { image in

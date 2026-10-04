@@ -18,7 +18,7 @@ struct PairingView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Kanstrimi").font(.system(size: 22, weight: .bold)).tracking(3).foregroundStyle(Theme.accent)
+                    Wordmark(size: 22, tracking: 3)
                     Text("Ajoutez cet \(Platform.deviceKind)").font(.system(size: metrics.pairingTitle, weight: .bold))
                     Text("La validation se fait dans l'admin, sur ce téléphone : rien à saisir ici.")
                         .font(.subheadline).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
@@ -34,13 +34,13 @@ struct PairingView: View {
                         .prominentButtonStyle()
                     }
                     statusLine
-                    Button { Task { await model.newCode(env) } } label: { Label("Nouveau code", systemImage: "arrow.clockwise") }
+                    Button { model.stop(); Task { await model.newCode(env) } } label: { Label("Nouveau code", systemImage: "arrow.clockwise") }
                         .buttonStyle(.bordered)
                         .disabled(model.isBusy)
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity)
-                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 24))
+                .background(Theme.surfacePanel, in: RoundedRectangle(cornerRadius: 24))
                 VStack(alignment: .leading, spacing: 16) {
                     step(1, "Ouvrez l'admin avec le bouton ci-dessus")
                     step(2, "Connectez-vous et nommez cet appareil")
@@ -87,7 +87,7 @@ struct PairingView: View {
 
     private var explanation: some View {
             VStack(alignment: .leading, spacing: 28) {
-                Text("Kanstrimi").font(.system(size: 30, weight: .bold)).tracking(4).foregroundStyle(Theme.accent)
+                Wordmark(size: 30, tracking: 4)
                 Text(metrics.showsQR ? "Connectez-vous avec votre téléphone" : "Ajoutez cet appareil depuis l'admin")
                     .font(.system(size: metrics.pairingTitle, weight: .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                 step(1, metrics.showsQR ? "Scannez le QR code avec l'appareil photo" : "Ouvrez l'admin avec le bouton ci-dessous")
@@ -104,7 +104,7 @@ struct PairingView: View {
                 }
 
                 Spacer().frame(height: 10)
-                Button("Nouveau code") { Task { await model.newCode(env) } }
+                Button("Nouveau code") { model.stop(); Task { await model.newCode(env) } }
                     .disabled(model.isBusy)
                 if !env.client.isMock {
                     Text("Serveur : \(model.host)").font(.callout).foregroundStyle(Theme.secondary)
@@ -127,7 +127,7 @@ struct PairingView: View {
     }
 
     @ViewBuilder private func step(_ n: Int, _ text: String) -> some View {
-        if Platform.isTV {
+        if !metrics.compact {
             // "1." in its own column, on the first line of its step.
             HStack(alignment: .firstTextBaseline, spacing: 14) {
                 Text("\(n).").font(.title3.weight(.bold)).monospacedDigit().fixedSize().frame(minWidth: 48, alignment: .leading)
@@ -137,14 +137,14 @@ struct PairingView: View {
             HStack(spacing: 14) {
                 Text("\(n)").font(.subheadline.weight(.bold))
                     .frame(width: 30, height: 30)
-                    .background(Circle().fill(.white.opacity(0.12)))
+                    .background(Circle().fill(Theme.surfaceButton))
                 Text(text).font(.body).fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     @ViewBuilder private func revokedNotice(_ message: String) -> some View {
-        if Platform.isTV {
+        if !metrics.compact {
             // The title alone: the explanation pushed the whole column around.
             Label("Cet appareil a été dissocié", systemImage: "exclamationmark.triangle").font(.headline).foregroundStyle(Theme.accent)
         } else {
@@ -167,7 +167,7 @@ struct PairingView: View {
                 ProgressView().tint(.black)
             }
             if model.status == .expired {
-                RoundedRectangle(cornerRadius: 28).fill(.white.opacity(0.85))
+                RoundedRectangle(cornerRadius: 28).fill(Theme.veil)
                 VStack(spacing: 10) {
                     Text("CODE EXPIRÉ · RENOUVELÉ SEUL").font(.caption.weight(.bold)).tracking(1.5).foregroundStyle(.black.opacity(0.6))
                     Text("Nouveau code en cours").font(.title3.weight(.bold)).foregroundStyle(.black)
@@ -198,7 +198,7 @@ struct PairingView: View {
             ForEach(Array((model.code?.code ?? "······").enumerated()), id: \.offset) { _, ch in
                 Text(String(ch)).font(.system(size: metrics.codeCell * 0.73, weight: .bold, design: .rounded))
                     .frame(width: metrics.codeCell, height: metrics.codeCell * 1.27)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(.white.opacity(model.status == .expired ? 0.05 : 0.12)))
+                    .background(RoundedRectangle(cornerRadius: 14).fill(model.status == .expired ? Theme.surfaceDim : Theme.surfaceButton))
                     .foregroundStyle(model.status == .expired ? Theme.secondary : Theme.text)
             }
         }
@@ -210,7 +210,7 @@ struct PairingView: View {
             case .creating: ProgressView(); Text("Demande d'un code au serveur…")
             case .waiting: ProgressView(); Text(metrics.showsQR ? "En attente de confirmation" : "En attente de la confirmation dans l'admin")
             case .expired: Image(systemName: "clock.arrow.circlepath"); Text("Expiré · renouvellement…")
-            case .approved: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green); Text("Appareil ajouté")
+            case .approved: Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.success); Text("Appareil ajouté")
             case .offline: Image(systemName: "wifi.exclamationmark").foregroundStyle(Theme.accent); Text("Serveur injoignable · nouvel essai dans quelques secondes")
             }
         }
@@ -228,8 +228,6 @@ final class PairingModel {
     var qrImage: CGImage?
     var isBusy = false
     var host: String { URL(string: Preferences.compiledServerURL)?.host() ?? "votre-serveur" }
-    /// The pairing URL of the server, shown when the QR cannot be scanned.
-    var pairingURL: String { code?.url.absoluteString ?? "" }
     private var loop: Task<Void, Never>?
 
     func run(_ env: AppEnvironment) async {
@@ -241,8 +239,9 @@ final class PairingModel {
         loop = nil
     }
 
+    /// Not cancelling `loop` here: the automatic retries call this from inside that very task.
+    /// Callers outside the loop (the buttons) `stop()` first.
     func newCode(_ env: AppEnvironment) async {
-        loop?.cancel()
         isBusy = true
         status = .creating
         defer { isBusy = false }

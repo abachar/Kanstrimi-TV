@@ -13,11 +13,6 @@ nonisolated struct PairingCode: Codable, Hashable, Sendable {
         case code, url, token
         case expiresAt = "expires_at"
     }
-    /// "K7Q-4MZ"
-    var display: String {
-        guard code.count == 6 else { return code }
-        return "\(code.prefix(3))-\(code.suffix(3))"
-    }
 }
 
 /// `GET /devices/{code}`: `{ "status": "pending" }`, `{ "status": "approved", "device_name": "Salon" }`,
@@ -62,7 +57,6 @@ nonisolated struct ServerInfo: Codable, Hashable, Sendable {
     let lastImport: Date?
     let tmdbRate: Double?
     let catalogLanguages: [Language]
-    let defaultLanguageOrder: [Language]
 
     enum CodingKeys: String, CodingKey {
         case counts
@@ -70,7 +64,6 @@ nonisolated struct ServerInfo: Codable, Hashable, Sendable {
         case lastImport = "last_import"
         case tmdbRate = "tmdb_rate"
         case catalogLanguages = "catalog_languages"
-        case defaultLanguageOrder = "default_language_order"
     }
 }
 

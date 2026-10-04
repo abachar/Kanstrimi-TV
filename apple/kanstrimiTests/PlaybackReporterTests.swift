@@ -14,7 +14,7 @@ extension HTTPCatalogClientTests {
         let queue = ProgressQueue(fileURL: nil)
         queue.enqueue(Fixtures.report("tmdb:movie:1", 600))
         await reporter(queue) { _ in 204 }.report(Fixtures.report("tmdb:movie:1", 2400))
-        #expect(queue.isEmpty)
+        #expect(queue.pending.isEmpty)
         let positions = StubProtocol.bodies.compactMap { try? JSONDecoder().decode([String: Double].self, from: $0)["position"] }
         #expect(positions == [2400])
     }

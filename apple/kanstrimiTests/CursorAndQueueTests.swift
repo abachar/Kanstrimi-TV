@@ -12,10 +12,10 @@ struct PaginatorTests {
         let paginator = Paginator(client: client, query: ListQuery(kind: .movie))
         await paginator.loadFirstPage()
         #expect(paginator.items.count == MockCatalogClient.pageSize)
-        #expect(paginator.hasMore)
+        #expect(paginator.nextCursor != nil)
         await paginator.loadMoreIfNeeded(reaching: paginator.items.count - 1)
         await paginator.loadMoreIfNeeded(reaching: paginator.items.count - 1)
-        #expect(!paginator.hasMore)
+        #expect(paginator.nextCursor == nil)
         // Every movie of the fixtures, whatever their number: the count is the mock's, not a magic figure.
         let total = client.movieCount
         #expect(paginator.items.count == total)
@@ -115,7 +115,7 @@ struct ProgressQueueTests {
         #expect(queue.pending.map(\.contentID.rawValue) == ["b", "c"])
         await queue.flush { sent.append($0.contentID.rawValue) }
         #expect(sent == ["a", "b", "c"])
-        #expect(queue.isEmpty)
+        #expect(queue.pending.isEmpty)
     }
 
     @Test("Un titre retiré du catalogue ne bloque pas la file : il en sort, le rejeu continue")
@@ -129,7 +129,7 @@ struct ProgressQueueTests {
             sent.append(r.contentID.rawValue)
         }
         #expect(sent == ["b"])
-        #expect(queue.isEmpty)
+        #expect(queue.pending.isEmpty)
     }
 
     @Test("Un seul rejeu à la fois : le second appel pendant le premier ne renvoie rien")
@@ -142,7 +142,7 @@ struct ProgressQueueTests {
             sent.append(r.contentID.rawValue)
         }
         #expect(sent == ["a"])
-        #expect(queue.isEmpty)
+        #expect(queue.pending.isEmpty)
     }
 }
 

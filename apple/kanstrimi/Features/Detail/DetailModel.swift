@@ -9,7 +9,6 @@ final class DetailModel {
     private let env: AppEnvironment
     private(set) var detail: Card?
     private(set) var error: CatalogError?
-    private(set) var isLoading = false
     var selectedSeason: Int?
     var favoriteBusy = false
 
@@ -21,9 +20,7 @@ final class DetailModel {
     var isSeries: Bool { detail?.kind == .series }
 
     func load() async {
-        isLoading = true
         error = nil
-        defer { isLoading = false }
         do {
             let d = try await env.client.detail(id: id)
             detail = d
@@ -54,15 +51,14 @@ final class DetailModel {
         await refresh()
     }
 
+    /// Ma liste, as the app last set it, else as the server served it.
+    var isFavorite: Bool { env.isFavorite(id, else: detail?.isFavorite ?? false) }
+
     func toggleFavorite() async {
-        guard var d = detail, !favoriteBusy else { return }
+        guard detail != nil, !favoriteBusy else { return }
         favoriteBusy = true
         defer { favoriteBusy = false }
-        let target = !(d.isFavorite ?? false)
-        d.isFavorite = target
-        detail = d
-        do { try await env.client.setFavorite(id: id, target) }
-        catch { d.isFavorite = !target; detail = d }
+        await env.setFavorite(id, !isFavorite)
     }
 
     // MARK: - Versions
@@ -86,20 +82,6 @@ final class DetailModel {
 
     var seriesChoice: VersionChoiceKey? {
         env.preferences.seriesChoice(for: id) ?? choice.map { VersionChoiceKey($0.version) }
-    }
-
-    /// Main button label: Lecture · Reprendre à 47 min · Revoir · Reprendre S2 É4 · Lire S1 É1.
-    var primaryLabel: String {
-        guard let d = detail else { return "Lecture" }
-        if d.kind == .series {
-            guard let e = d.currentEpisode else { return "Lire S1 É1" }
-            return d.progress?.isResumable == true ? "Reprendre · \(e.shortCode)" : "Lire \(e.shortCode)"
-        }
-        if let p = d.progress {
-            if p.isWatched { return "Revoir" }
-            if p.isResumable { return "Reprendre à \(Int(p.position / 60)) min" }
-        }
-        return "Lecture"
     }
 
     /// « Depuis le début » is offered when the main button resumes: the movie, or the current episode.

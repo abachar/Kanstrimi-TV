@@ -69,8 +69,8 @@ struct CastPhoto: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(Color.white.opacity(0.12))
-            Text(initials).font(.system(size: diameter * 0.34, weight: .semibold)).foregroundStyle(Theme.secondary)
+            Circle().fill(Theme.surfaceButton)
+            Text(initials(of: name)).font(.system(size: diameter * 0.34, weight: .semibold)).foregroundStyle(Theme.secondary)
             if let url {
                 AsyncImage(url: url) { phase in
                     // A TMDB portrait is 2:3, 1.5 diameters high. Centred, the circle cut every head at the forehead; at the
@@ -83,9 +83,5 @@ struct CastPhoto: View {
         }
         .frame(width: diameter, height: diameter)
         .clipShape(Circle())
-    }
-
-    private var initials: String {
-        name.split(separator: " ").prefix(2).compactMap(\.first).map { String($0) }.joined().uppercased()
     }
 }

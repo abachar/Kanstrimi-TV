@@ -19,17 +19,8 @@ nonisolated enum DeepLink: Equatable, Sendable {
         }
     }
 
-    /// One of our ids (`tmdb:…`, `fallback:…`, `live:…`) and nothing that could walk the API's paths: any app may
-    /// open a `kanstrimi://` link.
+    /// The id is opaque: only what could walk the API's paths is refused, since any app may open a `kanstrimi://` link.
     static func isContentID(_ id: String) -> Bool {
-        ["tmdb:", "fallback:", "live:"].contains { id.hasPrefix($0) } && !id.contains("/") && !id.contains("..")
-            && id.count <= 300
-    }
-
-    var url: URL {
-        switch self {
-        case .open(let id): URL(string: "\(Self.scheme)://open/\(id.rawValue)")!
-        case .play(let id): URL(string: "\(Self.scheme)://play/\(id.rawValue)")!
-        }
+        !id.isEmpty && !id.contains("/") && !id.contains("..") && id.count <= 300
     }
 }

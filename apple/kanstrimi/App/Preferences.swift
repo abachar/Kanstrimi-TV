@@ -5,10 +5,12 @@ import Observation
 @Observable
 final class Preferences {
     private let defaults: UserDefaults
+    /// The order the server's chips and the settings start from: VF, VOSTFR, VO.
+    static let defaultLanguageOrder: [Language] = [.vf, .vostfr, .vo]
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        languageOrder = Self.decode([Language].self, defaults.string(forKey: Keys.languageOrder)) ?? [.vf, .vostfr, .vo]
+        languageOrder = Self.decode([Language].self, defaults.string(forKey: Keys.languageOrder)) ?? Self.defaultLanguageOrder
         maxQuality = Quality(rawValue: defaults.string(forKey: Keys.maxQuality) ?? "") ?? .uhd
         autoPlayNext = defaults.object(forKey: Keys.autoPlayNext) as? Bool ?? true
         rememberVersionPerTitle = defaults.object(forKey: Keys.rememberVersion) as? Bool ?? true
@@ -51,8 +53,6 @@ final class Preferences {
     /// "language/quality/dr" key remembered per series id, applied to every episode.
     private(set) var seriesLanguages: [String: String] { didSet { defaults.set(Self.encode(seriesLanguages), forKey: Keys.seriesLanguages) } }
 
-    var preferredLanguage: Language { languageOrder.first ?? .vf }
-
     func rememberedVersion(for id: ContentID) -> String? { rememberedVersions[id.rawValue] }
     func remember(versionID: String?, for id: ContentID) {
         if let versionID { rememberedVersions[id.rawValue] = versionID } else { rememberedVersions.removeValue(forKey: id.rawValue) }
@@ -66,7 +66,7 @@ final class Preferences {
     }
 
     func resetAll() {
-        languageOrder = [.vf, .vostfr, .vo]
+        languageOrder = Self.defaultLanguageOrder
         maxQuality = .uhd
         autoPlayNext = true
         rememberVersionPerTitle = true
@@ -86,7 +86,7 @@ final class Preferences {
     }
 }
 
-/// A language × quality choice that survives across episodes of a series ("VF · 4K HDR").
+/// A language × quality choice that survives across episodes of a series ("FR · 4K HDR").
 nonisolated struct VersionChoiceKey: Hashable, Codable, RawRepresentable, Sendable {
     let language: Language
     let quality: Quality

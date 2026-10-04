@@ -11,7 +11,7 @@ struct ChannelLogo: View {
                 AsyncImage(url: url) { phase in
                     if let image = phase.image {
                         ZStack {
-                            RoundedRectangle(cornerRadius: size * 0.22).fill(.white.opacity(0.92))
+                            RoundedRectangle(cornerRadius: size * 0.22).fill(Theme.logoTile)
                             image.resizable().scaledToFit().padding(size * 0.12)
                         }
                     } else {
@@ -28,12 +28,8 @@ struct ChannelLogo: View {
     private var initialsTile: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.22).fill(Theme.art(for: channel.id))
-            Text(initials).font(.system(size: size * 0.36, weight: .heavy)).foregroundStyle(.white)
+            Text(initials(of: channel.name)).font(.system(size: size * 0.36, weight: .heavy)).foregroundStyle(.white)
         }
-    }
-    private var initials: String {
-        let words = channel.name.split(separator: " ")
-        return words.prefix(2).compactMap { $0.first.map(String.init) }.joined().uppercased()
     }
 }
 
@@ -56,8 +52,11 @@ struct LoadedChannelCard: View {
 extension AppEnvironment {
     /// A channel as its card shows it: the quality it starts in here, its programme on air, its guide state.
     func channelItem(_ channel: Channel, status: ChannelItem.Status? = nil) -> ChannelItem {
-        ChannelItem(id: channel.id, name: channel.name, logo: channel.logo, status: status,
-                    quality: (liveVersion(of: channel)?.quality ?? channel.maxQuality)?.rawValue, isFavorite: channel.isFavorite ?? false,
+        // A channel drawn from a card of the home (no versions, no favourite) takes both from the detail that
+        // `loadNowPlaying` fetched, once known; a listed channel is already complete and fresher than the cache.
+        let full = channel.versions.isEmpty ? (channelCache.latest(channel.id) ?? channel) : channel
+        return ChannelItem(id: channel.id, name: channel.name, logo: channel.logo, status: status,
+                    quality: (liveVersion(of: full)?.quality ?? full.maxQuality)?.rawValue, isFavorite: full.isFavorite ?? false,
                     now: nowPlaying(on: channel), hasEPG: guide(of: channel).hasEPG)
     }
 }

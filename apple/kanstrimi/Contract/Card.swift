@@ -6,11 +6,13 @@ nonisolated struct Progress: Codable, Hashable, Sendable {
     let duration: TimeInterval
     /// Derived by the server at 90 %; absent on list cards.
     let finished: Bool?
+    /// Decided by the server (between 5 % and « Vu »): the app compares no threshold.
+    let resumable: Bool
 
     var fraction: Double { duration > 0 ? min(1, max(0, position / duration)) : 0 }
     var remaining: TimeInterval { max(0, duration - position) }
-    var isWatched: Bool { finished ?? false || fraction >= 0.9 }
-    var isResumable: Bool { !isWatched && fraction >= 0.05 }
+    var isWatched: Bool { finished ?? false }
+    var isResumable: Bool { resumable }
 }
 
 nonisolated struct EpisodeRef: Codable, Hashable, Sendable {
@@ -91,12 +93,10 @@ nonisolated struct Season: Codable, Hashable, Identifiable, Sendable {
     let year: Int?
     let episodes: [Episode]
     var id: Int { number }
-    var episodeCount: Int { episodes.count }
 }
 
-/// The one content type. Lists fill the base fields, the sheet fills everything.
+/// The sheet of a title (`GET /movies/{id}`, `GET /series/{id}`). Lists, resume rows and search carry a `ContentItem`.
 nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
-    // Base, everywhere
     let id: ContentID
     let kind: ContentKind
     let title: String
@@ -105,19 +105,16 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
     let dynamicRange: DynamicRange?
     let languages: [Language]
 
-    // Resume row
     let backdrop: URL?
     let progress: Progress?
     let episode: EpisodeRef?
 
-    // Grids and search
     let year: Int?
     let rating: Double?
     let genres: [String]
     let hint: String?
     let addedAt: Date?
 
-    // Sheet only
     /// The title's logo (transparent PNG), drawn in place of the title.
     let logo: URL?
     let originalTitle: String?
@@ -137,12 +134,17 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
     let currentEpisode: EpisodeRef?
     /// Movie sheet: its saga, when the server lists it.
     let saga: SagaRef?
+    /// Sheet texts, written by the server: « FILM », « SÉRIE · 3 SAISONS »; « 2019 · Drame, Crime · 52 min »; « ★ 8.5 »; the play button.
+    let tagline: String
+    let facts: String?
+    let ratingLabel: String?
+    let playLabel: String
     /// Sheet: « Si vous avez aimé… », TMDB's recommendations in the catalogue, nothing already seen.
     let related: [ContentItem]
 
     enum CodingKeys: String, CodingKey {
         case id, kind, title, poster, languages, backdrop, progress, episode, year, rating, genres, hint
-        case overview, runtime, certification, cast, director, trailer, versions, seasons, saga, logo, related
+        case overview, runtime, certification, cast, director, trailer, versions, seasons, saga, logo, related, tagline, facts
         case maxQuality = "max_quality"
         case dynamicRange = "dynamic_range"
         case addedAt = "added_at"
@@ -153,6 +155,8 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
         case rawTitle = "raw_title"
         case isFavorite = "is_favorite"
         case currentEpisode = "current_episode"
+        case ratingLabel = "rating_label"
+        case playLabel = "play_label"
     }
 
     init(id: ContentID, kind: ContentKind, title: String, poster: URL? = nil, maxQuality: Quality? = nil, dynamicRange: DynamicRange? = nil,
@@ -161,14 +165,15 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
          originalTitle: String? = nil, endYear: Int? = nil, overview: String? = nil, runtime: Int? = nil, certification: String? = nil,
          cast: [Person] = [], director: String? = nil, trailer: URL? = nil, hasTMDB: Bool? = nil, providerCategory: String? = nil,
          rawTitle: String? = nil, versions: [Version] = [], isFavorite: Bool? = nil, seasons: [Season]? = nil, currentEpisode: EpisodeRef? = nil,
-         saga: SagaRef? = nil, related: [ContentItem] = []) {
+         saga: SagaRef? = nil, tagline: String = "", facts: String? = nil, ratingLabel: String? = nil, playLabel: String = "",
+         related: [ContentItem] = []) {
         self.id = id; self.kind = kind; self.title = title; self.poster = poster; self.maxQuality = maxQuality; self.dynamicRange = dynamicRange
         self.languages = languages; self.backdrop = backdrop; self.progress = progress; self.episode = episode
         self.year = year; self.rating = rating; self.genres = genres; self.hint = hint; self.addedAt = addedAt; self.logo = logo
         self.originalTitle = originalTitle; self.endYear = endYear; self.overview = overview; self.runtime = runtime; self.certification = certification
         self.cast = cast; self.director = director; self.trailer = trailer; self.hasTMDB = hasTMDB; self.providerCategory = providerCategory
         self.rawTitle = rawTitle; self.versions = versions; self.isFavorite = isFavorite; self.seasons = seasons; self.currentEpisode = currentEpisode
-        self.saga = saga; self.related = related
+        self.saga = saga; self.tagline = tagline; self.facts = facts; self.ratingLabel = ratingLabel; self.playLabel = playLabel; self.related = related
     }
 
     init(from decoder: Decoder) throws {
@@ -205,6 +210,10 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
         seasons = try c.decodeIfPresent([Season].self, forKey: .seasons)
         currentEpisode = try c.decodeIfPresent(EpisodeRef.self, forKey: .currentEpisode)
         saga = try c.decodeIfPresent(SagaRef.self, forKey: .saga)
+        tagline = try c.decodeIfPresent(String.self, forKey: .tagline) ?? ""
+        facts = try c.decodeIfPresent(String.self, forKey: .facts)
+        ratingLabel = try c.decodeIfPresent(String.self, forKey: .ratingLabel)
+        playLabel = try c.decodeIfPresent(String.self, forKey: .playLabel) ?? ""
         related = try c.decodeIfPresent([ContentItem].self, forKey: .related) ?? []
     }
 

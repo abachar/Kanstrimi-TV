@@ -65,6 +65,7 @@ extension Channel {
         let now: Programme?
         let next: Programme?
         let hasEPG: Bool?
+        static let empty = Guide(now: nil, next: nil, hasEPG: nil)
     }
 
     /// The guide of that version: its own when the server sent one (each quality may have its own), else the channel's.
@@ -78,15 +79,8 @@ extension Channel {
 nonisolated struct ChannelGroup: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let name: String
-    /// « Maroc » and « Sport »; an older server sends only `name`, split here.
-    var section: String? = nil
-    var theme: String? = nil
+    /// « Maroc » and « Sport », as the server splits `name`.
+    let section: String
+    let theme: String
     let channels: [Channel]
-
-    var sectionName: String { section ?? name.components(separatedBy: " · ").first ?? name }
-    var themeName: String {
-        if let theme { return theme }
-        let parts = name.components(separatedBy: " · ")
-        return parts.count > 1 ? parts.dropFirst().joined(separator: " · ") : name
-    }
 }

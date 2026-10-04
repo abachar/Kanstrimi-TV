@@ -50,6 +50,11 @@ struct HTTPCatalogClientTests {
     private func answer(_ status: Int = 200, _ json: String) {
         StubProtocol.handler = { _ in (status, Data(json.utf8)) }
     }
+    /// A response the server recorded (`Contract/`).
+    private func golden(_ name: String) throws -> String {
+        let url = try #require(Bundle(for: StubProtocol.self).url(forResource: name, withExtension: "json"))
+        return try String(contentsOf: url, encoding: .utf8)
+    }
     private var last: URLRequest { get throws { try #require(StubProtocol.requests.last) } }
     private var lastBody: [String: Double] { (try? JSONDecoder().decode([String: Double].self, from: StubProtocol.bodies.last ?? Data())) ?? [:] }
     private func query(_ req: URLRequest) throws -> [String: String] {
@@ -85,7 +90,7 @@ struct HTTPCatalogClientTests {
 
         answer(401, #"{"error":{"code":"unauthorized","message":"Appareil inconnu"}}"#)
         await #expect(throws: CatalogError.unauthorized) { try await client.info() }
-        answer(404, #"{"error":{"code":"not_found","message":"Contenu introuvable"}}"#)
+        answer(404, try golden("error"))
         await #expect(throws: CatalogError.notFound) { try await client.detail(id: ContentID("tmdb:movie:1")) }
         answer(502, #"{"error":{"code":"upstream","message":"Le fournisseur n'a pas répondu"}}"#)
         await #expect(throws: CatalogError.server("Le fournisseur n'a pas répondu")) { try await client.home() }
@@ -178,12 +183,6 @@ struct HTTPCatalogClientTests {
         #expect(home.heroes[1].playLabel == "Reprendre · 40 min restantes")
     }
 
-    @Test func aHomeCachedWithASingleHeroStillReads() throws {
-        let old = #"{"hero":null,"rows":[],"generated_at":"2026-10-01T18:00:00Z"}"#
-        let home = try HTTPCatalogClient.makeDecoder().decode(HomeScreen.self, from: Data(old.utf8))
-        #expect(home.heroes.isEmpty)
-    }
-
     @Test func sagasTravelAndDecode() async throws {
         answer(200, #"{"items":[{"id":"saga:900","kind":"saga","title":"Trilogie - Saga","logo":null,"poster":null,"picture":"https://kanstrimi.test/img/w1280/b.jpg","facts":"3 films","badges":[],"hint":null,"progress":null,"watched":false,"caption":null}],"next_cursor":"xyz"}"#)
         let page = try await client.sagas(cursor: "abc")
@@ -202,7 +201,7 @@ struct HTTPCatalogClientTests {
         #expect(sheet.facts == "1 film")
 
         // The sheet carries its saga when it has one, and decodes without it.
-        answer(200, #"{"id":"tmdb:movie:1","kind":"movie","title":"Un","saga":{"id":"saga:900","name":"Trilogie - Saga","count":3}}"#)
+        answer(200, #"{"id":"tmdb:movie:1","kind":"movie","title":"Un","saga":{"id":"saga:900","name":"Trilogie - Saga","count":3,"label":"Trilogie - Saga · 3 films"}}"#)
         #expect(try await client.detail(id: ContentID("tmdb:movie:1")).saga?.count == 3)
         answer(200, #"{"id":"tmdb:movie:2","kind":"movie","title":"Deux"}"#)
         #expect(try await client.detail(id: ContentID("tmdb:movie:2")).saga == nil)
@@ -236,10 +235,11 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func personTravelsAndTheCastDecodes() async throws {
-        answer(200, #"{"id":"person:31","name":"Tom Hanks","photo":"https://kanstrimi.test/img/w185/h.jpg","movies":[{"id":"tmdb:movie:1","kind":"movie","title":"Un"}],"series":[{"id":"tmdb:tv:2","kind":"series","title":"Deux"}]}"#)
+        answer(200, #"{"id":"person:31","name":"Tom Hanks","photo":"https://kanstrimi.test/img/w185/h.jpg","facts":"2 titres","movies":[{"id":"tmdb:movie:1","kind":"movie","title":"Un"}],"series":[{"id":"tmdb:tv:2","kind":"series","title":"Deux"}]}"#)
         let sheet = try await client.person(id: "person:31")
         #expect(try last.url?.path() == "/player/people/person:31")
         #expect(sheet.name == "Tom Hanks")
+        #expect(sheet.facts == "2 titres")
         #expect(sheet.photo == URL(string: "https://kanstrimi.test/img/w185/h.jpg"))
         #expect(sheet.movies.map(\.title) == ["Un"])
         #expect(sheet.series.map(\.title) == ["Deux"])
@@ -296,6 +296,18 @@ struct HTTPCatalogClientTests {
     func serverErrorsAreAnswers() async throws {
         answer(502, #"{"error":{"code":"upstream","message":"Le fournisseur n'a pas répondu"}}"#)
         await #expect(throws: CatalogError.server("Le fournisseur n'a pas répondu")) { try await client.studios(kind: .movie) }
+        #expect(StubProtocol.requests.count == 1)
+    }
+
+    @Test("Le corps d'erreur enregistré par le serveur : son message remonte tel quel")
+    func recordedErrorBodyCarriesItsMessage() async throws {
+        let body = try golden("error")
+        let parsed = try #require(JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
+        let inner = try #require(parsed["error"] as? [String: String])
+        let message = try #require(inner["message"])
+        #expect(inner["code"] == "not_found")
+        answer(500, body)
+        await #expect(throws: CatalogError.server(message)) { try await client.home() }
         #expect(StubProtocol.requests.count == 1)
     }
 
@@ -365,17 +377,14 @@ struct HTTPCatalogClientTests {
         let home = try await client.home()
         #expect(home.rows.map(\.kind) == [.mostWatchedChannels, .other])
 
-        answer(200, #"[{"id":"fr-generalistes","name":"France · Généralistes","channels":[{"id":"live:fr-tf1","name":"TF1","number":1,"logo":null,"has_epg":false,"is_favorite":false,"versions":[],"watched_rank":1},{"id":"live:fr-m6","name":"M6","number":6,"logo":null,"has_epg":false,"is_favorite":false,"versions":[]}]}]"#)
+        answer(200, #"[{"id":"fr-generalistes","name":"France · Généralistes","section":"France","theme":"Généralistes","channels":[{"id":"live:fr-tf1","name":"TF1","number":1,"logo":null,"has_epg":false,"is_favorite":false,"versions":[],"watched_rank":1},{"id":"live:fr-m6","name":"M6","number":6,"logo":null,"has_epg":false,"is_favorite":false,"versions":[]}]}]"#)
         let groups = try await client.channels()
         #expect(groups.flatMap(\.channels).map(\.watchedRank) == [1, nil])
-        // An older server sends only the name: the country and the theme are split from it.
-        #expect(groups.map(\.sectionName) == ["France"])
-        #expect(groups.map(\.themeName) == ["Généralistes"])
 
         answer(200, #"[{"id":"ma-sport","name":"Maroc · Sport","section":"Maroc","theme":"Sport","channels":[]}]"#)
         let maroc = try await client.channels()
-        #expect(maroc.map(\.sectionName) == ["Maroc"])
-        #expect(maroc.map(\.themeName) == ["Sport"])
+        #expect(maroc.map(\.section) == ["Maroc"])
+        #expect(maroc.map(\.theme) == ["Sport"])
     }
 }
 

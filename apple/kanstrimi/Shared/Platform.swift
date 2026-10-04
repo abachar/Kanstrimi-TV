@@ -65,6 +65,8 @@ nonisolated struct Metrics: Sendable {
     var resumeWidth: CGFloat
     var cardSpacing: CGFloat
     var rowPadding: CGFloat
+    /// The gap between a poster and the facts under it; on tvOS, room for the focused poster's lift.
+    var factsGap: CGFloat
     /// Fixed column count of the genre grid, nil for as many as fit.
     var gridColumns: Int?
     /// Title drawn on a poster without artwork.
@@ -86,18 +88,16 @@ nonisolated struct Metrics: Sendable {
     /// Empty and error panels: icon size and padding.
     var stateIcon: CGFloat
     var statePadding: CGFloat
-    /// Live: three columns with a preview (TV) or a stacked list (phone); logo size in the list.
+    /// Live: three columns with a preview (TV) or a stacked list (phone).
     var liveColumns: Bool
-    var channelLogo: CGFloat
     /// Pairing: title size, QR code shown (TV) or a link to the admin (phone), code cell width,
     /// and the right column width.
     var pairingTitle: CGFloat
     var showsQR: Bool
     var codeCell: CGFloat
     var pairingColumn: CGFloat?
-    /// Player chrome: panel height and padding, version card width, channel list width, recent
+    /// Player chrome: panel padding, version card width, channel list width, recent
     /// channel card width, dialog title size and width, next-episode card width, dialog margin.
-    var panelHeight: CGFloat
     var panelPadding: CGFloat
     var panelCard: CGFloat
     var listWidth: CGFloat
@@ -106,20 +106,19 @@ nonisolated struct Metrics: Sendable {
     var dialogWidth: CGFloat
     var nextCard: CGFloat
     var dialogMargin: CGFloat
-    /// Version picker: fixed width of the floating panel on TV, nil = the sheet's width on iOS;
-    /// same for its toggles, which need a width only in a row.
+    /// Version picker: fixed width of the floating panel on TV, nil = the sheet's width on iOS.
     var pickerWidth: CGFloat?
-    var toggleWidth: CGFloat?
     /// Diameter of a round icon button (detail sheet), the height of the play button beside it.
     var iconButton: CGFloat
     /// Diameter of an actor's photo on the sheet's cast row.
     var castPhoto: CGFloat
     /// Subtitle text size, drawn by the app over the video.
     var subtitleSize: CGFloat
-    /// Corner radii: a poster or a tile, a wide 16:9 card, an episode still.
+    /// Corner radii: a poster or a tile, a wide 16:9 card.
     var cardRadius: CGFloat
     var wideRadius: CGFloat
-    var thumbRadius: CGFloat
+    /// Fonts and spacing of the player's header and time line (`PlayerHeader`, `PlayerTimeLine`).
+    var playerText: PlayerText
 
     /// A poster's box, 2:3 at the platform's width.
     var posterSize: CGSize { CGSize(width: posterWidth, height: posterWidth * 1.5) }
@@ -133,24 +132,50 @@ nonisolated struct Metrics: Sendable {
         return CGSize(width: panelCard + 2 * pad, height: panelCard * 0.7 + 2 * pad)
     }
 
-    static let tv = Metrics(compact: false, inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, gridColumns: 6,
+    /// The player bar's text: the header (title, episode, channel), the live bar and the time line.
+    struct PlayerText: Sendable {
+        var liveSpacing: CGFloat
+        var vodSpacing: CGFloat
+        var tagSpacing: CGFloat
+        var liveTag: LiveTag.Size
+        var name: Font
+        var programme: Font
+        var episode: Font
+        var title: Font
+        /// Line limit of the header's texts, nil for none.
+        var lines: Int?
+        var time: Font
+        /// The live bar: space between the bar and its caption, the bar's height.
+        var liveBarSpacing: CGFloat
+        var liveBarHeight: CGFloat
+    }
+
+    static let tv = Metrics(compact: false, inset: 96, posterWidth: 250, resumeWidth: 400, cardSpacing: 36, rowPadding: 30, factsGap: 26, gridColumns: 6,
                             artTitle: 30, badge: 17, badgeSmall: 13,
                             heroHeight: 680, heroTitle: 64, detailTitle: 76, detailTop: 160, detailLogo: CGSize(width: 640, height: 200), stillWidth: 260, textWidth: 1000,
-                            stateIcon: 56, statePadding: 60, liveColumns: true, channelLogo: 96,
+                            stateIcon: 56, statePadding: 60, liveColumns: true,
                             pairingTitle: 56, showsQR: true, codeCell: 60, pairingColumn: 520,
-                            panelHeight: 440, panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 460,
+                            panelPadding: 48, panelCard: 300, listWidth: 620, recentCard: 460,
                             dialogTitle: 48, dialogWidth: 900, nextCard: 620, dialogMargin: 70,
-                            pickerWidth: 1200, toggleWidth: 420, iconButton: 76, castPhoto: 150, subtitleSize: 48,
-                            cardRadius: 14, wideRadius: 16, thumbRadius: 12)
-    static let phone = Metrics(compact: true, inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, gridColumns: nil,
+                            pickerWidth: 1200, iconButton: 76, castPhoto: 150, subtitleSize: 48,
+                            cardRadius: 14, wideRadius: 16,
+                            playerText: PlayerText(liveSpacing: 8, vodSpacing: 6, tagSpacing: 14, liveTag: .large,
+                                                   name: .title3.weight(.bold), programme: .headline, episode: .headline,
+                                                   title: .title3.weight(.bold), lines: nil, time: .callout.monospacedDigit(),
+                                                   liveBarSpacing: 12, liveBarHeight: 8))
+    static let phone = Metrics(compact: true, inset: 16, posterWidth: 110, resumeWidth: 220, cardSpacing: 12, rowPadding: 8, factsGap: 4, gridColumns: nil,
                                artTitle: 14, badge: 12, badgeSmall: 10,
                                heroHeight: 470, heroTitle: 32, detailTitle: 30, detailTop: 40, detailLogo: CGSize(width: 260, height: 90), stillWidth: 140, textWidth: .infinity,
-                               stateIcon: 40, statePadding: 24, liveColumns: false, channelLogo: 56,
+                               stateIcon: 40, statePadding: 24, liveColumns: false,
                                pairingTitle: 28, showsQR: false, codeCell: 40, pairingColumn: nil,
-                               panelHeight: 300, panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
+                               panelPadding: 20, panelCard: 200, listWidth: 340, recentCard: 240,
                                dialogTitle: 26, dialogWidth: 460, nextCard: 340, dialogMargin: 24,
-                               pickerWidth: nil, toggleWidth: nil, iconButton: 44, castPhoto: 72, subtitleSize: 17,
-                               cardRadius: 10, wideRadius: 14, thumbRadius: 8)
+                               pickerWidth: nil, iconButton: 44, castPhoto: 72, subtitleSize: 17,
+                               cardRadius: 10, wideRadius: 14,
+                               playerText: PlayerText(liveSpacing: 4, vodSpacing: 2, tagSpacing: 10, liveTag: .small,
+                                                      name: .headline, programme: .subheadline, episode: .subheadline,
+                                                      title: .headline, lines: 1, time: .caption.monospacedDigit(),
+                                                      liveBarSpacing: 6, liveBarHeight: 4))
     static var current: Metrics {
         #if os(tvOS)
         return .tv

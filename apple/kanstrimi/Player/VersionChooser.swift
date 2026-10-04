@@ -22,17 +22,6 @@ struct VersionChooser {
         let version: Version
         let source: Source
         let reason: Reason
-
-        /// "choisie selon vos préférences", "mémorisée pour ce titre"…
-        var reasonLabel: String {
-            switch reason {
-            case .remembered: "mémorisée pour ce titre"
-            case .seriesLanguage: "langue de la série"
-            case .preferences: "choisie selon vos préférences"
-            case .fallbackLanguage: "aucune version dans votre langue, première de l'ordre serveur"
-            case .onlyOne: "seule version disponible"
-            }
-        }
     }
 
     var languageOrder: [Language]
@@ -88,6 +77,27 @@ struct VersionChooser {
     func alternatives(to current: Version, in versions: [Version]) -> [Version] {
         let others = versions.filter { $0.id != current.id && !$0.sources.isEmpty }
         return others.sorted { rank($0) < rank($1) }
+    }
+
+    /// The one warning for an episode missing in the language in use: the sheet and the "À suivre" card say it
+    /// the same way. The return is announced only when a later episode in that language is known.
+    static func languageWarning(episode: Int, alternative: Language, current: Language, returnsAt: Int?, quality: Quality? = nil) -> String {
+        let detail = quality.map { " \($0.rawValue)" } ?? ""
+        let back = returnsAt.map { ", retour en \(current.short) à l'épisode \($0)" } ?? "."
+        return "É\(episode) n'existe qu'en \(alternative.short)\(detail) : lecture en \(alternative.short)\(back)"
+    }
+
+    /// The order of every list of versions: the recommended one first, then by language, the usual cut before
+    /// the editions, descending quality, then dynamic range.
+    static func ordered(_ versions: [Version], recommended: Version.ID?) -> [Version] {
+        let order = versions.languages
+        return versions.sorted { a, b in
+            if (a.id == recommended) != (b.id == recommended) { return a.id == recommended }
+            let la = order.firstIndex(of: a.language) ?? 0, lb = order.firstIndex(of: b.language) ?? 0
+            if la != lb { return la < lb }
+            if (a.edition == nil) != (b.edition == nil) { return a.edition == nil }
+            return a.quality != b.quality ? a.quality > b.quality : (a.dynamicRange ?? .sdr) > (b.dynamicRange ?? .sdr)
+        }
     }
 
     // MARK: - Internals

@@ -21,7 +21,7 @@ struct PersonView: View {
                     CastPhoto(name: s.name, url: s.photo ?? ref.photo, diameter: metrics.castPhoto * 1.6)
                     VStack(alignment: .leading, spacing: 8) {
                         Text(s.name).font(.system(size: metrics.detailTitle, weight: .heavy)).lineLimit(2)
-                        Text(titleCount(s.movies.count + s.series.count)).font(.title3).foregroundStyle(Theme.secondary)
+                        Text(s.facts).font(.title3).foregroundStyle(Theme.secondary)
                     }
                 }
                 .padding(.horizontal, metrics.inset)
@@ -42,6 +42,4 @@ struct PersonView: View {
             }
         }
     }
-
-    private func titleCount(_ n: Int) -> String { n > 1 ? "\(n) titres" : "\(n) titre" }
 }

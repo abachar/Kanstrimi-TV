@@ -51,7 +51,7 @@ struct ChannelCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             // tvOS: the card style draws the platter; touch screens have none, so the card draws its own.
             .background {
-                if !Platform.isTV { RoundedRectangle(cornerRadius: metrics.cardRadius).fill(.white.opacity(0.08)) }
+                if !Platform.isTV { RoundedRectangle(cornerRadius: metrics.cardRadius).fill(Theme.surface) }
             }
         }
         .cardButtonStyle()
@@ -60,7 +60,7 @@ struct ChannelCard: View {
     @ViewBuilder private var status: some View {
         switch item.status {
         case .playing:
-            Text("EN COURS").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(Theme.accent)
+            OnAirLabel()
         case .watched(let date):
             Text(Format.ago(date)).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
         case nil:

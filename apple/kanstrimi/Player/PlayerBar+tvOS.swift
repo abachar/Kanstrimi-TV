@@ -36,12 +36,12 @@ struct PlayerBar: View {
                 .allowsHitTesting(false)
             if !player.isLive, player.phase == .paused, open == nil {
                 Image(systemName: "play.fill").font(.system(size: 64)).foregroundStyle(.white)
-                    .padding(36).background(Circle().fill(.white.opacity(0.18)))
+                    .padding(36).background(Circle().fill(Theme.surfaceOverlay))
             }
             VStack(alignment: .leading, spacing: 28) {
                 Spacer(minLength: 0)
                 if open == nil {
-                    header
+                    PlayerHeader()
                     progress
                 }
                 // One place for the buttons, panel open or not: rebuilt, they would lose the focus to the first one.
@@ -72,34 +72,9 @@ struct PlayerBar: View {
 
     // MARK: - Header and progress
 
-    @ViewBuilder private var header: some View {
-        if player.isLive {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 14) {
-                    Text("EN DIRECT").font(.caption.weight(.bold)).tracking(1.5)
-                        .padding(.horizontal, 8).padding(.vertical, 3).background(Theme.live, in: RoundedRectangle(cornerRadius: 5))
-                    Text(player.channel?.name ?? "").font(.title3.weight(.bold))
-                }
-                if let now = player.epg.now { Text(now.title).font(.headline).foregroundStyle(Theme.secondary) }
-            }
-        } else if let c = player.context?.content {
-            VStack(alignment: .leading, spacing: 6) {
-                if let ep = c.episode, let s = c.subtitle {
-                    Text("\(s) · \(ep.shortCode)").font(.headline).foregroundStyle(Theme.secondary)
-                }
-                Text(c.title).font(.title3.weight(.bold))
-            }
-        }
-    }
-
     @ViewBuilder private var progress: some View {
         if player.isLive {
-            let now = player.epg.now
-            VStack(spacing: 12) {
-                // Without a guide the bar is full: a live is always at its end.
-                ProgressBar(fraction: now?.fraction() ?? 1, height: 8)
-                LiveProgressCaption().font(.callout.monospacedDigit()).foregroundStyle(Theme.secondary)
-            }
+            PlayerLiveProgress()
         } else {
             VStack(spacing: 12) {
                 GeometryReader { geo in
@@ -117,12 +92,7 @@ struct PlayerBar: View {
                         }
                 }
                 .frame(height: 8)
-                HStack {
-                    Text(Format.clock(player.shownTime)).foregroundStyle(Theme.text)
-                    Spacer()
-                    Text("−\(Format.clock(player.remaining)) · fin à \(Format.hour(player.endDate))")
-                }
-                .font(.callout.monospacedDigit()).foregroundStyle(Theme.secondary)
+                PlayerTimeLine(elapsed: Format.clock(player.shownTime))
             }
         }
     }
@@ -217,7 +187,7 @@ private struct BarButtonStyle: ButtonStyle {
                 .padding(.horizontal, round ? 0 : 28)
                 .frame(width: round ? 72 : nil, height: 72)
                 .background(
-                    Capsule().fill(isFocused ? Color.white : Color.white.opacity(selected ? 0.3 : 0.14))
+                    Capsule().fill(isFocused ? Color.white : (selected ? Theme.surfaceStrong : Theme.surfaceChip))
                 )
                 .scaleEffect(isFocused ? (configuration.isPressed ? 1.02 : 1.1) : 1)
                 .shadow(color: .black.opacity(isFocused ? 0.35 : 0), radius: 12, y: 6)

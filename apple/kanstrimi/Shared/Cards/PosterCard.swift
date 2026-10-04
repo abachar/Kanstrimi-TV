@@ -1,24 +1,25 @@
 import SwiftUI
 
-/// A 2:3 poster with, drawn on it, the facts, the badges, the hint, the progress and a check once seen: a movie, a
-/// series, a saga. A channel (the search mixes them in) takes the same shape: its logo whole on its colour, « DIRECT »,
-/// its group. No text under it: the poster carries the title (`ArtView` draws it until the artwork loads, or
-/// instead of it). As wide as its parent makes it (`posterWidth` in a row, the column in a grid). Without `action` it
+/// A 2:3 poster with, drawn on it, the hint, the quality (TV only), the progress and a check once seen, and the facts
+/// in small grey text under it: a movie, a series, a saga. A channel (the search mixes them in) takes the same shape:
+/// its logo whole on its colour, « DIRECT », its group under it. The poster carries the title (`ArtView` draws it
+/// until the artwork loads, or instead of it), nothing is written over it. As wide as its parent makes it (`posterWidth` in a row, the column in a grid). Without `action` it
 /// is a bare label, for the grids that put their own button around it.
 struct PosterCard: View {
     @Environment(\.metrics) private var metrics
     let item: ContentItem
     var action: (() -> Void)? = nil
 
+    /// The picture, then its facts under it, outside the button: on tvOS the focus platter and lift stay on the
+    /// picture, the facts on the page. A line is kept without facts, so that a row's posters stay aligned.
     var body: some View {
-        if let action { button(action) } else { label }
+        VStack(alignment: .leading, spacing: metrics.factsGap) {
+            if let action { Button(action: action) { picture }.cardButtonStyle() } else { picture }
+            PosterFacts(text: item.facts ?? " ").opacity(item.facts == nil ? 0 : 1).accessibilityHidden(true)
+        }
     }
 
-    private func button(_ action: @escaping () -> Void) -> some View {
-        Button(action: action) { label }.cardButtonStyle()
-    }
-
-    @ViewBuilder private var label: some View {
+    @ViewBuilder private var picture: some View {
         if item.kind == .live { channel } else { poster }
     }
 
@@ -37,13 +38,8 @@ struct PosterCard: View {
                 .padding(metrics.compact ? 14 : 28)
             }
             .overlay(alignment: .topLeading) {
-                Text("DIRECT").font(.system(size: metrics.badge, weight: .bold)).tracking(1)
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Theme.live, in: RoundedRectangle(cornerRadius: 4)).foregroundStyle(.white)
+                LiveTag("DIRECT", size: .poster)
                     .padding(metrics.compact ? 6 : 10)
-            }
-            .overlay(alignment: .bottomLeading) {
-                if let facts = item.facts { PosterFacts(text: facts).padding(metrics.compact ? 8 : 12) }
             }
             .clipShape(RoundedRectangle(cornerRadius: metrics.cardRadius))
             .accessibilityElement(children: .combine)
@@ -51,28 +47,21 @@ struct PosterCard: View {
     }
 
     private var poster: some View {
-        PosterFrame(id: item.id, url: item.poster, title: item.title) {
+        PosterFrame(id: item.id, url: item.poster, title: item.title, veil: !metrics.compact) {
             if metrics.compact {
-                // Phone: the facts only, the hint as a small tag in the top corner.
+                // Phone: the hint as a small tag in the top corner.
                 if let hint = item.hint {
-                    Text(hint).font(.system(size: 9, weight: .bold)).lineLimit(1)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
+                    AccentTag(hint, style: .mini)
                         .padding(6)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
-                if let facts = item.facts {
-                    PosterFacts(text: facts)
-                        .padding(.horizontal, 8).padding(.bottom, item.progress != nil ? 14 : 8)
-                }
             } else {
+                // TV: the hint, then the best quality alone at full size (the languages stay on the sheet).
                 VStack(alignment: .leading, spacing: 6) {
                     if let hint = item.hint {
-                        Text(hint).font(.caption2.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
+                        AccentTag(hint)
                     }
-                    if let facts = item.facts { PosterFacts(text: facts) }
-                    if !item.badges.isEmpty { badges.scaleEffect(0.85, anchor: .bottomLeading) }
+                    if let quality = item.quality { Badge(quality) }
                 }
                 .padding(12)
             }
@@ -82,21 +71,11 @@ struct PosterCard: View {
         }
         .overlay(alignment: .topTrailing) {
             if item.watched {
-                Image(systemName: "checkmark.circle.fill").font(metrics.compact ? .callout : .title2).foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 4)
-                    .padding(metrics.compact ? 6 : 10)
+                WatchedCheck()
             }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel([item.title, item.facts].compactMap { $0 }.joined(separator: ", "))
-    }
-
-    /// The first three badges, then how many more.
-    private var badges: some View {
-        HStack(spacing: 4) {
-            ForEach(item.badges.prefix(3), id: \.self) { Badge($0, small: true) }
-            if item.badges.count > 3 { Badge("+\(item.badges.count - 3)", small: true) }
-        }
     }
 }
 

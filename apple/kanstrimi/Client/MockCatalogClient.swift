@@ -79,15 +79,16 @@ final class MockCatalogClient: CatalogClient {
 
     private var allCards: [Card] { movies + series }
 
-    /// Base card for lists, with the live progress and hint.
+    /// Base card for lists, with the live progress. The hint is the list's, as `hintOf` writes it: only « VOSTF seul »;
+    /// the sheet's own (« FR partielle S2 ») stays in `hint(for:)`.
     private func card(for d: Card) -> Card {
         let versions = d.kind == .series ? d.allEpisodes.flatMap(\.versions) : d.versions
         return Card(id: d.id, kind: d.kind, title: d.title, poster: d.poster, maxQuality: versions.maxQuality, dynamicRange: versions.maxDynamicRange,
                     languages: versions.languages, backdrop: d.backdrop, progress: progress[d.id], year: d.year, rating: d.rating,
-                    genres: d.genres, hint: hint(for: d), addedAt: d.addedAt, logo: d.logo, overview: d.overview)
+                    genres: d.genres, hint: versions.languages == [.vostfr] ? "VOSTF seul" : nil, addedAt: d.addedAt, logo: d.logo, overview: d.overview)
     }
 
-    /// The list item of a title, written as the server writes it (`contentItem` in `server/src/player/cards.ts`).
+    /// The list item of a title, written as the server writes it (`contentItem` in `server/src/player/cards.ts`), hint included.
     private func item(for d: Card) -> ContentItem { Self.item(card(for: d)) }
 
     private static func item(_ c: Card) -> ContentItem {
@@ -95,7 +96,7 @@ final class MockCatalogClient: CatalogClient {
         let resumable = c.progress?.isResumable == true
         return ContentItem(id: c.id, kind: ContentItem.Kind(rawValue: c.kind.rawValue) ?? .movie, title: c.title, logo: c.logo, poster: c.poster,
                            picture: c.backdrop, facts: facts.isEmpty ? nil : facts.joined(separator: " · "),
-                           badges: [c.qualityBadge].compactMap { $0 } + c.languages.map(\.short), hint: c.hint,
+                           quality: c.qualityBadge, badges: [c.qualityBadge].compactMap { $0 } + c.languages.map(\.short), hint: c.hint,
                            progress: resumable ? c.progress?.fraction : nil, watched: c.progress?.isWatched ?? false,
                            caption: resumable ? [c.episode?.code, c.progress.map { Format.remaining($0.remaining) }].compactMap { $0 }.joined(separator: " · ") : nil)
     }
@@ -105,7 +106,7 @@ final class MockCatalogClient: CatalogClient {
         let i = item(for: d)
         let facts = [e?.ref.shortCode, d.year.map { String($0) }, d.genres.first, runtime.map(Format.runtime(minutes:))].compactMap { $0 }
         return ContentItem(id: i.id, kind: i.kind, title: i.title, logo: i.logo, poster: i.poster, picture: i.picture,
-                           facts: facts.isEmpty ? nil : facts.joined(separator: " · "), badges: i.badges, progress: e == nil ? i.progress : nil,
+                           facts: facts.isEmpty ? nil : facts.joined(separator: " · "), quality: i.quality, badges: i.badges, progress: e == nil ? i.progress : nil,
                            watched: i.watched, overview: e?.overview ?? d.overview)
     }
 
@@ -115,14 +116,14 @@ final class MockCatalogClient: CatalogClient {
         let caption = [c.kind == .series ? "Série" : nil, c.year.map { String($0) }, c.genres.first,
                        c.kind != .series ? c.runtime.map(Format.runtime(minutes:)) : nil].compactMap { $0 }
         return ContentItem(id: base.id, kind: base.kind, title: base.title, logo: base.logo, poster: base.poster, picture: base.picture,
-                           facts: base.facts, badges: base.badges, hint: base.hint, caption: caption.isEmpty ? nil : caption.joined(separator: " · "))
+                           facts: base.facts, quality: base.quality, badges: base.badges, hint: base.hint, caption: caption.isEmpty ? nil : caption.joined(separator: " · "))
     }
 
     /// « À suivre » after a title, written as the server writes it (`upNextItem`).
     private static func upNextItem(_ c: Card) -> ContentItem {
         let r = relatedItem(c)
         return ContentItem(id: r.id, kind: r.kind, title: r.title, logo: r.logo, poster: r.poster, picture: r.picture, facts: r.caption,
-                           badges: r.badges, hint: r.hint, overview: c.overview)
+                           quality: r.quality, badges: r.badges, hint: r.hint, overview: c.overview)
     }
 
     /// The next episode's « À suivre », written as the server writes it (`nextEpisodeOf`).
@@ -130,7 +131,7 @@ final class MockCatalogClient: CatalogClient {
         let facts = [s.title, e.ref.code, e.runtime.map(Format.runtime(minutes:))].compactMap { $0 }.joined(separator: " · ")
         let quality = e.versions.maxQuality.map { q in e.versions.maxDynamicRange.flatMap { $0 == .sdr ? nil : "\(q.rawValue) \($0.shortLabel)" } ?? q.rawValue }
         return ContentItem(id: e.id, kind: .episode, title: e.title, picture: e.still, facts: facts,
-                           badges: [quality].compactMap { $0 } + e.languages.map(\.short), overview: e.overview)
+                           quality: quality, badges: [quality].compactMap { $0 } + e.languages.map(\.short), overview: e.overview)
     }
 
     /// An episode's card and row, written as the server writes it (`episodeWire`).
@@ -140,7 +141,7 @@ final class MockCatalogClient: CatalogClient {
         let facts = [runtime, state].compactMap { $0 }
         let quality = e.versions.maxQuality.map { q in e.versions.maxDynamicRange.flatMap { $0 == .sdr ? nil : "\(q.rawValue) \($0.shortLabel)" } ?? q.rawValue }
         return ContentItem(id: e.id, kind: .episode, title: e.title, picture: e.still, facts: facts.isEmpty ? nil : facts.joined(separator: " · "),
-                           badges: [quality].compactMap { $0 } + e.languages.map(\.short),
+                           quality: quality, badges: [quality].compactMap { $0 } + e.languages.map(\.short),
                            hint: e.languages.count == 1 ? "\(e.languages[0].short) SEUL" : nil,
                            progress: p?.isResumable == true ? p?.fraction : nil, watched: p?.isWatched ?? false,
                            caption: ["É\(e.number)", runtime].compactMap { $0 }.joined(separator: " · "), overview: e.overview)
@@ -152,6 +153,7 @@ final class MockCatalogClient: CatalogClient {
              languages: e.languages, backdrop: s.backdrop, progress: progress[e.id], episode: e.ref)
     }
 
+    /// The sheet's hint, as `sheets.ts` writes it (« FR partielle S2 » only exists there).
     private func hint(for d: Card) -> String? {
         if d.kind != .series {
             return d.versions.languages == [.vostfr] ? "VOSTF seul" : nil
@@ -186,6 +188,8 @@ final class MockCatalogClient: CatalogClient {
                         overview: d.overview, runtime: d.runtime, certification: d.certification, cast: d.cast, director: d.director,
                         trailer: d.trailer, hasTMDB: d.hasTMDB, providerCategory: d.providerCategory, rawTitle: d.rawTitle,
                         versions: versions, isFavorite: favorites.contains(d.id), seasons: seasons, currentEpisode: current?.ref,
+                        tagline: "SÉRIE · \(seasons.count) SAISON\(seasons.count > 1 ? "S" : "")", facts: Self.sheetFacts(d), ratingLabel: Self.ratingLabel(d),
+                        playLabel: Self.playLabel(current?.progress, series: current?.ref),
                         related: related(to: d).prefix(10).map { item(for: $0) })
         }
         return Card(id: d.id, kind: d.kind, title: d.title, poster: d.poster, maxQuality: d.versions.maxQuality, dynamicRange: d.versions.maxDynamicRange,
@@ -194,7 +198,29 @@ final class MockCatalogClient: CatalogClient {
                     overview: d.overview, runtime: d.runtime, certification: d.certification, cast: d.cast, director: d.director,
                     trailer: d.trailer, hasTMDB: d.hasTMDB, providerCategory: d.providerCategory, rawTitle: d.rawTitle,
                     versions: d.versions, isFavorite: favorites.contains(d.id), saga: sagaFixtures.first { $0.movies.contains(d.id) }?.ref,
+                    tagline: "FILM", facts: Self.sheetFacts(d), ratingLabel: Self.ratingLabel(d), playLabel: Self.playLabel(progress[d.id]),
                     related: related(to: d).prefix(10).map { item(for: $0) })
+    }
+
+    /// « 2019 – 2022 · Drame, Crime · 52 min », written as the server writes it (`sheetFacts`).
+    private static func sheetFacts(_ d: Card) -> String? {
+        let parts = [d.year.map { y in d.endYear.flatMap { $0 == y ? nil : "\(y) – \($0)" } ?? String(y) },
+                     d.genres.isEmpty ? nil : d.genres.prefix(2).joined(separator: ", "),
+                     d.runtime.map(Format.runtime(minutes:))].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private static func ratingLabel(_ d: Card) -> String? { d.rating.map { String(format: "★ %.1f", $0) } }
+
+    /// The play buttons, written as the server writes them (`playLabel`): a movie's, a series' on its current episode.
+    private static func playLabel(_ p: Progress?) -> String {
+        if p?.isWatched == true { return "Revoir" }
+        return p?.isResumable == true ? "Reprendre · \(Format.remaining(p!.remaining))" : "Lecture"
+    }
+
+    private static func playLabel(_ p: Progress?, series current: EpisodeRef?) -> String {
+        guard let current else { return "Lecture" }
+        return "\(p?.isResumable == true ? "Reprendre" : "Lire") \(current.shortCode)"
     }
 
     /// Stands for TMDB's recommendations: the same kind sharing a genre, best rated first, nothing seen.
@@ -257,7 +283,7 @@ final class MockCatalogClient: CatalogClient {
         try await gate()
         return ServerInfo(serverVersion: "0.9.3 (maquette)", counts: CatalogCounts(movies: 35_219, series: 22_174, channels: 722),
                           lastImport: Calendar.current.date(bySettingHour: 4, minute: 10, second: 0, of: .now), tmdbRate: 0.97,
-                          catalogLanguages: [.vf, .vostfr, .vo], defaultLanguageOrder: [.vf, .vostfr, .vo])
+                          catalogLanguages: [.vf, .vostfr, .vo])
     }
 
     // MARK: - Home
@@ -291,12 +317,12 @@ final class MockCatalogClient: CatalogClient {
             return HomeHero(item: heroItem(m, episode: nil, runtime: m.runtime), tagline: i == 0 ? "FILM · ENFIN DISPONIBLE" : "FILM · N° \(i) CETTE SEMAINE",
                             overview: m.overview, runtime: m.runtime, certification: m.certification, versions: m.versions, playID: m.id, episode: nil,
                             isFavorite: favorites.contains(m.id),
-                            playLabel: p.map { "Reprendre · \(Format.remaining($0.duration - $0.position))" } ?? "Lecture", resumeAt: p?.position, duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) })
+                            playLabel: Self.playLabel(p), resumeAt: p?.position, duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) })
         }
         if let s = recentSeries.first(where: { $0.backdrop != nil }), let e = s.allEpisodes.last {
             heroes.insert(HomeHero(item: heroItem(s, episode: e, runtime: e.runtime), tagline: "SÉRIE · NOUVEL ÉPISODE · \(e.ref.shortCode)",
                                    overview: e.overview ?? s.overview, runtime: e.runtime, certification: s.certification, versions: e.versions,
-                                   playID: e.id, episode: e.ref, isFavorite: favorites.contains(s.id), duration: e.runtime.map { TimeInterval($0 * 60) }),
+                                   playID: e.id, episode: e.ref, isFavorite: favorites.contains(s.id), playLabel: Self.playLabel(nil, series: e.ref), duration: e.runtime.map { TimeInterval($0 * 60) }),
                           at: min(1, heroes.count))
         }
         return HomeScreen(heroes: heroes, rows: rows, generatedAt: .now)
@@ -345,7 +371,11 @@ final class MockCatalogClient: CatalogClient {
         return cards
     }
 
+    /// Tests only: how many times a sheet was asked for.
+    private(set) var detailCalls = 0
+
     func detail(id: ContentID) async throws -> Card {
+        detailCalls += 1
         try await gate()
         if scenario.failingDetail { throw CatalogError.server("Le fournisseur n'a pas répondu.") }
         if let d = allCards.first(where: { $0.id == id }) { return merged(d) }
@@ -379,7 +409,7 @@ final class MockCatalogClient: CatalogClient {
         let titles = (movies + series).filter { $0.cast.contains { $0.id == id } }.sorted { ($0.year ?? 0) > ($1.year ?? 0) }  // latest first, like the server
         guard let me = titles.first?.cast.first(where: { $0.id == id }) else { throw CatalogError.notFound }
         let items = titles.map { item(for: $0) }
-        return PersonSheet(id: id, name: me.name, photo: me.photo, movies: items.filter { $0.kind == .movie }, series: items.filter { $0.kind == .series })
+        return PersonSheet(id: id, name: me.name, photo: me.photo, facts: items.count > 1 ? "\(items.count) titres" : "\(items.count) titre", movies: items.filter { $0.kind == .movie }, series: items.filter { $0.kind == .series })
     }
 
     // MARK: - Live
@@ -388,7 +418,7 @@ final class MockCatalogClient: CatalogClient {
         try await gate()
         let ranks = Dictionary(mostWatched.enumerated().map { ($1.id, $0 + 1) }, uniquingKeysWith: { a, _ in a })
         return groups.map { g in
-            ChannelGroup(id: g.id, name: g.name, channels: g.channels.map { c in
+            ChannelGroup(id: g.id, name: g.name, section: g.section, theme: g.theme, channels: g.channels.map { c in
                 var c = withFavorite(c)
                 c.watchedRank = ranks[c.id]
                 return c
@@ -525,8 +555,8 @@ final class MockCatalogClient: CatalogClient {
         }.map { c in
             Card(id: c.id, kind: .live, title: c.name, poster: c.logo, maxQuality: c.maxQuality, languages: c.versions.languages, genres: [g.name])
         } }
-        // Ranked as the server ranks them: a title that starts with the query first, then the best rated, every kind
-        // together; a series says so, a channel gives its group.
+        // Ranking is an approximation (the server's is richer): titles starting with the query first, then the best
+        // rated, every kind together; a series says so, a channel gives its group.
         let ranked = (m + s + l).enumerated().sorted { x, y in
             let tx = x.element.title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).hasPrefix(q)
             let ty = y.element.title.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).hasPrefix(q)
@@ -537,12 +567,12 @@ final class MockCatalogClient: CatalogClient {
         let items = ranked.prefix(40).map { c -> ContentItem in
             if c.kind == .live {
                 return ContentItem(id: c.id, kind: .live, title: c.title, poster: c.poster, facts: c.genres.first,
-                                   badges: [c.qualityBadge].compactMap { $0 })
+                                   quality: c.qualityBadge, badges: [c.qualityBadge].compactMap { $0 })
             }
             let i = Self.item(c)
             guard c.kind == .series else { return i }
             return ContentItem(id: i.id, kind: i.kind, title: i.title, logo: i.logo, poster: i.poster, picture: i.picture,
-                               facts: ["Série", i.facts].compactMap { $0 }.joined(separator: " · "), badges: i.badges, hint: i.hint,
+                               facts: ["Série", i.facts].compactMap { $0 }.joined(separator: " · "), quality: i.quality, badges: i.badges, hint: i.hint,
                                progress: i.progress, watched: i.watched, caption: i.caption)
         }
         return SearchResults(query: query, items: Array(items))
@@ -587,7 +617,7 @@ private nonisolated struct SagaFixture: Decodable {
     let backdrop: URL?
     let movies: [ContentID]
 
-    var ref: SagaRef { SagaRef(id: id, name: name, count: movies.count) }
+    var ref: SagaRef { SagaRef(id: id, name: name, count: movies.count, label: "\(name) · \(movies.count > 1 ? "\(movies.count) films" : "\(movies.count) film")") }
     /// A saga in a list, written as the server writes it.
     var item: ContentItem {
         ContentItem(id: ContentID(id), kind: .saga, title: name, poster: poster, picture: backdrop,
@@ -601,4 +631,12 @@ private nonisolated struct StudioFixture: Decodable {
     let name: String
     let logo: URL?
     let movies: [ContentID]
+}
+
+/// The server derives `resumable`; the demo does the same (5 % up to « Vu ») when it writes a progress.
+private nonisolated extension Progress {
+    init(position: TimeInterval, duration: TimeInterval, finished: Bool) {
+        self.init(position: position, duration: duration, finished: finished,
+                  resumable: !finished && duration > 0 && position / duration >= 0.05)
+    }
 }

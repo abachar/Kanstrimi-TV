@@ -48,7 +48,7 @@ struct SagaView: View {
         ZStack(alignment: .topLeading) {
             ZStack {
                 ArtView(id: ContentID(s.id), url: s.backdrop)
-                LinearGradient(colors: [.clear, Theme.background.opacity(0.9), Theme.background], startPoint: .top, endPoint: .bottom)
+                BackdropFade()
             }
             .ignoresSafeArea()
             ScrollView {
@@ -74,7 +74,7 @@ struct SagasGridView: View {
     @Environment(\.metrics) private var metrics
     @State private var paginator: Paginator<ContentItem, SagaQuery>?
     @State private var total: Int?
-    @State private var openSaga: ContentID?
+    @State private var cover: Route?
 
     var body: some View {
         ScrollView {
@@ -99,9 +99,7 @@ struct SagasGridView: View {
             paginator = p
             await p.loadFirstPage()
         }
-        .fullScreenCover(item: $openSaga) { id in
-            SagaView(id: id).environment(env)
-        }
+        .routeCover($cover)
     }
 
     @ViewBuilder private var grid: some View {
@@ -112,16 +110,12 @@ struct SagasGridView: View {
                 }
             } else {
                 PagedPosterGrid(paginator: p) { saga in
-                    PosterCard(item: saga) { open(saga.id) }
+                    PosterCard(item: saga) { env.open(.saga(saga.id), cover: $cover) }
                 }
             }
         } else {
             ProgressView().frame(maxWidth: .infinity).padding(100)
         }
-    }
-
-    private func open(_ saga: ContentID) {
-        if Platform.isTV { openSaga = saga } else { env.navigate(.saga(saga)) }
     }
 }
 

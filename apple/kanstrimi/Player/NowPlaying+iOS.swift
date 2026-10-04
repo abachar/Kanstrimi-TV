@@ -9,6 +9,8 @@ final class NowPlaying {
     private weak var service: PlayerService?
     private var artwork: (url: URL, item: MPMediaItemArtwork)?
     private var artworkTask: Task<Void, Never>?
+    /// The last image asked for: a slow or failed download is not asked again by every `update()`.
+    private var requestedArtworkURL: URL?
 
     /// Registers the commands once; safe to call at every start.
     func attach(to service: PlayerService) {
@@ -78,19 +80,21 @@ final class NowPlaying {
             info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = service.time
         }
         let url = live ? service.channel?.logo : content.backdrop
-        if let artwork, artwork.url == url { info[MPMediaItemPropertyArtwork] = artwork.item } else { loadArtwork(url) }
+        if let artwork, artwork.url == url { info[MPMediaItemPropertyArtwork] = artwork.item }
+        else if url != requestedArtworkURL { loadArtwork(url) }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
     func clear() {
         artworkTask?.cancel(); artworkTask = nil
-        artwork = nil
+        artwork = nil; requestedArtworkURL = nil
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 
     private func loadArtwork(_ url: URL?) {
         artworkTask?.cancel()
         artwork = nil
+        requestedArtworkURL = url
         guard let url else { return }
         artworkTask = Task { [weak self] in
             guard let (data, _) = try? await URLSession.shared.data(from: url), let image = UIImage(data: data),

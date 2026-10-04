@@ -6,8 +6,8 @@ struct DetailView: View {
     @Environment(AppEnvironment.self) private var env
     @State private var model: DetailModel?
     @State private var showPicker = false
-    @State private var saga: ContentID?
-    @State private var person: PersonRef?
+    /// tvOS: the saga or the actor opened from this sheet, a cover above it.
+    @State private var cover: Route?
 
     var body: some View {
         Group {
@@ -29,32 +29,18 @@ struct DetailView: View {
         .platformSheet(isPresented: $showPicker) {
             if let model, let d = model.detail {
                 VersionPicker(title: d.title, versions: d.versions, recommendedID: model.choice?.version.id, isSeries: model.isSeries) { v, s in
-                    // Let the picker finish dismissing before the player cover presents.
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(400))
-                        model.chose(version: v, source: s)
-                    }
+                    model.chose(version: v, source: s)
                 }
                 .environment(env)
             }
         }
-        .fullScreenCover(item: $saga) { id in
-            // On tvOS the saga covers this sheet: close it before the chosen movie replaces the sheet.
-            SagaView(id: id, onSelect: { id in saga = nil; env.open(id) }).environment(env)
-        }
-        .fullScreenCover(item: $person) { ref in
-            // Same as the saga: on tvOS the actor's screen covers this sheet, so it closes before the chosen title replaces the sheet.
-            PersonView(ref: ref, onSelect: { id in person = nil; env.open(id) }).environment(env)
-        }
+        // On tvOS a saga or an actor covers this sheet: it closes before the chosen title replaces the sheet.
+        .routeCover($cover, closesOnSelect: true)
     }
 
-    private func openSaga(_ ref: SagaRef) {
-        if Platform.isTV { saga = ContentID(ref.id) } else { env.navigate(.saga(ContentID(ref.id))) }
-    }
+    private func openSaga(_ ref: SagaRef) { env.open(.saga(ContentID(ref.id)), cover: $cover) }
 
-    private func openPerson(_ ref: PersonRef) {
-        if Platform.isTV { person = ref } else { env.navigate(.person(ref)) }
-    }
+    private func openPerson(_ ref: PersonRef) { env.open(.person(ref), cover: $cover) }
 }
 
 private struct DetailContent: View {
@@ -115,7 +101,8 @@ private struct DetailContent: View {
                                            startPoint: .top, endPoint: .bottom)
                         }
                 } else {
-                    Color.clear.frame(height: 110)
+                    // Room for the back button above the title block.
+                    Color.clear.frame(height: metrics.detailTop + 90)
                 }
                 VStack(alignment: .leading, spacing: 24) {
                     header(d)
@@ -137,7 +124,7 @@ private struct DetailContent: View {
             if d.isMatched {
                 ArtView(id: d.id, url: d.backdrop).ignoresSafeArea()
                 LinearGradient(colors: [Theme.background.opacity(0.92), Theme.background.opacity(0.2)], startPoint: .leading, endPoint: .trailing)
-                LinearGradient(colors: [.clear, Theme.background.opacity(0.9), Theme.background], startPoint: .top, endPoint: .bottom)
+                BackdropFade()
             } else {
                 Theme.background
             }
@@ -165,28 +152,28 @@ private struct DetailContent: View {
 
     private func header(_ d: Card) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(tagline(d)).font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
+            Text(d.tagline).font(.caption.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)
             TitleLogo(title: d.title, logo: d.logo)
             if metrics.compact {
                 // Phone: the facts on their own line, the certification and the rating with the tags,
                 // so that none of them breaks a line in the middle.
-                Text(meta(d)).font(.subheadline).foregroundStyle(Theme.secondary)
+                if let facts = d.facts, !facts.isEmpty { Text(facts).font(.subheadline).foregroundStyle(Theme.secondary) }
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 10) { ratingAndCertification(d); versionTags(d) }
                     VStack(alignment: .leading, spacing: 10) { HStack(spacing: 10) { ratingAndCertification(d) }; versionTags(d) }
                 }
             } else {
                 HStack(spacing: 14) {
-                    Text(meta(d)).foregroundStyle(Theme.secondary)
+                    if let facts = d.facts, !facts.isEmpty { Text(facts).foregroundStyle(Theme.secondary) }
                     if let c = d.certification { Badge(c) }
-                    if let r = d.rating { Text(String(format: "★ %.1f", r)).foregroundStyle(Theme.accent) }
+                    if let r = d.ratingLabel { Text(r).foregroundStyle(Theme.accent) }
                 }
                 .font(.title3)
                 versionTags(d)
             }
             if let s = d.saga {
                 Button { openSaga(s) } label: {
-                    Label("\(s.name) · \(s.count) films", systemImage: "square.stack")
+                    Label(s.label, systemImage: "square.stack")
                 }
                 .buttonStyle(.bordered)
             }
@@ -225,30 +212,21 @@ private struct DetailContent: View {
 
     @ViewBuilder private func ratingAndCertification(_ d: Card) -> some View {
         if let c = d.certification { Badge(c) }
-        if let r = d.rating { Text(String(format: "★ %.1f", r)).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent) }
-    }
-
-    private func tagline(_ d: Card) -> String {
-        if d.kind == .series { return "SÉRIE · \(d.seasons?.count ?? 0) SAISON\((d.seasons?.count ?? 0) > 1 ? "S" : "")" }
-        return "FILM"
-    }
-
-    private func meta(_ d: Card) -> String {
-        var parts: [String] = []
-        if let y = d.year { parts.append(d.endYear.map { "\(y) – \($0)" } ?? String(y)) }
-        if !d.genres.isEmpty { parts.append(d.genres.prefix(2).joined(separator: ", ")) }
-        if let r = d.runtime { parts.append(Format.runtime(minutes: r)) }
-        return parts.joined(separator: " · ")
+        if let r = d.ratingLabel { Text(r).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent) }
     }
 
     private func noTMDB(_ d: Card) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Pas encore de fiche détaillée pour ce titre : ni résumé, ni distribution.", systemImage: "info.circle").font(.headline)
-            Text("La lecture, la reprise et Ma liste fonctionnent normalement.").font(.callout).foregroundStyle(Theme.secondary)
+        // The icon beside both sentences, so the second lines up with the first.
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: "info.circle").font(.headline)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Pas encore de fiche détaillée pour ce titre : ni résumé, ni distribution.").font(.headline)
+                Text("La lecture, la reprise et Ma liste fonctionnent normalement.").font(.callout).foregroundStyle(Theme.secondary)
+            }
         }
         .padding(20)
         .frame(maxWidth: metrics.textWidth, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
     }
 
     /// One row on TV; on a phone Lecture takes the width and the others share the line below it.
@@ -280,7 +258,7 @@ private struct DetailContent: View {
     @ViewBuilder private func buttonSet(_ d: Card, primaryOnly: Bool = false, secondaryOnly: Bool = false) -> some View {
         if !secondaryOnly {
             Button { Task { await model.playPrimary() } } label: {
-                Label(model.primaryLabel, systemImage: "play.fill").font(.headline).phoneFullWidth(metrics)
+                Label(d.playLabel, systemImage: "play.fill").font(.headline).phoneFullWidth(metrics)
             }
             .prominentButtonStyle()
             .focused($focused, equals: .play)
@@ -314,7 +292,7 @@ private struct DetailContent: View {
                 IconAction(title: "Bande-annonce", systemImage: "film", focused: focused == .trailer) { openURL(trailer) }
                     .focused($focused, equals: .trailer)
             }
-            let favorite = d.isFavorite == true
+            let favorite = model.isFavorite
             IconAction(title: favorite ? "Dans ma liste" : "Ma liste", systemImage: favorite ? "heart.fill" : "heart", focused: focused == .favorite) {
                 Task { await model.toggleFavorite() }
             }
@@ -357,7 +335,8 @@ private struct DetailContent: View {
             if let n = model.selectedSeason {
                 if let gap = model.languageGaps(in: n).first, let lang = model.seriesChoice?.language, let alt = gap.languages.first {
                     let back = model.episodes(in: n).first { $0.number > gap.number && $0.languages.contains(lang) }
-                    Label("É\(gap.number) n'existe qu'en \(alt.short). L'enchaînement le lira en \(alt.short) \(gap.versions.maxQuality?.rawValue ?? "")\(back.map { ", puis reviendra en \(lang.short) à l'épisode \($0.number)" } ?? ".")",
+                    Label(VersionChooser.languageWarning(episode: gap.number, alternative: alt, current: lang, returnsAt: back?.number,
+                                                         quality: gap.versions.maxQuality),
                           systemImage: "info.circle")
                         .font(.callout).foregroundStyle(Theme.accent)
                 }
@@ -417,15 +396,14 @@ struct EpisodeRow: View {
 
     private var item: ContentItem { episode.item }
 
-    /// « VF SEUL », written by the server for a one-language episode: shown when the series plays in another one.
+    /// « FR SEUL », written by the server for a one-language episode: shown when the series plays in another one.
     private var warning: String? {
         guard let l = seriesLanguage, !episode.languages.contains(l) else { return nil }
         return item.hint
     }
 
     private func warningTag(_ text: String) -> some View {
-        Text(text).font(.caption2.weight(.bold)).padding(.horizontal, metrics.compact ? 6 : 8).padding(.vertical, metrics.compact ? 2 : 3)
-            .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
+        AccentTag(text)
     }
 
     private var tvRow: some View {
@@ -465,7 +443,7 @@ struct IconAction: View {
     let action: () -> Void
 
     var body: some View {
-        if Platform.isTV {
+        if !metrics.compact {
             // An overlay: the label of the focused one must not push its neighbours apart.
             button
                 .padding(.bottom, 44)
@@ -511,7 +489,7 @@ struct RoundIconStyle: ButtonStyle {
                 .font(.system(size: diameter * 0.4, weight: .semibold))
                 .foregroundStyle(focused ? Color.black : Theme.text)
                 .frame(width: diameter, height: diameter)
-                .background(Circle().fill(focused ? Color.white : Color.white.opacity(0.16)))
+                .background(Circle().fill(focused ? Color.white : Theme.surfaceRaised))
                 .contentShape(Circle())
                 .scaleEffect(focused ? 1.12 : configuration.isPressed ? 0.92 : 1)
                 .shadow(color: .black.opacity(focused ? 0.45 : 0), radius: 14, y: 8)

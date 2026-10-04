@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The six tabs of the app, the same on every platform.
+/// The tabs of the app; iPhone shows five, Réglages being pushed from the home screen.
 enum MainTab: String, Hashable, CaseIterable {
     case home, live, movies, series, search, settings
 }
@@ -18,16 +18,22 @@ nonisolated enum Route: Hashable {
     case settings
 }
 
-/// The screen a route resolves to. Registered once per tab stack.
+extension Route: Identifiable {
+    var id: Route { self }
+}
+
+/// The screen a route resolves to. Registered once per tab stack; on tvOS, `routeCover` presents it.
 struct RouteView: View {
     let route: Route
+    /// What a title does when chosen in a saga or an actor's screen; the sheet opens it by default.
+    var onSelect: ((ContentID) -> Void)?
     var body: some View {
         switch route {
         case .detail(let id): DetailView(id: id)
         case .genre(let kind, let row): GenreGridView(kind: kind, row: row)
-        case .saga(let id): SagaView(id: id)
+        case .saga(let id): SagaView(id: id, onSelect: onSelect)
         case .sagas: SagasGridView()
-        case .person(let ref): PersonView(ref: ref)
+        case .person(let ref): PersonView(ref: ref, onSelect: onSelect)
         case .studio(let kind, let studio): GenreGridView(studio: studio, kind: kind)
         case .settings: SettingsView()
         }
@@ -46,9 +52,18 @@ extension View {
                 .playerCover(env)
         }
         // An actor opened from the player; a title chosen there replaces it by its sheet.
-        .fullScreenCover(item: $env.presentedPerson) { ref in
-            PersonView(ref: ref, onSelect: { id in env.presentedPerson = nil; env.open(id) }).environment(env)
-        }
+        .routeCover($env.presentedCover, closesOnSelect: true)
+        #else
+        self
+        #endif
+    }
+
+    /// tvOS: the route is a full-screen cover above this screen. A title chosen there opens its sheet above it; from a
+    /// screen that is itself a sheet or the player (`closesOnSelect`), the cover closes first.
+    /// iOS: routes are pushed (`AppEnvironment.open(_:cover:)`), so nothing to add here.
+    @ViewBuilder func routeCover(_ route: Binding<Route?>, closesOnSelect: Bool = false) -> some View {
+        #if os(tvOS)
+        modifier(RouteCover(route: route, closesOnSelect: closesOnSelect))
         #else
         self
         #endif
@@ -78,5 +93,27 @@ extension View {
         #else
         self
         #endif
+    }
+}
+
+#if os(tvOS)
+private struct RouteCover: ViewModifier {
+    @Environment(AppEnvironment.self) private var env
+    @Binding var route: Route?
+    let closesOnSelect: Bool
+
+    func body(content: Content) -> some View {
+        content.fullScreenCover(item: $route) { route in
+            RouteView(route: route, onSelect: closesOnSelect ? { id in self.route = nil; env.open(id) } : nil).environment(env)
+        }
+    }
+}
+#endif
+
+extension AppEnvironment {
+    /// Opens a saga, a studio, an actor or a grid from a screen: a cover owned by that screen on tvOS (`routeCover`),
+    /// a push in the current tab on iOS.
+    func open(_ route: Route, cover: Binding<Route?>) {
+        if Platform.isTV { cover.wrappedValue = route } else { navigate(route) }
     }
 }

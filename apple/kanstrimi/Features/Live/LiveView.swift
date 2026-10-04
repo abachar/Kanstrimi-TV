@@ -169,7 +169,7 @@ struct LiveView: View {
             }
             ForEach(markets, id: \.name) { market in
                 Section(market.name) {
-                    ForEach(market.groups) { g in menuItem(.group(g.id), name: g.themeName, count: g.channels.count, icon: nil) }
+                    ForEach(market.groups) { g in menuItem(.group(g.id), name: g.theme, count: g.channels.count, icon: nil) }
                 }
             }
         } label: {
@@ -179,7 +179,7 @@ struct LiveView: View {
                 Image(systemName: "chevron.up.chevron.down").font(.footnote.weight(.semibold)).foregroundStyle(Theme.secondary)
             }
             .padding(.horizontal, 14).frame(height: 38)
-            .background(Capsule().fill(.white.opacity(0.12)))
+            .background(Capsule().fill(Theme.surfaceButton))
         }
         .sensoryFeedback(.selection, trigger: selected)
     }
@@ -200,7 +200,7 @@ struct LiveView: View {
     private var markets: [(name: String, groups: [ChannelGroup])] {
         var result: [(name: String, groups: [ChannelGroup])] = []
         for g in groups {
-            let market = g.sectionName
+            let market = g.section
             if let i = result.firstIndex(where: { $0.name == market }) { result[i].groups.append(g) } else { result.append((market, [g])) }
         }
         return result
@@ -229,7 +229,7 @@ struct LiveView: View {
                     Text(market.name.uppercased())
                         .font(.caption.weight(.semibold)).foregroundStyle(Theme.secondary)
                         .padding(.horizontal, 16).padding(.top, 22).padding(.bottom, 2)
-                    ForEach(market.groups) { g in categoryRow(.group(g.id), name: g.themeName, count: g.channels.count, icon: nil) }
+                    ForEach(market.groups) { g in categoryRow(.group(g.id), name: g.theme, count: g.channels.count, icon: nil) }
                 }
             }
             .padding(.trailing, 10)
@@ -309,7 +309,7 @@ struct LiveView: View {
             if let c = focusedChannel {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {
-                        Text("EN DIRECT").font(.caption.weight(.bold)).tracking(1.5).padding(.horizontal, 8).padding(.vertical, 3).background(Theme.live, in: RoundedRectangle(cornerRadius: 5))
+                        LiveTag("EN DIRECT")
                         Text(c.name).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
                         versionBadges(c, small: false)
                     }

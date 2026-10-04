@@ -28,16 +28,8 @@ final class PlayerService {
         let detail: String?
     }
 
-    struct EPGNow: Equatable {
-        let now: Programme?
-        let next: Programme?
-        static let empty = EPGNow(now: nil, next: nil)
-    }
-
     struct Failure: Equatable {
         let attempts: Int
-        let sourceLabel: String
-        let hadAlternativeSource: Bool
     }
 
     // MARK: - Public state
@@ -45,7 +37,6 @@ final class PlayerService {
     private(set) var context: PlaybackContext?
     private(set) var version: Version?
     private(set) var source: Source?
-    private(set) var choiceReason: VersionChooser.Choice.Reason?
     private(set) var phase: Phase = .idle
     private(set) var time: TimeInterval = 0
     private(set) var duration: TimeInterval = 0
@@ -61,6 +52,10 @@ final class PlayerService {
     private(set) var suggestions: Suggestions?
     /// The second of black between a title and what follows it.
     private(set) var isChangingTitle = false
+    /// The sheet of the title playing (its series for an episode), shared by the Infos and Épisodes panels.
+    private(set) var titleCard: Card?
+    private(set) var titleCardFailed = false
+    private var titleCardID: ContentID?
 
     /// What the « À suivre » card offers: the next episode, else the title the server suggests.
     enum UpNext: Hashable { case episode(NextEpisode), title(Suggestion) }
@@ -78,9 +73,7 @@ final class PlayerService {
     private(set) var channel: Channel?
     /// The playing channel as `GET /channels/{id}` gives it: its guide, and each quality's own.
     private var channelDetail: Channel?
-    private(set) var epg: EPGNow = .empty
-    /// Live: banner "previous / current / next" after a zap.
-    private(set) var zapBanner: Bool = false
+    private(set) var epg: Channel.Guide = .empty
     /// Fast forward / rewind while a direction is held: where the seek lands on release, and the
     /// signed rate (seconds of film per second of hold) shown next to the time.
     private(set) var scanTarget: TimeInterval?
@@ -135,9 +128,7 @@ final class PlayerService {
     private var toastTask: Task<Void, Never>?
     private var countdownTask: Task<Void, Never>?
     private var suggestionsTask: Task<Void, Never>?
-    private var zapTask: Task<Void, Never>?
     private var nextTriggered = false
-    var onExit: (() -> Void)?
     /// Bumped once the final report of a playback has reached the server (or the offline queue):
     /// the screens that show progress (home, sheet) reload on it.
     private(set) var progressRevision = 0
@@ -193,7 +184,29 @@ final class PlayerService {
     /// Chooses the version with the engine and starts. Called by every "Lecture".
     func play(_ context: PlaybackContext) {
         guard let choice = startChoice(context.content.id, versions: context.versions, seriesID: context.seriesID) else { return }
-        start(context, version: choice.version, source: choice.source, reason: choice.reason, at: context.resumeAt)
+        start(context, version: choice.version, source: choice.source, at: context.resumeAt)
+    }
+
+    /// Plays what a panel asked for once it is loaded; false when it was not played: nothing came back, or the
+    /// player was left or changed title meanwhile (a late answer must not reopen it).
+    func playPicked(_ load: () async -> PlaybackContext?) async -> Bool {
+        let before = context?.content.id
+        let picked = await load()
+        guard let picked, before != nil, context?.content.id == before else { return false }
+        play(picked)
+        return true
+    }
+
+    /// Asks for the sheet of the title playing, unless it is already there or on its way; a failure may be retried.
+    func loadTitleCard() async {
+        guard let c = context, !isLive else { return }
+        let id = c.seriesID ?? c.content.id
+        guard titleCardID != id else { return }
+        titleCardID = id
+        titleCard = nil; titleCardFailed = false
+        let card = try? await client.detail(id: id)
+        guard titleCardID == id else { return }
+        if let card { titleCard = card } else { titleCardFailed = true; titleCardID = nil }
     }
 
     /// Plays an explicit version (picker, panel). Keeps the position when already playing the same content.
@@ -202,7 +215,7 @@ final class PlayerService {
         guard let src else { return }
         let samePlayback = self.context?.content.id == context.content.id && phase != .idle
         let at = samePlayback ? time : context.resumeAt
-        start(context, version: version, source: src, reason: nil, at: at)
+        start(context, version: version, source: src, at: at)
     }
 
     /// Live: play a channel out of an ordered list.
@@ -229,17 +242,6 @@ final class PlayerService {
         guard isLive, let channel, let idx = channels.firstIndex(of: channel), !channels.isEmpty else { return }
         let next = channels[(idx + offset + channels.count) % channels.count]
         play(channel: next, in: channels)
-        zapBanner = true
-        zapTask?.cancel()
-        zapTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(4))
-            if !Task.isCancelled { self?.zapBanner = false }
-        }
-    }
-
-    var neighbours: (previous: Channel?, next: Channel?) {
-        guard let channel, let idx = channels.firstIndex(of: channel), channels.count > 1 else { return (nil, nil) }
-        return (channels[(idx - 1 + channels.count) % channels.count], channels[(idx + 1) % channels.count])
     }
 
     func stop() {
@@ -251,6 +253,7 @@ final class PlayerService {
         phase = .idle; time = 0; duration = 0; isMinimized = false
         failure = nil; toast = nil; nextCountdown = nil; nextContext = nil; nextTriggered = false
         suggestions = nil; suggestionsTask?.cancel(); isChangingTitle = false
+        titleCard = nil; titleCardFailed = false; titleCardID = nil
         audioTracks = []; textTracks = []
         epg = .empty
         channelDetail = nil
@@ -261,7 +264,7 @@ final class PlayerService {
     private func showGuide() {
         guard let channelDetail, channelDetail.id == channel?.id else { return }
         let guide = channelDetail.guide(for: version)
-        epg = EPGNow(now: guide.now, next: guide.next)
+        epg = guide
         nowPlaying.update()
     }
 
@@ -275,7 +278,7 @@ final class PlayerService {
         // `.ended` is terminal for the engine: playing again is a new load from the start.
         case .ended:
             guard let context, let version, let source else { return }
-            start(context, version: version, source: source, reason: choiceReason, at: 0)
+            start(context, version: version, source: source, at: 0)
         default: break
         }
     }
@@ -375,12 +378,6 @@ final class PlayerService {
         play(context, version: v)
     }
 
-    /// "Autre version" from the failure dialog: the next of the engine's order.
-    var alternativeVersion: Version? {
-        guard let context, let version else { return nil }
-        return chooser.alternatives(to: version, in: context.versions).first
-    }
-
     /// "Réessayer" from the failure dialog: links asked for again, same version, same position.
     func retryFromServer() {
         guard let version else { return }
@@ -388,10 +385,6 @@ final class PlayerService {
         liveResets = 0
         startAttempts = 0
         restartWithFreshLinks(version: version, source: nil)
-    }
-
-    func playAlternative() {
-        if let alt = alternativeVersion { playInstead(alt) }
     }
 
     /// Every other version, the chooser's best first: the failure dialog offers each (tvOS).
@@ -456,7 +449,7 @@ final class PlayerService {
 
     // MARK: - Start pipeline
 
-    private func start(_ ctx: PlaybackContext, version v: Version, source s: Source, reason: VersionChooser.Choice.Reason?, at position: TimeInterval?) {
+    private func start(_ ctx: PlaybackContext, version v: Version, source s: Source, at position: TimeInterval?) {
         if context?.content.id != ctx.content.id {
             sendProgress(final: true)
             startAttempts = 0
@@ -464,6 +457,7 @@ final class PlayerService {
             nextContext = nil
             nextCountdown = nil
             countdownTask?.cancel()
+            if titleCardID != (ctx.seriesID ?? ctx.content.id) { titleCard = nil; titleCardFailed = false; titleCardID = nil }
             prefetchNext(ctx)
             fetchSuggestions(ctx)
         }
@@ -474,7 +468,6 @@ final class PlayerService {
         version = v
         if changedVersion, isLive { showGuide() }
         source = s
-        choiceReason = reason
         failure = nil
         phase = .opening
         time = position ?? 0
@@ -577,7 +570,7 @@ final class PlayerService {
         restartTask = Task { [weak self] in
             guard let self, !Task.isCancelled, self.context?.content.id == context.content.id else { return }
             restartTask = nil
-            start(context, version: version, source: source, reason: choiceReason, at: at)
+            start(context, version: version, source: source, at: at)
         }
     }
 
@@ -596,7 +589,7 @@ final class PlayerService {
             let v = fresh.versions.first { $0.id == version.id } ?? version
             guard let s = source.flatMap({ s in v.sources.first { $0.id == s.id } }) ?? source ?? chooser.bestSource(of: v) ?? v.sources.first
             else { return }
-            start(fresh, version: v, source: s, reason: choiceReason, at: at)
+            start(fresh, version: v, source: s, at: at)
         }
     }
 
@@ -611,13 +604,12 @@ final class PlayerService {
 
     /// Stops and shows the failure dialog.
     private func presentFailure() {
-        guard let version, let source else { return }
+        guard version != nil, source != nil else { return }
         sendWatchTime(final: true)
         cancelTimers(keepCountdown: true)
         playback.stop()
         phase = .failed
-        failure = Failure(attempts: startAttempts, sourceLabel: "\(version.label) · \(sourceLabel(source, in: version))",
-                          hadAlternativeSource: version.sources.count > 1)
+        failure = Failure(attempts: startAttempts)
         nowPlaying.update()
     }
 
@@ -767,9 +759,6 @@ final class PlayerService {
         if !keepCountdown { countdownTask?.cancel(); countdownTask = nil }
     }
 
-    var selectedAudioLabel: String { audioTracks.first(where: \.isSelected)?.name ?? "—" }
-    var selectedTextLabel: String { textTracks.first(where: \.isSelected)?.name ?? "désactivés" }
-
     // MARK: - Engine
 
     /// Mirrors the engine's published state. Each sink hops to the next main-queue turn first: `@Published`
@@ -878,8 +867,7 @@ final class PlayerService {
         if !info.name.isEmpty { return info.name }
         let language = info.language.flatMap { Locale(identifier: "fr").localizedString(forLanguageCode: $0)?.localizedCapitalized } ?? "Piste \(info.id)"
         guard audio else { return language }
-        let channels = switch info.channels { case 0: ""; case 1: "1.0"; case 2: "2.0"; case 6: "5.1"; case 8: "7.1"; default: "\(info.channels) ch" }
-        let detail = [info.codec.uppercased(), channels].filter { !$0.isEmpty }.joined(separator: " ")
+        let detail = StreamFacts.soundLabel(codec: info.codec, channels: info.channels)
         return detail.isEmpty ? language : "\(language) (\(detail))"
     }
 }
@@ -903,7 +891,7 @@ extension PlayerService {
         case .vodPaused: phase = .paused
         case .failure:
             phase = .failed
-            failure = Failure(attempts: 2, sourceLabel: "4K Dolby Vision · VF · Source A", hadAlternativeSource: false)
+            failure = Failure(attempts: 2)
         case .nextEpisode, .nextTitle:
             phase = .playing
             time = duration - 8
@@ -913,8 +901,9 @@ extension PlayerService {
             channels = list
             channel = list.first
             let start = Date.now.addingTimeInterval(-3200)
-            epg = EPGNow(now: Programme(title: "Ligue · Lyon – Nantes", start: start, end: start.addingTimeInterval(7200), overview: nil),
-                         next: Programme(title: "Le Mag du foot", start: start.addingTimeInterval(7200), end: start.addingTimeInterval(9000), overview: nil))
+            epg = Channel.Guide(now: Programme(title: "Ligue · Lyon – Nantes", start: start, end: start.addingTimeInterval(7200), overview: nil),
+                                next: Programme(title: "Le Mag du foot", start: start.addingTimeInterval(7200), end: start.addingTimeInterval(9000), overview: nil),
+                                hasEPG: true)
         case .panel: phase = .playing
         case .opening: phase = .buffering; bufferingProgress = 42
         }

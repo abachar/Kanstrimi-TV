@@ -33,7 +33,9 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
    lecteur, Picture-in-Picture, orientation, Top Shelf. Aucune exception de membre dans le groupe synchronisé du projet,
    sauf l'`Info.plist` partiel.
 
-`env.open(id)` est l'unique entrée vers une fiche : cover sur tvOS, push dans l'onglet courant sur iPhone.
+`Platform.isTV` dans une vue ne sert qu'aux capacités (focus, couvertures, télécommande) ; une disposition passe par `metrics.compact`.
+
+`env.open(id)` est l'unique entrée vers une fiche : cover sur tvOS, push dans l'onglet courant sur iPhone. Une saga, un studio, un acteur ou une grille s'ouvre de même par `env.open(route, cover: $cover)` : l'écran qui ouvre garde un `@State cover: Route?` et le modificateur `.routeCover($cover)` (couverture sur tvOS, rien sur iPhone).
 
 ## Choix et pièges
 
