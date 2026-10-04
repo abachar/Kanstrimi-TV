@@ -8,7 +8,7 @@ import { fail, json } from "./http";
 import { contentByKey, liveCategories, servedVariant, variantsOf, visibleContent } from "./contents";
 import { favoriteSet } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
-import { playableOfItem, qualityOfRank, versionsOf, type Playable } from "./versions";
+import { languageLabel, playableOfItem, qualityOfRank, versionsOf, type Playable } from "./versions";
 import { guidesOf } from "./guides";
 import { dayProgrammes, epgOf, type ChannelEpg } from "./epg";
 import { channelLogo } from "./cards";
@@ -50,7 +50,7 @@ function guided(ctx: RestContext, playables: Playable[], epg: Map<string, Channe
 
 /** A live version's chip: its quality, then its language (« FR » for VF) when the channel mixes languages. */
 export function liveChip(v: Pick<Version, "quality" | "language">, mixed: boolean): string {
-  return mixed ? `${v.quality}/${v.language === "VF" ? "FR" : v.language}` : v.quality;
+  return mixed ? `${v.quality}/${languageLabel(v.language)}` : v.quality;
 }
 
 /**

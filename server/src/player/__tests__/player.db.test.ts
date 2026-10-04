@@ -382,13 +382,13 @@ describe("GET /movies and /series", () => {
       title: "Matrix",
       poster: "http://kanstrimi.test/img/w500/abc.jpg",
       facts: `${monthsAgo(11).getFullYear()} · ★ 8.2`,
-      badges: ["4K DV", "VF", "VOSTFR"],
+      badges: ["4K DV", "FR", "VOSTF"],
       hint: null,
       progress: null,
       watched: false,
       caption: null,
     });
-    expect(recent[2].hint).toBe("VOSTFR seul");
+    expect(recent[2].hint).toBe("VOSTF seul");
     expect(recent[1]).toMatchObject({ title: "Silver Book of Dreams", facts: String(THIS_YEAR), poster: null });
     const s = (await get("/series")).body;
     expect(s[0]).toMatchObject({ id: "recent", name: "Derniers épisodes", total: 1 });
@@ -575,7 +575,7 @@ describe("GET /series/{id}", () => {
       progress: null,
       item: {
         facts: "1 h 20",
-        badges: ["HD", "VF", "VOSTFR"],
+        badges: ["HD", "FR", "VOSTF"],
         hint: null,
         caption: "É1 · 1 h 20",
         overview: "Vincenzo arrive.",
@@ -591,7 +591,7 @@ describe("GET /series/{id}", () => {
     expect(e21).toMatchObject({ id: "tmdb:tv:1396:s02e01", title: "Marée haute", runtime: 80, overview: "Intrigue." });
     expect(e21.versions.map((v: { id: string }) => v.id)).toEqual(["vf-hd"]);
     // One language: its warning, which the app shows when the series plays in another one.
-    expect(e21.item).toMatchObject({ badges: ["HD", "VF"], hint: "VF SEUL" });
+    expect(e21.item).toMatchObject({ badges: ["HD", "FR"], hint: "FR SEUL" });
     expect(body.versions).toEqual([
       { id: "vf-hd", language: "VF", quality: "HD", sources: [] },
       { id: "vostfr-hd", language: "VOSTFR", quality: "HD", sources: [] },
@@ -704,7 +704,7 @@ describe("playback and progress", () => {
         kind: "episode",
         title: "Marée haute",
         facts: "Vincenzo · S2 · É1 · 1 h 20",
-        badges: ["HD", "VF"],
+        badges: ["HD", "FR"],
       },
     });
     expect(p.episode).toMatchObject({ id: "tmdb:tv:1396:s01e02", season: 1, number: 2 });
@@ -753,7 +753,7 @@ describe("GET /home", () => {
       item: {
         id: "tmdb:movie:603",
         picture: "http://kanstrimi.test/img/w1280/bd.jpg",
-        badges: ["4K DV", "VF", "VOSTFR"],
+        badges: ["4K DV", "FR", "VOSTF"],
         facts: expect.stringMatching(/^\d{4} · Action · 2 h 16$/),
       },
       runtime: 136,
@@ -877,7 +877,7 @@ describe("Nouveautés, release order and visible variants", () => {
   it("aggregates ignore hidden variants: quality, languages and arrival", async () => {
     const alpha = (await get("/movies?genre=recent&limit=50")).body.items.find((c: { id: string }) => c.id === "tmdb:movie:2001");
     expect(alpha.badges).not.toContain("4K");
-    expect(alpha.badges.filter((b: string) => !/^(SD|HD|FHD|4K)\b/.test(b))).toEqual(["VF"]);
+    expect(alpha.badges.filter((b: string) => !/^(SD|HD|FHD|4K)\b/.test(b))).toEqual(["FR"]);
     const [row] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "tmdb:movie:2001"));
     expect(row.addedAt.getTime()).toBeLessThan(daysAgo(4).getTime());
   });

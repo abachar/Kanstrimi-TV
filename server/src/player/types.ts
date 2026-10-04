@@ -46,7 +46,7 @@ export type EpisodeWire = {
   progress: ProgressWire | null;
   /**
    * What its card and its row draw: the still, the progress, « vu »; the sheet's row adds `facts` (« 52 min · 12 min
-   * restantes », « 52 min · Vu »), `badges` (« 4K HDR », « VF »…), `overview`, and `hint` (« VF SEUL ») with its
+   * restantes », « 52 min · Vu »), `badges` (« 4K HDR », « FR »…), `overview`, and `hint` (« FR SEUL ») with its
    * only language, shown when the series' chosen language is another.
    */
   item: ContentItem;
@@ -95,7 +95,7 @@ export type Card = {
 /**
  * What a content card draws, written here: the app lays it out and decides nothing. A list item; the
  * sheet stays a `Card`. `kind` says where a click goes (the sheet, the saga). Texts are final:
- * `facts` « 2019 · ★ 8.5 », « 3 films »; `badges` « 4K DV », « VF », « VOSTFR », in order;
+ * `facts` « 2019 · ★ 8.5 », « 3 films »; `badges` « 4K DV », « FR », « VOSTF », in order;
  * `caption` « 1 h 08 restantes ». `progress` (0…1) only while resumable.
  */
 export type ContentItem = {

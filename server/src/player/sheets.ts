@@ -7,7 +7,7 @@ import { contentByKey, variantsOf, type Variants } from "./contents";
 import { getProgress } from "./progress";
 import { favoriteSet } from "./favorites";
 import { progressWire, hintOf, sheetCard } from "./cards";
-import { versionsOf, versionsSummary } from "./versions";
+import { languageLabel, versionsOf, versionsSummary } from "./versions";
 import { sagaRefOf } from "./sagas";
 import { sheetRelated } from "./related";
 import { currentEpisode, loadEpisodes, seasonsWire, seriesVersions, type EpisodeRow } from "./episodes";
@@ -77,6 +77,6 @@ function seriesHint(languages: string[], seasons: { number: number; episodes: { 
   if (hintOf(languages)) return hintOf(languages);
   const last = seasons[seasons.length - 1];
   if (last && languages.includes("VF") && last.episodes.some((e) => !e.versions.some((v) => v.language === "VF")))
-    return `VF partielle S${last.number}`;
+    return `${languageLabel("VF")} partielle S${last.number}`;
   return null;
 }

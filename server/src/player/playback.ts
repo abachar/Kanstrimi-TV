@@ -6,7 +6,7 @@ import type { Env, RestContext } from "./context";
 import { fail, json, noContent } from "./http";
 import { contentByKey, keyExists, variantsOf } from "./contents";
 import { deleteProgress, getProgress, isResumable, setFinished, setProgress } from "./progress";
-import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
+import { languageLabel, qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
 import { currentEpisode, type EpisodeRow, episodeWire, loadEpisodes } from "./episodes";
 import { castOf, episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
@@ -162,7 +162,7 @@ function nextEpisodeOf(ctx: RestContext, series: Content, next: EpisodeRow, vers
       facts: [series.title, episodeCode(next.season, next.number), next.runtime ? runtimeText(next.runtime) : null]
         .filter((t) => t !== null)
         .join(" · "),
-      badges: [...quality, ...summary.languages],
+      badges: [...quality, ...summary.languages.map(languageLabel)],
       progress: null,
       watched: false,
       caption: null,

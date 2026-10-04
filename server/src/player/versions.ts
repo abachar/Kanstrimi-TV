@@ -12,6 +12,9 @@ const LANG_RANK = (l: string) => {
   const i = DEFAULT_LANGUAGE_ORDER.indexOf(l);
   return i === -1 ? 3 : i;
 };
+/** How a language reads on screen, the way French cinemas write it: « FR », « VOSTF », « VO ». The codes stay the contract's. */
+export const languageLabel = (code: string): string => (code === "VF" ? "FR" : code === "VOSTFR" ? "VOSTF" : code);
+
 export function sortLanguages(langs: Iterable<string>): string[] {
   return [...new Set(langs)].sort((a, b) => LANG_RANK(a) - LANG_RANK(b) || a.localeCompare(b));
 }

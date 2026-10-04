@@ -1,7 +1,7 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { db, schema, type Content, type Episode, type Variant } from "@/db";
 import { seasonsOf } from "@/catalog";
-import { qualityBadgeOf, versionsOf, versionsSummary, type Playable } from "./versions";
+import { languageLabel, qualityBadgeOf, versionsOf, versionsSummary, type Playable } from "./versions";
 import { imageUrl, isWatched, progressWire, remaining, runtimeText } from "./cards";
 import type { RestContext } from "./context";
 import { sourceId } from "./stream-links";
@@ -90,8 +90,8 @@ export function episodeWire(ctx: RestContext, e: EpisodeRow, progress?: Progress
       poster: null,
       picture: still,
       facts: facts.length ? facts.join(" · ") : null,
-      badges: [quality, ...summary.languages].filter((b) => b !== null),
-      hint: summary.languages.length === 1 ? `${summary.languages[0]} SEUL` : null,
+      badges: [quality, ...summary.languages.map(languageLabel)].filter((b) => b !== null),
+      hint: summary.languages.length === 1 ? `${languageLabel(summary.languages[0])} SEUL` : null,
       progress: resumable ? progress.position / progress.duration : null,
       watched,
       caption: [`É${e.number}`, runtime].filter((t) => t !== null).join(" · "),

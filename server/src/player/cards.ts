@@ -3,7 +3,7 @@ import type { Content } from "@/db";
 import type { Card, ContentItem, Person, ProgressWire } from "./types";
 import type { RestContext } from "./context";
 import { FINISHED_AT, isResumable, type Progress } from "./progress";
-import { drOf, qualityBadgeOf, qualityOfRank, sortLanguages } from "./versions";
+import { drOf, languageLabel, qualityBadgeOf, qualityOfRank, sortLanguages } from "./versions";
 
 /** The one `Card` of the contract, in its three sizes: base (every list), grid (+ year, rating…), sheet (+ overview, cast…). */
 
@@ -40,9 +40,9 @@ export function baseCard(ctx: RestContext, c: Content): Card {
   };
 }
 
-/** "VOSTFR seul" when that is the only language; the series-specific hint needs the episodes. */
+/** "VOSTF seul" when that is the only language; the series-specific hint needs the episodes. */
 export function hintOf(languages: string[]): string | null {
-  return languages.length === 1 && languages[0] === "VOSTFR" ? "VOSTFR seul" : null;
+  return languages.length === 1 && languages[0] === "VOSTFR" ? `${languageLabel("VOSTFR")} seul` : null;
 }
 
 /** Base + grid block: `/movies`, `/series`, `/search`, home rows. */
@@ -148,7 +148,7 @@ export function contentItem(ctx: RestContext, c: Content, progress?: Progress): 
     logo: imageUrl(ctx.baseUrl, "w500", c.titleLogoPath) || null,
     picture: imageUrl(ctx.baseUrl, "w1280", c.backdropPath) || null,
     facts: factsOf(c.year, c.rating),
-    badges: [qualityBadge(c), ...languages].filter((b) => b !== null),
+    badges: [qualityBadge(c), ...languages.map(languageLabel)].filter((b) => b !== null),
     hint: hintOf(languages),
     progress: resumable ? progress.position / progress.duration : null,
     watched: isWatched(progress),

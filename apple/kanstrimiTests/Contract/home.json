@@ -11,7 +11,7 @@
         "facts": "2026 · Action · 2 h 18",
         "badges": [
           "4K DV",
-          "VF"
+          "FR"
         ],
         "hint": null,
         "progress": null,
@@ -61,8 +61,8 @@
         "facts": "1999 · Action · 2 h 16",
         "badges": [
           "4K DV",
-          "VF",
-          "VOSTFR"
+          "FR",
+          "VOSTF"
         ],
         "hint": null,
         "progress": null,
@@ -135,9 +135,9 @@
           "picture": "http://kanstrimi.test/img/w1280/heatb.jpg",
           "facts": "2026 · ★ 7.9",
           "badges": [
-            "VOSTFR"
+            "VOSTF"
           ],
-          "hint": "VOSTFR seul",
+          "hint": "VOSTF seul",
           "progress": 0.29411764705882354,
           "watched": false,
           "caption": "2 h 00 restantes",
@@ -160,7 +160,7 @@
           "facts": null,
           "badges": [
             "FHD",
-            "VF"
+            "FR"
           ],
           "hint": null,
           "progress": null,
@@ -185,7 +185,7 @@
           "facts": "2026 · ★ 7.1",
           "badges": [
             "4K DV",
-            "VF"
+            "FR"
           ],
           "hint": null,
           "progress": null,
@@ -202,9 +202,9 @@
           "picture": "http://kanstrimi.test/img/w1280/heatb.jpg",
           "facts": "2026 · ★ 7.9",
           "badges": [
-            "VOSTFR"
+            "VOSTF"
           ],
-          "hint": "VOSTFR seul",
+          "hint": "VOSTF seul",
           "progress": 0.29411764705882354,
           "watched": false,
           "caption": "2 h 00 restantes",
@@ -226,7 +226,7 @@
           "picture": "http://kanstrimi.test/img/w1280/vb.jpg",
           "facts": "2021 · ★ 8.4",
           "badges": [
-            "VF"
+            "FR"
           ],
           "hint": null,
           "progress": null,
@@ -250,7 +250,7 @@
           "picture": "http://kanstrimi.test/img/w1280/vb.jpg",
           "facts": "2021 · ★ 8.4",
           "badges": [
-            "VF"
+            "FR"
           ],
           "hint": null,
           "progress": null,
@@ -275,8 +275,8 @@
           "facts": "1999 · ★ 8.2",
           "badges": [
             "4K DV",
-            "VF",
-            "VOSTFR"
+            "FR",
+            "VOSTF"
           ],
           "hint": null,
           "progress": null,
