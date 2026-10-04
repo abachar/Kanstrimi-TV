@@ -72,7 +72,7 @@ struct SettingsView: View {
             return parts.joined(separator: " · ")
         } ?? "—"
     }
-    private var languagesLine: String { env.info?.catalogLanguages.map(\.rawValue).joined(separator: " · ") ?? "—" }
+    private var languagesLine: String { env.info?.catalogLanguages.map(\.short).joined(separator: " · ") ?? "—" }
 
     @ViewBuilder private var form: some View {
         @Bindable var prefs = env.preferences
@@ -98,7 +98,7 @@ struct SettingsView: View {
 
             Section("Lecture") {
                 ChoiceRow("Langue audio", selection: languageBinding(prefs), options: languageOrders) {
-                    $0.map(\.rawValue).joined(separator: " › ")
+                    $0.map(\.short).joined(separator: " › ")
                 }
                 ChoiceRow("Qualité maximale", selection: $prefs.maxQuality, options: Quality.allCases.reversed()) { $0.label }
                 Toggle("Lecture automatique de la suite · 15 s", isOn: $prefs.autoPlayNext)

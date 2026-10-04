@@ -115,6 +115,6 @@ nonisolated struct VersionChoiceKey: Hashable, Codable, RawRepresentable, Sendab
     }
     var label: String {
         let dr = dynamicRange.map { $0 == .sdr ? "" : " \($0.label)" } ?? ""
-        return ["\(language.rawValue) · \(quality.label)\(dr)", edition].compactMap(\.self).joined(separator: " · ")
+        return ["\(language.short) · \(quality.label)\(dr)", edition].compactMap(\.self).joined(separator: " · ")
     }
 }

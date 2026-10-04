@@ -95,7 +95,7 @@ final class MockCatalogClient: CatalogClient {
         let resumable = c.progress?.isResumable == true
         return ContentItem(id: c.id, kind: ContentItem.Kind(rawValue: c.kind.rawValue) ?? .movie, title: c.title, logo: c.logo, poster: c.poster,
                            picture: c.backdrop, facts: facts.isEmpty ? nil : facts.joined(separator: " · "),
-                           badges: [c.qualityBadge].compactMap { $0 } + c.languages.map(\.rawValue), hint: c.hint,
+                           badges: [c.qualityBadge].compactMap { $0 } + c.languages.map(\.short), hint: c.hint,
                            progress: resumable ? c.progress?.fraction : nil, watched: c.progress?.isWatched ?? false,
                            caption: resumable ? [c.episode?.code, c.progress.map { Format.remaining($0.remaining) }].compactMap { $0 }.joined(separator: " · ") : nil)
     }
@@ -130,7 +130,7 @@ final class MockCatalogClient: CatalogClient {
         let facts = [s.title, e.ref.code, e.runtime.map(Format.runtime(minutes:))].compactMap { $0 }.joined(separator: " · ")
         let quality = e.versions.maxQuality.map { q in e.versions.maxDynamicRange.flatMap { $0 == .sdr ? nil : "\(q.rawValue) \($0.shortLabel)" } ?? q.rawValue }
         return ContentItem(id: e.id, kind: .episode, title: e.title, picture: e.still, facts: facts,
-                           badges: [quality].compactMap { $0 } + e.languages.map(\.rawValue), overview: e.overview)
+                           badges: [quality].compactMap { $0 } + e.languages.map(\.short), overview: e.overview)
     }
 
     /// An episode's card and row, written as the server writes it (`episodeWire`).
@@ -140,8 +140,8 @@ final class MockCatalogClient: CatalogClient {
         let facts = [runtime, state].compactMap { $0 }
         let quality = e.versions.maxQuality.map { q in e.versions.maxDynamicRange.flatMap { $0 == .sdr ? nil : "\(q.rawValue) \($0.shortLabel)" } ?? q.rawValue }
         return ContentItem(id: e.id, kind: .episode, title: e.title, picture: e.still, facts: facts.isEmpty ? nil : facts.joined(separator: " · "),
-                           badges: [quality].compactMap { $0 } + e.languages.map(\.rawValue),
-                           hint: e.languages.count == 1 ? "\(e.languages[0].rawValue) SEUL" : nil,
+                           badges: [quality].compactMap { $0 } + e.languages.map(\.short),
+                           hint: e.languages.count == 1 ? "\(e.languages[0].short) SEUL" : nil,
                            progress: p?.isResumable == true ? p?.fraction : nil, watched: p?.isWatched ?? false,
                            caption: ["É\(e.number)", runtime].compactMap { $0 }.joined(separator: " · "), overview: e.overview)
     }
@@ -154,13 +154,13 @@ final class MockCatalogClient: CatalogClient {
 
     private func hint(for d: Card) -> String? {
         if d.kind != .series {
-            return d.versions.languages == [.vostfr] ? "VOSTFR seul" : nil
+            return d.versions.languages == [.vostfr] ? "VOSTF seul" : nil
         }
         let eps = d.allEpisodes
         let langs = eps.flatMap(\.versions).languages
-        if langs == [.vostfr] { return "VOSTFR seul" }
+        if langs == [.vostfr] { return "VOSTF seul" }
         if let last = d.seasons?.last, last.episodes.contains(where: { !$0.languages.contains(.vf) }), langs.contains(.vf) {
-            return "VF partielle S\(last.number)"
+            return "FR partielle S\(last.number)"
         }
         return nil
     }

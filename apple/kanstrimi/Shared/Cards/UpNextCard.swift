@@ -72,7 +72,7 @@ private struct UpNextCardPreview: View {
         let layout = metrics.compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 24)) : AnyLayout(HStackLayout(alignment: .top, spacing: 40))
         layout {
             UpNextCard(heading: "ÉPISODE SUIVANT · 7 s", item: .sampleNextEpisode,
-                       warning: "Pas de VF pour cet épisode : lecture en VOSTFR, retour en VF ensuite.", playFocus: $focused, onPlay: {}, onCancel: {})
+                       warning: "Pas de FR pour cet épisode : lecture en VOSTF, retour en FR ensuite.", playFocus: $focused, onPlay: {}, onCancel: {})
                 .frame(width: metrics.upNextWidth)
             UpNextCard(heading: "À SUIVRE · SUITE DE LA SAGA · 7 s", item: .sampleNextTitle, playFocus: $focused, onPlay: {}, onCancel: {})
                 .frame(width: metrics.upNextWidth)

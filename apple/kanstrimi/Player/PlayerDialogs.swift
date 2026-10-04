@@ -145,6 +145,6 @@ struct NextEpisodeCard: View {
 
     private func languageWarning(_ next: NextEpisode) -> String? {
         guard let current = player.version, !next.languages.contains(current.language), let alt = next.languages.first else { return nil }
-        return "Pas de \(current.language.rawValue) pour cet épisode : lecture en \(alt.rawValue), retour en \(current.language.rawValue) ensuite."
+        return "Pas de \(current.language.short) pour cet épisode : lecture en \(alt.short), retour en \(current.language.short) ensuite."
     }
 }

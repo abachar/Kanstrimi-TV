@@ -55,8 +55,16 @@ nonisolated struct Language: RawRepresentable, Hashable, Codable, Sendable, Comp
     var label: String {
         switch self {
         case .vf: "Français"
-        case .vostfr: "VOSTFR"
+        case .vostfr: "VOSTF"
         case .vo: "Version originale"
+        default: rawValue
+        }
+    }
+    /// On a badge or in a line, the way French cinemas write it: "FR", "VOSTF", "VO". `rawValue` stays the contract's code.
+    var short: String {
+        switch self {
+        case .vf: "FR"
+        case .vostfr: "VOSTF"
         default: rawValue
         }
     }

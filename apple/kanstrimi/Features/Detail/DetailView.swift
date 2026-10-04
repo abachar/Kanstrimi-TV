@@ -154,7 +154,7 @@ private struct DetailContent: View {
         }
         return HStack(spacing: 6) {
             if let quality { Badge(quality, filled: chosen != nil) }
-            ForEach(d.versions.languages, id: \.self) { l in Badge(l.rawValue, filled: l == chosen?.language) }
+            ForEach(d.versions.languages, id: \.self) { l in Badge(l.short, filled: l == chosen?.language) }
         }
     }
 
@@ -357,7 +357,7 @@ private struct DetailContent: View {
             if let n = model.selectedSeason {
                 if let gap = model.languageGaps(in: n).first, let lang = model.seriesChoice?.language, let alt = gap.languages.first {
                     let back = model.episodes(in: n).first { $0.number > gap.number && $0.languages.contains(lang) }
-                    Label("É\(gap.number) n'existe qu'en \(alt.rawValue). L'enchaînement le lira en \(alt.rawValue) \(gap.versions.maxQuality?.rawValue ?? "")\(back.map { ", puis reviendra en \(lang.rawValue) à l'épisode \($0.number)" } ?? ".")",
+                    Label("É\(gap.number) n'existe qu'en \(alt.short). L'enchaînement le lira en \(alt.short) \(gap.versions.maxQuality?.rawValue ?? "")\(back.map { ", puis reviendra en \(lang.short) à l'épisode \($0.number)" } ?? ".")",
                           systemImage: "info.circle")
                         .font(.callout).foregroundStyle(Theme.accent)
                 }

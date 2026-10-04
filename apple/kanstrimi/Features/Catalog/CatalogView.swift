@@ -269,11 +269,11 @@ struct FilterBar: View {
                 }
                 Divider().frame(height: 40)
                 ForEach([Language.vf, .vostfr, .vo], id: \.self) { l in
-                    chip(l.rawValue, on: query.language == l) { query.language = query.language == l ? nil : l }
+                    chip(l.short, on: query.language == l) { query.language = query.language == l ? nil : l }
                 }
                 chip("4K", on: query.minQuality == .uhd) { query.minQuality = query.minQuality == .uhd ? nil : .uhd }
                 chip("Dolby Vision", on: query.dynamicRange == .dolbyVision) { query.dynamicRange = query.dynamicRange == .dolbyVision ? nil : .dolbyVision }
-                chip("VF disponible", on: query.vfAvailable) { query.vfAvailable.toggle() }
+                chip("FR disponible", on: query.vfAvailable) { query.vfAvailable.toggle() }
                 if query.hasFilters {
                     Button(role: .destructive) { query = query.cleared } label: { Label("Tout retirer", systemImage: "xmark") }
                 }

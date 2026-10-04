@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A slide of the home carousel: the picture (the poster held upright on a phone, the backdrop on TV), the tagline,
+/// A slide of the home carousel: the backdrop (whole on a phone, in the top right corner on TV), the tagline,
 /// the logo or the title, the facts and the certification (with the badges and the overview on TV), then `buttons`. The
 /// carousel, its timer, the focus and the actions stay with the home: they come in `buttons` and `onTapPicture`.
 /// `slideID` marks a new slide, which fades in.
@@ -19,24 +19,22 @@ struct HeroBanner<Buttons: View>: View {
         if metrics.compact { phone } else { tv }
     }
 
-    /// iPhone: the poster from the top edge, the logo (or the title), one line of facts, then the buttons.
+    /// iPhone, after Prime Video: the same backdrop as the TV, whole, across the width under the bars, fading into the
+    /// background; the logo (or the title), one line of facts and the buttons below it. Nothing of the picture is cut:
+    /// a backdrop rarely has its subject in the middle, a crop to fill a taller box would lose it.
     private var phone: some View {
-        ZStack(alignment: .bottom) {
-            // The poster, made for a screen held upright; the backdrop when there is none.
-            ArtView(id: item.id, url: item.poster ?? item.picture)
-                .frame(maxWidth: .infinity).frame(height: metrics.heroHeight)
-                .id(slideID).transition(.opacity)
-                .overlay {
-                    // Dark under the status bar, then clear, then the background under the text.
-                    LinearGradient(stops: [.init(color: Theme.background.opacity(0.55), location: 0),
-                                           .init(color: .clear, location: 0.22),
-                                           .init(color: .clear, location: 0.4),
-                                           .init(color: Theme.background.opacity(0.85), location: 0.78),
-                                           .init(color: Theme.background, location: 1)],
-                                   startPoint: .top, endPoint: .bottom)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onTapPicture)
+        VStack(spacing: 12) {
+            ZStack {
+                ArtView(id: item.id, url: item.picture ?? item.poster)
+                    .id(slideID).transition(.opacity)
+                // A layer of its own above the pictures, as on TV: no edge shows while a slide fades into the next.
+                LinearGradient(stops: [.init(color: .clear, location: 0.55), .init(color: Theme.background, location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+            }
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onTapPicture)
             VStack(spacing: 12) {
                 VStack(spacing: 12) {
                     Text(tagline).font(.caption2.weight(.bold)).tracking(2).foregroundStyle(Theme.accent)

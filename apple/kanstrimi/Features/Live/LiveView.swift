@@ -141,10 +141,10 @@ struct LiveView: View {
     @ViewBuilder private func versionBadges(_ c: Channel, small: Bool) -> some View {
         if let v = env.liveVersion(of: c) {
             Badge(v.quality.rawValue, small: small)
-            Badge(v.language.rawValue, small: small)
+            Badge(v.language.short, small: small)
         } else {
             if let q = c.maxQuality { Badge(q.rawValue, small: small) }
-            ForEach(c.versions.languages.prefix(2), id: \.self) { Badge($0.rawValue, small: small) }
+            ForEach(c.versions.languages.prefix(2), id: \.self) { Badge($0.short, small: small) }
         }
     }
 

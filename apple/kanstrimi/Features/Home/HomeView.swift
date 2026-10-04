@@ -63,7 +63,7 @@ struct HomeView: View {
                         OfflineBanner(detail: "Accueil du \(Format.dayHour(home.generatedAt)) affiché · la lecture reste possible si le flux répond") {
                             Task { await model.load() }
                         }
-                        .padding(.horizontal, metrics.inset).padding(.top, metrics.compact ? 64 : 30)
+                        .padding(.horizontal, metrics.inset).padding(.top, metrics.compact ? 8 : 30)
                     }
                     if let hero = model.hero { carousel(hero, count: home.heroes.count, model: model) }
                     ForEach(home.rows) { row in
@@ -78,8 +78,9 @@ struct HomeView: View {
                 }
                 .padding(.bottom, 20)
             }
-            // The hero runs under the floating tab bar (tvOS) or the status bar (iPhone) instead of leaving a black band above it.
-            .ignoresSafeArea(edges: [.horizontal, .top])
+            // tvOS: the hero runs under the floating tab bar instead of leaving a black band above it. iPhone: the picture
+            // starts under the status bar and the Réglages button, which would hide a third of a 16:9 backdrop.
+            .ignoresSafeArea(edges: metrics.compact ? .horizontal : [.horizontal, .top])
         } else if let error = model.error {
             StatePanel(icon: "wifi.exclamationmark", title: "Serveur injoignable",
                        message: "\(error.localizedDescription). Aucun accueil en cache sur cet appareil.") {
