@@ -46,6 +46,7 @@
       ],
       "play_id": "tmdb:movie:604",
       "is_favorite": false,
+      "play_label": "Lecture",
       "resume_at": null,
       "duration": 8280
     },
@@ -114,6 +115,7 @@
       ],
       "play_id": "tmdb:movie:603",
       "is_favorite": false,
+      "play_label": "Lecture",
       "resume_at": null,
       "duration": 8160
     }

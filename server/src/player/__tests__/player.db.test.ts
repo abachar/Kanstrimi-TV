@@ -761,7 +761,9 @@ describe("GET /home", () => {
       is_favorite: false,
       // Matrix is in progress: Lecture resumes it, the slide says so.
       resume_at: 4520,
+      play_label: "Reprendre · 1 h 03 restantes",
     });
+    expect(body.heroes[1].play_label).toBe("Lecture");
     expect(body.heroes[0].item.progress).toBeGreaterThan(0);
     expect(body.heroes[0].versions.length).toBe(2);
     expect(body.heroes[0].episode).toBeUndefined();

@@ -175,6 +175,8 @@ export type HomeHero = {
   play_id: string;
   episode?: EpisodeRef;
   is_favorite: boolean;
+  /** The play button: « Lecture », or « Reprendre · 40 min restantes » for a movie in progress. */
+  play_label: string;
   resume_at: number | null;
   duration: number | null;
 };

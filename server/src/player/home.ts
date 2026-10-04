@@ -8,7 +8,7 @@ import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./con
 import { getProgress, isResumable, resumeKeys, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
-import { contentItem, imageUrl, isWatched, resumeItem, runtimeText } from "./cards";
+import { contentItem, imageUrl, isWatched, remaining, resumeItem, runtimeText } from "./cards";
 import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
 import { recommendedRow } from "./related";
 import { type ShelfPick, shelfPicks, TOP_SHELF_SIZE } from "./top-shelf";
@@ -128,6 +128,7 @@ async function heroOf(
     play_id: p.playId,
     ...(e ? { episode: { season: e.season, number: e.number, title: e.title } } : {}),
     is_favorite: favorite,
+    play_label: resumes ? `Reprendre · ${remaining(progress)}` : "Lecture",
     resume_at: resumes ? progress.position : null,
     duration: resumes ? progress.duration : runtime ? runtime * 60 : null,
   };
