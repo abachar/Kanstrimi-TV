@@ -48,7 +48,7 @@ relancer seule (**Tâches → Lancer à partir de…**).
 | `filters` | règles de masquage (langage de filtre), une variante masquée par la dernière règle qui correspond |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles, arrivées de la liste d'attente |
 | `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf) |
-| `epg` | guide des programmes des chaînes visibles, tous les trois jours, l'EPG de chaque variante ; décalages horaires corrigés dans l'admin |
+| `epg` | guide des programmes des chaînes visibles, deux fois par jour (le fournisseur ne couvre qu'un jour et demi), l'EPG de chaque variante, complété par les sources de secours ; décalages horaires corrigés dans l'admin |
 
 TMDB passe avant les filtres : tout est matché une fois, et démasquer ne fait jamais apparaître de titres non matchés.
 Le matching est un seul algorithme, `explainMatch` : `enrich` applique son verdict, l'admin l'affiche sous « Pourquoi ? ».
@@ -87,7 +87,7 @@ admin/      pages de l'admin ; aucune écriture en base (vérifié), elle appell
 player/     /player, un fichier par ressource ; types.ts = le contrat
 catalog/    le domaine : grammaire des noms, clés, règles, groupement, épisodes, pipeline
 devices/    appairage, jetons
-providers/  xtream/, tmdb/ (dont le cache d'images), iptv/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`), vérifié par `architecture.test.ts`
+providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), iptv/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`), vérifié par `architecture.test.ts`
 config/     réglages (base et environnement), mot de passe
 db/         client, schéma, migrations, prédicats de visibilité
 shared/     utilitaires ; n'importe jamais `@/`
@@ -161,6 +161,14 @@ par son index.
   `tmdb_recommendations` (ids seuls), croisées avec le catalogue visible à chaque lecture. Jamais un titre vu ; la suite
   d'un titre écarte aussi ceux en cours, l'accueil aussi « Ma liste ». `/playback/{id}/suggestions` : panneau du lecteur
   et suite (saga d'abord) ; `/playback/{série}` lit l'épisode où elle reprend.
+- **Guide des programmes** (`catalog/epg.ts`, `epg-sources.ts`) : un import remplace chaîne par chaîne ce qu'il apporte ; une
+  chaîne absente du fichier (XMLTV du fournisseur incomplet) garde ses programmes jusqu'à leur fin. Un fournisseur en panne
+  ou vide n'efface rien, les sources passent quand même et l'étape finit en échec. **Sources de secours** (page EPG, une
+  page chacune sous `/admin/epg/sources`) : des fichiers XMLTV (open-epg…) pour les chaînes visibles que le fournisseur laisse
+  sans programme. Lien par le nom (`guideNameKey` : sans accents, pays, qualité ni parenthèses, titre ou id du fournisseur),
+  ou à la main (une chaîne du fichier, ou aucune), qui vaut toujours. La première source de la liste qui a des programmes
+  donne `catalog_contents.epg_fallback_id` (`@<source>/<id>`), que l'app essaie après les ids du fournisseur. Un décalage
+  par source ; une règle de suffixe du fournisseur (`*.qa`) ne la touche pas.
 - **Top Shelf** : tvOS garde les images par adresse ; changer leur mise en page = changer `SHELF_LAYOUT` et `?layout=`.
 
 ## Déploiement

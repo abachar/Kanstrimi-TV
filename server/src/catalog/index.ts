@@ -8,6 +8,19 @@ export { closeOrphanLogs, recentRuns, runById, lastRunsByTask, type RunWithSteps
 export { readRunLog, runLogPath } from "./runlog";
 export { epgStat, type EpgStat } from "./epg";
 export { listOffsets, offsetOf, offsetRules, setOffset } from "./epg-offsets";
+export { parseSourceGuideId, sourceGuideId } from "./epg-ids";
+export {
+  addEpgSource,
+  deleteEpgSource,
+  type EpgLinkState,
+  type EpgResolution,
+  epgSourceById,
+  listEpgSources,
+  moveEpgSource,
+  resolveEpgLinks,
+  setEpgLink,
+  updateEpgSource,
+} from "./epg-sources";
 export { iptvChannelById, setIptvMatch } from "./channels";
 export { hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
 export {

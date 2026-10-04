@@ -409,6 +409,7 @@ function Hero({ c, guide, total }: { c: Content; guide: GuideLine[]; total: numb
           <code class="font-mono">{c.key}</code> · ajouté le {c.addedAt.toLocaleDateString("fr-FR")} · {fmt(c.variantCount)} variante
           {c.variantCount > 1 ? "s" : ""} visible{c.variantCount > 1 ? "s" : ""} sur {fmt(total)}
           {live && c.epgChannelId ? ` · guide ${c.epgChannelId}` : ""}
+          {live && c.epgFallbackId ? ` · guide de secours ${c.epgFallbackId}` : ""}
           {c.adult && c.visible ? " · servi seulement si les contenus adultes sont activés" : ""}
         </p>
       </div>

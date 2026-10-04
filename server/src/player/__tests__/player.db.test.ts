@@ -681,6 +681,23 @@ describe("channels", () => {
       await db.delete(schema.catalogEpgProgrammes).where(lt(schema.catalogEpgProgrammes.startAt, new Date(2021, 0, 1)));
     }
   });
+  it("a channel the provider leaves without programmes shows its fallback source's guide", async () => {
+    const bein = eq(schema.catalogContents.key, "live:fr-bein-sports-1");
+    await db.update(schema.catalogContents).set({ epgFallbackId: "@9/beIN SPORTS 1.qa" }).where(bein);
+    await seedProgrammes([{ channelId: "@9/beIN SPORTS 1.qa", start: -30, end: 60, title: "Ligue des champions" }]);
+    try {
+      const { body } = await get("/channels/live:fr-bein-sports-1");
+      expect(body).toMatchObject({ has_epg: true, now: { title: "Ligue des champions" } });
+      const groups = (await get("/channels")).body;
+      expect(groups[1].channels[0]).toMatchObject({ has_epg: true, now: { title: "Ligue des champions" } });
+      expect((await get("/channels/live:fr-bein-sports-1/programmes")).body.map((p: { title: string }) => p.title)).toEqual([
+        "Ligue des champions",
+      ]);
+    } finally {
+      await db.update(schema.catalogContents).set({ epgFallbackId: null }).where(bein);
+      await db.delete(schema.catalogEpgProgrammes).where(like(schema.catalogEpgProgrammes.channelId, "@9/%"));
+    }
+  });
   it("the broadcast day ends at the next 6:00", () => {
     const at = (h: number, m = 0) => new Date(2026, 8, 30, h, m);
     expect(nightEnd(at(23))).toEqual(new Date(2026, 9, 1, 6));

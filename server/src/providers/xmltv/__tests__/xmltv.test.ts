@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { parseXmltv, parseXmltvTime } from "../epg";
+import { gzipSync } from "node:zlib";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { fetchXmltv, parseXmltv, parseXmltvTime } from "../xmltv";
 
 const XML = `<?xml version="1.0" encoding="utf-8" ?><!DOCTYPE tv SYSTEM "xmltv.dtd"><tv generator-info-name="x">
 <channel id="TF1.fr"><display-name>|FR| TF1 HD</display-name></channel>
@@ -17,6 +18,8 @@ async function* chunks(text: string, size: number) {
 }
 
 describe("XMLTV", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("parses times with their offset into UTC", () => {
     expect(parseXmltvTime("20260928200000 +0200")?.toISOString()).toBe("2026-09-28T18:00:00.000Z");
     expect(parseXmltvTime("20260928200000 -0530")?.toISOString()).toBe("2026-09-29T01:30:00.000Z");
@@ -33,6 +36,30 @@ describe("XMLTV", () => {
         ["TF1.fr", "Film du soir", null, "2026-09-28T19:30:00.000Z", "2026-09-28T21:30:00.000Z"],
       ]);
     }
+  });
+
+  it("reads every channel when none is asked for, and lists the declared channels with their names", async () => {
+    const channels = new Map<string, string[]>();
+    const rows = [];
+    for await (const batch of parseXmltv(chunks(XML, 13), null, channels)) rows.push(...batch);
+    expect(rows.map((r) => r.channelId)).toEqual(["TF1.fr", "TF1.fr", "Rai1.it"]);
+    expect([...channels]).toEqual([
+      ["TF1.fr", ["|FR| TF1 HD"]],
+      ["Rai1.it", ["|IT| RAI 1"]],
+    ]);
+  });
+
+  it("downloads a guide, gzipped or not, and never names the URL in its errors", async () => {
+    for (const body of [XML, gzipSync(XML)]) {
+      vi.stubGlobal("fetch", async () => new Response(body, { status: 200 }));
+      const rows = [];
+      for await (const batch of fetchXmltv("https://epg.test/fr.xml.gz", new Set(["Rai1.it"]))) rows.push(...batch);
+      expect(rows.map((r) => r.title)).toEqual(["Telegiornale"]);
+    }
+    vi.stubGlobal("fetch", async () => new Response(null, { status: 404 }));
+    await expect(async () => {
+      for await (const _ of fetchXmltv("https://u:secret@epg.test/x.xml", null));
+    }).rejects.toThrow(/^EPG amont indisponible \(HTTP 404\)$/);
   });
 
   it("refuses malformed XML", async () => {

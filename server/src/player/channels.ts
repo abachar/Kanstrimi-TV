@@ -35,12 +35,21 @@ channelRoutes.get("/:id/programmes", async (c) => {
   const ctx = c.get("ctx");
   const content = await contentByKey(ctx, key);
   if (!content) return fail("not_found", "Chaîne introuvable");
-  const { playables } = await variantsOf(ctx, content);
+  const playables = withFallback(content, (await variantsOf(ctx, content)).playables);
   const { versions, guides } = guided(ctx, playables, await epgOf(playables.flatMap((p) => p.epgIds)));
   const version = c.req.query("version");
   const id = (version && guides.has(version) ? guides.get(version) : guides.get(versions[0]?.id ?? "")) ?? null;
   return json(id ? await dayProgrammes(id) : []);
 });
+
+/**
+ * A channel's fallback guide (a source completing the provider's, `catalog/epg-sources.ts`), tried by
+ * every version after the provider's own ids.
+ */
+function withFallback(c: Content, playables: Playable[]): Playable[] {
+  const f = c.epgFallbackId;
+  return f ? playables.map((p) => ({ ...p, epgIds: [...p.epgIds, f] })) : playables;
+}
 
 /** The versions of a channel and the guide of each (`guidesOf`), from the guides known to `epg`. */
 function guided(ctx: RestContext, playables: Playable[], epg: Map<string, ChannelEpg>) {
@@ -192,12 +201,15 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
       ...(byContent.get(it.contentId!) ?? []),
       playableOfItem(it, it.categoryXtreamId ? (catName.get(it.categoryXtreamId) ?? null) : null),
     ]);
-  const epg = await epgOf([...byContent.values()].flat().flatMap((p) => p.epgIds));
+  const epg = await epgOf([
+    ...[...byContent.values()].flat().flatMap((p) => p.epgIds),
+    ...channels.flatMap((c) => (c.epgFallbackId ? [c.epgFallbackId] : [])),
+  ]);
 
   type Group = { market: string | null; theme: string; channels: ChannelWire[] };
   const groups = new Map<string, Group>();
   for (const c of channels) {
-    const playables = byContent.get(c.id) ?? [];
+    const playables = withFallback(c, byContent.get(c.id) ?? []);
     if (!playables.length) continue;
     const wire = channelWire(ctx, c, playables, favs, epg, watchedRank.get(c.key));
     const market = c.country?.toLowerCase() ?? c.market;
@@ -228,6 +240,7 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
 }
 
 export async function channelSheet(ctx: RestContext, content: Content): Promise<ChannelWire> {
-  const [{ playables }, favs] = await Promise.all([variantsOf(ctx, content), favoriteSet()]);
+  const [{ playables: own }, favs] = await Promise.all([variantsOf(ctx, content), favoriteSet()]);
+  const playables = withFallback(content, own);
   return channelWire(ctx, content, playables, favs, await epgOf(playables.flatMap((p) => p.epgIds)));
 }

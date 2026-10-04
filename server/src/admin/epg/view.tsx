@@ -1,4 +1,6 @@
 import type { EpgOffset } from "@/db";
+import { parseSourceGuideId } from "@/catalog";
+import { QuerySearchBar } from "../catalog/search-bar";
 import { hhmm } from "../format";
 import { Badge, Card, Empty, Options, Pagination, Title } from "../ui";
 import { CHANNELS_PER_PAGE, type GridChannel, type GridProgramme, type GridQuery } from "./data";
@@ -63,6 +65,9 @@ const COL_SPAN = [
   "col-span-24",
 ];
 
+/** A guide id as the admin reads it: a fallback source's channel without its `@3/` prefix. */
+export const guideLabel = (epgId: string) => parseSourceGuideId(epgId)?.channelId ?? epgId;
+
 const day = (d: Date) => d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 export const signed = (m: number) => {
   if (!m) return "aucun";
@@ -94,9 +99,11 @@ export type EpgPageProps = {
   q: GridQuery;
   channels: GridChannel[];
   total: number;
-  markets: string[];
-  themes: string[];
+  /** What is wrong with the search, when it cannot run. */
+  error: string | null;
   offsets: EpgOffset[];
+  /** The fallback sources' card (sources-view.tsx). */
+  sources: unknown;
   panel?: unknown;
 };
 
@@ -106,8 +113,6 @@ export function EpgView(p: EpgPageProps) {
   const link = (over: Partial<Record<"at" | "page" | "channel", string>>) => {
     const u = new URLSearchParams({
       ...(q.q && { q: q.q }),
-      ...(q.market && { market: q.market }),
-      ...(q.theme && { theme: q.theme }),
       at: q.from.toISOString(),
       page: String(q.page),
       ...over,
@@ -135,27 +140,30 @@ export function EpgView(p: EpgPageProps) {
           </>
         }
       />
+      {p.sources}
+      <Card title="Corrections du guide" extra={p.offsets.length ? `${p.offsets.length}` : undefined} folded>
+        {p.offsets.length ? (
+          <ul class="flex flex-col divide-y text-sm">
+            {p.offsets.map((o) => (
+              <li class="flex items-center gap-3 py-2">
+                <span class="font-mono">{o.pattern}</span>
+                <Badge tone="info">{signed(o.minutes)}</Badge>
+                <form method="post" action="/admin/epg/offsets" class="ms-auto">
+                  <input type="hidden" name="pattern" value={o.pattern} />
+                  <input type="hidden" name="minutes" value="0" />
+                  <button class="btn" data-variant="ghost" data-size="sm">
+                    Retirer
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="text-sm text-muted-foreground">Aucune : les heures du fournisseur sont prises telles quelles.</p>
+        )}
+      </Card>
       {p.panel}
-      <form method="get" action="/admin/epg" class="grid grid-cols-2 gap-2 md:grid-cols-12" role="search">
-        <input type="hidden" name="at" value={q.from.toISOString()} />
-        <input
-          class="input col-span-2 md:col-span-5"
-          type="search"
-          name="q"
-          value={q.q}
-          placeholder="Chercher une chaîne…"
-          aria-label="Chaîne"
-        />
-        <select class="select w-full md:col-span-3" name="market" aria-label="Marché">
-          <Options opts={[["", "Tous les marchés"], ...p.markets.map((m) => [m, m.toUpperCase()] as const)]} cur={q.market} />
-        </select>
-        <select class="select w-full md:col-span-3" name="theme" aria-label="Thème">
-          <Options opts={[["", "Tous les thèmes"], ...p.themes.map((t) => [t, t] as const)]} cur={q.theme} />
-        </select>
-        <button class="btn md:col-span-1" data-variant="outline">
-          Filtrer
-        </button>
-      </form>
+      <QuerySearchBar kind="live" action="/admin/epg" hidden={{ at: q.from.toISOString() }} q={q.q} error={p.error} />
       <Card title="Grille" extra={`${p.total} chaînes avec un guide`}>
         {p.channels.length ? (
           <div class="flex flex-col gap-1 overflow-x-auto">
@@ -189,7 +197,7 @@ export function EpgView(p: EpgPageProps) {
                   <div class="min-w-0">
                     <div class="truncate text-sm font-medium">{c.title}</div>
                     <div class="truncate font-mono text-xs text-muted-foreground">
-                      {c.market?.toUpperCase()} · {c.epgId}
+                      {c.market?.toUpperCase()} · {c.source ? `${c.source} · ${guideLabel(c.epgId)}` : c.epgId}
                       {c.offset ? ` · ${signed(c.offset)}` : ""}
                     </div>
                   </div>
@@ -211,32 +219,11 @@ export function EpgView(p: EpgPageProps) {
             ))}
           </div>
         ) : (
-          <Empty title="Aucune chaîne" sub="Aucune chaîne visible n'a de guide pour ces filtres." />
+          <Empty title="Aucune chaîne" sub="Aucune chaîne visible n'a de guide pour cette recherche." />
         )}
         <div class="mt-4">
           <Pagination page={q.page} total={p.total} size={CHANNELS_PER_PAGE} link={(n) => link({ page: String(n) })} />
         </div>
-      </Card>
-      <Card title="Corrections du guide" extra={p.offsets.length ? `${p.offsets.length}` : undefined}>
-        {p.offsets.length ? (
-          <ul class="flex flex-col divide-y text-sm">
-            {p.offsets.map((o) => (
-              <li class="flex items-center gap-3 py-2">
-                <span class="font-mono">{o.pattern}</span>
-                <Badge tone="info">{signed(o.minutes)}</Badge>
-                <form method="post" action="/admin/epg/offsets" class="ms-auto">
-                  <input type="hidden" name="pattern" value={o.pattern} />
-                  <input type="hidden" name="minutes" value="0" />
-                  <button class="btn" data-variant="ghost" data-size="sm">
-                    Retirer
-                  </button>
-                </form>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p class="text-sm text-muted-foreground">Aucune : les heures du fournisseur sont prises telles quelles.</p>
-        )}
       </Card>
     </>
   );
@@ -246,6 +233,8 @@ const OFFSET_CHOICES = Array.from({ length: 97 }, (_, i) => (i - 48) * SLOT_MIN)
 
 export type PanelProps = {
   epgId: string;
+  /** The fallback source of the guide, null for the provider's: its whole shift is set on its page. */
+  source: { id: number; name: string } | null;
   channels: { title: string; logo: string | null; market: string | null }[];
   programmes: GridProgramme[];
   /** The shift the rules give this id now, and the one previewed. */
@@ -259,14 +248,24 @@ export type PanelProps = {
 
 /** A guide id: its programmes of the day, and the correction, previewed before it is saved. */
 export function OffsetPanel(p: PanelProps) {
-  const suffix = p.epgId.includes(".") ? `*${p.epgId.slice(p.epgId.lastIndexOf("."))}` : null;
+  const suffix = !p.source && p.epgId.includes(".") ? `*${p.epgId.slice(p.epgId.lastIndexOf("."))}` : null;
   return (
     <section id="panel" class="card">
       <header>
-        <h2 class="font-mono">{p.epgId}</h2>
+        <h2 class="font-mono">{guideLabel(p.epgId)}</h2>
         <p>
           {p.channels.map((c) => `${c.title}${c.market ? ` (${c.market.toUpperCase()})` : ""}`).join(" · ")} · décalage actuel{" "}
           {signed(p.current)}
+          {p.source && (
+            <>
+              {" "}
+              · source de secours{" "}
+              <a class="underline" href={`/admin/epg/sources/${p.source.id}`}>
+                {p.source.name}
+              </a>{" "}
+              (son décalage d'ensemble se règle sur sa page)
+            </>
+          )}
         </p>
         <div class="card-action text-sm">
           <a class="text-muted-foreground hover:text-foreground" href={p.back}>

@@ -1,13 +1,18 @@
 import { Hono } from "hono";
-import { listOffsets, offsetOf, offsetRules, setOffset } from "@/catalog";
+import { epgSourceById, listOffsets, offsetOf, offsetRules, parseSourceGuideId, setOffset } from "@/catalog";
 import { describeError } from "@/shared";
 import { back, form, page } from "../http";
 import { pageParam } from "../query";
-import { channelsOfGuide, epgGrid, gridFilters, programmesOf, type GridQuery } from "./data";
+import { compileSearch, runSearch } from "../catalog/search";
+import { channelsOfGuide, epgGrid, programmesOf, type GridQuery } from "./data";
+import { sourceRows } from "./sources-data";
+import { sourceRoutes } from "./sources-routes";
+import { SourcesCard } from "./sources-view";
 import { EpgView, OffsetPanel, SLOTS, SLOT_MIN } from "./view";
 
 /** `/admin/epg`: the provider's guide as a grid, and the corrections of its times. */
 export const epgRoutes = new Hono();
+epgRoutes.route("/sources", sourceRoutes);
 
 const HALF_HOUR = 30 * 60_000;
 /** The window starts on the half hour before now, or at `at`. */
@@ -27,17 +32,26 @@ async function panelProps(epgId: string, at: Date, minutes: number | null, patte
   const start = new Date(at);
   start.setHours(0, 0, 0, 0);
   const end = new Date(start.getTime() + 24 * 3600_000);
-  const [channels, programmes, rules] = await Promise.all([channelsOfGuide(epgId), programmesOf([epgId], start, end), offsetRules()]);
+  const ref = parseSourceGuideId(epgId);
+  const [channels, programmes, rules, source] = await Promise.all([
+    channelsOfGuide(epgId),
+    programmesOf([epgId], start, end),
+    offsetRules(),
+    ref ? epgSourceById(ref.sourceId) : null,
+  ]);
   const current = offsetOf(rules, epgId);
   const exactRule = rules.exact.has(epgId.toLowerCase());
   return {
     epgId,
+    source: source && { id: source.id, name: source.name },
     channels,
     programmes,
     current,
     preview: minutes ?? current,
     at: at.toISOString(),
-    scope: (pattern ? (pattern.startsWith("*") ? "suffix" : "exact") : exactRule || !current ? "exact" : "suffix") as "exact" | "suffix",
+    scope: (pattern ? (pattern.startsWith("*") ? "suffix" : "exact") : ref || exactRule || !current ? "exact" : "suffix") as
+      | "exact"
+      | "suffix",
     back: backUrl,
   };
 }
@@ -48,17 +62,16 @@ epgRoutes.get("/", async (c) => {
     from,
     to,
     q: c.req.query("q")?.trim() ?? "",
-    market: c.req.query("market") ?? "",
-    theme: c.req.query("theme") ?? "",
     page: pageParam(c.req.query("page")),
   };
   const channel = c.req.query("channel");
   const url = new URL(c.req.url);
   url.searchParams.delete("channel");
-  const [grid, filters, offsets, panel] = await Promise.all([
-    epgGrid(q),
-    gridFilters(),
+  const search = await compileSearch("live", q.q);
+  const [found, offsets, sources, panel] = await Promise.all([
+    runSearch((ex) => epgGrid(ex, q, search.where)),
     listOffsets(),
+    sourceRows(),
     channel ? panelProps(channel, from, null, null, url.pathname + url.search) : null,
   ]);
   return page(
@@ -66,11 +79,11 @@ epgRoutes.get("/", async (c) => {
     "EPG",
     <EpgView
       q={q}
-      channels={grid.channels}
-      total={grid.total}
-      markets={filters.markets}
-      themes={filters.themes}
+      channels={"value" in found ? found.value.channels : []}
+      total={"value" in found ? found.value.total : 0}
+      error={search.error ?? ("error" in found ? found.error : null)}
       offsets={offsets}
+      sources={<SourcesCard sources={sources} />}
       panel={panel && <OffsetPanel {...panel} />}
     />,
   );

@@ -105,15 +105,28 @@ const QueryErrorLine = ({ error }: { error: string }) => (
 );
 
 /**
- * The search of the Live, Films and Séries screens, the same in both views: the filter language, its
- * help, and what is wrong with the query when it cannot run. `view` keeps the search in its view.
+ * A search in the filter language, wherever it filters a list of a kind: the box, its help, and what
+ * is wrong with the query when it cannot run. `hidden` keeps the page's other parameters.
  */
-export function SearchBar({ kind, view, q, error }: { kind: Kind; view: CatalogView; q: string; error?: string | null }) {
+export function QuerySearchBar({
+  kind,
+  action,
+  hidden = {},
+  q,
+  error,
+}: {
+  kind: Kind;
+  action: string;
+  hidden?: Record<string, string>;
+  q: string;
+  error?: string | null;
+}) {
   return (
     <div class="flex flex-col gap-2">
-      <form method="get" action="/admin/catalog" class="flex gap-2" role="search">
-        <input type="hidden" name="kind" value={kind} />
-        <input type="hidden" name="view" value={view} />
+      <form method="get" action={action} class="flex gap-2" role="search">
+        {Object.entries(hidden).map(([name, value]) => (
+          <input type="hidden" name={name} value={value} />
+        ))}
         <input
           class="input"
           type="search"
@@ -132,3 +145,8 @@ export function SearchBar({ kind, view, q, error }: { kind: Kind; view: CatalogV
     </div>
   );
 }
+
+/** The search of the Live, Films and Séries screens, the same in both views; `view` keeps the search in its view. */
+export const SearchBar = ({ kind, view, q, error }: { kind: Kind; view: CatalogView; q: string; error?: string | null }) => (
+  <QuerySearchBar kind={kind} action="/admin/catalog" hidden={{ kind, view }} q={q} error={error} />
+);

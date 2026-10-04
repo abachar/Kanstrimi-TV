@@ -23,7 +23,7 @@ export type SettingKey = (typeof SETTING_KEYS)[number];
 export const DEFAULTS = {
   tmdb_language: "fr-FR",
   sync_cron: "0 */6 * * *",
-  epg_cron: "0 3 */3 * *",
+  epg_cron: "0 3,15 * * *",
   serve_adult: "0",
 } satisfies Partial<Record<SettingKey, string>>;
 

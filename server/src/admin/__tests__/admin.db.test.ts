@@ -445,6 +445,56 @@ describe("admin", () => {
     }
   });
 
+  it("fallback EPG sources: added on the EPG page, a page each, links chosen by hand, shown in the grid", async () => {
+    const url = "https://epg.test/files/qatar1.xml";
+    expect(flash(await post("/admin/epg/sources", { url }))).toContain("Source qatar1 ajoutée");
+    expect(flash(await post("/admin/epg/sources", { url }))).toContain("déjà une source");
+    expect(flash(await post("/admin/epg/sources", { url: "pas une adresse" }))).toContain("Adresse invalide");
+    expect(await html("/admin/epg")).toContain("Sources EPG de secours");
+    expect(await html("/admin/settings")).not.toContain("Sources EPG de secours");
+    const [src] = await db.select().from(schema.curationEpgSources);
+    const base = `/admin/epg/sources/${src.id}`;
+    await db.insert(schema.catalogEpgSourceChannels).values({ sourceId: src.id, channelId: "TF1.qa", names: ["TF1 Qatar"], programmes: 3 });
+    const [tf1] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "live:fr-tf1"));
+    expect(tf1).toBeDefined();
+    try {
+      const page = await html(base);
+      expect(page).toContain("Nos chaînes");
+      expect(page).toContain('<option value="TF1.qa">');
+      expect(await html(`${base}?tab=theirs`)).toContain("TF1 Qatar");
+      const link = (fields: Record<string, string>) => post(`${base}/link`, { content_key: tf1.key, back: base, ...fields });
+      expect(flash(await link({ action: "link", channel: "Autre.qa" }))).toContain("n'est pas une chaîne de cette source");
+      expect(flash(await link({ action: "link", channel: "TF1.qa" }))).toContain("reliée à TF1.qa");
+      // A redirect anywhere but this source's page falls back to it.
+      expect(
+        (await post(`${base}/link`, { content_key: tf1.key, action: "auto", back: "https://evil.test" })).headers.get("location"),
+      ).toMatch(new RegExp(`^${base}\\?ok=`));
+      await link({ action: "link", channel: "TF1.qa" });
+      expect(await html(`${base}?show=linked`)).toContain("manuel");
+      const guide = `@${src.id}/TF1.qa`;
+      expect((await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.id, tf1.id)))[0].epgFallbackId).toBe(guide);
+      await seedProgrammes([{ channelId: guide, start: -5, end: 30, title: "Journal du Golfe" }]);
+      const grid = await html("/admin/epg");
+      expect(grid).toContain("Journal du Golfe");
+      expect(grid).toContain("qatar1 · TF1.qa");
+      // The grid's search is the filter language, on the channels' variants.
+      expect(await html("/admin/epg?q=tf1")).toContain("Journal du Golfe");
+      expect(await html(`/admin/epg?q=${encodeURIComponent('marché:"fr"')}`)).toContain("Journal du Golfe");
+      const neg = await html("/admin/epg?q=-tf1");
+      expect(neg).not.toContain("Journal du Golfe");
+      expect(await html(`/admin/epg?q=${encodeURIComponent("champ:x")}`)).toContain('role="alert"');
+      expect(await html(`/admin/epg?channel=${encodeURIComponent(guide)}`)).toContain("source de secours");
+      expect(flash(await post(base, { name: "Qatar", url, offset: "-180" }))).toContain("Source enregistrée");
+      expect((await db.select().from(schema.curationEpgSources))[0]).toMatchObject({ name: "Qatar", enabled: false, offsetMinutes: -180 });
+      expect(flash(await post(`${base}/delete`, {}))).toContain("Source supprimée");
+      expect(await db.select().from(schema.curationEpgSources)).toEqual([]);
+      expect((await call(base)).status).toBe(404);
+    } finally {
+      await db.delete(schema.curationEpgSources);
+      await db.delete(schema.catalogEpgProgrammes);
+    }
+  });
+
   it("launching a task goes back to the task journal, whatever the Referer says", async () => {
     const r = await call("/admin/jobs/epg", {
       method: "POST",

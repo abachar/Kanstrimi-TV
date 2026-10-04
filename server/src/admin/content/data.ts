@@ -20,19 +20,24 @@ export type GuideLine = { title: string; startAt: Date; endAt: Date };
 /** A content and every provider entry under it; `content` is null for an entry not grouped yet. A channel brings its guide. */
 export type ContentDetail = { content: Content | null; variants: VariantDetail[]; tmdbLang: string; guide: GuideLine[] };
 
-/** The programme on air and the next one, from the guide the grouping chose for the channel. */
+/** The programme on air and the next one, from the guide the grouping chose for the channel, else its fallback source's. */
 async function guideOf(c: Content): Promise<GuideLine[]> {
-  if (c.kind !== "live" || !c.epgChannelId) return [];
-  return db
-    .select({
-      title: schema.catalogEpgProgrammes.title,
-      startAt: schema.catalogEpgProgrammes.startAt,
-      endAt: schema.catalogEpgProgrammes.endAt,
-    })
-    .from(schema.catalogEpgProgrammes)
-    .where(and(eq(schema.catalogEpgProgrammes.channelId, c.epgChannelId), gt(schema.catalogEpgProgrammes.endAt, new Date())))
-    .orderBy(asc(schema.catalogEpgProgrammes.startAt))
-    .limit(2);
+  if (c.kind !== "live") return [];
+  for (const id of [c.epgChannelId, c.epgFallbackId]) {
+    if (!id) continue;
+    const lines = await db
+      .select({
+        title: schema.catalogEpgProgrammes.title,
+        startAt: schema.catalogEpgProgrammes.startAt,
+        endAt: schema.catalogEpgProgrammes.endAt,
+      })
+      .from(schema.catalogEpgProgrammes)
+      .where(and(eq(schema.catalogEpgProgrammes.channelId, id), gt(schema.catalogEpgProgrammes.endAt, new Date())))
+      .orderBy(asc(schema.catalogEpgProgrammes.startAt))
+      .limit(2);
+    if (lines.length) return lines;
+  }
+  return [];
 }
 
 async function variantDetails(items: Variant[], tmdbLang: string): Promise<VariantDetail[]> {

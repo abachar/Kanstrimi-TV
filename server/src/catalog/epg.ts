@@ -1,14 +1,16 @@
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, schema, visibleItem } from "@/db";
-import { checkCancelled } from "@/shared";
+import { checkCancelled, describeError, isCancelled } from "@/shared";
 import { setSettings } from "@/config";
 import { fetchProgrammes } from "@/providers/xtream";
-import { offsetOf, offsetRules } from "./epg-offsets";
+import type { ProgrammeRow } from "@/providers/xmltv";
+import { offsetOf, offsetRules, type OffsetRules } from "./epg-offsets";
+import { importEpgSources } from "./epg-sources";
 
 /**
- * The XMLTV guide of the provider, stored in `catalog_epg_programmes` for the channels the app can
- * see, and nothing else: a few tens of thousands of rows. The provider downloads and parses
- * (providers/xtream/epg.ts); this file chooses the channels and keeps the rows.
+ * The XMLTV guide of the provider, completed by the fallback sources (epg-sources.ts), stored in
+ * `catalog_epg_programmes` for the channels the app can see, and nothing else: a few tens of
+ * thousands of rows. The providers download and parse; this file chooses the channels and keeps the rows.
  */
 
 const BATCH = 1000;
@@ -31,45 +33,95 @@ async function wantedChannelIds(): Promise<Set<string>> {
   return new Set(rows.flatMap((r) => [r.own, r.mismatch ? r.iptv : null]).filter((x): x is string => Boolean(x)));
 }
 
+type Row = typeof schema.catalogEpgProgrammes.$inferInsert;
+
 /**
- * Download the upstream XMLTV, then replace the guide of our channels in one short transaction: the
- * app reads the old guide until the new one is whole, then the new one only. The download (minutes)
- * happens before, outside it: no connection held, nothing locked meanwhile. An upstream failure
- * midway, or a guide empty for our channels, keeps the old guide (the cron runs every three days,
- * the provider gives six).
+ * Programmes as rows: times shifted by the corrections, each programme once per channel and start
+ * (the provider lists some twice, beIN MAX).
  */
-export async function runEpgRebuild(): Promise<{ channels: number; programmes: number }> {
+function toRows(programmes: ProgrammeRow[], rules: OffsetRules, importedAt: Date): Row[] {
+  const keys = new Set<string>();
+  const rows: Row[] = [];
+  for (const r of programmes) {
+    const key = `${r.channelId}|${r.startAt.getTime()}`;
+    if (keys.has(key)) continue;
+    keys.add(key);
+    const offsetMinutes = offsetOf(rules, r.channelId);
+    const shift = (d: Date) => new Date(d.getTime() + offsetMinutes * 60_000);
+    rows.push({ ...r, startAt: shift(r.startAt), endAt: shift(r.endAt), offsetMinutes, importedAt });
+  }
+  if (programmes.length > rows.length) console.log(`[epg] ${programmes.length - rows.length} programmes en double ignorés`);
+  return rows;
+}
+
+/**
+ * Stores an import channel by channel, in one short transaction: a channel it brings loses its stored
+ * programmes from the first new one on (what came before stays, already aired), a channel it does not
+ * bring keeps its own until they are over. The app reads the old guide until the new one is whole.
+ */
+async function mergeProgrammes(rows: Row[]) {
+  if (!rows.length) return;
+  const firstStart = new Map<string, number>();
+  for (const r of rows) firstStart.set(r.channelId, Math.min(firstStart.get(r.channelId) ?? Infinity, r.startAt.getTime()));
+  const from = JSON.stringify([...firstStart].map(([id, t]) => ({ id, t: new Date(t).toISOString() })));
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`
+      delete from ${schema.catalogEpgProgrammes} p
+      using jsonb_to_recordset(${from}::jsonb) as u(id text, t timestamptz)
+      where p.channel_id = u.id and p.end_at > u.t`);
+    for (let i = 0; i < rows.length; i += BATCH) await tx.insert(schema.catalogEpgProgrammes).values(rows.slice(i, i + BATCH));
+  });
+}
+
+/** Drops the programmes over for good, and those of channels no longer served (hidden, unlinked). */
+async function prune(inUse: Set<string>) {
+  const ids = JSON.stringify([...inUse]);
+  await db.execute(sql`
+    delete from ${schema.catalogEpgProgrammes}
+    where end_at < ${new Date(Date.now() - KEEP_PAST_MS).toISOString()}::timestamptz
+       or channel_id not in (select jsonb_array_elements_text(${ids}::jsonb))`);
+}
+
+/**
+ * Downloads the provider's guide, then the fallback sources, and stores both channel by channel. The
+ * downloads (minutes) happen outside any transaction. The provider failing, midway or entirely, or
+ * filing nothing for our channels, stores none of its programmes: the stored ones stay until they
+ * are over, the sources still run, and the step ends in error. The provider's guide covers about a
+ * day and a half: the cron runs twice a day.
+ */
+export async function runEpgRebuild(): Promise<{ channels: number; programmes: number; fallbacks: number; sourceErrors: number }> {
   const wanted = await wantedChannelIds();
-  if (!wanted.size) return { channels: 0, programmes: 0 };
   const importedAt = new Date();
   const rules = await offsetRules();
-  // The provider lists some programmes twice (beIN MAX): one row per channel and start.
-  const keys = new Set<string>();
-  const rows: (typeof schema.catalogEpgProgrammes.$inferInsert)[] = [];
-  let duplicates = 0;
-  for await (const batch of fetchProgrammes(wanted)) {
-    checkCancelled();
-    for (const r of batch) {
-      const key = `${r.channelId}|${r.startAt.getTime()}`;
-      if (keys.has(key)) {
-        duplicates++;
-        continue;
+  let providerError: string | null = null;
+  const provider: ProgrammeRow[] = [];
+  if (wanted.size)
+    try {
+      for await (const batch of fetchProgrammes(wanted)) {
+        checkCancelled();
+        provider.push(...batch);
       }
-      keys.add(key);
-      const offsetMinutes = offsetOf(rules, r.channelId);
-      const shift = (d: Date) => new Date(d.getTime() + offsetMinutes * 60_000);
-      rows.push({ ...r, startAt: shift(r.startAt), endAt: shift(r.endAt), offsetMinutes, importedAt });
+      if (!provider.length) providerError = "EPG amont sans aucun programme pour nos chaînes";
+    } catch (e) {
+      if (isCancelled(e)) throw e;
+      providerError = describeError(e);
+      provider.length = 0;
     }
-  }
-  if (duplicates) console.log(`[epg] ${duplicates} programmes en double ignorés`);
-  if (!rows.length) throw new Error("EPG amont sans aucun programme pour nos chaînes : guide précédent conservé");
-  await db.transaction(async (tx) => {
-    for (let i = 0; i < rows.length; i += BATCH) await tx.insert(schema.catalogEpgProgrammes).values(rows.slice(i, i + BATCH));
-    await tx.delete(schema.catalogEpgProgrammes).where(lt(schema.catalogEpgProgrammes.importedAt, importedAt));
-    await tx.delete(schema.catalogEpgProgrammes).where(lt(schema.catalogEpgProgrammes.endAt, new Date(Date.now() - KEEP_PAST_MS)));
-  });
-  await setSettings({ last_epg_at: importedAt.toISOString() });
-  return { channels: new Set(rows.map((r) => r.channelId)).size, programmes: rows.length };
+  const own = providerError ? [] : toRows(provider, rules, importedAt);
+  await mergeProgrammes(own);
+  const sources = await importEpgSources();
+  const fallback = toRows(sources.rows, rules, importedAt);
+  await mergeProgrammes(fallback);
+  await prune(new Set([...wanted, ...sources.inUse]));
+  if (own.length) await setSettings({ last_epg_at: importedAt.toISOString() });
+  if (providerError) throw new Error(`${providerError} : guide précédent conservé`);
+  const rows = [...own, ...fallback];
+  return {
+    channels: new Set(rows.map((r) => r.channelId)).size,
+    programmes: rows.length,
+    fallbacks: sources.fallbacks,
+    sourceErrors: sources.errors.length,
+  };
 }
 
 export type EpgStat = { programmes: number; channels: number; from: string | null; to: string | null; importedAt: string | null };

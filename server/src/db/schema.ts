@@ -207,6 +207,11 @@ export const catalogContents = pgTable(
     categoryXtreamId: text("category_xtream_id"),
     channelNumber: integer("channel_number"),
     epgChannelId: text("epg_channel_id"),
+    /**
+     * The guide of a fallback source (`@<source>/<channel>`, `catalog/epg-sources.ts`) when the provider files no
+     * programme for the channel: written by the EPG import and by the admin's links, never by the grouping.
+     */
+    epgFallbackId: text("epg_fallback_id"),
     // Aggregates over the variants
     variantCount: integer("variant_count").default(0).notNull(),
     maxQualityRank: integer("max_quality_rank").default(0).notNull(),
@@ -412,9 +417,10 @@ export const catalogEpisodeVariants = pgTable(
 );
 
 /**
- * The programme guide of the channels the app can see, from the provider's XMLTV. `channel_id`
- * is the provider's EPG id (`catalog_contents.epg_channel_id`). Each import tags its rows with
- * `imported_at` and drops the previous ones once it has landed, so a failed import keeps the guide.
+ * The programme guide of the channels the app can see, from the provider's XMLTV and the fallback
+ * sources. `channel_id` is the provider's EPG id (`catalog_contents.epg_channel_id`) or a fallback
+ * source's, `@<source>/<channel>` (`epg_fallback_id`). Each import replaces, channel by channel, what
+ * it brings: a channel missing from a file keeps its programmes until they are over.
  */
 export const catalogEpgProgrammes = pgTable(
   "catalog_epg_programmes",
@@ -446,6 +452,60 @@ export const curationEpgOffsets = pgTable("curation_epg_offsets", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 export type EpgOffset = typeof curationEpgOffsets.$inferSelect;
+
+/**
+ * The fallback guides: XMLTV files that complete the provider's for the visible channels it leaves
+ * without programmes (open-epg…), tried in `position` order. Set on the EPG page; `fetched_at`,
+ * `fetch_error` and `channel_count` are the last import's outcome. `offset_minutes` shifts the whole file.
+ */
+export const curationEpgSources = pgTable("curation_epg_sources", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  url: text("url").notNull().unique(),
+  enabled: boolean("enabled").default(true).notNull(),
+  position: integer("position").default(0).notNull(),
+  offsetMinutes: integer("offset_minutes").default(0).notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }),
+  fetchError: text("fetch_error"),
+  channelCount: integer("channel_count"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export type EpgSource = typeof curationEpgSources.$inferSelect;
+
+/** The channels a fallback source declares or files programmes for, as of its last successful import. */
+export const catalogEpgSourceChannels = pgTable(
+  "catalog_epg_source_channels",
+  {
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => curationEpgSources.id, { onDelete: "cascade" }),
+    channelId: text("channel_id").notNull(),
+    names: text("names").array().default([]).notNull(),
+    programmes: integer("programmes").default(0).notNull(),
+    /** The end of its last programme: how far ahead the file goes for it. */
+    lastEndAt: timestamp("last_end_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.sourceId, t.channelId] })],
+);
+export type EpgSourceChannel = typeof catalogEpgSourceChannels.$inferSelect;
+
+/**
+ * The admin's links between a channel (content key) and a fallback source: `channel_id` forces one of
+ * its channels, null forbids the source for this channel. Without a row the link is found by name.
+ */
+export const curationEpgLinks = pgTable(
+  "curation_epg_links",
+  {
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => curationEpgSources.id, { onDelete: "cascade" }),
+    contentKey: text("content_key").notNull(),
+    channelId: text("channel_id"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.sourceId, t.contentKey] })],
+);
+export type EpgLink = typeof curationEpgLinks.$inferSelect;
 
 /** Playback position per content key (movie or episode). Single user: no device column. */
 export const appWatchProgress = pgTable("app_watch_progress", {

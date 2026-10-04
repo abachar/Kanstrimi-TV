@@ -22,18 +22,45 @@ export const Title = ({ t, sub, actions }: { t: string; sub: string; actions?: u
 /**
  * `extra` is a short complement at the right of the header (a link, a language code); `hint`
  * is a sentence under the title. No `h-full`: a card only fills a row when its grid cell is itself
- * a `grid` (see the dashboard).
+ * a `grid` (see the dashboard). `folded`: the card shows its header only, a click on it unfolds the
+ * body (a native `<details>`, no script); it comes back folded with the page.
  */
-export const Card = ({ title, extra, hint, children }: { title: string; extra?: unknown; hint?: string; children?: unknown }) => (
-  <section class="card">
-    <header>
-      <h2>{title}</h2>
-      {hint && <p>{hint}</p>}
-      {extra && <div class="card-action text-sm text-muted-foreground">{extra}</div>}
-    </header>
-    <section>{children}</section>
-  </section>
-);
+export const Card = ({
+  title,
+  extra,
+  hint,
+  folded,
+  children,
+}: {
+  title: string;
+  extra?: unknown;
+  hint?: string;
+  folded?: boolean;
+  children?: unknown;
+}) =>
+  folded ? (
+    // Basecoat styles a card's `> header`: the summary takes the same look by hand.
+    <details class="card group block">
+      <summary class="grid cursor-pointer list-none grid-cols-[1fr_auto] items-start gap-1 px-6 group-open:mb-6 [&::-webkit-details-marker]:hidden">
+        <h2 class="text-base font-medium leading-normal">{title}</h2>
+        <div class="row-span-2 flex items-center gap-2 text-sm text-muted-foreground">
+          {extra}
+          <Icon name="chevron-down" cls="size-4 transition-transform group-open:rotate-180" />
+        </div>
+        {hint && <p class="text-sm text-muted-foreground">{hint}</p>}
+      </summary>
+      <section>{children}</section>
+    </details>
+  ) : (
+    <section class="card">
+      <header>
+        <h2>{title}</h2>
+        {hint && <p>{hint}</p>}
+        {extra && <div class="card-action text-sm text-muted-foreground">{extra}</div>}
+      </header>
+      <section>{children}</section>
+    </section>
+  );
 
 /** A figure of the dashboard: a label, a big number, a line under it. */
 export const Stat = ({ label, value, sub, children }: { label: string; value: string; sub?: unknown; children?: unknown }) => (

@@ -1,28 +1,37 @@
 import { eq, sql } from "drizzle-orm";
-import { db, schema, type EpgOffset } from "@/db";
+import { db, schema, type EpgOffset, type EpgSource } from "@/db";
+import { parseSourceGuideId } from "./epg-ids";
 
 /**
  * Corrections of the provider's guide times. Some of its feeds are off by whole hours (beIN MENA,
  * fetched in Qatar time and labelled as if UTC: +3 h); a rule shifts one guide id
  * (`beINSports3.qa`) or every id of a suffix (`*.qa`). Applied at each import, and at once to
- * what is stored: each row remembers the shift it carries (`offset_minutes`).
+ * what is stored: each row remembers the shift it carries (`offset_minutes`). A fallback source's
+ * channel (`@3/…`) takes its own rule, else its source's shift, never a suffix of the provider's.
  */
 
-/** `beINSports3.qa`, or `*.qa` for a whole suffix. */
+/** `beINSports3.qa`, `@3/beIN SPORTS 1.qa` (a fallback source's channel), or `*.qa` for a whole suffix. */
 const EXACT = /^[\w.+@&-]+$/;
 const SUFFIX = /^\*\.[a-z0-9]{2,4}$/i;
-export const isOffsetPattern = (p: string) => SUFFIX.test(p) || EXACT.test(p);
+export const isOffsetPattern = (p: string) => SUFFIX.test(p) || EXACT.test(p) || parseSourceGuideId(p) !== null;
 /** ± 12 h, in steps of 5 min. */
 export const isOffsetMinutes = (m: number) => Number.isInteger(m) && Math.abs(m) <= 720 && m % 5 === 0;
 
-export type OffsetRules = { exact: Map<string, number>; suffixes: [string, number][] };
+export type OffsetRules = { exact: Map<string, number>; suffixes: [string, number][]; sources: Map<number, number> };
 
 export async function offsetRules(): Promise<OffsetRules> {
-  return compile(await db.select().from(schema.curationEpgOffsets));
+  const [rows, sources] = await Promise.all([
+    db.select().from(schema.curationEpgOffsets),
+    db.select({ id: schema.curationEpgSources.id, offsetMinutes: schema.curationEpgSources.offsetMinutes }).from(schema.curationEpgSources),
+  ]);
+  return compile(rows, sources);
 }
 
-export function compile(rows: Pick<EpgOffset, "pattern" | "minutes">[]): OffsetRules {
-  const rules: OffsetRules = { exact: new Map(), suffixes: [] };
+export function compile(
+  rows: Pick<EpgOffset, "pattern" | "minutes">[],
+  sources: Pick<EpgSource, "id" | "offsetMinutes">[] = [],
+): OffsetRules {
+  const rules: OffsetRules = { exact: new Map(), suffixes: [], sources: new Map(sources.map((s) => [s.id, s.offsetMinutes])) };
   for (const r of rows) {
     if (r.pattern.startsWith("*")) rules.suffixes.push([r.pattern.slice(1).toLowerCase(), r.minutes]);
     else rules.exact.set(r.pattern.toLowerCase(), r.minutes);
@@ -31,10 +40,14 @@ export function compile(rows: Pick<EpgOffset, "pattern" | "minutes">[]): OffsetR
   return rules;
 }
 
-/** The shift of a guide id: its own rule, else its suffix's, else none. */
+/** The shift of a guide id: its own rule, else its source's (a fallback source) or its suffix's, else none. */
 export function offsetOf(rules: OffsetRules, channelId: string): number {
   const id = channelId.toLowerCase();
-  return rules.exact.get(id) ?? rules.suffixes.find(([s]) => id.endsWith(s))?.[1] ?? 0;
+  const own = rules.exact.get(id);
+  if (own !== undefined) return own;
+  const source = parseSourceGuideId(channelId);
+  if (source) return rules.sources.get(source.sourceId) ?? 0;
+  return rules.suffixes.find(([s]) => id.endsWith(s))?.[1] ?? 0;
 }
 
 export const listOffsets = () => db.select().from(schema.curationEpgOffsets).orderBy(schema.curationEpgOffsets.pattern);
