@@ -194,7 +194,7 @@ struct RowTitle: View {
     let text: String
     init(_ text: String) { self.text = text }
     var body: some View {
-        Text(text).font(.headline).foregroundStyle(Theme.text.opacity(0.8))
+        Text(text).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text.opacity(0.8))
     }
 }
 

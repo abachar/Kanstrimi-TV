@@ -155,7 +155,7 @@ struct HomeView: View {
     private func tvHero(_ hero: HomeHero, model: HomeModel) -> some View {
         HeroBanner(item: hero.item, tagline: hero.tagline, certification: hero.certification, slideID: hero.playID) {
             if Platform.isTV { edge(.previous) }
-            HStack(spacing: 18) { heroButtons(hero, model: model) }
+            HStack(alignment: .top, spacing: 20) { heroButtons(hero, model: model) }
             if Platform.isTV { edge(.next) }
         }
     }
@@ -198,14 +198,13 @@ private extension HomeView {
         .prominentButtonStyle()
         .focused($heroFocus, equals: .play)
         .onLongPressGesture(minimumDuration: 0.5) { if VersionPicker.lineCount(hero.versions) > 1 { showPicker = true } }
-        // Said in words, not by a colour: « Ma liste », then « Dans ma liste » with a tick.
+        // The round icons of the sheet, their name under the focused one.
         let favorite = model.isFavorite(hero)
-        Button { Task { await model.toggleFavorite(hero) } } label: {
-            Label(favorite ? "Dans ma liste" : "Ma liste", systemImage: favorite ? "checkmark" : "plus")
+        IconAction(title: favorite ? "Dans ma liste" : "Ma liste", systemImage: favorite ? "heart.fill" : "heart", focused: heroFocus == .favorite) {
+            Task { await model.toggleFavorite(hero) }
         }
-        .buttonStyle(.bordered)
         .focused($heroFocus, equals: .favorite)
-        Button { env.open(hero.item.id) } label: { Label("Fiche", systemImage: "info.circle") }.buttonStyle(.bordered)
+        IconAction(title: "Fiche", systemImage: "info.circle", focused: heroFocus == .sheet) { env.open(hero.item.id) }
             .focused($heroFocus, equals: .sheet)
     }
 
