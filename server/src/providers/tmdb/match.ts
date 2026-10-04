@@ -57,9 +57,10 @@ export function scoreAll(results: TmdbSearchResult[], title: string, year?: numb
 export const MATCH_THRESHOLD = 0.72;
 
 /**
- * A provider-supplied TMDB id is a hint, not a fact: it is accepted only when the title of
- * the TMDB document resembles the cleaned name. Looser than the search threshold because the
- * id already narrows the field; the check only has to catch a wrong film, not a wrong spelling.
+ * A provider-supplied TMDB id is a hint, not a fact: it is accepted when the title resembles the
+ * cleaned name (this threshold), or when cast, image, trailer or director agree (`idEvidence`).
+ * Looser than the search threshold because the id already narrows the field; the check only has
+ * to catch a wrong film, not a wrong spelling.
  */
 export const ID_THRESHOLD = 0.55;
 

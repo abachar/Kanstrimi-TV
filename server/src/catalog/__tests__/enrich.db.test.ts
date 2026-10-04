@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb, seedItems } from "@/test/db";
 import { setSecretsForTests } from "@/config";
@@ -75,5 +75,49 @@ describe("runEnrich", () => {
     expect(new Set(rows.map((r) => r.s))).toEqual(new Set(["pending"]));
     expect(new Set(rows.map((r) => r.a))).toEqual(new Set([0]));
     logged.mockRestore();
+  });
+
+  it("leaves an entry pending when TMDB answers 503 or refuses the key: the way is down, not the title", async () => {
+    for (const status of [503, 401]) {
+      await db.update(schema.catalogVariants).set({ matchStatus: "pending", matchAttempts: 0, matchedAt: null });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.stubGlobal("fetch", async () => new Response("", { status }));
+      await expect(runEnrich(), String(status)).rejects.toThrow(/TMDB injoignable/);
+      const rows = await db
+        .select({ s: schema.catalogVariants.matchStatus, a: schema.catalogVariants.matchAttempts })
+        .from(schema.catalogVariants);
+      expect(new Set(rows.map((r) => r.s)), String(status)).toEqual(new Set(["pending"]));
+      expect(new Set(rows.map((r) => r.a)), String(status)).toEqual(new Set([0]));
+      logged.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("fetches again an entry older than 30 days that a content still uses, and leaves an orphan one alone", async () => {
+    const withLogos = (id: number) => ({
+      id,
+      title: `Film ${id}`,
+      images: { logos: [{ file_path: "/l.png", iso_639_1: "fr", vote_average: 5 }] },
+    });
+    const old = new Date(Date.now() - 31 * 86400000);
+    await db
+      .insert(schema.tmdbCache)
+      .values([700, 701].map((id) => ({ mediaType: "movie" as const, tmdbId: id, lang: "fr-FR", data: withLogos(id), fetchedAt: old })));
+    await db
+      .insert(schema.catalogContents)
+      .values({ key: "tmdb:movie:700", kind: "vod", tmdbId: 700, title: "Film 700", addedAt: new Date() });
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (u: URL) => {
+      urls.push(String(u));
+      return Response.json(withLogos(700));
+    });
+    expect(await runEnrich()).toMatchObject({ refreshed: 1 });
+    expect(urls.filter((u) => /\/movie\/70[01]\b/.test(u)).map((u) => new URL(u).pathname)).toEqual(["/3/movie/700"]);
+    const rows = await db
+      .select()
+      .from(schema.tmdbCache)
+      .where(inArray(schema.tmdbCache.tmdbId, [700, 701]));
+    const fresh = (id: number) => rows.find((r) => r.tmdbId === id)!.fetchedAt.getTime() > Date.now() - 60_000;
+    expect([fresh(700), fresh(701)]).toEqual([true, false]);
   });
 });

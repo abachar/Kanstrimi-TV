@@ -2,8 +2,10 @@ import type { Content } from "@/db";
 import type { MergeCandidate } from "@/catalog";
 import { isCategoryHidden, isItemHidden } from "@/db";
 import { isFallbackKey, keyKind, qualityOfRank } from "@/catalog";
+import { runtimeText } from "@/player";
+import { signedImagePath } from "@/shared";
 import type { ContentDetail, GuideLine, VariantDetail } from "./data";
-import { fmt } from "../format";
+import { fmt, hhmm } from "../format";
 import { KEY_KIND_LABELS, KIND_TITLES, MATCH_LABELS, MATCH_TONES } from "../labels";
 import { TmdbCell } from "../catalog/tmdb-cell";
 import { VisibilityToggle } from "../catalog/visibility";
@@ -339,9 +341,6 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
   );
 }
 
-const hhmm = (d: Date) => d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-const runtime = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}` : `${min} min`);
-
 /** The sheet as the app receives it: picture, titles, what it plays in, its story; the bookkeeping on a grey line. */
 function Hero({ c, guide, total }: { c: Content; guide: GuideLine[]; total: number }) {
   const live = c.kind === "live";
@@ -349,7 +348,7 @@ function Hero({ c, guide, total }: { c: Content; guide: GuideLine[]; total: numb
   const originals = [c.originalTitle, c.titleEn].filter((t) => t && t !== c.title);
   const meta = live
     ? [c.channelNumber != null ? `n° ${c.channelNumber}` : null, c.market?.toUpperCase(), c.country, c.themes.join(", ")]
-    : [c.genres.join(", "), c.runtime ? runtime(c.runtime) : null, c.rating ? `★ ${c.rating.toFixed(1)}` : null, c.certification];
+    : [c.genres.join(", "), c.runtime ? runtimeText(c.runtime) : null, c.rating ? `★ ${c.rating.toFixed(1)}` : null, c.certification];
   return (
     <section class="flex flex-col gap-5 rounded-xl border bg-card p-5 sm:flex-row">
       {live
@@ -357,7 +356,13 @@ function Hero({ c, guide, total }: { c: Content; guide: GuideLine[]; total: numb
             <img src={c.logoUrl} alt="" width="128" height="128" class="size-32 shrink-0 rounded-lg bg-muted object-contain p-3" />
           )
         : c.posterPath && (
-            <img src={`/img/w342${c.posterPath}`} alt="" width="160" class="w-40 shrink-0 self-start rounded-lg" loading="lazy" />
+            <img
+              src={signedImagePath("w342", c.posterPath)}
+              alt=""
+              width="160"
+              class="w-40 shrink-0 self-start rounded-lg"
+              loading="lazy"
+            />
           )}
       <div class="flex min-w-0 flex-1 flex-col gap-3">
         <div class="flex flex-wrap items-start gap-3">

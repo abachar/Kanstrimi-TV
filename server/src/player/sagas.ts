@@ -5,7 +5,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Env, RestContext } from "./context";
 import { BadRequest, badQuery, fail, json } from "./http";
-import { visibleContent } from "./contents";
+import { byRelease, visibleContent } from "./contents";
 import { getProgress } from "./progress";
 import { contentItem, filmCount, imageUrl } from "./cards";
 import { decodeCursor, encodeCursor } from "./lists";
@@ -20,7 +20,6 @@ export const sagaRoutes = new Hono<Env>();
 const MIN_MOVIES = 2,
   PAGE_DEFAULT = 30,
   PAGE_MAX = 100;
-const NO_RELEASE = "0001-01-01";
 const sagaKey = (id: number) => `saga:${id}`;
 const parseSagaKey = (key: string) => (/^saga:\d+$/.test(key) ? Number(key.slice(5)) : null);
 
@@ -29,7 +28,7 @@ type SagaRow = { id: number; name: string; poster: string | null; backdrop: stri
 /** One row per saga over the visible movies; `only` narrows to one saga. */
 const sagasOf = (ctx: RestContext, only?: number) => sql`
   select saga_id as id, min(saga_name) as name, min(saga_poster_path) as poster, min(saga_backdrop_path) as backdrop,
-    count(*)::int as n, max(coalesce(release_date, ${NO_RELEASE}::date))::text as latest
+    count(*)::int as n, max(${byRelease})::text as latest
   from ${schema.catalogContents}
   where ${visibleContent(ctx, "vod")} and saga_id is not null ${only === undefined ? sql`` : sql`and saga_id = ${only}`}
   group by saga_id having count(*) >= ${MIN_MOVIES}`;
@@ -38,6 +37,7 @@ const sagaWire = (ctx: RestContext, r: SagaRow): SagaWire => ({
   id: sagaKey(r.id),
   name: r.name,
   count: r.n,
+  label: `${r.name} · ${filmCount(r.n)}`,
   poster: imageUrl(ctx.baseUrl, "w500", r.poster) || null,
   backdrop: imageUrl(ctx.baseUrl, "w1280", r.backdrop) || null,
 });
@@ -51,6 +51,7 @@ const sagaItem = (w: SagaWire): ContentItem => ({
   poster: w.poster,
   picture: w.backdrop,
   facts: filmCount(w.count),
+  quality: null,
   badges: [],
   hint: null,
   progress: null,
@@ -116,7 +117,7 @@ export async function sagaSheet(ctx: RestContext, key: string): Promise<SagaShee
     .select()
     .from(schema.catalogContents)
     .where(and(visibleContent(ctx, "vod"), eq(schema.catalogContents.sagaId, id)))
-    .orderBy(desc(sql`coalesce(${schema.catalogContents.releaseDate}, ${NO_RELEASE}::date)`), desc(schema.catalogContents.id));
+    .orderBy(desc(byRelease), desc(schema.catalogContents.id));
   const progress = await getProgress(movies.map((m) => m.key));
   return {
     ...sagaWire(ctx, saga),
@@ -130,5 +131,5 @@ export async function sagaSheet(ctx: RestContext, key: string): Promise<SagaShee
 export async function sagaRefOf(ctx: RestContext, sagaId: number | null): Promise<SagaRef | undefined> {
   if (sagaId === null) return undefined;
   const [saga] = await db.execute<SagaRow>(sagasOf(ctx, sagaId));
-  return saga ? { id: sagaKey(saga.id), name: saga.name, count: saga.n } : undefined;
+  return saga ? { id: sagaKey(saga.id), name: saga.name, count: saga.n, label: `${saga.name} · ${filmCount(saga.n)}` } : undefined;
 }

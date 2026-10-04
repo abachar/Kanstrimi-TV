@@ -3,8 +3,9 @@ import { qualityOfRank } from "@/catalog";
 import type { SagaWire, StudioWire } from "@/player";
 import { PAGE, type Shelf, type ShelfPage } from "./app-data";
 import { fmt } from "../format";
-import { Badge, Busy, Empty } from "../ui";
+import { Badge, Empty } from "../ui";
 import { contentKeyLink } from "../content/links";
+import { More, SUMMARY } from "./row";
 
 /**
  * « Catalogue » view of films and series: the shelves of the app's screen, in its order, one
@@ -13,7 +14,6 @@ import { contentKeyLink } from "../content/links";
  * opening on its titles.
  */
 
-const SUMMARY = "flex h-12 w-full min-w-0 items-center gap-2 bg-muted/30 px-4 text-sm hover:bg-muted/50";
 const domId = (shelf: string) => `shelf-${shelf.replace(/[^a-z0-9]+/gi, "-")}`;
 export const shelfLink = (kind: string, shelf: string, opts: { cursor?: string | null; n?: number } = {}) =>
   `/admin/catalog/shelf?${new URLSearchParams({ kind, shelf, ...(opts.cursor ? { cursor: opts.cursor } : {}), n: String(opts.n ?? 0) })}`;
@@ -104,23 +104,6 @@ function TitleRow({ c, rank }: { c: Content; rank: number }) {
     </div>
   );
 }
-
-/** Scrolls into the next page of a shelf, appended where this stands. */
-const More = ({ link }: { link: string }) => (
-  <div
-    class="flex items-center justify-center gap-2 py-2"
-    hx-get={link}
-    hx-trigger="intersect once, click"
-    hx-target="this"
-    hx-swap="outerHTML"
-    hx-indicator="this"
-  >
-    <button type="button" class="btn" data-variant="link" data-size="sm">
-      Charger la suite
-    </button>
-    <Busy label="Chargement" />
-  </div>
-);
 
 const StudioFolds = ({ kind, studios }: { kind: string; studios: StudioWire[] }) => (
   <>

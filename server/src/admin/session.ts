@@ -19,7 +19,7 @@ const generation = async () => (await getSettings()).session_generation || "0";
  * every request is.
  */
 export async function isLoggedIn(c: Context) {
-  if (devLogin) return devLogin;
+  if (await devLogin) return true;
   const value = await getSignedCookie(c, env.sessionSecret, COOKIE);
   const [gen, issued, tag] = typeof value === "string" ? value.split(".") : [];
   const age = Date.now() / 1000 - Number(issued);

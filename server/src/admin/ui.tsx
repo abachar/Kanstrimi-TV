@@ -5,6 +5,10 @@
  */
 import { Icon } from "./icons";
 
+/** The outcome of an htmx action, as a line that replaces the button's result area. */
+export const InlineResult = ({ ok, text }: { ok: boolean; text: string }) =>
+  ok ? <span class="text-sm text-emerald-400">{text}</span> : <span class="text-sm text-destructive">{text}</span>;
+
 export const Title = ({ t, sub, actions }: { t: string; sub: string; actions?: unknown }) => (
   <div class="flex flex-wrap items-end justify-between gap-4">
     <div class="flex flex-col gap-1">
@@ -133,7 +137,7 @@ export const Table = ({ children }: { children?: unknown }) => (
 );
 
 /** What an empty list says instead of a blank space. */
-export const Empty = ({ title, sub }: { title: string; sub?: string }) => (
+export const Empty = ({ title, sub }: { title: string; sub?: unknown }) => (
   <div class="empty gap-1 rounded-lg border border-dashed p-8">
     <h3 class="text-sm font-medium">{title}</h3>
     {sub && <p class="text-sm text-muted-foreground">{sub}</p>}

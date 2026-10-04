@@ -28,7 +28,8 @@ export type Version = {
   next?: Programme | null;
 };
 
-export type ProgressWire = { position: number; duration: number; finished?: boolean };
+/** `resumable`: between 5 % and « Vu », decided here: the app offers « Reprendre » on it and compares no threshold. */
+export type ProgressWire = { position: number; duration: number; finished?: boolean; resumable: boolean };
 export type EpisodeRef = { season: number; number: number; title: string | null };
 /** `id` = `person:<TMDB id>`, null until the sheet has been copied again (no link to their titles). */
 export type Person = { id: string | null; name: string; role: string | null; photo: string | null };
@@ -86,6 +87,15 @@ export type Card = {
   is_favorite?: boolean;
   seasons?: SeasonWire[];
   current_episode?: EpisodeRef | null;
+  /**
+   * Sheet texts, final: `tagline` « FILM », « SÉRIE · 3 SAISONS »; `facts` « 2019 – 2022 · Drame, Crime · 52 min »;
+   * `rating_label` « ★ 8.5 »; `play_label` the play button, « Lecture », « Revoir », « Reprendre · 40 min restantes »,
+   * « Lire S2 É4 », « Reprendre S2 É4 » (the home slide of the same title says the same).
+   */
+  tagline?: string;
+  facts?: string | null;
+  rating_label?: string | null;
+  play_label?: string;
   /** Movie sheet: its saga, present only when two of its movies are visible. */
   saga?: SagaRef;
   /** Sheet: « Si vous avez aimé… », TMDB's recommendations in the catalogue, nothing already seen, ten at most. */
@@ -106,6 +116,8 @@ export type ContentItem = {
   poster: string | null;
   picture: string | null;
   facts: string | null;
+  /** The quality badge alone (« 4K DV », « HD »), the one `badges` starts with; null when unknown. */
+  quality: string | null;
   badges: string[];
   hint: string | null;
   progress: number | null;
@@ -116,7 +128,8 @@ export type ContentItem = {
 };
 
 /** A TMDB collection with at least two visible movies. `id` = `saga:<TMDB collection id>`. */
-export type SagaRef = { id: string; name: string; count: number };
+/** `label`: « Trilogie - Saga · 3 films ». */
+export type SagaRef = { id: string; name: string; count: number; label: string };
 export type SagaWire = SagaRef & { poster: string | null; backdrop: string | null };
 /** `/movies/sagas`: freshest first. */
 export type SagaPage = { items: ContentItem[]; next_cursor: string | null; total: number };
@@ -130,7 +143,8 @@ export type StudioWire = { id: string; name: string; logo: string | null; count:
 /** `/movies/sagas/{id}`: the saga, its header (« SAGA », « 3 films ») and its visible movies, latest release first. */
 export type SagaSheet = SagaWire & { heading: string; facts: string; movies: ContentItem[] };
 /** `/people/{id}`: an actor and their visible titles, latest release first. */
-export type PersonSheet = { id: string; name: string; photo: string | null; movies: ContentItem[]; series: ContentItem[] };
+/** `facts`: « 12 titres », « 1 titre ». */
+export type PersonSheet = { id: string; name: string; photo: string | null; facts: string; movies: ContentItem[]; series: ContentItem[] };
 
 export type Programme = { title: string; start: string; end: string; overview?: string | null };
 export type ChannelWire = {
@@ -263,7 +277,6 @@ export type ServerInfo = {
   last_import: string | null;
   tmdb_rate: number | null;
   catalog_languages: string[];
-  default_language_order: string[];
 };
 
 export type ApiError = {

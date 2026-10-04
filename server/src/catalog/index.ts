@@ -6,6 +6,8 @@ export { contentsGeneration, groupingCounts, runGrouping, runNaming } from "./gr
 export { type MergeCandidate, mergeCandidates, mergeVariantInto, resetVariant, splitVariant } from "./grouping/manual";
 export { closeOrphanLogs, recentRuns, runById, lastRunsByTask, type RunWithSteps } from "./journal";
 export { readRunLog, runLogPath } from "./runlog";
+export { epgStat, type EpgStat } from "./epg";
+export { listOffsets, offsetOf, offsetRules, setOffset } from "./epg-offsets";
 export { iptvChannelById, setIptvMatch } from "./channels";
 export { hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
 export {
@@ -20,6 +22,7 @@ export {
 } from "./matching";
 export {
   cleanTitle,
+  DEFAULT_LANGUAGE_ORDER,
   DYNAMIC_RANGE_RANK,
   LIVE_THEMES,
   liveTheme,
@@ -41,13 +44,14 @@ export {
   type Step,
   type Task,
 } from "./pipeline";
-export { compileQuery, FIELDS as QUERY_FIELDS, QueryError, type CompileOptions, type Field as QueryField } from "./query";
+export { checkRegexes, compileQuery, FIELDS as QUERY_FIELDS, QueryError, type CompileOptions, type Field as QueryField } from "./query";
 export { cachedRecommendedKeys, recommendedKeys } from "./recommendations";
 export { categoriesOfKind, categoryByXtreamId, contentById, contentIdByKey, itemById, variantsOfContent } from "./queries";
 export {
   addStudio,
   listStudios,
   moveStudio,
+  ofStudio,
   parseStudioRef,
   removeStudio,
   studioColumn,

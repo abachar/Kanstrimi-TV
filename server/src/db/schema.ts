@@ -23,7 +23,7 @@ export const ruleActionEnum = pgEnum("rule_action", ["hide", "keep"]);
 export const matchStatusEnum = pgEnum("match_status", ["pending", "matched", "unmatched", "manual", "skipped"]);
 export const syncStatusEnum = pgEnum("sync_status", ["running", "success", "error", "killed"]);
 
-/** Key/value settings (xtream creds, proxy creds, tmdb key, ...). */
+/** Key/value settings edited in Paramètres (SETTING_KEYS); never a secret. */
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
@@ -273,7 +273,8 @@ export const tmdbCache = pgTable(
   (t) => [
     uniqueIndex("tmdb_cache_idx").on(t.mediaType, t.tmdbId, t.lang),
     // The entries cached before the logos, which `enrich` fetches again: found without reading
-    // (and detoasting) every document. Empties itself as the backfill goes.
+    // (and detoasting) every document. Empties itself as the backfill goes. Keep in step with `tmdbHasLogos`
+    // (`tmdb-cache.ts`), which renders qualified columns and imports this file.
     index("tmdb_cache_logoless_idx")
       .on(t.lang, t.mediaType, t.tmdbId, t.fetchedAt)
       .where(sql`not coalesce(${t.data} -> 'images' ? 'logos', false)`),
@@ -333,7 +334,7 @@ export const iptvorgChannels = pgTable(
 );
 
 /**
- * One run of a task: the full pipeline, the EPG, or a lone step. Its steps are `sync_logs`
+ * One run of a task: the full pipeline, the EPG, or a lone step. Its steps are `task_steps`
  * rows; its detail is a text file under DATA_DIR/logs (`log_file`), written even when the
  * database is down.
  */

@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { env } from "@/shared";
 import { resetDb, closeDb, seedItems } from "@/test/db";
-import { pickLogo } from "@/providers/iptv";
+import { pickLogo, syncIptv } from "@/providers/iptv";
 import { channelKey, countriesOf, iptvTheme, mergedTheme, nameKeys, regionCountry, runChannels, setIptvMatch } from "../channels";
 import { runNaming, runGrouping } from "../grouping/group";
 
@@ -156,5 +156,49 @@ describe("runChannels", () => {
       iptvMatch: null,
     });
     await expect(setIptvMatch(ligue.id, "Nope.xx")).rejects.toThrow(/inconnue/);
+  });
+});
+
+describe("syncIptv", () => {
+  const age = async () => {
+    const old = new Date(Date.now() - 48 * 3600 * 1000);
+    for (const f of ["channels", "logos"]) await fs.promises.utimes(path.join(env.dataDir, "iptv-org", `${f}.json`), old, old);
+  };
+  const count = async () => (await db.select().from(schema.iptvorgChannels)).length;
+
+  it("rebuilds the table only when a file changed", async () => {
+    serve();
+    await expect(syncIptv()).resolves.toMatchObject({ iptv_updated: 0 }); // fresh copy, nothing asked
+    await age();
+    await expect(syncIptv()).resolves.toMatchObject({ iptv_channels: 9, iptv_updated: 1 });
+  });
+
+  it("keeps the previous copy when iptv-org is unreachable: no error, nothing rebuilt", async () => {
+    await age();
+    const down = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    });
+    vi.stubGlobal("fetch", down);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await expect(syncIptv()).resolves.toMatchObject({ iptv_channels: 9, iptv_updated: 0 });
+    } finally {
+      warn.mockRestore();
+    }
+    expect(down).toHaveBeenCalled();
+    expect(await count()).toBe(9);
+  });
+
+  it("a 304 renews the copy without rebuilding the table", async () => {
+    await age();
+    const notModified = vi.fn(async () => new Response(null, { status: 304 }));
+    vi.stubGlobal("fetch", notModified);
+    await expect(syncIptv()).resolves.toMatchObject({ iptv_channels: 9, iptv_updated: 0 });
+    expect(notModified).toHaveBeenCalledTimes(2); // one conditional request per file
+    expect(await count()).toBe(9);
+    // The copy is fresh again: the next run does not even ask.
+    notModified.mockClear();
+    await syncIptv();
+    expect(notModified).not.toHaveBeenCalled();
   });
 });

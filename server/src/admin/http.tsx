@@ -4,7 +4,15 @@ import { isMenuCollapsed, Layout } from "./layout";
 
 /** A route's numeric identifier: a positive integer, else 404 — never a `NaN` down to the database. */
 export function intParam(c: Context, name: string): number {
-  const v = c.req.param(name) ?? "";
+  return positiveInt(c.req.param(name) ?? "");
+}
+
+/** The same rule for an identifier posted in a form: a positive integer that fits a column, else 404. */
+export function intField(f: Record<string, string>, name: string): number {
+  return positiveInt(f[name] ?? "");
+}
+
+function positiveInt(v: string): number {
   if (!/^[1-9]\d{0,9}$/.test(v) || Number(v) > 2_147_483_647) throw new HTTPException(404, { message: "Introuvable" });
   return Number(v);
 }
@@ -15,7 +23,7 @@ export const page = (c: Context, title: string, body: unknown, loggedIn = true) 
     Layout({
       title,
       path: new URL(c.req.url).pathname + new URL(c.req.url).search,
-      flash: { ok: c.req.query("ok"), err: c.req.query("err") },
+      flash: loggedIn ? { ok: c.req.query("ok"), err: c.req.query("err") } : {},
       loggedIn,
       collapsed: isMenuCollapsed(c),
       children: body as never,

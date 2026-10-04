@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { XtreamClient, XtreamError } from "../client";
+import { SERIES_INFO_TIMEOUT_MS, XtreamClient, XtreamError } from "../client";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -32,5 +32,17 @@ describe("XtreamClient", () => {
     const x = new XtreamClient("http://provider.test", "us/er", "p@ss");
     expect(x.streamUrl("movie", 7, "mkv")).toBe("http://provider.test/movie/us%2Fer/p%40ss/7.mkv");
     expect(x.xmltvUrl()).toBe("http://provider.test/xmltv.php?username=us%2Fer&password=p%40ss");
+  });
+
+  it("asks for a series' info with a short timeout, not the minute of the catalogue lists", async () => {
+    vi.stubGlobal("fetch", async () => Response.json({ episodes: {} }));
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    try {
+      await new XtreamClient("http://provider.test", "u", "p").seriesInfo(42);
+      expect(timeout).toHaveBeenCalledWith(SERIES_INFO_TIMEOUT_MS);
+      expect(SERIES_INFO_TIMEOUT_MS).toBeLessThanOrEqual(15_000);
+    } finally {
+      timeout.mockRestore();
+    }
   });
 });

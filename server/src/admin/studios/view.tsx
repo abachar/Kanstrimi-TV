@@ -1,4 +1,5 @@
 import type { StudioDetail, StudioKind, StudioRow, StudioSuggestion, StudioTitle } from "@/catalog";
+import { signedImagePath } from "@/shared";
 import { Badge, Card, Empty, Title } from "../ui";
 import { Icon } from "../icons";
 import { fmt } from "../format";
@@ -10,7 +11,7 @@ const KIND = { company: "Studio", network: "Diffuseur" } as const;
 const Logo = ({ path, name }: { path: string | null; name: string }) =>
   path ? (
     <img
-      src={`/img/w92${path}`}
+      src={signedImagePath("w92", path)}
       alt={name}
       width="92"
       height="32"
@@ -192,7 +193,7 @@ function Poster({ t }: { t: StudioTitle }) {
     <>
       {t.posterPath ? (
         <img
-          src={`/img/w154${t.posterPath}`}
+          src={signedImagePath("w154", t.posterPath)}
           alt=""
           width="154"
           height="231"

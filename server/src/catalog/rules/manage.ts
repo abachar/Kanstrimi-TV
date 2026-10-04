@@ -2,7 +2,7 @@ import { asc, eq, sql } from "drizzle-orm";
 import type { FilterRule, Kind } from "@/db";
 import { db, schema } from "@/db";
 import { getSettings } from "@/config";
-import { compileQuery, QueryError } from "../query";
+import { checkRegexes, compileQuery, QueryError } from "../query";
 import { markRulesPending } from "./apply";
 
 export type RuleInput = {
@@ -27,6 +27,7 @@ const kindOf = (k: Kind | "all") => (k === "all" ? null : k);
 export async function checkRuleQuery(query: string, kind: Kind | "all"): Promise<string | null> {
   try {
     if (!compileQuery(query, { kind: kindOf(kind), lang: (await getSettings()).tmdb_language, rule: true })) return "Requête vide";
+    await checkRegexes(query);
     return null;
   } catch (e) {
     if (e instanceof QueryError) return `${e.message} (colonne ${e.at + 1})`;

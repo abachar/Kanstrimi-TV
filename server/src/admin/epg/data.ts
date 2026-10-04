@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, ilike, inArray, isNotNull, lt, ne, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { offsetOf, offsetRules } from "@/providers/xtream";
+import { offsetOf, offsetRules } from "@/catalog";
 
 /** What the EPG page reads: the visible channels that have a guide, and their programmes in a window. */
 

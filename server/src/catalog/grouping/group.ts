@@ -9,6 +9,7 @@ import {
   isAdultCategory,
   isAdultEntryName,
   QUALITY_RANK,
+  DEFAULT_LANGUAGE_ORDER,
   type CategoryHints,
   type Quality,
   type DynamicRange,
@@ -507,6 +508,7 @@ const variantEpgId = sql`case
  */
 async function refreshAggregates(onlyIds?: number[]): Promise<number> {
   const scope = onlyIds ? sql`and content_id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``;
+  const langOrder = `{${DEFAULT_LANGUAGE_ORDER.join(",")}}`;
   await db.execute(sql`
     update catalog_contents c set
       variant_count = a.n, added_at = a.added_at, visible = a.visible,
@@ -534,13 +536,16 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
           (array_agg(iptv_id order by vis desc, quality_rank desc, position, id) filter (where iptv_id is not null))[1] as iptv,
           (array_agg(category_xtream_id order by vis desc, quality_rank desc, position, id))[1] as cat,
           (array_agg(nullif(regexp_replace(coalesce(raw->>'num', ''), '\\D', '', 'g'), '')::int order by vis desc, quality_rank desc, position, id))[1] as num,
-          -- The guide of the best quality that has one (« TF1 4K » files none, « TF1 FHD » does), as the
-          -- app's guide per quality (player/guides.ts) does for the channel's first version.
-          (array_agg(epg_id order by vis desc, has_epg desc, quality_rank desc, position, id) filter (where epg_id is not null))[1] as epg
+          -- The app's guide is the first version's (best language, then best quality; player/versions.ts).
+          -- Same order here, among the variants that have a guide with programmes (« TF1 4K » files none,
+          -- « TF1 FHD » does). They can still differ when that first version has no guide in its language:
+          -- the app then takes the closest quality, every language mixed (player/guides.ts).
+          (array_agg(epg_id order by vis desc, lang_rank, has_epg desc, quality_rank desc, position, id) filter (where epg_id is not null))[1] as epg
         from (
           select id, content_id, added_at, quality_rank, lang, dynamic_range, market, country, position, category_xtream_id, raw, theme, adult, iptv_id,
             ${variantEpgId} as epg_id,
             exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = ${variantEpgId}) as has_epg,
+            coalesce(array_position(${langOrder}::text[], lang), ${DEFAULT_LANGUAGE_ORDER.length + 1}) as lang_rank,
             (${visibleItem}) as vis,
             (${visibleItem} or not bool_or(${visibleItem}) over (partition by content_id)) as counted
           from ${schema.catalogVariants} where content_id is not null ${scope}
@@ -570,7 +575,7 @@ async function deleteOrphans(): Promise<number> {
 
 /**
  * Counters for the dashboard, over what the app sees: a content counts when one of its variants
- * is visible, and « several variants » means several visible ones (`variant_count` counts hidden ones too).
+ * is visible, and « several variants » means several visible ones (recomputed here: `variant_count` only follows the switches after `refreshVisibility`).
  * Sagas: the TMDB collections with at least two visible movies, as `/player/movies/sagas` lists them.
  */
 export async function groupingCounts() {

@@ -1,6 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 import { db, type Kind } from "@/db";
-import { compileQuery, QueryError } from "@/catalog";
+import { checkRegexes, compileQuery, QueryError } from "@/catalog";
 import { getSettings } from "@/config";
 
 /**
@@ -18,7 +18,9 @@ const col = (at: number) => `colonne ${at + 1}`;
 export async function compileSearch(kind: Kind, q: string): Promise<Search> {
   if (!q.trim()) return { where: null, error: null };
   try {
-    return { where: compileQuery(q, { kind, lang: (await getSettings()).tmdb_language }), error: null };
+    const where = compileQuery(q, { kind, lang: (await getSettings()).tmdb_language });
+    await checkRegexes(q);
+    return { where, error: null };
   } catch (e) {
     if (e instanceof QueryError) return { where: null, error: `${e.message} (${col(e.at)})` };
     throw e;

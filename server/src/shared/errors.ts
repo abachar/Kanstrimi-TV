@@ -31,6 +31,8 @@ const UNREACHABLE = new Set([
   "CONNECT_TIMEOUT",
   // A service that keeps answering 429 (TMDB): the next request would be refused the same way.
   "RATE_LIMITED",
+  // A service that answers 5xx or refuses our key: the next request would fail the same way.
+  "UNAVAILABLE",
 ]);
 
 /** A failure of the way to the service (DNS, network, database, rate limit), not of the thing asked. */

@@ -1,17 +1,24 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { Hono } from "hono";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { setSecretsForTests } from "@/config";
-import { itemById } from "@/catalog";
+import { itemById, launch } from "@/catalog";
 import { run, runNaming } from "@/catalog";
 import { startRun } from "@/catalog/journal";
 import { withCatalogLock } from "@/catalog/lock";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
+import { getSettings } from "@/config";
 import { setFavorite, setProgress, listProgress } from "@/player";
 import { admin } from "..";
 
-/** The admin as `server.ts` mounts it. Every page is rendered once: a JSX error surfaces as a 500 here. */
+/** `launch` is the real one unless a test answers in its place: no pipeline runs from here. */
+vi.mock("@/catalog", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/catalog")>();
+  return { ...mod, launch: vi.fn(mod.launch) };
+});
+
+/** The admin as `app.ts` mounts it. Every page is rendered once: a JSX error surfaces as a 500 here. */
 const app = new Hono().route("/admin", admin);
 let cookie = "";
 let matrixId = 0;
@@ -81,11 +88,11 @@ describe("admin", () => {
 
   it("logs in with the admin e-mail and password", async () => {
     const bad = await post("/admin/login", { email: "admin@kanstrimi.test", password: "nope" });
-    expect(bad.headers.get("location")).toContain("err=");
+    expect(bad.headers.get("location")).toContain("e=bad");
     const wrongEmail = await post("/admin/login", { email: "someone@else.test", password: "test" });
-    expect(wrongEmail.headers.get("location")).toContain("err=");
+    expect(wrongEmail.headers.get("location")).toContain("e=bad");
     const noEmail = await post("/admin/login", { password: "test" });
-    expect(noEmail.headers.get("location")).toContain("err=");
+    expect(noEmail.headers.get("location")).toContain("e=bad");
     const ok = await post("/admin/login?next=/admin/rules", { email: " Admin@Kanstrimi.test ", password: "test" });
     expect(ok.status).toBe(303);
     expect(ok.headers.get("location")).toBe("/admin/rules");
@@ -281,6 +288,17 @@ describe("admin", () => {
     const show = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&q=matrix`, { visible: "on" });
     expect(await show.text()).not.toContain("<s>");
     expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
+    // The variant sheet's switch posts the item scope with `reload`: it hides the variant, never a category with the same id.
+    const categoriesHidden = async () =>
+      (await db.select().from(schema.catalogCategories)).map((c) => [c.id, c.hiddenManual] as const).sort((x, y) => x[0] - y[0]);
+    const before = await categoriesHidden();
+    const reload = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&reload=1`, {});
+    expect(reload.status).toBe(204);
+    expect(reload.headers.get("hx-refresh")).toBe("true");
+    expect((await itemById(matrixId))?.hiddenManual).toBe(true);
+    expect(await categoriesHidden()).toEqual(before);
+    await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&reload=1`, { visible: "on" });
+    expect((await itemById(matrixId))?.hiddenManual).toBe(false);
     const cat = await post("/admin/catalog/category/1/visible?kind=vod", {});
     expect(cat.status).toBe(204);
     expect(cat.headers.get("hx-refresh")).toBe("true");
@@ -393,6 +411,88 @@ describe("admin", () => {
       "/admin/item/-3/merge-form",
     ])
       expect((await call(p)).status, p).toBe(404);
+  });
+
+  it("an identifier out of range, a missing form id or a negative offset never reach the database", async () => {
+    expect((await call("/admin/tasks/99999999999")).status).toBe(404);
+    expect((await post("/admin/catalog/tmdb-assign", {})).status).toBe(404);
+    expect((await post("/admin/catalog/tmdb-search", { id: "abc" })).status).toBe(404);
+    expect((await post("/admin/item/merge-search", {})).status).toBe(404);
+    const shelf = "/admin/catalog/shelf?kind=vod&shelf=genre%3Ascience-fiction";
+    expect(await html(`${shelf}&n=-5`)).toBe(await html(`${shelf}&n=0`)); // numbered from 1, not from -4
+    expect((await call("/admin/tasks?page=-3")).status).toBe(200);
+    expect((await call("/admin/epg?page=-3")).status).toBe(200);
+  });
+
+  it("the EPG preview shows the day the page shows, not today", async () => {
+    await seedProgrammes([
+      { channelId: "TF1.fr", start: -5, end: 5, title: "Maintenant unique" },
+      { channelId: "TF1.fr", start: 24 * 60 + 5, end: 24 * 60 + 15, title: "Demain unique" },
+    ]);
+    try {
+      const tomorrow = new Date(Date.now() + 24 * 3600_000).toISOString();
+      const page = await html(`/admin/epg?channel=TF1.fr&at=${encodeURIComponent(tomorrow)}`);
+      expect(page).toContain("Demain unique");
+      expect(page).not.toContain("Maintenant unique");
+      const preview = await html(`/admin/epg/preview/TF1.fr?minutes=0&at=${encodeURIComponent(tomorrow)}`);
+      expect(preview).toContain("Demain unique");
+      expect(preview).not.toContain("Maintenant unique");
+      // The panel hands the day it shows back to the next preview.
+      expect(page).toMatch(/<input type="hidden" name="at" value="[^"]+"/);
+      expect(await html("/admin/epg/preview/TF1.fr?minutes=0")).toContain("Maintenant unique"); // no day: now
+    } finally {
+      await db.delete(schema.catalogEpgProgrammes);
+    }
+  });
+
+  it("launching a task goes back to the task journal, whatever the Referer says", async () => {
+    const r = await call("/admin/jobs/epg", {
+      method: "POST",
+      body: new URLSearchParams(),
+      headers: { "content-type": "application/x-www-form-urlencoded", origin: "http://localhost", referer: "::bad" },
+    });
+    expect(r.status).toBe(303);
+    expect(new URL(r.headers.get("location")!, "http://x").pathname).toBe("/admin/tasks");
+    await vi.waitUntil(async () => (await html("/admin/jobs/status")).includes("Aucun job en cours")); // the rebuild is over
+  });
+
+  it("a failed TMDB association says why in a sentence, never the query", async () => {
+    setSecretsForTests({ tmdb_api_key: "k" });
+    vi.stubGlobal("fetch", async () => Response.json({ id: 99999999999, title: "Trop grand", release_date: "2000-01-01" }));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const r = await post("/admin/catalog/tmdb-assign", { id: String(matrixId), tmdb_id: "99999999999" });
+      const text = await r.text();
+      expect(text).not.toContain("Failed query");
+      expect(text).not.toContain("select");
+      expect(text).toContain("text-destructive");
+      const unknown = await (await post("/admin/catalog/tmdb-assign", { id: "999999", tmdb_id: "603" })).text();
+      expect(unknown).toContain("Variante introuvable");
+    } finally {
+      vi.unstubAllGlobals();
+      logged.mockRestore();
+      setSecretsForTests({ tmdb_api_key: "" });
+    }
+  });
+
+  it("the adult checkbox of the settings form: ticked serves adult contents, absent stops serving them", async () => {
+    const form = { tmdb_language: "fr-FR", sync_cron: "0 3 * * *", epg_cron: "0 3 */3 * *", public_base_url: "" };
+    expect((await post("/admin/settings", { ...form, serve_adult: "on" })).status).toBe(303);
+    expect((await getSettings()).serve_adult).toBe("1");
+    expect((await post("/admin/settings", form)).status).toBe(303);
+    expect((await getSettings()).serve_adult).toBe("0");
+  });
+
+  it("launching the pipeline hands over the step to start from and the shrink acceptance", async () => {
+    const spy = vi.mocked(launch);
+    spy.mockClear();
+    spy.mockImplementationOnce(() => true);
+    const r = await post("/admin/jobs/pipeline", { from: "filters", accept_shrink: "1" });
+    expect(flash(r)).toContain("à partir de « ");
+    expect(spy).toHaveBeenCalledWith("pipeline", "filters", { acceptShrink: true });
+    spy.mockImplementationOnce(() => true);
+    await post("/admin/jobs/pipeline", { from: "nope" });
+    expect(spy).toHaveBeenLastCalledWith("pipeline", undefined, { acceptShrink: false });
   });
 
   it("ends every session, this one included; a new login opens one again", async () => {

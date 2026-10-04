@@ -1,16 +1,18 @@
 {
   "id": "person:6384",
   "name": "Keanu Reeves",
-  "photo": "http://kanstrimi.test/img/w185/keanu.jpg",
+  "photo": "http://kanstrimi.test/img/w185/keanu.jpg?k=yT-g7HBFg_ssh54u",
+  "facts": "3 titres",
   "movies": [
     {
       "id": "tmdb:movie:604",
       "kind": "movie",
       "title": "Matrix Reloaded",
-      "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
-      "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png",
-      "picture": "http://kanstrimi.test/img/w1280/reloadedb.jpg",
+      "poster": "http://kanstrimi.test/img/w500/reloaded.jpg?k=wNPZ53qvDQKXjutT",
+      "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png?k=sgYnZB0KqGnUgWDC",
+      "picture": "http://kanstrimi.test/img/w1280/reloadedb.jpg?k=zqiFBlN3NTqcWQGU",
       "facts": "2026 · ★ 7.1",
+      "quality": "4K DV",
       "badges": [
         "4K DV",
         "FR"
@@ -25,10 +27,11 @@
       "id": "tmdb:movie:603",
       "kind": "movie",
       "title": "Matrix",
-      "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
-      "logo": "http://kanstrimi.test/img/w500/matrix-logo.png",
-      "picture": "http://kanstrimi.test/img/w1280/matrixb.jpg",
+      "poster": "http://kanstrimi.test/img/w500/matrix.jpg?k=-O0jHsPakIQ21nez",
+      "logo": "http://kanstrimi.test/img/w500/matrix-logo.png?k=Z7jzMUni_NAXQTHi",
+      "picture": "http://kanstrimi.test/img/w1280/matrixb.jpg?k=BwvlIilgsuIqUdtG",
       "facts": "1999 · ★ 8.2",
+      "quality": "4K DV",
       "badges": [
         "4K DV",
         "FR",
@@ -46,10 +49,11 @@
       "id": "tmdb:tv:1396",
       "kind": "series",
       "title": "Vincenzo",
-      "poster": "http://kanstrimi.test/img/w500/v.jpg",
-      "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png",
-      "picture": "http://kanstrimi.test/img/w1280/vb.jpg",
+      "poster": "http://kanstrimi.test/img/w500/v.jpg?k=zgC0cePaPDvX1FoB",
+      "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png?k=BpM8Q7zvBnAOWlEa",
+      "picture": "http://kanstrimi.test/img/w1280/vb.jpg?k=Ow2XHIZcPM9XLU9_",
       "facts": "2021 · ★ 8.4",
+      "quality": null,
       "badges": [
         "FR"
       ],

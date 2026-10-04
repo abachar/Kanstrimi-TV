@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { eq } from "drizzle-orm";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { eq, like, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { signedImagePath } from "@/shared";
 import { player as api } from "..";
 import { nightEnd } from "../epg";
 import { remaining } from "../cards";
+import { encodeCursor } from "../lists";
 import { liveChip } from "../channels";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 
@@ -272,6 +274,9 @@ beforeAll(async () => {
 });
 afterAll(closeDb);
 
+/** An image URL as the server writes it: signed, so that it may make the server download the image. */
+const img = (size: string, tmdbPath: string) => `http://kanstrimi.test${signedImagePath(size, tmdbPath)}`;
+
 describe("pairing", () => {
   it("POST /devices → code and token, GET /devices/{code} → pending then approved", async () => {
     const r = await call("/devices", { method: "POST" }, false);
@@ -355,7 +360,7 @@ describe("GET /info", () => {
     expect(body.last_import).toBe("2026-09-26T02:10:00.000Z");
     expect(body.tmdb_rate).toBe(0.86);
     expect(body.catalog_languages).toEqual(["VF", "VOSTFR"]);
-    expect(body.default_language_order).toEqual(["VF", "VOSTFR", "VO"]);
+    expect(body.default_language_order).toBeUndefined();
     expect(typeof body.server_version).toBe("string");
   });
 });
@@ -380,8 +385,9 @@ describe("GET /movies and /series", () => {
     expect(recent[0]).toMatchObject({
       kind: "movie",
       title: "Matrix",
-      poster: "http://kanstrimi.test/img/w500/abc.jpg",
+      poster: img("w500", "/abc.jpg"),
       facts: `${monthsAgo(11).getFullYear()} · ★ 8.2`,
+      quality: "4K DV",
       badges: ["4K DV", "FR", "VOSTF"],
       hint: null,
       progress: null,
@@ -444,6 +450,19 @@ describe("GET /movies and /series", () => {
     ]);
     expect((await get("/movies?genre=nope")).body).toEqual({ items: [], next_cursor: null });
     expect((await get("/movies?genre=recent&cursor=zzz")).status).toBe(400);
+    // A cursor whose value has the wrong type for the sort is refused, not sent to Postgres.
+    const cursorOf = (v: unknown) => encodeURIComponent(encodeCursor(v, 1));
+    for (const path of [
+      `/movies?sort=year&cursor=${cursorOf("abc")}`,
+      `/movies?sort=rating&cursor=${cursorOf("abc")}`,
+      `/movies?sort=title&cursor=${cursorOf(5)}`,
+      `/movies?sort=release&cursor=${cursorOf(5)}`,
+      `/movies?sort=recent&cursor=${cursorOf("not a date")}`,
+      `/movies?sort=recent&cursor=${cursorOf(5)}`,
+    ]) {
+      const r = await get(path);
+      expect([path, r.status, r.body.error?.code]).toEqual([path, 400, "bad_request"]);
+    }
     expect((await get("/movies?genre=recent&min_quality=8K")).body).toEqual({
       error: { code: "bad_request", message: "min_quality doit valoir SD, HD, FHD ou 4K" },
     });
@@ -460,7 +479,7 @@ describe("GET /movies and /series", () => {
 });
 
 describe("GET /movies/{id}", () => {
-  it("returns the full sheet with versions × sources and signed stream URLs", async () => {
+  it("returns the full sheet with versions × sources and the provider's stream URLs", async () => {
     const { status, body } = await get("/movies/tmdb:movie:603");
     expect(status).toBe(200);
     expect(body).toMatchObject({
@@ -473,11 +492,11 @@ describe("GET /movies/{id}", () => {
       overview: "Thomas Anderson…",
       runtime: 136,
       certification: "12",
-      cast: [{ id: "person:6384", name: "Keanu Reeves", role: "Neo", photo: "http://kanstrimi.test/img/w185/keanu.jpg" }],
+      cast: [{ id: "person:6384", name: "Keanu Reeves", role: "Neo", photo: img("w185", "/keanu.jpg") }],
       director: "Lana Wachowski",
       trailer: "https://www.youtube.com/watch?v=vKQi3bBA1y8",
-      backdrop: "http://kanstrimi.test/img/w1280/bd.jpg",
-      logo: "http://kanstrimi.test/img/w500/logo-fr.png",
+      backdrop: img("w1280", "/bd.jpg"),
+      logo: img("w500", "/logo-fr.png"),
       has_tmdb: true,
       provider_category: null,
       raw_title: null,
@@ -570,7 +589,7 @@ describe("GET /series/{id}", () => {
       title: "Épisode 1",
       overview: "Vincenzo arrive.",
       runtime: 80,
-      still: "http://kanstrimi.test/img/w300/s1e1.jpg",
+      still: img("w300", "/s1e1.jpg"),
       air_date: "2021-02-20T00:00:00Z",
       progress: null,
       item: {
@@ -643,13 +662,24 @@ describe("channels", () => {
     expect((await get("/channels/tmdb:movie:603")).status).toBe(404);
   });
   it("GET /channels/{id}/programmes: from the programme on air until 6:00, in order", async () => {
-    const { status, body } = await get("/channels/live:fr-tf1/programmes");
-    expect(status).toBe(200);
-    expect(body.map((p: { title: string }) => p.title)).toEqual(["Journal", "Film du soir"]);
-    expect(body[0]).toMatchObject({ overview: "Les titres" });
-    // A channel the guide does not know answers an empty day, an unknown one a 404.
-    expect((await get("/channels/live:fr-bein-sports-1/programmes")).body).toEqual([]);
-    expect((await get("/channels/live:fr-secret-tv/programmes")).status).toBe(404);
+    // The broadcast day ends at 6:00: seeded and asked at a fixed afternoon, in the past of the other tests' guide.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2020, 0, 15, 14, 0) });
+    try {
+      await seedProgrammes([
+        { channelId: "TF1.fr", start: -30, end: 30, title: "Journal", overview: "Les titres" },
+        { channelId: "TF1.fr", start: 30, end: 120, title: "Film du soir" },
+      ]);
+      const { status, body } = await get("/channels/live:fr-tf1/programmes");
+      expect(status).toBe(200);
+      expect(body.map((p: { title: string }) => p.title)).toEqual(["Journal", "Film du soir"]);
+      expect(body[0]).toMatchObject({ overview: "Les titres" });
+      // A channel the guide does not know answers an empty day, an unknown one a 404.
+      expect((await get("/channels/live:fr-bein-sports-1/programmes")).body).toEqual([]);
+      expect((await get("/channels/live:fr-secret-tv/programmes")).status).toBe(404);
+    } finally {
+      vi.useRealTimers();
+      await db.delete(schema.catalogEpgProgrammes).where(lt(schema.catalogEpgProgrammes.startAt, new Date(2021, 0, 1)));
+    }
   });
   it("the broadcast day ends at the next 6:00", () => {
     const at = (h: number, m = 0) => new Date(2026, 8, 30, h, m);
@@ -659,18 +689,72 @@ describe("channels", () => {
   });
 });
 
+describe("sheet texts and thresholds", () => {
+  const put = (path: string, body: object) => call(path, { method: "PUT", body: JSON.stringify(body) });
+
+  it("movie sheet: tagline, facts and rating written by the server", async () => {
+    const { body } = await get("/movies/tmdb:movie:603");
+    expect(body.tagline).toBe("FILM");
+    expect(body.facts).toBe(`${monthsAgo(11).getFullYear()} · Action, Science-Fiction · 2 h 16`);
+    expect(body.rating_label).toBe("★ 8.2");
+    expect(body.play_label).toBe("Lecture");
+  });
+
+  it("series sheet: season count, years, first episode to play", async () => {
+    const { body } = await get("/series/tmdb:tv:1396");
+    expect(body.tagline).toBe("SÉRIE · 2 SAISONS");
+    // Ended the year it began: one year, not « 2021 – 2021 ».
+    expect(body.facts).toBe("2021 · Crime · 1 h 20");
+    expect(body.rating_label).toBe("★ 8.4");
+    expect(body.play_label).toBe("Lire S1 É1");
+  });
+
+  it("the sheet's play label is the home hero's: resume, watched, series episode", async () => {
+    await put("/playback/tmdb:movie:603/progress", { position: 4520, duration: 8280 });
+    const sheet = (await get("/movies/tmdb:movie:603")).body;
+    const hero = (await get("/home")).body.heroes.find((h: { play_id: string }) => h.play_id === "tmdb:movie:603");
+    expect(sheet.play_label).toBe("Reprendre · 1 h 03 restantes");
+    expect(hero.play_label).toBe(sheet.play_label);
+    await put("/playback/tmdb:movie:603/watched", { watched: true });
+    expect((await get("/movies/tmdb:movie:603")).body.play_label).toBe("Revoir");
+    await call("/playback/tmdb:movie:603/progress", { method: "DELETE" });
+    await put("/playback/tmdb:tv:1396:s01e01/progress", { position: 4700, duration: 4800 });
+    expect((await get("/series/tmdb:tv:1396")).body.play_label).toBe("Lire S1 É2");
+    await put("/playback/tmdb:tv:1396:s01e02/progress", { position: 1140, duration: 4680 });
+    expect((await get("/series/tmdb:tv:1396")).body.play_label).toBe("Reprendre S1 É2");
+    await call("/playback/tmdb:tv:1396:s01e01/progress", { method: "DELETE" });
+    await call("/playback/tmdb:tv:1396:s01e02/progress", { method: "DELETE" });
+  });
+
+  it("progress.resumable: false at 4 %, true at 6 %, false at 91 %", async () => {
+    const resumable = async (position: number) => {
+      await put("/playback/tmdb:movie:603/progress", { position, duration: 100 });
+      return (await get("/movies/tmdb:movie:603")).body.progress.resumable;
+    };
+    expect(await resumable(4)).toBe(false);
+    expect(await resumable(6)).toBe(true);
+    expect(await resumable(91)).toBe(false);
+    await call("/playback/tmdb:movie:603/progress", { method: "DELETE" });
+  });
+});
+
 describe("playback and progress", () => {
   it("movie: versions, no resume, duration from runtime; then progress drives resume_at and the home row", async () => {
     let p = (await get("/playback/tmdb:movie:603")).body;
     expect(p).toMatchObject({ resume_at: null, duration: 136 * 60, next: null });
     expect(p.versions.length).toBe(2);
     // The player's « Distribution » panel: the sheet's cast.
-    expect(p.cast).toEqual([{ id: "person:6384", name: "Keanu Reeves", role: "Neo", photo: "http://kanstrimi.test/img/w185/keanu.jpg" }]);
+    expect(p.cast).toEqual([{ id: "person:6384", name: "Keanu Reeves", role: "Neo", photo: img("w185", "/keanu.jpg") }]);
     let r = await call("/playback/tmdb:movie:603/progress", { method: "PUT", body: JSON.stringify({ position: 4520, duration: 8280 }) });
     expect(r.status).toBe(204);
     p = (await get("/playback/tmdb:movie:603")).body;
     expect(p).toMatchObject({ resume_at: 4520, duration: 8280 });
-    expect((await get("/movies/tmdb:movie:603")).body.progress).toEqual({ position: 4520, duration: 8280, finished: false });
+    expect((await get("/movies/tmdb:movie:603")).body.progress).toEqual({
+      position: 4520,
+      duration: 8280,
+      finished: false,
+      resumable: true,
+    });
     r = await call("/playback/tmdb:movie:603/progress", { method: "PUT", body: JSON.stringify({ position: -1 }) });
     expect(r.status).toBe(400);
     expect(
@@ -686,9 +770,7 @@ describe("playback and progress", () => {
     expect(p.versions.map((v: { id: string }) => v.id)).toEqual(["vf-hd", "vostfr-hd"]);
     expect(p.duration).toBe(78 * 60);
     // An episode shows the series' cast.
-    expect(p.cast).toEqual([
-      { id: "person:6384", name: "Keanu Reeves", role: "Invité", photo: "http://kanstrimi.test/img/w185/keanu.jpg" },
-    ]);
+    expect(p.cast).toEqual([{ id: "person:6384", name: "Keanu Reeves", role: "Invité", photo: img("w185", "/keanu.jpg") }]);
     expect(p.next).toMatchObject({
       id: "tmdb:tv:1396:s02e01",
       title: "Marée haute",
@@ -723,8 +805,8 @@ describe("playback and progress", () => {
     await call("/playback/tmdb:tv:1396:s01e02/progress", { method: "PUT", body: JSON.stringify({ position: 1140, duration: 4680 }) });
     const sheet = (await get("/series/tmdb:tv:1396")).body;
     expect(sheet.current_episode).toEqual({ season: 1, number: 2, title: "Épisode 2" });
-    expect(sheet.progress).toEqual({ position: 1140, duration: 4680, finished: false });
-    expect(sheet.seasons[0].episodes[0].progress).toEqual({ position: 4700, duration: 4800, finished: true });
+    expect(sheet.progress).toEqual({ position: 1140, duration: 4680, finished: false, resumable: true });
+    expect(sheet.seasons[0].episodes[0].progress).toEqual({ position: 4700, duration: 4800, finished: true, resumable: false });
     expect(sheet.seasons[0].episodes.map((e: { item: { facts: string } }) => e.item.facts)).toEqual([
       "1 h 20 · Vu",
       "1 h 18 · 59 min restantes",
@@ -733,6 +815,8 @@ describe("playback and progress", () => {
       episode: { id: "tmdb:tv:1396:s01e02", season: 1, number: 2, title: "Épisode 2" },
       resume_at: 1140,
     });
+    // The series id answers exactly as the episode it resumes on does.
+    expect((await get("/playback/tmdb:tv:1396")).body).toEqual((await get("/playback/tmdb:tv:1396:s01e02")).body);
   });
 
   it("channel: versions only", async () => {
@@ -752,7 +836,7 @@ describe("GET /home", () => {
     expect(body.heroes[0]).toMatchObject({
       item: {
         id: "tmdb:movie:603",
-        picture: "http://kanstrimi.test/img/w1280/bd.jpg",
+        picture: img("w1280", "/bd.jpg"),
         badges: ["4K DV", "FR", "VOSTF"],
         facts: expect.stringMatching(/^\d{4} · Action · 2 h 16$/),
       },
@@ -782,7 +866,7 @@ describe("GET /home", () => {
       kind: "episode",
       title: "Vincenzo",
       progress: 1140 / 4680,
-      picture: "http://kanstrimi.test/img/w1280/vb.jpg",
+      picture: img("w1280", "/vb.jpg"),
       caption: "S1 · É2 · 59 min restantes",
       watched: false,
     });
@@ -949,9 +1033,10 @@ describe("sagas", () => {
         kind: "saga",
         title: "Trilogie - Saga",
         logo: null,
-        poster: "http://kanstrimi.test/img/w500/saga900.jpg",
-        picture: "http://kanstrimi.test/img/w1280/sagab900.jpg",
+        poster: img("w500", "/saga900.jpg"),
+        picture: img("w1280", "/sagab900.jpg"),
         facts: "3 films",
+        quality: null,
         badges: [],
         hint: null,
         progress: null,
@@ -974,7 +1059,12 @@ describe("sagas", () => {
   });
 
   it("movie sheet: its saga when shown, nothing otherwise", async () => {
-    expect((await get("/movies/tmdb:movie:3002")).body.saga).toEqual({ id: "saga:900", name: "Trilogie - Saga", count: 3 });
+    expect((await get("/movies/tmdb:movie:3002")).body.saga).toEqual({
+      id: "saga:900",
+      name: "Trilogie - Saga",
+      count: 3,
+      label: "Trilogie - Saga · 3 films",
+    });
     expect((await get("/movies/tmdb:movie:3004")).body.saga).toBeUndefined();
     expect((await get("/movies/tmdb:movie:603")).body.saga).toBeUndefined();
   });
@@ -1011,9 +1101,11 @@ describe("people", () => {
   it("GET /people/{id}: name, photo, visible movies and series, latest release first", async () => {
     const { status, body } = await get("/people/person:6384");
     expect(status).toBe(200);
-    expect(body).toMatchObject({ id: "person:6384", name: "Keanu Reeves", photo: "http://kanstrimi.test/img/w185/keanu.jpg" });
+    expect(body).toMatchObject({ id: "person:6384", name: "Keanu Reeves", photo: img("w185", "/keanu.jpg") });
     expect(body.movies.map((c: { title: string }) => c.title)).toEqual(["Heat", "Matrix"]);
     expect(body.series.map((c: { title: string }) => c.title)).toEqual(["Vincenzo"]);
+    expect(body.facts).toBe("3 titres");
+    expect((await get("/people/person:1158")).body.facts).toBe("1 titre");
   });
 
   it("a person without photo: photo null", async () => {
@@ -1077,9 +1169,9 @@ describe("studios and top 10", () => {
       {
         id: "company:3",
         name: "Pixar",
-        logo: "http://kanstrimi.test/img/w300/pixar.png",
+        logo: img("w300", "/pixar.png"),
         count: 1,
-        backdrop: "http://kanstrimi.test/img/w1280/pixar-un.jpg",
+        backdrop: img("w1280", "/pixar-un.jpg"),
       },
     ]);
     expect((await get("/series/studios")).body.map((s: { id: string; count: number }) => [s.id, s.count])).toEqual([["network:49", 1]]);
@@ -1113,6 +1205,9 @@ describe("studios and top 10", () => {
     expect(pixar!.titles).toHaveLength(1);
     expect(pixar!.titles[0].itemId).toEqual(expect.any(Number));
     expect(await studioDetail("company", 424242)).toBeNull();
+    expect(await studioDetail("network", 49)).toMatchObject({ name: "HBO", chosenId: expect.any(Number) });
+    expect((await studioDetail("network", 49))!.titles).toHaveLength(1);
+    expect(await studioDetail("network", 3)).toBeNull(); // companies and networks are numbered apart
     expect(await addStudio("company", 3)).toBe(true);
     expect(await addStudio("company", 424242)).toBe(false);
     let rows = await listStudios();
@@ -1147,7 +1242,12 @@ describe("« Reprendre » cleanup and watched marks", () => {
   it("PUT /playback/{id}/watched marks a movie or an episode, and undoes it", async () => {
     await put("/playback/tmdb:movie:603/progress", { position: 4520, duration: 8280 });
     expect((await put("/playback/tmdb:movie:603/watched", { watched: true })).status).toBe(204);
-    expect((await get("/movies/tmdb:movie:603")).body.progress).toEqual({ position: 8280, duration: 8280, finished: true });
+    expect((await get("/movies/tmdb:movie:603")).body.progress).toEqual({
+      position: 8280,
+      duration: 8280,
+      finished: true,
+      resumable: false,
+    });
     expect(await resumeIds()).not.toContain("tmdb:movie:603");
     expect((await put("/playback/tmdb:movie:603/watched", { watched: false })).status).toBe(204);
     expect((await get("/movies/tmdb:movie:603")).body.progress).toBeNull();
@@ -1272,7 +1372,7 @@ describe("GET /top-shelf", () => {
       ["FILM · N° 2 CETTE SEMAINE", "tmdb:movie:603", "tmdb:movie:603"],
     ]);
     // Each slide carries the title's logo, drawn in place of the title.
-    expect(heroes[0].item.logo).toBe("http://kanstrimi.test/img/w500/v-logo.png");
+    expect(heroes[0].item.logo).toBe(img("w500", "/v-logo.png"));
     // The iPhone shows the poster full width: a larger size than the rows'.
     expect(heroes[1].item.poster).toMatch(/\/img\/w780\//);
     // Lecture plays the episode, with its own versions.
@@ -1373,6 +1473,60 @@ describe("guide per quality", () => {
     expect((await get(`/channels/${m6.id}`)).body.versions[1]).toMatchObject({ has_epg: true, now: { title: "Météo" } });
     expect((await get(`/channels/${m6.id}/programmes?version=vf-hd`)).body.map((p: { title: string }) => p.title)).toEqual(["Météo"]);
     expect((await get(`/channels/${m6.id}/programmes`)).body.map((p: { title: string }) => p.title)).toEqual(["Match en 4K"]);
+  });
+});
+
+describe("guide of a channel with two languages", () => {
+  beforeAll(async () => {
+    await seedItems([
+      { kind: "live", xtreamId: "120", name: "|FR| Duo VF HD", cat: "20", raw: { num: 8, epg_channel_id: "duo-vf.fr" } },
+      { kind: "live", xtreamId: "121", name: "|FR| Duo VO 4K", cat: "20", raw: { num: 9, epg_channel_id: "duo-vo.fr" } },
+    ]);
+    await seedProgrammes([
+      { channelId: "duo-vf.fr", start: -10, end: 50, title: "Version française" },
+      { channelId: "duo-vo.fr", start: -10, end: 50, title: "Original version" },
+    ]);
+    await runNaming();
+    await runGrouping();
+  });
+
+  it("the catalog stores the guide the app serves: the first version's, best language first", async () => {
+    const channels = (await get("/channels")).body.flatMap((g: { channels: unknown[] }) => g.channels);
+    const duo = channels.find((c: { name: string }) => c.name === "Duo");
+    expect(duo.versions.map((v: { id: string }) => v.id)).toEqual(["vf-hd", "vo-4k"]);
+    expect(duo.now.title).toBe("Version française");
+    const [content] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, duo.id));
+    expect(content.epgChannelId).toBe("duo-vf.fr");
+  });
+});
+
+describe("errors of /player", () => {
+  it("the eleventh pairing request of an address in ten minutes answers 429 too_many_requests", async () => {
+    const post = () => call("/devices", { method: "POST", headers: { "x-forwarded-for": "203.0.113.7" } }, false);
+    for (let i = 0; i < 10; i++) expect((await post()).status).toBe(201);
+    const r = await post();
+    expect(r.status).toBe(429);
+    expect(((await r.json()) as { error: { code: string } }).error.code).toBe("too_many_requests");
+  });
+
+  it("a series whose episodes cannot be rebuilt, the provider being down and nothing cached, answers 502 upstream", async () => {
+    await seedItems([
+      { kind: "series", xtreamId: "900", name: "|FR| Sans Reseau (MULTI)", cat: "30", matchStatus: "unmatched", addedAt: new Date() },
+    ]);
+    await runNaming();
+    await runGrouping();
+    const [content] = await db
+      .select()
+      .from(schema.catalogContents)
+      .where(like(schema.catalogContents.key, "fallback:series:sans-reseau%"));
+    vi.stubGlobal("fetch", async () => new Response("", { status: 503 }));
+    try {
+      const r = await call(`/series/${content.key}`);
+      expect(r.status).toBe(502);
+      expect(((await r.json()) as { error: { code: string } }).error.code).toBe("upstream");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

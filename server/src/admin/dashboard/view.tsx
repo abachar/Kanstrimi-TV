@@ -1,10 +1,8 @@
 import type { Settings } from "@/config";
-import type { EpgStat } from "@/providers/xtream";
 import type { Kind } from "@/db";
-import type { RunWithSteps } from "@/catalog";
+import type { EpgStat, RunWithSteps } from "@/catalog";
 import type { ItemCount, CategoryCount, AppCount } from "./data";
-import { describeCron, nextCronRun } from "../format";
-import { fmt, ago } from "../format";
+import { fmt, ago, megabytes, nextRunText } from "../format";
 import { Title, Card, Stat, Badge, Meter, Status } from "../ui";
 import { Icon } from "../icons";
 import { KIND_TITLES, taskLabel } from "../labels";
@@ -34,10 +32,6 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
   const configured = Boolean(s.xtream_url && s.xtream_username && s.xtream_password);
   const base = s.public_base_url || "http://<ip-de-cette-machine>:3000";
   const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
-  const schedule = (expr: string) => {
-    const next = nextCronRun(expr);
-    return `${describeCron(expr)}${next ? `, prochain passage ${next.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}` : ""}`;
-  };
   const Row = ({ label, children }: { label: string; children?: unknown }) => (
     <div class="flex items-baseline justify-between gap-4 text-sm">
       <span class="text-muted-foreground">{label}</span>
@@ -115,7 +109,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
                         <span class="text-muted-foreground">jamais</span>
                       )}
                     </div>
-                    <span class="text-xs text-muted-foreground">{schedule(cron)}</span>
+                    <span class="text-xs text-muted-foreground">{nextRunText(cron)}</span>
                   </div>
                 );
               })}
@@ -151,8 +145,8 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
                 <input id="cx-url" class="input font-mono" readonly value={base} />
               </div>
               <p class="text-xs text-muted-foreground">
-                L'app affiche un QR code vers cette adresse ; l'approuver ici l'appaire. Les liens de lecture pointent sur ce serveur et
-                redirigent vers le fournisseur.
+                L'app affiche un QR code vers cette adresse ; l'approuver ici l'appaire. L'app lit elle-même l'URL du fournisseur : ce
+                serveur ne relaie aucun flux.
               </p>
               <div class="grid grid-cols-3 gap-2 text-center">
                 {(
@@ -192,7 +186,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
                 </Row>
                 <Row label="En attente">{fmt(item("vod").pending + item("series").pending)}</Row>
                 <Row label="Cache images">
-                  {fmt(d.img.files)} fichiers, {(d.img.bytes / 1e6).toFixed(0)} Mo
+                  {fmt(d.img.files)} fichiers, {megabytes(d.img.bytes)}
                 </Row>
               </div>
             </div>

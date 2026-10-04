@@ -28,7 +28,7 @@ describe("/admin/login", () => {
   it("checks the password with bcrypt every time", async () => {
     const compare = vi.spyOn(bcrypt, "compare");
     expect((await login("test")).headers.get("set-cookie")).toMatch(/^kanstrimi_admin=/);
-    expect((await login("nope")).headers.get("location")).toContain("err=");
+    expect((await login("nope")).headers.get("location")).toContain("e=bad");
     expect(compare).toHaveBeenCalledTimes(2);
   });
 
@@ -53,5 +53,28 @@ describe("/admin/login", () => {
     vi.setSystemTime(new Date("2026-10-02T12:00:04Z"));
     expect((await login("test")).status).toBe(303);
     expect((await login("nope")).status).toBe(303);
+  });
+
+  it("lets one password check run at a time: ten at once, one is checked, nine get 429", async () => {
+    const results = await Promise.all(Array.from({ length: 10 }, () => login("nope")));
+    expect(results.filter((r) => r.status !== 429)).toHaveLength(1);
+    expect(results.filter((r) => r.status === 429)).toHaveLength(9);
+    expect(results.find((r) => r.status === 429)?.headers.get("retry-after")).toBe("1");
+    // The lock is released: a single try after them is checked.
+    expect((await login("nope", "198.51.100.9")).status).toBe(303);
+  });
+
+  it("shows no text taken from the address, whatever `err` says", async () => {
+    const res = await app.request("/admin/login?err=Phrase%20forg%C3%A9e");
+    expect(await res.text()).not.toContain("Phrase forgée");
+  });
+
+  it("shows a failed login once, from a closed list of codes", async () => {
+    const failed = await login("nope");
+    const html = await (await app.request(failed.headers.get("location")!)).text();
+    expect(html.split("E-mail ou mot de passe incorrect")).toHaveLength(2);
+    const unknown = await (await app.request("/admin/login?e=zzz")).text();
+    expect(unknown).not.toContain("E-mail ou mot de passe incorrect");
+    expect(unknown).not.toContain('role="alert"');
   });
 });

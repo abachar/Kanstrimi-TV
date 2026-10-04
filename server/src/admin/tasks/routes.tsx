@@ -15,7 +15,8 @@ import {
   RETENTION_DAYS,
   type Task,
 } from "@/catalog";
-import { back, page } from "../http";
+import { back, intParam, page } from "../http";
+import { pageParam } from "../query";
 import { TasksView, TaskCard, RunView, RunLog, RUNS_PER_PAGE } from "./view";
 
 /** `/admin/tasks`: the scheduled tasks and the runs; `/admin/tasks/:id`: one run and its log file. */
@@ -31,7 +32,7 @@ async function taskStates(tasks: readonly Task[]) {
 tasksRoutes.get("/", async (c) => {
   const task = c.req.query("task") ?? "";
   const errors = c.req.query("errors") === "1";
-  const pageNo = Math.max(1, Number(c.req.query("page")) || 1);
+  const pageNo = pageParam(c.req.query("page"));
   const [tasks, list] = await Promise.all([
     taskStates(TASKS),
     recentRuns({ limit: RUNS_PER_PAGE, offset: (pageNo - 1) * RUNS_PER_PAGE, task: task || undefined, errors }),
@@ -51,22 +52,20 @@ tasksRoutes.get("/card/:task", async (c) => {
   return c.html(<TaskCard {...state} />);
 });
 
-const runOf = async (id: string) => (/^\d+$/.test(id) ? runById(Number(id)) : null);
-
 tasksRoutes.get("/:id", async (c) => {
-  const run = await runOf(c.req.param("id"));
+  const run = await runById(intParam(c, "id"));
   if (!run) return c.notFound();
   return page(c, `Passage n° ${run.id}`, <RunView run={run} log={run.logFile ? readRunLog(run.logFile) : null} />);
 });
 
 tasksRoutes.get("/:id/log", async (c) => {
-  const run = await runOf(c.req.param("id"));
+  const run = await runById(intParam(c, "id"));
   if (!run) return c.notFound();
   return c.html(<RunLog run={run} log={run.logFile ? readRunLog(run.logFile) : null} />);
 });
 
 tasksRoutes.get("/:id/raw", async (c) => {
-  const run = await runOf(c.req.param("id"));
+  const run = await runById(intParam(c, "id"));
   const file = run?.logFile ? runLogPath(run.logFile) : null;
   if (!run || !file || !fs.existsSync(file)) return c.notFound();
   c.header("content-type", "text/plain; charset=utf-8");
@@ -78,7 +77,7 @@ tasksRoutes.get("/:id/raw", async (c) => {
 
 /** « Arrêter »: the run stops after the work in flight, or is closed at once when nothing runs it. */
 tasksRoutes.post("/:id/kill", async (c) => {
-  const run = await runOf(c.req.param("id"));
+  const run = await runById(intParam(c, "id"));
   if (!run) return c.notFound();
   const result = await killRun(run.id);
   const msg =

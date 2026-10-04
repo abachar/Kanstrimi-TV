@@ -21,7 +21,7 @@ async function inProduction<T>(fn: () => T | Promise<T>) {
 }
 
 describe("app", () => {
-  it("/health: the database answers, the vault state is reported without changing the status", async () => {
+  it("/health: the database answers", async () => {
     const res = await app.request("/health");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });

@@ -1,8 +1,9 @@
+import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
-import { describeError, serveFile, singleFlight } from "@/shared";
+import { describeError, imageKey, serveFile, singleFlight } from "@/shared";
 import { ensureImage, ensureShelfImage, SHELF_SCALES, type ShelfScale } from "./images";
 
-/** `/img/{size}/{file}`: TMDB images through the local disk cache; every card URL points here. Mounted by `main.ts`. */
+/** `/img/{size}/{file}`: TMDB images through the local disk cache; every card URL points here. Mounted by `app.ts`. */
 export const imgRoute = new Hono();
 
 /**
@@ -26,7 +27,16 @@ imgRoute.get("/shelf/:scale/:backdrop/:logo", async (c) => {
   return serveFile(await once(`shelf/${scale}/${backdrop}/${logo}`, () => ensureShelfImage(scale as ShelfScale, backdrop, logo)));
 });
 
+const sameKey = (a: string, b: string) => {
+  const [x, y] = [Buffer.from(a), Buffer.from(b)];
+  return x.length === y.length && timingSafeEqual(x, y);
+};
+
 imgRoute.get("/:size/:file", async (c) => {
   const { size, file } = c.req.param();
-  return serveFile(await once(`${size}/${file}`, () => ensureImage(size, file)));
+  // A cached file is served to anyone; only the URLs this server writes (`?k=`) may make it download one.
+  const k = c.req.query("k");
+  const mayDownload = k !== undefined && sameKey(k, imageKey(size, file));
+  // An unsigned request never downloads: it must not share (and spoil) a signed one's flight.
+  return serveFile(await once(`${mayDownload ? "" : "cached:"}${size}/${file}`, () => ensureImage(size, file, mayDownload)));
 });

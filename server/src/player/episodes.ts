@@ -1,10 +1,10 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { db, schema, type Content, type Episode, type Variant } from "@/db";
-import { seasonsOf } from "@/catalog";
-import { languageLabel, qualityBadgeOf, versionsOf, versionsSummary, type Playable } from "./versions";
-import { imageUrl, isWatched, progressWire, remaining, runtimeText } from "./cards";
+import { ensureEpisodes, seasonsOf } from "@/catalog";
+import { languageLabel, qualityBadgeOf, sourceId, versionsOf, versionsSummary, type Playable } from "./versions";
+import { badgesOf, imageUrl, isWatched, progressWire, remaining, runtimeText } from "./cards";
 import type { RestContext } from "./context";
-import { sourceId } from "./stream-links";
+import { variantsOf, type Variants } from "./contents";
 import { isResumable, type Progress } from "./progress";
 import type { EpisodeWire, SeasonWire, Version } from "./types";
 
@@ -56,6 +56,13 @@ export async function loadEpisodes(
   return eps.map((e) => ({ ...e, playables: byEp.get(e.id) ?? [] })).filter((e) => e.playables.length > 0);
 }
 
+/** A series' variants and its episodes, rebuilt first when stale. */
+export async function episodesOf(ctx: RestContext, content: Content): Promise<{ variants: Variants; episodes: EpisodeRow[] }> {
+  const variants = await variantsOf(ctx, content);
+  await ensureEpisodes(content, variants.items, ctx.tmdbLang);
+  return { variants, episodes: await loadEpisodes(content, variants.items, variants.categoryName) };
+}
+
 /** The episode a series resumes on: the one in progress, else the first never started. */
 export function currentEpisode(episodes: EpisodeRow[], progress: Map<string, Progress>): EpisodeRow | undefined {
   return episodes.find((e) => isResumable(progress.get(e.key))) ?? episodes.find((e) => !progress.get(e.key));
@@ -90,7 +97,8 @@ export function episodeWire(ctx: RestContext, e: EpisodeRow, progress?: Progress
       poster: null,
       picture: still,
       facts: facts.length ? facts.join(" · ") : null,
-      badges: [quality, ...summary.languages.map(languageLabel)].filter((b) => b !== null),
+      quality,
+      badges: badgesOf(quality, summary.languages),
       hint: summary.languages.length === 1 ? `${languageLabel(summary.languages[0])} SEUL` : null,
       progress: resumable ? progress.position / progress.duration : null,
       watched,

@@ -1,8 +1,9 @@
 import { isTmdbKey } from "@/catalog";
 import type { Content } from "@/db";
+import { signedImagePath } from "@/shared";
 import type { Card, ContentItem, Person, ProgressWire } from "./types";
 import type { RestContext } from "./context";
-import { FINISHED_AT, isResumable, type Progress } from "./progress";
+import { isResumable, type Progress } from "./progress";
 import { drOf, languageLabel, qualityBadgeOf, qualityOfRank, sortLanguages } from "./versions";
 
 /** The one `Card` of the contract, in its three sizes: base (every list), grid (+ year, rating…), sheet (+ overview, cast…). */
@@ -10,7 +11,7 @@ import { drOf, languageLabel, qualityBadgeOf, qualityOfRank, sortLanguages } fro
 /** The URL of a TMDB image through this server's `/img` cache; empty when there is no image. */
 export function imageUrl(baseUrl: string, size: string, tmdbPath: string | null | undefined): string {
   if (!tmdbPath) return "";
-  return `${baseUrl}/img/${size}${tmdbPath.startsWith("/") ? "" : "/"}${tmdbPath}`;
+  return `${baseUrl}${signedImagePath(size, tmdbPath)}`;
 }
 
 /** A channel logo: iptv-org's through this server (`/img/logos/…`), else the provider's absolute URL. */
@@ -20,9 +21,10 @@ export function channelLogo(baseUrl: string, logo: string | null): string | null
 
 export function progressWire(p: Progress | undefined, withFinished: boolean): ProgressWire | null {
   if (!p) return null;
+  const resumable = isResumable(p);
   return withFinished
-    ? { position: p.position, duration: p.duration, finished: p.finished }
-    : { position: p.position, duration: p.duration };
+    ? { position: p.position, duration: p.duration, finished: p.finished, resumable }
+    : { position: p.position, duration: p.duration, resumable };
 }
 
 export const kindOf = (c: Content): Card["kind"] => (c.kind === "vod" ? "movie" : c.kind === "series" ? "series" : "live");
@@ -59,7 +61,7 @@ export function gridCard(ctx: RestContext, c: Content, progress?: Progress): Car
   };
 }
 
-/** The wide picture and the title's logo: the sheet, and the best search result. */
+/** The wide picture and the title's logo: the sheet. */
 export function artBlock(ctx: RestContext, c: Content): Pick<Card, "backdrop" | "logo"> {
   return {
     backdrop: imageUrl(ctx.baseUrl, "w1280", c.backdropPath) || null,
@@ -78,11 +80,18 @@ export function castOf(ctx: RestContext, c: Content): Person[] {
 }
 
 /** Base + sheet block, without versions and seasons (added by the caller). */
-export function sheetCard(ctx: RestContext, c: Content, extra: { providerCategory: string | null; rawTitle: string | null }): Card {
+export function sheetCard(
+  ctx: RestContext,
+  c: Content,
+  extra: { providerCategory: string | null; rawTitle: string | null; seasonCount?: number },
+): Card {
   const tmdb = isTmdbKey(c.key);
   return {
     ...gridCard(ctx, c),
     ...artBlock(ctx, c),
+    tagline: c.kind === "series" ? `SÉRIE · ${extra.seasonCount ?? 0} ${(extra.seasonCount ?? 0) > 1 ? "SAISONS" : "SAISON"}` : "FILM",
+    facts: sheetFacts(c),
+    rating_label: c.rating ? `★ ${c.rating.toFixed(1)}` : null,
     original_title: c.originalTitle,
     end_year: c.endYear,
     overview: c.overview,
@@ -95,6 +104,30 @@ export function sheetCard(ctx: RestContext, c: Content, extra: { providerCategor
     provider_category: tmdb ? null : extra.providerCategory,
     raw_title: tmdb ? null : extra.rawTitle,
   };
+}
+
+/** « 2019 », « 2019 – 2022 » (a series that ended the year it began: « 2021 »), then two genres at most, then the runtime: « 2019 · Drame, Crime · 52 min »; null when empty. */
+function sheetFacts(c: Content): string | null {
+  const parts = [
+    c.year ? (c.endYear && c.endYear !== c.year ? `${c.year} – ${c.endYear}` : String(c.year)) : null,
+    c.genres.length ? c.genres.slice(0, 2).join(", ") : null,
+    c.runtime ? runtimeText(c.runtime) : null,
+  ].filter((t) => t !== null);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+/**
+ * The play button of a title, on its sheet and on its home slide. A movie: « Revoir », « Reprendre · 40 min restantes »,
+ * « Lecture ». A series (`series` given, its current episode or null): « Reprendre S2 É4 », « Lire S2 É4 », « Lecture ».
+ * `progress` is the movie's, or the current episode's.
+ */
+export function playLabel(progress: Progress | undefined, series?: { season: number; number: number } | null): string {
+  if (series === undefined) {
+    if (isWatched(progress)) return "Revoir";
+    return isResumable(progress) ? `Reprendre · ${remaining(progress)}` : "Lecture";
+  }
+  if (!series) return "Lecture";
+  return `${isResumable(progress) ? "Reprendre" : "Lire"} S${series.season} É${series.number}`;
 }
 
 /** « 40 min restantes », « 1 h 08 restantes ». */
@@ -110,15 +143,20 @@ export function runtimeText(minutes: number): string {
   return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}` : `${minutes} min`;
 }
 
+/** The badges of a card: its quality first, then its languages as they read on screen. */
+export function badgesOf(quality: string | null, languages: string[]): string[] {
+  return [quality, ...languages.map(languageLabel)].filter((b) => b !== null);
+}
+
 /** « 1 film », « 3 films ». */
 export const filmCount = (n: number) => (n > 1 ? `${n} films` : `${n} film`);
 
 /** « S2 · É4 ». */
 export const episodeCode = (season: number, number: number) => `S${season} · É${number}`;
 
-/** « Vu »: finished at write time, or a position past 90 %. */
+/** « Vu »: what the write derived (`setProgress` at 90 %, `setFinished`). */
 export function isWatched(p: Progress | undefined): boolean {
-  return Boolean(p && (p.finished || (p.duration > 0 && p.position / p.duration >= FINISHED_AT)));
+  return Boolean(p?.finished);
 }
 
 /** « 4K DV », « HD »: the best quality of a content and its dynamic range. */
@@ -139,6 +177,7 @@ export function factsOf(year: number | null, rating: number | null): string | nu
 export function contentItem(ctx: RestContext, c: Content, progress?: Progress): ContentItem {
   const base = baseCard(ctx, c);
   const languages = base.languages ?? [];
+  const quality = qualityBadge(c);
   const resumable = isResumable(progress);
   return {
     id: base.id,
@@ -148,7 +187,8 @@ export function contentItem(ctx: RestContext, c: Content, progress?: Progress): 
     logo: imageUrl(ctx.baseUrl, "w500", c.titleLogoPath) || null,
     picture: imageUrl(ctx.baseUrl, "w1280", c.backdropPath) || null,
     facts: factsOf(c.year, c.rating),
-    badges: [qualityBadge(c), ...languages.map(languageLabel)].filter((b) => b !== null),
+    quality,
+    badges: badgesOf(quality, languages),
     hint: hintOf(languages),
     progress: resumable ? progress.position / progress.duration : null,
     watched: isWatched(progress),

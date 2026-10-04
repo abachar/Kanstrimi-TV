@@ -20,6 +20,7 @@ const schema = z
     /** The login of the admin form, next to the password. */
     ADMIN_EMAIL: z.email("ADMIN_EMAIL invalide").optional(),
     SESSION_SECRET: z.string().min(32, "SESSION_SECRET doit faire au moins 32 caractères").optional(),
+    NODE_ENV: z.string().optional(),
     DATABASE_URL: z.string().optional(),
     DATA_DIR: z.string().default("./data"),
     PORT: z.coerce.number().int().positive().default(3000),
@@ -32,7 +33,7 @@ const schema = z
     TMDB_API_KEY: z.string().trim().default(""),
   })
   .superRefine((v, ctx) => {
-    if (!isProd) return;
+    if (v.NODE_ENV !== "production") return;
     if (v.DEV_PASSWORD)
       ctx.addIssue({ code: "custom", path: ["DEV_PASSWORD"], message: "DEV_PASSWORD est interdit en production (NODE_ENV=production)." });
     for (const name of ["SESSION_SECRET", "DATABASE_URL", "ADMIN_EMAIL"] as const) {
@@ -40,7 +41,10 @@ const schema = z
     }
   });
 
-const parsed = schema.safeParse(process.env);
+/** The validation of the environment, apart from the process: what the tests exercise. */
+export const parseEnv = (raw: Record<string, string | undefined>) => schema.safeParse(raw);
+
+const parsed = parseEnv(process.env);
 if (!parsed.success) {
   console.error(parsed.error.issues.map((i) => i.message).join("\n"));
   process.exit(1);
@@ -48,7 +52,7 @@ if (!parsed.success) {
 
 export const env = {
   isProd,
-  /** bcrypt hash of the single password (admin web + IPTV client). */
+  /** bcrypt hash of the admin password. */
   adminPasswordHash: parsed.data.ADMIN_PASSWORD_HASH,
   /** Required with the password by the admin login form (compared case-insensitively). */
   adminEmail: (parsed.data.ADMIN_EMAIL ?? "admin@localhost").toLowerCase(),

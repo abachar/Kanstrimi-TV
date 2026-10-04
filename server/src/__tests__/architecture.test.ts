@@ -83,4 +83,15 @@ describe("architecture", () => {
     const fromXtream = files.filter((f) => block(f) === "player").flatMap((f) => named(f, "providers/xtream"));
     expect([...new Set(fromXtream)]).toEqual(["upstreamStreamUrl"]);
   });
+  it("a provider touches only its own tables: no catalog_ nor curation_ table", () => {
+    const reads = files
+      .filter((f) => block(f).startsWith("providers/"))
+      .flatMap((f) =>
+        fs
+          .readFileSync(f, "utf8")
+          .split("\n")
+          .flatMap((line, i) => (/schema\.(catalog|curation)/.test(line) ? [`${path.relative(root, f)}:${i + 1}: ${line.trim()}`] : [])),
+      );
+    expect(reads).toEqual([]);
+  });
 });

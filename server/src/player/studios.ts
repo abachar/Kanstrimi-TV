@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { parseStudioRef, studioColumn, type StudioKind } from "@/catalog";
+import { ofStudio, parseStudioRef, studioColumn, type StudioKind } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
-import { visibleContent } from "./contents";
+import { byRelease, visibleContent } from "./contents";
 import { imageUrl } from "./cards";
 import type { StudioWire } from "./types";
 
@@ -14,9 +14,6 @@ export function studioRoutes(kind: "vod" | "series") {
   routes.get("/", async (c) => json(await studiosOf(c.get("ctx"), kind)));
   return routes;
 }
-
-/** The row of `curation_studios` aliased `s` owns this content. */
-const ofStudio = sql`case s.kind when 'company' then company_ids @> array[s.tmdb_id] else network_ids @> array[s.tmdb_id] end`;
 
 export async function studiosOf(ctx: RestContext, kind: "vod" | "series"): Promise<StudioWire[]> {
   const rows = await db.execute<{
@@ -31,12 +28,12 @@ export async function studiosOf(ctx: RestContext, kind: "vod" | "series"): Promi
     from ${schema.curationStudios} s
     cross join lateral (
       select count(*)::int as n from ${schema.catalogContents}
-      where ${visibleContent(ctx, kind)} and ${ofStudio}
+      where ${visibleContent(ctx, kind)} and ${ofStudio("s")}
     ) n
     left join lateral (
       select backdrop_path from ${schema.catalogContents}
-      where ${visibleContent(ctx, kind)} and ${ofStudio} and backdrop_path is not null
-      order by coalesce(release_date, '0001-01-01'::date) desc, id desc limit 1
+      where ${visibleContent(ctx, kind)} and ${ofStudio("s")} and backdrop_path is not null
+      order by ${byRelease} desc, id desc limit 1
     ) b on true
     where n.n > 0 order by s.position, s.id`);
   return rows.map((r) => ({

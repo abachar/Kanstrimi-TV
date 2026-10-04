@@ -8,8 +8,8 @@ import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./con
 import { getProgress, isResumable, resumeKeys, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
-import { contentItem, imageUrl, isWatched, remaining, resumeItem, runtimeText } from "./cards";
-import { languageLabel, qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
+import { badgesOf, contentItem, imageUrl, playLabel, resumeItem, runtimeText } from "./cards";
+import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
 import { recommendedRow } from "./related";
 import { type ShelfPick, shelfPicks, TOP_SHELF_SIZE } from "./top-shelf";
 import type { ContentItem, Home, HomeHero, HomeRow } from "./types";
@@ -114,9 +114,9 @@ async function heroOf(
       ...contentItem(ctx, c, progress),
       poster: imageUrl(ctx.baseUrl, "w780", c.posterPath) || null,
       facts: facts || null,
-      badges: [quality, ...summary.languages.map(languageLabel)].filter((b) => b !== null),
+      quality,
+      badges: badgesOf(quality, summary.languages),
       progress: resumes ? progress.position / progress.duration : null,
-      watched: isWatched(progress),
       caption: null,
       overview: e?.overview || c.overview,
     },
@@ -128,7 +128,7 @@ async function heroOf(
     play_id: p.playId,
     ...(e ? { episode: { season: e.season, number: e.number, title: e.title } } : {}),
     is_favorite: favorite,
-    play_label: resumes ? `Reprendre · ${remaining(progress)}` : "Lecture",
+    play_label: playLabel(e ? undefined : progress, c.kind === "series" ? (e ?? null) : undefined),
     resume_at: resumes ? progress.position : null,
     duration: resumes ? progress.duration : runtime ? runtime * 60 : null,
   };

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { getSettings } from "@/config";
 import { appCounts, counts } from "./data";
 import { cacheStats } from "@/providers/tmdb";
-import { epgStat } from "@/providers/xtream";
+import { epgStat } from "@/catalog";
 import { groupingCounts } from "@/catalog";
 import { launch, pipelineSteps, runningSteps, getLastError, lastRunsByTask, TASKS, type Task } from "@/catalog";
 import { page, back } from "../http";
@@ -10,7 +10,7 @@ import { JOB_STARTED, jobLabel } from "../labels";
 import { DashboardView } from "./view";
 import { JobsStatus } from "./jobs";
 
-/** `/admin`: the dashboard; `/admin/jobs`: what the buttons and the htmx poll of the dashboard call. */
+/** `/admin`: the dashboard; `/admin/jobs`: what the task buttons and the htmx poll of the dashboard call. */
 export const dashboardRoutes = new Hono();
 export const jobRoutes = new Hono();
 
@@ -34,8 +34,8 @@ dashboardRoutes.get("/", async (c) => {
 });
 jobRoutes.get("/status", (c) => c.html(<JobsStatus {...jobsState()} />));
 /**
- * Launches a task, the pipeline from the `from` step on when the form names one, then back to
- * the page the button was on (the journal or the dashboard).
+ * Launches a task, the pipeline from the `from` step on when the form names one; the launched task
+ * then shows in the task journal (pages go out with `Referrer-Policy: no-referrer`).
  */
 jobRoutes.post("/:task", async (c) => {
   const task = c.req.param("task") as Task;
@@ -44,8 +44,6 @@ jobRoutes.post("/:task", async (c) => {
   const from = String(body.from ?? "");
   const acceptShrink = task === "pipeline" && body.accept_shrink === "1";
   const step = task === "pipeline" ? (await pipelineSteps()).find((s) => s === from) : undefined;
-  const referer = c.req.header("referer");
-  const to = referer && new URL(referer).pathname.startsWith("/admin") ? new URL(referer).pathname : "/admin/tasks";
   const ok = step ? `Traitement lancé à partir de « ${jobLabel(step)} »` : JOB_STARTED[task];
-  return back(c, to, launch(task, step, { acceptShrink }) ? { ok } : { err: "Déjà en cours" });
+  return back(c, "/admin/tasks", launch(task, step, { acceptShrink }) ? { ok } : { err: "Déjà en cours" });
 });

@@ -28,7 +28,21 @@ export function loginSucceeded(ip: string) {
   failures.delete(ip);
 }
 
+/** One password check at a time: bcrypt is pure JS on the only thread, which also serves the app. */
+let comparing = false;
+
+export function beginAttempt(): boolean {
+  if (comparing) return false;
+  comparing = true;
+  return true;
+}
+
+export function endAttempt() {
+  comparing = false;
+}
+
 /** Tests only. */
 export function resetLoginAttempts() {
   failures.clear();
+  comparing = false;
 }

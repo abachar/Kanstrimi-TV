@@ -1,9 +1,7 @@
 import { Title } from "../ui";
-import { ago, fmt } from "../format";
+import { ago, fmt, megabytes } from "../format";
 import { CACHE_LABELS } from "../labels";
 import type { CacheStat } from "./data";
-
-const mb = (bytes: number) => `${(bytes / 1e6).toFixed(bytes < 1e6 ? 2 : 1)} Mo`;
 
 export function CachesView({ rows }: { rows: CacheStat[] }) {
   return (
@@ -23,7 +21,7 @@ export function CachesView({ rows }: { rows: CacheStat[] }) {
                   {fmt(r.count)} <span class="text-sm font-normal text-muted-foreground">{l.unit}</span>
                 </div>
                 <div class="text-xs text-muted-foreground">
-                  {mb(r.bytes)}
+                  {megabytes(r.bytes)}
                   {r.oldest ? ` · plus ancien ${ago(r.oldest)}` : ""}
                   {r.newest ? ` · plus récent ${ago(r.newest)}` : ""}
                 </div>
@@ -34,8 +32,8 @@ export function CachesView({ rows }: { rows: CacheStat[] }) {
         })}
       </div>
       <p class="text-sm text-muted-foreground">
-        Les fichiers (<code class="font-mono text-foreground">DATA_DIR</code> : images, EPG) se reconstruisent ; seule la base se
-        sauvegarde.
+        Les fichiers de <code class="font-mono text-foreground">DATA_DIR</code> (images, iptv-org, logs) se reconstruisent ; seule la base
+        se sauvegarde.
       </p>
     </>
   );

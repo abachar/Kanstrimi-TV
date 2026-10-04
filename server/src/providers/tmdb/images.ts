@@ -5,8 +5,8 @@ import { env } from "@/shared";
 const SIZES = new Set(["w92", "w154", "w185", "w300", "w342", "w500", "w780", "w1280", "original"]);
 const FILE = /^[A-Za-z0-9_-]+\.(jpg|jpeg|png|svg|webp)$/;
 
-/** Return local cache path for a TMDB image, downloading it if needed. */
-export async function ensureImage(size: string, file: string): Promise<{ path: string; contentType: string } | null> {
+/** Return local cache path for a TMDB image, downloading it if needed and allowed (a cached file is always served). */
+export async function ensureImage(size: string, file: string, mayDownload: boolean): Promise<{ path: string; contentType: string } | null> {
   if (!SIZES.has(size) || !FILE.test(file)) return null;
   const dir = path.join(env.dataDir, "images", size);
   const p = path.join(dir, file);
@@ -23,6 +23,7 @@ export async function ensureImage(size: string, file: string): Promise<{ path: s
   } catch {
     /* download */
   }
+  if (!mayDownload) return null;
   const res = await fetch(`https://image.tmdb.org/t/p/${size}/${file}`, { signal: AbortSignal.timeout(20_000) });
   if (!res.ok) return null;
   await fs.mkdir(dir, { recursive: true });
@@ -79,7 +80,7 @@ export async function ensureShelfImage(
   } catch {
     /* compose */
   }
-  const [bg, lg] = await Promise.all([ensureImage("original", backdrop), ensureImage(s === 2 ? "original" : "w500", logo)]);
+  const [bg, lg] = await Promise.all([ensureImage("original", backdrop, true), ensureImage(s === 2 ? "original" : "w500", logo, true)]);
   if (!bg || !lg) return null;
   const { default: sharp } = await import("sharp");
   const width = 1920 * s,

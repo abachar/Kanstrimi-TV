@@ -32,7 +32,7 @@ describe("TmdbClient", () => {
 
   it("fails with the path and the status on an HTTP error, and on a body that is not JSON", async () => {
     vi.stubGlobal("fetch", async () => new Response("{}", { status: 404 }));
-    await expect(new TmdbClient("k", "fr-FR").tv(1)).rejects.toThrow("TMDB /tv/1: HTTP 404");
+    await expect(new TmdbClient("k", "fr-FR").tv(1)).rejects.toThrow("TMDB /tv/1 : HTTP 404");
     vi.stubGlobal("fetch", async () => new Response("<html>oops</html>"));
     await expect(new TmdbClient("k", "fr-FR").tv(1)).rejects.toThrow();
   });

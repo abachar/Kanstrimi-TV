@@ -62,6 +62,34 @@ describe("ensureEpisodes", () => {
     expect(await episodes()).toHaveLength(3);
   });
 
+  it("stops asking the provider after the first outage of a rebuild: the other variants read their cache", async () => {
+    await seedItems([
+      { kind: "series", xtreamId: "301", name: "|FR| Dark (VOSTFR)", matchStatus: "unmatched", addedAt: new Date() },
+      { kind: "series", xtreamId: "302", name: "|FR| Dark (VF)", matchStatus: "unmatched", addedAt: new Date() },
+    ]);
+    await runNaming();
+    await runGrouping();
+    [content] = await db.select().from(schema.catalogContents);
+    variants = await db.select().from(schema.catalogVariants);
+    expect(variants).toHaveLength(3);
+    await db
+      .insert(schema.xtreamInfoCache)
+      .values(variants.map((v, i) => ({ kind: "series" as const, xtreamId: v.xtreamId, data: info(2, `v${i}-`), fetchedAt: new Date(0) })));
+    const fetch = vi.fn(async (_u: unknown): Promise<Response> => {
+      throw Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } });
+    });
+    vi.stubGlobal("fetch", fetch);
+    await ensureEpisodes(content, variants, "fr-FR");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const sources = await db.select().from(schema.catalogEpisodeVariants);
+    expect(sources).toHaveLength(6); // two episodes from the cache of each of the three variants
+  });
+
+  it("says the provider is unavailable when it answers 5xx, not that the series has no episodes", async () => {
+    vi.stubGlobal("fetch", async () => new Response("", { status: 503 }));
+    await expect(ensureEpisodes(content, variants, "fr-FR")).rejects.toBeInstanceOf(UpstreamUnavailable);
+  });
+
   it("runs once per series at a time: two openings at once share one rebuild and one provider call", async () => {
     let answer!: () => void;
     const gate = new Promise<void>((r) => (answer = r));
@@ -78,10 +106,5 @@ describe("ensureEpisodes", () => {
     expect(await episodes()).toHaveLength(2);
     const sources = await db.select().from(schema.catalogEpisodeVariants);
     expect(sources).toHaveLength(2);
-  });
-
-  it("asks the provider with a short timeout, not the minute of the catalogue lists", async () => {
-    const { SERIES_INFO_TIMEOUT_MS } = await import("@/providers/xtream");
-    expect(SERIES_INFO_TIMEOUT_MS).toBeLessThanOrEqual(15_000);
   });
 });

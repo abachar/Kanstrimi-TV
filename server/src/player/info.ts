@@ -6,7 +6,7 @@ import pkg from "../../package.json";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
 import { servedVariant, visibleContent } from "./contents";
-import { DEFAULT_LANGUAGE_ORDER, sortLanguages } from "./versions";
+import { sortLanguages } from "./versions";
 import type { ServerInfo } from "./types";
 
 export const infoRoutes = new Hono<Env>();
@@ -38,6 +38,5 @@ export async function serverInfo(ctx: RestContext): Promise<ServerInfo> {
     last_import: s.last_sync_at || null,
     tmdb_rate: rate[0].decided ? Math.round((rate[0].matched / rate[0].decided) * 100) / 100 : null,
     catalog_languages: sortLanguages(langs.map((r) => r.l)),
-    default_language_order: DEFAULT_LANGUAGE_ORDER,
   };
 }

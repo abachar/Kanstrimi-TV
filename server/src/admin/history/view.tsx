@@ -1,12 +1,9 @@
+import { runtimeText } from "@/player";
 import { Title, Card, Badge, Empty, Meter, Table } from "../ui";
 import { ago, fmt } from "../format";
 import type { HistoryRow } from "./data";
 
-const clock = (s: number) => {
-  const h = Math.floor(s / 3600),
-    m = Math.floor((s % 3600) / 60);
-  return h ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min`;
-};
+const clock = (s: number) => runtimeText(Math.floor(s / 60));
 
 const Action = ({
   row,

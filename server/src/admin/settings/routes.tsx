@@ -8,6 +8,7 @@ import { TmdbClient } from "@/providers/tmdb";
 import { retryUnmatched, resetMatches } from "@/catalog";
 import { page, back, form, checked, zerr } from "../http";
 import { logout, revokeSessions } from "../session";
+import { InlineResult } from "../ui";
 import { SettingsView } from "./view";
 
 const settingsSchema = z.object({
@@ -19,8 +20,8 @@ const settingsSchema = z.object({
   serve_adult: z.string().optional(),
 });
 
-const ok = (text: string) => <span class="text-sm text-emerald-400">{text}</span>;
-const ko = (text: string) => <span class="text-sm text-destructive">{text}</span>;
+const ok = (text: string) => <InlineResult ok text={text} />;
+const ko = (text: string) => <InlineResult ok={false} text={text} />;
 
 export const settingsRoutes = new Hono();
 

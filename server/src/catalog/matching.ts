@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import pLimit from "p-limit";
-import { db, schema, sqlTmdbMediaType, tmdbMediaType, type Variant } from "@/db";
+import { db, schema, sqlTmdbMediaType, tmdbHasLogos, tmdbMediaType, type Variant } from "@/db";
 import { cancelGuard, describeError, isUnreachable, progress } from "@/shared";
 import {
   DETAILS_TTL_MS,
@@ -163,7 +163,7 @@ async function applyVerdict(client: TmdbClient, it: PendingItem, v: MatchExplana
 export async function setMatch(
   itemId: number,
   tmdbId: number | null,
-  score: number,
+  score: number | null,
   status: "matched" | "unmatched" | "manual" | "pending",
 ) {
   await db
@@ -328,7 +328,7 @@ async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>
       .orderBy(...order)
       .limit(max);
   const cutoff = new Date(Date.now() - DETAILS_TTL_MS);
-  const withoutLogos = sql`not coalesce(${schema.tmdbCache.data} -> 'images' ? 'logos', false)`;
+  const withoutLogos = sql`not ${tmdbHasLogos}`;
   const old = await pick(lt(schema.tmdbCache.fetchedAt, cutoff)!, REFRESH_PER_RUN, [asc(schema.tmdbCache.fetchedAt)]);
   // What the app shows first gets its logo first: visible titles, the latest releases.
   const logoless = await pick(and(withoutLogos, gte(schema.tmdbCache.fetchedAt, cutoff))!, BACKFILL_PER_RUN, [
@@ -390,7 +390,7 @@ export async function assignManual(itemId: number, tmdbId: number | null) {
     if (!client) throw new Error("Clé API TMDB non configurée");
     await getDetails(client, tmdbMediaType(it.kind), tmdbId, true);
   }
-  await setMatch(itemId, tmdbId, 1, tmdbId ? "manual" : "unmatched");
+  await setMatch(itemId, tmdbId, null, tmdbId ? "manual" : "unmatched");
   await regroupItems([itemId]);
 }
 

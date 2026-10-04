@@ -12,7 +12,7 @@ const CHUNK = 1000;
  * Below `SHRINK_FLOOR` entries the check says nothing (a new or tiny account).
  */
 export const SHRINK_RATIO = 0.5;
-const SHRINK_FLOOR = 50;
+export const SHRINK_FLOOR = 50;
 
 export class ShrinkError extends Error {}
 /** Ends every refusal of a shrinking catalogue (here and in `merge`): the admin offers to accept it. */
@@ -91,7 +91,7 @@ export function checkShrink(received: Record<Kind, number>, current: Record<Kind
  * copy (`xtream_categories`, `xtream_streams`) in one transaction. Never touches the catalogue:
  * `merge` derives it from the copy.
  */
-export async function runSync(opts: { acceptShrink?: boolean } = {}): Promise<Record<string, number>> {
+export async function runSync(opts: { currentCounts: Record<Kind, number>; acceptShrink?: boolean }): Promise<Record<string, number>> {
   const client = xtreamFromSettings(await getSettings());
   if (!client) throw new Error("Serveur Xtream non configuré");
   const acct = await client.account();
@@ -117,13 +117,7 @@ export async function runSync(opts: { acceptShrink?: boolean } = {}): Promise<Re
     stats[`${kind}_items`] = s.length;
   }
 
-  const current = { live: 0, vod: 0, series: 0 } as Record<Kind, number>;
-  const rows = await db
-    .select({ kind: schema.catalogVariants.kind, n: sql<number>`count(*)::int` })
-    .from(schema.catalogVariants)
-    .groupBy(schema.catalogVariants.kind);
-  for (const r of rows) current[r.kind] = r.n;
-  checkShrink(received, current, opts.acceptShrink);
+  checkShrink(received, opts.currentCounts, opts.acceptShrink);
 
   checkCancelled();
   await db.transaction(async (tx) => {

@@ -3,7 +3,7 @@ import { db, schema } from "@/db";
 import { and, eq } from "drizzle-orm";
 import { TmdbClient, type TmdbDetails } from "./client";
 import { hasAllNames } from "./match";
-import { isUnreachable } from "@/shared";
+import { describeError, isUnreachable } from "@/shared";
 
 /** A cached document is read again from TMDB past this age. */
 export const DETAILS_TTL_MS = 30 * 24 * 3600 * 1000;
@@ -69,7 +69,10 @@ export async function detailsWithNames(
     return null;
   });
   if (!d || hasAllNames(d) || !stillWrong(d)) return d;
-  return getDetails(client, mediaType, tmdbId, true).catch(() => d);
+  return getDetails(client, mediaType, tmdbId, true).catch((e) => {
+    console.warn(`[tmdb] relecture de ${mediaType} ${tmdbId} impossible, fiche gardée : ${describeError(e)}`);
+    return d;
+  });
 }
 
 /** Fetches the details and stores them; throws when TMDB does. */

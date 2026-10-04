@@ -1,5 +1,5 @@
 import { sql, type Column, type SQL } from "drizzle-orm";
-import type { Kind } from "@/db";
+import { db, type Kind } from "@/db";
 import { QUALITY_RANK } from "../naming";
 import { parseQuery, QueryError, type QueryOp, type QueryTerm, type QueryValue } from "./parse";
 import { closestName, resolveCode } from "./codes";
@@ -35,6 +35,9 @@ function textPred(values: QueryValue[]): Pred {
     )})`;
 }
 
+/** `\b` is JavaScript's word boundary, `\y` Postgres's. */
+const postgresPattern = (pattern: string) => pattern.replace(/\\b/g, "\\y");
+
 /**
  * A Postgres regex: case-insensitive (`~*`), tried on the value as written and without its accents.
  * `\b` is JavaScript's word boundary, `\y` Postgres's.
@@ -45,7 +48,7 @@ function regexPred(pattern: string, at: number): Pred {
   } catch (e) {
     throw new QueryError(`Expression régulière invalide : ${(e as Error).message}`, at);
   }
-  const re = pattern.replace(/\\b/g, "\\y");
+  const re = postgresPattern(pattern);
   return (e) => sql`(${e} ~* ${re} or unaccent(${e}) ~* ${re})`;
 }
 
@@ -138,6 +141,22 @@ function termSql(t: QueryTerm, o: CompileOptions): SQL {
   else throw new QueryError(`${f.names[0]} n'est pas un nombre : <, >, = et .. sont réservés aux nombres`, t.fieldAt);
   // A missing value is no match, and its negation a match: `-genre:horreur` keeps the films without genre.
   return t.neg ? sql`not coalesce(${cond}, false)` : sql`coalesce(${cond}, false)`;
+}
+
+/**
+ * Ask Postgres whether it accepts the regexes of a query: JavaScript takes some it refuses
+ * (`(?<x>…)`), and a refused one would make every UPDATE that uses it fail. Throws `QueryError`.
+ */
+export async function checkRegexes(text: string): Promise<void> {
+  for (const t of parseQuery(text)) {
+    if (t.op.kind !== "regex") continue;
+    try {
+      await db.execute(sql`select '' ~* ${postgresPattern(t.op.pattern)}`);
+    } catch (e) {
+      const cause = (e as { cause?: { message?: string } }).cause;
+      throw new QueryError(`Expression régulière refusée : ${cause?.message ?? (e as Error).message}`, t.op.at);
+    }
+  }
 }
 
 /** The condition on `catalog_variants` a query stands for; null for an empty query. Throws `QueryError`. */

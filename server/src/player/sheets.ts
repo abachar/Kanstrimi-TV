@@ -1,16 +1,16 @@
 import { Hono } from "hono";
 import type { Content } from "@/db";
-import { ensureEpisodes, parseKey, refreshCardOnOpen } from "@/catalog";
+import { parseKey, refreshCardOnOpen } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
 import { contentByKey, variantsOf, type Variants } from "./contents";
 import { getProgress } from "./progress";
 import { favoriteSet } from "./favorites";
-import { progressWire, hintOf, sheetCard } from "./cards";
+import { hintOf, playLabel, progressWire, sheetCard } from "./cards";
 import { languageLabel, versionsOf, versionsSummary } from "./versions";
 import { sagaRefOf } from "./sagas";
 import { sheetRelated } from "./related";
-import { currentEpisode, loadEpisodes, seasonsWire, seriesVersions, type EpisodeRow } from "./episodes";
+import { currentEpisode, episodesOf, seasonsWire, seriesVersions, type EpisodeRow } from "./episodes";
 import type { Card, EpisodeRef, Version } from "./types";
 
 /** `/movies/{id}`, `/series/{id}`: the whole sheet in one call. */
@@ -39,6 +39,7 @@ export async function movieSheet(ctx: RestContext, content: Content): Promise<Ca
     ...sheetCard(ctx, content, provenance(variants)),
     ...versionsSummary(versions),
     progress: progressWire(progress.get(content.key), true),
+    play_label: playLabel(progress.get(content.key)),
     versions,
     is_favorite: favs.has(content.key),
     ...(saga ? { saga } : {}),
@@ -47,20 +48,18 @@ export async function movieSheet(ctx: RestContext, content: Content): Promise<Ca
 
 /** Seasons, episodes with versions and progress, current episode. */
 export async function seriesSheet(ctx: RestContext, content: Content): Promise<Card> {
-  const variants = await variantsOf(ctx, content);
-  const { items, categoryName } = variants;
-  await ensureEpisodes(content, items, ctx.tmdbLang);
-  const episodes = await loadEpisodes(content, items, categoryName);
+  const { variants, episodes } = await episodesOf(ctx, content);
   const [progress, favs] = await Promise.all([getProgress(episodes.map((e) => e.key)), favoriteSet()]);
   const seasons = await seasonsWire(ctx, content, episodes, progress);
   const versions = seriesVersions(ctx, episodes);
   const current = currentEpisode(episodes, progress);
   const summary = versionsSummary(versions);
   return {
-    ...sheetCard(ctx, content, provenance(variants)),
+    ...sheetCard(ctx, content, { ...provenance(variants), seasonCount: seasons.length }),
     ...summary,
     hint: seriesHint(summary.languages ?? [], seasons),
     progress: current ? progressWire(progress.get(current.key), true) : null,
+    play_label: playLabel(current && progress.get(current.key), current ?? null),
     versions,
     is_favorite: favs.has(content.key),
     seasons,

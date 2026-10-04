@@ -103,15 +103,19 @@ export function setTmdbPace(n = TMDB_PER_SECOND) {
   nextSlot = 0;
 }
 
-/** TMDB said no. A 429 that outlasts the retries is an outage of the way (`RATE_LIMITED`), not of the title asked. */
+/**
+ * TMDB said no. A 429 that outlasts the retries (`RATE_LIMITED`), a 5xx or a refused key
+ * (`UNAVAILABLE`) are outages of the way, not of the title asked.
+ */
 export class TmdbError extends Error {
   readonly code?: string;
   constructor(
     path: string,
     readonly status: number,
   ) {
-    super(`TMDB ${path}: HTTP ${status}`);
+    super(`TMDB ${path} : HTTP ${status}`);
     if (status === 429) this.code = "RATE_LIMITED";
+    else if (status >= 500 || status === 401) this.code = "UNAVAILABLE";
   }
 }
 

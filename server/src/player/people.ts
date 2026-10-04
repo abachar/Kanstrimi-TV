@@ -3,7 +3,7 @@ import { and, desc, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
-import { visibleContent } from "./contents";
+import { byRelease, visibleContent } from "./contents";
 import { getProgress } from "./progress";
 import { contentItem, imageUrl } from "./cards";
 import type { PersonSheet } from "./types";
@@ -14,7 +14,6 @@ import type { PersonSheet } from "./types";
  */
 export const peopleRoutes = new Hono<Env>();
 
-const NO_RELEASE = "0001-01-01";
 const parsePersonKey = (key: string) => (/^person:\d+$/.test(key) ? Number(key.slice(7)) : null);
 
 peopleRoutes.get("/:id", async (c) => {
@@ -35,7 +34,7 @@ export async function personSheet(ctx: RestContext, key: string): Promise<Person
         sql`${schema.catalogContents.cast} @> ${JSON.stringify([{ id }])}::jsonb`,
       ),
     )
-    .orderBy(desc(sql`coalesce(${schema.catalogContents.releaseDate}, ${NO_RELEASE}::date)`), desc(schema.catalogContents.id));
+    .orderBy(desc(byRelease), desc(schema.catalogContents.id));
   if (rows.length === 0) return null;
   const me = rows[0].cast?.find((p) => p.id === id);
   const progress = await getProgress(rows.map((r) => r.key));
@@ -44,6 +43,7 @@ export async function personSheet(ctx: RestContext, key: string): Promise<Person
     id: `person:${id}`,
     name: me?.name ?? "",
     photo: imageUrl(ctx.baseUrl, "w185", me?.profile) || null,
+    facts: rows.length > 1 ? `${rows.length} titres` : `${rows.length} titre`,
     movies: cards("vod"),
     series: cards("series"),
   };

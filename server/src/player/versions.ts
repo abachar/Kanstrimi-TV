@@ -1,13 +1,14 @@
-import { QUALITY_RANK, DYNAMIC_RANGE_RANK, qualityOfRank as knownQualityOfRank } from "@/catalog";
+import { QUALITY_RANK, DYNAMIC_RANGE_RANK, DEFAULT_LANGUAGE_ORDER, qualityOfRank as knownQualityOfRank } from "@/catalog";
 import type { Variant } from "@/db";
 import type { DynamicRange, Quality, Version } from "./types";
 import { slug } from "@/shared";
 import type { RestContext } from "./context";
-import { sourceId } from "./stream-links";
+
+/** `src-i…` = an item (movie or channel), `src-e…` = an episode source; base36 of our own ids. */
+export const sourceId = (kind: "item" | "episode", id: number) => `src-${kind === "item" ? "i" : "e"}${id.toString(36)}`;
 
 /** A version = language × quality × dynamic range × edition; its sources are the playable variants behind it. */
 
-export const DEFAULT_LANGUAGE_ORDER = ["VF", "VOSTFR", "VO"];
 const LANG_RANK = (l: string) => {
   const i = DEFAULT_LANGUAGE_ORDER.indexOf(l);
   return i === -1 ? 3 : i;

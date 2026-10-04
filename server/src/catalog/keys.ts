@@ -42,7 +42,7 @@ export function episodeKey(seriesKey: string, season: number, episode: number) {
   return `${seriesKey}:s${String(season).padStart(2, "0")}e${String(episode).padStart(2, "0")}`;
 }
 
-const EPISODE_SUFFIX = /^(.*):s(\d{2})e(\d{2})$/;
+const EPISODE_SUFFIX = /^(.*):s(\d{2,})e(\d{2,})$/;
 export const isEpisodeKey = (key: string) => EPISODE_SUFFIX.test(key);
 
 /** Parse a REST content id back into its parts. Null when it is not one of ours. */
@@ -63,11 +63,12 @@ export function parseKey(key: string): { kind: Kind; tmdbId?: number; season?: n
   return { kind, tmdbId, season: ep ? Number(ep[2]) : undefined, episode: ep ? Number(ep[3]) : undefined, seriesKey: base };
 }
 
-/** How a key was made: `merged` = a variant attached by hand to another content's key. */
-export type KeyKind = "tmdb" | "fallback" | "manual" | "live" | "merged";
+/** How a key was made. */
+export type KeyKind = "tmdb" | "fallback" | "manual" | "live";
 export function keyKind(key: string): KeyKind {
   const prefix = key.slice(0, key.indexOf(":"));
-  return prefix === "tmdb" || prefix === "fallback" || prefix === "manual" || prefix === "live" ? prefix : "merged";
+  // Every content key carries one of these prefixes; an unknown one is a key no TMDB id backs: « fallback ».
+  return prefix === "tmdb" || prefix === "fallback" || prefix === "manual" || prefix === "live" ? prefix : "fallback";
 }
 export const isTmdbKey = (key: string) => keyKind(key) === "tmdb";
 export const isFallbackKey = (key: string) => keyKind(key) === "fallback";

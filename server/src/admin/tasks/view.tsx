@@ -1,7 +1,7 @@
 import type { TaskStep } from "@/db";
 import type { RunWithSteps, Step, Task } from "@/catalog";
 import { SHRINK_HINT } from "@/providers/xtream";
-import { fmt, duration, ago, describeCron, nextCronRun } from "../format";
+import { fmt, duration, ago, megabytes, nextRunText } from "../format";
 import { Badge, Card, Empty, Options, Pagination, Status, Table, Title } from "../ui";
 import { STAT_LABELS, TRIGGER_LABELS, jobLabel, taskLabel } from "../labels";
 
@@ -13,7 +13,7 @@ function StatChips({ stats }: { stats: Record<string, unknown> | null }) {
     <span class="inline-flex flex-wrap gap-1">
       {entries.map(([k, v]) => {
         const num = typeof v === "number";
-        const value = k === "bytes" && num ? `${((v as number) / 1e6).toFixed(1)} Mo` : num ? fmt(v as number) : String(v);
+        const value = k === "bytes" && num ? megabytes(v as number) : num ? fmt(v as number) : String(v);
         const zero = num && v === 0;
         const alert = num && (v as number) > 0 && (k === "errors" || k.startsWith("removed"));
         return (
@@ -88,14 +88,13 @@ type TaskState = { task: Task; cron: string; runs: RunWithSteps[]; busy: boolean
  */
 export function TaskCard({ task, cron, runs, busy, steps }: TaskState) {
   const last = runs[0];
-  const next = nextCronRun(cron);
   return (
     <div
       id={`task-${task}`}
       class="grid"
       {...(busy ? { "hx-get": `/admin/tasks/card/${task}`, "hx-trigger": "every 3s", "hx-swap": "outerHTML" } : {})}
     >
-      <Card title={taskLabel(task)} hint={`${describeCron(cron)}${next ? ` · prochain passage ${when(next)}` : ""}`}>
+      <Card title={taskLabel(task)} hint={nextRunText(cron)}>
         <div class="flex flex-col gap-3">
           {last ? (
             <a href={`/admin/tasks/${last.id}`} class="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted">
@@ -271,7 +270,7 @@ export function RunLog({ run, log }: { run: RunWithSteps; log: { text: string; t
         <>
           {log.truncated && (
             <p class="text-xs text-muted-foreground">
-              Fin du fichier seulement ({(log.size / 1e6).toFixed(1)} Mo) : le fichier complet se télécharge.
+              Fin du fichier seulement ({megabytes(log.size)}) : le fichier complet se télécharge.
             </p>
           )}
           <pre class="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border bg-muted/40 p-3 font-mono text-xs leading-relaxed">

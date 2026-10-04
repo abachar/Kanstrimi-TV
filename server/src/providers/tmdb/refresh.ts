@@ -1,5 +1,5 @@
-import { and, eq, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { and, eq } from "drizzle-orm";
+import { db, schema, tmdbHasLogos } from "@/db";
 import { describeError, singleFlight } from "@/shared";
 import { fetchDetails, getTmdbClient } from "./details";
 
@@ -23,7 +23,7 @@ export function refreshDetails(mediaType: "movie" | "tv", tmdbId: number): Promi
     const [cached] = await db
       .select({
         fetchedAt: schema.tmdbCache.fetchedAt,
-        hasLogos: sql<boolean>`coalesce(${schema.tmdbCache.data} -> 'images' ? 'logos', false)`,
+        hasLogos: tmdbHasLogos,
       })
       .from(schema.tmdbCache)
       .where(

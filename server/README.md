@@ -60,8 +60,8 @@ depuis l'admin.
 
 ## Tables
 
-Le préfixe dit qui écrit : `xtream_` (copie et cache du fournisseur), `tmdb_`, `iptvorg_` (caches des sources),
-`catalog_` (ce que construit le pipeline), `curation_` (choix de l'admin), `app_` (ce que l'app enregistre : favoris,
+Le préfixe dit d'où vient la donnée : `xtream_` (copie et cache du fournisseur), `tmdb_`, `iptvorg_` (caches des sources),
+`catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes et les épisodes construits à l'ouverture d'une fiche), `curation_` (choix de l'admin), `app_` (ce que l'app enregistre : favoris,
 progression, temps regardé du direct, appareils), `task_` (journal), et `settings`.
 Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_contents.key`, la seule identité exposée à l'app).
 
@@ -70,7 +70,7 @@ Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_cont
 | Route | Rôle |
 |---|---|
 | `/player/*` | API de l'app Apple. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`). |
-| `/img/…` | images TMDB et logos iptv-org en cache disque ; `/img/shelf/…` = images du Top Shelf, logo du titre dessiné sur le fond par `sharp` |
+| `/img/…` | images TMDB et logos iptv-org en cache disque (un téléchargement demande une URL signée par le serveur (`?k=`) ; un fichier déjà en cache se sert à tous) ; `/img/shelf/…` = images du Top Shelf, logo du titre dessiné sur le fond par `sharp` |
 | `/admin` | administration |
 | `/health` | santé (base joignable) ; en production, la cause d'une panne reste dans le journal |
 
@@ -87,7 +87,7 @@ admin/      pages de l'admin ; aucune écriture en base (vérifié), elle appell
 player/     /player, un fichier par ressource ; types.ts = le contrat
 catalog/    le domaine : grammaire des noms, clés, règles, groupement, épisodes, pipeline
 devices/    appairage, jetons
-providers/  xtream/, tmdb/ (dont le cache d'images), iptv/ ; un provider ne connaît pas le catalogue
+providers/  xtream/, tmdb/ (dont le cache d'images), iptv/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`), vérifié par `architecture.test.ts`
 config/     réglages (base et environnement), mot de passe
 db/         client, schéma, migrations, prédicats de visibilité
 shared/     utilitaires ; n'importe jamais `@/`
@@ -137,7 +137,7 @@ par son index.
   (Paramètres), un nouveau mot de passe ou 30 jours le rendent caduc. Une erreur inattendue s'affiche sans son détail,
   avec une référence à chercher dans le journal ; un identifiant de route passe par `intParam()` (404 sinon).
 - **Textes des cartes** (`player/cards.ts`) : les listes, l'accueil, la recherche, « À suivre » et les épisodes envoient des
-  `ContentItem` dont le serveur écrit les textes (« 2019 · ★ 8.5 », badges dans l'ordre, « S2 · É4 · 1 h 08 restantes »,
+  `ContentItem` dont le serveur écrit les textes (« 2019 · ★ 8.5 », badges dans l'ordre, `quality` = le badge de qualité seul, « S2 · É4 · 1 h 08 restantes »,
   en-têtes « À SUIVRE ») ; l'app les dispose sans les recalculer. La fiche reste un `Card`.
 - **Recherche** (`player/search.ts`) : une seule liste de 40, films, séries et chaînes mêlés, triée par pertinence (titre égal, puis le
   plus proche, puis le plus voté) ; une série le dit (« Série · 2025 »), une chaîne donne son groupe du Direct. un terme d'un caractère est un mot entier, un préfixe à partir de deux ; seuls les

@@ -1,6 +1,6 @@
 import { client as pg, KINDS, type Kind } from "@/db";
 import { checkCancelled } from "@/shared";
-import { isSeparator, separatorText, SHRINK_HINT } from "@/providers/xtream";
+import { isSeparator, separatorText, SHRINK_FLOOR, SHRINK_HINT, SHRINK_RATIO } from "@/providers/xtream";
 import { runNaming } from "./grouping/group";
 import { withCatalogLock } from "./lock";
 
@@ -21,7 +21,6 @@ import { withCatalogLock } from "./lock";
  */
 export const RADIO_CATEGORY_ID = "_radio";
 const RADIO_CATEGORY_NAME = "RADIOS";
-const MAX_REMOVED_SHARE = 0.5;
 
 const CHUNK = 5000;
 
@@ -136,7 +135,7 @@ async function mergeCopy(acceptShrink: boolean): Promise<Omit<MergeStats, "items
              count(*) filter (where not exists (select 1 from merge_entries m where m.kind = v.kind and m.xtream_id = v.xtream_id))::int as removed
       from catalog_variants v group by v.kind`;
     for (const g of gone)
-      if (!acceptShrink && g.total >= 50 && g.removed > g.total * MAX_REMOVED_SHARE)
+      if (!acceptShrink && g.total >= SHRINK_FLOOR && g.total - g.removed < g.total * SHRINK_RATIO)
         throw new Error(
           `La copie du fournisseur retirerait ${g.removed} des ${g.total} entrées ${g.kind} : fusion refusée, catalogue conservé (${SHRINK_HINT})`,
         );

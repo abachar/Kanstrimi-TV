@@ -3,6 +3,7 @@ import { resetDb, closeDb } from "@/test/db";
 
 import {
   createPairing,
+  pairingState,
   pollPairing,
   approvePairing,
   authenticateToken,
@@ -68,9 +69,29 @@ describe("device pairing", () => {
     await expect(approvePairing("ZZZZZZ", "x")).rejects.toThrow(/inconnu/);
   });
 
+  it("an expired or unknown code reads the same to the app and to the admin page", async () => {
+    const { code } = await createPairing("10.0.0.1");
+    expect(await pairingState(code)).toBe("pending");
+    await db
+      .update(schema.appDevices)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .where(eq(schema.appDevices.code, code));
+    expect(await pollPairing(code)).toEqual({ status: "expired" });
+    expect(await pairingState(code)).toBe("expired");
+    expect(await pollPairing("ZZZZZZ")).toEqual({ status: "expired" });
+    expect(await pairingState("ZZZZZZ")).toBe("unknown");
+  });
+
   it("rate-limits pairing requests per address", async () => {
     for (let i = 0; i < 10; i++) await createPairing("10.0.0.9");
     await expect(createPairing("10.0.0.9")).rejects.toThrow(TooManyRequests);
     await expect(createPairing("10.0.0.10")).resolves.toBeDefined();
+  });
+
+  it("caps the pending codes of all addresses together at fifty", async () => {
+    await resetDb();
+    resetPairingState();
+    for (let i = 0; i < 50; i++) await createPairing(`10.1.0.${i}`);
+    await expect(createPairing("10.1.1.1")).rejects.toThrow(TooManyRequests);
   });
 });

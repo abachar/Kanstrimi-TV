@@ -58,14 +58,17 @@ export async function createPairing(ip: string): Promise<{ code: string; expires
   }
 }
 
+/** A code the admin never approved is dead once revoked or past its time. */
+const isExpired = (d: Device) => d.status === "revoked" || d.expiresAt.getTime() < Date.now();
+
 export type PollResult = { status: "pending" } | { status: "expired" } | { status: "approved"; deviceName: string };
 
 /** `GET /devices/{code}`: where the code stands; approved, the token the device holds since `POST /devices` works. */
 export async function pollPairing(code: string): Promise<PollResult> {
-  const [d] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, code));
+  const d = await getDevice(code);
   if (!d) return { status: "expired" };
   if (d.status === "approved") return { status: "approved", deviceName: d.name ?? "" };
-  if (d.status === "revoked" || d.expiresAt.getTime() < Date.now()) return { status: "expired" };
+  if (isExpired(d)) return { status: "expired" };
   return { status: "pending" };
 }
 
@@ -73,7 +76,7 @@ export async function pollPairing(code: string): Promise<PollResult> {
 export async function approvePairing(code: string, name: string): Promise<Device> {
   const [d] = await db.select().from(schema.appDevices).where(eq(schema.appDevices.code, code));
   if (d?.status !== "pending") throw new Error("Code d'appairage inconnu");
-  if (d.expiresAt.getTime() < Date.now()) throw new Error("Code d'appairage expiré");
+  if (isExpired(d)) throw new Error("Code d'appairage expiré");
   const [row] = await db
     .update(schema.appDevices)
     .set({ name: name.trim() || "Appareil", status: "approved", approvedAt: new Date() })
@@ -129,7 +132,7 @@ export async function pairingState(code: string): Promise<PairingState> {
   const d = await getDevice(code);
   if (!d) return "unknown";
   if (d.status === "approved") return "done";
-  if (d.status === "revoked" || d.expiresAt.getTime() < Date.now()) return "expired";
+  if (isExpired(d)) return "expired";
   return "pending";
 }
 

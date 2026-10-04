@@ -1,4 +1,6 @@
 import type { WaitlistCandidate, WaitlistRow, WaitlistStatus } from "@/catalog";
+import { runtimeText } from "@/player";
+import { signedImagePath } from "@/shared";
 import { Badge, Card, Empty, Title, type Tone } from "../ui";
 import { Icon } from "../icons";
 import { ago, fmt } from "../format";
@@ -15,7 +17,7 @@ const day = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("fr-FR"
 const Poster = ({ path, size, cls }: { path: string | null; size: "w185" | "w342"; cls: string }) =>
   path ? (
     <img
-      src={`/img/${size}${path}`}
+      src={signedImagePath(size, path)}
       alt=""
       width="185"
       height="278"
@@ -27,7 +29,6 @@ const Poster = ({ path, size, cls }: { path: string | null; size: "w185" | "w342
   );
 
 /** « 2 h 46 », « 58 min ». */
-const runtime = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}` : `${m} min`);
 const rating = (r: number) => r.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
 
 const TmdbLink = ({ id, title }: { id: number; title: string }) => (
@@ -51,7 +52,7 @@ function Entry({ e }: { e: WaitlistRow }) {
   const facts = [
     e.releaseDate ? `Sortie le ${day(e.releaseDate)}` : e.year ? String(e.year) : null,
     s?.genres.length ? s.genres.join(", ") : null,
-    s?.runtime ? runtime(s.runtime) : null,
+    s?.runtime ? runtimeText(s.runtime) : null,
   ].filter(Boolean);
   return (
     <li class="flex gap-4 py-4 first:pt-0 last:pb-0 sm:gap-6">

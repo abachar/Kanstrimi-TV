@@ -5,7 +5,7 @@ import { resetDb, closeDb, seedItems } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { setTmdbPace } from "@/providers/tmdb";
 import { TmdbClient } from "@/providers/tmdb";
-import { explainMatch, resetMatches, retryUnmatched, runEnrich } from "../matching";
+import { assignManual, explainMatch, resetMatches, retryUnmatched, runEnrich } from "../matching";
 
 /**
  * A fake TMDB: searches answer by title (and by year, adult flag), details by id. Every case of
@@ -109,5 +109,15 @@ describe("matching", () => {
     await db.update(schema.catalogVariants).set({ matchStatus: "matched", matchAttempts: 2 });
     await resetMatches("vod");
     expect((await attempts()).map((r) => r.a)).toEqual(CASES.map(() => 0));
+  });
+
+  it("an association by hand carries no score: it is not a measured match", async () => {
+    vi.stubGlobal("fetch", fakeTmdb);
+    const [v] = await db.select().from(schema.catalogVariants).orderBy(schema.catalogVariants.id);
+    const row = async () => (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, v.id)))[0];
+    await assignManual(v.id, 603);
+    expect(await row()).toMatchObject({ matchStatus: "manual", tmdbId: 603, matchScore: null });
+    await assignManual(v.id, null);
+    expect(await row()).toMatchObject({ matchStatus: "unmatched", tmdbId: null, matchScore: null });
   });
 });

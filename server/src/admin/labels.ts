@@ -13,7 +13,6 @@ export const KEY_KIND_LABELS: Record<KeyKind, string> = {
   fallback: "repli",
   manual: "séparé",
   live: "direct",
-  merged: "fusion",
 };
 
 export const MATCH_LABELS: Record<string, string> = {
@@ -114,7 +113,7 @@ export const CACHE_LABELS: Record<
   images: {
     title: "Images",
     unit: "fichiers",
-    what: "Les affiches et fonds TMDB servis par /img, par taille.",
+    what: "Les affiches et fonds TMDB, les logos iptv-org et les images du Top Shelf, servis par /img.",
     how: "Une image est téléchargée à sa première demande, puis servie depuis le disque.",
   },
   epg: {

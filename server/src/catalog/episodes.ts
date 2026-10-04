@@ -1,6 +1,7 @@
 import { and, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
 import { db, schema, type Content, type Variant } from "@/db";
 import { getSettings } from "@/config";
+import { describeError, isUnreachable } from "@/shared";
 import { type XtreamClient, XtreamError, xtreamFromSettings } from "@/providers/xtream";
 import { getCachedDetails, getTmdbClient, readTmdbCache, writeTmdbCache } from "@/providers/tmdb";
 import { episodeKey } from "./keys";
@@ -38,24 +39,30 @@ type TmdbEpisode = {
 };
 type Meta = { title: string | null; overview: string | null; runtime: number | null; stillPath: string | null; airDate: string | null };
 
+/** The provider as one rebuild sees it: `down` once it failed to answer, so the other variants do not wait for it again. */
+type Upstream = { client: XtreamClient | null; down: boolean };
+
 /** get_series_info through the 12 h cache; the cache is the fallback when the provider is down or not configured. */
-async function upstreamInfo(client: XtreamClient | null, xtreamId: string): Promise<UpstreamInfo> {
+async function upstreamInfo(upstream: Upstream, xtreamId: string): Promise<UpstreamInfo> {
   const [cached] = await db
     .select()
     .from(schema.xtreamInfoCache)
     .where(and(eq(schema.xtreamInfoCache.kind, "series"), eq(schema.xtreamInfoCache.xtreamId, xtreamId)));
   if (cached && Date.now() - cached.fetchedAt.getTime() < INFO_TTL_MS) return cached.data as UpstreamInfo;
-  if (!client) return (cached?.data as UpstreamInfo) ?? {};
+  if (!upstream.client || upstream.down) return (cached?.data as UpstreamInfo) ?? {};
   try {
-    const data = await client.seriesInfo(xtreamId);
+    const data = await upstream.client.seriesInfo(xtreamId);
     await db
       .insert(schema.xtreamInfoCache)
       .values({ kind: "series", xtreamId, data })
       .onConflictDoUpdate({ target: [schema.xtreamInfoCache.kind, schema.xtreamInfoCache.xtreamId], set: { data, fetchedAt: new Date() } });
     return data as UpstreamInfo;
   } catch (e) {
+    // Unreachable, timed out or a 5xx: the next variants would wait just as long for the same answer.
+    if (isUnreachable(e) || (e instanceof XtreamError && (e.status ?? 0) >= 500)) upstream.down = true;
     if (cached) return cached.data as UpstreamInfo;
-    if (e instanceof XtreamError) return {};
+    // A 4xx is the provider's verdict on this series (none); a 5xx says nothing about it.
+    if (e instanceof XtreamError && (e.status ?? 0) < 500) return {};
     throw new UpstreamUnavailable();
   }
 }
@@ -71,7 +78,8 @@ async function tmdbSeason(tmdbId: number, season: number, lang: string): Promise
     const data = await client.tvSeason(tmdbId, season);
     await writeTmdbCache(key, data as Record<string, unknown>);
     return (data.episodes as TmdbEpisode[]) ?? null;
-  } catch {
+  } catch (e) {
+    console.warn(`[episodes] saison ${season} de TMDB ${tmdbId} illisible, cache gardé : ${describeError(e)}`);
     return (cached?.data.episodes as TmdbEpisode[]) ?? null;
   }
 }
@@ -112,7 +120,7 @@ export function ensureEpisodes(content: Content, variants: Variant[], tmdbLang: 
 }
 
 async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: string) {
-  const client = xtreamFromSettings(await getSettings());
+  const upstream: Upstream = { client: xtreamFromSettings(await getSettings()), down: false };
   const [fresh] = await db
     .select({ at: sql<Date | null>`max(${schema.catalogEpisodes.updatedAt})` })
     .from(schema.catalogEpisodes)
@@ -128,7 +136,7 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
   const found = new Map<string, Found>();
   const providerMeta = new Map<string, Meta>();
   for (const v of variants) {
-    const info = await upstreamInfo(client, v.xtreamId);
+    const info = await upstreamInfo(upstream, v.xtreamId);
     for (const s of info.seasons ?? [])
       for (const e of s.episodes ?? []) {
         const season = e.season_number ?? s.season_number;

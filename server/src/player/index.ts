@@ -20,8 +20,8 @@ import { favoriteRoutes } from "./favorites";
 
 /**
  * `/player`, the contract of `types.ts`, one file per resource. Bearer device token everywhere
- * but `/devices` (pairing) and `/stream` (signed URLs for the player). JSON snake_case, errors
- * as `{ error: { code, message } }`. The video never flows through here: `/stream` answers 302.
+ * but pairing (`POST /devices`, `GET /devices/{code}`). JSON snake_case, errors as
+ * `{ error: { code, message } }`. The video never flows through here: `stream_url` is the provider's own URL.
  */
 export const player = new Hono<Env>();
 
@@ -34,7 +34,7 @@ player.onError((err, c) => {
 });
 player.notFound(() => fail("not_found", "Route inconnue"));
 
-// Without a token: pairing and the signed stream links.
+// Without a token: pairing.
 player.route("/devices", pairingRoutes);
 
 // Everything else carries the device token.
@@ -63,8 +63,8 @@ export { setFavorite } from "./favorites";
 export { channelGroups } from "./channels";
 export { catalogRows, listContents } from "./lists";
 export { studiosOf } from "./studios";
-export { listSagas, listSagaWires, sagaSheet } from "./sagas";
-export { gridCard } from "./cards";
+export { listSagaWires, sagaSheet } from "./sagas";
+export { gridCard, runtimeText } from "./cards";
 export { isShelfPair } from "./top-shelf";
 export { listProgress, deleteProgress, setFinished, setProgress, type Progress } from "./progress";
 export type { Card, CatalogRow, ChannelGroupWire, ChannelWire, SagaWire, StudioWire, Version } from "./types";

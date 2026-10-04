@@ -1,6 +1,6 @@
 import type { Device } from "@/db";
 import type { PairingState } from "@/devices";
-import { ago, fmt } from "../format";
+import { ago, fmt, hhmm } from "../format";
 import { Badge, Card, Empty, Title, type Tone } from "../ui";
 import { Icon } from "../icons";
 
@@ -26,8 +26,8 @@ export function PairView({ code, state, request, error }: { code: string; state:
         )}
         {state === "pending" && request && (
           <p class="text-sm text-muted-foreground">
-            Demandé à <span class="text-foreground">{request.at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>{" "}
-            ({ago(request.at.toISOString())}) depuis <span class="font-mono text-foreground">{request.ip ?? "adresse inconnue"}</span>
+            Demandé à <span class="text-foreground">{hhmm(request.at)}</span> ({ago(request.at.toISOString())}) depuis{" "}
+            <span class="font-mono text-foreground">{request.ip ?? "adresse inconnue"}</span>
             {request.sameAsYou
               ? ", la même adresse que vous."
               : ". Une autre adresse que la vôtre : normal si l'appareil passe par un VPN ou un autre réseau, sinon vérifiez que ce code est bien sur votre écran."}

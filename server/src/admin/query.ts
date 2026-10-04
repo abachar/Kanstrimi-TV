@@ -8,3 +8,5 @@ export function pickEnum<T extends string>(value: string | undefined, allowed: r
 }
 export const kindParam = (value?: string): Kind => pickEnum(value, KINDS, "vod");
 export const pageParam = (value?: string): number => Math.max(1, Number(value) || 1);
+/** The rank a « more » link continues from: a whole number, never below 0. */
+export const offsetParam = (value?: string): number => Math.max(0, Math.floor(Number(value)) || 0);

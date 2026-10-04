@@ -93,4 +93,16 @@ describe("filter rules", () => {
     const [again] = await db.select().from(schema.catalogCategories).where(eq(schema.catalogCategories.xtreamId, "20"));
     expect(again.hiddenByRule).toBe(false);
   });
+
+  it("refuses a regex that JavaScript accepts and Postgres does not, and skips such a rule on apply", async () => {
+    expect(await checkRuleQuery("nom:/(?<x>FR)/", "all")).toContain("régulière");
+    expect(await checkRuleQuery("nom:/\\bFR\\b/", "all")).toBeNull();
+    // A rule saved before the check existed: skipped, the step does not fail.
+    await db
+      .insert(schema.curationFilterRules)
+      .values({ name: "Cassée", kind: null, query: "nom:/(?<x>FR)/", action: "hide", enabled: true, position: 0 });
+    await expect(applyRules()).resolves.toMatchObject({ items: 0 });
+    expect(await hidden("vod")).toEqual([]);
+    for (const r of await listRules()) await deleteRule(r.id);
+  });
 });

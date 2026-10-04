@@ -28,7 +28,7 @@ const ADMIN_CSP = {
   formAction: ["'self'"],
   frameAncestors: ["'none'"],
 };
-// Images and streams are fetched by players on other origins: no cross-origin resource policy.
+// Images are fetched by players on other origins: no cross-origin resource policy.
 app.use("/admin/*", secureHeaders({ crossOriginResourcePolicy: false, contentSecurityPolicy: ADMIN_CSP }));
 app.use(secureHeaders({ crossOriginResourcePolicy: false }));
 app.use(bodyLimit({ maxSize: 1024 * 1024 }));

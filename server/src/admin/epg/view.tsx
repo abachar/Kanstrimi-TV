@@ -1,4 +1,5 @@
 import type { EpgOffset } from "@/db";
+import { hhmm } from "../format";
 import { Badge, Card, Empty, Options, Pagination, Title } from "../ui";
 import { CHANNELS_PER_PAGE, type GridChannel, type GridProgramme, type GridQuery } from "./data";
 
@@ -62,7 +63,6 @@ const COL_SPAN = [
   "col-span-24",
 ];
 
-const hm = (d: Date) => d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 const day = (d: Date) => d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 export const signed = (m: number) => {
   if (!m) return "aucun";
@@ -120,7 +120,7 @@ export function EpgView(p: EpgPageProps) {
     <>
       <Title
         t="EPG"
-        sub={`Guide des programmes du fournisseur, ${day(q.from)} de ${hm(q.from)} à ${hm(q.to)}. Un décalage se corrige depuis la chaîne.`}
+        sub={`Guide des programmes du fournisseur, ${day(q.from)} de ${hhmm(q.from)} à ${hhmm(q.to)}. Un décalage se corrige depuis la chaîne.`}
         actions={
           <>
             <a class="btn" data-variant="outline" href={link({ at: shiftAt(-3), page: "1" })}>
@@ -166,7 +166,7 @@ export function EpgView(p: EpgPageProps) {
                   <div
                     class={`${COL_START[i * 2]} col-span-2 border-l ps-1 ${nowSlot >= i * 2 && nowSlot < i * 2 + 2 ? "font-semibold text-foreground" : ""}`}
                   >
-                    {hm(new Date(q.from.getTime() + i * 2 * SLOT_MIN * 60_000))}
+                    {hhmm(new Date(q.from.getTime() + i * 2 * SLOT_MIN * 60_000))}
                   </div>
                 ))}
               </div>
@@ -200,9 +200,9 @@ export function EpgView(p: EpgPageProps) {
                     return (
                       <div
                         class={`${cls} truncate rounded px-2 py-1 text-xs ${live ? "bg-primary/25 text-foreground" : "bg-secondary text-secondary-foreground"}`}
-                        title={`${hm(pr.startAt)}–${hm(pr.endAt)} · ${pr.title}`}
+                        title={`${hhmm(pr.startAt)}–${hhmm(pr.endAt)} · ${pr.title}`}
                       >
-                        <span class="tabular-nums opacity-70">{hm(pr.startAt)}</span> {pr.title}
+                        <span class="tabular-nums opacity-70">{hhmm(pr.startAt)}</span> {pr.title}
                       </div>
                     );
                   })}
@@ -253,6 +253,8 @@ export type PanelProps = {
   preview: number;
   scope: "exact" | "suffix";
   back: string;
+  /** The day the panel shows, as the page's `at`: the preview asks for the same one. */
+  at: string;
 };
 
 /** A guide id: its programmes of the day, and the correction, previewed before it is saved. */
@@ -284,6 +286,7 @@ export function OffsetPanel(p: PanelProps) {
           hx-swap="outerHTML"
         >
           <input type="hidden" name="back" value={p.back} />
+          <input type="hidden" name="at" value={p.at} />
           <div class="field">
             <label class="label" for="minutes">
               Décalage à appliquer
@@ -321,7 +324,7 @@ export function OffsetPanel(p: PanelProps) {
                 return (
                   <li class="flex gap-3 py-1.5">
                     <span class="w-28 shrink-0 tabular-nums text-muted-foreground">
-                      {hm(s)}–{hm(e)}
+                      {hhmm(s)}–{hhmm(e)}
                     </span>
                     <span class="min-w-0">{pr.title}</span>
                   </li>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isValidCron, describeCron, nextCronRun } from "../format";
+import { isValidCron, describeCron, nextCronRun, megabytes, hhmm, nextRunText } from "../format";
 
 describe("isValidCron", () => {
   it.each(["0 */6 * * *", "0 3 * * *", "*/30 * * * *", "15 2,14 * * 1-5", "0 0 1 1 *"])("valid: %s", (e) =>
@@ -26,5 +26,23 @@ describe("describeCron", () => {
     expect(describeCron("*/30 * * * *")).toBe("Toutes les 30 minutes");
     expect(describeCron("15 2,14 * * 1-5")).toBe("À 02:15 et 14:15, de lundi à vendredi");
     expect(describeCron("x")).toBe("expression invalide");
+  });
+});
+
+describe("megabytes", () => {
+  it("reads in French, one decimal at most", () => {
+    expect(megabytes(412_345_678)).toBe("412,3 Mo");
+    expect(megabytes(2_000_000)).toBe("2 Mo");
+  });
+});
+
+describe("hhmm", () => {
+  it("two digits each", () => expect(hhmm(new Date(2026, 0, 1, 9, 5))).toBe("09:05"));
+});
+
+describe("nextRunText", () => {
+  it("describes the schedule, then names the next run", () => {
+    expect(nextRunText("0 3 * * *")).toContain("À 03:00, prochain passage ");
+    expect(nextRunText("bad")).toBe("expression invalide");
   });
 });

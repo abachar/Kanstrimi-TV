@@ -181,10 +181,6 @@ function item(ctx: RestContext, p: ShelfPick): TopShelfItem {
 
 const hasShelfArt = (c: Content | null): c is Content => Boolean(c?.backdropPath && c.titleLogoPath);
 /**
- * `/img/shelf/…`: the backdrop with the title logo drawn on it (`providers/tmdb`, `ensureShelfImage`).
- * `layout` follows `SHELF_LAYOUT` there: tvOS caches by URL, a new layout needs a new one.
- */
-/**
  * `/img/shelf/{scale}/{backdrop}/{logo}` composes only the pair of a visible content: anything else would let anyone
  * have this server draw every backdrop with every logo, in 4K, and keep them all on its disk.
  */
@@ -203,5 +199,9 @@ export async function isShelfPair(backdrop: string, logo: string): Promise<boole
   return Boolean(row);
 }
 
+/**
+ * `/img/shelf/…`: the backdrop with the title logo drawn on it (`providers/tmdb`, `ensureShelfImage`).
+ * `layout` follows `SHELF_LAYOUT` there: tvOS caches by URL, a new layout needs a new one.
+ */
 const shelfImage = (ctx: RestContext, c: Content, scale: "1x" | "2x") =>
   `${ctx.baseUrl}/img/shelf/${scale}/${c.backdropPath!.replace(/^\//, "")}/${c.titleLogoPath!.replace(/^\//, "")}?layout=2`;

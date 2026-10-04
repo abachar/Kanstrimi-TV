@@ -30,6 +30,27 @@ function catalogGrid(qy: CatalogQuery) {
 const ROW = "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2 md:grid-cols-12";
 
 /** Column titles, md+ only: a phone shows one item per block and needs no header. */
+/** The summary of a foldable list (category, shelf, channel group): one row high, the whole width. */
+export const SUMMARY = "flex h-12 w-full min-w-0 items-center gap-2 bg-muted/30 px-4 text-sm hover:bg-muted/50";
+
+/** Continues a list when it scrolls into view or on click: the next page replaces this, where it stands. */
+export const More = ({ link }: { link: string }) => (
+  <div
+    class="flex items-center justify-center gap-2 py-2"
+    hx-get={link}
+    hx-trigger="intersect once, click"
+    hx-target="this"
+    hx-swap="outerHTML"
+    hx-indicator="this"
+  >
+    {/* The button is only an affordance: the click bubbles up to the row, which owns the request. */}
+    <button type="button" class="btn" data-variant="link" data-size="sm">
+      Charger la suite
+    </button>
+    <Busy label="Chargement" />
+  </div>
+);
+
 export function CatalogHeader({ qy }: { qy: CatalogQuery }) {
   const g = catalogGrid(qy);
   return (
@@ -111,22 +132,7 @@ export function CategoryItems({
         <ItemRow r={r} qy={qy} catLabel="" catHidden={catHidden} />
       ))}
       {rows.length === 0 && qy.page === 1 && <div class="px-4 py-3 text-sm text-muted-foreground">Aucun élément.</div>}
-      {hasMore && (
-        <div
-          class="flex items-center justify-center gap-2 py-2"
-          hx-get={categoryItemsLink(qy, cat, qy.page + 1)}
-          hx-trigger="intersect once, click"
-          hx-target="this"
-          hx-swap="outerHTML"
-          hx-indicator="this"
-        >
-          {/* The button is only an affordance: the click bubbles up to the row, which owns the request. */}
-          <button type="button" class="btn" data-variant="link" data-size="sm">
-            Charger la suite
-          </button>
-          <Busy label="Chargement" />
-        </div>
-      )}
+      {hasMore && <More link={categoryItemsLink(qy, cat, qy.page + 1)} />}
     </>
   );
 }

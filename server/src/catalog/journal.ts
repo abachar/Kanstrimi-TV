@@ -3,8 +3,8 @@ import { and, desc, eq, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { logFileName } from "./runlog";
 
 /**
- * The journal: one `sync_runs` row per run (the full pipeline, the EPG, a lone step), one
- * `sync_logs` row per step of it. The detail of a run lives in its file (`runlog.ts`).
+ * The journal: one `task_runs` row per run (the full pipeline, the EPG, a lone step), one
+ * `task_steps` row per step of it. The detail of a run lives in its file (`runlog.ts`).
  */
 
 export type Trigger = "cron" | "manual";

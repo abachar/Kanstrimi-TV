@@ -21,7 +21,7 @@ const programme = (title: string | null, start: string | null, end: string | nul
 
 /**
  * One query for any number of channels: the current programme, the following one, and the guide's
- * coverage. `now` is the server's clock, as everywhere in `/player` (stream links, « Nouveautés »).
+ * coverage. `now` is the server's clock, as everywhere in `/player` (« Nouveautés », the guide).
  */
 export async function epgOf(channelIds: string[], now = new Date()): Promise<Map<string, ChannelEpg>> {
   const ids = [...new Set(channelIds.filter(Boolean))];

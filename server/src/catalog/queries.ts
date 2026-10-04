@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db, schema, type Category, type Content, type Variant } from "@/db";
 import type { Kind } from "@/db";
 
@@ -43,4 +43,15 @@ export async function variantsOfContent(contentId: number): Promise<Variant[]> {
     .from(schema.catalogVariants)
     .where(eq(schema.catalogVariants.contentId, contentId))
     .orderBy(desc(schema.catalogVariants.qualityRank), asc(schema.catalogVariants.id));
+}
+
+/** How many variants the catalogue holds per kind: what the provider's lists are checked against. */
+export async function variantCountsByKind(): Promise<Record<Kind, number>> {
+  const counts = { live: 0, vod: 0, series: 0 } as Record<Kind, number>;
+  const rows = await db
+    .select({ kind: schema.catalogVariants.kind, n: sql<number>`count(*)::int` })
+    .from(schema.catalogVariants)
+    .groupBy(schema.catalogVariants.kind);
+  for (const r of rows) counts[r.kind] = r.n;
+  return counts;
 }

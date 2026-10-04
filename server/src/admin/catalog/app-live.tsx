@@ -3,6 +3,7 @@ import { fmt } from "../format";
 import { Badge, Empty, Table } from "../ui";
 import { Icon } from "../icons";
 import { contentKeyLink } from "../content/links";
+import { SUMMARY } from "./row";
 
 /**
  * « Catalogue » view of the live kind: the channel groups (country · theme) exactly as
@@ -67,7 +68,7 @@ export function AppLiveView({ groups }: { groups: ChannelGroupWire[] }) {
               <h2 class="bg-muted/60 px-4 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{section}</h2>
               {gs.map((g) => (
                 <details id={`grp-${g.id}`} name="live-groups">
-                  <summary class="flex h-12 w-full min-w-0 items-center gap-2 bg-muted/30 px-4 text-sm hover:bg-muted/50">
+                  <summary class={SUMMARY}>
                     <span class="truncate font-medium">{g.theme}</span>
                     <Badge tone="plain">{fmt(g.channels.length)}</Badge>
                   </summary>

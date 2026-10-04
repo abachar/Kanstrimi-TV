@@ -22,6 +22,16 @@ export type StudioSuggestion = {
 export const studioColumn = (kind: StudioKind) =>
   kind === "company" ? schema.catalogContents.companyIds : schema.catalogContents.networkIds;
 
+/**
+ * `studio` (a row of `curation_studios`, by its alias) owns `content` (a row of `catalog_contents`, by its
+ * alias, or none). A disjunction rather than a `case`: only that form lets the planner use the GIN indexes.
+ */
+export const ofStudio = (studio: string, content = "") => {
+  const s = sql.raw(studio);
+  const col = (name: string) => sql.raw(content ? `${content}.${name}` : name);
+  return sql`((${s}.kind = 'company' and ${col("company_ids")} @> array[${s}.tmdb_id]) or (${s}.kind <> 'company' and ${col("network_ids")} @> array[${s}.tmdb_id]))`;
+};
+
 /** The chosen studios in their order, with what they hold among visible contents. */
 export async function listStudios(): Promise<StudioRow[]> {
   return db.execute<StudioRow>(sql`
@@ -30,8 +40,7 @@ export async function listStudios(): Promise<StudioRow[]> {
     from ${schema.curationStudios} s
     left join (select kind, "tmdbId", min(country) as country from (${cachedStudios(await tmdbLanguage())}) x group by 1, 2) k
       on k.kind = s.kind and k."tmdbId" = s.tmdb_id
-    left join ${schema.catalogContents} c on c.visible
-      and case s.kind when 'company' then c.company_ids @> array[s.tmdb_id] else c.network_ids @> array[s.tmdb_id] end
+    left join ${schema.catalogContents} c on c.visible and ${ofStudio("s", "c")}
     group by s.id order by s.position, s.id`);
 }
 
@@ -53,7 +62,7 @@ export async function studioSuggestions(limit = 40, q = ""): Promise<StudioSugge
 export async function addStudio(kind: StudioKind, tmdbId: number): Promise<boolean> {
   const [found] = await db.execute<{ name: string; logoPath: string | null }>(sql`
     select min(name) as name, min("logoPath") as "logoPath"
-    from (${cachedStudios(await tmdbLanguage())}) x where kind = ${kind} and "tmdbId" = ${tmdbId} having count(*) > 0`);
+    from (${cachedStudios(await tmdbLanguage(), { kind, tmdbId })}) x where kind = ${kind} and "tmdbId" = ${tmdbId} having count(*) > 0`);
   if (!found) return false;
   const [{ last }] = await db
     .select({ last: sql<number>`coalesce(max(${schema.curationStudios.position}), 0)::int` })
@@ -98,7 +107,7 @@ export function parseStudioRef(ref: string): { kind: StudioKind; tmdbId: number 
 export async function studioDetail(kind: StudioKind, tmdbId: number): Promise<StudioDetail | null> {
   const [found] = await db.execute<{ name: string; logoPath: string | null; country: string | null }>(sql`
     select min(name) as name, min("logoPath") as "logoPath", min(country) as country
-    from (${cachedStudios(await tmdbLanguage())}) x where kind = ${kind} and "tmdbId" = ${tmdbId} having count(*) > 0`);
+    from (${cachedStudios(await tmdbLanguage(), { kind, tmdbId })}) x where kind = ${kind} and "tmdbId" = ${tmdbId} having count(*) > 0`);
   if (!found) return null;
   const [chosen] = await db
     .select({ id: schema.curationStudios.id })
@@ -139,17 +148,25 @@ export async function moveStudio(id: number, direction: "up" | "down") {
 
 const tmdbLanguage = async () => (await getSettings()).tmdb_language;
 
-/** One row per (visible content, company or network) from the cached TMDB documents. */
-const cachedStudios = (lang: string) => sql`
+/**
+ * One row per (visible content, company or network) from the cached TMDB documents; of the contents
+ * holding `only` when given, so that looking one studio up does not unfold the whole catalogue.
+ */
+const cachedStudios = (lang: string, only?: { kind: StudioKind; tmdbId: number }) => {
+  // Each half yields one kind of studio: it holds nothing of the other, and is narrowed by its own column.
+  const narrow = (kind: StudioKind, column: string) =>
+    !only ? sql`` : only.kind !== kind ? sql`and false` : sql`and ${sql.raw(column)} @> array[${only.tmdbId}]::int[]`;
+  return sql`
   select 'company' as kind, (x->>'id')::int as "tmdbId", x->>'name' as name, x->>'logo_path' as "logoPath",
     nullif(x->>'origin_country', '') as country
   from ${schema.catalogContents} c
   join ${schema.tmdbCache} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = ${sqlTmdbMediaType(sql`c.kind`)}
   cross join jsonb_array_elements(coalesce(t.data->'production_companies', '[]'::jsonb)) x
-  where c.visible
+  where c.visible ${narrow("company", "c.company_ids")}
   union all
   select 'network', (x->>'id')::int, x->>'name', x->>'logo_path', nullif(x->>'origin_country', '')
   from ${schema.catalogContents} c
   join ${schema.tmdbCache} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = 'tv'
   cross join jsonb_array_elements(coalesce(t.data->'networks', '[]'::jsonb)) x
-  where c.visible and c.kind = 'series'`;
+  where c.visible and c.kind = 'series' ${narrow("network", "c.network_ids")}`;
+};

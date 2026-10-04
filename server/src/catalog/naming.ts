@@ -6,9 +6,6 @@
  * and TMDB matching. Values are stored in the API vocabulary straight away
  * (`VF` / `VOSTFR` / `VO` / ISO code, `SD` / `HD` / `FHD` / `4K`, `HDR` / `DV`), so the
  * database and `/player` speak the same words.
- *
- * Merges the regexes of the former `tmdb/match.ts` (calibrated on the production
- * catalogue) with the market and Unicode tags of `_Old/kanstrimi/…/cleanNames.ts`.
  */
 
 import type { Kind } from "@/db";
@@ -45,7 +42,7 @@ export function qualityOfRank(rank: number): Quality | null {
 
 // ---------------------------------------------------------------- vocabulary
 
-/** Word → language. Multi-audio counts as VF: the French track is there, VLC picks it. */
+/** Word → language. Multi-audio counts as VF: the French track is there, the player picks it. */
 const LANG_WORDS: Record<string, Language> = {
   FR: "VF",
   VF: "VF",
@@ -179,6 +176,8 @@ const WORDS_ALT = ALL_WORDS.map(esc).join("|");
 const BRACKET_GROUP = new RegExp(`[\\[\\(\\{]\\s*(?:${WORDS_ALT})(?:[\\s/,+\\-|]+(?:${WORDS_ALT}))*\\s*[\\]\\)\\}]`, "g");
 /** Bare tags at a word boundary. Case-sensitive: "It" or "Old" must stay in a title. */
 const BARE_TAG = new RegExp(`(?:^|[\\s\\-|:])(${WORDS_ALT}|\\d{3,4}[pi]|4k|8k)(?=$|[\\s\\-|:,.)])`, "g");
+/** Language words opening a name without a separator: "VOSTFR Parasite - 2019". */
+const LEADING_LANG_WORDS = new RegExp(`^(?:(?:${Object.keys(LANG_WORDS).map(esc).join("|")})\\s*[-:|]?\\s+)+`);
 const MARKET_PREFIX = /^(?:[[|(]\s*([A-Za-z]{2,7}(?:-[A-Za-z]{2,3})?)\s*[\]|)]\s*[-:|]?\s*)/;
 const BARE_PREFIX = /^([A-Z]{2,7})\s*[-:|]\s+/;
 const TZ_DELAY = /\|?\s*[-+]?\d{1,2}H\s*\|?/gi;
@@ -276,7 +275,6 @@ function extractYear(s: string): { s: string; year?: number } {
     if ((after.length > 0 && !/^[\s\-.|:]*$/.test(after)) || /[-|:]\s*$/.test(before)) {
       return { s: `${s.slice(0, m.index)} ${s.slice(m.index + m[0].length)}`, year: Number(m[1]) };
     }
-    if (/[-|:]\s*$/.test(before)) return { s: s.slice(0, m.index), year: Number(m[1]) };
   }
   return { s };
 }
@@ -319,7 +317,7 @@ export function parseName(raw: string, kind: Kind): ParsedName {
     s = s.slice(m[0].length);
   }
   // Leading language words without a separator: "VOSTFR Parasite - 2019".
-  s = s.replace(new RegExp(`^(?:(?:${Object.keys(LANG_WORDS).map(esc).join("|")})\\s*[-:|]?\\s+)+`, ""), (m) => {
+  s = s.replace(LEADING_LANG_WORDS, (m) => {
     for (const w of m.split(/[\s\-:|]+/).filter(Boolean)) classify(w, f);
     return "";
   });
@@ -388,6 +386,9 @@ export function parseCategory(name: string): CategoryHints {
   const p = parseName(name, "vod");
   return { title: p.title, market: p.market, language: p.language, quality: p.quality, dynamicRange: p.dynamicRange, tags: p.tags };
 }
+
+/** The languages in the order the app offers them: the first version of a channel is in the first one it has. */
+export const DEFAULT_LANGUAGE_ORDER = ["VF", "VOSTFR", "VO"];
 
 /** The language served to the app when neither the name nor the category said one. */
 export function defaultLanguage(market?: string): Language {

@@ -11,7 +11,8 @@ import {
 } from "@/catalog";
 import { getTmdbClient } from "@/providers/tmdb";
 import { describeError } from "@/shared";
-import { back, form, page, intParam } from "../http";
+import { back, form, page, intField, intParam } from "../http";
+import { InlineResult } from "../ui";
 import { contentDetail, orphanDetail } from "./data";
 import { ContentView, MergeForm } from "./view";
 import { ExplainView } from "./explain";
@@ -60,11 +61,11 @@ itemRoutes.get("/:id/explain", async (c) => {
   const it = await itemById(intParam(c, "id"));
   if (!it || it.kind === "live") return c.notFound();
   const client = await getTmdbClient();
-  if (!client) return c.html(<span class="text-sm text-destructive">Clé TMDB absente.</span>);
+  if (!client) return c.html(<InlineResult ok={false} text="Clé TMDB absente." />);
   try {
     return c.html(<ExplainView e={await explainMatch(client, it)} kind={it.kind} />);
   } catch (e) {
-    return c.html(<span class="text-sm text-destructive">{describeError(e)}</span>);
+    return c.html(<InlineResult ok={false} text={describeError(e)} />);
   }
 });
 
@@ -91,13 +92,13 @@ itemRoutes.post("/:id/reset", async (c) => {
 itemRoutes.get("/:id/merge-form", (c) => c.html(<MergeForm itemId={intParam(c, "id")} />));
 itemRoutes.post("/merge-search", async (c) => {
   const f = await form(c);
-  const it = await itemById(Number(f.id));
+  const it = await itemById(intField(f, "id"));
   if (!it) return c.notFound();
   return c.html(<MergeForm itemId={it.id} results={await mergeCandidates(it, (f.q ?? "").trim())} />);
 });
 itemRoutes.post("/merge", async (c) => {
   const f = await form(c);
-  const it = await itemById(Number(f.id));
+  const it = await itemById(intField(f, "id"));
   if (!it || !f.key) return c.notFound();
   await mergeVariantInto(it, f.key);
   return followVariant(c, it.id, "Variante fusionnée");

@@ -94,12 +94,12 @@ export class XtreamClient {
       headers: { "User-Agent": "Kanstrimi/1.0" },
       signal: AbortSignal.timeout(timeoutMs),
     });
-    if (!res.ok) throw new XtreamError(`Upstream ${action ?? "auth"} failed: HTTP ${res.status}`, res.status);
+    if (!res.ok) throw new XtreamError(`Fournisseur : ${action ?? "auth"} en échec (HTTP ${res.status})`, res.status);
     const text = await res.text();
     try {
       return JSON.parse(text) as T;
     } catch {
-      throw new XtreamError(`Upstream ${action ?? "auth"} returned invalid JSON: ${text.slice(0, 200)}`);
+      throw new XtreamError(`Fournisseur : ${action ?? "auth"} a répondu un JSON illisible : ${text.slice(0, 200)}`);
     }
   }
 

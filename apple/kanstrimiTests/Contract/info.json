@@ -10,10 +10,5 @@
   "catalog_languages": [
     "VF",
     "VOSTFR"
-  ],
-  "default_language_order": [
-    "VF",
-    "VOSTFR",
-    "VO"
   ]
 }

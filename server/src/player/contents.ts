@@ -23,12 +23,21 @@ export const servedVariant = (ctx: RestContext): SQL =>
 /** « Nouveautés » holds the movies released in the last twelve months. */
 export const NEW_RELEASE_MONTHS = 12;
 
+/** What an undated content sorts as: year 1, the oldest. */
+export const NO_RELEASE = "0001-01-01";
+
 /**
- * Released within `NEW_RELEASE_MONTHS` of `today` (a parameter so tests can pin it). Written with the
- * expression of `contents_release_idx` (undated = year 1, never new): a range of the index, not a scan.
+ * The release date as the lists sort it: the expression of `catalog_contents_release_idx`, literal
+ * included (a parameter would not match the index).
  */
-export const isNewRelease = (today = new Date()): SQL =>
-  sql`coalesce(${schema.catalogContents.releaseDate}, '0001-01-01'::date) >= ${today.toISOString().slice(0, 10)}::date - make_interval(months => ${NEW_RELEASE_MONTHS})`;
+export const byRelease: SQL = sql`coalesce(${schema.catalogContents.releaseDate}, ${sql.raw(`'${NO_RELEASE}'`)}::date)`;
+
+/**
+ * Released within `NEW_RELEASE_MONTHS` of today. Written with the
+ * expression of `catalog_contents_release_idx` (undated = year 1, never new): a range of the index, not a scan.
+ */
+export const isNewRelease = (): SQL =>
+  sql`${byRelease} >= ${new Date().toISOString().slice(0, 10)}::date - make_interval(months => ${NEW_RELEASE_MONTHS})`;
 
 export async function contentByKey(ctx: RestContext, key: string): Promise<Content | null> {
   const [c] = await db

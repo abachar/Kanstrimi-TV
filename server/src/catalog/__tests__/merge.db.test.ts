@@ -3,8 +3,9 @@ import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb } from "@/test/db";
 import { setSecretsForTests } from "@/config";
-import { runSync, type XStream } from "@/providers/xtream";
+import { runSync as syncSource, type XStream } from "@/providers/xtream";
 import { runMerge, RADIO_CATEGORY_ID } from "../merge";
+import { variantCountsByKind } from "../queries";
 
 // What the provider lists; each test rewrites it before an import.
 let vod: unknown = [];
@@ -33,6 +34,8 @@ beforeAll(async () => {
 });
 afterAll(closeDb);
 
+/** The `source` step as the pipeline runs it: the provider is handed the catalogue's current counts. */
+const runSync = async (opts: { acceptShrink?: boolean } = {}) => syncSource({ ...opts, currentCounts: await variantCountsByKind() });
 const importAll = async (opts: { acceptShrink?: boolean } = {}) => {
   await runSync(opts);
   return runMerge(opts);

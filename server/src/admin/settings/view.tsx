@@ -69,7 +69,7 @@ export function SettingsView({ s }: { s: Settings }) {
   );
   return (
     <>
-      <Title t="Paramètres" sub="Source Xtream, compte client, TMDB, planification, sécurité" />
+      <Title t="Paramètres" sub="Source Xtream, TMDB, application Apple, planification, sécurité" />
       <form method="post" action="/admin/settings" class="flex flex-col gap-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card title="Serveur Xtream (source)" hint={ENV_HINT}>
@@ -105,7 +105,7 @@ export function SettingsView({ s }: { s: Settings }) {
                   </label>
                   <p class="text-sm text-muted-foreground">
                     Désactivé : les contenus marqués adultes par TMDB ou par la catégorie du fournisseur disparaissent de l'accueil, des
-                    listes, de la recherche et des fiches. L'API Xtream n'est pas concernée : ses règles de filtrage s'appliquent seules.
+                    listes, de la recherche et des fiches.
                   </p>
                 </section>
               </div>

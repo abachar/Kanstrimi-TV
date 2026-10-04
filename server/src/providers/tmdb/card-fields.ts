@@ -119,7 +119,9 @@ export function logoOf(d: TmdbDetails, lang: string, title: string): string | nu
   const code = lang.split("-")[0];
   const english = englishTitleOf(d);
   const original = typeof d.original_language === "string" ? d.original_language : null;
-  const originalTitle = original === "en" && typeof d.original_title === "string" ? d.original_title : null;
+  // A series carries `original_name`, a movie `original_title`.
+  const originalName = d.original_title ?? d.original_name;
+  const originalTitle = original === "en" && typeof originalName === "string" ? originalName : null;
   const sameAsEnglish = [english, originalTitle].some((t) => t !== null && similarityKey(t) === similarityKey(title));
   const neutral = original === code || original === "en" ? [null] : [];
   for (const fits of [code, ...(sameAsEnglish && code !== "en" ? ["en"] : []), ...neutral]) {

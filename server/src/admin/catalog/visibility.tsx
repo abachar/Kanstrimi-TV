@@ -50,7 +50,7 @@ export function VisibilityToggle({
     ? "Une règle de filtrage masque cet élément : modifiez la règle pour le réafficher."
     : catHidden
       ? "Sa catégorie est masquée : réaffichez la catégorie pour le rendre visible."
-      : "Afficher ou masquer cet élément pour les applications IPTV";
+      : "Afficher ou masquer cet élément pour l'app";
   return (
     <div id={domId} class="flex items-center gap-2">
       <input

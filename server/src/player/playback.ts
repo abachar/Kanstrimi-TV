@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { ensureEpisodes, parseKey } from "@/catalog";
+import { parseKey } from "@/catalog";
 import type { Content } from "@/db";
 import type { Env, RestContext } from "./context";
 import { fail, json, noContent } from "./http";
 import { contentByKey, keyExists, variantsOf } from "./contents";
 import { deleteProgress, getProgress, isResumable, setFinished, setProgress } from "./progress";
-import { languageLabel, qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
-import { currentEpisode, type EpisodeRow, episodeWire, loadEpisodes } from "./episodes";
-import { castOf, episodeCode, runtimeText } from "./cards";
+import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
+import { currentEpisode, type EpisodeRow, episodeWire, episodesOf } from "./episodes";
+import { badgesOf, castOf, episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
 import { addWatchTime } from "./watch-time";
 import type { NextEpisode, Playback, Version } from "./types";
@@ -68,9 +68,7 @@ playbackRoutes.put("/:id/watched", async (c) => {
   if (parsed.kind === "series" && parsed.episode === undefined) {
     const content = await contentByKey(ctx, key);
     if (!content) return fail("not_found", "Contenu introuvable");
-    const { items, categoryName } = await variantsOf(ctx, content);
-    await ensureEpisodes(content, items, ctx.tmdbLang);
-    const episodes = (await loadEpisodes(content, items, categoryName)).filter(
+    const episodes = (await episodesOf(ctx, content)).episodes.filter(
       (e) => body.data.season === undefined || e.season === body.data.season,
     );
     if (!episodes.length) return fail("not_found", "Saison introuvable");
@@ -103,37 +101,19 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
   if (parsed.episode !== undefined) {
     const content = await contentByKey(ctx, parsed.seriesKey);
     if (content?.kind !== "series") return null;
-    const { items, categoryName } = await variantsOf(ctx, content);
-    await ensureEpisodes(content, items, ctx.tmdbLang);
-    const episodes = await loadEpisodes(content, items, categoryName);
+    const { episodes } = await episodesOf(ctx, content);
     const idx = episodes.findIndex((e) => e.key === key);
-    if (idx === -1) return null;
-    const e = episodes[idx],
-      next = episodes[idx + 1];
-    const p = (await getProgress([key])).get(key);
-    const nextVersions = next ? versionsOf(ctx, next.playables, false) : [];
-    return {
-      // Named for whoever plays it from its id alone (« Reprendre »): the app titles the player with it.
-      episode: { id: e.key, season: e.season, number: e.number, title: e.title },
-      versions: versionsOf(ctx, e.playables),
-      resume_at: isResumable(p) ? p.position : null,
-      duration: p?.duration || (e.runtime ? e.runtime * 60 : null),
-      next: next ? nextEpisodeOf(ctx, content, next, nextVersions) : null,
-      cast: castOf(ctx, content),
-    };
+    return idx === -1 ? null : episodePlayback(ctx, content, episodes, idx);
   }
   const content = await contentByKey(ctx, key);
   if (!content) return null;
+  if (content.kind === "series") {
+    const { episodes } = await episodesOf(ctx, content);
+    const e = currentEpisode(episodes, await getProgress(episodes.map((e) => e.key))) ?? episodes[0];
+    return e ? episodePlayback(ctx, content, episodes, episodes.indexOf(e)) : null;
+  }
   const versions = versionsOf(ctx, (await variantsOf(ctx, content)).playables);
   if (content.kind === "live") return { versions, resume_at: null, duration: null, next: null, cast: [] };
-  if (content.kind === "series") {
-    const { items, categoryName } = await variantsOf(ctx, content);
-    await ensureEpisodes(content, items, ctx.tmdbLang);
-    const episodes = await loadEpisodes(content, items, categoryName);
-    const e = currentEpisode(episodes, await getProgress(episodes.map((e) => e.key))) ?? episodes[0];
-    const p = e ? await playback(ctx, e.key) : null;
-    return p && { ...p, episode: { id: e.key, season: e.season, number: e.number, title: e.title } };
-  }
   const p = (await getProgress([key])).get(key);
   return {
     versions,
@@ -144,11 +124,27 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
   };
 }
 
+/** What plays `episodes[idx]` of `series`, with the one that follows. */
+async function episodePlayback(ctx: RestContext, series: Content, episodes: EpisodeRow[], idx: number): Promise<Playback> {
+  const e = episodes[idx],
+    next = episodes[idx + 1];
+  const p = (await getProgress([e.key])).get(e.key);
+  const nextVersions = next ? versionsOf(ctx, next.playables, false) : [];
+  return {
+    // Named for whoever plays it from its id alone (« Reprendre »): the app titles the player with it.
+    episode: { id: e.key, season: e.season, number: e.number, title: e.title },
+    versions: versionsOf(ctx, e.playables),
+    resume_at: isResumable(p) ? p.position : null,
+    duration: p?.duration || (e.runtime ? e.runtime * 60 : null),
+    next: next ? nextEpisodeOf(ctx, series, next, nextVersions) : null,
+    cast: castOf(ctx, series),
+  };
+}
+
 /** The episode that follows, and what « À suivre » draws of it. */
 function nextEpisodeOf(ctx: RestContext, series: Content, next: EpisodeRow, versions: Version[]): NextEpisode {
   const summary = versionsSummary(versions);
   const wire = episodeWire(ctx, next);
-  const quality = [qualityBadgeOf(summary)].filter((b) => b !== null);
   return {
     id: next.key,
     title: next.title,
@@ -162,7 +158,8 @@ function nextEpisodeOf(ctx: RestContext, series: Content, next: EpisodeRow, vers
       facts: [series.title, episodeCode(next.season, next.number), next.runtime ? runtimeText(next.runtime) : null]
         .filter((t) => t !== null)
         .join(" · "),
-      badges: [...quality, ...summary.languages.map(languageLabel)],
+      quality: qualityBadgeOf(summary),
+      badges: badgesOf(qualityBadgeOf(summary), summary.languages),
       progress: null,
       watched: false,
       caption: null,

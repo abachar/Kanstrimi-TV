@@ -3,7 +3,7 @@ import { desc, eq, inArray, sql } from "drizzle-orm";
 import { markWaitlistStarted } from "@/catalog";
 
 /** "Vu" is derived here, once, at write time: 90 % of the duration. */
-export const FINISHED_AT = 0.9;
+const FINISHED_AT = 0.9;
 /** Below 5 % nothing is worth resuming: the row is kept, the resume row ignores it. */
 export const RESUMABLE_FROM = 0.05;
 

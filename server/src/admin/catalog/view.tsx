@@ -86,7 +86,20 @@ export function CatalogView({
               <CategoryRow c={c} qy={qy} count={catCounts.get(c.xtreamId) ?? 0} />
             ))}
           </div>
-          {cats.length === 0 && <Empty title="Aucune catégorie" sub="Lancer l'étape 1 depuis le tableau de bord." />}
+          {cats.length === 0 && (
+            <Empty
+              title="Aucune catégorie"
+              sub={
+                <>
+                  Lancer le traitement complet depuis{" "}
+                  <a href="/admin/tasks" class="underline underline-offset-4 hover:text-foreground">
+                    Tâches
+                  </a>
+                  .
+                </>
+              }
+            />
+          )}
         </>
       ) : (
         <>

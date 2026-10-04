@@ -55,6 +55,24 @@ describe("logoOf", () => {
     expect(logoOf(d, "fr-FR", "UNABOMBER")).toBe("/en.png");
   });
 
+  it("takes an English logo for the original name of an English series", () => {
+    // A series carries `original_name`, not `original_title`.
+    const d: TmdbDetails = {
+      id: 1492640,
+      original_language: "en",
+      original_name: "UNABOMBER",
+      translations: { translations: [{ iso_639_1: "ru", iso_3166_1: "RU", data: { name: "Унабомбер" } }] },
+      alternative_titles: { titles: [{ iso_3166_1: "US", title: "Unabom" }] },
+      images: {
+        logos: [
+          { file_path: "/en.png", iso_639_1: "en", vote_average: 3.3 },
+          { file_path: "/cyrillic.png", iso_639_1: null, vote_average: 0 },
+        ],
+      },
+    };
+    expect(logoOf(d, "fr-FR", "UNABOMBER")).toBe("/en.png");
+  });
+
   it("leaves the title as text when no logo reads as it", () => {
     expect(logoOf(doc([{ file_path: "/en.png", iso_639_1: "en" }], "Taken"), "fr-FR", "Io vi troverò")).toBeNull();
     expect(logoOf(doc([]), "fr-FR", "Matrix")).toBeNull();

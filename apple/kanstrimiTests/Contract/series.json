@@ -8,10 +8,11 @@
         "id": "tmdb:tv:1396",
         "kind": "series",
         "title": "Vincenzo",
-        "poster": "http://kanstrimi.test/img/w500/v.jpg",
-        "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png",
-        "picture": "http://kanstrimi.test/img/w1280/vb.jpg",
+        "poster": "http://kanstrimi.test/img/w500/v.jpg?k=zgC0cePaPDvX1FoB",
+        "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png?k=BpM8Q7zvBnAOWlEa",
+        "picture": "http://kanstrimi.test/img/w1280/vb.jpg?k=Ow2XHIZcPM9XLU9_",
         "facts": "2021 · ★ 8.4",
+        "quality": null,
         "badges": [
           "FR"
         ],
@@ -32,10 +33,11 @@
         "id": "tmdb:tv:1396",
         "kind": "series",
         "title": "Vincenzo",
-        "poster": "http://kanstrimi.test/img/w500/v.jpg",
-        "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png",
-        "picture": "http://kanstrimi.test/img/w1280/vb.jpg",
+        "poster": "http://kanstrimi.test/img/w500/v.jpg?k=zgC0cePaPDvX1FoB",
+        "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png?k=BpM8Q7zvBnAOWlEa",
+        "picture": "http://kanstrimi.test/img/w1280/vb.jpg?k=Ow2XHIZcPM9XLU9_",
         "facts": "2021 · ★ 8.4",
+        "quality": null,
         "badges": [
           "FR"
         ],
@@ -56,10 +58,11 @@
         "id": "tmdb:tv:1396",
         "kind": "series",
         "title": "Vincenzo",
-        "poster": "http://kanstrimi.test/img/w500/v.jpg",
-        "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png",
-        "picture": "http://kanstrimi.test/img/w1280/vb.jpg",
+        "poster": "http://kanstrimi.test/img/w500/v.jpg?k=zgC0cePaPDvX1FoB",
+        "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png?k=BpM8Q7zvBnAOWlEa",
+        "picture": "http://kanstrimi.test/img/w1280/vb.jpg?k=Ow2XHIZcPM9XLU9_",
         "facts": "2021 · ★ 8.4",
+        "quality": null,
         "badges": [
           "FR"
         ],

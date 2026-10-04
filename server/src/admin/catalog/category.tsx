@@ -3,7 +3,7 @@ import { isCategoryHidden } from "@/db";
 import { fmt } from "../format";
 import { NO_CATEGORY } from "./data";
 import { Badge } from "../ui";
-import { CatalogHeader } from "./row";
+import { CatalogHeader, SUMMARY } from "./row";
 import { VisibilityToggle } from "./visibility";
 import { categoryItemsLink, type CatalogQuery } from "./query";
 
@@ -14,7 +14,6 @@ import { categoryItemsLink, type CatalogQuery } from "./query";
  * category open. It is laid over the summary's right end, which keeps room for it (`pe-*`),
  * so a long category name truncates instead of shoving the switch past the edge of a phone.
  */
-const SUMMARY = "flex h-12 w-full min-w-0 items-center gap-2 bg-muted/30 px-4 text-sm hover:bg-muted/50";
 
 /**
  * The entries the provider sends without a category. No switch: there is no category to hide,

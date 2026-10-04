@@ -2,7 +2,7 @@
   "id": "tmdb:movie:603",
   "kind": "movie",
   "title": "Matrix",
-  "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
+  "poster": "http://kanstrimi.test/img/w500/matrix.jpg?k=-O0jHsPakIQ21nez",
   "max_quality": "4K",
   "dynamic_range": "DV",
   "languages": [
@@ -17,8 +17,11 @@
   ],
   "hint": null,
   "added_at": "2026-09-22T18:30:00.000Z",
-  "backdrop": "http://kanstrimi.test/img/w1280/matrixb.jpg",
-  "logo": "http://kanstrimi.test/img/w500/matrix-logo.png",
+  "backdrop": "http://kanstrimi.test/img/w1280/matrixb.jpg?k=BwvlIilgsuIqUdtG",
+  "logo": "http://kanstrimi.test/img/w500/matrix-logo.png?k=Z7jzMUni_NAXQTHi",
+  "tagline": "FILM",
+  "facts": "1999 · Action, Science-Fiction · 2 h 16",
+  "rating_label": "★ 8.2",
   "original_title": "The Matrix",
   "end_year": null,
   "overview": "Thomas Anderson mène une double vie.",
@@ -29,7 +32,7 @@
       "id": "person:6384",
       "name": "Keanu Reeves",
       "role": "Neo",
-      "photo": "http://kanstrimi.test/img/w185/keanu.jpg"
+      "photo": "http://kanstrimi.test/img/w185/keanu.jpg?k=yT-g7HBFg_ssh54u"
     }
   ],
   "director": "Lana Wachowski",
@@ -38,6 +41,7 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
+  "play_label": "Lecture",
   "versions": [
     {
       "id": "vf-4k-dv",
@@ -81,17 +85,19 @@
   "saga": {
     "id": "saga:2344",
     "name": "Matrix - Saga",
-    "count": 2
+    "count": 2,
+    "label": "Matrix - Saga · 2 films"
   },
   "related": [
     {
       "id": "tmdb:movie:604",
       "kind": "movie",
       "title": "Matrix Reloaded",
-      "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
-      "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png",
-      "picture": "http://kanstrimi.test/img/w1280/reloadedb.jpg",
+      "poster": "http://kanstrimi.test/img/w500/reloaded.jpg?k=wNPZ53qvDQKXjutT",
+      "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png?k=sgYnZB0KqGnUgWDC",
+      "picture": "http://kanstrimi.test/img/w1280/reloadedb.jpg?k=zqiFBlN3NTqcWQGU",
       "facts": "2026 · ★ 7.1",
+      "quality": "4K DV",
       "badges": [
         "4K DV",
         "FR"
@@ -106,10 +112,11 @@
       "id": "tmdb:movie:949",
       "kind": "movie",
       "title": "Heat",
-      "poster": "http://kanstrimi.test/img/w500/heat.jpg",
-      "logo": "http://kanstrimi.test/img/w500/heat-logo.png",
-      "picture": "http://kanstrimi.test/img/w1280/heatb.jpg",
+      "poster": "http://kanstrimi.test/img/w500/heat.jpg?k=kwrs6oOToU4DfalS",
+      "logo": "http://kanstrimi.test/img/w500/heat-logo.png?k=Kb_q5kwlf8Bw4Dcx",
+      "picture": "http://kanstrimi.test/img/w1280/heatb.jpg?k=fIovqFeu9Ko-vyRW",
       "facts": "2026 · ★ 7.9",
+      "quality": null,
       "badges": [
         "VOSTF"
       ],

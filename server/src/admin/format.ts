@@ -16,6 +16,10 @@ export function ago(iso?: string | null) {
   if (h < 24) return relative.format(-h, "hour");
   return relative.format(-Math.round(h / 24), "day");
 }
+/** « 412,3 Mo »: bytes in megabytes (1 Mo = 10^6 octets), one decimal at most. */
+export const megabytes = (bytes: number) => `${(bytes / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
+/** « 09:05 ». */
+export const hhmm = (d: Date) => d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 export function duration(a: Date, b: Date) {
   const s = Math.round((b.getTime() - a.getTime()) / 1000);
   if (s < 60) return `${s} s`;
@@ -49,4 +53,10 @@ export function nextCronRun(expr: string, from = new Date()): Date | null {
 export function describeCron(expr: string): string {
   if (!isValidCron(expr)) return "expression invalide";
   return cronstrue.toString(expr, { locale: "fr", use24HourTimeFormat: true });
+}
+
+/** « À 03:00, prochain passage 05/10/2026 03:00 »: the schedule, then when it runs next. */
+export function nextRunText(expr: string): string {
+  const next = nextCronRun(expr);
+  return `${describeCron(expr)}${next ? `, prochain passage ${next.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}` : ""}`;
 }

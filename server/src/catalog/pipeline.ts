@@ -1,9 +1,11 @@
 import { Cron } from "croner";
 import { getSettings, isXtreamConfigured, type Settings } from "@/config";
 import { describeError, isCancelled, withCancel } from "@/shared";
-import { runSync, runEpgRebuild } from "@/providers/xtream";
+import { runSync } from "@/providers/xtream";
 import { runTrending } from "@/providers/tmdb";
 import { runEnrich } from "./matching";
+import { runEpgRebuild } from "./epg";
+import { variantCountsByKind } from "./queries";
 import { applyRules } from "./rules/apply";
 import { runGrouping } from "./grouping/group";
 import { runMerge } from "./merge";
@@ -13,14 +15,14 @@ import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
 
 /**
  * The catalogue pipeline. Eight steps, each a plain function of its own module:
- *   source  — read the provider's lists into their raw copy, checked (providers/xtream)
+ *   source  — read the provider's lists into their raw copy, checked against the catalogue (providers/xtream)
  *   merge   — raw copy → catalogue by difference, then parse the names (no network)
  *   channels — live variants matched to the iptv-org database: logo, theme, adult (providers/iptv)
  *   enrich  — TMDB matching of every pending entry, hidden ones included, and a share of the stale cache (matching.ts)
  *   filters — recompute hidden_by_rule from the rules (no network)
  *   group   — variants → contents, aggregates over the visible variants (no network)
  *   trending — TMDB's weekly trending lists, for the « Top 10 » rows
- *   epg     — download the XMLTV guide
+ *   epg     — download the XMLTV guide (providers/xtream), keep the programmes of the visible channels (epg.ts)
  * Matching comes before the filters so that unhiding something never shows it unmatched;
  * grouping comes after them because its aggregates only count visible variants.
  *
@@ -45,7 +47,7 @@ export type RunOptions = { acceptShrink?: boolean };
 type StepContext = RunOptions & { steps: Step[] };
 
 const RUNNERS: Record<Step, (ctx: StepContext) => Promise<unknown>> = {
-  source: (ctx) => runSync(ctx),
+  source: async (ctx) => runSync({ acceptShrink: ctx.acceptShrink, currentCounts: await variantCountsByKind() }),
   merge: (ctx) => runMerge(ctx),
   channels: runChannels,
   enrich: () => runEnrich(),
@@ -101,8 +103,8 @@ async function runStep(step: Step, runId: number, ctx: StepContext): Promise<str
 }
 
 /**
- * One run of a task: its row, its file, its steps in order until the first failure (a TMDB
- * step's failure is noted and skipped).
+ * One run of a task: its row, its file, its steps in order until the first failure (a failure
+ * of an enrichment step, `SKIPPABLE`, is noted and skipped).
  * False when it could not start (already running, database down) or failed.
  */
 async function runTask(task: string, trigger: Trigger, steps: Step[], opts: RunOptions = {}): Promise<boolean> {

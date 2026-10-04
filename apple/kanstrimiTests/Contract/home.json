@@ -5,10 +5,11 @@
         "id": "tmdb:movie:604",
         "kind": "movie",
         "title": "Matrix Reloaded",
-        "poster": "http://kanstrimi.test/img/w780/reloaded.jpg",
-        "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png",
-        "picture": "http://kanstrimi.test/img/w1280/reloadedb.jpg",
+        "poster": "http://kanstrimi.test/img/w780/reloaded.jpg?k=yM3K_qvAt3xVS3JC",
+        "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png?k=sgYnZB0KqGnUgWDC",
+        "picture": "http://kanstrimi.test/img/w1280/reloadedb.jpg?k=zqiFBlN3NTqcWQGU",
         "facts": "2026 · Action · 2 h 18",
+        "quality": "4K DV",
         "badges": [
           "4K DV",
           "FR"
@@ -55,10 +56,11 @@
         "id": "tmdb:movie:603",
         "kind": "movie",
         "title": "Matrix",
-        "poster": "http://kanstrimi.test/img/w780/matrix.jpg",
-        "logo": "http://kanstrimi.test/img/w500/matrix-logo.png",
-        "picture": "http://kanstrimi.test/img/w1280/matrixb.jpg",
+        "poster": "http://kanstrimi.test/img/w780/matrix.jpg?k=SXbBuxmuoEXwE2V_",
+        "logo": "http://kanstrimi.test/img/w500/matrix-logo.png?k=Z7jzMUni_NAXQTHi",
+        "picture": "http://kanstrimi.test/img/w1280/matrixb.jpg?k=BwvlIilgsuIqUdtG",
         "facts": "1999 · Action · 2 h 16",
+        "quality": "4K DV",
         "badges": [
           "4K DV",
           "FR",
@@ -130,10 +132,11 @@
           "id": "tmdb:movie:949",
           "kind": "movie",
           "title": "Heat",
-          "poster": "http://kanstrimi.test/img/w500/heat.jpg",
-          "logo": "http://kanstrimi.test/img/w500/heat-logo.png",
-          "picture": "http://kanstrimi.test/img/w1280/heatb.jpg",
+          "poster": "http://kanstrimi.test/img/w500/heat.jpg?k=kwrs6oOToU4DfalS",
+          "logo": "http://kanstrimi.test/img/w500/heat-logo.png?k=Kb_q5kwlf8Bw4Dcx",
+          "picture": "http://kanstrimi.test/img/w1280/heatb.jpg?k=fIovqFeu9Ko-vyRW",
           "facts": "2026 · ★ 7.9",
+          "quality": null,
           "badges": [
             "VOSTF"
           ],
@@ -158,6 +161,7 @@
           "logo": null,
           "picture": null,
           "facts": null,
+          "quality": "FHD",
           "badges": [
             "FHD",
             "FR"
@@ -179,10 +183,11 @@
           "id": "tmdb:movie:604",
           "kind": "movie",
           "title": "Matrix Reloaded",
-          "poster": "http://kanstrimi.test/img/w500/reloaded.jpg",
-          "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png",
-          "picture": "http://kanstrimi.test/img/w1280/reloadedb.jpg",
+          "poster": "http://kanstrimi.test/img/w500/reloaded.jpg?k=wNPZ53qvDQKXjutT",
+          "logo": "http://kanstrimi.test/img/w500/reloaded-logo.png?k=sgYnZB0KqGnUgWDC",
+          "picture": "http://kanstrimi.test/img/w1280/reloadedb.jpg?k=zqiFBlN3NTqcWQGU",
           "facts": "2026 · ★ 7.1",
+          "quality": "4K DV",
           "badges": [
             "4K DV",
             "FR"
@@ -197,10 +202,11 @@
           "id": "tmdb:movie:949",
           "kind": "movie",
           "title": "Heat",
-          "poster": "http://kanstrimi.test/img/w500/heat.jpg",
-          "logo": "http://kanstrimi.test/img/w500/heat-logo.png",
-          "picture": "http://kanstrimi.test/img/w1280/heatb.jpg",
+          "poster": "http://kanstrimi.test/img/w500/heat.jpg?k=kwrs6oOToU4DfalS",
+          "logo": "http://kanstrimi.test/img/w500/heat-logo.png?k=Kb_q5kwlf8Bw4Dcx",
+          "picture": "http://kanstrimi.test/img/w1280/heatb.jpg?k=fIovqFeu9Ko-vyRW",
           "facts": "2026 · ★ 7.9",
+          "quality": null,
           "badges": [
             "VOSTF"
           ],
@@ -221,10 +227,11 @@
           "id": "tmdb:tv:1396",
           "kind": "series",
           "title": "Vincenzo",
-          "poster": "http://kanstrimi.test/img/w500/v.jpg",
-          "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png",
-          "picture": "http://kanstrimi.test/img/w1280/vb.jpg",
+          "poster": "http://kanstrimi.test/img/w500/v.jpg?k=zgC0cePaPDvX1FoB",
+          "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png?k=BpM8Q7zvBnAOWlEa",
+          "picture": "http://kanstrimi.test/img/w1280/vb.jpg?k=Ow2XHIZcPM9XLU9_",
           "facts": "2021 · ★ 8.4",
+          "quality": null,
           "badges": [
             "FR"
           ],
@@ -245,10 +252,11 @@
           "id": "tmdb:tv:1396",
           "kind": "series",
           "title": "Vincenzo",
-          "poster": "http://kanstrimi.test/img/w500/v.jpg",
-          "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png",
-          "picture": "http://kanstrimi.test/img/w1280/vb.jpg",
+          "poster": "http://kanstrimi.test/img/w500/v.jpg?k=zgC0cePaPDvX1FoB",
+          "logo": "http://kanstrimi.test/img/w500/vincenzo-logo.png?k=BpM8Q7zvBnAOWlEa",
+          "picture": "http://kanstrimi.test/img/w1280/vb.jpg?k=Ow2XHIZcPM9XLU9_",
           "facts": "2021 · ★ 8.4",
+          "quality": null,
           "badges": [
             "FR"
           ],
@@ -269,10 +277,11 @@
           "id": "tmdb:movie:603",
           "kind": "movie",
           "title": "Matrix",
-          "poster": "http://kanstrimi.test/img/w500/matrix.jpg",
-          "logo": "http://kanstrimi.test/img/w500/matrix-logo.png",
-          "picture": "http://kanstrimi.test/img/w1280/matrixb.jpg",
+          "poster": "http://kanstrimi.test/img/w500/matrix.jpg?k=-O0jHsPakIQ21nez",
+          "logo": "http://kanstrimi.test/img/w500/matrix-logo.png?k=Z7jzMUni_NAXQTHi",
+          "picture": "http://kanstrimi.test/img/w1280/matrixb.jpg?k=BwvlIilgsuIqUdtG",
           "facts": "1999 · ★ 8.2",
+          "quality": "4K DV",
           "badges": [
             "4K DV",
             "FR",

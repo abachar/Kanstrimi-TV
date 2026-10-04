@@ -7,7 +7,7 @@ import { slug } from "@/shared";
 import { contentsGeneration, QUALITY_RANK, trendingContents } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { BadRequest, badQuery, json } from "./http";
-import { isNewRelease, visibleContent } from "./contents";
+import { byRelease, isNewRelease, NO_RELEASE, visibleContent } from "./contents";
 import { studioFilter } from "./studios";
 import { getProgress } from "./progress";
 import { contentItem } from "./cards";
@@ -82,10 +82,6 @@ function genresOf(ctx: RestContext, kind: "vod" | "series"): Promise<Genre[]> {
 }
 
 // ---------------------------------------------------------------- rows
-
-/** Release date order, undated last; the same expression as `contents_release_idx`. */
-const NO_RELEASE = "0001-01-01";
-const byRelease = sql`coalesce(${schema.catalogContents.releaseDate}, ${sql.raw(`'${NO_RELEASE}'`)}::date)`;
 
 /** « Top 10 », « Nouveautés » (or « Derniers épisodes »), then one row per TMDB genre by release date, twenty cards each. */
 export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Promise<CatalogRow[]> {
@@ -162,19 +158,23 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
   if (q.dynamic_range === "HDR") where.push(inArray(schema.catalogContents.dynamicRange, ["HDR", "DV"]));
   const limit = Math.min(PAGE_MAX, q.limit ?? PAGE_DEFAULT);
   const sort = q.sort ?? (q.genre === "recent" ? (kind === "series" ? "latest_episodes" : "recent") : "release");
-  type Key = { col: SQL; dir: "asc" | "desc"; of: (c: Content) => unknown };
+  /** `valid`: whether a cursor's value has the type this sort writes (a wrong one would reach Postgres as a cast error). */
+  type Key = { col: SQL; dir: "asc" | "desc"; of: (c: Content) => unknown; valid: (v: unknown) => boolean };
+  const isText = (v: unknown) => typeof v === "string";
+  const isDate = (v: unknown) => typeof v === "string" && Number.isFinite(Date.parse(v));
+  const isNumber = (v: unknown) => typeof v === "number" && Number.isFinite(v);
   const keys: Record<(typeof SORTS)[number], Key> = {
-    release: { col: byRelease, dir: "desc", of: (c) => c.releaseDate ?? NO_RELEASE },
-    recent: { col: sql`${schema.catalogContents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
-    latest_episodes: { col: sql`${schema.catalogContents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString() },
-    title: { col: sql`${schema.catalogContents.title}`, dir: "asc", of: (c) => c.title },
-    year: { col: sql`coalesce(${schema.catalogContents.year}, 0)`, dir: "desc", of: (c) => c.year ?? 0 },
-    rating: { col: sql`coalesce(${schema.catalogContents.rating}, 0)`, dir: "desc", of: (c) => c.rating ?? 0 },
+    release: { col: byRelease, dir: "desc", of: (c) => c.releaseDate ?? NO_RELEASE, valid: isText },
+    recent: { col: sql`${schema.catalogContents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString(), valid: isDate },
+    latest_episodes: { col: sql`${schema.catalogContents.addedAt}`, dir: "desc", of: (c) => c.addedAt.toISOString(), valid: isDate },
+    title: { col: sql`${schema.catalogContents.title}`, dir: "asc", of: (c) => c.title, valid: isText },
+    year: { col: sql`coalesce(${schema.catalogContents.year}, 0)`, dir: "desc", of: (c) => c.year ?? 0, valid: isNumber },
+    rating: { col: sql`coalesce(${schema.catalogContents.rating}, 0)`, dir: "desc", of: (c) => c.rating ?? 0, valid: isNumber },
   };
   const k = keys[sort];
   if (q.cursor) {
     const cur = decodeCursor(q.cursor);
-    if (!cur) throw new BadRequest("cursor invalide");
+    if (!cur || !k.valid(cur[0])) throw new BadRequest("cursor invalide");
     const [v, id] = cur;
     const val = sort === "recent" || sort === "latest_episodes" ? sql`${String(v)}::timestamptz` : sql`${v}`;
     where.push(

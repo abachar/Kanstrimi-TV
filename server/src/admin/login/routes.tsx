@@ -3,7 +3,7 @@ import { clientIp } from "@/shared";
 import { login, logout } from "../session";
 import { page, back, form } from "../http";
 import { LoginView } from "./view";
-import { loginFailed, loginSucceeded, loginWait } from "./attempts";
+import { beginAttempt, endAttempt, loginFailed, loginSucceeded, loginWait } from "./attempts";
 
 /** Only our own pages, so a crafted link cannot send the admin elsewhere after login. */
 export const safeNext = (s?: string) => (s && /^\/admin\/[A-Za-z0-9/_-]*$/.test(s) ? s : "/admin");
@@ -12,7 +12,12 @@ export const safeNext = (s?: string) => (s && /^\/admin\/[A-Za-z0-9/_-]*$/.test(
 export const loginRoutes = new Hono();
 export const logoutRoutes = new Hono();
 
-loginRoutes.get("/", (c) => page(c, "Connexion", <LoginView error={c.req.query("err")} next={c.req.query("next")} />, false));
+/** The failures the login page can show, by the code in `?e=`: a closed list, so a link cannot write the message. */
+const LOGIN_ERRORS: Record<string, string> = { bad: "E-mail ou mot de passe incorrect" };
+
+loginRoutes.get("/", (c) =>
+  page(c, "Connexion", <LoginView error={LOGIN_ERRORS[c.req.query("e") ?? ""]} next={c.req.query("next")} />, false),
+);
 loginRoutes.post("/", async (c) => {
   const next = safeNext(c.req.query("next"));
   const ip = clientIp(c.req.raw);
@@ -23,15 +28,24 @@ loginRoutes.post("/", async (c) => {
     c.header("Retry-After", String(seconds));
     return page(c, "Connexion", <LoginView error={`Trop de tentatives : réessayez dans ${seconds} s`} next={next} />, false);
   }
-  const { email, password } = await form(c);
-  if (!(await login(c, email ?? "", password ?? ""))) {
-    loginFailed(ip);
-    return back(c, `/admin/login${next !== "/admin" ? `?next=${encodeURIComponent(next)}` : ""}`, {
-      err: "E-mail ou mot de passe incorrect",
-    });
+  if (!beginAttempt()) {
+    c.status(429);
+    c.header("Retry-After", "1");
+    return page(c, "Connexion", <LoginView error="Une tentative est déjà en cours : réessayez dans un instant" next={next} />, false);
   }
-  loginSucceeded(ip);
-  return c.redirect(next, 303);
+  try {
+    const { email, password } = await form(c);
+    if (!(await login(c, email ?? "", password ?? ""))) {
+      loginFailed(ip);
+      const params = new URLSearchParams({ e: "bad" });
+      if (next !== "/admin") params.set("next", next);
+      return back(c, `/admin/login?${params}`, {});
+    }
+    loginSucceeded(ip);
+    return c.redirect(next, 303);
+  } finally {
+    endAttempt();
+  }
 });
 logoutRoutes.post("/", (c) => {
   logout(c);

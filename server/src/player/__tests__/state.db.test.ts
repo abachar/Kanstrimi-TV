@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { resetDb, closeDb } from "@/test/db";
 import { setProgress, getProgress, resumeKeys, isResumable } from "../progress";
+import { isWatched } from "../cards";
 import { setFavorite, favoriteKeys } from "../favorites";
 
 beforeAll(resetDb);
@@ -28,6 +29,12 @@ describe("watch progress", () => {
     const keys = (await resumeKeys()).map((r) => r.contentKey);
     expect(keys).toEqual(["tmdb:movie:4", "tmdb:tv:1396:s01e05"]);
     expect(isResumable((await getProgress(["tmdb:movie:1"])).get("tmdb:movie:1"))).toBe(false);
+  });
+
+  it("« Vu » is what the write derived: 95 % is watched, 50 % is not", async () => {
+    expect(isWatched(await setProgress("tmdb:movie:70", 5700, 6000))).toBe(true);
+    expect(isWatched(await setProgress("tmdb:movie:71", 3000, 6000))).toBe(false);
+    expect(isWatched(undefined)).toBe(false);
   });
 
   it("rejects nothing but clamps negatives", async () => {

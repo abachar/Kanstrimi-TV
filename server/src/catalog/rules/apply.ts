@@ -2,7 +2,7 @@ import { asc, sql, type SQL } from "drizzle-orm";
 import { db, schema, KINDS, type FilterRule, type Kind } from "@/db";
 import { getSettings, setSettings } from "@/config";
 import { checkCancelled } from "@/shared";
-import { compileQuery, QueryError } from "../query";
+import { checkRegexes, compileQuery, QueryError } from "../query";
 import { refreshVisibility } from "../grouping/group";
 import { withCatalogLock } from "../lock";
 
@@ -21,18 +21,19 @@ async function compiled(): Promise<{ rule: FilterRule; where: SQL }[]> {
     .select()
     .from(schema.curationFilterRules)
     .orderBy(asc(schema.curationFilterRules.position), asc(schema.curationFilterRules.id));
-  return rules
-    .filter((r) => r.enabled)
-    .flatMap((rule) => {
-      try {
-        const where = compileQuery(rule.query, { kind: rule.kind, lang, rule: true });
-        return where ? [{ rule, where }] : [];
-      } catch (e) {
-        if (!(e instanceof QueryError)) throw e;
-        console.warn(`[filters] règle « ${rule.name} » ignorée : ${e.message}`);
-        return [];
-      }
-    });
+  const out: { rule: FilterRule; where: SQL }[] = [];
+  for (const rule of rules.filter((r) => r.enabled)) {
+    try {
+      const where = compileQuery(rule.query, { kind: rule.kind, lang, rule: true });
+      if (!where) continue;
+      await checkRegexes(rule.query);
+      out.push({ rule, where });
+    } catch (e) {
+      if (!(e instanceof QueryError)) throw e;
+      console.warn(`[filters] règle « ${rule.name} » ignorée : ${e.message}`);
+    }
+  }
+  return out;
 }
 
 /** Whether a variant of `kind` is hidden: the last matching rule's action, else the whitelist default. */

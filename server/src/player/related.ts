@@ -5,7 +5,7 @@ import type { RestContext } from "./context";
 import { contentByKey, contentsInOrder, variantsOf, visibleContent } from "./contents";
 import { getProgress, isResumable, listProgress, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
-import { contentItem, relatedItem, upNextItem } from "./cards";
+import { contentItem, isWatched, relatedItem, upNextItem } from "./cards";
 import { loadEpisodes } from "./episodes";
 import type { ContentItem, Suggestion, Suggestions } from "./types";
 
@@ -35,7 +35,7 @@ async function watchStates(contents: Content[]): Promise<Map<string, WatchState>
   const states = new Map<string, WatchState>();
   const movies = contents.filter((c) => c.kind === "vod");
   for (const [key, p] of await getProgress(movies.map((c) => c.key))) {
-    if (p.finished) states.set(key, "seen");
+    if (isWatched(p)) states.set(key, "seen");
     else if (isResumable(p)) states.set(key, "started");
   }
   const series = contents.filter((c) => c.kind === "series");
@@ -46,7 +46,7 @@ async function watchStates(contents: Content[]): Promise<Map<string, WatchState>
     .where(or(...series.map((c) => like(schema.appWatchProgress.contentKey, `${c.key.replace(/[\\%_]/g, "\\$&")}:%`))));
   const watched = new Map<string, Progress[]>();
   for (const p of rows) {
-    if (!p.finished && !isResumable(p)) continue;
+    if (!isWatched(p) && !isResumable(p)) continue;
     const key = parseKey(p.contentKey)?.seriesKey;
     if (key) watched.set(key, [...(watched.get(key) ?? []), p]);
   }
@@ -65,7 +65,7 @@ async function watchStates(contents: Content[]): Promise<Map<string, WatchState>
   const lastKey = new Map(last.map((r) => [r.contentId, r.key]));
   for (const c of started) {
     const end = lastKey.get(c.id);
-    states.set(c.key, watched.get(c.key)!.some((p) => p.finished && p.contentKey === end) ? "seen" : "started");
+    states.set(c.key, watched.get(c.key)!.some((p) => isWatched(p) && p.contentKey === end) ? "seen" : "started");
   }
   return states;
 }
@@ -148,7 +148,7 @@ export async function recommendedRow(ctx: RestContext): Promise<ContentItem[]> {
   const seeds = new Map<string, number>();
   for (const p of history) {
     if (seeds.size >= HOME_SEEDS) break;
-    if (!p.finished && !isResumable(p)) continue;
+    if (!isWatched(p) && !isResumable(p)) continue;
     const key = isEpisodeKey(p.contentKey) ? parseKey(p.contentKey)?.seriesKey : p.contentKey;
     if (key && isTmdbKey(key) && !seeds.has(key)) seeds.set(key, 1 - seeds.size / (2 * HOME_SEEDS));
   }

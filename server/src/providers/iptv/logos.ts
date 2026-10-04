@@ -91,7 +91,7 @@ const once = singleFlight<{ path: string; contentType: string } | null>(null, {
   onError: (e, key) => console.error(`[logos] ${key} : ${describeError(e)}`),
 });
 
-/** `/img/logos/{id}-{hash}.{ext}`: iptv-org channel logos through the local disk cache. Mounted by `main.ts`. */
+/** `/img/logos/{id}-{hash}.{ext}`: iptv-org channel logos through the local disk cache. Mounted by `app.ts`. */
 export const logoRoute = new Hono();
 
 logoRoute.get("/:file", async (c) => {

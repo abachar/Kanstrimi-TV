@@ -1,7 +1,8 @@
 import { Hono } from "hono";
-import { listOffsets, offsetOf, offsetRules, setOffset } from "@/providers/xtream";
+import { listOffsets, offsetOf, offsetRules, setOffset } from "@/catalog";
 import { describeError } from "@/shared";
 import { back, form, page } from "../http";
+import { pageParam } from "../query";
 import { channelsOfGuide, epgGrid, gridFilters, programmesOf, type GridQuery } from "./data";
 import { EpgView, OffsetPanel, SLOTS, SLOT_MIN } from "./view";
 
@@ -35,6 +36,7 @@ async function panelProps(epgId: string, at: Date, minutes: number | null, patte
     programmes,
     current,
     preview: minutes ?? current,
+    at: at.toISOString(),
     scope: (pattern ? (pattern.startsWith("*") ? "suffix" : "exact") : exactRule || !current ? "exact" : "suffix") as "exact" | "suffix",
     back: backUrl,
   };
@@ -48,7 +50,7 @@ epgRoutes.get("/", async (c) => {
     q: c.req.query("q")?.trim() ?? "",
     market: c.req.query("market") ?? "",
     theme: c.req.query("theme") ?? "",
-    page: Math.max(1, Number(c.req.query("page")) || 1),
+    page: pageParam(c.req.query("page")),
   };
   const channel = c.req.query("channel");
   const url = new URL(c.req.url);
@@ -79,7 +81,7 @@ epgRoutes.get("/preview/:id", async (c) => {
   const minutes = Number(c.req.query("minutes"));
   const props = await panelProps(
     c.req.param("id"),
-    new Date(),
+    windowOf(c.req.query("at")).from,
     Number.isFinite(minutes) ? minutes : null,
     c.req.query("pattern") ?? null,
     epgBack(c.req.query("back")),
