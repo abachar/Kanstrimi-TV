@@ -1,6 +1,7 @@
 export { clientIp } from "./client-ip";
 export { cancelGuard, checkCancelled, isCancelled, withCancel } from "./cancel";
 export { imageKey, sha256, signedImagePath } from "./crypto";
+export { dayBudget } from "./day-budget";
 export { env } from "./env";
 export { describeError, isUnreachable } from "./errors";
 export { progress } from "./progress";

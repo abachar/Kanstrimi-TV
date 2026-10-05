@@ -2,7 +2,7 @@ import { count } from "drizzle-orm";
 import { db, schema } from "@/db";
 
 /**
- * The `markers` step: SkipDB's daily export (skipdb.tv, data under ODbL 1.0), its intros, end credits and
+ * The `markers` step: SkipDB's daily export (skipdb.tv, data under ODbL 1.0), its recaps, intros, end credits and
  * previews of the next episode, replaced as a whole. The export is a file of a dated GitHub release; nothing is asked of SkipDB's own API.
  * An unreachable, empty or half-gone export fails the step and keeps the previous import.
  */
@@ -40,9 +40,9 @@ async function latestDumpUrl(): Promise<string> {
 
 const ms = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= MAX_MS ? v : null);
 
-const KINDS: Record<string, Row["kind"]> = { intro: "intro", outro: "credits", preview: "preview" };
+const KINDS: Record<string, Row["kind"]> = { recap: "recap", intro: "intro", outro: "credits", preview: "preview" };
 
-/** An approved intro, outro or preview of the export as a row; null for the rest (recaps, « no intro », broken rows). */
+/** An approved recap, intro, outro or preview of the export as a row; null for the rest (« no intro », broken rows). */
 function rowOf(s: Record<string, unknown>): Row | null {
   if (s.status !== "approved") return null;
   const kind = typeof s.segment_type === "string" ? KINDS[s.segment_type] : undefined;

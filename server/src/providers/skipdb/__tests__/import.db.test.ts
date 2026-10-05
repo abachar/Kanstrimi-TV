@@ -62,10 +62,12 @@ afterEach(() => vi.unstubAllGlobals());
 afterAll(closeDb);
 
 describe("SkipDB import", () => {
-  it("takes the export of the latest dated release and keeps its intros, end credits and previews", async () => {
+  it("takes the export of the latest dated release and keeps its recaps, intros, end credits and previews", async () => {
     segments.push(seg({ segment_type: "preview", episode: 3, start_ms: 3500000, end_ms: 3547000 }));
-    expect(await runSkipdbImport()).toEqual({ segments: 4, titles: 2 });
-    expect(await segmentsOf({ imdbId: "tt1190634", season: 1, episode: 3 })).toEqual([
+    segments.push(seg({ segment_type: "recap", episode: 3, start_ms: 0, end_ms: 60000 }));
+    expect(await runSkipdbImport()).toEqual({ segments: 5, titles: 2 });
+    expect((await segmentsOf({ imdbId: "tt1190634", season: 1, episode: 3 })).sort((a, b) => a.start - b.start)).toEqual([
+      { kind: "recap", start: 0, end: 60, measuredOn: 3547 },
       { kind: "preview", start: 3500, end: 3547, measuredOn: 3547 },
     ]);
     expect(fetched).toEqual([expect.stringContaining("api.github.com/repos/SkipDB-TV/skipdb/releases"), DUMP]);
@@ -78,11 +80,11 @@ describe("SkipDB import", () => {
     expect(await segmentsOf({ imdbId: "tt1190634", season: 1, episode: 4 })).toEqual([]);
   });
 
-  it("leaves out what is not an approved intro or outro, « no intro » rows and broken ones", async () => {
+  it("leaves out what is not an approved segment of a known kind, « no intro » rows and broken ones", async () => {
     const kept = seg({});
     segments = [
       kept,
-      seg({ segment_type: "recap", start_ms: 0, end_ms: 60000 }),
+      seg({ segment_type: "chapter", start_ms: 0, end_ms: 60000 }),
       seg({ status: "pending" }),
       seg({ segment_type: "intro", start_ms: 0, end_ms: 0 }),
       seg({ imdb_id: "1190634" }),

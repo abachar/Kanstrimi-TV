@@ -1,9 +1,16 @@
 {
-  "intro": {
-    "start": 71,
-    "end": 86,
-    "label": "Passer l'intro"
-  },
+  "skips": [
+    {
+      "start": 0,
+      "end": 71,
+      "label": "Passer le récap"
+    },
+    {
+      "start": 71,
+      "end": 86,
+      "label": "Passer l'intro"
+    }
+  ],
   "credits": {
     "at": 4560,
     "countdown": 20

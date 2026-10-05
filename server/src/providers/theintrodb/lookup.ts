@@ -1,11 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db, type MarkerSegment, schema } from "@/db";
-import { describeError, singleFlight, within } from "@/shared";
+import { dayBudget, describeError, singleFlight, within } from "@/shared";
 
 /**
- * TheIntroDB (theintrodb.org): the intros, end credits and previews of the next episode its users measured, asked title by title when one plays
- * and kept in `theintrodb_cache` (its terms allow a personal server to keep what it asked, and forbid copying the
- * base). Two requests per title: the segments of the version closest to the file, then the lengths of the files
+ * TheIntroDB (theintrodb.org): the recaps, intros, end credits and previews of the next episode its users measured,
+ * asked title by title when one plays and kept in `theintrodb_cache` (its terms allow a personal server to keep
+ * what it asked, and forbid copying the base). Two requests per title: the segments of the version closest to the file, then the lengths of the files
  * it knows, which say whether that version is this file. Never fails: an outage, a refusal or the day's budget
  * spent answer what was kept, or nothing.
  */
@@ -23,7 +23,7 @@ export const DAILY_BUDGET = 400;
 const REFUSED_PAUSE_MS = 3600 * 1000;
 
 type Span = { start_ms?: number | null; end_ms?: number | null };
-type Media = { intro?: Span[]; credits?: Span[]; preview?: Span[] };
+type Media = { recap?: Span[]; intro?: Span[]; credits?: Span[]; preview?: Span[] };
 type Versions = { versions?: { duration_ms?: number | null }[] };
 type Row = { segments: MarkerSegment[]; fetchedAt: Date };
 
@@ -32,22 +32,11 @@ const once = singleFlight<MarkerSegment[] | null>(null, {
   retryAfterMs: 10 * 60 * 1000,
   onError: (e, k) => console.error(`[theintrodb] ${k} : ${describeError(e)}`),
 });
-let spent = { day: "", requests: 0 };
-let pausedUntil = 0;
+const budget = dayBudget(DAILY_BUDGET);
 
-const today = () => new Date().toISOString().slice(0, 10);
-/** True when a request may leave: not refused lately, and the day's budget not spent. It counts it. */
-function mayAsk(): boolean {
-  if (Date.now() < pausedUntil) return false;
-  if (spent.day !== today()) spent = { day: today(), requests: 0 };
-  if (spent.requests >= DAILY_BUDGET) return false;
-  spent.requests++;
-  return true;
-}
-
-/** The answer of the base; null for a title it does not know, or when nothing may be asked now. */
-async function ask<T>(ref: TitleRef, params: Record<string, string | number>): Promise<T | null> {
-  if (!mayAsk()) return null;
+/** The answer of the base; null for a title it does not know, undefined when nothing may be asked now. */
+async function ask<T>(ref: TitleRef, params: Record<string, string | number>): Promise<T | null | undefined> {
+  if (!budget.take()) return undefined;
   const u = new URL(API);
   u.searchParams.set("tmdb_id", String(ref.tmdbId));
   if (ref.mediaType === "tv") {
@@ -59,7 +48,7 @@ async function ask<T>(ref: TitleRef, params: Record<string, string | number>): P
   if (res.status === 404) return null;
   if (res.status === 429) {
     const wait = Number(res.headers.get("retry-after"));
-    pausedUntil = Date.now() + (wait > 0 ? wait * 1000 : REFUSED_PAUSE_MS);
+    budget.pause(wait > 0 ? wait * 1000 : REFUSED_PAUSE_MS);
   }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as T;
@@ -75,7 +64,12 @@ function segmentsOf(media: Media, measuredOn: number | null): MarkerSegment[] {
       const [start, end] = [seconds(s?.start_ms ?? 0), s?.end_ms == null ? null : seconds(s.end_ms)];
       return start === null || (end !== null && end <= start) ? [] : [{ kind, start, end, measuredOn }];
     });
-  return [...spans("intro", media.intro), ...spans("credits", media.credits), ...spans("preview", media.preview)];
+  return [
+    ...spans("recap", media.recap),
+    ...spans("intro", media.intro),
+    ...spans("credits", media.credits),
+    ...spans("preview", media.preview),
+  ];
 }
 
 const where = (ref: TitleRef, duration: number) =>
@@ -91,16 +85,14 @@ const where = (ref: TitleRef, duration: number) =>
 function fetchOnce(ref: TitleRef, duration: number): Promise<MarkerSegment[] | null> {
   const key = `${ref.mediaType}:${ref.tmdbId}:${ref.season ?? 0}:${ref.episode ?? 0}:${duration}`;
   return once(key, async () => {
-    const budget = spent.requests;
     const media = await ask<Media>(ref, { duration_ms: duration * 1000 });
     // Nothing left: not a title the base does not know, nothing to keep.
-    if (!media && budget === spent.requests) return null;
+    if (media === undefined) return null;
     let segments: MarkerSegment[] = [];
     if (media) {
       // The version served is the closest to the file: it is this file when one of the lengths it knows is.
-      const before = spent.requests;
       const versions = await ask<Versions>(ref, { list_versions: "true" });
-      if (!versions && before === spent.requests) return null;
+      if (versions === undefined) return null;
       const lengths = (versions?.versions ?? []).map((v) => seconds(v.duration_ms)).filter((d): d is number => d !== null && d > 0);
       const closest = lengths.sort((a, b) => Math.abs(a - duration) - Math.abs(b - duration))[0];
       segments = segmentsOf(media, closest ?? null);
@@ -127,7 +119,7 @@ function fetchOnce(ref: TitleRef, duration: number): Promise<MarkerSegment[] | n
  * when the base did not know the title) comes at once; otherwise the base is asked, `waitMs` at most, past which
  * what was kept (or nothing) answers and the lookup lands for the next call.
  */
-export async function introdbSegments(ref: TitleRef, duration: number, waitMs: number): Promise<MarkerSegment[]> {
+export async function theintrodbSegments(ref: TitleRef, duration: number, waitMs: number): Promise<MarkerSegment[]> {
   if (ref.mediaType === "tv" && (ref.season === undefined || ref.episode === undefined)) return [];
   const length = Math.round(duration);
   const [row]: Row[] = await db.select().from(schema.theintrodbCache).where(where(ref, length));
@@ -136,11 +128,10 @@ export async function introdbSegments(ref: TitleRef, duration: number, waitMs: n
 }
 
 /** Resolves once the lookups started so far are done (tests). */
-export const introdbSettled = () => once.idle();
+export const theintrodbSettled = () => once.idle();
 
 /** Forget the failures, the lookups in flight, the day's count and the pause (tests). */
-export function resetIntrodb() {
+export function resetTheintrodb() {
   once.reset();
-  spent = { day: "", requests: 0 };
-  pausedUntil = 0;
+  budget.reset();
 }

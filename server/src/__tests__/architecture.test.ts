@@ -41,6 +41,7 @@ const ALLOWED: Record<string, string[]> = {
   "providers/iptv": ["config", "db", "shared"],
   "providers/skipdb": ["db", "shared"],
   "providers/theintrodb": ["db", "shared"],
+  "providers/introdb": ["db", "shared"],
   catalog: [
     "providers/xtream",
     "providers/xmltv",
@@ -48,6 +49,7 @@ const ALLOWED: Record<string, string[]> = {
     "providers/iptv",
     "providers/skipdb",
     "providers/theintrodb",
+    "providers/introdb",
     "config",
     "db",
     "shared",

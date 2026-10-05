@@ -10,14 +10,15 @@ const file = (duration: number, ...marks: [number, string][]) => ({
 describe("chapter names", () => {
   it("a Netflix file: « Intro » and « Credits » between its parts", () => {
     expect(chapterMarkers(file(3483.68, [0, "Part 01"], [71, "Intro"], [86, "Part 02"], [3257, "Credits"]))).toEqual({
+      recap: null,
       intro: { start: 71, end: 86 },
       credits: 3257,
     });
   });
 
   it("credits alone", () => {
-    expect(chapterMarkers(file(2840, [0, "Part 01"], [2741, "Credits"]))).toEqual({ intro: null, credits: 2741 });
-    expect(chapterMarkers(file(2602, [0, "Scene 1"], [2596 - 60, "Outro"]))).toEqual({ intro: null, credits: 2536 });
+    expect(chapterMarkers(file(2840, [0, "Part 01"], [2741, "Credits"]))).toEqual({ recap: null, intro: null, credits: 2741 });
+    expect(chapterMarkers(file(2602, [0, "Scene 1"], [2596 - 60, "Outro"]))).toEqual({ recap: null, intro: null, credits: 2536 });
   });
 
   it("a numbered name is read without its number; a scene that only mentions the credits is not one", () => {
@@ -30,11 +31,12 @@ describe("chapter names", () => {
         [245, "4. Sheldon and Leonard Receive Penny's Delivery"],
       ),
     );
-    expect(m).toEqual({ intro: { start: 223, end: 245 }, credits: null });
+    expect(m).toEqual({ recap: null, intro: { start: 223, end: 245 }, credits: null });
   });
 
   it("no case, no accents; « Générique » alone is the intro or the credits by where it starts", () => {
     expect(chapterMarkers(file(6000, [0, "GÉNÉRIQUE"], [90, "Film"], [5600, "Générique de fin"]))).toEqual({
+      recap: null,
       intro: { start: 0, end: 90 },
       credits: 5600,
     });
@@ -42,10 +44,14 @@ describe("chapter names", () => {
   });
 
   it("plain names say nothing: « Chapter 20 », a timecode, « Fin »", () => {
-    expect(chapterMarkers(file(10144, [0, "Chapter 1"], [600, "Chapter 2"], [9838, "Chapter 20"]))).toEqual({ intro: null, credits: null });
-    expect(chapterMarkers(file(3264, [0, "00:00:00.000"], [601, "00:10:01.601"]))).toEqual({ intro: null, credits: null });
+    expect(chapterMarkers(file(10144, [0, "Chapter 1"], [600, "Chapter 2"], [9838, "Chapter 20"]))).toEqual({
+      recap: null,
+      intro: null,
+      credits: null,
+    });
+    expect(chapterMarkers(file(3264, [0, "00:00:00.000"], [601, "00:10:01.601"]))).toEqual({ recap: null, intro: null, credits: null });
     expect(chapterMarkers(file(9271, [0, "Braquage"], [8944, "Fin"])).credits).toBeNull();
-    expect(chapterMarkers({ duration: 3000, chapters: [] })).toEqual({ intro: null, credits: null });
+    expect(chapterMarkers({ duration: 3000, chapters: [] })).toEqual({ recap: null, intro: null, credits: null });
   });
 });
 
@@ -57,6 +63,17 @@ describe("only what is sure", () => {
   it("credits in the last half-minute are left to the end of the file", () => {
     expect(chapterMarkers(file(5876, [0, "Film"], [5856, "End Credits"])).credits).toBeNull();
     expect(chapterMarkers(file(5876, [0, "Film"], [5831, "End Credits"])).credits).toBe(5831);
+  });
+
+  it("a recap by its name, in the first half: « Recap », « Previously on », « Précédemment », « Résumé »", () => {
+    expect(chapterMarkers(file(3000, [0, "Recap"], [62, "Intro"], [92, "Part 01"]))).toEqual({
+      recap: { start: 0, end: 62 },
+      intro: { start: 62, end: 92 },
+      credits: null,
+    });
+    for (const name of ["Previously On", "01. Précédemment", "RÉSUMÉ"])
+      expect(chapterMarkers(file(3000, [0, name], [45, "Part 01"])).recap, name).toEqual({ start: 0, end: 45 });
+    expect(chapterMarkers(file(3000, [0, "Part 01"], [2000, "Recap"], [2060, "Part 02"])).recap).toBeNull();
   });
 
   it("an « Intro » in the second half, a « Credits » in the first, an intro of a second or of a quarter of an hour", () => {
@@ -73,7 +90,7 @@ describe("only what is sure", () => {
       { name: "Intro", start: 71, end: 86 },
       { name: "Broken", start: 500, end: 500 },
     ];
-    expect(chapterMarkers({ duration: 3483, chapters })).toEqual({ intro: { start: 71, end: 86 }, credits: 3257 });
+    expect(chapterMarkers({ duration: 3483, chapters })).toEqual({ recap: null, intro: { start: 71, end: 86 }, credits: 3257 });
   });
 });
 
@@ -82,17 +99,26 @@ describe("what a base of markers says", () => {
   const credits = (start: number, end: number | null, measuredOn: number | null) => ({ kind: "credits" as const, start, end, measuredOn });
 
   it("measured on a file of the same length, to its end: the intro and the credits", () => {
-    expect(baseMarkers([intro(0, 15, 3547), credits(3426, 3547, 3547)], 3547.2)).toEqual({ intro: { start: 0, end: 15 }, credits: 3426 });
+    expect(baseMarkers([intro(0, 15, 3547), credits(3426, 3547, 3547)], 3547.2)).toEqual({
+      recap: null,
+      intro: { start: 0, end: 15 },
+      credits: 3426,
+    });
     // Three seconds apart is still the same release; a base that leaves the end open means the end of the file.
     expect(baseMarkers([credits(2538, null, 2586)], 2583).credits).toBe(2538);
   });
 
   it("measured on another file: the intro is kept, the credits are not", () => {
     expect(baseMarkers([intro(276, 325, 3384), credits(3194, 3384, 3384)], 3264)).toEqual({
+      recap: null,
       intro: { start: 276, end: 325 },
       credits: null,
     });
-    expect(baseMarkers([intro(54, 144, null), credits(1345, 1452, null)], 1452)).toEqual({ intro: { start: 54, end: 144 }, credits: null });
+    expect(baseMarkers([intro(54, 144, null), credits(1345, 1452, null)], 1452)).toEqual({
+      recap: null,
+      intro: { start: 54, end: 144 },
+      credits: null,
+    });
   });
 
   it("several intros: the one measured on the closest file", () => {
@@ -122,11 +148,22 @@ describe("what a base of markers says", () => {
     expect(baseMarkers([credits(1200, 1300, 1451), preview(1435, null, 1451)], 1452).credits).toBeNull();
   });
 
+  it("a recap as an intro: the closest file, the first half, a believable length", () => {
+    const recap = (start: number, end: number, measuredOn: number | null) => ({ kind: "recap" as const, start, end, measuredOn });
+    expect(baseMarkers([recap(0, 60, null), recap(2, 58, 3000), intro(60, 90, null)], 3000)).toEqual({
+      recap: { start: 2, end: 58 },
+      intro: { start: 60, end: 90 },
+      credits: null,
+    });
+    expect(baseMarkers([recap(2000, 2060, 3000)], 3000).recap).toBeNull();
+    expect(baseMarkers([recap(0, 900, 3000)], 3000).recap).toBeNull();
+  });
+
   it("what cannot be: an intro in the second half or of a quarter of an hour, credits in the first half or too short", () => {
     expect(baseMarkers([intro(7512, 7546, 7600)], 7600).intro).toBeNull();
     expect(baseMarkers([intro(0, 900, 3000)], 3000).intro).toBeNull();
     expect(baseMarkers([credits(100, 3000, 3000)], 3000).credits).toBeNull();
     expect(baseMarkers([credits(2990, 3000, 3000)], 3000).credits).toBeNull();
-    expect(baseMarkers([], 3000)).toEqual({ intro: null, credits: null });
+    expect(baseMarkers([], 3000)).toEqual({ recap: null, intro: null, credits: null });
   });
 });

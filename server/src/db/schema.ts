@@ -640,11 +640,16 @@ export const tmdbExtras = pgTable(
 );
 
 /**
- * An intro, the end credits or the preview of the next episode as a public base of markers knows them, in seconds.
+ * A recap, an intro, the end credits or the preview of the next episode as a public base of markers knows them, in seconds.
  * `end`: null, to the end of the file. `measuredOn`: the length of the file it was measured on, null when the base
  * does not say.
  */
-export type MarkerSegment = { kind: "intro" | "credits" | "preview"; start: number; end: number | null; measuredOn: number | null };
+export type MarkerSegment = {
+  kind: "recap" | "intro" | "credits" | "preview";
+  start: number;
+  end: number | null;
+  measuredOn: number | null;
+};
 
 /**
  * What TheIntroDB (theintrodb.org) answered for a movie or an episode and a file of `duration` seconds, asked when
@@ -666,7 +671,24 @@ export const theintrodbCache = pgTable(
 );
 
 /**
- * SkipDB's intros, end credits and previews (skipdb.tv, ODbL), its whole daily export, replaced by the `markers` task.
+ * What IntroDB (introdb.app) answered for an episode, by its series' IMDb id: its recap and its intro, measured on a
+ * file the base does not name, asked when the episode plays and no other source knows them. An empty answer is kept too, a
+ * week; a known episode, a month.
+ */
+export const introdbCache = pgTable(
+  "introdb_cache",
+  {
+    imdbId: text("imdb_id").notNull(),
+    season: integer("season").notNull(),
+    episode: integer("episode").notNull(),
+    segments: jsonb("segments").$type<MarkerSegment[]>().notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.imdbId, t.season, t.episode] })],
+);
+
+/**
+ * SkipDB's recaps, intros, end credits and previews (skipdb.tv, ODbL), its whole daily export, replaced by the `markers` task.
  * `id` is SkipDB's. A movie has season 0 and episode 0. `duration_ms`: the length of the file the segment was
  * measured on, null when SkipDB does not know it.
  */

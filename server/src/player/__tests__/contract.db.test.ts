@@ -40,9 +40,9 @@ const call = (p: string | { path: string; body: unknown }) =>
 const FILE_FACTS = {
   duration: 4800,
   chapters: [
-    { name: "Part 01", start: 0, end: 71 },
+    { name: "Recap", start: 0, end: 71 },
     { name: "Intro", start: 71, end: 86 },
-    { name: "Part 02", start: 86, end: 4560 },
+    { name: "Part 01", start: 86, end: 4560 },
     { name: "Credits", start: 4560, end: 4800 },
   ],
 };
