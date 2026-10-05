@@ -74,9 +74,15 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **Distribution dans le lecteur** : panneau « Distribution » (film, ou série pour un épisode) tiré de `cast` de
   `/playback`, la même bande que la fiche (`CastStrip`). Choisir un acteur quitte le lecteur (position gardée) pour ses
   titres ; tvOS les montre en couverture (`presentedPerson`), comme une fiche.
-- **Enchaînement** : les 15 dernières secondes du fichier se décomptent sur le temps restant (la carte atteint 0 à la
-  vraie fin), puis 1 s de noir et la suite, sa barre affichée. Sans fin du moteur 2 s après 0, la suite part quand même ;
-  lecture automatique coupée ou carte annulée : retour à la fiche.
+- **Intro et générique** : une fois le fichier ouvert, `PlayerService` envoie sa durée et ses chapitres
+  (`mediaChapters` du moteur) à `POST /playback/{id}/markers` ; le serveur répond l'intro et le début du générique,
+  l'app ne décide rien. « Passer l'intro » saute à sa fin : un bouton sur iPhone ; sur tvOS un bouton dessiné, le clic
+  sur la vidéo le prend (la surface garde la télécommande). Passé le début du générique, le titre est rapporté vu.
+- **Enchaînement** : la carte « À suivre » paraît au début du générique quand le serveur le donne, pour le décompte
+  qu'il dit, puis la suite part ; sinon les 15 dernières secondes du fichier se décomptent sur le temps restant (la
+  carte atteint 0 à la vraie fin). Puis 1 s de noir et la suite, sa barre affichée. Sans fin du moteur 2 s après 0, la
+  suite part quand même ; lecture automatique coupée ou carte annulée : retour à la fiche. Revenir avant le moment de la
+  carte la retire.
 - **Accueil** : un type de rangée inconnu de l'app s'affiche en rangée simple au lieu de faire échouer l'écran.
 - **Carrousel de l'accueil** : les éléments du serveur, un toutes les 8 s, retenu tant que ses boutons ont le focus
   (tvOS), qu'un doigt le touche (iPhone) ou que le sélecteur de version est ouvert. tvOS : deux butées invisibles
