@@ -1,7 +1,7 @@
 import { sql, type Column, type SQL } from "drizzle-orm";
 import { db, type Kind } from "@/db";
 import { QUALITY_RANK } from "../naming";
-import { parseQuery, QueryError, type QueryOp, type QueryTerm, type QueryValue } from "./parse";
+import { parseQuery, QueryError, termsOf, type QueryNode, type QueryOp, type QueryTerm, type QueryValue } from "./parse";
 import { closestName, resolveCode } from "./codes";
 import {
   closestField,
@@ -167,13 +167,14 @@ function termSql(t: QueryTerm, f: Field, o: CompileOptions): SQL {
 }
 
 const and = (conds: SQL[]) => sql`(${sql.join(conds, sql` and `)})`;
+const join = (kind: "and" | "or", conds: SQL[]) => (kind === "and" ? and(conds) : sql`(${sql.join(conds, sql` or `)})`);
 
 /**
  * Ask Postgres whether it accepts the regexes of a query: JavaScript takes some it refuses
  * (`(?<x>…)`), and a refused one would make every UPDATE that uses it fail. Throws `QueryError`.
  */
 export async function checkRegexes(text: string): Promise<void> {
-  for (const t of parseQuery(text)) {
+  for (const t of termsOf(parseQuery(text))) {
     if (t.op.kind !== "regex") continue;
     try {
       await db.execute(sql`select '' ~* ${postgresPattern(t.op.pattern)}`);
@@ -185,24 +186,43 @@ export async function checkRegexes(text: string): Promise<void> {
 }
 
 /**
- * What a query stands for; null for an empty one. Throws `QueryError`. In a search, the version terms
- * together describe one of its versions: `variant.langue:"vf" variant.qualité:4k` is a film with a
- * version in VF and 4K. In a rule, version terms make it judge versions: those that match, in the
- * contents its other terms match (`marché:"ar" xtream.nom:2m`, the « 2m » versions of the Arab channels).
+ * What a query stands for; null for an empty one. Throws `QueryError`. With a version field, the
+ * expression is judged version by version, its content fields read on the version's content:
+ * - a search finds the contents one of whose versions passes, so `variant.langue:"vf" variant.qualité:4k`
+ *   is a film with a version in VF and 4K;
+ * - a rule judges versions: `marché:"ar" xtream.nom:2m` is the « 2m » versions of the Arab channels,
+ *   `genre:horreur || variant.langue:"vo"` every version of a horror film and the VO ones of the others.
  */
 export function compileQuery(text: string, o: CompileOptions): CompiledQuery | null {
-  const terms = parseQuery(text).map((t) => ({ t, f: fieldOf(t, o) }));
-  if (!terms.length) return null;
-  const content = terms.filter((x) => x.f.level === "content").map((x) => termSql(x.t, x.f, o));
-  const variant = terms.filter((x) => x.f.level === "variant").map((x) => termSql(x.t, x.f, o));
-  if (o.rule && variant.length) {
-    if (content.length)
-      variant.push(
-        sql`exists (select 1 from catalog_contents where catalog_contents.id = catalog_variants.content_id and ${and(content)})`,
-      );
-    return { where: and(variant), target: "variant" };
-  }
-  if (variant.length)
-    content.push(sql`exists (select 1 from catalog_variants where catalog_variants.content_id = catalog_contents.id and ${and(variant)})`);
-  return { where: and(content), target: "content" };
+  const root = parseQuery(text);
+  if (!root) return null;
+  // Every field first: an unknown one is the error a query gets, before its values are read.
+  const fields = new Map(termsOf(root).map((t) => [t, fieldOf(t, o)]));
+  const ofVersion = (n: QueryNode): boolean => (n.kind === "term" ? fields.get(n.term)!.level === "variant" : n.nodes.some(ofVersion));
+  /** The condition as it stands: the content fields on `catalog_contents`, the version ones on `catalog_variants`. */
+  const plain = (n: QueryNode): SQL => {
+    if (n.kind === "term") return termSql(n.term, fields.get(n.term)!, o);
+    const cond = join(n.kind, n.nodes.map(plain));
+    return n.neg ? sql`not ${cond}` : cond;
+  };
+  /** On `catalog_variants`: the parts without a version field read its content, each run of them once. */
+  const onVersion = (n: QueryNode): SQL => {
+    if (!ofVersion(n))
+      return sql`exists (select 1 from catalog_contents where catalog_contents.id = catalog_variants.content_id and ${plain(n)})`;
+    if (n.kind === "term") return plain(n);
+    const content = n.nodes.filter((x) => !ofVersion(x));
+    const parts = n.nodes.filter(ofVersion).map(onVersion);
+    if (content.length) parts.push(onVersion({ kind: n.kind, neg: false, nodes: content, at: n.at }));
+    const cond = join(n.kind, parts);
+    return n.neg ? sql`not ${cond}` : cond;
+  };
+
+  if (!ofVersion(root)) return { where: plain(root), target: "content" };
+  if (o.rule) return { where: onVersion(root), target: "variant" };
+  // A search: what the query says of the content alone stays out of the version test.
+  const parts = root.kind === "and" && !root.neg ? root.nodes : [root];
+  const where = parts.filter((x) => !ofVersion(x)).map(plain);
+  const version = parts.filter(ofVersion).map(plain);
+  where.push(sql`exists (select 1 from catalog_variants where catalog_variants.content_id = catalog_contents.id and ${and(version)})`);
+  return { where: and(where), target: "content" };
 }

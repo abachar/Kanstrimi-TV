@@ -19,7 +19,9 @@ const SYNTAX: Record<Kind, [string, string][]> = {
     ["note:6..8", "intervalle"],
     ["xtream.nom:/\\(4K\\)$/", "expression régulière"],
     ["-tmdb:oui", "le « - » nie un terme"],
-    ["genre:anim langue:ja", "l'espace veut dire « et »"],
+    ["genre:anim langue:ja", "l'espace ou && veut dire « et »"],
+    ["genre:horreur || genre:thriller", "|| veut dire « ou », plus faible que « et »"],
+    ["(genre:anim || langue:ja) note:>7", "les parenthèses groupent ; -( … ) nie un groupe"],
     ['variant.langue:"vf"', "champ de version : recherche, une de ses versions ; règle, juge les versions"],
   ],
   series: [
@@ -32,7 +34,9 @@ const SYNTAX: Record<Kind, [string, string][]> = {
     ["note:7..9", "intervalle"],
     ["xtream.nom:/\\(VOST\\)/", "expression régulière"],
     ["-tmdb:oui", "le « - » nie un terme"],
-    ["genre:animation langue:japonais", "l'espace veut dire « et »"],
+    ["genre:animation langue:japonais", "l'espace ou && veut dire « et »"],
+    ["genre:drame || genre:crime", "|| veut dire « ou », plus faible que « et »"],
+    ["(langue:coréen || langue:ja) note:>8", "les parenthèses groupent ; -( … ) nie un groupe"],
     ['variant.langue:"vf"', "champ de version : recherche, une de ses versions ; règle, juge les versions"],
   ],
   live: [
@@ -45,7 +49,9 @@ const SYNTAX: Record<Kind, [string, string][]> = {
     ["qualité:hd..fhd", "intervalle"],
     ["xtream.nom:/\\bHD$/", "expression régulière"],
     ["-adulte:oui", "le « - » nie un terme"],
-    ["thème:sport pays:maroc", "l'espace veut dire « et »"],
+    ["thème:sport pays:maroc", "l'espace ou && veut dire « et »"],
+    ['marché:"fr" || pays:maroc', "|| veut dire « ou », plus faible que « et »"],
+    ['(thème:sport || thème:infos) marché:"fr"', "les parenthèses groupent ; -( … ) nie un groupe"],
     ["xtream.catégorie:radios", "champ de version : recherche, une de ses versions ; règle, juge les versions"],
   ],
 };
@@ -101,8 +107,8 @@ export function QueryHelp({ kind, rule = false }: { kind: Kind; rule?: boolean }
           <h3 class="mt-2 font-semibold">Champs d'une version</h3>
           <p class="text-muted-foreground">
             {rule
-              ? "Une règle qui en cite un masque les versions qui correspondent, dans les fiches que ses autres termes désignent."
-              : "Dans une recherche : une de ses versions, les termes de version ensemble décrivant la même."}
+              ? "Une règle qui en cite un se juge version par version, ses champs de fiche lus sur la fiche de la version : elle masque les versions qui correspondent."
+              : "La requête se juge version par version : une fiche sort si l'une de ses versions correspond, les termes de version décrivant la même."}
           </p>
           <FieldList fields={fields.filter((f) => f.level === "variant")} />
         </section>

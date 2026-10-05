@@ -113,7 +113,7 @@ export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pendi
     <>
       <Title
         t="Règles de masquage"
-        sub="Une requête du langage de recherche par règle, pour un type ; ce qui correspond à une règle active est masqué, à l'étape « Masquage ». Sans champ de version, elle masque la fiche ; avec un champ de version (variant., xtream.), elle masque les versions qui correspondent, dans les fiches que ses autres termes désignent ; une fiche sans version disparaît. Une exception s'écrit dans la requête : variant.langue:vostfr -xtream.catégorie:manga."
+        sub="Une requête du langage de recherche par règle, pour un type ; ce qui correspond à une règle active est masqué, à l'étape « Masquage ». Sans champ de version, elle masque la fiche ; avec un champ de version (variant., xtream.), elle se juge version par version et masque les versions qui correspondent ; une fiche sans version disparaît. && et || combinent les termes, les parenthèses les groupent. Une exception s'écrit dans la requête : variant.langue:vostfr -xtream.catégorie:manga."
       />
       {pending && <PendingBanner busy={busy} />}
       <Card

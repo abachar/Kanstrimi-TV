@@ -57,6 +57,17 @@ async function find(q: string, kind: Kind = "vod"): Promise<string[]> {
     .orderBy(schema.catalogContents.title);
   return rows.map((r) => r.title);
 }
+/** The provider's names of the versions a rule judges. */
+async function judged(q: string): Promise<string[]> {
+  const compiled = compileQuery(q, { kind: "vod", lang: "fr-FR", rule: true })!;
+  expect(compiled.target).toBe("variant");
+  const rows = await db
+    .select({ name: schema.catalogVariants.name })
+    .from(schema.catalogVariants)
+    .where(sql`${schema.catalogVariants.kind} = 'vod' and ${compiled.where}`)
+    .orderBy(schema.catalogVariants.name);
+  return rows.map((r) => r.name);
+}
 const fails = (q: string, o: { kind?: Kind; rule?: boolean } = {}) => {
   try {
     compileQuery(q, { kind: o.kind ?? "vod", lang: "fr-FR", rule: o.rule });
@@ -156,6 +167,25 @@ describe("filter language: conditions on a content", () => {
     expect(compile('matrix variant.langue:"it"')?.target).toBe("variant");
   });
 
+  it("reads || and groups, a version field anywhere judging version by version", async () => {
+    expect(await find("genre:comedie || saga:matrix")).toEqual([DILWALE, MATRIX]);
+    expect(await find("(genre:comedie || genre:science) note:>8.5")).toEqual([DILWALE]);
+    expect(await find("-(genre:comedie || tmdb:non)")).toEqual([MATRIX]);
+    expect(await find('dilwale || variant.langue:"vostfr"')).toEqual([DILWALE, MATRIX]);
+    expect(await find('matrix && (variant.langue:"vostfr" || variant.qualité:4k)')).toEqual([MATRIX]);
+
+    const [MATRIX_4K, MATRIX_VOST, DILWALE_V, UNKNOWN_V] = [
+      "|FR| Matrix (4K)",
+      "|FR| Matrix (VOSTFR)",
+      "|FR| Dilwale Dulhania",
+      "|FR| Inconnu 100% (2010)",
+    ];
+    expect(await judged("matrix || xtream.nom:dilwale")).toEqual([DILWALE_V, MATRIX_4K, MATRIX_VOST]);
+    expect(await judged('genre:comedie || variant.langue:"vostfr"')).toEqual([DILWALE_V, MATRIX_VOST]);
+    expect(await judged('-(matrix variant.langue:"vostfr")')).toEqual([DILWALE_V, UNKNOWN_V, MATRIX_4K]);
+    expect(await judged('matrix variant.langue:"vostfr"')).toEqual([MATRIX_VOST]); // as before
+  });
+
   it("refuses before any SQL what does not make sense", () => {
     expect(fails("genr:anim")).toContain("voulais-tu genre");
     expect(fails("genre:>5")).toContain("pas un nombre");
@@ -178,5 +208,7 @@ describe("filter language: conditions on a content", () => {
     expect(fails("visible:oui", { rule: true })).toContain("recherches");
     expect(fails("nom:matrix")).toContain("Champ inconnu"); // now xtream.nom
     expect(fails("langue-vo:hindi")).toContain("Champ inconnu"); // now langue
+    expect(fails("matrix || genr:anim")).toContain("voulais-tu genre");
+    expect(fails("(matrix || visible:oui)", { rule: true })).toContain("recherches");
   });
 });

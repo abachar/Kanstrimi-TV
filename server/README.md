@@ -111,16 +111,17 @@ par son index.
   script ni gestionnaire en ligne (`onsubmit`, `hx-on`), une confirmation passe par `hx-confirm` (`back()` répond alors
   `HX-Redirect`). Toute écriture (POST, PUT, PATCH, DELETE) doit venir du site, quel que soit son `Content-Type`.
 - **Langage de filtre** (`catalog/query/`, aide dans l'admin) : `genre:anim` contient, `genre:"animation"` égal,
-  `a,b` l'un de, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; casse et accents ignorés. Chaque type
+  `a,b` l'un de, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; l'espace ou `&&` « et », `||` « ou » (plus
+  faible), `( … )` groupe, `-( … )` nie un groupe ; casse et accents ignorés. Chaque type
   (Direct, Films, Séries) a ses champs, dans un seul registre (`catalog/query/fields.ts`) qui sert aux recherches, aux
   règles et à l'aide : sans préfixe, la fiche (ses colonnes, sa fiche TMDB en cache) ; `variant.` et `xtream.`, une
-  version (ce qu'on en lit, ce qu'en dit le fournisseur). Dans une recherche, les termes de version décrivent une de ses
-  versions. Vérifiée champ par champ avant tout SQL, ses valeurs toujours en paramètres.
+  version (ce qu'on en lit, ce qu'en dit le fournisseur). Avec un champ de version, l'expression se juge version par
+  version, ses champs de fiche lus sur la fiche de la version : une recherche trouve les fiches dont une version passe. Vérifiée champ par champ avant tout SQL, ses valeurs toujours en paramètres.
 - **Règles** : une requête chacune, pour un type choisi à la création ; une règle ne fait que masquer, une seule qui
   correspond suffit, sans ordre (une exception s'écrit dans la requête : `-xtream.catégorie:manga`). Sans champ de
   version, elle masque le contenu (`catalog_contents.hidden_by_rule`, null = pas encore jugé) ; avec un champ de version,
-  elle masque les versions qui correspondent dans les contenus que ses autres termes désignent
-  (`catalog_variants.hidden_by_rule`, par exemple `-variant.langue:"vf","vo","ar"` ou `marché:"ar" xtream.nom:2m`).
+  elle masque les versions qui correspondent (`catalog_variants.hidden_by_rule`, par exemple
+  `-variant.langue:"vf","vo","ar"`, `marché:"ar" xtream.nom:2m` ou `genre:horreur || variant.langue:"vo"`).
   Toutes s'appliquent à l'étape `filters`. Enregistrer une règle ne l'applique pas (trop lent) : `rules_pending` affiche
   un bandeau. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
 - **Écrans Live, Films, Séries de l'admin** : ce que l'app affiche, par les fonctions mêmes de `/player` : ses rangées
