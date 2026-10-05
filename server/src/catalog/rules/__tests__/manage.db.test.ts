@@ -95,7 +95,7 @@ describe("filter rules", () => {
     const [variant] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "2"));
     expect(await variantHidingRule(variant)).toBe("Pas d'italien");
     for (const r of await listRules()) await deleteRule(r.id);
-    await applyRules(); // « Filtres » alone applies every rule
+    await applyRules(); // « Masquage » alone applies every rule
     expect(await hiddenVersions("vod")).toEqual([]);
     expect((await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.title, "Heat")))[0].visible).toBe(true);
   });

@@ -28,7 +28,7 @@ const previewSchema = z.object({ query: z.string().default(""), kind });
 
 /**
  * `/admin/rules`: every rule in one list; a rule is written on a page of its own, for one kind chosen
- * first. Saving only marks the catalogue behind; a pass from « Filtres » applies every rule.
+ * first. Saving only marks the catalogue behind; a pass from « Masquage » applies every rule.
  */
 export const rulesRoutes = new Hono();
 /** A rule's page sits under « Règles » in the breadcrumb. */

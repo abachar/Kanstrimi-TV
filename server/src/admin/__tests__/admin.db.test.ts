@@ -524,7 +524,7 @@ describe("admin", () => {
     }
   });
 
-  it("a rule on versions, from its kind's page: applied from « Filtres », its name on the version and the content", async () => {
+  it("a rule on versions, from its kind's page: applied from « Masquage », its name on the version and the content", async () => {
     expect(await html("/admin/rules")).not.toContain("Langues servies");
     expect(await html("/admin/rules/new")).toContain('href="/admin/rules/new?kind=vod"'); // the kind first
     const form = await html("/admin/rules/new?kind=vod");

@@ -19,7 +19,7 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enri
 
 | Dossier | Rôle | Pile | Doc |
 |---|---|---|---|
-| `server/` | Import, filtrage, enrichissement, groupement des variantes, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Tailwind 4 / Basecoat | [`server/README.md`](server/README.md) |
+| `server/` | Import, enrichissement, groupement des variantes, masquage, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Tailwind 4 / Basecoat | [`server/README.md`](server/README.md) |
 | `apple/` | Client natif Apple TV 4K et iPhone (iPad à venir), consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27, AetherEngine 7 (FFmpeg + VideoToolbox), une cible et deux destinations | [`apple/README.md`](apple/README.md) |
 
 Le serveur porte la logique, l'app affiche : les listes envoient des `ContentItem` dont les textes (« 2019 · ★ 8.5 »,

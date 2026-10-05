@@ -92,13 +92,13 @@ function PendingBanner({ busy }: { busy: boolean }) {
   return (
     <div class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm" role="status">
       <span class="min-w-0 flex-1 text-amber-300">
-        Règles modifiées depuis le dernier passage : le catalogue ne les suit pas encore. Elles s'appliquent à l'étape « Filtres », au
+        Règles modifiées depuis le dernier passage : le catalogue ne les suit pas encore. Elles s'appliquent à l'étape « Masquage », au
         prochain traitement planifié ou maintenant.
       </span>
       <form method="post" action="/admin/jobs/pipeline">
         <input type="hidden" name="from" value="filters" />
         <button class="btn" data-variant="secondary" data-size="sm" disabled={busy}>
-          {busy ? "Traitement en cours…" : "Appliquer (passage à partir de « Filtres »)"}
+          {busy ? "Traitement en cours…" : "Appliquer (passage à partir de « Masquage »)"}
         </button>
       </form>
     </div>
@@ -112,8 +112,8 @@ export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pendi
   return (
     <>
       <Title
-        t="Règles de filtrage"
-        sub="Une requête du langage de recherche par règle, pour un type ; ce qui correspond à une règle active est masqué, à l'étape « Filtres ». Sans champ de version, elle masque la fiche ; avec un champ de version (variant., xtream.), elle masque les versions qui correspondent, dans les fiches que ses autres termes désignent ; une fiche sans version disparaît. Une exception s'écrit dans la requête : variant.langue:vostfr -xtream.catégorie:manga."
+        t="Règles de masquage"
+        sub="Une requête du langage de recherche par règle, pour un type ; ce qui correspond à une règle active est masqué, à l'étape « Masquage ». Sans champ de version, elle masque la fiche ; avec un champ de version (variant., xtream.), elle masque les versions qui correspondent, dans les fiches que ses autres termes désignent ; une fiche sans version disparaît. Une exception s'écrit dans la requête : variant.langue:vostfr -xtream.catégorie:manga."
       />
       {pending && <PendingBanner busy={busy} />}
       <Card
@@ -201,7 +201,7 @@ export function RulePage({ kind, rule }: { kind: Kind; rule?: FilterRule }) {
     <>
       <Title
         t={rule ? rule.name : `Nouvelle règle · ${KIND_TITLES[kind]}`}
-        sub="Sans champ de version, la règle masque la fiche ; avec un champ de version (variant., xtream.), elle masque les versions qui correspondent, dans les fiches que ses autres termes désignent. « Prévisualiser » montre ce qu'elle touche ; enregistrée, elle s'applique à l'étape « Filtres »."
+        sub="Sans champ de version, la règle masque la fiche ; avec un champ de version (variant., xtream.), elle masque les versions qui correspondent, dans les fiches que ses autres termes désignent. « Prévisualiser » montre ce qu'elle touche ; enregistrée, elle s'applique à l'étape « Masquage »."
       />
       <Card title={`${rule ? "Modifier la règle" : "Nouvelle règle"} · ${KIND_TITLES[kind]}`}>
         <RuleForm kind={kind} rule={rule} />

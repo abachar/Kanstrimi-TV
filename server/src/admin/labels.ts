@@ -27,7 +27,7 @@ export const MATCH_TONES: Record<string, Tone> = { matched: "ok", manual: "ok", 
 export const JOB_LABELS: Record<Step, string> = {
   source: "Source",
   enrich: "Enrichissement",
-  filters: "Filtres",
+  filters: "Masquage",
   group: "Groupement",
   trending: "Tendances TMDB",
   epg: "EPG",
