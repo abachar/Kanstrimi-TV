@@ -37,7 +37,7 @@ si le changement est voulu, réécrire les fichiers : `UPDATE_CONTRACT=1 npx vit
 ## Traitement
 
 Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres : **Traitement complet** (quatre étapes),
-**EPG**, **Tendances TMDB** et **Intros et génériques**. Chaque étape n'écrit que ce qui change ; le traitement peut repartir d'une étape
+**EPG**, **Tendances TMDB** et **Import SkipDB**. Chaque étape n'écrit que ce qui change ; le traitement peut repartir d'une étape
 (**Tâches → Lancer à partir de…**).
 
 | Étape | Rôle |

@@ -48,7 +48,7 @@ export const TASK_LABELS: Record<Task, string> = {
   pipeline: "Traitement complet",
   epg: "Guide des programmes",
   trending: "Tendances TMDB",
-  markers: "Intros et génériques",
+  markers: "Import SkipDB",
 };
 export const TASK_ICONS: Record<Task, IconName> = { pipeline: "pipeline", epg: "epg", trending: "sparkles", markers: "play" };
 export const TRIGGER_LABELS: Record<string, string> = { cron: "planifié", manual: "manuel" };

@@ -119,7 +119,7 @@ export function SettingsView({ s }: { s: Settings }) {
               <F name="sync_cron" label="Traitement complet" hint={describeCron(s.sync_cron)} />
               <F name="epg_cron" label="Import EPG" hint={describeCron(s.epg_cron)} />
               <F name="trending_cron" label="Tendances TMDB" hint={describeCron(s.trending_cron)} />
-              <F name="markers_cron" label="Intros et génériques (SkipDB)" hint={describeCron(s.markers_cron)} />
+              <F name="markers_cron" label="Import SkipDB" hint={describeCron(s.markers_cron)} />
             </div>
           </Card>
         </div>
