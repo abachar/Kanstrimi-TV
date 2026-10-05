@@ -1,7 +1,7 @@
 import type { Device } from "@/db";
 import type { PairingState } from "@/devices";
 import { ago, fmt, hhmm } from "../format";
-import { Badge, Card, Empty, Title, type Tone } from "../ui";
+import { Badge, Card, CardIcon, Empty, Title, type Tone } from "../ui";
 import { Icon } from "../icons";
 
 /** `/admin/pair/{code}`, opened from the QR code on the TV: name it, confirm. */
@@ -12,7 +12,10 @@ export function PairView({ code, state, request, error }: { code: string; state:
   return (
     <section class="card mx-auto w-full max-w-md">
       <header>
-        <h2>Ajouter cet appareil ?</h2>
+        <h2 class="flex items-center gap-2">
+          <CardIcon name="devices" />
+          Ajouter cet appareil ?
+        </h2>
         <p>
           Code affiché sur l'appareil : <span class="font-mono text-2xl text-foreground">{display}</span>
         </p>
@@ -42,6 +45,7 @@ export function PairView({ code, state, request, error }: { code: string; state:
               <input class="input" id="device-name" name="name" value="Salon" maxlength={40} required autofocus />
             </div>
             <button class="btn" data-variant="primary">
+              <Icon name="check" />
               Confirmer
             </button>
           </form>
@@ -86,6 +90,7 @@ export function DevicesView({ devices }: { devices: Device[] }) {
       <Title t="Appareils" sub="Les Apple TV et iPhone appairés à ce serveur et leurs jetons" />
       <Card
         title="Appareils"
+        icon="devices"
         hint={`${fmt(devices.filter((d) => d.status === "approved").length)} appareil(s) appairé(s). Un appareil dissocié voit ses favoris et sa progression conservés : ils appartiennent au serveur, pas à l'appareil.`}
       >
         {devices.length === 0 ? (
@@ -120,6 +125,7 @@ export function DevicesView({ devices }: { devices: Device[] }) {
                   <div class="col-span-2 flex gap-2 md:col-span-3 md:justify-end">
                     {d.status === "pending" && !expired && (
                       <a class="btn" data-variant="primary" data-size="sm" href={`/admin/pair/${d.code}`}>
+                        <Icon name="check" />
                         Approuver
                       </a>
                     )}
@@ -131,6 +137,7 @@ export function DevicesView({ devices }: { devices: Device[] }) {
                         hx-confirm="Dissocier cet appareil ? Il devra être appairé à nouveau."
                       >
                         <button class="btn" data-variant="destructive" data-size="sm">
+                          <Icon name="unlink" />
                           Dissocier
                         </button>
                       </form>
@@ -138,6 +145,7 @@ export function DevicesView({ devices }: { devices: Device[] }) {
                     {d.status !== "approved" && (
                       <form method="post" action={`/admin/devices/${d.code}/forget`}>
                         <button class="btn" data-variant="outline" data-size="sm">
+                          <Icon name="trash" />
                           Oublier
                         </button>
                       </form>

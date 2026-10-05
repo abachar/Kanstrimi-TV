@@ -140,7 +140,7 @@ export function WaitlistView({
         t="Liste d'attente"
         sub="Des films que le fournisseur n'a pas encore. Dès qu'une source visible existe, le film passe en tête du carrousel de l'accueil et du Top Shelf, jusqu'à ce qu'il soit entamé. Le traitement complet le vérifie à chaque passage."
       />
-      <Card title="Films attendus" extra={fmt(rows.length)}>
+      <Card title="Films attendus" icon="waitlist" extra={fmt(rows.length)}>
         {rows.length === 0 ? (
           <Empty title="Aucun film attendu" sub="Cherchez-en un ci-dessous par son titre." />
         ) : (
@@ -151,15 +151,21 @@ export function WaitlistView({
           </ul>
         )}
       </Card>
-      <Card title="Ajouter un film" hint="Recherche TMDB : la fiche est mise en cache dès l'ajout, prête le jour où le film arrive.">
+      <Card
+        title="Ajouter un film"
+        icon="plus"
+        hint="Recherche TMDB : la fiche est mise en cache dès l'ajout, prête le jour où le film arrive."
+      >
         <div class="flex flex-col gap-4">
           <form method="get" action="/admin/waitlist" class="flex gap-2" role="search">
             <input class="input" type="search" name="q" value={q} placeholder="Titre du film" aria-label="Chercher un film sur TMDB" />
             <button class="btn" data-variant="outline">
+              <Icon name="search" />
               Chercher
             </button>
             {q && (
               <a class="btn" data-variant="ghost" href="/admin/waitlist">
+                <Icon name="x" />
                 Effacer
               </a>
             )}

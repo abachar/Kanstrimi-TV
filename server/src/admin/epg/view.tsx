@@ -2,7 +2,8 @@ import type { EpgOffset } from "@/db";
 import { parseSourceGuideId } from "@/catalog";
 import { QuerySearchBar } from "../catalog/search-bar";
 import { hhmm } from "../format";
-import { Badge, Card, Empty, Options, Pagination, Title } from "../ui";
+import { Badge, Card, CardIcon, Empty, Options, Pagination, Title } from "../ui";
+import { Icon } from "../icons";
 import { CHANNELS_PER_PAGE, type GridChannel, type GridProgramme, type GridQuery } from "./data";
 
 /**
@@ -129,19 +130,20 @@ export function EpgView(p: EpgPageProps) {
         actions={
           <>
             <a class="btn" data-variant="outline" href={link({ at: shiftAt(-3), page: "1" })}>
-              − 3 h
+              <Icon name="chevron-left" />− 3 h
             </a>
             <a class="btn" data-variant="outline" href="/admin/epg">
+              <Icon name="clock" />
               Maintenant
             </a>
             <a class="btn" data-variant="outline" href={link({ at: shiftAt(3), page: "1" })}>
-              + 3 h
+              <Icon name="chevron-right" />+ 3 h
             </a>
           </>
         }
       />
       {p.sources}
-      <Card title="Corrections du guide" extra={p.offsets.length ? `${p.offsets.length}` : undefined} folded>
+      <Card title="Corrections du guide" icon="tune" extra={p.offsets.length ? `${p.offsets.length}` : undefined} folded>
         {p.offsets.length ? (
           <ul class="flex flex-col divide-y text-sm">
             {p.offsets.map((o) => (
@@ -152,6 +154,7 @@ export function EpgView(p: EpgPageProps) {
                   <input type="hidden" name="pattern" value={o.pattern} />
                   <input type="hidden" name="minutes" value="0" />
                   <button class="btn" data-variant="ghost" data-size="sm">
+                    <Icon name="trash" />
                     Retirer
                   </button>
                 </form>
@@ -164,7 +167,7 @@ export function EpgView(p: EpgPageProps) {
       </Card>
       {p.panel}
       <QuerySearchBar kind="live" action="/admin/epg" hidden={{ at: q.from.toISOString() }} q={q.q} error={p.error} />
-      <Card title="Grille" extra={`${p.total} chaînes avec un guide`}>
+      <Card title="Grille" icon="grid" extra={`${p.total} chaînes avec un guide`}>
         {p.channels.length ? (
           <div class="flex flex-col gap-1 overflow-x-auto">
             <div class="flex min-w-[64rem] items-end gap-2 text-xs text-muted-foreground">
@@ -252,7 +255,10 @@ export function OffsetPanel(p: PanelProps) {
   return (
     <section id="panel" class="card">
       <header>
-        <h2 class="font-mono">{guideLabel(p.epgId)}</h2>
+        <h2 class="flex items-center gap-2 font-mono">
+          <CardIcon name="tune" />
+          {guideLabel(p.epgId)}
+        </h2>
         <p>
           {p.channels.map((c) => `${c.title}${c.market ? ` (${c.market.toUpperCase()})` : ""}`).join(" · ")} · décalage actuel{" "}
           {signed(p.current)}
@@ -307,6 +313,7 @@ export function OffsetPanel(p: PanelProps) {
             )}
           </fieldset>
           <button class="btn" data-variant="primary">
+            <Icon name="save" />
             Enregistrer
           </button>
         </form>

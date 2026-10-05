@@ -5,7 +5,7 @@ import type { ItemCount, CategoryCount, AppCount } from "./data";
 import { fmt, ago, megabytes, nextRunText } from "../format";
 import { Title, Card, Stat, Badge, Meter, Status } from "../ui";
 import { Icon } from "../icons";
-import { KIND_TITLES, taskLabel } from "../labels";
+import { KIND_ICONS, KIND_TITLES, taskLabel } from "../labels";
 import { JobsStatus, type JobsState } from "./jobs";
 
 export type GroupCount = { kind: string; visible: number; multi: number; fallback: number; adult: number; iptv: number; sagas: number };
@@ -60,6 +60,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
             <a href={`/admin/catalog?kind=${k}`}>
               <Stat
                 label={KIND_TITLES[k]}
+                icon={KIND_ICONS[k]}
                 value={fmt(i.total - i.hidden)}
                 sub={`${fmt(c.total - c.hidden)} catégories · ${fmt(i.hidden)} masqués`}
               >
@@ -80,6 +81,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
         <div class="grid md:col-span-6 lg:col-span-4">
           <Card
             title="Traitement"
+            icon="pipeline"
             extra={
               <a href="/admin/tasks" class="hover:text-foreground">
                 tâches
@@ -131,7 +133,8 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
 
         <div class="grid md:col-span-6 lg:col-span-2">
           <Card
-            title="Application Apple"
+            title="Clients"
+            icon="clients"
             extra={
               <a href="/admin/devices" class="hover:text-foreground">
                 appareils
@@ -168,7 +171,11 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
         </div>
 
         <div class="grid md:col-span-3">
-          <Card title="Enrichissement TMDB" extra={s.tmdb_api_key ? s.tmdb_language : <Badge tone="warn">clé absente</Badge>}>
+          <Card
+            title="Enrichissement TMDB"
+            icon="database"
+            extra={s.tmdb_api_key ? s.tmdb_language : <Badge tone="warn">clé absente</Badge>}
+          >
             <div class="flex flex-col gap-4">
               {(["vod", "series"] as const).map((k) => {
                 const i = item(k);
@@ -197,6 +204,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
         <div class="grid md:col-span-3">
           <Card
             title="Groupement des variantes"
+            icon="group"
             extra={
               <a href="/admin/catalog?kind=vod" class="hover:text-foreground">
                 voir le catalogue

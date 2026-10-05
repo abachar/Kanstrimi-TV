@@ -3,7 +3,7 @@
  * `style` attribute. Class names are always written whole (Tailwind finds them by reading the
  * source): pick from a map, never build `text-${x}`.
  */
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 
 /** The outcome of an htmx action, as a line that replaces the button's result area. */
 export const InlineResult = ({ ok, text }: { ok: boolean; text: string }) =>
@@ -23,16 +23,18 @@ export const Title = ({ t, sub, actions }: { t: string; sub: string; actions?: u
  * `extra` is a short complement at the right of the header (a link, a language code); `hint`
  * is a sentence under the title. No `h-full`: a card only fills a row when its grid cell is itself
  * a `grid` (see the dashboard). `folded`: the card shows its header only, a click on it unfolds the
- * body (a native `<details>`, no script); it comes back folded with the page.
+ * body (a native `<details>`, no script); it comes back folded with the page. `icon` stands before the title.
  */
 export const Card = ({
   title,
+  icon,
   extra,
   hint,
   folded,
   children,
 }: {
   title: string;
+  icon: IconName;
   extra?: unknown;
   hint?: string;
   folded?: boolean;
@@ -42,7 +44,10 @@ export const Card = ({
     // Basecoat styles a card's `> header`: the summary takes the same look by hand.
     <details class="card group block">
       <summary class="grid cursor-pointer list-none grid-cols-[1fr_auto] items-start gap-1 px-6 group-open:mb-6 [&::-webkit-details-marker]:hidden">
-        <h2 class="text-base font-medium leading-normal">{title}</h2>
+        <h2 class="flex items-center gap-2 text-base font-medium leading-normal">
+          <CardIcon name={icon} />
+          {title}
+        </h2>
         <div class="row-span-2 flex items-center gap-2 text-sm text-muted-foreground">
           {extra}
           <Icon name="chevron-down" cls="size-4 transition-transform group-open:rotate-180" />
@@ -54,7 +59,10 @@ export const Card = ({
   ) : (
     <section class="card">
       <header>
-        <h2>{title}</h2>
+        <h2 class="flex items-center gap-2">
+          <CardIcon name={icon} />
+          {title}
+        </h2>
         {hint && <p>{hint}</p>}
         {extra && <div class="card-action text-sm text-muted-foreground">{extra}</div>}
       </header>
@@ -62,11 +70,29 @@ export const Card = ({
     </section>
   );
 
+/** The icon before a card's title. */
+export const CardIcon = ({ name }: { name: IconName }) => <Icon name={name} cls="size-4 shrink-0 text-muted-foreground" />;
+
 /** A figure of the dashboard: a label, a big number, a line under it. */
-export const Stat = ({ label, value, sub, children }: { label: string; value: string; sub?: unknown; children?: unknown }) => (
+export const Stat = ({
+  label,
+  icon,
+  value,
+  sub,
+  children,
+}: {
+  label: string;
+  icon: IconName;
+  value: string;
+  sub?: unknown;
+  children?: unknown;
+}) => (
   <section class="card h-full" data-size="sm">
     <header>
-      <p>{label}</p>
+      <p class="flex items-center gap-2">
+        <CardIcon name={icon} />
+        {label}
+      </p>
     </header>
     <section class="flex flex-col gap-1">
       <div class="text-3xl font-semibold tabular-nums tracking-tight">{value}</div>

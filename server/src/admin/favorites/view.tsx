@@ -1,4 +1,5 @@
 import { Badge, Card, Empty, Title } from "../ui";
+import { Icon } from "../icons";
 import { fmt } from "../format";
 import type { FavoriteRow } from "./data";
 
@@ -8,7 +9,7 @@ export function FavoritesView({ rows }: { rows: FavoriteRow[] }) {
   return (
     <>
       <Title t="Favoris" sub={`« Ma liste » telle que l'app l'a enregistrée · ${fmt(rows.length)} entrées`} />
-      <Card title="Ma liste" extra={fmt(rows.length)}>
+      <Card title="Ma liste" icon="favorites" extra={fmt(rows.length)}>
         {rows.length === 0 ? (
           <Empty title="Aucun favori" sub="L'app n'a encore rien ajouté à « Ma liste »." />
         ) : (
@@ -50,6 +51,7 @@ export function FavoritesView({ rows }: { rows: FavoriteRow[] }) {
                   hx-confirm="Retirer ce favori ?"
                 >
                   <button class="btn" data-variant="destructive" data-size="sm">
+                    <Icon name="trash" />
                     Retirer
                   </button>
                 </form>

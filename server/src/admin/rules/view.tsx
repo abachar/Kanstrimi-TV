@@ -1,8 +1,8 @@
 import type { FilterRule, Kind } from "@/db";
 import type { RulePreview as Preview } from "@/catalog";
 import { Title, Card, Busy, Empty } from "../ui";
-import { KIND_TITLES } from "../labels";
-import { Icon, type IconName } from "../icons";
+import { KIND_ICONS, KIND_TITLES } from "../labels";
+import { Icon } from "../icons";
 import { QueryHelp } from "../catalog/search-bar";
 
 /** A rule of one kind, fixed: its fields, its help and its preview are that kind's. */
@@ -44,6 +44,7 @@ export function RuleForm({ kind, rule, preview }: { kind: Kind; rule?: FilterRul
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <button class="btn" data-variant="primary">
+          <Icon name={rule ? "save" : "plus"} />
           {rule ? "Mettre à jour" : "Ajouter"}
         </button>
         <button
@@ -56,6 +57,7 @@ export function RuleForm({ kind, rule, preview }: { kind: Kind; rule?: FilterRul
           hx-disabled-elt="this"
           hx-indicator={`#${pid}-busy`}
         >
+          <Icon name="eye" />
           Prévisualiser
         </button>
         <Busy id={`${pid}-busy`} label="Recherche en cours" />
@@ -98,15 +100,13 @@ function PendingBanner({ busy }: { busy: boolean }) {
       <form method="post" action="/admin/jobs/pipeline">
         <input type="hidden" name="from" value="filters" />
         <button class="btn" data-variant="secondary" data-size="sm" disabled={busy}>
+          <Icon name={busy ? "loader" : "play"} cls={busy ? "size-4 animate-spin" : ""} />
           {busy ? "Traitement en cours…" : "Appliquer (passage à partir de « Masquage »)"}
         </button>
       </form>
     </div>
   );
 }
-
-/** The kind of a rule, before its name: the icons of the side menu. */
-const KIND_ICONS = { live: "live", vod: "film", series: "series" } as const satisfies Record<Kind, IconName>;
 
 export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pending: boolean; busy: boolean }) {
   return (
@@ -118,8 +118,10 @@ export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pendi
       {pending && <PendingBanner busy={busy} />}
       <Card
         title={`Règles (${rules.length})`}
+        icon="rules"
         extra={
           <a class="btn" data-variant="primary" data-size="sm" href="/admin/rules/new">
+            <Icon name="plus" />
             Nouvelle règle
           </a>
         }
@@ -158,6 +160,7 @@ export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pendi
               </div>
               <div class="order-last col-span-2 flex gap-1 md:justify-end">
                 <a class="btn" data-variant="ghost" data-size="sm" href={`/admin/rules/${r.id}`}>
+                  <Icon name="edit" />
                   Éditer
                 </a>
                 <button
@@ -168,6 +171,7 @@ export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pendi
                   hx-post={`/admin/rules/${r.id}/delete`}
                   hx-confirm={`Supprimer la règle « ${r.name} » ?`}
                 >
+                  <Icon name="trash" />
                   Supprimer
                 </button>
               </div>
@@ -187,6 +191,7 @@ export function KindChoice() {
       <div class="flex flex-wrap gap-3">
         {(Object.keys(KIND_TITLES) as Kind[]).map((k) => (
           <a class="btn" data-variant="outline" href={`/admin/rules/new?kind=${k}`}>
+            <Icon name={KIND_ICONS[k]} />
             {KIND_TITLES[k]}
           </a>
         ))}
@@ -203,7 +208,7 @@ export function RulePage({ kind, rule }: { kind: Kind; rule?: FilterRule }) {
         t={rule ? rule.name : `Nouvelle règle · ${KIND_TITLES[kind]}`}
         sub="Sans champ de version, la règle masque la fiche ; avec un champ de version (variant., xtream.), elle masque les versions qui correspondent, dans les fiches que ses autres termes désignent. « Prévisualiser » montre ce qu'elle touche ; enregistrée, elle s'applique à l'étape « Masquage »."
       />
-      <Card title={`${rule ? "Modifier la règle" : "Nouvelle règle"} · ${KIND_TITLES[kind]}`}>
+      <Card title={`${rule ? "Modifier la règle" : "Nouvelle règle"} · ${KIND_TITLES[kind]}`} icon={KIND_ICONS[kind]}>
         <RuleForm kind={kind} rule={rule} />
       </Card>
     </>

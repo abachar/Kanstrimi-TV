@@ -1,8 +1,14 @@
+import { CardIcon } from "../ui";
+import { Icon } from "../icons";
+
 export function LoginView({ error, next }: { error?: string; next?: string }) {
   return (
     <section class="card w-full max-w-sm">
       <header>
-        <h2>Connexion</h2>
+        <h2 class="flex items-center gap-2">
+          <CardIcon name="login" />
+          Connexion
+        </h2>
       </header>
       <section class="flex flex-col gap-4">
         {error && (
@@ -24,6 +30,7 @@ export function LoginView({ error, next }: { error?: string; next?: string }) {
             <input class="input" type="password" name="password" id="password" autocomplete="current-password" required />
           </div>
           <button class="btn" data-variant="primary">
+            <Icon name="login" />
             Se connecter
           </button>
         </form>

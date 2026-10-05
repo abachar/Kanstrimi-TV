@@ -41,7 +41,7 @@ export const PIPELINE_STEPS: readonly Step[] = ["source", "enrich", "group", "fi
  */
 const SKIPPABLE: ReadonlySet<Step> = new Set(["enrich"]);
 /** Runs and their files are kept this long. */
-export const RETENTION_DAYS = 90;
+export const RETENTION_DAYS = 5;
 
 /** What a run passes its steps: the steps it holds, and whether a shrinking catalogue is accepted (a manual run's choice). */
 export type RunOptions = { acceptShrink?: boolean };

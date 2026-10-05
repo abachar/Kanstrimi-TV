@@ -91,13 +91,16 @@ function IptvPanel({ v }: { v: VariantDetail }) {
           aria-label="Identifiant iptv-org"
         />
         <button class="btn" data-variant="outline" data-size="sm" name="action" value="pin">
+          <Icon name="link" />
           Rattacher
         </button>
         <button class="btn" data-variant="ghost" data-size="sm" name="action" value="none">
+          <Icon name="none" />
           Aucune
         </button>
         {it.iptvMatch === "manual" && (
           <button class="btn" data-variant="ghost" data-size="sm" name="action" value="auto">
+            <Icon name="auto" />
             Automatique
           </button>
         )}
@@ -147,6 +150,7 @@ function TmdbPanel({ v, tmdbLang }: { v: VariantDetail; tmdbLang: string }) {
           hx-indicator="this"
           title="Rejoue le matching sans rien écrire"
         >
+          <Icon name="info" />
           Pourquoi ce résultat ?
           <span class={BUSY} role="status" aria-label="Analyse en cours">
             <Icon name="loader" cls="size-4 animate-spin" />
@@ -160,7 +164,7 @@ function TmdbPanel({ v, tmdbLang }: { v: VariantDetail; tmdbLang: string }) {
 /** « ⋯ »: split out, merge into another content, or back to the automatic grouping. A native popover: no script. */
 function GroupMenu({ v, alone }: { v: VariantDetail; alone: boolean }) {
   const it = v.item;
-  const ITEM = "w-full rounded-md px-2 py-1.5 text-start text-sm hover:bg-muted";
+  const ITEM = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm hover:bg-muted";
   return (
     <details class="relative">
       <summary class="btn list-none" data-variant="ghost" data-size="icon-sm" aria-label="Actions sur la variante" title="Actions">
@@ -169,16 +173,19 @@ function GroupMenu({ v, alone }: { v: VariantDetail; alone: boolean }) {
       <div class="absolute end-0 top-full z-20 mt-1 flex w-60 flex-col rounded-lg border bg-background p-1 shadow-lg">
         {it.keyOverride ? (
           <button class={ITEM} hx-post={`/admin/item/${it.id}/reset`}>
+            <Icon name="auto" cls="size-4 shrink-0" />
             Revenir au groupement automatique
           </button>
         ) : (
           <>
             {!alone && (
               <button class={ITEM} hx-post={`/admin/item/${it.id}/split`}>
+                <Icon name="split" cls="size-4 shrink-0" />
                 Séparer en un contenu à part
               </button>
             )}
             <button class={ITEM} hx-get={`/admin/item/${it.id}/merge-form`} hx-target={`#merge-slot-${it.id}`} hx-swap="innerHTML">
+              <Icon name="merge" cls="size-4 shrink-0" />
               Fusionner dans un autre contenu…
             </button>
           </>
@@ -196,6 +203,7 @@ export function MergeForm({ itemId, results }: { itemId: number; results?: Merge
         <input type="hidden" name="id" value={String(itemId)} />
         <input class="input h-8" type="text" name="q" placeholder="Titre du contenu cible…" aria-label="Titre du contenu cible" autofocus />
         <button class="btn" data-variant="secondary" data-size="sm">
+          <Icon name="search" />
           Chercher
         </button>
       </form>

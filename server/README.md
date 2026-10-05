@@ -58,8 +58,8 @@ Le matching est un seul algorithme, `explainMatch` : `enrich` applique son verdi
 Une panne de TMDB (réseau, 429 qui dure) laisse l'élément en attente, jamais `unmatched` ; le client TMDB ne dépasse
 pas 35 requêtes par seconde.
 Un passage s'arrête à la première étape en échec, sauf `enrich` (réseau externe). Chaque passage laisse une ligne dans
-`task_runs`, une par étape dans `task_steps`, et un fichier de log dans `DATA_DIR/logs/` (90 jours) avec le détail de
-chaque partie d'une étape ; il peut être arrêté depuis l'admin.
+`task_runs`, une par étape dans `task_steps`, et un fichier de log dans `DATA_DIR/logs/` avec le détail de chaque
+partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque passage purge lignes et fichiers de plus de 5 jours.
 
 ## Tables
 

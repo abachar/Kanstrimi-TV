@@ -1,5 +1,6 @@
 import type { Kind } from "@/db";
 import { queryFieldsOf, type QueryField } from "@/catalog";
+import { Icon } from "../icons";
 
 /**
  * The filter language at a glance, under a search box or a rule's query: the syntax with examples of
@@ -150,6 +151,7 @@ export function QuerySearchBar({
           enterkeyhint="search"
         />
         <button class="btn" data-variant="secondary">
+          <Icon name="search" />
           Rechercher
         </button>
       </form>

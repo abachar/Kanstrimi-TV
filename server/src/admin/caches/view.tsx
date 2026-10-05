@@ -1,4 +1,4 @@
-import { Title } from "../ui";
+import { CardIcon, Title } from "../ui";
 import { ago, fmt, megabytes } from "../format";
 import { CACHE_LABELS } from "../labels";
 import type { CacheStat } from "./data";
@@ -13,7 +13,10 @@ export function CachesView({ rows }: { rows: CacheStat[] }) {
           return (
             <section class="card h-full">
               <header>
-                <h2>{l.title}</h2>
+                <h2 class="flex items-center gap-2">
+                  <CardIcon name={l.icon} />
+                  {l.title}
+                </h2>
                 <p>{l.what}</p>
               </header>
               <section class="flex flex-col gap-1">

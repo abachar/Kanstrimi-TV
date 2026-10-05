@@ -2,6 +2,7 @@ import type { TmdbCandidate } from "@/catalog";
 import { tmdbMediaType, type Variant } from "@/db";
 import { MATCH_LABELS, MATCH_TONES } from "../labels";
 import { Badge } from "../ui";
+import { Icon } from "../icons";
 
 /** The TMDB association of an entry, with the search-and-assign form folded under "Corriger". */
 export function TmdbCell({ it, results }: { it: Variant; results?: TmdbCandidate[] }) {
@@ -38,6 +39,7 @@ export function TmdbCell({ it, results }: { it: Variant; results?: TmdbCandidate
           <input type="hidden" name="id" value={it.id} />
           <input class="input h-8" type="text" name="q" value={it.cleanTitle ?? it.name} aria-label="Titre à chercher sur TMDB" />
           <button class="btn" data-variant="outline" data-size="sm">
+            <Icon name="search" />
             Chercher
           </button>
         </form>
@@ -56,6 +58,7 @@ export function TmdbCell({ it, results }: { it: Variant; results?: TmdbCandidate
                   hx-swap="outerHTML"
                   aria-label={`Associer à ${r.label}`}
                 >
+                  <Icon name="link" />
                   Associer
                 </button>
                 <span class="min-w-0 truncate">
@@ -77,6 +80,7 @@ export function TmdbCell({ it, results }: { it: Variant; results?: TmdbCandidate
             aria-label="Identifiant TMDB à associer"
           />
           <button class="btn" data-variant="outline" data-size="sm">
+            <Icon name="link" />
             Associer
           </button>
         </form>

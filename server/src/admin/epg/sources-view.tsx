@@ -31,6 +31,7 @@ export function SourcesCard({ sources }: { sources: SourceRow[] }) {
   return (
     <Card
       title="Sources EPG de secours"
+      icon="fallback"
       extra={sources.length ? `${sources.length}` : undefined}
       folded
       hint="Fichiers XMLTV qui complètent le guide du fournisseur pour les chaînes visibles qu'il laisse sans programme, lus à chaque import EPG. Pour une chaîne, la première source de la liste qui a son guide l'emporte."
@@ -118,6 +119,7 @@ export function SourcePage(p: SourcePageProps) {
   const here = link({});
   const tab = (t: "ours" | "theirs", label: string) => (
     <a class="btn" data-variant={q.tab === t ? "primary" : "outline"} href={`${base}?tab=${t}`}>
+      <Icon name={t === "ours" ? "live" : "file"} />
       {label}
     </a>
   );
@@ -130,13 +132,14 @@ export function SourcePage(p: SourcePageProps) {
           <>
             <form method="post" action="/admin/jobs/epg">
               <button class="btn" data-variant="outline">
+                <Icon name="download" />
                 Importer l'EPG maintenant
               </button>
             </form>
           </>
         }
       />
-      <Card title="Source" extra={<SourceState s={s} />} hint={s.fetchError ?? undefined}>
+      <Card title="Source" icon="source" extra={<SourceState s={s} />} hint={s.fetchError ?? undefined}>
         <form method="post" action={base} class="grid grid-cols-1 gap-4 md:grid-cols-12">
           <div class="field md:col-span-3">
             <label class="label" for="src-name">
@@ -166,6 +169,7 @@ export function SourcePage(p: SourcePageProps) {
           </div>
           <div class="flex flex-wrap gap-2 md:col-span-12">
             <button class="btn" data-variant="primary">
+              <Icon name="save" />
               Enregistrer
             </button>
           </div>
@@ -216,13 +220,14 @@ export function SourcePage(p: SourcePageProps) {
           />
         </select>
         <button class="btn md:col-span-1" data-variant="outline">
+          <Icon name="rules" />
           Filtrer
         </button>
       </form>
       {q.tab === "ours" ? (
         <OursCard {...p} here={here} link={link} />
       ) : (
-        <Card title="Chaînes du fichier" extra={`${fmt(p.theirsTotal)} chaînes`}>
+        <Card title="Chaînes du fichier" icon="file" extra={`${fmt(p.theirsTotal)} chaînes`}>
           {p.theirs.length ? (
             <Table>
               <thead>
@@ -292,6 +297,7 @@ function OursCard(p: SourcePageProps & { here: string; link: (o: { page: string 
   return (
     <Card
       title="Nos chaînes"
+      icon="live"
       extra={`${fmt(p.oursTotal)} chaînes`}
       hint="Le lien par le nom ne complète que les chaînes sans guide du fournisseur ; un choix à la main vaut toujours. Les programmes d'une chaîne nouvellement reliée arrivent au prochain import EPG."
     >
@@ -348,10 +354,12 @@ function OursCard(p: SourcePageProps & { here: string; link: (o: { page: string 
                   aria-label={`Chaîne de la source pour ${c.title}`}
                 />
                 <button class="btn" data-variant="outline" data-size="sm" name="action" value="link">
+                  <Icon name="link" />
                   Relier
                 </button>
                 {(c.link?.manual || c.refused) && (
                   <button class="btn" data-variant="ghost" data-size="sm" name="action" value="auto" title="Revenir au lien par le nom">
+                    <Icon name="auto" />
                     Auto
                   </button>
                 )}
@@ -364,6 +372,7 @@ function OursCard(p: SourcePageProps & { here: string; link: (o: { page: string 
                     value="none"
                     title="Ne jamais prendre cette source pour cette chaîne"
                   >
+                    <Icon name="none" />
                     Aucune
                   </button>
                 )}

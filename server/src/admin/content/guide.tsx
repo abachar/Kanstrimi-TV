@@ -112,6 +112,7 @@ export function GuideCard({ c, g }: { c: Content; g: ChannelGuide }) {
     <>
       <Card
         title="Rapprochement EPG"
+        icon="link"
         hint="Les identifiants que chaque variante essaie, dans l'ordre de l'app : le premier qui a des programmes donne son guide."
       >
         <div class="flex flex-col gap-4">
@@ -142,6 +143,7 @@ export function GuideCard({ c, g }: { c: Content; g: ChannelGuide }) {
       </Card>
       <Card
         title="Programmes en base"
+        icon="programmes"
         hint={g.shown ? `Guide ${g.shown} · ${fmt(g.programmes.length)} programmes` : undefined}
         extra={
           g.shown && (

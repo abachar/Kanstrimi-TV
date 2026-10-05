@@ -1,10 +1,13 @@
 import type { Kind } from "@/db";
 import type { Step, KeyKind, Task } from "@/catalog";
+import type { IconName } from "./icons";
 import type { Tone } from "./ui";
 
 /** French vocabulary of the admin, in one place. */
 
 export const KIND_TITLES: Record<Kind, string> = { live: "Live", vod: "Films", series: "Séries" };
+/** The icons of the side menu. */
+export const KIND_ICONS: Record<Kind, IconName> = { live: "live", vod: "film", series: "series" };
 
 /** How a content got its key, as shown on its page. */
 export const KEY_KIND_LABELS: Record<KeyKind, string> = {
@@ -44,6 +47,7 @@ export const TASK_LABELS: Record<Task, string> = {
   epg: "Guide des programmes",
   trending: "Tendances TMDB",
 };
+export const TASK_ICONS: Record<Task, IconName> = { pipeline: "pipeline", epg: "epg", trending: "sparkles" };
 export const TRIGGER_LABELS: Record<string, string> = { cron: "planifié", manual: "manuel" };
 export const jobLabel = (job: string) => (JOB_LABELS as Record<string, string>)[job] ?? PAST_JOB_LABELS[job] ?? job;
 /** A run's task: one of the scheduled ones, or a lone step. */
@@ -92,34 +96,39 @@ export const STAT_LABELS: Record<string, string> = {
 /** The « Caches » page: what each cache holds, and how it fills and refreshes. */
 export const CACHE_LABELS: Record<
   "tmdb" | "info" | "episodes" | "images" | "epg",
-  { title: string; unit: string; what: string; how: string }
+  { title: string; icon: IconName; unit: string; what: string; how: string }
 > = {
   tmdb: {
     title: "Fiches TMDB",
+    icon: "database",
     unit: "fiches",
     what: "Le détail TMDB de chaque film et série (une ligne par type, identifiant et langue).",
     how: "Rempli à l'enrichissement TMDB, une fiche par identifiant et par langue.",
   },
   info: {
     title: "Infos amont",
+    icon: "server",
     unit: "réponses",
     what: "Les réponses get_series_info du fournisseur, une par série.",
     how: "Rempli quand l'app ouvre une série ; relu chez le fournisseur passé 12 h, gardé tel quel s'il est injoignable.",
   },
   episodes: {
     title: "Arbres de séries",
+    icon: "series",
     unit: "épisodes",
     what: "Les saisons et épisodes des séries, avec leurs sources chez le fournisseur.",
     how: "Construit quand l'app ouvre une série ; sources amont relues passé 12 h, saisons TMDB passé 30 jours.",
   },
   images: {
     title: "Images",
+    icon: "image",
     unit: "fichiers",
     what: "Les affiches et fonds TMDB, les logos iptv-org et les images du Top Shelf, servis par /img.",
     how: "Une image est téléchargée à sa première demande, puis servie depuis le disque.",
   },
   epg: {
     title: "Guide des programmes (EPG)",
+    icon: "epg",
     unit: "programmes",
     what: "Les programmes des chaînes visibles, importés du XMLTV du fournisseur (six jours devant), servis en « maintenant / ensuite ».",
     how: "Reconstruit par le job « EPG » selon son cron ; un import vide ou en échec garde le guide précédent.",

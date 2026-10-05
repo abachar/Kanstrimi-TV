@@ -73,7 +73,7 @@ export function StudiosView({ studios, suggestions, q }: { studios: StudioRow[];
         t="Studios"
         sub="Les hubs de l'app : une rangée « Studios » dans Films et dans Séries, dans cet ordre. Un studio sans titre visible du type n'y apparaît pas."
       />
-      <Card title="Affichés dans l'app" extra={fmt(studios.length)}>
+      <Card title="Affichés dans l'app" icon="studios" extra={fmt(studios.length)}>
         {studios.length === 0 ? (
           <Empty title="Aucun studio" sub="Ajoutez-en depuis les suggestions ci-dessous." />
         ) : (
@@ -127,6 +127,7 @@ export function StudiosView({ studios, suggestions, q }: { studios: StudioRow[];
       </Card>
       <Card
         title="Suggestions"
+        icon="sparkles"
         hint={
           q
             ? `Studios et diffuseurs du catalogue visible dont le nom contient « ${q} », pas encore affichés.`
@@ -138,10 +139,12 @@ export function StudiosView({ studios, suggestions, q }: { studios: StudioRow[];
           <form method="get" action="/admin/studios" class="flex gap-2" role="search">
             <input class="input" type="search" name="q" value={q} placeholder="Pixar, Netflix…" aria-label="Chercher un studio" />
             <button class="btn" data-variant="outline">
+              <Icon name="search" />
               Chercher
             </button>
             {q && (
               <a class="btn" data-variant="ghost" href="/admin/studios">
+                <Icon name="x" />
                 Effacer
               </a>
             )}
@@ -250,7 +253,7 @@ export function StudioDetailView({ d }: { d: StudioDetail }) {
       </div>
       {groups.map(([label, titles]) =>
         titles.length ? (
-          <Card title={label} extra={fmt(titles.length)}>
+          <Card title={label} icon="film" extra={fmt(titles.length)}>
             <ul class="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
               {titles.map((t) => (
                 <li>

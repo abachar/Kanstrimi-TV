@@ -3,7 +3,8 @@ import type { RunWithSteps, Step, Task } from "@/catalog";
 import { SHRINK_HINT } from "@/providers/xtream";
 import { fmt, duration, ago, megabytes, nextRunText } from "../format";
 import { Badge, Card, Empty, Options, Pagination, Status, Table, Title } from "../ui";
-import { STAT_LABELS, TRIGGER_LABELS, jobLabel, taskLabel } from "../labels";
+import { Icon } from "../icons";
+import { STAT_LABELS, TASK_ICONS, TRIGGER_LABELS, jobLabel, taskLabel } from "../labels";
 
 /** Stats as readable chips; zeros and unknown keys stay, but the raw JSON never shows. */
 function StatChips({ stats }: { stats: Record<string, unknown> | null }) {
@@ -73,6 +74,7 @@ function KillButton({ run }: { run: { id: number } }) {
   return (
     <form method="post" action={`/admin/tasks/${run.id}/kill`} hx-post={`/admin/tasks/${run.id}/kill`} hx-confirm="Arrêter ce passage ?">
       <button class="btn" data-variant="destructive" data-size="sm">
+        <Icon name="stop" />
         Arrêter
       </button>
     </form>
@@ -94,7 +96,7 @@ export function TaskCard({ task, cron, runs, busy, steps }: TaskState) {
       class="grid"
       {...(busy ? { "hx-get": `/admin/tasks/card/${task}`, "hx-trigger": "every 3s", "hx-swap": "outerHTML" } : {})}
     >
-      <Card title={taskLabel(task)} hint={nextRunText(cron)}>
+      <Card title={taskLabel(task)} icon={TASK_ICONS[task]} hint={nextRunText(cron)}>
         <div class="flex flex-col gap-3">
           {last ? (
             <a href={`/admin/tasks/${last.id}`} class="flex flex-col gap-2 rounded-lg border p-3 hover:bg-muted">
@@ -130,6 +132,7 @@ export function TaskCard({ task, cron, runs, busy, steps }: TaskState) {
               </select>
             )}
             <button class="btn shrink-0" data-variant="outline" data-size="sm" disabled={busy}>
+              <Icon name={busy ? "loader" : "play"} cls={busy ? "size-4 animate-spin" : ""} />
               {busy ? "En cours…" : "Lancer maintenant"}
             </button>
           </form>
@@ -183,6 +186,7 @@ export function RunsTable({ runs }: { runs: RunWithSteps[] }) {
                 </td>
                 <td>
                   <a class="btn" data-variant="ghost" data-size="sm" href={`/admin/tasks/${r.id}`}>
+                    <Icon name="logs" />
                     Voir le log
                   </a>
                 </td>
@@ -228,7 +232,7 @@ export function TasksView(p: { tasks: TaskState[]; runs: RunWithSteps[]; total: 
           <TaskCard {...t} />
         ))}
       </div>
-      <Card title="Passages">
+      <Card title="Passages" icon="list">
         <div class="flex flex-col gap-4">
           <form method="get" action="/admin/tasks" class="flex flex-wrap items-center gap-3" role="search">
             <select name="task" class="select w-auto" aria-label="Tâche">
@@ -246,6 +250,7 @@ export function TasksView(p: { tasks: TaskState[]; runs: RunWithSteps[]; total: 
               Erreurs seulement
             </label>
             <button class="btn" data-variant="outline" data-size="sm">
+              <Icon name="rules" />
               Filtrer
             </button>
           </form>
@@ -294,6 +299,7 @@ export function RunView({ run, log }: { run: RunWithSteps; log: { text: string; 
           <>
             {log && (
               <a class="btn" data-variant="outline" href={`/admin/tasks/${run.id}/raw`}>
+                <Icon name="download" />
                 Télécharger le log
               </a>
             )}
@@ -301,7 +307,7 @@ export function RunView({ run, log }: { run: RunWithSteps; log: { text: string; 
           </>
         }
       />
-      <Card title="Étapes" extra={<Status status={run.status} />}>
+      <Card title="Étapes" icon="steps" extra={<Status status={run.status} />}>
         {run.message && <p class="mb-3 break-words text-sm text-destructive">{run.message}</p>}
         {run.steps.length ? (
           <Table>
@@ -335,7 +341,7 @@ export function RunView({ run, log }: { run: RunWithSteps; log: { text: string; 
           <Empty title="Aucune étape enregistrée" />
         )}
       </Card>
-      <Card title="Log">
+      <Card title="Log" icon="logs">
         <RunLog run={run} log={log} />
       </Card>
     </>

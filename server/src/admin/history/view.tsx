@@ -1,5 +1,6 @@
 import { runtimeText } from "@/player";
 import { Title, Card, Badge, Empty, Meter, Table } from "../ui";
+import { Icon, type IconName } from "../icons";
 import { ago, fmt } from "../format";
 import type { HistoryRow } from "./data";
 
@@ -9,12 +10,14 @@ const Action = ({
   row,
   verb,
   label,
+  icon,
   variant,
   confirm,
 }: {
   row: HistoryRow;
   verb: string;
   label: string;
+  icon: IconName;
   variant: string;
   confirm?: string;
 }) => (
@@ -24,6 +27,7 @@ const Action = ({
     {...(confirm ? { "hx-post": `/admin/history/${encodeURIComponent(row.key)}/${verb}`, "hx-confirm": confirm } : {})}
   >
     <button class="btn" data-variant={variant} data-size="sm">
+      <Icon name={icon} />
       {label}
     </button>
   </form>
@@ -73,11 +77,11 @@ function Rows({ rows, finished }: { rows: HistoryRow[]; finished: boolean }) {
             <td>
               <div class="flex justify-end gap-1">
                 {finished ? (
-                  <Action row={r} verb="unfinished" label="Marquer non vu" variant="outline" />
+                  <Action row={r} verb="unfinished" label="Marquer non vu" icon="eye-off" variant="outline" />
                 ) : (
                   <>
-                    <Action row={r} verb="finished" label="Marquer vu" variant="secondary" />
-                    <Action row={r} verb="delete" label="Effacer" variant="destructive" confirm="Effacer cette position ?" />
+                    <Action row={r} verb="finished" label="Marquer vu" icon="eye" variant="secondary" />
+                    <Action row={r} verb="delete" label="Effacer" icon="trash" variant="destructive" confirm="Effacer cette position ?" />
                   </>
                 )}
               </div>
@@ -93,10 +97,15 @@ export function HistoryView({ ongoing, finished }: { ongoing: HistoryRow[]; fini
   return (
     <>
       <Title t="Historique" sub="Les positions de lecture telles que l'app les envoie ; « vu » à partir de 90 %" />
-      <Card title="En cours" extra={fmt(ongoing.length)}>
+      <Card title="En cours" icon="play" extra={fmt(ongoing.length)}>
         <Rows rows={ongoing} finished={false} />
       </Card>
-      <Card title="Vus" extra={fmt(finished.length)} hint="Marquer non vu efface la position : une reprise à 0 n'a pas de sens">
+      <Card
+        title="Vus"
+        icon="success"
+        extra={fmt(finished.length)}
+        hint="Marquer non vu efface la position : une reprise à 0 n'a pas de sens"
+      >
         <Rows rows={finished} finished={true} />
       </Card>
     </>

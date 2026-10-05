@@ -1,6 +1,7 @@
 import type { Settings } from "@/config";
 import { describeCron } from "../format";
 import { Title, Card, Busy } from "../ui";
+import { Icon } from "../icons";
 
 const ENV_HINT = "Variables d'environnement (secrets podman en production) : redémarrer le serveur après un changement.";
 
@@ -61,6 +62,7 @@ export function SettingsView({ s }: { s: Settings }) {
         hx-disabled-elt="this"
         hx-indicator={`#${target}-busy`}
       >
+        <Icon name="test" />
         {label}
       </button>
       <Busy id={`${target}-busy`} label="Test en cours" />
@@ -69,10 +71,10 @@ export function SettingsView({ s }: { s: Settings }) {
   );
   return (
     <>
-      <Title t="Paramètres" sub="Source Xtream, TMDB, application Apple, planification, sécurité" />
+      <Title t="Paramètres" sub="Source Xtream, TMDB, clients, planification, sécurité" />
       <form method="post" action="/admin/settings" class="flex flex-col gap-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title="Serveur Xtream (source)" hint={ENV_HINT}>
+          <Card title="Serveur Xtream (source)" icon="server" hint={ENV_HINT}>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Env name="xtream_url" label="URL" col="md:col-span-2" />
               <Env name="xtream_username" label="Utilisateur" />
@@ -80,7 +82,7 @@ export function SettingsView({ s }: { s: Settings }) {
             </div>
             <Test url="/admin/settings/test-xtream" target="xt-result" label="Tester la connexion" />
           </Card>
-          <Card title="TMDB">
+          <Card title="TMDB" icon="database">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Env name="tmdb_api_key" label="Clé API (v3) ou token v4" col="md:col-span-2" />
               <F name="tmdb_language" label="Langue" hint="fr-FR, en-US…" />
@@ -88,7 +90,8 @@ export function SettingsView({ s }: { s: Settings }) {
             <Test url="/admin/settings/test-tmdb" target="tm-result" label="Tester TMDB" />
           </Card>
           <Card
-            title="Application Apple"
+            title="Clients"
+            icon="clients"
             hint="Les appareils s'appairent par QR code (page Appareils) ; ils lisent les flux chez le fournisseur, avec ses URL : seuls les appareils appairés les reçoivent."
           >
             <div class="flex flex-col gap-4">
@@ -111,7 +114,7 @@ export function SettingsView({ s }: { s: Settings }) {
               </div>
             </div>
           </Card>
-          <Card title="Planification" hint="Cron à 5 champs : minute, heure, jour, mois, jour de la semaine.">
+          <Card title="Planification" icon="clock" hint="Cron à 5 champs : minute, heure, jour, mois, jour de la semaine.">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <F name="sync_cron" label="Traitement complet" hint={describeCron(s.sync_cron)} />
               <F name="epg_cron" label="Import EPG" hint={describeCron(s.epg_cron)} />
@@ -121,6 +124,7 @@ export function SettingsView({ s }: { s: Settings }) {
         </div>
         <div class="grid md:flex md:justify-end">
           <button class="btn" data-variant="primary">
+            <Icon name="save" />
             Enregistrer
           </button>
         </div>
@@ -135,7 +139,7 @@ export function SettingsView({ s }: { s: Settings }) {
           hx-post="/admin/settings/revoke-sessions"
           hx-confirm="Déconnecter toutes les sessions, celle-ci comprise ?"
         >
-          <Card title="Mot de passe et sessions">
+          <Card title="Mot de passe et sessions" icon="key">
             <div class="flex flex-col items-start gap-4">
               <p class="text-sm text-muted-foreground">
                 Défini par <code class="font-mono text-foreground">ADMIN_PASSWORD_HASH</code> dans{" "}
@@ -144,19 +148,21 @@ export function SettingsView({ s }: { s: Settings }) {
                 ). Un nouveau mot de passe ferme toutes les sessions ; une session dure 30 jours au plus.
               </p>
               <button class="btn" data-variant="outline" data-size="sm">
+                <Icon name="logout" />
                 Déconnecter toutes les sessions
               </button>
             </div>
           </Card>
         </form>
         <form method="post" action="/admin/settings/retry-unmatched" class="grid">
-          <Card title="Retenter les introuvables">
+          <Card title="Retenter les introuvables" icon="retry">
             <div class="flex flex-col items-start gap-4">
               <p class="text-sm text-muted-foreground">
                 Remet en attente les seuls éléments que TMDB n'a pas trouvés, pour profiter d'une règle améliorée ou de nouvelles fiches.
                 Relancer ensuite le traitement à partir de « enrich ».
               </p>
               <button class="btn" data-variant="outline" data-size="sm">
+                <Icon name="retry" />
                 Retenter les introuvables
               </button>
             </div>
@@ -169,7 +175,7 @@ export function SettingsView({ s }: { s: Settings }) {
           hx-post="/admin/settings/reset-matches"
           hx-confirm="Réinitialiser tous les matchings automatiques ?"
         >
-          <Card title="Réinitialiser le matching TMDB">
+          <Card title="Réinitialiser le matching TMDB" icon="reset">
             <div class="flex flex-col items-start gap-4">
               <p class="text-sm text-muted-foreground">
                 Remet tous les éléments (sauf associations manuelles) en attente. Relancer ensuite le traitement à partir de « enrich ».
@@ -181,6 +187,7 @@ export function SettingsView({ s }: { s: Settings }) {
                 </label>
               </div>
               <button class="btn" data-variant="destructive" data-size="sm">
+                <Icon name="reset" />
                 Réinitialiser le matching
               </button>
             </div>
