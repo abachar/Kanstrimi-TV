@@ -622,6 +622,21 @@ export const tmdbRecommendations = pgTable(
   (t) => [primaryKey({ columns: [t.mediaType, t.tmdbId] })],
 );
 
+/**
+ * What the player asks of a title beyond its sheet, fetched on demand when it plays and kept a week.
+ * `credits_scene`: TMDB's keywords announce a scene during or after the end credits of a movie.
+ */
+export const tmdbExtras = pgTable(
+  "tmdb_extras",
+  {
+    mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
+    tmdbId: integer("tmdb_id").notNull(),
+    creditsScene: boolean("credits_scene").default(false).notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.mediaType, t.tmdbId] })],
+);
+
 export type Variant = typeof catalogVariants.$inferSelect;
 export type Episode = typeof catalogEpisodes.$inferSelect;
 export type Device = typeof appDevices.$inferSelect;

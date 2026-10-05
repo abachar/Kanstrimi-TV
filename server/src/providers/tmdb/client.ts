@@ -184,6 +184,10 @@ export class TmdbClient {
   recommendations(mediaType: "movie" | "tv", id: number) {
     return this.get<{ results?: { id: number }[] }>(`/${mediaType}/${id}/recommendations`, { page: 1 });
   }
+  /** A movie's keywords, the community's tags (« aftercreditsstinger »…). */
+  movieKeywords(id: number) {
+    return this.get<{ keywords?: { id: number; name: string }[] }>(`/movie/${id}/keywords`);
+  }
   tvSeason(id: number, season: number) {
     return this.get<{ episodes?: Record<string, unknown>[] }>(`/tv/${id}/season/${season}`);
   }

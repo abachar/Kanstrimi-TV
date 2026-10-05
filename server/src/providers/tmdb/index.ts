@@ -10,6 +10,7 @@ export {
   readTmdbCache,
   writeTmdbCache,
 } from "./details";
+export { type Extras, extras, extrasSettled, resetExtras } from "./extras";
 export { cacheStats } from "./images";
 export { imgRoute } from "./img-route";
 export {

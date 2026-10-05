@@ -11,13 +11,15 @@ import { currentEpisode, type EpisodeRow, episodeWire, episodesOf } from "./epis
 import { badgesOf, castOf, episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
 import { addWatchTime } from "./watch-time";
+import { playbackMarkers } from "./markers";
 import type { NextEpisode, Playback, Version } from "./types";
 
 /**
  * `/playback/{id}`: versions, resume point and next episode (a series: of the episode it resumes on);
  * `GET …/suggestions`: « Si vous avez aimé… » and what follows a movie or a series; `PUT …/progress`: the position watched;
  * `DELETE …/progress`: out of « Reprendre »; `PUT …/watched`: seen or not, a whole season on a series id;
- * `POST …/watch-time`: seconds of a channel played, for « Chaînes les plus regardées ».
+ * `POST …/watch-time`: seconds of a channel played, for « Chaînes les plus regardées »;
+ * `POST …/markers`: the intro and the end credits of the file the app opened.
  */
 export const playbackRoutes = new Hono<Env>();
 
@@ -93,6 +95,22 @@ playbackRoutes.post("/:id/watch-time", async (c) => {
   if (!(await keyExists(c.get("ctx"), key))) return fail("not_found", "Chaîne introuvable");
   await addWatchTime(key, body.data.seconds);
   return noContent();
+});
+
+const markersBody = z.object({
+  duration: z.number().positive().finite(),
+  chapters: z.array(z.object({ name: z.string().max(200), start: z.number().min(0).finite(), end: z.number().min(0).finite() })).max(500),
+});
+/** A movie or an episode: what the app read in the file it opened, answered with its markers. */
+playbackRoutes.post("/:id/markers", async (c) => {
+  const key = c.req.param("id");
+  const parsed = parseKey(key);
+  if (!parsed || parsed.kind === "live" || (parsed.kind === "series" && parsed.episode === undefined))
+    return fail("not_found", "Contenu introuvable");
+  const body = markersBody.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return fail("bad_request", "duration (secondes, > 0) et chapters (name, start, end) attendus");
+  if (!(await keyExists(c.get("ctx"), key))) return fail("not_found", "Contenu introuvable");
+  return json(await playbackMarkers(key, body.data));
 });
 
 export async function playback(ctx: RestContext, key: string): Promise<Playback | null> {

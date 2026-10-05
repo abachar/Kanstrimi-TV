@@ -60,6 +60,7 @@ export {
 } from "./pipeline";
 export { checkRegexes, compileQuery, fieldsOf as queryFieldsOf, QueryError, type CompileOptions, type Field as QueryField } from "./query";
 export { cachedRecommendedKeys, recommendedKeys } from "./recommendations";
+export { chapterMarkers, type FileChapter, type FileFacts, type Markers, markersOf } from "./markers";
 export { contentById, contentIdByKey, itemById, variantsOfContent } from "./queries";
 export {
   addStudio,

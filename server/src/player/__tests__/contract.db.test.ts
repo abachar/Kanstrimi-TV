@@ -27,10 +27,28 @@ const TOKEN = "dvc_contract";
 const at = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000);
 const daysAgo = (d: number) => at(-d * 24 * 60);
 
-const call = (p: string) => api.request(p, { headers: { host: "kanstrimi.test", authorization: `Bearer ${TOKEN}` } });
+const call = (p: string | { path: string; body: unknown }) =>
+  typeof p === "string"
+    ? api.request(p, { headers: { host: "kanstrimi.test", authorization: `Bearer ${TOKEN}` } })
+    : api.request(p.path, {
+        method: "POST",
+        headers: { host: "kanstrimi.test", authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+        body: JSON.stringify(p.body),
+      });
 
-/** Every answer of the contract, by file name. */
-const ROUTES: Record<string, string> = {
+/** What the app reads in a Netflix file: its length and its chapters. */
+const FILE_FACTS = {
+  duration: 4800,
+  chapters: [
+    { name: "Part 01", start: 0, end: 71 },
+    { name: "Intro", start: 71, end: 86 },
+    { name: "Part 02", start: 86, end: 4560 },
+    { name: "Credits", start: 4560, end: 4800 },
+  ],
+};
+
+/** Every answer of the contract, by file name: a path asked by GET, or a path and the body it is sent by POST. */
+const ROUTES: Record<string, string | { path: string; body: unknown }> = {
   info: "/info",
   home: "/home",
   movies: "/movies",
@@ -51,6 +69,8 @@ const ROUTES: Record<string, string> = {
   "playback-episode": "/playback/tmdb:tv:1396:s01e02",
   suggestions: "/playback/tmdb:movie:603/suggestions",
   "suggestions-episode": "/playback/tmdb:tv:1396:s01e01/suggestions",
+  "markers-episode": { path: "/playback/tmdb:tv:1396:s01e02/markers", body: FILE_FACTS },
+  "markers-none": { path: "/playback/tmdb:movie:603/markers", body: { duration: 8160, chapters: [] } },
   search: "/search?q=matrix",
   person: "/people/person:6384",
   "top-shelf": "/top-shelf",

@@ -1,0 +1,11 @@
+{
+  "intro": {
+    "start": 71,
+    "end": 86,
+    "label": "Passer l'intro"
+  },
+  "credits": {
+    "at": 4560,
+    "countdown": 20
+  }
+}

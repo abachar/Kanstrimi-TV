@@ -268,6 +268,19 @@ export type Suggestions = { related: ContentItem[]; next: Suggestion | null };
 /** `heading`: « À SUIVRE · SUITE DE LA SAGA », « À SUIVRE · NOUVELLE SÉRIE », « À SUIVRE »; the app adds the countdown. */
 export type Suggestion = { item: ContentItem; reason: "saga" | "recommended"; heading: string };
 
+/**
+ * `POST /playback/{id}/markers` (a movie or an episode), asked once its file is open: the app sends what it read
+ * there (`FileFacts`: the length and the chapters, in seconds) and gets where the intro and the end credits are,
+ * null when unknown. `intro`: a button named `label` shows from `start` to `end` and jumps to `end`. `credits`:
+ * « À suivre » shows from `at`, counts `countdown` seconds down, then what follows starts and the title is seen;
+ * without it, the card comes in the last seconds of the file.
+ */
+export type FileFacts = { duration: number; chapters: { name: string; start: number; end: number }[] };
+export type PlaybackMarkers = {
+  intro: { start: number; end: number; label: string } | null;
+  credits: { at: number; countdown: number } | null;
+};
+
 /** `/search`: movies, series and channels in one list, the most relevant first. */
 export type SearchResults = { query: string; items: ContentItem[] };
 
