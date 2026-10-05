@@ -56,8 +56,8 @@ Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non p
   - **Écran Films façon Prime Video (tvOS)** : deux rangées de films seulement en bas de l'écran ; le haut est un hero
     (fond, logo ou titre, infos) qui affiche le film en focus et change à chaque déplacement.
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
-  - **Plus d'intros et de génériques** : IntroDB (par IMDb) comme troisième base, plus couvrante mais sans durée de
-    fichier, donc pour l'intro seule ; le dernier chapitre d'un film pris pour son générique (souvent juste, parfois
-    faux de plusieurs minutes). Les séries françaises, arabes et turques ne sont presque dans aucune base.
+  - **Plus de génériques** : le dernier chapitre d'un film pris pour son générique (souvent juste, parfois faux de
+    plusieurs minutes), à mesurer d'abord sur de vrais fichiers. Les séries françaises, arabes et turques ne sont
+    presque dans aucune base d'intros.
   - **Notification de la liste d'attente** : une alerte push (APNs) sur l'iPhone, une pastille sur l'Apple TV, quand un film
     attendu arrive. Demande le programme Apple Developer payant.

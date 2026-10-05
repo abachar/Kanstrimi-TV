@@ -51,7 +51,7 @@ Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres :
 |---|---|
 | `epg` | guide des programmes des chaînes visibles, deux fois par jour (le fournisseur ne couvre qu'un jour et demi), l'EPG de chaque variante, complété par les sources de secours ; décalages horaires corrigés dans l'admin |
 | `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf), une fois par jour ; sans clé TMDB, le cron passe son tour |
-| `markers` | export quotidien de SkipDB (intros, génériques, aperçus du prochain épisode), remplacé en entier ; un export vide ou fondu de moitié garde le précédent |
+| `markers` | export quotidien de SkipDB (récaps, intros, génériques, aperçus du prochain épisode), remplacé en entier ; un export vide ou fondu de moitié garde le précédent |
 
 TMDB passe en premier : tout est matché une fois, et un titre affiché n'attend jamais sa fiche. Les filtres passent en
 dernier : ils lisent le contenu tel que l'app le montre.
@@ -64,7 +64,7 @@ partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque pa
 
 ## Tables
 
-Le préfixe dit d'où vient la donnée : `xtream_` (copie et cache du fournisseur), `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_` (caches des sources),
+Le préfixe dit d'où vient la donnée : `xtream_` (copie et cache du fournisseur), `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_` (caches des sources),
 `catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes et les épisodes construits à l'ouverture d'une fiche), `curation_` (choix de l'admin), `app_` (ce que l'app enregistre : favoris,
 progression, temps regardé du direct, appareils), `task_` (journal), et `settings`.
 Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_contents.key`, la seule identité exposée à l'app).
@@ -91,7 +91,7 @@ admin/      pages de l'admin ; aucune écriture en base (vérifié), elle appell
 player/     /player, un fichier par ressource ; types.ts = le contrat
 catalog/    le domaine : grammaire des noms, clés, filtres, groupement, épisodes, pipeline
 devices/    appairage, jetons
-providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), iptv/, skipdb/, theintrodb/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`), vérifié par `architecture.test.ts`
+providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), iptv/, skipdb/, theintrodb/, introdb/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_`), vérifié par `architecture.test.ts`
 config/     réglages (base et environnement), mot de passe
 db/         client, schéma, migrations, prédicats de visibilité
 shared/     utilitaires ; n'importe jamais `@/`
@@ -177,16 +177,20 @@ par son index.
   `tmdb_recommendations` (ids seuls), croisées avec le catalogue visible à chaque lecture. Jamais un titre vu ; la suite
   d'un titre écarte aussi ceux en cours, l'accueil aussi « Ma liste ». `/playback/{id}/suggestions` : panneau du lecteur
   et suite (saga d'abord) ; `/playback/{série}` lit l'épisode où elle reprend.
-- **Intros et génériques** (`catalog/markers.ts`, `POST /playback/{id}/markers`) : l'app envoie ce qu'elle lit dans le
-  fichier qu'elle ouvre (durée, chapitres) et reçoit l'intro (« Passer l'intro ») et le début du générique (« À suivre »
-  dès ce moment, 20 s de décompte). Le serveur n'ouvre aucun fichier : le fournisseur limite le débit (429 après une
-  dizaine de requêtes rapprochées). Dans l'ordre : les chapitres nommés du fichier (« Intro », « Credits », ceux des
-  originaux Netflix et Amazon), puis SkipDB (importée, lue par l'id IMDb que TMDB donne), puis TheIntroDB, demandée à la
-  lecture pour ce qui manque encore et gardée un mois (une semaine pour un titre inconnu ; 400 requêtes par jour au plus).
-  Elle apprend donc ce qui est regardé, pas SkipDB. Le générique n'est donné que s'il est sûr, un faux couperait la fin :
-  chapitre nommé en dernier, ou mesure d'une base sur un fichier de même durée (à 3 s près) et sans rien après que
-  l'aperçu du prochain épisode. L'intro est donnée même non vérifiée. Un film dont TMDB annonce une scène pendant ou
-  après le générique (mots-clés), ou dont les mots-clés sont inconnus, garde sa carte pour la fin du fichier.
+- **Récaps, intros et génériques** (`catalog/markers.ts`, `POST /playback/{id}/markers`) : l'app envoie ce qu'elle lit
+  dans le fichier qu'elle ouvre (durée, chapitres) et reçoit ce qui se passe (`skips` : « Passer le récap » pour un
+  épisode, « Passer l'intro », jamais superposés) et le début du générique (« À suivre » dès ce moment, 20 s de
+  décompte). Le serveur n'ouvre aucun fichier : le fournisseur limite le débit (429 après une dizaine de requêtes
+  rapprochées). Dans l'ordre : les chapitres nommés du fichier (« Recap », « Intro », « Credits », ceux des originaux
+  Netflix et Amazon), puis SkipDB (importée, lue par l'id IMDb que TMDB donne), puis TheIntroDB et IntroDB, demandées
+  ensemble à la lecture pour ce qui manque encore et gardées un mois (une semaine pour un titre inconnu ; 400 requêtes
+  par jour au plus chacune). Elles apprennent donc ce qui est regardé, pas SkipDB. IntroDB ne dit pas sur quel fichier
+  elle a mesuré : elle ne donne que le récap et l'intro d'un épisode. Un fichier qui nomme son intro et son générique
+  dit tout : rien n'est demandé, pas même le récap. Le générique n'est donné que s'il est sûr, un faux couperait la
+  fin : chapitre nommé en dernier, ou mesure d'une base sur un fichier de même durée (à 3 s près) et sans rien après
+  que l'aperçu du prochain épisode. Le récap et l'intro sont donnés même non vérifiés ; quand les bases les font se
+  chevaucher, l'intro commence où le récap finit. Un film dont TMDB annonce une scène pendant ou après le générique
+  (mots-clés), ou dont les mots-clés sont inconnus, garde sa carte pour la fin du fichier.
 - **Guide des programmes** (`catalog/epg.ts`, `epg-sources.ts`) : un import remplace chaîne par chaîne ce qu'il apporte ; une
   chaîne absente du fichier (XMLTV du fournisseur incomplet) garde ses programmes jusqu'à leur fin. Un fournisseur en panne
   ou vide n'efface rien, les sources passent quand même et l'étape finit en échec. **Sources de secours** (page EPG, une
