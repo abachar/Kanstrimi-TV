@@ -274,30 +274,35 @@ struct PlayerServiceTests {
         player.stop()
     }
 
-    @Test("Passer l'intro : proposé pendant l'intro seulement, saute à sa fin")
-    func skipIntroJumpsToItsEnd() async throws {
+    @Test("Passer le récap, passer l'intro : chacun proposé pendant qu'il passe seulement, saute à sa fin")
+    func skipJumpsToItsEnd() async throws {
         engine.fileFacts = Self.netflix
-        client.markersAnswer = PlaybackMarkers(intro: .init(start: 71, end: 86, label: "Passer l'intro"), credits: nil)
+        client.markersAnswer = PlaybackMarkers(skips: [.init(start: 0, end: 20, label: "Passer le récap"),
+                                                       .init(start: 71, end: 86, label: "Passer l'intro")], credits: nil)
         _ = try await playingEpisode()
         try await settle { player.markers != nil }
+        engine.emit(time: 5)
+        try await settle { player.skipOffer?.label == "Passer le récap" }
+        player.skip()
+        try await settle { engine.seeks == [20] }
         engine.emit(time: 30)
         try await settle { player.time == 30 }
-        #expect(player.introOffer == nil)
-        player.skipIntro()
-        #expect(engine.seeks.isEmpty)
+        #expect(player.skipOffer == nil)
+        player.skip()
+        #expect(engine.seeks == [20])
         engine.emit(time: 75)
-        try await settle { player.introOffer?.label == "Passer l'intro" }
-        player.skipIntro()
-        try await settle { engine.seeks == [86] }
+        try await settle { player.skipOffer?.label == "Passer l'intro" }
+        player.skip()
+        try await settle { engine.seeks == [20, 86] }
         #expect(player.time == 86)
-        #expect(player.introOffer == nil)
+        #expect(player.skipOffer == nil)
         player.stop()
     }
 
     @Test("Générique connu : la carte paraît à son début pour vingt secondes, puis la suite part et l'épisode est vu")
     func creditsStartTheCountdown() async throws {
         engine.fileFacts = Self.netflix
-        client.markersAnswer = PlaybackMarkers(intro: nil, credits: .init(at: 2500, countdown: 20))
+        client.markersAnswer = PlaybackMarkers(skips: [], credits: .init(at: 2500, countdown: 20))
         let context = try await playingEpisode()
         try await settle { player.markers != nil }
         engine.emit(time: 2499)
@@ -322,7 +327,7 @@ struct PlayerServiceTests {
     @Test("Générique : quitter ou annuler après son début laisse l'épisode vu ; revenir avant lui retire la carte")
     func leavingInTheCreditsIsSeen() async throws {
         engine.fileFacts = Self.netflix
-        client.markersAnswer = PlaybackMarkers(intro: nil, credits: .init(at: 2500, countdown: 20))
+        client.markersAnswer = PlaybackMarkers(skips: [], credits: .init(at: 2500, countdown: 20))
         let context = try await playingEpisode()
         try await settle { player.markers != nil }
         engine.emit(time: 2505)

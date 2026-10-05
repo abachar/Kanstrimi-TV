@@ -346,15 +346,14 @@ final class PlayerService {
     /// The time the chrome shows: the sweep's target while scanning.
     var shownTime: TimeInterval { scanTarget ?? time }
 
-    /// « Passer l'intro », offered while the intro of the file plays.
-    var introOffer: PlaybackMarkers.Intro? {
-        guard let intro = markers?.intro, !isLive, phase == .playing || phase == .paused, scanTarget == nil,
-              time >= intro.start, time < intro.end - 1 else { return nil }
-        return intro
+    /// « Passer le récap », « Passer l'intro »: what the server lets skip, offered while it plays.
+    var skipOffer: PlaybackMarkers.Skip? {
+        guard let skips = markers?.skips, !isLive, phase == .playing || phase == .paused, scanTarget == nil else { return nil }
+        return skips.first { time >= $0.start && time < $0.end - 1 }
     }
-    func skipIntro() {
-        guard let intro = introOffer else { return }
-        seek(to: intro.end)
+    func skip() {
+        guard let offer = skipOffer else { return }
+        seek(to: offer.end)
     }
 
     var remaining: TimeInterval { max(0, duration - shownTime) }
@@ -718,7 +717,7 @@ final class PlayerService {
     }
 
     /// Once the file is open and playing: what the engine read in it (its length, its chapters) goes to the server,
-    /// which answers where its intro and its end credits are. A failure leaves the player as without markers.
+    /// which answers what can be skipped in it and where its end credits are. A failure leaves the player as without markers.
     private func fetchMarkers() {
         guard isStarted, !isLive, !markersAsked, let ctx = context, let facts = playback.fileFacts else { return }
         markersAsked = true
@@ -973,7 +972,7 @@ extension PlayerService {
             phase = .playing
             // From 0: the idle engine's clock, which the staged player still hears, says 0.
             time = 0
-            markers = PlaybackMarkers(intro: .init(start: 0, end: 90, label: "Passer l'intro"), credits: nil)
+            markers = PlaybackMarkers(skips: [.init(start: 0, end: 90, label: "Passer l'intro")], credits: nil)
         case .opening: phase = .buffering; bufferingProgress = 42
         }
     }

@@ -77,10 +77,10 @@ struct StreamFailureDialog: View {
     }
 }
 
-/// « Passer l'intro », at the bottom right while the intro plays; its name comes from the server. iPhone: a button
-/// to tap. tvOS: drawn as a focused button and not one, the video keeps the remote and its click is this one
-/// (`PlayerScreen.select`).
-struct SkipIntroButton: View {
+/// « Passer le récap », « Passer l'intro », at the bottom right while one plays; its name comes from the server.
+/// iPhone: a button to tap. tvOS: drawn as a focused button and not one, the video keeps the remote and its click
+/// is this one (`PlayerScreen.select`).
+struct SkipButton: View {
     let label: String
     /// The bar and its progress show under it; hidden, it comes down in their place.
     var barShown = true
@@ -96,8 +96,9 @@ struct SkipIntroButton: View {
                     Button(action: action) { title.font(.subheadline.weight(.semibold)).padding(.horizontal, 6).padding(.vertical, 4) }
                         .prominentButtonStyle()
                 } else {
-                    title.font(.headline).foregroundStyle(.black)
-                        .padding(.horizontal, 32).padding(.vertical, 18)
+                    // The size of a focused button of the bar (`BarButtonStyle`), without its growth.
+                    title.font(.callout.weight(.semibold)).foregroundStyle(.black)
+                        .padding(.horizontal, 28).frame(height: 72)
                         .background(.white, in: Capsule())
                         .shadow(color: .black.opacity(0.4), radius: 16, y: 6)
                 }

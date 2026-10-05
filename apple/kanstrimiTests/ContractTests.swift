@@ -29,7 +29,7 @@ struct ContractTests {
         case "playback-movie", "playback-series", "playback-episode": _ = try d.decode(Playback.self, from: data)
         case "suggestions", "suggestions-episode": _ = try d.decode(Suggestions.self, from: data)
         case "markers-episode": return try d.decode(PlaybackMarkers.self, from: data).credits?.countdown == 20
-        case "markers-none": return try d.decode(PlaybackMarkers.self, from: data) == PlaybackMarkers(intro: nil, credits: nil)
+        case "markers-none": return try d.decode(PlaybackMarkers.self, from: data) == PlaybackMarkers(skips: [], credits: nil)
         case "search": _ = try d.decode(SearchResults.self, from: data)
         case "error":
             // The client's error mapping must find the server's message in it.

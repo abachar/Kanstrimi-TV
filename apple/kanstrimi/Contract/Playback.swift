@@ -106,11 +106,12 @@ nonisolated struct FileFacts: Codable, Hashable, Sendable {
     let chapters: [Chapter]
 }
 
-/// `POST /playback/{id}/markers`, asked once the file is open: where its intro and its end credits are, nil when
-/// the server does not know. `intro`: a button named `label` shows from `start` to `end` and jumps to `end`.
-/// `credits`: « À suivre » shows from `at` and counts `countdown` seconds down; the title is then seen.
+/// `POST /playback/{id}/markers`, asked once the file is open: what can be skipped in it and where its end credits
+/// are. `skips`: the recap and the intro the server knows, in the order of the file; for each, a button named
+/// `label` shows from `start` to `end` and jumps to `end`. `credits`: « À suivre » shows from `at` and counts
+/// `countdown` seconds down, the title is then seen; nil when the server does not know.
 nonisolated struct PlaybackMarkers: Codable, Hashable, Sendable {
-    nonisolated struct Intro: Codable, Hashable, Sendable {
+    nonisolated struct Skip: Codable, Hashable, Sendable {
         let start: TimeInterval
         let end: TimeInterval
         let label: String
@@ -119,7 +120,7 @@ nonisolated struct PlaybackMarkers: Codable, Hashable, Sendable {
         let at: TimeInterval
         let countdown: Int
     }
-    let intro: Intro?
+    let skips: [Skip]
     let credits: Credits?
 }
 

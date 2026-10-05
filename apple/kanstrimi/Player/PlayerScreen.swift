@@ -63,9 +63,9 @@ struct PlayerScreen: View {
             }
 
             // Above the controls: on iPhone it is a button to tap, whether they show or not.
-            if let intro = player.introOffer, sheet == .none, barPanel == nil, !barFocused, player.failure == nil,
+            if let offer = player.skipOffer, sheet == .none, barPanel == nil, !barFocused, player.failure == nil,
                player.nextCountdown == nil, !player.isChangingTitle {
-                SkipIntroButton(label: intro.label, barShown: controlsVisible) { skipIntro() }.transition(.opacity)
+                SkipButton(label: offer.label, barShown: controlsVisible) { skip() }.transition(.opacity)
             }
 
             if sheet == .channels {
@@ -85,7 +85,7 @@ struct PlayerScreen: View {
         }
         .animation(.easeInOut(duration: 0.25), value: controlsVisible)
         .animation(.easeInOut(duration: 0.25), value: player.isChangingTitle)
-        .animation(.easeInOut(duration: 0.25), value: player.introOffer)
+        .animation(.easeInOut(duration: 0.25), value: player.skipOffer)
         .animation(.easeInOut(duration: 0.25), value: sheet)
         .onChange(of: sheet) { _, s in
             if s == .none { sheetTimer?.cancel() } else { armSheetTimer() }
@@ -103,15 +103,16 @@ struct PlayerScreen: View {
 
     // MARK: - Shared actions
 
-    /// tvOS: the click on the video. While « Passer l'intro » shows, drawn as the focused button, it is its click.
+    /// tvOS: the click on the video. While « Passer le récap » or « Passer l'intro » shows, drawn as the focused
+    /// button, it is its click.
     func select() {
-        if player.introOffer != nil { return skipIntro() }
+        if player.skipOffer != nil { return skip() }
         if controlsVisible { player.togglePlayPause() }
         showControls()
     }
 
-    func skipIntro() {
-        player.skipIntro()
+    func skip() {
+        player.skip()
         showControls()
     }
 
