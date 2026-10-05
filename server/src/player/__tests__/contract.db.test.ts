@@ -310,6 +310,10 @@ beforeAll(async () => {
     { mediaType: "movie", tmdbId: 949, ids: [603], fetchedAt: at(-10) },
     { mediaType: "tv", tmdbId: 1396, ids: [], fetchedAt: at(-10) },
   ]);
+  // Already asked of TheIntroDB, which did not know the movie: the markers of a file without chapters ask nothing.
+  await db
+    .insert(schema.theintrodbCache)
+    .values({ mediaType: "movie", tmdbId: 603, season: 0, episode: 0, duration: 8160, segments: [], fetchedAt: at(-10) });
   await db.insert(schema.curationWaitlist).values({
     contentKey: "tmdb:movie:604",
     tmdbId: 604,

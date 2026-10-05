@@ -62,8 +62,12 @@ afterEach(() => vi.unstubAllGlobals());
 afterAll(closeDb);
 
 describe("SkipDB import", () => {
-  it("takes the export of the latest dated release and keeps its intros and end credits", async () => {
-    expect(await runSkipdbImport()).toEqual({ segments: 3, titles: 2 });
+  it("takes the export of the latest dated release and keeps its intros, end credits and previews", async () => {
+    segments.push(seg({ segment_type: "preview", episode: 3, start_ms: 3500000, end_ms: 3547000 }));
+    expect(await runSkipdbImport()).toEqual({ segments: 4, titles: 2 });
+    expect(await segmentsOf({ imdbId: "tt1190634", season: 1, episode: 3 })).toEqual([
+      { kind: "preview", start: 3500, end: 3547, measuredOn: 3547 },
+    ]);
     expect(fetched).toEqual([expect.stringContaining("api.github.com/repos/SkipDB-TV/skipdb/releases"), DUMP]);
     expect(await segmentsOf({ imdbId: "tt1190634", season: 1, episode: 2 })).toEqual([
       { kind: "credits", start: 3426, end: 3547, measuredOn: 3547 },
@@ -71,7 +75,7 @@ describe("SkipDB import", () => {
     ]);
     // A movie, by its id alone; the length of its file unknown.
     expect(await segmentsOf({ imdbId: "tt0499549" })).toEqual([{ kind: "credits", start: 10292, end: 10690, measuredOn: null }]);
-    expect(await segmentsOf({ imdbId: "tt1190634", season: 1, episode: 3 })).toEqual([]);
+    expect(await segmentsOf({ imdbId: "tt1190634", season: 1, episode: 4 })).toEqual([]);
   });
 
   it("leaves out what is not an approved intro or outro, « no intro » rows and broken ones", async () => {
@@ -79,7 +83,6 @@ describe("SkipDB import", () => {
     segments = [
       kept,
       seg({ segment_type: "recap", start_ms: 0, end_ms: 60000 }),
-      seg({ segment_type: "preview" }),
       seg({ status: "pending" }),
       seg({ segment_type: "intro", start_ms: 0, end_ms: 0 }),
       seg({ imdb_id: "1190634" }),

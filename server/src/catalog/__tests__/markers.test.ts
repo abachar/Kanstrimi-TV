@@ -107,6 +107,21 @@ describe("what a base of markers says", () => {
     expect(baseMarkers([credits(7991, 8200, 8575)], 8575).credits).toBeNull();
   });
 
+  it("unless what follows is the preview of the next episode, to the end of the same file", () => {
+    const preview = (start: number, end: number | null, measuredOn: number | null) => ({
+      kind: "preview" as const,
+      start,
+      end,
+      measuredOn,
+    });
+    expect(baseMarkers([credits(1345, 1435, 1451), preview(1435, null, 1451)], 1452).credits).toBe(1345);
+    // A preview that stops before the end, or measured on another file, vouches for nothing.
+    expect(baseMarkers([credits(1345, 1435, 1451), preview(1435, 1440, 1451)], 1452).credits).toBeNull();
+    expect(baseMarkers([credits(1345, 1435, 1451), preview(1435, null, 1421)], 1452).credits).toBeNull();
+    // A scene between the credits and the preview.
+    expect(baseMarkers([credits(1200, 1300, 1451), preview(1435, null, 1451)], 1452).credits).toBeNull();
+  });
+
   it("what cannot be: an intro in the second half or of a quarter of an hour, credits in the first half or too short", () => {
     expect(baseMarkers([intro(7512, 7546, 7600)], 7600).intro).toBeNull();
     expect(baseMarkers([intro(0, 900, 3000)], 3000).intro).toBeNull();

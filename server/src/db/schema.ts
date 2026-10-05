@@ -640,7 +640,33 @@ export const tmdbExtras = pgTable(
 );
 
 /**
- * SkipDB's intros and end credits (skipdb.tv, ODbL), its whole daily export, replaced by the `markers` task.
+ * An intro, the end credits or the preview of the next episode as a public base of markers knows them, in seconds.
+ * `end`: null, to the end of the file. `measuredOn`: the length of the file it was measured on, null when the base
+ * does not say.
+ */
+export type MarkerSegment = { kind: "intro" | "credits" | "preview"; start: number; end: number | null; measuredOn: number | null };
+
+/**
+ * What TheIntroDB (theintrodb.org) answered for a movie or an episode and a file of `duration` seconds, asked when
+ * it plays and SkipDB does not know it. A movie has season 0 and episode 0. An empty answer is kept too, a week;
+ * a known title, a month.
+ */
+export const theintrodbCache = pgTable(
+  "theintrodb_cache",
+  {
+    mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
+    tmdbId: integer("tmdb_id").notNull(),
+    season: integer("season").notNull(),
+    episode: integer("episode").notNull(),
+    duration: integer("duration").notNull(),
+    segments: jsonb("segments").$type<MarkerSegment[]>().notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.mediaType, t.tmdbId, t.season, t.episode, t.duration] })],
+);
+
+/**
+ * SkipDB's intros, end credits and previews (skipdb.tv, ODbL), its whole daily export, replaced by the `markers` task.
  * `id` is SkipDB's. A movie has season 0 and episode 0. `duration_ms`: the length of the file the segment was
  * measured on, null when SkipDB does not know it.
  */
@@ -651,7 +677,7 @@ export const skipdbSegments = pgTable(
     imdbId: text("imdb_id").notNull(),
     season: integer("season").notNull(),
     episode: integer("episode").notNull(),
-    kind: text("kind").$type<"intro" | "credits">().notNull(),
+    kind: text("kind").$type<MarkerSegment["kind"]>().notNull(),
     startMs: integer("start_ms").notNull(),
     endMs: integer("end_ms").notNull(),
     durationMs: integer("duration_ms"),

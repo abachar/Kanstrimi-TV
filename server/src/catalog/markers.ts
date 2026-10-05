@@ -1,5 +1,6 @@
-import { tmdbMediaType } from "@/db";
-import { type Segment, segmentsOf } from "@/providers/skipdb";
+import { type MarkerSegment, tmdbMediaType } from "@/db";
+import { segmentsOf } from "@/providers/skipdb";
+import { introdbSegments } from "@/providers/theintrodb";
 import { extras } from "@/providers/tmdb";
 import { stripAccents } from "@/shared";
 import { parseKey } from "./keys";
@@ -8,7 +9,8 @@ import { parseKey } from "./keys";
  * Where the intro and the end credits of a file are: « Passer l'intro », and « À suivre » shown when the
  * credits start rather than in the last seconds. The player says what it read in the file it opened (its
  * length and its chapters, in seconds); nothing here opens a file. The chapters of the file come first, then
- * the public bases of markers (SkipDB). The start of the credits is given only when it is sure, a wrong one
+ * the public bases of markers: SkipDB, imported whole, then TheIntroDB, asked title by title for what is still
+ * missing. The start of the credits is given only when it is sure, a wrong one
  * would cut the end of the title: a named chapter, or a base that measured a file of the same length. An
  * intro is given even unchecked: a button badly placed costs nothing.
  */
@@ -43,10 +45,12 @@ const INTRO_MAX_SECONDS = 10 * 60;
 const CREDITS_MIN_SECONDS = 30;
 /** Two files this close in length are the same release: what was measured on one holds on the other. */
 const SAME_FILE_SECONDS = 3;
-/** Credits a base ends further than this from the end of the file are followed by something (a scene, a preview). */
-const CREDITS_END_SLACK_SECONDS = 10;
+/** Two moments this close are the same: credits end with the file, a preview starts where the credits end. */
+const SEAM_SECONDS = 10;
 /** The player waits this long for TMDB (a movie's keywords, the IMDb id); past it, it goes without this time. */
 const TMDB_WAIT_MS = 3000;
+/** And this long for TheIntroDB, whose answer is then kept for the next time. */
+const INTRODB_WAIT_MS = 2500;
 
 /** An intro in the first half of the file, of a believable length; null otherwise. */
 function introIn(start: number, end: number, duration: number): Markers["intro"] {
@@ -81,18 +85,22 @@ export function chapterMarkers(file: FileFacts): Markers {
 }
 
 /**
- * What the bases say of a file `duration` long. The credits: only segments measured on a file of that length and
- * running to its end, the latest start when several. The intro: one measured on a file of that length, else the
+ * What the bases say of a file `duration` long. The credits: only when measured on a file of that length, with
+ * nothing after them to the end of the file but the preview of the next episode; the latest start when several.
+ * Credits ending earlier are followed by a scene. The intro: one measured on a file of that length, else the
  * one whose file was the closest.
  */
-export function baseMarkers(segments: Segment[], duration: number): Markers {
-  const gap = (s: Segment) => (s.measuredOn === null ? Number.POSITIVE_INFINITY : Math.abs(s.measuredOn - duration));
+export function baseMarkers(segments: MarkerSegment[], duration: number): Markers {
+  const gap = (s: MarkerSegment) => (s.measuredOn === null ? Number.POSITIVE_INFINITY : Math.abs(s.measuredOn - duration));
+  const sameFile = segments.filter((s) => gap(s) <= SAME_FILE_SECONDS);
+  const toTheEnd = (s: MarkerSegment) => s.end === null || s.end >= duration - SEAM_SECONDS;
+  const previewAfter = (end: number) =>
+    sameFile.some((s) => s.kind === "preview" && Math.abs(s.start - end) <= SEAM_SECONDS && toTheEnd(s));
   const intros = segments
     .filter((s) => s.kind === "intro" && s.end !== null && introIn(s.start, s.end, duration))
     .sort((a, b) => gap(a) - gap(b));
-  const credits = segments
-    .filter((s) => s.kind === "credits" && gap(s) <= SAME_FILE_SECONDS && creditsIn(s.start, duration))
-    .filter((s) => s.end === null || s.end >= duration - CREDITS_END_SLACK_SECONDS)
+  const credits = sameFile
+    .filter((s) => s.kind === "credits" && creditsIn(s.start, duration) && (toTheEnd(s) || previewAfter(s.end as number)))
     .map((s) => s.start);
   return {
     intro: intros.length ? introIn(intros[0].start, intros[0].end as number, duration) : null,
@@ -114,6 +122,13 @@ export async function markersOf(key: string, file: FileFacts): Promise<Markers> 
       : null;
   if (missing && tmdb?.imdbId) {
     const base = baseMarkers(await segmentsOf({ imdbId: tmdb.imdbId, season: p.season, episode: p.episode }), file.duration);
+    intro ??= base.intro;
+    credits ??= base.credits;
+  }
+  // A movie's credits are of no use when a scene follows them: not worth a question.
+  if (p.tmdbId !== undefined && (intro === null || (credits === null && !(movie && tmdb?.creditsScene !== false)))) {
+    const ref = { mediaType: tmdbMediaType(p.kind), tmdbId: p.tmdbId, season: p.season, episode: p.episode };
+    const base = baseMarkers(await introdbSegments(ref, file.duration, INTRODB_WAIT_MS), file.duration);
     intro ??= base.intro;
     credits ??= base.credits;
   }

@@ -4,6 +4,7 @@ import { sha256 } from "@/shared";
 import { resetDb, closeDb } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { extrasSettled, resetExtras } from "@/providers/tmdb";
+import { introdbSettled, resetIntrodb } from "@/providers/theintrodb";
 import { player as api } from "..";
 import type { ApiError } from "../types";
 
@@ -37,8 +38,19 @@ const post = (id: string, body: unknown, token = TOKEN) =>
 let keywords: Record<number, number[]> = {};
 let imdb: Record<number, string> = {};
 let calls: string[] = [];
+/** TheIntroDB's answers by `tmdb id` (`tmdb id:season:episode` for an episode), and what it was asked. */
+let introdb: Record<string, { media: unknown; versions: number[] }> = {};
+let asked: string[] = [];
 function stubTmdb(status = 200) {
   vi.stubGlobal("fetch", async (u: URL) => {
+    if (u.host === "api.theintrodb.org") {
+      const q = u.searchParams;
+      const key = [q.get("tmdb_id"), q.get("season"), q.get("episode")].filter(Boolean).join(":");
+      asked.push(`${key}${q.has("list_versions") ? " versions" : ` ${q.get("duration_ms")}`}`);
+      const known = introdb[key];
+      if (!known) return Response.json({ error: "media not found" }, { status: 404 });
+      return Response.json(q.has("list_versions") ? { versions: known.versions.map((d) => ({ duration_ms: d * 1000 })) } : known.media);
+    }
     const m = /\/3\/(movie|tv)\/(\d+)\/(keywords|external_ids)/.exec(String(u));
     calls.push(m ? `${m[1]}:${m[2]}:${m[3]}` : String(u));
     if (status !== 200 || !m) return new Response("", { status: m ? status : 404 });
@@ -96,8 +108,12 @@ beforeAll(async () => {
 beforeEach(async () => {
   await db.delete(schema.tmdbExtras);
   await db.delete(schema.skipdbSegments);
+  await db.delete(schema.theintrodbCache);
   resetExtras();
+  resetIntrodb();
   calls = [];
+  asked = [];
+  introdb = {};
   keywords = { 1726: [9715, 179430], 19995: [9715] };
   imdb = { 19995: "tt0499549", 1726: "tt0371746", 88516: "tt11905462" };
   stubTmdb();
@@ -149,12 +165,58 @@ describe("POST /playback/{id}/markers", () => {
       credits: { at: 3426, countdown: 20 },
     });
     expect(calls).toEqual(["tv:88516:external_ids"]);
+    expect(asked).toEqual([]);
     // Another release of the same episode, two minutes longer: its intro is offered, its credits are left to the end.
     expect(await (await post("tmdb:tv:88516:s02e02", { duration: 3667, chapters: [] })).json()).toEqual({
       intro: { start: 0, end: 15, label: "Passer l'intro" },
       credits: null,
     });
     expect(calls).toHaveLength(1);
+  });
+
+  it("what SkipDB does not know is asked of TheIntroDB, once: its answer is kept, the unknown title too", async () => {
+    const plain = { duration: 2893.2, chapters: [] };
+    introdb["88516:2:2"] = {
+      media: { intro: [{ start_ms: 314360, end_ms: 330461 }], credits: [{ start_ms: 2839000, end_ms: null }] },
+      versions: [2893.176, 0],
+    };
+    const known = { intro: { start: 314.36, end: 330.461, label: "Passer l'intro" }, credits: { at: 2839, countdown: 20 } };
+    expect(await (await post("tmdb:tv:88516:s02e02", plain)).json()).toEqual(known);
+    expect(asked).toEqual(["88516:2:2 2893000", "88516:2:2 versions"]);
+    expect(await (await post("tmdb:tv:88516:s02e02", plain)).json()).toEqual(known);
+    // A file of another length is another question: its credits were not measured on it.
+    expect(await (await post("tmdb:tv:88516:s02e02", { duration: 2950, chapters: [] })).json()).toEqual({
+      intro: known.intro,
+      credits: null,
+    });
+    expect(asked).toHaveLength(4);
+    // A movie the base does not know: one request, then none for a week.
+    expect(await (await post("tmdb:movie:19995", BLURAY)).json()).toMatchObject({ intro: null, credits: { at: 10292 } });
+    await post("tmdb:movie:19995", BLURAY);
+    expect(asked.slice(4)).toEqual(["19995 10690000"]);
+  });
+
+  it("SkipDB first: TheIntroDB is asked only for what is still missing, and not when the file says it all", async () => {
+    await segment("tt11905462", "intro", 0, 15, 3547, 2, 2);
+    introdb["88516:2:2"] = {
+      media: { intro: [{ start_ms: 60000, end_ms: 90000 }], credits: [{ start_ms: 3426000, end_ms: null }] },
+      versions: [3547],
+    };
+    expect(await (await post("tmdb:tv:88516:s02e02", { duration: 3547, chapters: [] })).json()).toEqual({
+      intro: { start: 0, end: 15, label: "Passer l'intro" },
+      credits: { at: 3426, countdown: 20 },
+    });
+    asked = [];
+    await post("tmdb:tv:88516:s02e02", NETFLIX);
+    expect(asked).toEqual([]);
+  });
+
+  it("TheIntroDB down: the markers it would have given are missing this time, nothing fails", async () => {
+    vi.stubGlobal("fetch", async () => new Response("", { status: 503 }));
+    const res = await post("tmdb:tv:88516:s02e02", { duration: 2893, chapters: [] });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ intro: null, credits: null });
+    await Promise.all([extrasSettled(), introdbSettled()]);
   });
 
   it("the chapters of the file win over SkipDB, which fills what they do not say", async () => {

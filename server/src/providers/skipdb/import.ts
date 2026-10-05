@@ -2,8 +2,8 @@ import { count } from "drizzle-orm";
 import { db, schema } from "@/db";
 
 /**
- * The `markers` step: SkipDB's daily export (skipdb.tv, data under ODbL 1.0), its intros and end credits,
- * replaced as a whole. The export is a file of a dated GitHub release; nothing is asked of SkipDB's own API.
+ * The `markers` step: SkipDB's daily export (skipdb.tv, data under ODbL 1.0), its intros, end credits and
+ * previews of the next episode, replaced as a whole. The export is a file of a dated GitHub release; nothing is asked of SkipDB's own API.
  * An unreachable, empty or half-gone export fails the step and keeps the previous import.
  */
 
@@ -40,10 +40,12 @@ async function latestDumpUrl(): Promise<string> {
 
 const ms = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= MAX_MS ? v : null);
 
-/** An approved intro or outro of the export as a row; null for the rest (recaps, previews, « no intro », broken rows). */
+const KINDS: Record<string, Row["kind"]> = { intro: "intro", outro: "credits", preview: "preview" };
+
+/** An approved intro, outro or preview of the export as a row; null for the rest (recaps, « no intro », broken rows). */
 function rowOf(s: Record<string, unknown>): Row | null {
   if (s.status !== "approved") return null;
-  const kind = s.segment_type === "intro" ? "intro" : s.segment_type === "outro" ? "credits" : null;
+  const kind = typeof s.segment_type === "string" ? KINDS[s.segment_type] : undefined;
   const [start, end] = [ms(s.start_ms), ms(s.end_ms)];
   if (!kind || typeof s.id !== "number" || !Number.isInteger(s.id) || start === null || end === null || end <= start) return null;
   if (typeof s.imdb_id !== "string" || !/^tt\d+$/.test(s.imdb_id)) return null;

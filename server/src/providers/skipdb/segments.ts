@@ -1,16 +1,11 @@
 import { and, eq } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, type MarkerSegment, schema } from "@/db";
 
 /** A movie by its IMDb id; an episode by its series' IMDb id, its season and its number. */
 export type TitleRef = { imdbId: string; season?: number; episode?: number };
-/**
- * An intro or the end credits of a title as a base of markers knows them, in seconds. `end`: null, to the end
- * of the file. `measuredOn`: the length of the file it was measured on, null when the base does not say.
- */
-export type Segment = { kind: "intro" | "credits"; start: number; end: number | null; measuredOn: number | null };
 
 /** What SkipDB's last import holds of a title. */
-export async function segmentsOf(ref: TitleRef): Promise<Segment[]> {
+export async function segmentsOf(ref: TitleRef): Promise<MarkerSegment[]> {
   const rows = await db
     .select()
     .from(schema.skipdbSegments)

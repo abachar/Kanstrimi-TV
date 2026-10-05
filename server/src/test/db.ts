@@ -7,7 +7,7 @@ import { applyFilters, runGrouping } from "@/catalog";
 /** Empty every catalogue table between test files. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, curation_filters, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_epg_sources, catalog_epg_source_channels, curation_epg_links, curation_studios, curation_waitlist, tmdb_trending, tmdb_recommendations, tmdb_extras, skipdb_segments restart identity cascade`,
+    sql`truncate table xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, curation_filters, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_epg_sources, catalog_epg_source_channels, curation_epg_links, curation_studios, curation_waitlist, tmdb_trending, tmdb_recommendations, tmdb_extras, skipdb_segments, theintrodb_cache restart identity cascade`,
   );
   invalidateSettings();
 }
