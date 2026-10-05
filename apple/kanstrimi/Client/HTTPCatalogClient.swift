@@ -78,6 +78,9 @@ final class HTTPCatalogClient: CatalogClient {
 
     func playback(id: ContentID) async throws -> Playback { try await send("GET", "playback/\(id.rawValue)") }
     func suggestions(id: ContentID) async throws -> Suggestions { try await send("GET", "playback/\(id.rawValue)/suggestions") }
+    func markers(id: ContentID, file: FileFacts) async throws -> PlaybackMarkers {
+        try await send("POST", "playback/\(id.rawValue)/markers", body: file)
+    }
     func report(_ progress: ProgressReport) async throws {
         struct Body: Encodable { let position: Double; let duration: Double }
         try await sendNoContent("PUT", "playback/\(progress.contentID.rawValue)/progress",

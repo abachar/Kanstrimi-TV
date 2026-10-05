@@ -364,6 +364,26 @@ struct HTTPCatalogClientTests {
         #expect(movieBody["season"] == nil)
     }
 
+    @Test("Marqueurs : POST …/markers avec la durée et les chapitres du fichier, intro et générique décodés, absents tolérés")
+    func markersTravel() async throws {
+        answer(200, try golden("markers-episode"))
+        let file = FileFacts(duration: 4800, chapters: [.init(name: "Intro", start: 71, end: 86), .init(name: "Credits", start: 4560, end: 4800)])
+        let m = try await client.markers(id: ContentID("tmdb:tv:1396:s01e02"), file: file)
+        #expect(try last.httpMethod == "POST")
+        #expect(try last.url?.path() == "/player/playback/tmdb:tv:1396:s01e02/markers")
+        let body = try #require(JSONSerialization.jsonObject(with: StubProtocol.bodies.last ?? Data()) as? [String: Any])
+        #expect(body["duration"] as? Double == 4800)
+        let chapters = try #require(body["chapters"] as? [[String: Any]])
+        #expect(chapters.map { $0["name"] as? String } == ["Intro", "Credits"])
+        #expect(chapters.first?["start"] as? Double == 71)
+        #expect(chapters.first?["end"] as? Double == 86)
+        #expect(m.intro == PlaybackMarkers.Intro(start: 71, end: 86, label: "Passer l'intro"))
+        #expect(m.credits == PlaybackMarkers.Credits(at: 4560, countdown: 20))
+
+        answer(200, try golden("markers-none"))
+        #expect(try await client.markers(id: ContentID("tmdb:movie:603"), file: file) == PlaybackMarkers(intro: nil, credits: nil))
+    }
+
     @Test("Chaînes les plus regardées : POST …/watch-time, rangée d'accueil, rang sur /channels, type de rangée inconnu toléré")
     func mostWatchedChannelsTravel() async throws {
         answer(204, "")

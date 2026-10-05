@@ -39,6 +39,7 @@ final class SwitchingCatalogClient: CatalogClient {
     func programmes(channel id: ContentID, version: String?) async throws -> [Programme] { try await authenticated { try await $0.programmes(channel: id, version: version) } }
     func playback(id: ContentID) async throws -> Playback { try await authenticated { try await $0.playback(id: id) } }
     func suggestions(id: ContentID) async throws -> Suggestions { try await authenticated { try await $0.suggestions(id: id) } }
+    func markers(id: ContentID, file: FileFacts) async throws -> PlaybackMarkers { try await authenticated { try await $0.markers(id: id, file: file) } }
     func report(_ progress: ProgressReport) async throws { try await authenticated { try await $0.report(progress) } }
     func reportWatchTime(id: ContentID, seconds: Int) async throws { try await authenticated { try await $0.reportWatchTime(id: id, seconds: seconds) } }
     func removeFromResume(id: ContentID) async throws { try await authenticated { try await $0.removeFromResume(id: id) } }

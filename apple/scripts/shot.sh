@@ -10,7 +10,7 @@ set -e
 cd "${0:A:h}"
 B=dev.crafters.kanstrimi
 SCREENS=(Appairage Accueil Direct Films Series Recherche Recherche-resultats Reglages Fiche-film Fiche-serie Fiche-sans-TMDB
-         Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-direct)
+         Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-passer-intro Lecteur-direct)
 
 screen=$1; target=$2; stamp=${3:-$(date +%Y-%m-%d_%H-%M-%S)}
 if [[ -z $screen || -z $target ]] || (( ! ${SCREENS[(Ie)$screen]} )); then
@@ -40,6 +40,7 @@ case $screen in
   Lecteur-chargement)      kv=(debug.autoplay tmdb:movie:535544 debug.playerState opening) ;;
   Lecteur-echec)           kv=(debug.autoplay tmdb:movie:535544 debug.playerState failure) ;;
   Lecteur-episode-suivant) kv=(debug.autoplay tmdb:tv:300388:s01e01 debug.playerState nextEpisode) ;;
+  Lecteur-passer-intro)    kv=(debug.autoplay tmdb:tv:300388:s01e01 debug.playerState skipIntro) ;;
   Lecteur-direct)          kv=(debug.autoplay live debug.playerState livePlaying) ;;
 esac
 [[ $screen == Appairage ]] || kv[debug.autopair]=YES

@@ -8,6 +8,9 @@ import Testing
 @MainActor
 final class FakePlaybackEngine: PlaybackEngine {
     private(set) var loads: [URL] = []
+    private(set) var seeks: [Double] = []
+    /// What the engine read in the file it opened; nil, the file says nothing and no marker is asked for.
+    var fileFacts: FileFacts?
     private let phases = PassthroughSubject<PlaybackPhase, Never>()
     private let times = PassthroughSubject<Double, Never>()
     private let sourceResets = PassthroughSubject<Void, Never>()
@@ -19,7 +22,7 @@ final class FakePlaybackEngine: PlaybackEngine {
     func stop() {}
     func play() {}
     func pause() {}
-    func seek(to seconds: Double) async {}
+    func seek(to seconds: Double) async { seeks.append(seconds) }
     func selectAudioTrack(index: Int) {}
     func selectSubtitleTrack(index: Int) {}
     func clearSubtitle() {}
@@ -231,6 +234,109 @@ struct PlayerServiceTests {
         try await settle(seconds: 5) { engine.loads.count == 2 }
         #expect(player.context?.content.id == context.next?.id)
         player.stop()
+    }
+
+    // MARK: - Markers
+
+    /// A Netflix episode: 45 minutes, its intro and its credits named in its chapters.
+    private static let netflix = FileFacts(duration: 2700, chapters: [
+        .init(name: "Part 01", start: 0, end: 71), .init(name: "Intro", start: 71, end: 86),
+        .init(name: "Part 02", start: 86, end: 2500), .init(name: "Credits", start: 2500, end: 2700),
+    ])
+
+    @Test("Fichier ouvert : sa durée et ses chapitres partent au serveur une fois, et de nouveau à chaque ouverture")
+    func fileFactsAreSentOncePerOpening() async throws {
+        engine.fileFacts = Self.netflix
+        let context = try await playingEpisode()
+        try await settle { client.markersAsked.count == 1 }
+        #expect(client.markersAsked == [Self.netflix])
+        engine.emit(.rebuffering)
+        engine.emit(.playing)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(client.markersAsked.count == 1)
+        // Another version is another file: its own markers.
+        player.switchVersion(context.versions[0])
+        engine.emit(.loading)
+        engine.emit(.playing)
+        try await settle { client.markersAsked.count == 2 }
+        #expect(player.markers != nil)
+        player.stop()
+        #expect(player.markers == nil)
+    }
+
+    @Test("Un fichier dont le moteur ne sait rien ne demande aucun marqueur : la carte reste aux quinze dernières secondes")
+    func withoutFileFactsNothingIsAsked() async throws {
+        _ = try await playingEpisode()
+        engine.emit(time: 2500)
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(client.markersAsked.isEmpty)
+        #expect(player.nextCountdown == nil)
+        player.stop()
+    }
+
+    @Test("Passer l'intro : proposé pendant l'intro seulement, saute à sa fin")
+    func skipIntroJumpsToItsEnd() async throws {
+        engine.fileFacts = Self.netflix
+        client.markersAnswer = PlaybackMarkers(intro: .init(start: 71, end: 86, label: "Passer l'intro"), credits: nil)
+        _ = try await playingEpisode()
+        try await settle { player.markers != nil }
+        engine.emit(time: 30)
+        try await settle { player.time == 30 }
+        #expect(player.introOffer == nil)
+        player.skipIntro()
+        #expect(engine.seeks.isEmpty)
+        engine.emit(time: 75)
+        try await settle { player.introOffer?.label == "Passer l'intro" }
+        player.skipIntro()
+        try await settle { engine.seeks == [86] }
+        #expect(player.time == 86)
+        #expect(player.introOffer == nil)
+        player.stop()
+    }
+
+    @Test("Générique connu : la carte paraît à son début pour vingt secondes, puis la suite part et l'épisode est vu")
+    func creditsStartTheCountdown() async throws {
+        engine.fileFacts = Self.netflix
+        client.markersAnswer = PlaybackMarkers(intro: nil, credits: .init(at: 2500, countdown: 20))
+        let context = try await playingEpisode()
+        try await settle { player.markers != nil }
+        engine.emit(time: 2499)
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(player.nextCountdown == nil)
+        engine.emit(time: 2500)
+        try await settle { player.nextCountdown != nil }
+        #expect(player.nextCountdown == 20)
+        engine.emit(time: 2512)
+        try await settle(seconds: 2) { player.nextCountdown == 8 }
+        #expect(engine.loads.count == 1)
+        engine.emit(time: 2520)
+        // No end from the engine, the file still plays its credits: the countdown starts what follows by itself.
+        try await settle(seconds: 2) { player.isChangingTitle }
+        try await settle(seconds: 3) { engine.loads.count == 2 }
+        #expect(player.context?.content.id == context.next?.id)
+        try await settle { client.reported(context.content.id)?.finished == true }
+        #expect(client.reported(context.content.id)?.position == 2700)
+        player.stop()
+    }
+
+    @Test("Générique : quitter ou annuler après son début laisse l'épisode vu ; revenir avant lui retire la carte")
+    func leavingInTheCreditsIsSeen() async throws {
+        engine.fileFacts = Self.netflix
+        client.markersAnswer = PlaybackMarkers(intro: nil, credits: .init(at: 2500, countdown: 20))
+        let context = try await playingEpisode()
+        try await settle { player.markers != nil }
+        engine.emit(time: 2505)
+        try await settle { player.nextCountdown == 20 }
+        // Rewound before the credits: the card goes, and comes back with them.
+        engine.emit(time: 2300)
+        try await settle(seconds: 2) { player.nextCountdown == nil }
+        engine.emit(time: 2510)
+        try await settle(seconds: 2) { player.nextCountdown == 20 }
+        player.cancelNext()
+        #expect(player.nextCountdown == nil)
+        player.stop()
+        try await settle { client.reported(context.content.id)?.finished == true }
+        #expect(engine.loads.count == 1)
     }
 
     // MARK: - Live source resets

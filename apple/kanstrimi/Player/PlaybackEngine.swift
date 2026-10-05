@@ -25,6 +25,8 @@ protocol PlaybackEngine: AnyObject {
     var subtitleTracks: [TrackInfo] { get }
     var activeSubtitleTrackIndex: Int? { get }
     var isSubtitleActive: Bool { get }
+    /// What was read in the file opened: its length and its chapters; nil until the length is known.
+    var fileFacts: FileFacts? { get }
 
     var phaseChanges: AnyPublisher<PlaybackPhase, Never> { get }
     var timeChanges: AnyPublisher<Double, Never> { get }
@@ -56,6 +58,13 @@ extension PlayerCore: PlaybackEngine {
     var subtitleTracks: [TrackInfo] { engine.subtitleTracks }
     var activeSubtitleTrackIndex: Int? { engine.activeSubtitleTrackIndex }
     var isSubtitleActive: Bool { engine.isSubtitleActive }
+    var fileFacts: FileFacts? {
+        guard engine.duration > 0 else { return nil }
+        // Chapter starts are on the axis of `seek(to:)`, the one of the clock.
+        return FileFacts(duration: engine.duration, chapters: engine.mediaChapters.map {
+            FileFacts.Chapter(name: $0.name, start: $0.startSeconds, end: $0.startSeconds + $0.durationSeconds)
+        })
+    }
 
     var phaseChanges: AnyPublisher<PlaybackPhase, Never> { engine.$playbackPhase.eraseToAnyPublisher() }
     var timeChanges: AnyPublisher<Double, Never> { engine.clock.$currentTime.eraseToAnyPublisher() }

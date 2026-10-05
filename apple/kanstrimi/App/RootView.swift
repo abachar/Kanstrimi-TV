@@ -46,7 +46,7 @@ private extension RootView {
     ///   debug.open      — a content id whose detail opens
     ///   debug.search    — a query typed in the search screen (read and erased by `SearchView`, built later)
     ///   debug.autoplay  — live | live:<id> | <content id>, plus debug.resumeAt in seconds
-    ///   debug.playerState — vodPaused | failure | nextEpisode | nextTitle | livePlaying | panel | opening:
+    ///   debug.playerState — vodPaused | failure | nextEpisode | nextTitle | livePlaying | panel | opening | skipIntro:
     ///                     stages the player in that state instead of streaming (no flux in the mock)
     ///   debug.landscape — iPhone, read by `PlayerScreen+iOS`: the player in landscape
     ///   debug.panel     — iPhone, read by `PlayerScreen+iOS`: that player panel open

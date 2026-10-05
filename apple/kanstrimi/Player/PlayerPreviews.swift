@@ -109,6 +109,7 @@ private struct RelatedStripPreviewHost: View {
 #Preview("Lecteur · épisode suivant") { PlayerPreviewHost(state: .nextEpisode) }
 #Preview("Lecteur · film suivant") { PlayerPreviewHost(state: .nextTitle) }
 #Preview("Lecteur · série suivante") { PlayerPreviewHost(state: .nextTitle, lastEpisode: true) }
+#Preview("Lecteur · passer l'intro") { PlayerPreviewHost(state: .skipIntro) }
 #Preview("Lecteur · Similaires") { RelatedStripPreviewHost() }
 #Preview("Lecteur · direct") { PlayerPreviewHost(state: .livePlaying) }
 #Preview("Lecteur · chargement") { PlayerPreviewHost(state: .opening) }

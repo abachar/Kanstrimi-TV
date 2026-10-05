@@ -50,6 +50,9 @@ final class PlayerService {
     /// « Si vous avez aimé… » of the movie or episode playing, asked once it has started (TMDB may take
     /// a few seconds); nil before, and for a channel.
     private(set) var suggestions: Suggestions?
+    /// Where the intro and the end credits of the file playing are, as the server answered what the engine read in
+    /// it; nil until then, and for a channel.
+    private(set) var markers: PlaybackMarkers?
     /// The second of black between a title and what follows it.
     private(set) var isChangingTitle = false
     /// The sheet of the title playing (its series for an episode), shared by the Infos and Épisodes panels.
@@ -128,6 +131,9 @@ final class PlayerService {
     private var toastTask: Task<Void, Never>?
     private var countdownTask: Task<Void, Never>?
     private var suggestionsTask: Task<Void, Never>?
+    private var markersTask: Task<Void, Never>?
+    /// The markers of the file open were asked for: once per opening.
+    private var markersAsked = false
     private var nextTriggered = false
     /// Bumped once the final report of a playback has reached the server (or the offline queue):
     /// the screens that show progress (home, sheet) reload on it.
@@ -137,7 +143,8 @@ final class PlayerService {
 
     static let startTimeout: Duration = .seconds(10)
     static let progressInterval: Duration = .seconds(30)
-    /// The « À suivre » card counts down the last seconds of the file, then a second of black marks the change.
+    /// Without the start of the end credits, the « À suivre » card counts down the last seconds of the file; a second
+    /// of black then marks the change.
     static let nextCountdownSeconds = 15
     static let nextBlack: Duration = .seconds(1)
     /// The countdown at 0 without the engine's end: past this, what follows starts anyway.
@@ -253,6 +260,7 @@ final class PlayerService {
         phase = .idle; time = 0; duration = 0; isMinimized = false
         failure = nil; toast = nil; nextCountdown = nil; nextContext = nil; nextTriggered = false
         suggestions = nil; suggestionsTask?.cancel(); isChangingTitle = false
+        forgetMarkers()
         titleCard = nil; titleCardFailed = false; titleCardID = nil
         audioTracks = []; textTracks = []
         epg = .empty
@@ -338,6 +346,17 @@ final class PlayerService {
     /// The time the chrome shows: the sweep's target while scanning.
     var shownTime: TimeInterval { scanTarget ?? time }
 
+    /// « Passer l'intro », offered while the intro of the file plays.
+    var introOffer: PlaybackMarkers.Intro? {
+        guard let intro = markers?.intro, !isLive, phase == .playing || phase == .paused, scanTarget == nil,
+              time >= intro.start, time < intro.end - 1 else { return nil }
+        return intro
+    }
+    func skipIntro() {
+        guard let intro = introOffer else { return }
+        seek(to: intro.end)
+    }
+
     var remaining: TimeInterval { max(0, duration - shownTime) }
     var endDate: Date { .now.addingTimeInterval(remaining) }
     var fraction: Double { duration > 0 ? shownTime / duration : 0 }
@@ -413,8 +432,9 @@ final class PlayerService {
         play(next)
     }
 
-    /// The end of a title with something to follow and the automatic play on: a second of black, then
-    /// the next title, its bar showing. Otherwise back to the sheet, the title reported as seen to its end.
+    /// The end of a title (its file's, or the countdown started at its credits) with something to follow and the
+    /// automatic play on: a second of black, then the next title, its bar showing. Otherwise back to the sheet, the
+    /// title reported as seen to its end.
     private func followUp() {
         // Already changing: the engine's end after the countdown's own fallback.
         guard !isChangingTitle else { return }
@@ -428,6 +448,8 @@ final class PlayerService {
         nextCountdown = nil
         nextContext = nil
         nextTriggered = true
+        // From the credits the file still plays: silenced under the black, the next load replaces it.
+        if phase != .ended { playback.pause() }
         time = duration
         sendProgress(final: true)
         isChangingTitle = true
@@ -463,6 +485,8 @@ final class PlayerService {
         }
         cancelTimers(keepCountdown: true)
         restartTask?.cancel(); restartTask = nil
+        // Another version, another source, the same one again: each start opens a file, its markers asked anew.
+        forgetMarkers()
         context = ctx
         let changedVersion = version?.id != v.id
         version = v
@@ -496,6 +520,7 @@ final class PlayerService {
         startAttempts = 0
         startDeadline?.cancel()
         if let source { failedSources.clear(source.id) }
+        fetchMarkers()
     }
 
     /// Once started, a source that keeps rebuffering or stalling while playing is a failed source (next
@@ -692,18 +717,54 @@ final class PlayerService {
         }
     }
 
-    /// The last fifteen seconds of the file, when something follows: the card counts them down on the time
-    /// left, so it reaches 0 at the real end; the engine's end then starts what follows (`followUp`).
+    /// Once the file is open and playing: what the engine read in it (its length, its chapters) goes to the server,
+    /// which answers where its intro and its end credits are. A failure leaves the player as without markers.
+    private func fetchMarkers() {
+        guard isStarted, !isLive, !markersAsked, let ctx = context, let facts = playback.fileFacts else { return }
+        markersAsked = true
+        let opening = seekGeneration
+        markersTask = Task { [weak self] in
+            guard let self, let answer = try? await client.markers(id: ctx.content.id, file: facts) else { return }
+            guard !Task.isCancelled, seekGeneration == opening, context?.content.id == ctx.content.id else { return }
+            markers = answer
+        }
+    }
+
+    private func forgetMarkers() {
+        markersTask?.cancel(); markersTask = nil
+        markersAsked = false
+        markers = nil
+    }
+
+    /// From where « À suivre » shows when something follows, and how long it counts: the start of the end credits
+    /// and the seconds the server gave with it, else the last fifteen seconds of the file.
+    private var nextCardMoment: (from: TimeInterval, seconds: TimeInterval)? {
+        guard duration > 0 else { return nil }
+        if let credits = markers?.credits, credits.at < duration { return (credits.at, TimeInterval(credits.countdown)) }
+        return (duration - TimeInterval(Self.nextCountdownSeconds), TimeInterval(Self.nextCountdownSeconds))
+    }
+
+    /// The card counts down on the position, so it holds while paused. At the end of the file it reaches 0 at the
+    /// real end, and the engine's end starts what follows (`followUp`); from the credits it starts it itself.
     private func maybeStartCountdown() {
-        guard preferences.autoPlayNext, !nextTriggered, nextCountdown == nil, upNext != nil, duration > 0,
-              remaining <= TimeInterval(Self.nextCountdownSeconds), phase == .playing else { return }
-        nextCountdown = Int(remaining.rounded(.up))
+        guard preferences.autoPlayNext, !nextTriggered, nextCountdown == nil, upNext != nil, let moment = nextCardMoment,
+              shownTime >= moment.from, phase == .playing else { return }
+        // Arrived deep in the credits (a seek, a resume): the full count from here, not what is left of it.
+        let zero = min(shownTime + moment.seconds, duration)
+        let left = { [weak self] in max(0, Int((zero - (self?.time ?? zero)).rounded(.up))) }
+        nextCountdown = left()
         countdownTask?.cancel()
         countdownTask = Task { [weak self] in
             while let self, let n = nextCountdown, n > 0, !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(250))
                 if Task.isCancelled { return }
-                if phase == .playing { nextCountdown = min(n, Int(remaining.rounded(.up))) }
+                // Rewound before its moment: the card goes, and comes back with it.
+                if shownTime < moment.from - 1 { nextCountdown = nil; return }
+                if phase == .playing { nextCountdown = min(n, left()) }
+            }
+            guard zero >= self?.duration ?? 0 else {
+                guard let self, !Task.isCancelled, nextCountdown == 0 else { return }
+                return followUp()
             }
             // A file whose announced length runs past its picture: no end from the engine, follow up anyway.
             try? await Task.sleep(for: Self.endWait)
@@ -730,7 +791,9 @@ final class PlayerService {
     private func sendProgress(final: Bool) {
         if isLive { return sendWatchTime(final: final) }
         guard let context, duration > 0, time > 0 else { return }
-        let report = ProgressReport(contentID: context.content.id, position: time, duration: duration, sentAt: .now)
+        // Past the start of its end credits a title is seen, wherever it is left: reported at its end.
+        let seen = markers?.credits.map { time >= $0.at } ?? false
+        let report = ProgressReport(contentID: context.content.id, position: seen ? duration : time, duration: duration, sentAt: .now)
         Task { [weak self, reporter] in
             await reporter.report(report)
             if final { self?.progressRevision += 1 }
@@ -780,6 +843,7 @@ final class PlayerService {
                 guard $0 > 0, let self else { return }
                 duration = $0
                 nowPlaying.update()
+                fetchMarkers()
             }
             .store(in: &cancellables)
         playback.startupChanges
@@ -875,7 +939,7 @@ final class PlayerService {
 #if DEBUG
 /// Preview scaffolding: puts the player in a given state without a stream.
 extension PlayerService {
-    enum PreviewState: String { case vodPaused, failure, nextEpisode, nextTitle, livePlaying, panel, opening }
+    enum PreviewState: String { case vodPaused, failure, nextEpisode, nextTitle, livePlaying, panel, opening, skipIntro }
 
     func debugPut(_ ctx: PlaybackContext, state: PreviewState, channels list: [Channel] = [], suggestions: Suggestions? = nil) {
         debugFrame = true
@@ -905,6 +969,11 @@ extension PlayerService {
                                 next: Programme(title: "Le Mag du foot", start: start.addingTimeInterval(7200), end: start.addingTimeInterval(9000), overview: nil),
                                 hasEPG: true)
         case .panel: phase = .playing
+        case .skipIntro:
+            phase = .playing
+            // From 0: the idle engine's clock, which the staged player still hears, says 0.
+            time = 0
+            markers = PlaybackMarkers(intro: .init(start: 0, end: 90, label: "Passer l'intro"), credits: nil)
         case .opening: phase = .buffering; bufferingProgress = 42
         }
     }

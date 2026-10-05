@@ -527,6 +527,18 @@ final class MockCatalogClient: CatalogClient {
         return Suggestions(related: related.prefix(5).map { Self.relatedItem(merged($0)) }, next: next)
     }
 
+    /// Tests only: what the server answers for the file opened (the demo has no file), and what it was sent.
+    var markersAnswer = PlaybackMarkers(intro: nil, credits: nil)
+    private(set) var markersAsked: [FileFacts] = []
+    /// Tests only: what was reported as watched.
+    func reported(_ id: ContentID) -> Progress? { progress[id] }
+
+    func markers(id: ContentID, file: FileFacts) async throws -> PlaybackMarkers {
+        markersAsked.append(file)
+        try await gate()
+        return markersAnswer
+    }
+
     func report(_ report: ProgressReport) async throws {
         try await gate()
         progress[report.contentID] = Progress(position: report.position, duration: report.duration,

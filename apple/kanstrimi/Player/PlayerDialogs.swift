@@ -77,9 +77,42 @@ struct StreamFailureDialog: View {
     }
 }
 
-/// The last 15 s of the file count down to what follows [14]: the next episode, or the title the server
-/// suggests after a movie or the last episode of a series. Places `UpNextCard` and gives it the countdown, the
-/// language warning and the focus.
+/// « Passer l'intro », at the bottom right while the intro plays; its name comes from the server. iPhone: a button
+/// to tap. tvOS: drawn as a focused button and not one, the video keeps the remote and its click is this one
+/// (`PlayerScreen.select`).
+struct SkipIntroButton: View {
+    let label: String
+    /// The bar and its progress show under it; hidden, it comes down in their place.
+    var barShown = true
+    let action: () -> Void
+    @Environment(\.metrics) private var metrics
+
+    var body: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                if metrics.compact {
+                    Button(action: action) { title.font(.subheadline.weight(.semibold)).padding(.horizontal, 6).padding(.vertical, 4) }
+                        .prominentButtonStyle()
+                } else {
+                    title.font(.headline).foregroundStyle(.black)
+                        .padding(.horizontal, 32).padding(.vertical, 18)
+                        .background(.white, in: Capsule())
+                        .shadow(color: .black.opacity(0.4), radius: 16, y: 6)
+                }
+            }
+            .padding(metrics.dialogMargin)
+            .padding(.bottom, barShown ? (metrics.compact ? 120 : metrics.dialogMargin * 2) : 0)
+        }
+    }
+
+    private var title: some View { Label(label, systemImage: "forward.end.fill") }
+}
+
+/// What follows counts down [14], from the start of the end credits when the server knows it, else in the last
+/// 15 s of the file: the next episode, or the title the server suggests after a movie or the last episode of a
+/// series. Places `UpNextCard` and gives it the countdown, the language warning and the focus.
 struct NextEpisodeCard: View {
     /// tvOS: the bar and its progress show under the card; hidden, the card comes down in their place.
     var barShown = true

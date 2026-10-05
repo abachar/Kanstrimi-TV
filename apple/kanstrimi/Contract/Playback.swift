@@ -95,6 +95,34 @@ nonisolated struct Suggestion: Codable, Hashable, Sendable {
     let heading: String
 }
 
+/// What the player read in the file it opened, in seconds: the body of `POST /playback/{id}/markers`.
+nonisolated struct FileFacts: Codable, Hashable, Sendable {
+    nonisolated struct Chapter: Codable, Hashable, Sendable {
+        let name: String
+        let start: TimeInterval
+        let end: TimeInterval
+    }
+    let duration: TimeInterval
+    let chapters: [Chapter]
+}
+
+/// `POST /playback/{id}/markers`, asked once the file is open: where its intro and its end credits are, nil when
+/// the server does not know. `intro`: a button named `label` shows from `start` to `end` and jumps to `end`.
+/// `credits`: « À suivre » shows from `at` and counts `countdown` seconds down; the title is then seen.
+nonisolated struct PlaybackMarkers: Codable, Hashable, Sendable {
+    nonisolated struct Intro: Codable, Hashable, Sendable {
+        let start: TimeInterval
+        let end: TimeInterval
+        let label: String
+    }
+    nonisolated struct Credits: Codable, Hashable, Sendable {
+        let at: TimeInterval
+        let countdown: Int
+    }
+    let intro: Intro?
+    let credits: Credits?
+}
+
 /// `PUT /playback/{id}/progress` body.
 nonisolated struct ProgressReport: Codable, Hashable, Sendable {
     let contentID: ContentID
