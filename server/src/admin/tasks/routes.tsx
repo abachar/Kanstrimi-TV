@@ -25,7 +25,7 @@ export const tasksRoutes = new Hono();
 /** What a task card shows: its schedule, its last runs, whether it runs now, where it may start from. */
 async function taskStates(tasks: readonly Task[]) {
   const [s, byTask] = await Promise.all([getSettings(), lastRunsByTask(tasks, 5)]);
-  const cron: Record<Task, string> = { pipeline: s.sync_cron, epg: s.epg_cron, trending: s.trending_cron };
+  const cron: Record<Task, string> = { pipeline: s.sync_cron, epg: s.epg_cron, trending: s.trending_cron, markers: s.markers_cron };
   return tasks.map((t) => ({
     task: t,
     cron: cron[t],

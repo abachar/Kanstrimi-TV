@@ -20,20 +20,20 @@ describe("launch", () => {
 });
 
 describe("schedule", () => {
-  it("plans the three tasks from the settings, and replaces them on every change", () => {
+  it("plans the four tasks from the settings, and replaces them on every change", () => {
     const s = { ...DEFAULTS, sync_cron: "0 */6 * * *", epg_cron: "0 3 */3 * *" } as Settings;
     schedule(s);
-    expect(scheduledJobs().map((j) => j.name)).toEqual(["traitement complet", "EPG", "tendances TMDB"]);
+    expect(scheduledJobs().map((j) => j.name)).toEqual(["traitement complet", "EPG", "tendances TMDB", "marqueurs"]);
     expect(scheduledJobs().every((j) => j.next instanceof Date)).toBe(true);
     schedule({ ...s, epg_cron: "30 4 * * *" });
-    expect(scheduledJobs()).toHaveLength(3);
+    expect(scheduledJobs()).toHaveLength(4);
     expect(scheduledJobs()[1].next?.getMinutes()).toBe(30);
   });
 
   it("ignores a cron expression it cannot read, and says so", () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     schedule({ ...DEFAULTS, sync_cron: "toutes les heures", epg_cron: "0 3 */3 * *" } as Settings);
-    expect(scheduledJobs().map((j) => j.name)).toEqual(["EPG", "tendances TMDB"]);
+    expect(scheduledJobs().map((j) => j.name)).toEqual(["EPG", "tendances TMDB", "marqueurs"]);
     expect(String(logged.mock.calls[0][0])).toContain("ignoré");
     logged.mockRestore();
   });

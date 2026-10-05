@@ -16,6 +16,7 @@ const settingsSchema = z.object({
   sync_cron: z.string().trim().refine(isValidCron, "expression cron invalide (5 champs)"),
   epg_cron: z.string().trim().refine(isValidCron, "expression cron invalide (5 champs)"),
   trending_cron: z.string().trim().refine(isValidCron, "expression cron invalide (5 champs)"),
+  markers_cron: z.string().trim().refine(isValidCron, "expression cron invalide (5 champs)"),
   public_base_url: z.string().trim(),
   /** Checkbox: present ("on") when checked, absent otherwise. */
   serve_adult: z.string().optional(),

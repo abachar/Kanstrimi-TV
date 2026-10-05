@@ -34,6 +34,7 @@ export const JOB_LABELS: Record<Step, string> = {
   group: "Groupement",
   trending: "Tendances TMDB",
   epg: "EPG",
+  markers: "Marqueurs SkipDB",
 };
 /** Steps of earlier pipelines, still in the journal until it is purged. */
 const PAST_JOB_LABELS: Record<string, string> = { merge: "Mise à jour du catalogue", channels: "Chaînes iptv-org" };
@@ -41,13 +42,15 @@ export const JOB_STARTED: Record<Task, string> = {
   pipeline: "Traitement complet lancé",
   epg: "Reconstruction EPG lancée",
   trending: "Tendances TMDB lancées",
+  markers: "Import des marqueurs lancé",
 };
 export const TASK_LABELS: Record<Task, string> = {
   pipeline: "Traitement complet",
   epg: "Guide des programmes",
   trending: "Tendances TMDB",
+  markers: "Intros et génériques",
 };
-export const TASK_ICONS: Record<Task, IconName> = { pipeline: "pipeline", epg: "epg", trending: "sparkles" };
+export const TASK_ICONS: Record<Task, IconName> = { pipeline: "pipeline", epg: "epg", trending: "sparkles", markers: "play" };
 export const TRIGGER_LABELS: Record<string, string> = { cron: "planifié", manual: "manuel" };
 export const jobLabel = (job: string) => (JOB_LABELS as Record<string, string>)[job] ?? PAST_JOB_LABELS[job] ?? job;
 /** A run's task: one of the scheduled ones, or a lone step. */
@@ -90,6 +93,8 @@ export const STAT_LABELS: Record<string, string> = {
   variants_hidden: "versions écartées par les filtres",
   items: "éléments",
   categories: "catégories",
+  segments: "intros et génériques",
+  titles: "films et séries",
   bytes: "", // bytes are already rendered as "x Mo"
 };
 

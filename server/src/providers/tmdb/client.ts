@@ -188,6 +188,10 @@ export class TmdbClient {
   movieKeywords(id: number) {
     return this.get<{ keywords?: { id: number; name: string }[] }>(`/movie/${id}/keywords`);
   }
+  /** The ids other sites know a title by; `imdb_id` is a series' own, not its episodes'. */
+  externalIds(mediaType: "movie" | "tv", id: number) {
+    return this.get<{ imdb_id?: string | null }>(`/${mediaType}/${id}/external_ids`);
+  }
   tvSeason(id: number, season: number) {
     return this.get<{ episodes?: Record<string, unknown>[] }>(`/tv/${id}/season/${season}`);
   }

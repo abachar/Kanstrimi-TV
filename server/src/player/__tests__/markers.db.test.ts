@@ -33,17 +33,41 @@ const post = (id: string, body: unknown, token = TOKEN) =>
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 
-/** TMDB's keywords by movie, as `/movie/603/keywords` answers them. */
+/** TMDB's keywords by movie and IMDb ids by title, as `/movie/603/keywords` and `/tv/1396/external_ids` answer them. */
 let keywords: Record<number, number[]> = {};
+let imdb: Record<number, string> = {};
 let calls: string[] = [];
 function stubTmdb(status = 200) {
   vi.stubGlobal("fetch", async (u: URL) => {
-    const m = /\/3\/movie\/(\d+)\/keywords/.exec(String(u));
-    calls.push(m ? `movie:${m[1]}` : String(u));
-    if (status !== 200) return new Response("", { status });
-    return Response.json({ id: Number(m?.[1]), keywords: (keywords[Number(m?.[1])] ?? []).map((id) => ({ id, name: `k${id}` })) });
+    const m = /\/3\/(movie|tv)\/(\d+)\/(keywords|external_ids)/.exec(String(u));
+    calls.push(m ? `${m[1]}:${m[2]}:${m[3]}` : String(u));
+    if (status !== 200 || !m) return new Response("", { status: m ? status : 404 });
+    const id = Number(m[2]);
+    if (m[3] === "external_ids") return Response.json({ id, imdb_id: imdb[id] ?? null });
+    return Response.json({ id, keywords: (keywords[id] ?? []).map((k) => ({ id: k, name: `k${k}` })) });
   });
 }
+/** A segment of SkipDB's import, in seconds. */
+let segmentId = 0;
+const segment = (
+  imdbId: string,
+  kind: "intro" | "credits",
+  start: number,
+  end: number,
+  measuredOn: number | null,
+  season = 0,
+  episode = 0,
+) =>
+  db.insert(schema.skipdbSegments).values({
+    id: ++segmentId,
+    imdbId,
+    season,
+    episode,
+    kind,
+    startMs: start * 1000,
+    endMs: end * 1000,
+    durationMs: measuredOn === null ? null : measuredOn * 1000,
+  });
 
 beforeAll(async () => {
   await resetDb();
@@ -71,9 +95,11 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await db.delete(schema.tmdbExtras);
+  await db.delete(schema.skipdbSegments);
   resetExtras();
   calls = [];
   keywords = { 1726: [9715, 179430], 19995: [9715] };
+  imdb = { 19995: "tt0499549", 1726: "tt0371746", 88516: "tt11905462" };
   stubTmdb();
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -95,11 +121,11 @@ describe("POST /playback/{id}/markers", () => {
   it("a movie: its credits when TMDB announces no scene after them, asked once a week", async () => {
     expect(await (await post("tmdb:movie:19995", BLURAY)).json()).toEqual({ intro: null, credits: { at: 10292, countdown: 20 } });
     expect(await (await post("tmdb:movie:19995", BLURAY)).json()).toMatchObject({ credits: { at: 10292 } });
-    expect(calls).toEqual(["movie:19995"]);
+    expect(calls.sort()).toEqual(["movie:19995:external_ids", "movie:19995:keywords"]);
     await db.update(schema.tmdbExtras).set({ fetchedAt: daysAgo(8) });
     keywords[19995] = [179431];
     expect(await (await post("tmdb:movie:19995", BLURAY)).json()).toEqual({ intro: null, credits: null });
-    expect(calls).toEqual(["movie:19995", "movie:19995"]);
+    expect(calls).toHaveLength(4);
   });
 
   it("a movie with a scene after its credits keeps them to the end", async () => {
@@ -113,9 +139,43 @@ describe("POST /playback/{id}/markers", () => {
     expect(await (await post("fallback:movie:silver-book-2026", BLURAY)).json()).toEqual({ intro: null, credits: null });
   });
 
-  it("a movie without a credits chapter asks TMDB nothing", async () => {
-    await post("tmdb:movie:19995", { duration: 10144, chapters: [{ name: "Chapter 1", start: 0, end: 10144 }] });
-    expect(calls).toEqual([]);
+  it("chapters that say nothing: SkipDB by the IMDb id TMDB gives, the credits only when measured on a file of the same length", async () => {
+    const plain = { duration: 3547.4, chapters: [] };
+    await segment("tt11905462", "intro", 0, 15, 3547, 2, 2);
+    await segment("tt11905462", "credits", 3426, 3547, 3547, 2, 2);
+    await segment("tt11905462", "credits", 100, 200, 3547, 2, 3); // another episode
+    expect(await (await post("tmdb:tv:88516:s02e02", plain)).json()).toEqual({
+      intro: { start: 0, end: 15, label: "Passer l'intro" },
+      credits: { at: 3426, countdown: 20 },
+    });
+    expect(calls).toEqual(["tv:88516:external_ids"]);
+    // Another release of the same episode, two minutes longer: its intro is offered, its credits are left to the end.
+    expect(await (await post("tmdb:tv:88516:s02e02", { duration: 3667, chapters: [] })).json()).toEqual({
+      intro: { start: 0, end: 15, label: "Passer l'intro" },
+      credits: null,
+    });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("the chapters of the file win over SkipDB, which fills what they do not say", async () => {
+    await segment("tt11905462", "intro", 5, 30, 3483, 2, 2);
+    await segment("tt11905462", "credits", 3300, 3483, 3483, 2, 2);
+    const creditsOnly = { duration: 3483.68, chapters: [{ name: "Credits", start: 3257, end: 3483.68 }] };
+    expect(await (await post("tmdb:tv:88516:s02e02", creditsOnly)).json()).toEqual({
+      intro: { start: 5, end: 30, label: "Passer l'intro" },
+      credits: { at: 3257, countdown: 20 },
+    });
+  });
+
+  it("a movie: SkipDB's credits too wait for TMDB's keywords; a title TMDB gives no IMDb id has none", async () => {
+    const plain = { duration: 10690, chapters: [] };
+    await segment("tt0499549", "credits", 10292, 10690, 10690);
+    await segment("tt0371746", "credits", 7000, 7560, 7560);
+    expect(await (await post("tmdb:movie:19995", plain)).json()).toEqual({ intro: null, credits: { at: 10292, countdown: 20 } });
+    expect(await (await post("tmdb:movie:1726", { duration: 7560, chapters: [] })).json()).toEqual({ intro: null, credits: null });
+    delete imdb[19995];
+    await db.delete(schema.tmdbExtras);
+    expect(await (await post("tmdb:movie:19995", plain)).json()).toEqual({ intro: null, credits: null });
   });
 
   it("404 for what cannot be played or seen, 400 for a malformed body, 401 without a device", async () => {

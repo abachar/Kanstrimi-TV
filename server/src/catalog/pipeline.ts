@@ -3,6 +3,7 @@ import { getSettings, isXtreamConfigured, type Settings } from "@/config";
 import { checkCancelled, describeError, isCancelled, withCancel } from "@/shared";
 import { runSync } from "@/providers/xtream";
 import { getTmdbClient, runTrending } from "@/providers/tmdb";
+import { runSkipdbImport } from "@/providers/skipdb";
 import { runEnrich } from "./matching";
 import { runEpgRebuild } from "./epg";
 import { variantCountsByKind } from "./queries";
@@ -25,15 +26,16 @@ import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
  * Matching comes first so that a title shown never waits for its TMDB sheet. The filters come last: they
  * read the content as the app shows it. A new version is left out until they judge it.
  *
- * Three tasks run them, by cron or from the admin: `pipeline` (the four steps), `epg` (download the
- * XMLTV guide, keep the programmes of the visible channels, epg.ts) and `trending` (TMDB's weekly
- * trending lists, for the « Top 10 » rows). A run is journalled twice: a `task_runs` row with a
+ * Four tasks run them, by cron or from the admin: `pipeline` (the four steps), `epg` (download the
+ * XMLTV guide, keep the programmes of the visible channels, epg.ts), `trending` (TMDB's weekly
+ * trending lists, for the « Top 10 » rows) and `markers` (SkipDB's intros and end credits, for the
+ * player). A run is journalled twice: a `task_runs` row with a
  * `task_steps` row per step (the summary the admin lists), and a text file of everything printed
  * meanwhile, each part of a step included (the detail).
  */
-export type Step = "source" | "enrich" | "filters" | "group" | "trending" | "epg";
-export type Task = "pipeline" | "epg" | "trending";
-export const TASKS: readonly Task[] = ["pipeline", "epg", "trending"];
+export type Step = "source" | "enrich" | "filters" | "group" | "trending" | "epg" | "markers";
+export type Task = "pipeline" | "epg" | "trending" | "markers";
+export const TASKS: readonly Task[] = ["pipeline", "epg", "trending", "markers"];
 /** The steps of the pipeline, in order. */
 export const PIPELINE_STEPS: readonly Step[] = ["source", "enrich", "group", "filters"];
 /**
@@ -59,6 +61,7 @@ const RUNNERS: Record<Step, (ctx: StepContext) => Promise<unknown>> = {
   filters: () => applyFilters(),
   trending: runTrending,
   epg: runEpgRebuild,
+  markers: runSkipdbImport,
 };
 
 /**
@@ -187,6 +190,7 @@ export function runAll(trigger: Trigger = "manual", from?: Step, opts: RunOption
 }
 export const runEpg = (trigger: Trigger = "manual") => runTask("epg", trigger, ["epg"]);
 export const runTrendingTask = (trigger: Trigger = "manual") => runTask("trending", trigger, ["trending"]);
+export const runMarkersTask = (trigger: Trigger = "manual") => runTask("markers", trigger, ["markers"]);
 /** A lone step, as a run of its own (tests, tooling). */
 export const run = (step: Step, trigger: Trigger = "manual") => runTask(step, trigger, [step]);
 
@@ -196,7 +200,13 @@ export const run = (step: Step, trigger: Trigger = "manual") => runTask(step, tr
  */
 export function launch(task: Task, from?: Step, opts: RunOptions = {}): boolean {
   if (runningTasks.has(task)) return false;
-  void (task === "pipeline" ? runAll("manual", from, opts) : task === "epg" ? runEpg("manual") : runTrendingTask("manual"));
+  const start: Record<Task, () => Promise<boolean>> = {
+    pipeline: () => runAll("manual", from, opts),
+    epg: () => runEpg("manual"),
+    trending: () => runTrendingTask("manual"),
+    markers: () => runMarkersTask("manual"),
+  };
+  void start[task]();
   return true;
 }
 
@@ -219,7 +229,7 @@ export async function killRun(runId: number): Promise<"stopping" | "closed" | "n
 let jobs: Cron[] = [];
 
 /**
- * (Re)create the three cron jobs from the settings; called at boot and whenever the settings
+ * (Re)create the four cron jobs from the settings; called at boot and whenever the settings
  * change. `protect` skips a tick while the previous run is still going. An unconfigured
  * provider is checked at fire time.
  */
@@ -248,6 +258,7 @@ export function schedule(s: Settings) {
   add(s.epg_cron, "EPG", () => runEpg("cron"));
   // Without a TMDB key there is nothing to read: the tick passes.
   add(s.trending_cron, "tendances TMDB", async () => (await getTmdbClient()) && runTrendingTask("cron"));
+  add(s.markers_cron, "marqueurs", () => runMarkersTask("cron"));
 }
 
 /** The planned jobs and their next tick. */

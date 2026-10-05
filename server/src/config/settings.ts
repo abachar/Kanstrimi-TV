@@ -12,6 +12,7 @@ export const SETTING_KEYS = [
   "sync_cron", // cron expr for catalog sync
   "epg_cron", // cron expr for EPG rebuild
   "trending_cron", // cron expr for TMDB's trending lists
+  "markers_cron", // cron expr for the import of SkipDB's intros and end credits
   "public_base_url", // optional, e.g. http://192.168.1.10:3000
   "serve_adult", // "1" = adult-flagged contents are served to the apps; off by default
   "last_sync_at",
@@ -26,6 +27,7 @@ export const DEFAULTS = {
   sync_cron: "0 */6 * * *",
   epg_cron: "0 3,15 * * *",
   trending_cron: "30 4 * * *",
+  markers_cron: "45 4 * * *",
   serve_adult: "0",
 } satisfies Partial<Record<SettingKey, string>>;
 

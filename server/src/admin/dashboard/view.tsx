@@ -94,6 +94,7 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
                   ["pipeline", s.sync_cron],
                   ["epg", s.epg_cron],
                   ["trending", s.trending_cron],
+                  ["markers", s.markers_cron],
                 ] as const
               ).map(([task, cron]) => {
                 const run = d.last[task]?.[0];

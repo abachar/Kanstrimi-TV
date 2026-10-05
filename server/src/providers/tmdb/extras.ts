@@ -9,7 +9,7 @@ import type { TitleRef } from "./recommendations";
  * `tmdb_extras`. Never fails: a TMDB outage answers what it had, or null (unknown).
  */
 
-export type Extras = { creditsScene: boolean };
+export type Extras = { creditsScene: boolean; imdbId: string | null };
 type Row = Extras & { fetchedAt: Date };
 
 const TTL_MS = 7 * 24 * 3600 * 1000;
@@ -36,15 +36,25 @@ function fetchOnce(ref: TitleRef): Promise<Extras | null> {
   return once(refId(ref), async () => {
     const client = await getTmdbClient();
     if (!client) return null;
-    // Keywords exist for movies only: an episode's credits scene is announced nowhere.
-    const keywords = ref.mediaType === "movie" ? ((await client.movieKeywords(ref.tmdbId)).keywords ?? []) : [];
-    const found: Extras = { creditsScene: keywords.some((k) => CREDITS_SCENE_KEYWORDS.has(k.id)) };
+    // Keywords exist for movies only: an episode's credits scene is announced nowhere. Both answers are awaited
+    // even when one fails: no request is left running behind a failure.
+    const [ids, tags] = await Promise.allSettled([
+      client.externalIds(ref.mediaType, ref.tmdbId),
+      ref.mediaType === "movie" ? client.movieKeywords(ref.tmdbId) : { keywords: [] },
+    ]);
+    if (ids.status === "rejected") throw ids.reason;
+    if (tags.status === "rejected") throw tags.reason;
+    const keywords = tags.value.keywords ?? [];
+    const found: Extras = {
+      creditsScene: keywords.some((k) => CREDITS_SCENE_KEYWORDS.has(k.id)),
+      imdbId: typeof ids.value.imdb_id === "string" && /^tt\d+$/.test(ids.value.imdb_id) ? ids.value.imdb_id : null,
+    };
     await db
       .insert(schema.tmdbExtras)
       .values({ ...ref, ...found, fetchedAt: new Date() })
       .onConflictDoUpdate({
         target: [schema.tmdbExtras.mediaType, schema.tmdbExtras.tmdbId],
-        set: { creditsScene: sql`excluded.credits_scene`, fetchedAt: sql`excluded.fetched_at` },
+        set: { creditsScene: sql`excluded.credits_scene`, imdbId: sql`excluded.imdb_id`, fetchedAt: sql`excluded.fetched_at` },
       });
     return found;
   });

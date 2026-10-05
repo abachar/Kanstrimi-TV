@@ -537,6 +537,7 @@ describe("admin", () => {
       sync_cron: "0 3 * * *",
       epg_cron: "0 3 */3 * *",
       trending_cron: "30 4 * * *",
+      markers_cron: "45 4 * * *",
       public_base_url: "",
     };
     expect((await post("/admin/settings", { ...form, serve_adult: "on" })).status).toBe(303);

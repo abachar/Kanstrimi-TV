@@ -625,6 +625,7 @@ export const tmdbRecommendations = pgTable(
 /**
  * What the player asks of a title beyond its sheet, fetched on demand when it plays and kept a week.
  * `credits_scene`: TMDB's keywords announce a scene during or after the end credits of a movie.
+ * `imdb_id`: the key of the public bases of markers (a series' own id, not its episodes').
  */
 export const tmdbExtras = pgTable(
   "tmdb_extras",
@@ -632,9 +633,30 @@ export const tmdbExtras = pgTable(
     mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
     tmdbId: integer("tmdb_id").notNull(),
     creditsScene: boolean("credits_scene").default(false).notNull(),
+    imdbId: text("imdb_id"),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.mediaType, t.tmdbId] })],
+);
+
+/**
+ * SkipDB's intros and end credits (skipdb.tv, ODbL), its whole daily export, replaced by the `markers` task.
+ * `id` is SkipDB's. A movie has season 0 and episode 0. `duration_ms`: the length of the file the segment was
+ * measured on, null when SkipDB does not know it.
+ */
+export const skipdbSegments = pgTable(
+  "skipdb_segments",
+  {
+    id: integer("id").primaryKey(),
+    imdbId: text("imdb_id").notNull(),
+    season: integer("season").notNull(),
+    episode: integer("episode").notNull(),
+    kind: text("kind").$type<"intro" | "credits">().notNull(),
+    startMs: integer("start_ms").notNull(),
+    endMs: integer("end_ms").notNull(),
+    durationMs: integer("duration_ms"),
+  },
+  (t) => [index("skipdb_segments_title_idx").on(t.imdbId, t.season, t.episode)],
 );
 
 export type Variant = typeof catalogVariants.$inferSelect;
