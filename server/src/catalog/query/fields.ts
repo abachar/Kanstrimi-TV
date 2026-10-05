@@ -4,15 +4,15 @@ import { stripAccents } from "@/shared";
 import type { CodeList } from "./codes";
 
 /**
- * The fields of the filter language, one registry for the rules and the admin's searches. Each field
+ * The fields of the filter language, one registry for the filters and the admin's searches. Each field
  * belongs to kinds (Direct, Films, Séries: a name may mean something else per kind, `pays` is where a
  * channel is shown and where a film comes from) and to a level:
  * - `content`, no prefix: the content as the app shows it (`catalog_contents`, never aliased), its TMDB
  *   sheet read in the cache;
  * - `variant`, prefixed `variant.` (what we read of a version) or `xtream.` (what the provider says of it):
  *   one version (`catalog_variants`, never aliased).
- * A search lists contents: a version field there means « one of its versions ». A rule that names a
- * version field judges versions: those that match, in the contents its other terms match (`sql.ts`).
+ * A filter judges versions, its content fields read on the version's content; a search lists contents,
+ * a version field there meaning « one of its versions » (`sql.ts`).
  *
  * Names and expressions are fixed here; a query only picks among them, its values always travel as
  * parameters.
@@ -34,7 +34,7 @@ export type Field = {
   /** The kinds it means something for. */
   kinds: Kind[];
   level: Level;
-  /** Searches only: a rule on it would depend on its own result. */
+  /** Searches only: a filter on it would depend on its own result. */
   searchOnly?: boolean;
   /**
    * Text: the condition on its values, `pred` applied to each (any one matching is enough).

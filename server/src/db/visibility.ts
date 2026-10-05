@@ -13,16 +13,16 @@ export const inHiddenCategory: SQL = sql`exists (
     and c.hidden_manual)`;
 
 /**
- * Served to the players: hidden neither by a rule on versions, nor by hand, nor through its category.
- * The rules on contents judge the content: `catalog_contents.visible` adds their verdict.
+ * Served to the players: kept by the filter of its kind (null = not judged yet: not served), hidden
+ * neither by hand nor through its category. A content is visible when one of its versions is.
  */
 export const visibleItem: SQL = and(
-  eq(schema.catalogVariants.hiddenByRule, false),
+  sql`${schema.catalogVariants.hiddenByRule} is false`,
   eq(schema.catalogVariants.hiddenManual, false),
   sql`not ${inHiddenCategory}`,
 )!;
 export const hiddenItem: SQL = or(
-  eq(schema.catalogVariants.hiddenByRule, true),
+  sql`${schema.catalogVariants.hiddenByRule} is not false`,
   eq(schema.catalogVariants.hiddenManual, true),
   inHiddenCategory,
 )!;
@@ -38,5 +38,5 @@ export function isItemHidden(
   it: Pick<Variant, "hiddenByRule" | "hiddenManual">,
   category?: Pick<Category, "hiddenManual"> | null,
 ): boolean {
-  return it.hiddenByRule || it.hiddenManual || isCategoryHidden(category);
+  return it.hiddenByRule !== false || it.hiddenManual || isCategoryHidden(category);
 }

@@ -1,0 +1,1 @@
+DROP TABLE "curation_filter_rules" CASCADE;

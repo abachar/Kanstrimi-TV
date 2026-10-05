@@ -347,16 +347,19 @@ describe("rules on versions", () => {
   const hiddenVersions = async () =>
     (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.hiddenByRule, true))).map((v) => v.xtreamId).sort();
   const languages = (query: string) =>
-    db.insert(schema.curationFilterRules).values({ name: "Langues", kind: "vod", query, target: "variant", enabled: true });
+    db
+      .insert(schema.curationFilters)
+      .values({ kind: "vod", query })
+      .onConflictDoUpdate({ target: schema.curationFilters.kind, set: { query } });
 
-  it("serves every version while no rule hides one", async () => {
+  it("serves every version while no filter is set", async () => {
     const stats = await groupAndFilter();
     expect(stats.variants_hidden).toBe(0);
     expect((await content("tmdb:movie:1001")).visible).toBe(true);
   });
 
-  it("hides the versions before the aggregates: a content keeps the others, or disappears; a kind's rule never touches another", async () => {
-    await languages('-variant.langue:"vf","vo","ar"');
+  it("leaves versions out before the aggregates: a content keeps the others, or disappears; a kind's filter never touches another", async () => {
+    await languages('variant.langue:"vf","vo","ar"');
     const stats = await groupAndFilter();
     expect(await hiddenVersions()).toEqual(["2", "3", "4"]);
     expect(stats.variants_hidden).toBe(3);
@@ -365,12 +368,11 @@ describe("rules on versions", () => {
     expect((await content("tmdb:movie:1001")).visible).toBe(false); // Italian only
     expect((await content("tmdb:movie:1002")).visible).toBe(false); // VOSTFR only
     const [rai] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.kind, "live"));
-    expect(rai.visible).toBe(true); // a film rule
+    expect(rai.visible).toBe(true); // a film filter
   });
 
-  it("serves a version again once the rule lets it through", async () => {
-    await db.delete(schema.curationFilterRules);
-    await languages('-variant.langue:"vf","vo","ar","it"');
+  it("serves a version again once the filter keeps it", async () => {
+    await languages('variant.langue:"vf","vo","ar","it"');
     await groupAndFilter();
     expect(await hiddenVersions()).toEqual(["4"]);
     expect((await content("tmdb:movie:438631")).variantCount).toBe(2);

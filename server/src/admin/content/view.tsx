@@ -314,7 +314,16 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
                   ["tmdb_id", raw.tmdb ?? raw.tmdb_id],
                   ["Année", raw.year ?? raw.releaseDate ?? raw.release_date],
                   ["Note", raw.rating],
-                  ["Masquée", it.hiddenByRule ? `par la règle « ${v.rule ?? "?"} »` : it.hiddenManual ? "à la main" : null],
+                  [
+                    "Masquée",
+                    it.hiddenByRule === null
+                      ? "pas encore jugée par le filtre"
+                      : it.hiddenByRule
+                        ? "écartée par le filtre"
+                        : it.hiddenManual
+                          ? "à la main"
+                          : null,
+                  ],
                 ]}
               />
               <details class="group">
@@ -331,13 +340,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
       </details>
       {/* Beside the summary, never inside: a click on the switch or the menu must not fold the row. */}
       <div class="absolute end-3 top-1 flex h-9 items-center gap-1">
-        <VisibilityToggle
-          id={it.id}
-          rule={it.hiddenByRule ? (v.rule ?? "?") : null}
-          hiddenManual={it.hiddenManual}
-          catHidden={isCategoryHidden(cat)}
-          short
-        />
+        <VisibilityToggle id={it.id} filtered={it.hiddenByRule} hiddenManual={it.hiddenManual} catHidden={isCategoryHidden(cat)} short />
         <GroupMenu v={v} alone={alone} />
       </div>
       <div id={`merge-slot-${it.id}`}></div>
@@ -347,23 +350,24 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
 
 /** The sheet as the app receives it: picture, titles, what it plays in, its story; the bookkeeping on a grey line. */
 /**
- * Why a content is hidden, in a sentence: not judged yet, a rule on contents, or none of its versions
- * served — by a rule on versions, by hand, through its category, each cause named once. Null when visible.
+ * Why a content is hidden, in a sentence: none of its versions served — left out by the filter, not
+ * judged yet, hidden by hand, through its category, each cause named once. Null when visible.
  */
-function hidingReason(c: Content, variants: VariantDetail[], rule: string | null): string | null {
+function hidingReason(c: Content, variants: VariantDetail[]): string | null {
   if (c.visible) return null;
-  if (c.hiddenByRule === null) return "Pas encore jugé par les règles";
-  if (c.hiddenByRule) return `Masqué par la règle « ${rule ?? "?"} »`;
-  const rules = new Set<string>();
   const cats = new Set<string>();
-  let manual = 0;
+  let filtered = 0,
+    unjudged = 0,
+    manual = 0;
   for (const v of variants) {
-    if (v.item.hiddenByRule) rules.add(`« ${v.rule ?? "?"} »`);
+    if (v.item.hiddenByRule === null) unjudged++;
+    else if (v.item.hiddenByRule) filtered++;
     else if (v.item.hiddenManual) manual++;
     else if (isCategoryHidden(v.category)) cats.add(v.category!.name);
   }
   const causes = [
-    rules.size ? `${rules.size > 1 ? "règles" : "règle"} ${[...rules].join(", ")}` : null,
+    filtered ? (filtered > 1 ? `${filtered} versions écartées par le filtre` : "version écartée par le filtre") : null,
+    unjudged ? (unjudged > 1 ? `${unjudged} versions pas encore jugées par le filtre` : "version pas encore jugée par le filtre") : null,
     manual ? (manual > 1 ? `${manual} versions masquées à la main` : "version masquée à la main") : null,
     cats.size ? `catégorie masquée (${[...cats].join(", ")})` : null,
   ].filter(Boolean);
@@ -435,13 +439,13 @@ function Hero({ c, total, reason }: { c: Content; total: number; reason: string 
  * One page per content: the sheet the app receives, then each provider entry grouped under it as a
  * row, the one asked for (`open`) unfolded. An entry not grouped yet is shown alone.
  */
-export function ContentView({ content, variants, tmdbLang, guide, rule, open }: ContentDetail & { open: number | null }) {
+export function ContentView({ content, variants, tmdbLang, guide, open }: ContentDetail & { open: number | null }) {
   const kind = content?.kind ?? variants[0].item.kind;
   const alone = variants.length < 2;
   return (
     <>
       {content ? (
-        <Hero c={content} total={variants.length} reason={hidingReason(content, variants, rule)} />
+        <Hero c={content} total={variants.length} reason={hidingReason(content, variants)} />
       ) : (
         <div>
           <h1 class="text-2xl font-semibold tracking-tight break-words">{variants[0].item.name}</h1>

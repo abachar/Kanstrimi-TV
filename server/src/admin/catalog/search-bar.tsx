@@ -3,41 +3,43 @@ import { queryFieldsOf, type QueryField } from "@/catalog";
 import { Icon } from "../icons";
 
 /**
- * The filter language at a glance, under a search box or a rule's query: the syntax with examples of
+ * The filter language at a glance, under a search box or a filter's query: the syntax with examples of
  * this kind, then its fields, those of the content then those of a version. Folded: it is there for the
  * day one forgets. The fields come from the registry (`catalog/query/fields.ts`): the searches and the
- * rules show the same ones, a rule without those only searches may use.
+ * filters show the same ones, a filter without those only searches may use.
  */
 const SYNTAX: Record<Kind, [string, string][]> = {
   vod: [
-    ["matrix", "texte libre : le titre contient « matrix »"],
+    ["seigneur des anneaux", "texte libre : le titre contient « seigneur des anneaux »"],
     ["genre:anim", "contient"],
     ['genre:"animation"', "égal"],
     ['genre:anim,"drame"', "l'un de (chacun contient, ou égal entre guillemets)"],
     ["langue:japonais", "codes de langue et de pays : par code ou par nom, toujours égal"],
+    ["saga:aucun", "aucun : le champ n'a pas de valeur"],
     ["année:<1980", "comparaison : < <= > >= ="],
     ["note:6..8", "intervalle"],
     ["xtream.nom:/\\(4K\\)$/", "expression régulière"],
     ["-tmdb:oui", "le « - » nie un terme"],
-    ["genre:anim langue:ja", "l'espace ou && veut dire « et »"],
+    ["genre:anim && langue:ja", "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
     ["genre:horreur || genre:thriller", "|| veut dire « ou », plus faible que « et »"],
-    ["(genre:anim || langue:ja) note:>7", "les parenthèses groupent ; -( … ) nie un groupe"],
-    ['variant.langue:"vf"', "champ de version : recherche, une de ses versions ; règle, juge les versions"],
+    ["(genre:anim || langue:ja) && note:>7", "les parenthèses groupent ; -( … ) nie un groupe"],
+    ['variant.langue:"vf"', "champ de version : recherche, une de ses versions ; filtre, garde les versions"],
   ],
   series: [
-    ["friends", "texte libre : le titre contient « friends »"],
+    ["casa de papel", "texte libre : le titre contient « casa de papel »"],
     ["genre:com", "contient"],
     ['genre:"comédie"', "égal"],
     ['genre:com,"drame"', "l'un de (chacun contient, ou égal entre guillemets)"],
     ["langue:coréen", "codes de langue et de pays : par code ou par nom, toujours égal"],
+    ["note:aucun", "aucun : le champ n'a pas de valeur"],
     ["année:<1990", "comparaison : < <= > >= ="],
     ["note:7..9", "intervalle"],
     ["xtream.nom:/\\(VOST\\)/", "expression régulière"],
     ["-tmdb:oui", "le « - » nie un terme"],
-    ["genre:animation langue:japonais", "l'espace ou && veut dire « et »"],
+    ["genre:animation && langue:japonais", "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
     ["genre:drame || genre:crime", "|| veut dire « ou », plus faible que « et »"],
-    ["(langue:coréen || langue:ja) note:>8", "les parenthèses groupent ; -( … ) nie un groupe"],
-    ['variant.langue:"vf"', "champ de version : recherche, une de ses versions ; règle, juge les versions"],
+    ["(langue:coréen || langue:ja) && note:>8", "les parenthèses groupent ; -( … ) nie un groupe"],
+    ['variant.langue:"vf"', "champ de version : recherche, une de ses versions ; filtre, garde les versions"],
   ],
   live: [
     ["tf1", "texte libre : le titre contient « tf1 »"],
@@ -45,14 +47,15 @@ const SYNTAX: Record<Kind, [string, string][]> = {
     ['thème:"sport"', "égal"],
     ['thème:spo,"infos"', "l'un de (chacun contient, ou égal entre guillemets)"],
     ["pays:maroc", "codes de pays : par code ou par nom, toujours égal"],
+    ["pays:aucun", "aucun : le champ n'a pas de valeur"],
     ["qualité:>=fhd", "comparaison : < <= > >= ="],
     ["qualité:hd..fhd", "intervalle"],
     ["xtream.nom:/\\bHD$/", "expression régulière"],
     ["-adulte:oui", "le « - » nie un terme"],
-    ["thème:sport pays:maroc", "l'espace ou && veut dire « et »"],
+    ["thème:sport && pays:maroc", "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
     ['marché:"fr" || pays:maroc', "|| veut dire « ou », plus faible que « et »"],
-    ['(thème:sport || thème:infos) marché:"fr"', "les parenthèses groupent ; -( … ) nie un groupe"],
-    ["xtream.catégorie:radios", "champ de version : recherche, une de ses versions ; règle, juge les versions"],
+    ['(thème:sport || thème:infos) && marché:"fr"', "les parenthèses groupent ; -( … ) nie un groupe"],
+    ["xtream.catégorie:radios", "champ de version : recherche, une de ses versions ; filtre, garde les versions"],
   ],
 };
 const PLACEHOLDER: Record<Kind, string> = {
@@ -77,9 +80,9 @@ const FieldList = ({ fields }: { fields: QueryField[] }) => (
   </dl>
 );
 
-/** `rule`: the fields only searches may use are left out. */
-export function QueryHelp({ kind, rule = false }: { kind: Kind; rule?: boolean }) {
-  const fields = queryFieldsOf(kind).filter((f) => !rule || !f.searchOnly);
+/** `filter`: the fields only searches may use are left out. */
+export function QueryHelp({ kind, filter = false }: { kind: Kind; filter?: boolean }) {
+  const fields = queryFieldsOf(kind).filter((f) => !filter || !f.searchOnly);
   return (
     <details class="group text-sm">
       <summary class="w-fit cursor-pointer text-muted-foreground hover:text-foreground">
@@ -106,8 +109,8 @@ export function QueryHelp({ kind, rule = false }: { kind: Kind; rule?: boolean }
           <FieldList fields={fields.filter((f) => f.level === "content")} />
           <h3 class="mt-2 font-semibold">Champs d'une version</h3>
           <p class="text-muted-foreground">
-            {rule
-              ? "Une règle qui en cite un se juge version par version, ses champs de fiche lus sur la fiche de la version : elle masque les versions qui correspondent."
+            {filter
+              ? "Un filtre se juge version par version, ses champs de fiche lus sur la fiche de la version : il garde les versions qui correspondent."
               : "La requête se juge version par version : une fiche sort si l'une de ses versions correspond, les termes de version décrivant la même."}
           </p>
           <FieldList fields={fields.filter((f) => f.level === "variant")} />

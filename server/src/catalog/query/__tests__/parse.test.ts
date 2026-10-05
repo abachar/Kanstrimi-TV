@@ -60,7 +60,7 @@ describe("filter language: reading", () => {
     expect(terms("note:6..8")[0].op).toMatchObject({ kind: "range", from: { text: "6" }, to: { text: "8" } });
     expect(terms("nom:/\\|(PT|IT)\\|/")[0].op).toEqual({ kind: "regex", pattern: "\\|(PT|IT)\\|", at: 4 });
     expect(terms("nom:/a\\/b/")[0].op).toMatchObject({ pattern: "a/b" });
-    expect(terms("genre:anim  langue-vo:ja").map((t) => t.field)).toEqual(["genre", "langue-vo"]);
+    expect(terms("genre:anim  &&  langue-vo:ja").map((t) => t.field)).toEqual(["genre", "langue-vo"]);
   });
 
   it("says where a query is wrong", () => {
@@ -79,35 +79,47 @@ describe("filter language: reading", () => {
 });
 
 describe("filter language: && and ||", () => {
-  it("joins terms, && and the space alike, || weaker", () => {
+  it("joins terms by && and ||, || weaker; never by a bare space", () => {
     expect(shape("a")).toBe("a");
-    expect(shape("a b")).toBe("and(a b)");
     expect(shape("a && b")).toBe("and(a b)");
     expect(shape("a&&b")).toBe("and(a b)");
     expect(shape("a || b")).toBe("or(a b)");
     expect(shape("genre:a||genre:b")).toBe("or(genre:a genre:b)");
-    expect(shape("a || b c")).toBe("or(a and(b c))");
-    expect(shape("a b || c && d || e")).toBe("or(and(a b) and(c d) e)");
+    expect(shape("a || b && c")).toBe("or(a and(b c))");
+    expect(shape("a && b || c && d || e")).toBe("or(and(a b) and(c d) e)");
+  });
+
+  it("reads bare words in a row as one free text", () => {
+    expect(shape("casa de  papel")).toBe("casa de papel");
+    expect(shape("-casa de papel")).toBe("-casa de papel");
+    expect(shape("casa de papel && note:>8")).toBe("and(casa de papel note:cmp)");
+    expect(shape("la casa || el chapo")).toBe("or(la casa el chapo)");
+    expect(shape("spider-man far from home")).toBe("spider-man far from home");
+    expect(fails("casa de papel note:>8")).toEqual(["Opérateur attendu entre deux termes : && ou ||", 14]);
+    expect(fails('matrix "reloaded"')[0]).toBe("Opérateur attendu entre deux termes : && ou ||");
+    expect(fails("matrix -reloaded")[0]).toBe("Opérateur attendu entre deux termes : && ou ||");
+    expect(fails("genre:anim langue:ja")).toEqual(["Opérateur attendu entre deux termes : && ou ||", 11]);
   });
 
   it("groups with parentheses, a « - » negating the group", () => {
-    expect(shape("(a || b) c")).toBe("and(or(a b) c)");
+    expect(shape("(a || b) && c")).toBe("and(or(a b) c)");
     expect(shape("( a )")).toBe("a");
-    expect(shape("-(a b)")).toBe("!and(a b)");
+    expect(shape("-(a && b)")).toBe("!and(a b)");
     expect(shape("-(a || b)")).toBe("!or(a b)");
     expect(shape("-(a)")).toBe("!and(a)");
-    expect(shape("-(-(a b))")).toBe("!and(!and(a b))");
+    expect(shape("-(-(a && b))")).toBe("!and(!and(a b))");
+    expect(fails("(a || b) c")[0]).toBe("Opérateur attendu entre deux termes : && ou ||");
   });
 
   it("keeps parentheses, & and | inside quotes and regexes, a lone | or & inside a word", () => {
     expect(shape('xtream.nom:"(4K)" || "a && b"')).toBe("or(xtream.nom:(4K) a && b)");
     expect(terms("xtream.nom:/\\((4K|UHD)\\)$/")[0].op).toMatchObject({ kind: "regex", pattern: "\\((4K|UHD)\\)$" });
-    expect(shape("xtream.nom:|FR| a&b")).toBe("and(xtream.nom:|FR| a&b)");
+    expect(shape("xtream.nom:|FR| && a&b")).toBe("and(xtream.nom:|FR| a&b)");
   });
 
   it("says where an expression is wrong", () => {
-    expect(fails("(a b")).toEqual(["Parenthèse non fermée", 0]);
-    expect(fails("a b)")).toEqual(["Parenthèse fermante sans ouvrante", 3]);
+    expect(fails("(a && b")).toEqual(["Parenthèse non fermée", 0]);
+    expect(fails("a && b)")).toEqual(["Parenthèse fermante sans ouvrante", 6]);
     expect(fails("()")).toEqual(["Parenthèses vides", 0]);
     expect(fails("a ||")).toEqual(["Terme attendu après ||", 4]);
     expect(fails("a && || b")).toEqual(["Terme attendu avant ||", 5]);

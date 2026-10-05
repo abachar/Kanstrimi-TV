@@ -6,7 +6,7 @@ import { getTmdbClient, runTrending } from "@/providers/tmdb";
 import { runEnrich } from "./matching";
 import { runEpgRebuild } from "./epg";
 import { variantCountsByKind } from "./queries";
-import { applyRules } from "./rules/apply";
+import { applyFilters } from "./filters/apply";
 import { runGrouping } from "./grouping/group";
 import { runMerge } from "./merge";
 import { runChannels } from "./channels";
@@ -20,9 +20,10 @@ import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
  *   enrich  — TMDB matching of every pending film and series, hidden ones included, and a share of the
  *             stale cache (matching.ts); live variants matched to iptv-org: logo, theme, country (channels.ts)
  *   group   — variants → contents in the served languages, aggregates over the visible variants (no network)
- *   filters — the rules judge the contents (`hidden_by_rule`), then `visible` and the waitlist (no network)
- * Matching comes first so that a title shown never waits for its TMDB sheet. The rules come last: they
- * read the content as the app shows it. A content the grouping just made is hidden until they judge it.
+ *   filters — the filter of each kind keeps or leaves out each version (`hidden_by_rule`), then the
+ *             aggregates, `visible` and the waitlist (no network)
+ * Matching comes first so that a title shown never waits for its TMDB sheet. The filters come last: they
+ * read the content as the app shows it. A new version is left out until they judge it.
  *
  * Three tasks run them, by cron or from the admin: `pipeline` (the four steps), `epg` (download the
  * XMLTV guide, keep the programmes of the visible channels, epg.ts) and `trending` (TMDB's weekly
@@ -55,7 +56,7 @@ const RUNNERS: Record<Step, (ctx: StepContext) => Promise<unknown>> = {
   },
   enrich: runEnrichment,
   group: runGrouping,
-  filters: () => applyRules(),
+  filters: () => applyFilters(),
   trending: runTrending,
   epg: runEpgRebuild,
 };

@@ -302,6 +302,20 @@
       "when": 1791160275668,
       "tag": "0042_rules-only-hide",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791210525932,
+      "tag": "0043_filters-keep",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791210536408,
+      "tag": "0044_drop-filter-rules",
+      "breakpoints": true
     }
   ]
 }

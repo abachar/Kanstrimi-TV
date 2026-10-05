@@ -96,8 +96,11 @@ export const catalogVariants = pgTable(
     categoryXtreamId: text("category_xtream_id"),
     position: integer("position").default(0).notNull(),
     hiddenManual: boolean("hidden_manual").default(false).notNull(),
-    /** A rule on versions hides it (`curation_filter_rules.target = variant`), written at the start of the grouping. */
-    hiddenByRule: boolean("hidden_by_rule").default(false).notNull(),
+    /**
+     * The filter of its kind (`curation_filters`) leaves it out, written by the `filters` step. Null = not
+     * judged yet, a new version: left out until the filter has seen it.
+     */
+    hiddenByRule: boolean("hidden_by_rule"),
     /** Raw JSON object as returned by upstream get_*_streams / get_series. */
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     // TMDB matching (vod + series only)
@@ -218,13 +221,8 @@ export const catalogContents = pgTable(
     dynamicRange: text("dynamic_range"),
     /** Live: every theme of its variants; a channel sits in each of its groups. */
     themes: text("themes").array().default([]).notNull(),
-    /** Visible for the app: one of its variants is (`visibleItem`) and no rule hides it. */
+    /** Visible for the app: one of its variants is (`visibleItem`). */
     visible: boolean("visible").default(false).notNull(),
-    /**
-     * The rules' verdict, written by the `filters` step: true = hidden. Null = not judged yet, a content
-     * the grouping just made: hidden until the rules have seen it.
-     */
-    hiddenByRule: boolean("hidden_by_rule"),
     /** TMDB's adult flag, or every variant flagged adult. Served to the app only when `serve_adult` is on. */
     adult: boolean("adult").default(false).notNull(),
     /** TMDB's own adult flag, copied with the card: `adult` is computed from it and the variants. */
@@ -304,17 +302,14 @@ export const xtreamInfoCache = pgTable(
   (t) => [uniqueIndex("xtream_info_cache_idx").on(t.kind, t.xtreamId)],
 );
 
-export const curationFilterRules = pgTable("curation_filter_rules", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  /** Each kind has its own fields: a rule is for one kind, fixed at its creation. */
-  kind: kindEnum("kind").notNull(),
-  /** What the rule matches, in the filter language (`catalog/query`): `marché:"fr"`, `-variant.langue:"vf"`… */
+/**
+ * The filter of a kind, at most one: a query of the filter language (`catalog/query`) saying what the app
+ * keeps, judged version by version; what does not match is left out. No row: everything is kept.
+ */
+export const curationFilters = pgTable("curation_filters", {
+  kind: kindEnum("kind").primaryKey(),
   query: text("query").notNull(),
-  /** What it judges, read from its query when saved: `content` (the step `filters`) or `variant` (the step `group`). */
-  target: text("target").$type<"content" | "variant">().default("content").notNull(),
-  enabled: boolean("enabled").default(true).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 /**
@@ -632,7 +627,7 @@ export type Episode = typeof catalogEpisodes.$inferSelect;
 export type Device = typeof appDevices.$inferSelect;
 export type Content = typeof catalogContents.$inferSelect;
 export type Category = typeof catalogCategories.$inferSelect;
-export type FilterRule = typeof curationFilterRules.$inferSelect;
+export type Filter = typeof curationFilters.$inferSelect;
 export type TaskStep = typeof taskSteps.$inferSelect;
 export type TaskRun = typeof taskRuns.$inferSelect;
 export type IptvorgChannel = typeof iptvorgChannels.$inferSelect;

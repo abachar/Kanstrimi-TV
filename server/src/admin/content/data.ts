@@ -6,8 +6,6 @@ import type { TmdbDetails } from "@/providers/tmdb";
 import { getSettings } from "@/config";
 import {
   contentById,
-  hidingRule,
-  variantHidingRule,
   epgSourceById,
   itemById,
   iptvChannelById,
@@ -24,8 +22,6 @@ export type VariantDetail = {
   category: Category | null;
   tmdb: TmdbDetails | null;
   iptv: IptvorgChannel | null;
-  /** The rule on versions that hides it, when one does. */
-  rule: string | null;
 };
 
 /** A programme of a channel's guide. */
@@ -61,8 +57,6 @@ export type ContentDetail = {
   variants: VariantDetail[];
   tmdbLang: string;
   guide: ChannelGuide | null;
-  /** The rule that hides the content, when one does. */
-  rule: string | null;
 };
 
 /** What the base holds per guide id: how many programmes, until when. */
@@ -126,7 +120,6 @@ async function variantDetails(items: Variant[], tmdbLang: string): Promise<Varia
       category: item.categoryXtreamId ? (catOf.get(item.categoryXtreamId) ?? null) : null,
       tmdb: item.tmdbId && item.kind !== "live" ? await getCachedDetails(tmdbMediaType(item.kind), item.tmdbId, tmdbLang) : null,
       iptv: item.kind === "live" ? await iptvChannelById(item.iptvId) : null,
-      rule: item.hiddenByRule ? await variantHidingRule(item) : null,
     })),
   );
 }
@@ -136,12 +129,8 @@ export async function contentDetail(id: number): Promise<ContentDetail | null> {
   if (!content) return null;
   const tmdbLang = (await getSettings()).tmdb_language;
   const items = await variantsOfContent(content.id);
-  const [variants, guide, rule] = await Promise.all([
-    variantDetails(items, tmdbLang),
-    guideOf(content, items),
-    content.hiddenByRule ? hidingRule(content) : null,
-  ]);
-  return { content, variants, tmdbLang, guide, rule };
+  const [variants, guide] = await Promise.all([variantDetails(items, tmdbLang), guideOf(content, items)]);
+  return { content, variants, tmdbLang, guide };
 }
 
 /** An entry the grouping has not placed yet: the page shows it alone. */
@@ -149,5 +138,5 @@ export async function orphanDetail(itemId: number): Promise<ContentDetail | null
   const item = await itemById(itemId);
   if (!item) return null;
   const tmdbLang = (await getSettings()).tmdb_language;
-  return { content: null, variants: await variantDetails([item], tmdbLang), tmdbLang, guide: null, rule: null };
+  return { content: null, variants: await variantDetails([item], tmdbLang), tmdbLang, guide: null };
 }

@@ -30,7 +30,7 @@ export const MATCH_TONES: Record<string, Tone> = { matched: "ok", manual: "ok", 
 export const JOB_LABELS: Record<Step, string> = {
   source: "Source",
   enrich: "Enrichissement",
-  filters: "Masquage",
+  filters: "Filtres",
   group: "Groupement",
   trending: "Tendances TMDB",
   epg: "EPG",
@@ -87,7 +87,7 @@ export const STAT_LABELS: Record<string, string> = {
   multi_variant: "à plusieurs variantes",
   orphans_removed: "contenus retirés",
   waitlist_available: "attendus devenus disponibles",
-  variants_hidden: "versions masquées par les règles",
+  variants_hidden: "versions écartées par les filtres",
   items: "éléments",
   categories: "catégories",
   bytes: "", // bytes are already rendered as "x Mo"

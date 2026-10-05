@@ -1,14 +1,15 @@
 /**
- * The filter language of the admin's searches and of the rules, read into a tree of terms.
+ * The filter language of the admin's searches and of the filters, read into a tree of terms.
  *
- *   matrix                 free text: the title contains « matrix »
+ *   casa de papel          free text: the title contains « casa de papel », words in a row are one text
  *   genre:anim             contains          genre:"animation"   equals
  *   langue:hi,ta           one of them (each contains; quoted, each equals)
+ *   pays:aucun             no value (`"aucun"` quoted is the word)
  *   année:<1980  >=  =  .. (année:1980..1990)   numbers
  *   xtream.nom:/\|IT\|/    regex
  *   -tmdb:oui              any term negated
- *   a b, a && b            and           a || b     or, weaker than and
- *   (a || b) c             a group       -(a b)     a group negated
+ *   a && b                 and           a || b     or, weaker than and; never a bare space
+ *   (a || b) && c          a group       -(a && b)  a group negated
  *
  * Case and accents never matter; this module only reads the text, `fields.ts` says what each field
  * accepts and `sql.ts` writes the condition.
@@ -150,7 +151,24 @@ export function parseQuery(text: string): QueryNode | null {
     }
     if (peek('"')) throw new QueryError("Un guillemet ne s'ouvre qu'en début de valeur", i);
     if (!name) throw new QueryError("Terme attendu", fieldAt);
-    return { neg, field: null, fieldAt, op: { kind: "match", values: [{ text: name, exact: false, at: fieldAt }] }, at: start };
+    return { neg, field: null, fieldAt, op: { kind: "match", values: [{ text: phrase(name), exact: false, at: fieldAt }] }, at: start };
+  }
+
+  /** Free text goes on over the bare words that follow, spaces between: `casa de papel` is one text. */
+  function phrase(first: string): string {
+    const words = [first];
+    for (;;) {
+      let j = i;
+      while (j < text.length && SPACE.test(text[j])) j++;
+      if (j === i || j >= text.length || /["()-]/.test(text[j]) || text.startsWith("&&", j) || text.startsWith("||", j)) break;
+      let k = j;
+      while (k < text.length && !NAME_BREAK.test(text[k]) && !text.startsWith("&&", k) && !text.startsWith("||", k)) k++;
+      // A field, or a word glued to a quote: the next term, or its error.
+      if (k === j || text[k] === ":" || text[k] === '"') break;
+      words.push(text.slice(j, k));
+      i = k;
+    }
+    return words.join(" ");
   }
 
   /** A term or a group, then a space, a parenthesis, an operator or the end. */
@@ -185,17 +203,17 @@ export function parseQuery(text: string): QueryNode | null {
     if (peek(")")) throw new QueryError(after ? `Terme attendu après ${after}` : "Parenthèse fermante sans ouvrante", i);
   }
 
-  /** Operands joined by `&&` or a space. */
+  /** Operands joined by `&&`: two terms side by side are an error, the operator is always written. */
   function and(): QueryNode {
     expectOperand();
     const start = i;
     const nodes = [operand()];
     for (;;) {
       skipSpaces();
-      if (peek("&&")) {
-        i += 2;
-        expectOperand("&&");
-      } else if (i >= text.length || peek(")") || peek("||")) break;
+      if (i >= text.length || peek(")") || peek("||")) break;
+      if (!peek("&&")) throw new QueryError("Opérateur attendu entre deux termes : && ou ||", i);
+      i += 2;
+      expectOperand("&&");
       nodes.push(operand());
     }
     return nodes.length === 1 ? nodes[0] : { kind: "and", neg: false, nodes, at: start };

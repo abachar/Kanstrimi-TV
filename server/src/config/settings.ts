@@ -16,7 +16,7 @@ export const SETTING_KEYS = [
   "serve_adult", // "1" = adult-flagged contents are served to the apps; off by default
   "last_sync_at",
   "last_epg_at",
-  "rules_pending", // not empty: a rule changed since the last `filters` step, the catalogue does not follow it yet
+  "filters_pending", // not empty: a filter changed since the last `filters` step, the catalogue does not follow it yet
   "session_generation", // bumped by « Déconnecter toutes les sessions »: every admin cookie issued before is refused
 ] as const;
 export type SettingKey = (typeof SETTING_KEYS)[number];

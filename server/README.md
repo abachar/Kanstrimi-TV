@@ -45,15 +45,15 @@ Trois tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres : 
 | `source` | copie brute des listes Xtream, refusée si vide ou si le catalogue fond de moitié (panne du fournisseur) ; puis copie brute → variantes du catalogue, par différence, et analyse des noms (titre, année, marché, langue, qualité, édition) |
 | `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`), qui relit peu à peu les fiches anciennes ; puis rattachement des chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région. L'un en panne n'empêche pas l'autre |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
-| `filters` | toutes les règles (`catalog/rules/`) : celles de versions masquent des versions et les contenus touchés recomptent leurs agrégats, puis celles de contenus jugent les contenus ; enfin `visible` (une version servie et aucune règle) et les arrivées de la liste d'attente. Un contenu sans version servie est masqué ; un contenu que le groupement vient de créer reste masqué jusqu'à ce jugement |
+| `filters` | le filtre de chaque type (`catalog/filters/`) garde ou écarte chaque version, puis les contenus touchés recomptent leurs agrégats, `visible` (une version servie) et les arrivées de la liste d'attente. Un contenu sans version servie est masqué ; une version que le filtre n'a pas encore vue est écartée |
 
 | Tâche à part | Rôle |
 |---|---|
 | `epg` | guide des programmes des chaînes visibles, deux fois par jour (le fournisseur ne couvre qu'un jour et demi), l'EPG de chaque variante, complété par les sources de secours ; décalages horaires corrigés dans l'admin |
 | `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf), une fois par jour ; sans clé TMDB, le cron passe son tour |
 
-TMDB passe en premier : tout est matché une fois, et un titre affiché n'attend jamais sa fiche. Les règles passent en
-dernier : elles lisent le contenu tel que l'app le montre.
+TMDB passe en premier : tout est matché une fois, et un titre affiché n'attend jamais sa fiche. Les filtres passent en
+dernier : ils lisent le contenu tel que l'app le montre.
 Le matching est un seul algorithme, `explainMatch` : `enrich` applique son verdict, l'admin l'affiche sous « Pourquoi ? ».
 Une panne de TMDB (réseau, 429 qui dure) laisse l'élément en attente, jamais `unmatched` ; le client TMDB ne dépasse
 pas 35 requêtes par seconde.
@@ -88,7 +88,7 @@ main.ts     démarrage : écoute, planification, arrêt propre
 app.ts      l'application HTTP : montages, /health, erreurs
 admin/      pages de l'admin ; aucune écriture en base (vérifié), elle appelle le domaine
 player/     /player, un fichier par ressource ; types.ts = le contrat
-catalog/    le domaine : grammaire des noms, clés, règles, groupement, épisodes, pipeline
+catalog/    le domaine : grammaire des noms, clés, filtres, groupement, épisodes, pipeline
 devices/    appairage, jetons
 providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), iptv/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`), vérifié par `architecture.test.ts`
 config/     réglages (base et environnement), mot de passe
@@ -111,19 +111,19 @@ par son index.
   script ni gestionnaire en ligne (`onsubmit`, `hx-on`), une confirmation passe par `hx-confirm` (`back()` répond alors
   `HX-Redirect`). Toute écriture (POST, PUT, PATCH, DELETE) doit venir du site, quel que soit son `Content-Type`.
 - **Langage de filtre** (`catalog/query/`, aide dans l'admin) : `genre:anim` contient, `genre:"animation"` égal,
-  `a,b` l'un de, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; l'espace ou `&&` « et », `||` « ou » (plus
-  faible), `( … )` groupe, `-( … )` nie un groupe ; casse et accents ignorés. Chaque type
+  `a,b` l'un de, `pays:aucun` sans valeur, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; `&&` « et », `||` « ou » (plus faible),
+  toujours écrits (un espace seul entre deux termes est une erreur ; des mots libres qui se suivent forment un seul
+  texte : `casa de papel`), `( … )` groupe, `-( … )` nie un groupe ; casse et accents ignorés. Chaque type
   (Direct, Films, Séries) a ses champs, dans un seul registre (`catalog/query/fields.ts`) qui sert aux recherches, aux
-  règles et à l'aide : sans préfixe, la fiche (ses colonnes, sa fiche TMDB en cache) ; `variant.` et `xtream.`, une
+  filtres et à l'aide : sans préfixe, la fiche (ses colonnes, sa fiche TMDB en cache) ; `variant.` et `xtream.`, une
   version (ce qu'on en lit, ce qu'en dit le fournisseur). Avec un champ de version, l'expression se juge version par
   version, ses champs de fiche lus sur la fiche de la version : une recherche trouve les fiches dont une version passe. Vérifiée champ par champ avant tout SQL, ses valeurs toujours en paramètres.
-- **Règles** : une requête chacune, pour un type choisi à la création ; une règle ne fait que masquer, une seule qui
-  correspond suffit, sans ordre (une exception s'écrit dans la requête : `-xtream.catégorie:manga`). Sans champ de
-  version, elle masque le contenu (`catalog_contents.hidden_by_rule`, null = pas encore jugé) ; avec un champ de version,
-  elle masque les versions qui correspondent (`catalog_variants.hidden_by_rule`, par exemple
-  `-variant.langue:"vf","vo","ar"`, `marché:"ar" xtream.nom:2m` ou `genre:horreur || variant.langue:"vo"`).
-  Toutes s'appliquent à l'étape `filters`. Enregistrer une règle ne l'applique pas (trop lent) : `rules_pending` affiche
-  un bandeau. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
+- **Filtres** (`curation_filters`) : un au plus par type, une requête qui dit ce que l'app garde, comme une recherche dit
+  ce qu'elle affiche ; sans filtre, tout est gardé. Il se juge version par version, ses champs de fiche lus sur la fiche de
+  la version (`catalog_variants.hidden_by_rule` : true écartée, null pas encore jugée) ; une fiche sans version gardée
+  disparaît. Par exemple `marché:"fr" || (marché:"ar" && (pays:maroc || (thème:"sport" && pays:aucun)))` pour le
+  direct, `variant.langue:"vf","vo","ar" && xtream.marché:"fr","ar","en"` pour les films. Ils s'appliquent à l'étape `filters` ;
+  enregistrer un filtre ne l'applique pas (trop lent) : `filters_pending` affiche un bandeau. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
 - **Écrans Live, Films, Séries de l'admin** : ce que l'app affiche, par les fonctions mêmes de `/player` : ses rangées
   repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; la recherche porte sur les
   contenus. Tout mène à la fiche d'un contenu (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream,
@@ -132,8 +132,8 @@ par son index.
   le restent. La fiche d'une chaîne montre aussi son rapprochement EPG (les
   identifiants que chaque variante essaie, dans l'ordre de l'app, et la source de secours) et tous ses programmes en base.
   Un fil d'Ariane dans l'en-tête place chaque page sous son entrée du menu (`page(…, { under })` pour une page de détail).
-- **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Une variante est visible si ni une règle de versions, ni
-  la main, ni sa catégorie ne la masquent ; un contenu est visible si une de ses variantes l'est et qu'aucune règle ne le masque. Tout ce que voit l'app (tris, dates, compteurs, rangées)
+- **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Une variante est visible si son filtre la garde et que ni
+  la main, ni sa catégorie ne la masquent ; un contenu est visible si une de ses variantes l'est. Tout ce que voit l'app (tris, dates, compteurs, rangées)
   se calcule sur les seules variantes visibles. Côté app, `player/contents.ts` y ajoute le réglage adulte : `visibleContent`
   pour les contenus, `servedVariant` pour les variantes (un contenu mixte reste servi, sans ses variantes adultes).
   Les genres de Films et Séries restent en mémoire jusqu'à ce que le groupement réécrive les contenus
@@ -144,7 +144,7 @@ par son index.
 - **Mises à jour massives** par `unnest()` avec le client postgres-js, pas le `sql` de Drizzle qui éclate les tableaux, ou
   par `jsonb_to_recordset` d'un seul paramètre (les cartes, colonnes décrites une fois dans `group.ts`). Une carte
   n'est réécrite que si elle change.
-  Le merge, les règles et le groupement passent l'un après l'autre (`withCatalogLock`).
+  Le merge, les filtres et le groupement passent l'un après l'autre (`withCatalogLock`).
 - **Secrets** : le compte du fournisseur et la clé TMDB viennent de l'environnement (secrets podman en production), jamais
   de la base ; l'admin les montre sans les modifier, un changement demande un redémarrage. Un seul mot de passe (bcrypt),
   celui de l'admin : `/admin/login` passe toujours par bcrypt et, par adresse, après cinq échecs, double l'attente à chaque nouvel échec (429).

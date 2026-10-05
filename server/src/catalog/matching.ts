@@ -19,7 +19,7 @@ import {
   type TmdbDetails,
 } from "@/providers/tmdb";
 import { regroupItems } from "./grouping/group";
-import { applyRules } from "./rules/apply";
+import { applyFilters } from "./filters/apply";
 
 /**
  * The TMDB matching of the variants: the `enrich` step, the admin's « Pourquoi ? » and its manual
@@ -392,7 +392,7 @@ export async function assignManual(itemId: number, tmdbId: number | null) {
     await getDetails(client, tmdbMediaType(it.kind), tmdbId, true);
   }
   await setMatch(itemId, tmdbId, null, tmdbId ? "manual" : "unmatched");
-  await applyRules({ contentIds: await regroupItems([itemId]) });
+  await applyFilters({ contentIds: await regroupItems([itemId]) });
 }
 
 /** Only the failures go back to pending: what a better rule or a fresh TMDB may now find. */

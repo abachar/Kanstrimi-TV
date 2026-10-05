@@ -3,7 +3,7 @@ import { db, schema } from "@/db";
 import type { Content, Variant } from "@/db";
 import { contentById } from "../queries";
 import { regroupItems } from "./group";
-import { applyRules } from "../rules/apply";
+import { applyFilters } from "../filters/apply";
 
 /**
  * The two manual actions on a variant, both stored in `catalog_variants.key_override` and applied by a
@@ -12,8 +12,8 @@ import { applyRules } from "../rules/apply";
  */
 async function overrideKey(item: Variant, keyOverride: string | null): Promise<Content | null> {
   await db.update(schema.catalogVariants).set({ keyOverride }).where(eq(schema.catalogVariants.id, item.id));
-  // A content the regroup made is judged by the rules at once, not at the next `filters` step.
-  await applyRules({ contentIds: await regroupItems([item.id]) });
+  // A content the regroup made is judged by the filters at once, not at the next `filters` step.
+  await applyFilters({ contentIds: await regroupItems([item.id]) });
   // The content the variant *left*: that is the row the admin is looking at. It may have vanished.
   return item.contentId ? contentById(item.contentId) : null;
 }

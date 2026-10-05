@@ -77,10 +77,8 @@ export {
   type StudioSuggestion,
   studioSuggestions,
 } from "./studios";
-export { checkRuleQuery, deleteRule, listRules, previewRule, ruleById, type RulePreview, saveRule, setRuleEnabled } from "./rules/manage";
-export { applyRules, hidingRule } from "./rules/apply";
-export { rulesPending } from "./rules/compiled";
-export { variantHidingRule } from "./rules/variants";
+export { filtersPending, listFilters, previewFilter, saveFilter, type FilterPreview } from "./filters/filters";
+export { applyFilters } from "./filters/apply";
 export {
   addToWaitlist,
   availableWaitlistKeys,

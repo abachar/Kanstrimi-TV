@@ -3,18 +3,7 @@ import { db, type Kind } from "@/db";
 import { QUALITY_RANK } from "../naming";
 import { parseQuery, QueryError, termsOf, type QueryNode, type QueryOp, type QueryTerm, type QueryValue } from "./parse";
 import { closestName, resolveCode } from "./codes";
-import {
-  closestField,
-  distance,
-  fieldByName,
-  fieldKey,
-  otherKindsOf,
-  TITLE,
-  type Field,
-  type FieldContext,
-  type Level,
-  type Pred,
-} from "./fields";
+import { closestField, distance, fieldByName, fieldKey, otherKindsOf, TITLE, type Field, type FieldContext, type Pred } from "./fields";
 
 /**
  * A query checked against the fields of its kind, then written as conditions. Nothing reaches the
@@ -25,16 +14,12 @@ import {
 export type CompileOptions = FieldContext & {
   /** The kind searched or judged: each kind has its own fields. */
   kind: Kind;
-  /** A rule: the fields only searches may use are refused, and version fields make it judge versions. */
-  rule?: boolean;
+  /**
+   * A filter: it judges versions, the condition is about `catalog_variants` (never aliased); the fields
+   * only searches may use are refused. Otherwise a search: about `catalog_contents` (never aliased).
+   */
+  filter?: boolean;
 };
-
-/**
- * A compiled query. `target` content: `where` is about `catalog_contents` (never aliased), versions
- * fields read as « one of its versions ». `target` variant (a rule naming version fields): `where` is
- * about `catalog_variants` (never aliased).
- */
-export type CompiledQuery = { where: SQL; target: Level };
 
 /** Case and accents never matter: both sides go through `unaccent(lower(…))`. */
 const norm = (e: SQL | Column) => sql`unaccent(lower(${e}))`;
@@ -153,15 +138,33 @@ function fieldOf(t: QueryTerm, o: CompileOptions): Field {
   );
 }
 
+/** `aucun`, bare: the field has no value (`pays:aucun`). Quoted, it is the word. */
+const isNone = (val: QueryValue) => !val.exact && fieldKey(val.text) === "aucun";
+
+/** Whether the field has a value: a text not empty, a number, a known quality. */
+function hasValue(f: Field, o: CompileOptions): SQL {
+  if (f.type === "number") return sql`${f.value!(o)} is not null`;
+  if (f.type === "quality") return sql`coalesce(${f.value!(o)}, 0) > 0`;
+  return f.text!(o, (e) => sql`coalesce(${e}, '') <> ''`);
+}
+
+function opSql(op: QueryOp, f: Field, o: CompileOptions, at: number): SQL {
+  if (f.type === "enum") return choice(op, f, f.choices!(o), at);
+  if (op.kind === "match" && op.values.some(isNone)) {
+    const none = sql`not coalesce(${hasValue(f, o)}, false)`;
+    const values = op.values.filter((val) => !isNone(val));
+    return values.length ? sql`(${none} or ${opSql({ kind: "match", values }, f, o, at)})` : none;
+  }
+  if (f.type === "number" || f.type === "quality") return numeric(op, f, f.value!(o));
+  if (f.type === "code") return f.text!(o, codesPred(op, f, at));
+  if (op.kind === "match") return f.text!(o, textPred(op.values));
+  if (op.kind === "regex") return f.text!(o, regexPred(op.pattern, op.at));
+  throw new QueryError(`${f.names[0]} n'est pas un nombre : <, >, = et .. sont réservés aux nombres`, at);
+}
+
 function termSql(t: QueryTerm, f: Field, o: CompileOptions): SQL {
-  if (o.rule && f.searchOnly) throw new QueryError(`${f.names[0]} ne sert qu'aux recherches, pas aux règles`, t.fieldAt);
-  let cond: SQL;
-  if (f.type === "enum") cond = choice(t.op, f, f.choices!(o), t.fieldAt);
-  else if (f.type === "number" || f.type === "quality") cond = numeric(t.op, f, f.value!(o));
-  else if (f.type === "code") cond = f.text!(o, codesPred(t.op, f, t.fieldAt));
-  else if (t.op.kind === "match") cond = f.text!(o, textPred(t.op.values));
-  else if (t.op.kind === "regex") cond = f.text!(o, regexPred(t.op.pattern, t.op.at));
-  else throw new QueryError(`${f.names[0]} n'est pas un nombre : <, >, = et .. sont réservés aux nombres`, t.fieldAt);
+  if (o.filter && f.searchOnly) throw new QueryError(`${f.names[0]} ne sert qu'aux recherches, pas aux filtres`, t.fieldAt);
+  const cond = opSql(t.op, f, o, t.fieldAt);
   // A missing value is no match, and its negation a match: `-genre:horreur` keeps the films without genre.
   return t.neg ? sql`not coalesce(${cond}, false)` : sql`coalesce(${cond}, false)`;
 }
@@ -186,14 +189,14 @@ export async function checkRegexes(text: string): Promise<void> {
 }
 
 /**
- * What a query stands for; null for an empty one. Throws `QueryError`. With a version field, the
- * expression is judged version by version, its content fields read on the version's content:
- * - a search finds the contents one of whose versions passes, so `variant.langue:"vf" variant.qualité:4k`
- *   is a film with a version in VF and 4K;
- * - a rule judges versions: `marché:"ar" xtream.nom:2m` is the « 2m » versions of the Arab channels,
- *   `genre:horreur || variant.langue:"vo"` every version of a horror film and the VO ones of the others.
+ * What a query stands for; null for an empty one. Throws `QueryError`. The expression is judged version
+ * by version, its content fields read on the version's content:
+ * - a filter keeps the versions that pass: `marché:"fr" || variant.langue:"vf"` keeps every version of the
+ *   French channels and the VF ones of the others;
+ * - a search finds the contents one of whose versions passes, so `variant.langue:"vf" && variant.qualité:4k`
+ *   is a film with a version in VF and 4K. Without a version field, the content alone answers.
  */
-export function compileQuery(text: string, o: CompileOptions): CompiledQuery | null {
+export function compileQuery(text: string, o: CompileOptions): SQL | null {
   const root = parseQuery(text);
   if (!root) return null;
   // Every field first: an unknown one is the error a query gets, before its values are read.
@@ -217,12 +220,12 @@ export function compileQuery(text: string, o: CompileOptions): CompiledQuery | n
     return n.neg ? sql`not ${cond}` : cond;
   };
 
-  if (!ofVersion(root)) return { where: plain(root), target: "content" };
-  if (o.rule) return { where: onVersion(root), target: "variant" };
+  if (o.filter) return onVersion(root);
+  if (!ofVersion(root)) return plain(root);
   // A search: what the query says of the content alone stays out of the version test.
   const parts = root.kind === "and" && !root.neg ? root.nodes : [root];
   const where = parts.filter((x) => !ofVersion(x)).map(plain);
   const version = parts.filter(ofVersion).map(plain);
   where.push(sql`exists (select 1 from catalog_variants where catalog_variants.content_id = catalog_contents.id and ${and(version)})`);
-  return { where: and(where), target: "content" };
+  return and(where);
 }

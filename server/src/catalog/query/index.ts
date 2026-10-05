@@ -1,3 +1,3 @@
 export { parseQuery, QueryError, type QueryTerm } from "./parse";
-export { compileQuery, checkRegexes, type CompileOptions, type CompiledQuery } from "./sql";
-export { FIELDS, fieldsOf, type Field, type Level } from "./fields";
+export { compileQuery, checkRegexes, type CompileOptions } from "./sql";
+export { FIELDS, fieldsOf, type Field } from "./fields";

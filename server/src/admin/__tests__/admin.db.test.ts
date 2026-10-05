@@ -93,9 +93,9 @@ describe("admin", () => {
     expect(wrongEmail.headers.get("location")).toContain("e=bad");
     const noEmail = await post("/admin/login", { password: "test" });
     expect(noEmail.headers.get("location")).toContain("e=bad");
-    const ok = await post("/admin/login?next=/admin/rules", { email: " Admin@Kanstrimi.test ", password: "test" });
+    const ok = await post("/admin/login?next=/admin/filters", { email: " Admin@Kanstrimi.test ", password: "test" });
     expect(ok.status).toBe(303);
-    expect(ok.headers.get("location")).toBe("/admin/rules");
+    expect(ok.headers.get("location")).toBe("/admin/filters");
     cookie = ok.headers.get("set-cookie")!.split(";")[0];
     expect(cookie).toMatch(/^kanstrimi_admin=/);
   });
@@ -117,7 +117,7 @@ describe("admin", () => {
     expect((await call("/admin/catalog/items?kind=vod&cat=10")).status).toBe(404);
     // The search reads the contents; a wrong query says why instead of failing.
     expect(await html("/admin/catalog?kind=vod&q=visible%3Anon")).toContain("Aucun contenu"); // nothing hidden
-    expect(await html("/admin/catalog?kind=vod&q=matrix%20xtream.nom%3Avost")).toContain(
+    expect(await html("/admin/catalog?kind=vod&q=matrix%20%26%26%20xtream.nom%3Avost")).toContain(
       `/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`,
     ); // one of its versions' names
     expect(await html("/admin/catalog?kind=vod&q=xtream.cat%C3%A9gorie%3Afilms")).toContain("1 contenu pour"); // one of its versions' category
@@ -141,7 +141,7 @@ describe("admin", () => {
     expect((await call(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`)).headers.get("location")).toBe(toContent.split("?")[0]);
     expect((await call("/admin/content/k/nope")).status).toBe(404);
     expect((await call("/admin/content/999999")).status).toBe(404);
-    expect(await html("/admin/rules")).toContain("Nouvelle règle");
+    expect(await html("/admin/filters")).toContain("tout est gardé");
     expect(await html("/admin/devices")).toContain("Aucun appareil");
     const logs = await html("/admin/tasks");
     expect(logs).toContain("Groupement"); // the lone step run of beforeAll
@@ -288,37 +288,21 @@ describe("admin", () => {
     expect((await post("/admin/catalog/category/1/visible", {})).status).toBe(404); // no screen hides a category any more
   });
 
-  it("rules: preview, save without applying, the banner to apply them, delete", async () => {
-    const preview = await post("/admin/rules/preview", { query: "matrix", kind: "vod" });
-    expect(await preview.text()).toContain("1 fiche(s) concernée(s)");
-    const versions = await post("/admin/rules/preview", { query: "xtream.nom:vost", kind: "vod" });
-    expect(await versions.text()).toContain("1 version(s) concernée(s)");
-    expect(await (await post("/admin/rules/preview", { query: "genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
-    const created = await post("/admin/rules", {
-      name: "Matrix",
-      kind: "vod",
-      query: "matrix",
-      enabled: "true",
-    });
-    expect(flash(created)).toContain("à appliquer");
-    const page = await html("/admin/rules");
-    expect(page).toContain("Règles modifiées depuis le dernier passage");
+  it("filters: preview, save without applying, the banner to apply them, a refused query typed again, clear", async () => {
+    const preview = await (await post("/admin/filters/preview", { query: "matrix", kind: "vod" })).text();
+    expect(preview).toMatch(/Garde <span[^>]*>1<\/span> fiche sur 1 \(2 versions sur 2\)/);
+    expect(await (await post("/admin/filters/preview", { query: "genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
+    expect(flash(await post("/admin/filters", { kind: "live", query: 'marché:"fr"' }))).toContain("à appliquer");
+    const page = await html("/admin/filters");
+    expect(page).toContain("Filtres modifiés depuis le dernier passage");
     expect(page).toContain('name="from" value="filters"');
-    // The list holds no form: a rule is created and edited on a page of its own, under « Règles ».
-    expect(page).not.toContain('name="query"');
-    expect(page).toContain('href="/admin/rules/new"');
-    expect(await html("/admin/rules/new")).not.toContain('name="query"'); // the kind first
-    const blank = await html("/admin/rules/new?kind=vod");
-    expect(blank).toContain('name="query"');
-    expect(blank).toMatch(/aria-label="Fil d'Ariane".*<a href="\/admin\/rules"[^>]*>Règles<\/a>/s);
-    const invalid = await post("/admin/rules", { name: "Cassée", kind: "vod", query: "titre:/(/" });
-    expect(flash(invalid)).toContain("Requête invalide");
-    expect(invalid.headers.get("location")).toMatch(/^\/admin\/rules\/new\?kind=vod&/);
-    const id = /hx-post="\/admin\/rules\/(\d+)\/delete"/.exec(page)![1];
-    expect(await html(`/admin/rules/${id}`)).toContain('value="matrix"');
-    expect((await call("/admin/rules/999999")).status).toBe(404);
-    expect((await post(`/admin/rules/${id}/delete`, {})).status).toBe(303);
-    expect(await html("/admin/rules")).toContain("Aucune règle");
+    expect(page).toContain("marché:&quot;fr&quot;</textarea>");
+    expect(page).toContain("tout est gardé"); // the films and series have none
+    const invalid = await (await post("/admin/filters", { kind: "vod", query: "titre:/(/" })).text();
+    expect(invalid).toContain("Requête invalide");
+    expect(invalid).toContain("titre:/(/</textarea>");
+    expect(flash(await post("/admin/filters", { kind: "live", query: "" }))).toContain("Filtre enregistré");
+    expect(await db.select().from(schema.curationFilters)).toEqual([]);
   });
 
   it("content page: split a variant and put it back, the page following the variant", async () => {
@@ -524,33 +508,25 @@ describe("admin", () => {
     }
   });
 
-  it("a rule on versions, from its kind's page: applied from « Masquage », its name on the version and the content", async () => {
-    expect(await html("/admin/rules")).not.toContain("Langues servies");
-    expect(await html("/admin/rules/new")).toContain('href="/admin/rules/new?kind=vod"'); // the kind first
-    const form = await html("/admin/rules/new?kind=vod");
-    expect(form).toContain('name="kind" value="vod"');
-    expect(form).toContain("Champs d&#39;une version");
-    expect(form).not.toContain('<code class="font-mono text-xs">visible</code>'); // searches only
-    const save = (query: string, id?: string) =>
-      post("/admin/rules", { ...(id ? { id } : {}), name: "Langues", kind: "vod", query, enabled: "true" });
+  it("a filter on versions, applied from « Filtres »: the version and the content say so", async () => {
+    const page = await html("/admin/filters");
+    expect(page).toContain("Champs d&#39;une version");
+    expect(page).not.toContain('<code class="font-mono text-xs">visible</code>'); // searches only
+    const save = (query: string) => post("/admin/filters", { kind: "vod", query });
     try {
-      expect(flash(await save('-variant.langue:"vf"'))).toContain("Règle enregistrée");
-      const list = await html("/admin/rules");
-      expect(list).toContain('title="Films"'); // its kind, an icon before its name
-      expect(list).toContain('<input type="hidden" name="from" value="filters"/>');
+      expect(flash(await save('variant.langue:"vf"'))).toContain("Filtre enregistré");
       expect(await runAll("manual", "filters")).toBe(true);
-      expect(await html("/admin/rules")).not.toContain("modifiées depuis le dernier passage");
-      // Matrix keeps its VF version, its VOST one names the rule.
+      expect(await html("/admin/filters")).not.toContain("modifiés depuis le dernier passage");
+      // Matrix keeps its VF version, its VOST one is left out.
       const matrix = (await itemById(matrixId))!.contentId!;
-      const page = await html(`/admin/content/${matrix}`);
-      expect(page).toContain("Visible dans l&#39;app");
-      expect(page).toContain("par la règle « Langues »");
-      const [r] = await db.select().from(schema.curationFilterRules);
-      expect(flash(await save('-variant.langue:"it"', String(r.id)))).toContain("Règle enregistrée");
+      const sheet = await html(`/admin/content/${matrix}`);
+      expect(sheet).toContain("Visible dans l&#39;app");
+      expect(sheet).toContain("écartée par le filtre");
+      expect(flash(await save('variant.langue:"it"'))).toContain("Filtre enregistré");
       expect(await runAll("manual", "filters")).toBe(true);
-      expect(await html(`/admin/content/${matrix}`)).toContain("Aucune version servie : règle « Langues »");
+      expect(await html(`/admin/content/${matrix}`)).toContain("Aucune version servie : 2 versions écartées par le filtre");
     } finally {
-      await db.delete(schema.curationFilterRules);
+      await db.delete(schema.curationFilters);
       await runAll("manual", "group");
     }
   });
