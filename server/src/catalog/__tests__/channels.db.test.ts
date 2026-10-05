@@ -4,10 +4,10 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { env } from "@/shared";
-import { resetDb, closeDb, seedItems } from "@/test/db";
+import { resetDb, closeDb, seedItems, groupAndFilter } from "@/test/db";
 import { pickLogo, syncIptv } from "@/providers/iptv";
 import { channelKey, countriesOf, iptvTheme, mergedTheme, nameKeys, regionCountry, runChannels, setIptvMatch } from "../channels";
-import { runNaming, runGrouping } from "../grouping/group";
+import { runNaming } from "../grouping/group";
 
 const CHANNELS = [
   { id: "TF1.fr", name: "TF1", alt_names: [], country: "FR", categories: ["general"], is_nsfw: false },
@@ -121,7 +121,7 @@ describe("runChannels", () => {
   });
 
   it("gives the content iptv-org's logo through this server, the provider's otherwise", async () => {
-    await runGrouping();
+    await groupAndFilter();
     const [tf1] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.iptvId, "TF1.fr"));
     expect(tf1.logoUrl).toMatch(/^\/img\/logos\/TF1\.fr-[0-9a-f]{10}\.png$/);
     // A contradicted EPG id gives way to the iptv-org id for the guide.
@@ -136,7 +136,7 @@ describe("runChannels", () => {
       title: "x",
       importedAt: new Date(),
     });
-    await runGrouping();
+    await groupAndFilter();
     const [again] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.id, ertu.id));
     expect(again.epgChannelId).toBe("DubaiAlOula.ae");
   });

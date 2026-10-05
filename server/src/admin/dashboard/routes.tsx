@@ -4,7 +4,7 @@ import { appCounts, counts } from "./data";
 import { cacheStats } from "@/providers/tmdb";
 import { epgStat } from "@/catalog";
 import { groupingCounts } from "@/catalog";
-import { launch, pipelineSteps, runningSteps, getLastError, lastRunsByTask, TASKS, type Task } from "@/catalog";
+import { launch, PIPELINE_STEPS, runningSteps, getLastError, lastRunsByTask, TASKS, type Task } from "@/catalog";
 import { page, back } from "../http";
 import { JOB_STARTED, jobLabel } from "../labels";
 import { DashboardView } from "./view";
@@ -43,7 +43,7 @@ jobRoutes.post("/:task", async (c) => {
   const body = await c.req.parseBody();
   const from = String(body.from ?? "");
   const acceptShrink = task === "pipeline" && body.accept_shrink === "1";
-  const step = task === "pipeline" ? (await pipelineSteps()).find((s) => s === from) : undefined;
+  const step = task === "pipeline" ? PIPELINE_STEPS.find((s) => s === from) : undefined;
   const ok = step ? `Traitement lancé à partir de « ${jobLabel(step)} »` : JOB_STARTED[task];
   return back(c, "/admin/tasks", launch(task, step, { acceptShrink }) ? { ok } : { err: "Déjà en cours" });
 });

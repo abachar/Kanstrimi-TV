@@ -3,7 +3,7 @@ import { fmt } from "../format";
 import { Badge, Empty, Table } from "../ui";
 import { Icon } from "../icons";
 import { contentKeyLink } from "../content/links";
-import { SUMMARY } from "./row";
+import { SUMMARY } from "./list-parts";
 
 /**
  * « Catalogue » view of the live kind: the channel groups (country · theme) exactly as

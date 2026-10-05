@@ -2,6 +2,7 @@ import { db, schema, client } from "@/db";
 import { invalidateSettings } from "@/config";
 import { sql } from "drizzle-orm";
 import type { XStream } from "@/providers/xtream";
+import { applyRules, runGrouping } from "@/catalog";
 
 /** Empty every catalogue table between test files. */
 export async function resetDb() {
@@ -23,7 +24,6 @@ export type ItemSeed = {
   tmdbId?: number;
   matchStatus?: "pending" | "matched" | "unmatched" | "manual" | "skipped";
   hiddenManual?: boolean;
-  hiddenByRule?: boolean;
   raw?: Partial<XStream>;
   addedAt?: Date;
   keyOverride?: string;
@@ -58,7 +58,6 @@ export async function seedItems(rows: ItemSeed[]) {
         tmdbId: r.tmdbId ?? null,
         matchStatus: r.matchStatus ?? (r.kind === "live" ? "skipped" : "pending"),
         hiddenManual: r.hiddenManual ?? false,
-        hiddenByRule: r.hiddenByRule ?? false,
         keyOverride: r.keyOverride ?? null,
         section: r.section ?? null,
         raw: {
@@ -94,4 +93,14 @@ export async function seedProgrammes(rows: { channelId: string; start: number; e
       importedAt: new Date(now),
     })),
   );
+}
+
+/**
+ * The end of a pipeline run: the grouping, then the rules that judge what it made. A content the
+ * grouping alone just made is hidden until the rules have seen it.
+ */
+export async function groupAndFilter() {
+  const stats = await runGrouping();
+  const judged = await applyRules();
+  return { ...stats, waitlist_available: stats.waitlist_available + judged.waitlist_available };
 }

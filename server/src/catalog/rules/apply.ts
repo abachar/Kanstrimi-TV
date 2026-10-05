@@ -3,15 +3,15 @@ import { db, schema, KINDS, type FilterRule, type Kind } from "@/db";
 import { getSettings, setSettings } from "@/config";
 import { checkCancelled } from "@/shared";
 import { checkRegexes, compileQuery, QueryError } from "../query";
-import { refreshVisibility } from "../grouping/group";
+import { refreshContentVisibility } from "../grouping/group";
 import { withCatalogLock } from "../lock";
 
 /**
- * The `filters` step: every rule, a query of the filter language, sets `hidden_by_rule` on the
- * variants, in one `UPDATE` per kind. In order, the last matching rule wins; a « keep » rule for a
- * kind turns it into a whitelist (what no rule keeps is hidden). A category is marked hidden by a
- * rule when every variant in it is. Saving a rule no longer runs this: `rules_pending` says the
- * catalogue lags behind the rules until the next `filters` step.
+ * The `filters` step: every rule, a query of the filter language, judges the contents
+ * (`catalog_contents.hidden_by_rule`), in one `UPDATE` per kind, then `visible` follows. In order, the
+ * last matching rule wins; a « keep » rule for a kind turns it into a whitelist (what no rule keeps is
+ * hidden). It runs after the grouping: a rule reads the content as the app shows it. Saving a rule no
+ * longer runs this: `rules_pending` says the catalogue lags behind the rules until the next `filters` step.
  */
 
 /** The enabled rules in their order, each with its compiled condition; a rule that no longer compiles is skipped. */
@@ -36,7 +36,7 @@ async function compiled(): Promise<{ rule: FilterRule; where: SQL }[]> {
   return out;
 }
 
-/** Whether a variant of `kind` is hidden: the last matching rule's action, else the whitelist default. */
+/** Whether a content of `kind` is hidden: the last matching rule's action, else the whitelist default. */
 function hiddenCase(rules: { rule: FilterRule; where: SQL }[]): SQL {
   const keepMode = rules.some((r) => r.rule.action === "keep");
   if (!rules.length) return sql`false`;
@@ -44,36 +44,46 @@ function hiddenCase(rules: { rule: FilterRule; where: SQL }[]): SQL {
   return sql`case ${sql.join(whens, sql` `)} else ${keepMode} end`;
 }
 
-export function applyRules(opts: { refresh?: boolean } = {}) {
-  return withCatalogLock(() => apply(opts.refresh ?? true));
+/**
+ * Why the rules hide a content: the name of the last enabled rule that matches it (the one that decides),
+ * or, for a kind in whitelist mode, that no « keep » rule does. Null when no rule hides it.
+ */
+export async function hidingRule(content: { id: number; kind: Kind }): Promise<string | null> {
+  const rules = (await compiled()).filter((r) => r.rule.kind === null || r.rule.kind === content.kind);
+  const c = schema.catalogContents;
+  for (const r of [...rules].reverse()) {
+    const [hit] = await db.select({ id: c.id }).from(c).where(sql`${c.id} = ${content.id} and ${r.where}`);
+    if (hit) return r.rule.action === "hide" ? r.rule.name : null;
+  }
+  return rules.some((r) => r.rule.action === "keep") ? "aucune règle « garder » ne la retient" : null;
 }
 
-async function apply(refresh: boolean) {
+/**
+ * Judges every content, or only `contentIds` (a manual regroup that made or changed a few): their
+ * verdict, then their visibility, and the waitlist's arrivals with it.
+ */
+export function applyRules(opts: { contentIds?: number[] } = {}) {
+  return withCatalogLock(() => apply(opts.contentIds));
+}
+
+async function apply(contentIds?: number[]) {
+  if (contentIds && !contentIds.length) return { contents: 0, waitlist_available: 0 };
   const rules = await compiled();
-  let items = 0;
+  const c = schema.catalogContents;
+  const scope = contentIds ? sql`and ${c.id} = any(${`{${contentIds.join(",")}}`}::int[])` : sql``;
+  let contents = 0;
   for (const kind of KINDS as readonly Kind[]) {
     checkCancelled();
     const mine = rules.filter((r) => r.rule.kind === null || r.rule.kind === kind);
     const changed = await db.execute(sql`
-      update ${schema.catalogVariants} set hidden_by_rule = not hidden_by_rule
-      where ${schema.catalogVariants.kind} = ${kind}
-        and ${schema.catalogVariants.hiddenByRule} is distinct from (${hiddenCase(mine)})`);
-    items += changed.count;
+      update ${c} set hidden_by_rule = ${hiddenCase(mine)}
+      where ${c.kind} = ${kind} ${scope} and ${c.hiddenByRule} is distinct from (${hiddenCase(mine)})`);
+    contents += changed.count;
   }
   checkCancelled();
-  // A category every variant of which a rule hides is itself hidden by a rule; an empty one is not.
-  const cats = await db.execute(sql`
-    update ${schema.catalogCategories} k set hidden_by_rule = x.hidden
-    from (
-      select k2.id, coalesce(bool_and(v.hidden_by_rule), false) as hidden
-      from ${schema.catalogCategories} k2
-      left join ${schema.catalogVariants} v on v.kind = k2.kind and v.category_xtream_id = k2.xtream_id
-      group by k2.id
-    ) x
-    where x.id = k.id and k.hidden_by_rule is distinct from x.hidden`);
-  if (refresh && (items || cats.count)) await refreshVisibility();
-  await setSettings({ rules_pending: "" });
-  return { categories: cats.count, items };
+  const waitlist_available = await refreshContentVisibility(contentIds);
+  if (!contentIds) await setSettings({ rules_pending: "" });
+  return { contents, waitlist_available };
 }
 
 /** Saving, deleting or switching a rule only says the catalogue now lags behind: the `filters` step applies them. */

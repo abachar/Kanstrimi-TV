@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_variants" ADD COLUMN "hidden_by_language" boolean DEFAULT false NOT NULL;

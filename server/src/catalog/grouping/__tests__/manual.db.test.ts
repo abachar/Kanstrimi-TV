@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
 import { itemById, contentById, variantsOfContent } from "@/catalog";
-import { runGrouping, runNaming } from "../group";
+import { runNaming } from "../group";
 import { splitVariant, resetVariant, mergeVariantInto, mergeCandidates } from "../manual";
 
 let ids: number[] = [];
@@ -17,7 +17,7 @@ beforeAll(async () => {
     ])
   ).map((r) => r.id);
   await runNaming();
-  await runGrouping();
+  await groupAndFilter();
 });
 afterAll(closeDb);
 

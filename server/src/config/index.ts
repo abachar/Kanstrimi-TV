@@ -3,6 +3,7 @@ export {
   getSettings,
   invalidateSettings,
   isXtreamConfigured,
+  servedLanguages,
   onSettingsChange,
   setSecretsForTests,
   setSettings,

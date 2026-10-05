@@ -71,12 +71,9 @@ export async function shelfPage(ctx: RestContext, kind: "vod" | "series", shelf:
   return null;
 }
 
-/** The « Catalogue » search: the contents with at least one variant meeting the query, latest first. */
+/** The search of a kind's screen: the contents meeting the query, latest first. */
 export async function searchContents(ex: Exec, kind: "live" | "vod" | "series", where: SQL, offset: number) {
-  const cond = and(
-    eq(schema.catalogContents.kind, kind),
-    sql`exists (select 1 from ${schema.catalogVariants} where ${schema.catalogVariants.contentId} = ${schema.catalogContents.id} and ${where})`,
-  );
+  const cond = and(eq(schema.catalogContents.kind, kind), where);
   const [[{ n }], rows] = await Promise.all([
     ex.select({ n: sql<number>`count(*)::int` }).from(schema.catalogContents).where(cond),
     ex

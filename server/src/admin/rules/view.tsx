@@ -2,10 +2,10 @@ import type { FilterRule } from "@/db";
 import type { RulePreview as Preview } from "@/catalog";
 import { Title, Card, Options, Busy, Badge, Empty } from "../ui";
 import { KIND_LABELS } from "../labels";
+import { fmt } from "../format";
 import { QueryHelp } from "../catalog/search-bar";
 
 export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Preview }) {
-  // Every field id carries the rule id: the same form is rendered once per rule on the page.
   const uid = rule?.id ?? "new";
   const Sel = ({ name, label, opts, cur, col }: { name: string; label: string; opts: [string, string][]; cur: string; col: string }) => (
     <div class={`field gap-2 ${col}`}>
@@ -66,7 +66,7 @@ export function RuleForm({ rule, preview }: { rule?: FilterRule; preview?: Previ
             id={`query-${uid}`}
             name="query"
             value={rule?.query ?? ""}
-            placeholder="nom:/\|IT\|/, langue-vo:hindi…"
+            placeholder='marché:"it", langue-vo:hindi…'
             autocapitalize="off"
             autocorrect="off"
             spellcheck={false}
@@ -115,43 +115,99 @@ export function RulePreview({ preview }: { preview?: Preview }) {
   return (
     <div class="flex flex-col gap-2">
       <div class="text-sm font-medium">
-        {preview.total} variante(s) concernée(s){preview.total > preview.matches.length ? ` (${preview.matches.length} premières)` : ""}
+        {preview.total} fiche(s) concernée(s){preview.total > preview.matches.length ? ` (${preview.matches.length} premières)` : ""}
       </div>
       <pre class="max-h-80 overflow-auto rounded-md bg-muted p-3 font-mono text-xs">{preview.matches.join("\n")}</pre>
     </div>
   );
 }
 
-/** Rules changed since the last `filters` step: the catalogue does not follow them yet. */
-function PendingBanner({ busy }: { busy: boolean }) {
+/**
+ * Rules or languages changed since the last pass: the catalogue does not follow them yet. The rules apply
+ * at « Filtres »; the languages at « Groupement », which comes before and runs the filters after it.
+ */
+function PendingBanner({ busy, what }: { busy: boolean; what: "rules" | "languages" }) {
+  const [from, step] = what === "languages" ? ["group", "Groupement"] : ["filters", "Filtres"];
   return (
     <div class="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm" role="status">
       <span class="min-w-0 flex-1 text-amber-300">
-        Règles modifiées depuis le dernier passage : le catalogue ne les suit pas encore. Elles s'appliquent à l'étape « Filtres », au
-        prochain traitement planifié ou maintenant.
+        {what === "languages" ? "Langues servies" : "Règles"} modifiées depuis le dernier passage : le catalogue ne les suit pas encore.
+        Elles s'appliquent à l'étape « {step} », au prochain traitement planifié ou maintenant.
       </span>
       <form method="post" action="/admin/jobs/pipeline">
-        <input type="hidden" name="from" value="filters" />
+        <input type="hidden" name="from" value={from} />
         <button class="btn" data-variant="secondary" data-size="sm" disabled={busy}>
-          {busy ? "Traitement en cours…" : "Appliquer (passage à partir de « Filtres »)"}
+          {busy ? "Traitement en cours…" : `Appliquer (passage à partir de « ${step} »)`}
         </button>
       </form>
     </div>
   );
 }
 
-export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pending: boolean; busy: boolean }) {
+/**
+ * The served languages of films and series: one box per language of the catalogue, with its number of
+ * variants. A variant in another language is hidden; a title in none of them disappears. Channels are
+ * left out: their « language » is their market's, the rules choose them.
+ */
+function LanguagesCard({ languages, served }: { languages: { lang: string; variants: number }[]; served: string[] }) {
+  return (
+    <form method="post" action="/admin/rules/languages" class="grid">
+      <Card
+        title="Langues servies (films et séries)"
+        hint="Une variante dans une autre langue est masquée ; un titre qui n'existe dans aucune langue servie disparaît. Le direct n'est pas concerné : ses règles choisissent les marchés."
+      >
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-wrap gap-x-6 gap-y-2">
+            {languages.map(({ lang, variants }) => (
+              <label class="label gap-2 font-normal">
+                <input class="input" type="checkbox" name="lang" value={lang} checked={!served.length || served.includes(lang)} />
+                {lang} <span class="text-muted-foreground tabular-nums">{fmt(variants)}</span>
+              </label>
+            ))}
+          </div>
+          <div>
+            <button class="btn" data-variant="primary">
+              Enregistrer les langues
+            </button>
+          </div>
+        </div>
+      </Card>
+    </form>
+  );
+}
+
+export function RulesView({
+  rules,
+  pending,
+  languagesPending,
+  busy,
+  languages,
+  served,
+}: {
+  rules: FilterRule[];
+  pending: boolean;
+  languagesPending: boolean;
+  busy: boolean;
+  languages: { lang: string; variants: number }[];
+  served: string[];
+}) {
   return (
     <>
       <Title
         t="Règles de filtrage"
-        sub="Une requête du langage de recherche par règle, appliquée à l'étape « Filtres » du traitement. La dernière règle qui correspond l'emporte ; une règle « garder » ne garde que ce qui correspond, pour son type."
+        sub="Une requête du langage de recherche par règle, qui juge les fiches (chaînes, films, séries) à l'étape « Filtres », après le groupement. La dernière règle qui correspond l'emporte ; une règle « garder » ne garde que ce qui correspond, pour son type. Les champs du fournisseur (catégorie, section, édition) servent aux recherches seulement."
       />
-      {pending && <PendingBanner busy={busy} />}
-      <Card title="Nouvelle règle">
-        <RuleForm />
-      </Card>
-      <Card title={`Règles (${rules.length})`}>
+      {/* « Groupement » runs the filters after it: one banner says both. */}
+      {(languagesPending || pending) && <PendingBanner busy={busy} what={languagesPending ? "languages" : "rules"} />}
+      <LanguagesCard languages={languages} served={served} />
+      <Card
+        title={`Règles (${rules.length})`}
+        extra={
+          <a class="btn" data-variant="primary" data-size="sm" href="/admin/rules/new">
+            Nouvelle règle
+          </a>
+        }
+      >
         {/* Grid rows rather than an 8-column table: on a phone the name and the switch share
             the first line, the regex and the badges follow; on md+ the columns line up under a header. */}
         <div class="flex flex-col divide-y">
@@ -192,17 +248,10 @@ export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pendi
                   <Badge>{KIND_LABELS[r.kind ?? "all"]}</Badge>
                   <Badge tone={r.action === "hide" ? "bad" : "ok"}>{r.action === "hide" ? "masque" : "garde"}</Badge>
                 </div>
-                {/* "Éditer" is the label of a hidden checkbox: its `peer-checked` shows the form below, without script. */}
                 <div class="order-last col-span-2 flex gap-1 md:justify-end">
-                  <label
-                    for={`edit-toggle-${r.id}`}
-                    class="btn cursor-pointer"
-                    data-variant="ghost"
-                    data-size="sm"
-                    aria-controls={`edit-${r.id}`}
-                  >
+                  <a class="btn" data-variant="ghost" data-size="sm" href={`/admin/rules/${r.id}`}>
                     Éditer
-                  </label>
+                  </a>
                   <button
                     type="button"
                     class="btn text-destructive"
@@ -215,13 +264,24 @@ export function RulesView({ rules, pending, busy }: { rules: FilterRule[]; pendi
                   </button>
                 </div>
               </div>
-              <input type="checkbox" id={`edit-toggle-${r.id}`} class="peer sr-only" aria-label={`Éditer la règle « ${r.name} »`} />
-              <div class="hidden pt-4 peer-checked:block" id={`edit-${r.id}`}>
-                <RuleForm rule={r} />
-              </div>
             </div>
           ))}
         </div>
+      </Card>
+    </>
+  );
+}
+
+/** One rule, new or existing, on a page of its own: its form, the preview of what it matches, the help. */
+export function RulePage({ rule }: { rule?: FilterRule }) {
+  return (
+    <>
+      <Title
+        t={rule ? rule.name : "Nouvelle règle"}
+        sub="Une requête qui juge les fiches de son type ; « Prévisualiser » montre celles qu'elle touche. Enregistrée, elle s'applique au prochain passage à partir de « Filtres »."
+      />
+      <Card title={rule ? "Modifier la règle" : "Nouvelle règle"}>
+        <RuleForm rule={rule} />
       </Card>
     </>
   );

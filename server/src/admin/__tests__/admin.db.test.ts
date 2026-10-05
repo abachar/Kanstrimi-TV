@@ -3,12 +3,12 @@ import { Hono } from "hono";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { itemById, launch } from "@/catalog";
-import { run, runNaming } from "@/catalog";
+import { runAll, runNaming } from "@/catalog";
 import { startRun } from "@/catalog/journal";
 import { withCatalogLock } from "@/catalog/lock";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
-import { getSettings } from "@/config";
+import { getSettings, setSettings } from "@/config";
 import { setFavorite, setProgress, listProgress } from "@/player";
 import { admin } from "..";
 
@@ -57,7 +57,7 @@ beforeAll(async () => {
   ]);
   matrixId = items[0].id;
   await runNaming(); // what the source step does after the import
-  expect(await run("group")).toBe(true); // journalled through the pipeline, so /admin/tasks has a row
+  expect(await runAll("manual", "group")).toBe(true); // group → filters, journalled: /admin/tasks has a row
 });
 afterAll(closeDb);
 
@@ -111,28 +111,18 @@ describe("admin", () => {
     expect((await call("/admin/catalog/shelf?kind=vod&shelf=nope")).status).toBe(404);
     expect((await call("/admin/catalog/shelf?kind=live&shelf=recent")).status).toBe(404);
     expect(await html("/admin/catalog?kind=series")).toContain("Catalogue");
-    expect(await html("/admin/catalog?kind=vod&view=xtream")).toContain("|FR| FILMS");
-    expect(await html("/admin/catalog?kind=vod&view=grouped")).toContain("|FR| FILMS"); // the former name of the Xtream view
-    expect(await html("/admin/catalog?kind=vod&view=xtream&q=visible%3Anon")).toContain("0 résultat"); // nothing hidden
-    expect(await html("/admin/catalog?kind=vod&view=xtream&q=tmdb%3Aattente")).toContain("0 résultat");
-    expect(await html("/admin/catalog?kind=vod&view=xtream&q=tmdb%3Aoui")).toContain("Matrix (4K)");
-    expect(await html("/admin/catalog?kind=vod&view=xtream&q=tmdb%3Apeut-etre")).toContain("tmdb vaut oui, non ou attente");
-    expect(await html("/admin/catalog?kind=vod&view=xtream&q=matrix")).toContain("Matrix (VOST)");
-    expect(await html("/admin/catalog?kind=live&view=xtream&q=tf1")).not.toContain("TMDB associé");
     expect(await html("/admin/catalog?kind=live")).toContain('id="live-groups"');
-    expect(await html("/admin/catalog/items?kind=vod&cat=10&view=xtream&page=1")).toContain("Matrix (4K)");
-    const live = await html("/admin/catalog?kind=live&view=xtream");
-    expect(live).toContain("Sans catégorie");
-    expect(live).toContain("1 sans catégorie");
-    expect(await html("/admin/catalog/items?kind=live&cat=_none&page=1")).toContain("BELLA RADIO");
-    expect(await html("/admin/catalog?kind=live&view=xtream&q=bella")).toContain("Sans catégorie"); // the category column of a hit
-    // The filter language, in both views; a wrong query says why instead of failing.
-    expect(await html("/admin/catalog?kind=vod&view=xtream&q=genre%3Ascience")).toContain("Matrix (4K)");
-    // One search bar in both views, each keeping its own view.
-    expect(await html("/admin/catalog?kind=vod&view=xtream")).toContain('name="view" value="xtream"');
-    expect(await html("/admin/catalog?kind=vod")).toContain('name="view" value="catalog"');
+    // The Xtream view is gone: its old links land on the screen of the kind.
+    expect(await html("/admin/catalog?kind=vod&view=xtream&cat=10")).toContain("Science-Fiction");
+    expect((await call("/admin/catalog/items?kind=vod&cat=10")).status).toBe(404);
+    // The search reads the contents; a wrong query says why instead of failing.
+    expect(await html("/admin/catalog?kind=vod&q=visible%3Anon")).toContain("Aucun contenu"); // nothing hidden
+    expect(await html("/admin/catalog?kind=vod&q=matrix%20vost")).toContain(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`); // a variant's name
+    expect(await html("/admin/catalog?kind=vod&q=cat%C3%A9gorie%3Afilms")).toContain("1 contenu pour"); // a variant's category
+    expect(await html("/admin/catalog?kind=vod&q=tmdb%3Apeut-etre")).toContain("tmdb vaut oui, non ou attente");
+    expect(await html("/admin/catalog?kind=vod")).not.toContain('name="view"');
     expect(await html("/admin/catalog?kind=live")).toContain("Rechercher : tf1, thème:sport"); // examples of the kind
-    expect(await html("/admin/catalog?kind=vod&view=xtream&q=genr%3Ascience")).toContain("voulais-tu genre");
+    expect(await html("/admin/catalog?kind=vod&q=genr%3Ascience")).toContain("voulais-tu genre");
     const found = await html("/admin/catalog?kind=vod&q=qualit%C3%A9%3A%3E%3Dfhd");
     expect(found).toContain(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`);
     expect(found).toContain("1 contenu pour");
@@ -272,7 +262,7 @@ describe("admin", () => {
     expect(await html("/admin/caches")).toMatch(/1 <span[^>]*>fiches/);
   });
 
-  it("toggles visibility and answers with the row (item) or a refresh (category); the content follows at once", async () => {
+  it("a variant's switch reloads its content's page, which follows at once", async () => {
     const contentOf = async () => {
       await withCatalogLock(async () => {}); // the background refresh queued before this one is done
       const it = await itemById(matrixId);
@@ -280,36 +270,25 @@ describe("admin", () => {
       return c;
     };
     expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
-    const hide = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&q=matrix`, {});
-    expect(hide.status).toBe(200);
-    expect(await hide.text()).toContain("<s>|FR| Matrix (4K)</s>");
-    expect((await itemById(matrixId))?.hiddenManual).toBe(true);
-    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 1 }); // without a `group` run; the VOST stays
-    const show = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&q=matrix`, { visible: "on" });
-    expect(await show.text()).not.toContain("<s>");
-    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
-    // The variant sheet's switch posts the item scope with `reload`: it hides the variant, never a category with the same id.
+    // The variant's switch, on its content's page: the page reloads, the content follows without a `group` run.
     const categoriesHidden = async () =>
       (await db.select().from(schema.catalogCategories)).map((c) => [c.id, c.hiddenManual] as const).sort((x, y) => x[0] - y[0]);
     const before = await categoriesHidden();
-    const reload = await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&reload=1`, {});
-    expect(reload.status).toBe(204);
-    expect(reload.headers.get("hx-refresh")).toBe("true");
+    const hide = await post(`/admin/catalog/item/${matrixId}/visible`, {});
+    expect(hide.status).toBe(204);
+    expect(hide.headers.get("hx-refresh")).toBe("true");
     expect((await itemById(matrixId))?.hiddenManual).toBe(true);
-    expect(await categoriesHidden()).toEqual(before);
-    await post(`/admin/catalog/item/${matrixId}/visible?kind=vod&reload=1`, { visible: "on" });
+    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 1 }); // the VOST stays
+    expect(await categoriesHidden()).toEqual(before); // never a category with the same id
+    await post(`/admin/catalog/item/${matrixId}/visible`, { visible: "on" });
     expect((await itemById(matrixId))?.hiddenManual).toBe(false);
-    const cat = await post("/admin/catalog/category/1/visible?kind=vod", {});
-    expect(cat.status).toBe(204);
-    expect(cat.headers.get("hx-refresh")).toBe("true");
-    expect((await contentOf()).visible).toBe(false); // both Matrix variants sit in category 1
-    await post("/admin/catalog/category/1/visible?kind=vod", { visible: "on" });
-    expect((await contentOf()).visible).toBe(true);
+    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
+    expect((await post("/admin/catalog/category/1/visible", {})).status).toBe(404); // no screen hides a category any more
   });
 
   it("rules: preview, save without applying, the banner to apply them, delete", async () => {
     const preview = await post("/admin/rules/preview", { query: "vost", kind: "vod" });
-    expect(await preview.text()).toContain("1 variante(s) concernée(s)");
+    expect(await preview.text()).toContain("1 fiche(s) concernée(s)");
     expect(await (await post("/admin/rules/preview", { query: "genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
     const created = await post("/admin/rules", {
       name: "VOST",
@@ -323,9 +302,18 @@ describe("admin", () => {
     const page = await html("/admin/rules");
     expect(page).toContain("Règles modifiées depuis le dernier passage");
     expect(page).toContain('name="from" value="filters"');
-    const invalid = await post("/admin/rules", { name: "Cassée", kind: "vod", query: "nom:/(/", action: "hide", position: "0" });
+    // The list holds no form: a rule is created and edited on a page of its own, under « Règles ».
+    expect(page).not.toContain('name="query"');
+    expect(page).toContain('href="/admin/rules/new"');
+    const blank = await html("/admin/rules/new");
+    expect(blank).toContain('name="query"');
+    expect(blank).toMatch(/aria-label="Fil d'Ariane".*<a href="\/admin\/rules"[^>]*>Règles<\/a>/s);
+    const invalid = await post("/admin/rules", { name: "Cassée", kind: "vod", query: "titre:/(/", action: "hide", position: "0" });
     expect(flash(invalid)).toContain("Requête invalide");
+    expect(invalid.headers.get("location")).toMatch(/^\/admin\/rules\/new\?/);
     const id = /hx-post="\/admin\/rules\/(\d+)\/delete"/.exec(page)![1];
+    expect(await html(`/admin/rules/${id}`)).toContain('value="vost"');
+    expect((await call("/admin/rules/999999")).status).toBe(404);
     expect((await post(`/admin/rules/${id}/delete`, {})).status).toBe(303);
     expect(await html("/admin/rules")).toContain("Aucune règle");
   });
@@ -533,8 +521,47 @@ describe("admin", () => {
     }
   });
 
+  it("served languages, on the Rules page: the catalogue's languages, at least one, applied from « Groupement »", async () => {
+    expect(await html("/admin/settings")).not.toContain("Langues servies");
+    const page = await html("/admin/rules");
+    expect(page).toContain("Langues servies (films et séries)");
+    expect(page).toMatch(/name="lang" value="VF" checked/); // empty setting: every language served
+    const langs = (body: string) =>
+      call("/admin/rules/languages", {
+        method: "POST",
+        body: new URLSearchParams(body),
+        headers: { "content-type": "application/x-www-form-urlencoded", origin: "http://localhost" },
+      });
+    try {
+      expect(flash(await langs("lang=VOSTFR&lang=KLINGON"))).toContain("Langues servies : VOSTFR");
+      expect((await getSettings()).served_languages).toBe("VOSTFR");
+      expect(flash(await langs("lang=KLINGON"))).toContain("au moins une langue");
+      expect((await getSettings()).served_languages).toBe("VOSTFR");
+      const pending = await html("/admin/rules");
+      expect(pending).toContain("Langues servies modifiées");
+      expect(pending).toContain('<input type="hidden" name="from" value="group"/>');
+      expect(await runAll("manual", "group")).toBe(true);
+      expect(await html("/admin/rules")).not.toContain("modifiées depuis le dernier passage");
+      // Matrix keeps its VOST version; served nothing at all, its page says why.
+      const matrix = (await itemById(matrixId))!.contentId!;
+      expect(await html(`/admin/content/${matrix}`)).toContain("Visible dans l&#39;app");
+      await setSettings({ served_languages: "IT" });
+      expect(await runAll("manual", "group")).toBe(true);
+      expect(await html(`/admin/content/${matrix}`)).toMatch(/Aucune variante servie : langue non servie \(VF, VOSTFR,/);
+    } finally {
+      await setSettings({ served_languages: "" });
+      await runAll("manual", "group");
+    }
+  });
+
   it("the adult checkbox of the settings form: ticked serves adult contents, absent stops serving them", async () => {
-    const form = { tmdb_language: "fr-FR", sync_cron: "0 3 * * *", epg_cron: "0 3 */3 * *", public_base_url: "" };
+    const form = {
+      tmdb_language: "fr-FR",
+      sync_cron: "0 3 * * *",
+      epg_cron: "0 3 */3 * *",
+      trending_cron: "30 4 * * *",
+      public_base_url: "",
+    };
     expect((await post("/admin/settings", { ...form, serve_adult: "on" })).status).toBe(303);
     expect((await getSettings()).serve_adult).toBe("1");
     expect((await post("/admin/settings", form)).status).toBe(303);

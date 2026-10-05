@@ -10,7 +10,6 @@ import { fmt } from "../format";
 import { KEY_KIND_LABELS, MATCH_LABELS, MATCH_TONES } from "../labels";
 import { TmdbCell } from "../catalog/tmdb-cell";
 import { VisibilityToggle } from "../catalog/visibility";
-import type { CatalogQuery } from "../catalog/query";
 import { Badge, BUSY } from "../ui";
 import { Icon } from "../icons";
 
@@ -245,7 +244,6 @@ const VariantHeader = ({ live }: { live: boolean }) => (
  */
 function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: boolean; alone: boolean; tmdbLang: string }) {
   const { item: it, category: cat } = v;
-  const qy: CatalogQuery = { kind: it.kind, q: "", cat: "", page: 1, view: "xtream" };
   const hidden = isItemHidden(it, cat ?? undefined);
   const live = it.kind === "live";
   const raw = it.raw;
@@ -308,7 +306,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
                   ["tmdb_id", raw.tmdb ?? raw.tmdb_id],
                   ["Année", raw.year ?? raw.releaseDate ?? raw.release_date],
                   ["Note", raw.rating],
-                  ["Masquée", it.hiddenByRule ? "par une règle" : it.hiddenManual ? "à la main" : null],
+                  ["Masquée", it.hiddenByLanguage ? "langue non servie" : it.hiddenManual ? "à la main" : null],
                 ]}
               />
               <details class="group">
@@ -326,13 +324,10 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
       {/* Beside the summary, never inside: a click on the switch or the menu must not fold the row. */}
       <div class="absolute end-3 top-1 flex h-9 items-center gap-1">
         <VisibilityToggle
-          scope="item"
           id={it.id}
-          hiddenByRule={it.hiddenByRule}
+          hiddenByLanguage={it.hiddenByLanguage}
           hiddenManual={it.hiddenManual}
           catHidden={isCategoryHidden(cat)}
-          qy={qy}
-          reload
           short
         />
         <GroupMenu v={v} alone={alone} />
@@ -343,7 +338,39 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
 }
 
 /** The sheet as the app receives it: picture, titles, what it plays in, its story; the bookkeeping on a grey line. */
-function Hero({ c, total }: { c: Content; total: number }) {
+/**
+ * Why a content is hidden, in a sentence: not judged yet, a rule, or none of its variants served — by
+ * language, by hand, through its category, each cause named once. Null when it is visible.
+ */
+function hidingReason(c: Content, variants: VariantDetail[], rule: string | null): unknown {
+  if (c.visible) return null;
+  if (c.hiddenByRule === null) return "Pas encore jugé par les règles";
+  if (c.hiddenByRule) return `Masqué par la règle « ${rule ?? "?"} »`;
+  const langs = new Set<string>();
+  const cats = new Set<string>();
+  let manual = 0;
+  for (const { item, category } of variants) {
+    if (item.hiddenByLanguage) langs.add(item.lang ?? "?");
+    else if (item.hiddenManual) manual++;
+    else if (isCategoryHidden(category)) cats.add(category!.name);
+  }
+  const causes: unknown[] = [];
+  if (langs.size)
+    causes.push(
+      <>
+        langue non servie ({[...langs].join(", ")},{" "}
+        <a href="/admin/rules" class="underline hover:text-foreground">
+          langues servies
+        </a>
+        )
+      </>,
+    );
+  if (manual) causes.push(manual > 1 ? `${manual} variantes masquées à la main` : "variante masquée à la main");
+  if (cats.size) causes.push(`catégorie masquée (${[...cats].join(", ")})`);
+  return causes.length ? <>Aucune variante servie : {causes.map((x, i) => (i ? <>, {x}</> : x))}</> : "Aucune variante servie";
+}
+
+function Hero({ c, total, reason }: { c: Content; total: number; reason: unknown }) {
   const live = c.kind === "live";
   const quality = [qualityOfRank(c.maxQualityRank), c.dynamicRange].filter(Boolean);
   const originals = [c.originalTitle, c.titleEn].filter((t) => t && t !== c.title);
@@ -380,6 +407,7 @@ function Hero({ c, total }: { c: Content; total: number }) {
             <span class={`size-2 rounded-full ${c.visible ? "bg-emerald-400" : "bg-destructive"}`} />
             {c.visible ? "Visible dans l'app" : "Masqué dans l'app"}
           </span>
+          {reason && <p class="w-full text-end text-sm text-muted-foreground">{reason}</p>}
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
           <Badge tone={isFallbackKey(c.key) ? "warn" : "plain"}>{KEY_KIND_LABELS[keyKind(c.key)]}</Badge>
@@ -407,13 +435,13 @@ function Hero({ c, total }: { c: Content; total: number }) {
  * One page per content: the sheet the app receives, then each provider entry grouped under it as a
  * row, the one asked for (`open`) unfolded. An entry not grouped yet is shown alone.
  */
-export function ContentView({ content, variants, tmdbLang, guide, open }: ContentDetail & { open: number | null }) {
+export function ContentView({ content, variants, tmdbLang, guide, rule, open }: ContentDetail & { open: number | null }) {
   const kind = content?.kind ?? variants[0].item.kind;
   const alone = variants.length < 2;
   return (
     <>
       {content ? (
-        <Hero c={content} total={variants.length} />
+        <Hero c={content} total={variants.length} reason={hidingReason(content, variants, rule)} />
       ) : (
         <div>
           <h1 class="text-2xl font-semibold tracking-tight break-words">{variants[0].item.name}</h1>

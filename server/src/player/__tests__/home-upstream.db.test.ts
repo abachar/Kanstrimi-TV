@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { resetDb, closeDb, seedItems } from "@/test/db";
+import { resetDb, closeDb, seedItems, groupAndFilter } from "@/test/db";
 import { setSecretsForTests } from "@/config";
-import { runGrouping, runNaming } from "@/catalog";
+import { runNaming } from "@/catalog";
 import { home } from "../home";
 import { shelfPicks } from "../top-shelf";
 
@@ -32,7 +32,7 @@ beforeAll(async () => {
   setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await seedItems([{ kind: "series", xtreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
   await runNaming();
-  await runGrouping();
+  await groupAndFilter();
   // A series in progress that received something since: the carousel looks for its next episode.
   const [content] = await db.select().from(schema.catalogContents);
   await db

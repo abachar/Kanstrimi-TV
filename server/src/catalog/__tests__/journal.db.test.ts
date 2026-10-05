@@ -82,19 +82,19 @@ describe("run log file", () => {
   });
 
   it("goes on without an enrichment step that fails, and ends in error", async () => {
-    // iptv-org unreachable: `channels` fails, the catalogue is still filtered and grouped.
+    // iptv-org unreachable: `enrich` fails, the catalogue is still grouped and filtered.
     channelsFail = true;
     try {
-      expect(await runAll("manual", "channels")).toBe(false);
+      expect(await runAll("manual", "enrich")).toBe(false);
     } finally {
       channelsFail = false;
     }
     const [r] = (await recentRuns({ limit: 1 })).runs;
-    expect(r).toMatchObject({ task: "pipeline", status: "error" });
+    expect(r).toMatchObject({ task: "pipeline", status: "error", message: "iptv-org : iptv-org injoignable" });
     expect(r.steps.map((s) => [s.step, s.status])).toEqual([
-      ["channels", "error"],
-      ["filters", "success"],
+      ["enrich", "error"],
       ["group", "success"],
+      ["filters", "success"],
     ]);
   });
 
@@ -105,10 +105,10 @@ describe("run log file", () => {
   });
 
   it("runs the pipeline from a given step on, as one pipeline run", async () => {
-    expect(await runAll("manual", "filters")).toBe(true); // no TMDB key: filters → group, no network
+    expect(await runAll("manual", "group")).toBe(true); // group → filters, no network
     const [r] = (await recentRuns({ limit: 1 })).runs;
     expect(r).toMatchObject({ task: "pipeline", status: "success" });
-    expect(r.steps.map((s) => s.step)).toEqual(["filters", "group"]);
+    expect(r.steps.map((s) => s.step)).toEqual(["group", "filters"]);
   });
 });
 
@@ -116,8 +116,8 @@ describe("killRun", () => {
   it("stops a run in progress after the work in flight: the run and its step end killed, the next steps never start", async () => {
     channelsBlock = true;
     try {
-      const done = runAll("manual", "channels");
-      await vi.waitUntil(async () => (await recentRuns({ limit: 1 })).runs[0]?.steps.some((s) => s.step === "channels"));
+      const done = runAll("manual", "enrich");
+      await vi.waitUntil(async () => (await recentRuns({ limit: 1 })).runs[0]?.steps.some((s) => s.step === "enrich"));
       const [r] = (await recentRuns({ limit: 1 })).runs;
       expect(r.status).toBe("running");
       expect(await killRun(r.id)).toBe("stopping");
@@ -129,7 +129,7 @@ describe("killRun", () => {
     const [r] = (await recentRuns({ limit: 1 })).runs;
     expect(r).toMatchObject({ task: "pipeline", status: "killed", message: "Arrêté depuis l'admin" });
     expect(r.finishedAt).not.toBeNull();
-    expect(r.steps.map((s) => [s.step, s.status])).toEqual([["channels", "killed"]]);
+    expect(r.steps.map((s) => [s.step, s.status])).toEqual([["enrich", "killed"]]);
     expect(readRunLog(r.logFile!)!.text).toContain("Arrêté depuis l'admin");
     // Over: a second stop changes nothing.
     expect(await killRun(r.id)).toBe("not_running");

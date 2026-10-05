@@ -5,7 +5,7 @@ import { PAGE, type Shelf, type ShelfPage } from "./app-data";
 import { fmt } from "../format";
 import { Badge, Empty } from "../ui";
 import { contentKeyLink } from "../content/links";
-import { More, SUMMARY } from "./row";
+import { More, SUMMARY } from "./list-parts";
 
 /**
  * « Catalogue » view of films and series: the shelves of the app's screen, in its order, one

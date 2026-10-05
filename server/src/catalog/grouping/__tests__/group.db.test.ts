@@ -1,13 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
-import { runGrouping, runNaming, regroupItems, refreshVisibility, groupingCounts } from "../group";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
+import { setSettings } from "@/config";
+import { runNaming, regroupItems, refreshVisibility, groupingCounts } from "../group";
 import { inArray } from "drizzle-orm";
 
 const content = async (key: string) => (await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, key)))[0];
 const variants = (contentId: number) =>
   db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.contentId, contentId)).orderBy(schema.catalogVariants.id);
+
+afterAll(closeDb);
 
 describe("runGrouping", () => {
   beforeAll(async () => {
@@ -110,11 +113,10 @@ describe("runGrouping", () => {
       content_ratings: { results: [{ iso_3166_1: "FR", rating: "12" }] },
     });
   });
-  afterAll(closeDb);
 
   it("builds one content per work, with card fields from TMDB and aggregates from the variants", async () => {
     await runNaming();
-    const stats = await runGrouping();
+    const stats = await groupAndFilter();
     expect(stats.items_grouped).toBe(12);
     expect(stats.orphans_removed).toBe(0);
 
@@ -212,7 +214,7 @@ describe("runGrouping", () => {
       .from(schema.catalogContents)
       .orderBy(schema.catalogContents.id);
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
     const after = await db
       .select({ id: schema.catalogContents.id, key: schema.catalogContents.key })
       .from(schema.catalogContents)
@@ -229,18 +231,18 @@ describe("runGrouping", () => {
       )[0];
     const before = await stamp();
     await db.execute(sql`update tmdb_cache set fetched_at = now() + interval '1 minute' where tmdb_id = 557 and media_type = 'movie'`);
-    await runGrouping();
+    await groupAndFilter();
     const same = await stamp();
     expect(same.updated_at).toBe(before.updated_at);
     expect(same.cards_at).not.toBe(before.cards_at);
     await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{vote_average}', '8.1'), fetched_at = now() + interval '2 minutes'
       where tmdb_id = 557 and media_type = 'movie'`);
-    await runGrouping();
+    await groupAndFilter();
     expect((await stamp()).updated_at).not.toBe(before.updated_at);
     expect((await content("tmdb:movie:557")).rating).toBe(8.1);
     await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{vote_average}', '7.31'), fetched_at = now() + interval '3 minutes'
       where tmdb_id = 557 and media_type = 'movie'`);
-    await runGrouping();
+    await groupAndFilter();
   });
 
   it("keeps the TMDB card's title when the variants' names change, and copies the card again when TMDB's is newer", async () => {
@@ -249,12 +251,12 @@ describe("runGrouping", () => {
     await rename("1", "|FR| Spidey (4K)");
     await rename("2", "|FR| Spidey (DV)");
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
     expect((await content("tmdb:movie:557")).title).toBe("Spider-Man"); // the card is current and not copied again: the upsert must leave the title alone
 
     await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{title}', '"Spider-Man, le film"'), fetched_at = now() + interval '1 minute'
       where tmdb_id = 557 and media_type = 'movie'`);
-    await runGrouping();
+    await groupAndFilter();
     expect((await content("tmdb:movie:557")).title).toBe("Spider-Man, le film");
 
     await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{title}', '"Spider-Man"'), fetched_at = now() + interval '2 minutes'
@@ -262,7 +264,7 @@ describe("runGrouping", () => {
     await rename("1", "|FR| Spider-Man (4K)");
     await rename("2", "|FR| Spider-Man (DV)");
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
     expect((await content("tmdb:movie:557")).title).toBe("Spider-Man");
   });
 
@@ -321,8 +323,54 @@ describe("runGrouping", () => {
   it("removes a content whose last variant disappeared", async () => {
     await db.delete(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "102"));
     await runNaming();
-    const stats = await runGrouping();
+    const stats = await groupAndFilter();
     expect(stats.orphans_removed).toBe(1);
     expect(await content("live:be-tf1")).toBeUndefined();
+  });
+});
+
+describe("served languages", () => {
+  beforeAll(async () => {
+    await resetDb();
+    await seedItems([
+      { kind: "vod", xtreamId: "1", name: "|FR| Dune", tmdbId: 438631, matchStatus: "matched" },
+      { kind: "vod", xtreamId: "2", name: "|IT| Dune", tmdbId: 438631, matchStatus: "matched" },
+      { kind: "vod", xtreamId: "3", name: "|IT| Mio figlio", tmdbId: 1001, matchStatus: "matched" },
+      { kind: "vod", xtreamId: "4", name: "|FR| Sisyphus (VOST)", tmdbId: 1002, matchStatus: "matched" },
+      { kind: "live", xtreamId: "5", name: "|IT| RAI 1" },
+    ]);
+    await seedTmdb("movie", 438631, { title: "Dune", release_date: "2021-09-15" });
+    await seedTmdb("movie", 1001, { title: "Mio figlio", release_date: "2017-01-01" });
+    await seedTmdb("movie", 1002, { title: "Sisyphus", release_date: "2021-01-01" });
+    await runNaming();
+  });
+
+  const hiddenByLanguage = async () =>
+    (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.hiddenByLanguage, true))).map((v) => v.xtreamId).sort();
+
+  it("serves every language while the setting is empty", async () => {
+    const stats = await groupAndFilter();
+    expect(stats.not_served).toBe(0);
+    expect((await content("tmdb:movie:1001")).visible).toBe(true);
+  });
+
+  it("hides the films and series in another language before the aggregates, never a channel", async () => {
+    await setSettings({ served_languages: "VF,VO,AR" });
+    const stats = await groupAndFilter();
+    expect(await hiddenByLanguage()).toEqual(["2", "3", "4"]);
+    expect(stats.not_served).toBe(3);
+    const dune = await content("tmdb:movie:438631");
+    expect(dune).toMatchObject({ visible: true, variantCount: 1, languages: ["VF"] });
+    expect((await content("tmdb:movie:1001")).visible).toBe(false); // Italian only
+    expect((await content("tmdb:movie:1002")).visible).toBe(false); // VOSTFR only
+    const [rai] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.kind, "live"));
+    expect(rai.visible).toBe(true); // a channel's language is its market's: the rules choose it
+  });
+
+  it("serves a language again once ticked back", async () => {
+    await setSettings({ served_languages: "VF,VO,AR,IT" });
+    await groupAndFilter();
+    expect(await hiddenByLanguage()).toEqual(["4"]);
+    expect((await content("tmdb:movie:438631")).variantCount).toBe(2);
   });
 });

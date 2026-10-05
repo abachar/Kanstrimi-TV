@@ -4,9 +4,9 @@ import path from "node:path";
 import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { sha256 } from "@/shared";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
 import { setSecretsForTests, setSettings } from "@/config";
-import { addStudio, runGrouping, runNaming } from "@/catalog";
+import { addStudio, runNaming } from "@/catalog";
 import { player as api } from "..";
 
 /**
@@ -269,7 +269,7 @@ beforeAll(async () => {
     },
   });
   await runNaming();
-  await runGrouping();
+  await groupAndFilter();
   await addStudio("company", 420);
   await addStudio("network", 213);
 

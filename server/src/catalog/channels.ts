@@ -3,6 +3,7 @@ import { db, schema, client as pg } from "@/db";
 import { checkCancelled, similarity, similarityKey, stripAccents } from "@/shared";
 import { syncIptv } from "@/providers/iptv";
 import { regroupItems } from "./grouping/group";
+import { applyRules } from "./rules/apply";
 import { LIVE_THEMES, type LiveTheme } from "./naming";
 
 /**
@@ -382,7 +383,7 @@ export async function setIptvMatch(itemId: number, iptvId: string | null | "auto
   if (!it) throw new Error("Chaîne introuvable");
   const pinned = iptvId === "auto" ? { ...it, iptvMatch: null } : { ...it, iptvId, iptvMatch: "manual" };
   await write([resolve(await loadIndex(), pinned)]);
-  await regroupItems([itemId]);
+  await applyRules({ contentIds: await regroupItems([itemId]) });
 }
 
 /** The iptv-org channel of a variant, for the admin. */

@@ -26,26 +26,28 @@ export const MATCH_LABELS: Record<string, string> = {
 export const MATCH_TONES: Record<string, Tone> = { matched: "ok", manual: "ok", unmatched: "bad", pending: "warn", skipped: "muted" };
 
 export const JOB_LABELS: Record<Step, string> = {
-  source: "Lecture source",
-  merge: "Mise à jour du catalogue",
-  channels: "Chaînes iptv-org",
+  source: "Source",
+  enrich: "Enrichissement",
   filters: "Filtres",
-  enrich: "Enrichissement TMDB",
   group: "Groupement",
   trending: "Tendances TMDB",
   epg: "EPG",
 };
+/** Steps of earlier pipelines, still in the journal until it is purged. */
+const PAST_JOB_LABELS: Record<string, string> = { merge: "Mise à jour du catalogue", channels: "Chaînes iptv-org" };
 export const JOB_STARTED: Record<Task, string> = {
   pipeline: "Traitement complet lancé",
   epg: "Reconstruction EPG lancée",
+  trending: "Tendances TMDB lancées",
 };
 export const TASK_LABELS: Record<Task, string> = {
   pipeline: "Traitement complet",
   epg: "Guide des programmes",
+  trending: "Tendances TMDB",
 };
 export const TRIGGER_LABELS: Record<string, string> = { cron: "planifié", manual: "manuel" };
-export const jobLabel = (job: string) => (JOB_LABELS as Record<string, string>)[job] ?? job;
-/** A run's task: one of the two scheduled ones, or a lone step. */
+export const jobLabel = (job: string) => (JOB_LABELS as Record<string, string>)[job] ?? PAST_JOB_LABELS[job] ?? job;
+/** A run's task: one of the scheduled ones, or a lone step. */
 export const taskLabel = (task: string) => (TASK_LABELS as Record<string, string>)[task] ?? jobLabel(task);
 
 export const STAT_LABELS: Record<string, string> = {
@@ -82,6 +84,7 @@ export const STAT_LABELS: Record<string, string> = {
   multi_variant: "à plusieurs variantes",
   orphans_removed: "contenus retirés",
   waitlist_available: "attendus devenus disponibles",
+  not_served: "variantes d'une langue non servie",
   items: "éléments",
   categories: "catégories",
   bytes: "", // bytes are already rendered as "x Mo"

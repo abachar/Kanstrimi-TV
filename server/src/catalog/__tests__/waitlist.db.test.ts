@@ -2,9 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { setItemHiddenManual } from "@/catalog";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
 import { setSecretsForTests } from "@/config";
-import { runGrouping, runNaming } from "../grouping/group";
+import { runNaming } from "../grouping/group";
 import { withCatalogLock } from "../lock";
 import {
   addToWaitlist,
@@ -32,7 +32,7 @@ beforeAll(async () => {
   ]);
   duneId = items[1].id;
   await runNaming();
-  await runGrouping();
+  await groupAndFilter();
 });
 afterEach(() => vi.unstubAllGlobals());
 afterAll(closeDb);
@@ -142,11 +142,11 @@ describe("« Liste d'attente »", () => {
   });
 
   it("flags an arrival once its content turns visible, once", async () => {
-    expect((await runGrouping()).waitlist_available).toBe(0);
+    expect((await groupAndFilter()).waitlist_available).toBe(0);
     // The switch recomputes its content in the background: the arrival is flagged there, before any `group`.
     await setItemHiddenManual(duneId, false);
     await withCatalogLock(async () => {});
-    expect((await runGrouping()).waitlist_available).toBe(0);
+    expect((await groupAndFilter()).waitlist_available).toBe(0);
     const { availableAt } = await entry("tmdb:movie:1100");
     expect(availableAt).not.toBeNull();
     expect(await availableWaitlistKeys()).toEqual(["tmdb:movie:1100"]);
@@ -156,9 +156,9 @@ describe("« Liste d'attente »", () => {
     ]);
     // Hidden again then back: still the first arrival.
     await setItemHiddenManual(duneId, true);
-    await runGrouping();
+    await groupAndFilter();
     await setItemHiddenManual(duneId, false);
-    expect((await runGrouping()).waitlist_available).toBe(0);
+    expect((await groupAndFilter()).waitlist_available).toBe(0);
     expect((await entry("tmdb:movie:1100")).availableAt).toEqual(availableAt);
   });
 

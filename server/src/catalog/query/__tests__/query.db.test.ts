@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { sql } from "drizzle-orm";
 import { db, schema, type Kind } from "@/db";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb } from "@/test/db";
-import { runNaming, runGrouping } from "../../grouping/group";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
+import { runNaming } from "../../grouping/group";
 import { compileQuery, QueryError } from "..";
 
 beforeAll(async () => {
@@ -24,7 +24,7 @@ beforeAll(async () => {
     vote_count: 25000,
     runtime: 136,
     production_companies: [{ name: "Warner Bros. Pictures" }],
-    belongs_to_collection: { name: "Matrix - Saga" },
+    belongs_to_collection: { id: 2344, name: "Matrix - Saga" },
   });
   await seedTmdb("movie", 900, {
     title: "Dilwale",
@@ -43,19 +43,19 @@ beforeAll(async () => {
     { kind: "live", xtreamId: "100", name: "|FR| TF1 HD", section: "|FR| GÉNÉRALISTES |FR|" },
   ]);
   await runNaming();
-  await runGrouping();
+  await groupAndFilter();
 });
 afterAll(closeDb);
 
-/** The xtream ids of the variants a query finds. */
+/** The titles of the contents a query finds. */
 async function find(q: string, kind: Kind = "vod"): Promise<string[]> {
   const where = compileQuery(q, { kind, lang: "fr-FR" });
   const rows = await db
-    .select({ id: schema.catalogVariants.xtreamId })
-    .from(schema.catalogVariants)
-    .where(sql`${schema.catalogVariants.kind} = ${kind} ${where ? sql`and ${where}` : sql``}`)
-    .orderBy(schema.catalogVariants.xtreamId);
-  return rows.map((r) => r.id);
+    .select({ title: schema.catalogContents.title })
+    .from(schema.catalogContents)
+    .where(sql`${schema.catalogContents.kind} = ${kind} ${where ? sql`and ${where}` : sql``}`)
+    .orderBy(schema.catalogContents.title);
+  return rows.map((r) => r.title);
 }
 const fails = (q: string, o: { kind?: Kind | null; rule?: boolean } = {}) => {
   try {
@@ -67,73 +67,76 @@ const fails = (q: string, o: { kind?: Kind | null; rule?: boolean } = {}) => {
   throw new Error(`« ${q} » should fail`);
 };
 
-describe("filter language: conditions", () => {
-  it("searches the title and the provider's name, without case nor accents", async () => {
-    expect(await find("matrix")).toEqual(["1", "2"]);
-    expect(await find("MATRIX vostfr")).toEqual(["2"]);
-    expect(await find('titre:"matrix"')).toEqual(["1", "2"]); // the TMDB title, exactly
-    expect(await find('nom:"matrix"')).toEqual([]); // the provider's name is longer
-    expect(await find("catégorie:comedies")).toEqual(["2", "3", "4"]);
-    expect(await find("categorie:COMÉDIES")).toEqual(["2", "3", "4"]);
+const MATRIX = "Matrix",
+  DILWALE = "Dilwale",
+  UNKNOWN = "Inconnu 100%";
+
+describe("filter language: conditions on a content", () => {
+  it("searches the titles and the provider's names of its variants, without case nor accents", async () => {
+    expect(await find("matrix")).toEqual([MATRIX]);
+    expect(await find("MATRIX vostfr")).toEqual([MATRIX]); // one variant's name says VOSTFR
+    expect(await find('titre:"matrix"')).toEqual([MATRIX]); // the title, exactly
+    expect(await find("catégorie:comedies")).toEqual([DILWALE, UNKNOWN, MATRIX]); // one of its variants is there
+    expect(await find("categorie:COMÉDIES")).toEqual([DILWALE, UNKNOWN, MATRIX]);
   });
 
-  it("reads the TMDB sheet of each variant", async () => {
-    expect(await find("genre:science")).toEqual(["1", "2"]);
-    expect(await find('genre:"science-fiction"')).toEqual(["1", "2"]);
+  it("reads its TMDB sheet", async () => {
+    expect(await find("genre:science")).toEqual([MATRIX]);
+    expect(await find('genre:"science-fiction"')).toEqual([MATRIX]);
     expect(await find('genre:"science"')).toEqual([]);
-    expect(await find("genre:comedie")).toEqual(["3"]);
-    expect(await find('langue-vo:"hi","ta"')).toEqual(["3"]);
-    expect(await find("pays-vo:us")).toEqual(["1", "2"]);
-    expect(await find("studio:warner saga:matrix")).toEqual(["1", "2"]);
-    expect(await find("année:<1997")).toEqual(["3"]);
-    expect(await find("année:1990..1999")).toEqual(["1", "2", "3"]);
-    expect(await find("année:2010")).toEqual(["4"]); // no sheet: the year of the name
-    expect(await find("note:>=8.5")).toEqual(["3"]);
-    expect(await find("votes:>10000 durée:>120")).toEqual(["1", "2"]);
+    expect(await find("genre:comedie")).toEqual([DILWALE]);
+    expect(await find('langue-vo:"hi","ta"')).toEqual([DILWALE]);
+    expect(await find("pays-vo:us")).toEqual([MATRIX]);
+    expect(await find("studio:warner saga:matrix")).toEqual([MATRIX]);
+    expect(await find("année:<1997")).toEqual([DILWALE]);
+    expect(await find("année:1990..1999")).toEqual([DILWALE, MATRIX]);
+    expect(await find("année:2010")).toEqual([UNKNOWN]); // no sheet: the year of the name
+    expect(await find("note:>=8.5")).toEqual([DILWALE]);
+    expect(await find("votes:>10000 durée:>120")).toEqual([MATRIX]);
   });
 
   it("takes ISO codes by code or by French name, exactly", async () => {
-    expect(await find("langue-vo:hindi")).toEqual(["3"]);
-    expect(await find("langue-vo:HI,tamoul")).toEqual(["3"]);
-    expect(await find("langue-vo:anglais")).toEqual(["1", "2"]);
-    expect(await find("pays-vo:inde")).toEqual(["3"]);
-    expect(await find('pays-vo:"états-unis"')).toEqual(["1", "2"]);
-    expect(await find("pays-vo:usa")).toEqual(["1", "2"]);
+    expect(await find("langue-vo:hindi")).toEqual([DILWALE]);
+    expect(await find("langue-vo:HI,tamoul")).toEqual([DILWALE]);
+    expect(await find("langue-vo:anglais")).toEqual([MATRIX]);
+    expect(await find("pays-vo:inde")).toEqual([DILWALE]);
+    expect(await find('pays-vo:"états-unis"')).toEqual([MATRIX]);
+    expect(await find("pays-vo:usa")).toEqual([MATRIX]);
   });
 
-  it("knows the dynamic range of the name, SDR being neither", async () => {
-    expect(await find("dynamique:sdr")).toEqual(["1", "2", "3", "4"]);
+  it("knows the dynamic range, SDR being neither", async () => {
+    expect(await find("dynamique:sdr")).toEqual([DILWALE, UNKNOWN, MATRIX]);
     expect(await find("dynamique:hdr,dv")).toEqual([]);
   });
 
   it("negates, with a missing value counting as no match", async () => {
-    expect(await find("-tmdb:oui")).toEqual(["4"]);
-    expect(await find("tmdb:non")).toEqual(["4"]);
-    expect(await find("-genre:comedie")).toEqual(["1", "2", "4"]); // « 4 » has no genre: kept
-    expect(await find("-matrix")).toEqual(["3", "4"]);
+    expect(await find("-tmdb:oui")).toEqual([UNKNOWN]);
+    expect(await find("tmdb:non")).toEqual([UNKNOWN]);
+    expect(await find("-genre:comedie")).toEqual([UNKNOWN, MATRIX]); // the unknown one has no genre: kept
+    expect(await find("-matrix")).toEqual([DILWALE, UNKNOWN]);
   });
 
   it("compares qualities by rank and reads regexes", async () => {
-    expect(await find("qualité:>=fhd")).toEqual(["1"]);
-    expect(await find("qualité:4k")).toEqual(["1"]);
-    expect(await find("nom:/\\(4K\\)$/")).toEqual(["1"]);
-    expect(await find("nom:/\\bmatrix\\b/")).toEqual(["1", "2"]); // JavaScript's \b
-    expect(await find("nom:/MATRIX/")).toEqual(["1", "2"]); // case-insensitive
+    expect(await find("qualité:>=fhd")).toEqual([MATRIX]); // its best variant
+    expect(await find("qualité:4k")).toEqual([MATRIX]);
+    expect(await find("titre:/\\(4K\\)$/")).toEqual([MATRIX]);
+    expect(await find("titre:/\\bmatrix\\b/")).toEqual([MATRIX]); // JavaScript's \b
+    expect(await find("titre:/MATRIX/")).toEqual([MATRIX]); // case-insensitive
   });
 
   it("takes « % » and « _ » literally, and values as parameters only", async () => {
-    expect(await find("nom:100%")).toEqual(["4"]);
-    expect(await find("nom:10_%")).toEqual([]);
-    expect(await find('nom:"\'; drop table catalog_variants; --"')).toEqual([]);
+    expect(await find("titre:100%")).toEqual([UNKNOWN]);
+    expect(await find("titre:10_%")).toEqual([]);
+    expect(await find('titre:"\'; drop table catalog_contents; --"')).toEqual([]);
     expect(await find('genre:"\' or 1=1 --"')).toEqual([]);
-    expect(await find("nom:/x'; delete from catalog_variants; --/")).toEqual([]);
-    expect(fails("nom:/'); delete from catalog_variants; --/")).toContain("invalide"); // never reaches Postgres
-    expect(await find("")).toEqual(["1", "2", "3", "4"]); // the table is intact
+    expect(await find("titre:/x'; delete from catalog_contents; --/")).toEqual([]);
+    expect(fails("titre:/'); delete from catalog_contents; --/")).toContain("invalide"); // never reaches Postgres
+    expect(await find("")).toEqual([DILWALE, UNKNOWN, MATRIX]); // the table is intact
   });
 
   it("knows the live fields", async () => {
-    expect(await find("section:generalistes", "live")).toEqual(["100"]);
-    expect(await find("tf1 -adulte:oui", "live")).toEqual(["100"]);
+    expect(await find("section:generalistes", "live")).toEqual(["TF1"]);
+    expect(await find("tf1 -adulte:oui", "live")).toEqual(["TF1"]);
   });
 
   it("refuses before any SQL what does not make sense", () => {
@@ -146,7 +149,9 @@ describe("filter language: conditions", () => {
     expect(fails("tmdb:peut-être")).toContain("tmdb vaut oui, non ou attente");
     expect(fails("tmdb:<1")).toContain("tmdb vaut oui, non ou attente");
     expect(fails("adulte:peut-être")).toContain("adulte vaut oui ou non");
-    expect(fails("nom:/(/")).toContain("invalide");
+    expect(fails("titre:/(/")).toContain("invalide");
+    expect(fails("nom:matrix")).toContain("Champ inconnu"); // the title reads the provider's names
+    expect(fails("catégorie:x", { rule: true })).toContain("recherches"); // a rule judges the content, not a variant
     expect(fails("langue-vo:japonai")).toContain("voulais-tu japonais");
     expect(fails("langue-vo:xx")).toContain("n'est pas une langue connue");
     expect(fails("pays-vo:/in/")).toContain("ni comparaison ni expression régulière");

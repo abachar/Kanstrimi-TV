@@ -10,7 +10,7 @@ import {
   runLogPath,
   isTaskRunning,
   killRun,
-  pipelineSteps,
+  PIPELINE_STEPS,
   TASKS,
   RETENTION_DAYS,
   type Task,
@@ -24,9 +24,15 @@ export const tasksRoutes = new Hono();
 
 /** What a task card shows: its schedule, its last runs, whether it runs now, where it may start from. */
 async function taskStates(tasks: readonly Task[]) {
-  const [s, steps, byTask] = await Promise.all([getSettings(), pipelineSteps(), lastRunsByTask(tasks, 5)]);
-  const cron = { pipeline: s.sync_cron, epg: s.epg_cron };
-  return tasks.map((t) => ({ task: t, cron: cron[t], runs: byTask[t], busy: isTaskRunning(t), steps: t === "pipeline" ? steps : [] }));
+  const [s, byTask] = await Promise.all([getSettings(), lastRunsByTask(tasks, 5)]);
+  const cron: Record<Task, string> = { pipeline: s.sync_cron, epg: s.epg_cron, trending: s.trending_cron };
+  return tasks.map((t) => ({
+    task: t,
+    cron: cron[t],
+    runs: byTask[t],
+    busy: isTaskRunning(t),
+    steps: t === "pipeline" ? PIPELINE_STEPS : [],
+  }));
 }
 
 tasksRoutes.get("/", async (c) => {

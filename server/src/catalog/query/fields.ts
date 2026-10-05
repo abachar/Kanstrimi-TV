@@ -1,13 +1,14 @@
 import { sql, type Column, type SQL } from "drizzle-orm";
-import { schema, sqlTmdbMediaType, visibleItem, type Kind } from "@/db";
+import { schema, sqlTmdbMediaType, type Kind } from "@/db";
 import { stripAccents } from "@/shared";
 import type { CodeList } from "./codes";
 
 /**
- * The fields of the filter language. Every condition is about one variant (`catalog_variants`, never
- * aliased): the admin's Xtream view lists variants, its Catalogue view the contents with at least one
- * matching variant, a rule hides variants. TMDB values come from the variant's own cached sheet, not
- * from its content: rules run before the grouping, when a new variant has no content yet.
+ * The fields of the filter language. Every condition is about one content (`catalog_contents`, never
+ * aliased), as the app shows it: a rule hides contents, the admin's searches list them. TMDB values
+ * come from the content's sheet in the cache. The provider's own fields (category, section, edition)
+ * are for searches only, true when one of its variants has them: a rule judges the content, never
+ * one of its variants.
  *
  * Names and expressions are fixed here; a query only picks among them, its values always travel as
  * parameters.
@@ -28,7 +29,7 @@ export type Field = {
   example: string | Record<Kind, string>;
   /** The kinds it means something for; absent = all. */
   kinds?: Kind[];
-  /** Searches only: a rule on it would depend on its own result. */
+  /** Searches only: a rule on it would judge a variant, or depend on its own result. */
   searchOnly?: boolean;
   /**
    * Text: the condition on its values, `pred` applied to each (any one matching is enough).
@@ -41,22 +42,21 @@ export type Field = {
   codes?: CodeList;
 };
 
-const v = schema.catalogVariants;
+const c = schema.catalogContents;
 const VOD_SERIES: Kind[] = ["vod", "series"];
 
-/** The variant's TMDB sheet in the cache, in the admin's language; `body` reads `t.data`. */
-const tmdbScalar = (ctx: FieldContext, body: SQL) =>
-  sql`(select ${body} from tmdb_cache t where t.tmdb_id = ${v.tmdbId} and t.lang = ${ctx.lang}
-    and t.media_type = ${sqlTmdbMediaType(v.kind)})`;
 /** Any element of a JSON array of the sheet matching: `elements` yields rows `e(value text)`. */
 const tmdbAny = (ctx: FieldContext, elements: SQL, pred: Pred) =>
-  sql`exists (select 1 from tmdb_cache t, ${elements} where t.tmdb_id = ${v.tmdbId} and t.lang = ${ctx.lang}
-    and t.media_type = ${sqlTmdbMediaType(v.kind)} and ${pred(sql`e.value`)})`;
-const contentScalar = (col: SQL) => sql`(select ${col} from catalog_contents cc where cc.id = ${v.contentId})`;
+  sql`exists (select 1 from tmdb_cache t, ${elements} where t.tmdb_id = ${c.tmdbId} and t.lang = ${ctx.lang}
+    and t.media_type = ${sqlTmdbMediaType(c.kind)} and ${pred(sql`e.value`)})`;
+/** Any element of an array column matching. */
+const arrayAny = (col: Column, pred: Pred) => sql`exists (select 1 from unnest(${col}) e(value) where ${pred(sql`e.value`)})`;
+/** One of the content's variants matching: `cond` reads the variant as `vv`. */
+const someVariant = (cond: SQL) => sql`exists (select 1 from catalog_variants vv where vv.content_id = ${c.id} and ${cond})`;
 const yesNo = (cond: SQL) => ({ oui: cond, non: sql`not coalesce(${cond}, false)` });
 const any = (...conds: SQL[]) =>
   sql`(${sql.join(
-    conds.map((c) => sql`coalesce(${c}, false)`),
+    conds.map((x) => sql`coalesce(${x}, false)`),
     sql` or `,
   )})`;
 
@@ -64,60 +64,70 @@ export const FIELDS: Field[] = [
   {
     names: ["titre", "title"],
     type: "text",
-    doc: "Titre TMDB, titres originaux et nom chez le fournisseur ; c'est aussi le texte libre",
+    doc: "Titre, titres originaux, et nom chez le fournisseur ; c'est aussi le texte libre",
     example: { vod: "titre:matrix", series: "titre:friends", live: "titre:tf1" },
-    text: (_, p) =>
-      any(p(v.name), p(v.cleanTitle), contentScalar(sql`${p(sql`cc.title`)} or ${p(sql`cc.original_title`)} or ${p(sql`cc.title_en`)}`)),
+    text: (_, p) => any(p(c.title), p(c.originalTitle), p(c.titleEn), someVariant(sql`(${p(sql`vv.name`)} or ${p(sql`vv.clean_title`)})`)),
   },
-  { names: ["nom", "name"], type: "text", doc: "Nom chez le fournisseur", example: "nom:/\\|FR\\|/", text: (_, p) => p(v.name) },
   {
     names: ["catégorie", "cat"],
     type: "text",
-    doc: "Catégorie du fournisseur",
+    doc: "Catégorie du fournisseur d'une de ses variantes (recherche seulement)",
     example: 'catégorie:"france fhd"',
+    searchOnly: true,
     text: (_, p) =>
-      sql`exists (select 1 from catalog_categories k where k.kind = ${v.kind} and k.xtream_id = ${v.categoryXtreamId} and ${p(sql`k.name`)})`,
+      someVariant(
+        sql`exists (select 1 from catalog_categories k where k.kind = vv.kind and k.xtream_id = vv.category_xtream_id and ${p(sql`k.name`)})`,
+      ),
   },
   {
     names: ["section"],
     type: "text",
-    doc: "Section du fournisseur (ligne séparatrice)",
+    doc: "Section du fournisseur (ligne séparatrice) d'une de ses variantes (recherche seulement)",
     example: "section:sport",
-    text: (_, p) => p(v.section),
+    kinds: ["live"],
+    searchOnly: true,
+    text: (_, p) => someVariant(p(sql`vv.section`)),
+  },
+  {
+    names: ["édition"],
+    type: "text",
+    doc: "Montage d'une de ses variantes : version longue, director's cut… (recherche seulement)",
+    example: "édition:longue",
+    kinds: VOD_SERIES,
+    searchOnly: true,
+    text: (_, p) => someVariant(p(sql`vv.edition`)),
   },
   {
     names: ["langue", "lang"],
     type: "text",
-    doc: "Langue lue dans le nom : VF, VOSTFR, VO…",
-    example: '-langue:"vostfr"',
-    text: (_, p) => p(v.lang),
+    doc: "Langues de ses variantes servies : VF, VO, AR…",
+    example: 'langue:"vo"',
+    text: (_, p) => arrayAny(c.languages, p),
   },
   {
     names: ["qualité", "quality"],
     type: "quality",
-    doc: "Qualité lue dans le nom : SD < HD < FHD < 4K",
+    doc: "Meilleure qualité de ses variantes : SD < HD < FHD < 4K",
     example: "qualité:>=fhd",
-    value: () => sql`${v.qualityRank}`,
+    value: () => sql`${c.maxQualityRank}`,
   },
   {
     names: ["dynamique", "hdr"],
     type: "enum",
-    doc: "Dynamique lue dans le nom : hdr, dv (Dolby Vision) ou sdr (ni l'un ni l'autre)",
+    doc: "Dynamique : hdr, dv (Dolby Vision) ou sdr (ni l'un ni l'autre)",
     example: "dynamique:hdr,dv",
     choices: () => ({
-      hdr: sql`${v.dynamicRange} = 'HDR'`,
-      dv: sql`${v.dynamicRange} = 'DV'`,
-      sdr: sql`${v.dynamicRange} is null`,
+      hdr: sql`${c.dynamicRange} = 'HDR'`,
+      dv: sql`${c.dynamicRange} = 'DV'`,
+      sdr: sql`${c.dynamicRange} is null`,
     }),
   },
-  { names: ["marché", "market"], type: "text", doc: "Marché du préfixe |FR| du nom", example: 'marché:"fr"', text: (_, p) => p(v.market) },
   {
-    names: ["édition"],
+    names: ["marché", "market"],
     type: "text",
-    doc: "Montage : version longue, director's cut…",
-    example: "édition:longue",
-    kinds: VOD_SERIES,
-    text: (_, p) => p(v.edition),
+    doc: "Marché du préfixe |FR| des noms",
+    example: 'marché:"fr"',
+    text: (_, p) => p(c.market),
   },
   {
     names: ["genre"],
@@ -125,7 +135,7 @@ export const FIELDS: Field[] = [
     doc: "Genres TMDB",
     example: 'genre:"animation"',
     kinds: VOD_SERIES,
-    text: (ctx, p) => tmdbAny(ctx, sql`jsonb_array_elements(t.data->'genres') g, lateral (select g->>'name') e(value)`, p),
+    text: (_, p) => arrayAny(c.genres, p),
   },
   {
     names: ["langue-vo", "vo"],
@@ -164,15 +174,14 @@ export const FIELDS: Field[] = [
     doc: "Saga TMDB d'un film",
     example: "saga:marvel",
     kinds: ["vod"],
-    text: (ctx, p) => tmdbAny(ctx, sql`lateral (select t.data->'belongs_to_collection'->>'name') e(value)`, p),
+    text: (_, p) => p(c.sagaName),
   },
   {
     names: ["année", "year"],
     type: "number",
-    doc: "Année de sortie TMDB, sinon celle du nom",
+    doc: "Année de sortie",
     example: "année:1980..1989",
-    value: (ctx) =>
-      sql`coalesce(${tmdbScalar(ctx, sql`nullif(left(coalesce(t.data->>'release_date', t.data->>'first_air_date'), 4), '')::int`)}, ${v.year})`,
+    value: () => sql`${c.year}`,
   },
   {
     names: ["note", "rating"],
@@ -180,7 +189,7 @@ export const FIELDS: Field[] = [
     doc: "Note moyenne TMDB, sur 10",
     example: "note:>=7",
     kinds: VOD_SERIES,
-    value: (ctx) => tmdbScalar(ctx, sql`(t.data->>'vote_average')::real`),
+    value: () => sql`${c.rating}`,
   },
   {
     names: ["votes"],
@@ -188,7 +197,7 @@ export const FIELDS: Field[] = [
     doc: "Nombre de votes TMDB",
     example: "votes:<10",
     kinds: VOD_SERIES,
-    value: (ctx) => tmdbScalar(ctx, sql`(t.data->>'vote_count')::int`),
+    value: () => sql`${c.voteCount}`,
   },
   {
     names: ["durée", "runtime"],
@@ -196,26 +205,26 @@ export const FIELDS: Field[] = [
     doc: "Durée TMDB en minutes (d'un épisode pour une série)",
     example: "durée:>150",
     kinds: VOD_SERIES,
-    value: (ctx) => tmdbScalar(ctx, sql`coalesce((t.data->>'runtime')::int, (t.data->'episode_run_time'->>0)::int)`),
+    value: () => sql`${c.runtime}`,
   },
   {
     names: ["tmdb"],
     type: "enum",
-    doc: "Rapprochement TMDB : oui (associé), non (introuvable), attente (pas encore cherché)",
+    doc: "Rapprochement TMDB : oui (associé), non (introuvable), attente (une variante pas encore cherchée)",
     example: "tmdb:non,attente",
     kinds: VOD_SERIES,
     choices: () => ({
-      oui: sql`(${v.tmdbId} is not null and ${v.matchStatus} in ('matched', 'manual'))`,
-      non: sql`${v.matchStatus} = 'unmatched'`,
-      attente: sql`${v.matchStatus} = 'pending'`,
+      oui: sql`${c.tmdbId} is not null`,
+      non: sql`(${c.tmdbId} is null and not ${someVariant(sql`vv.match_status = 'pending'`)})`,
+      attente: sql`(${c.tmdbId} is null and ${someVariant(sql`vv.match_status = 'pending'`)})`,
     }),
   },
   {
     names: ["adulte", "adult"],
     type: "enum",
-    doc: "Marqué adulte (nom, catégorie ou iptv-org) : oui ou non",
+    doc: "Marqué adulte (TMDB, nom, catégorie ou iptv-org) : oui ou non",
     example: "adulte:oui",
-    choices: () => yesNo(sql`${v.adult}`),
+    choices: () => yesNo(sql`${c.adult}`),
   },
   {
     names: ["pays", "country"],
@@ -224,15 +233,15 @@ export const FIELDS: Field[] = [
     doc: "Pays d'une chaîne d'une région (Monde arabe), par code ou par nom",
     example: "pays:maroc",
     kinds: ["live"],
-    text: (_, p) => p(v.country),
+    text: (_, p) => p(c.country),
   },
   {
     names: ["thème", "theme"],
     type: "text",
-    doc: "Thème d'une chaîne : Sport, Infos, Cinéma…",
+    doc: "Thèmes d'une chaîne : Sport, Infos, Cinéma…",
     example: "thème:sport",
     kinds: ["live"],
-    text: (_, p) => p(v.theme),
+    text: (_, p) => arrayAny(c.themes, p),
   },
   {
     names: ["iptv"],
@@ -242,17 +251,17 @@ export const FIELDS: Field[] = [
     kinds: ["live"],
     text: (_, p) =>
       any(
-        p(v.iptvId),
-        sql`exists (select 1 from iptvorg_channels ic, unnest(ic.categories) e(value) where ic.id = ${v.iptvId} and ${p(sql`e.value`)})`,
+        p(c.iptvId),
+        sql`exists (select 1 from iptvorg_channels ic, unnest(ic.categories) e(value) where ic.id = ${c.iptvId} and ${p(sql`e.value`)})`,
       ),
   },
   {
     names: ["visible"],
     type: "enum",
-    doc: "Visible pour l'app, ni masquée ni dans une catégorie masquée : oui ou non",
+    doc: "Visible pour l'app : oui ou non",
     example: "visible:non",
     searchOnly: true,
-    choices: () => yesNo(sql`(${visibleItem})`),
+    choices: () => yesNo(sql`${c.visible}`),
   },
 ];
 

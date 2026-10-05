@@ -1,9 +1,22 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { checkRuleQuery, listRules, saveRule, deleteRule, setRuleEnabled, previewRule, rulesPending, isTaskRunning } from "@/catalog";
+import {
+  checkRuleQuery,
+  listRules,
+  saveRule,
+  deleteRule,
+  setRuleEnabled,
+  previewRule,
+  rulesPending,
+  isTaskRunning,
+  languagesOfCatalogue,
+  languagesPending,
+  saveServedLanguages,
+} from "@/catalog";
+import { getSettings, servedLanguages } from "@/config";
 import { page, back, checked, zerr, intParam } from "../http";
-import { RulesView, RulePreview } from "./view";
+import { RulesView, RulePage, RulePreview } from "./view";
 
 const ruleSchema = z.object({
   id: z.coerce.number().optional(),
@@ -22,9 +35,42 @@ const previewSchema = z.object({
 /** `/admin/rules`: the rules in the filter language; saving only marks them pending, the `filters` step applies them. */
 export const rulesRoutes = new Hono();
 
-rulesRoutes.get("/", async (c) =>
-  page(c, "Règles", <RulesView rules={await listRules()} pending={await rulesPending()} busy={isTaskRunning("pipeline")} />),
-);
+rulesRoutes.get("/", async (c) => {
+  const [rules, pending, langsPending, languages, s] = await Promise.all([
+    listRules(),
+    rulesPending(),
+    languagesPending(),
+    languagesOfCatalogue(),
+    getSettings(),
+  ]);
+  return page(
+    c,
+    "Règles",
+    <RulesView
+      rules={rules}
+      pending={pending}
+      languagesPending={langsPending}
+      busy={isTaskRunning("pipeline")}
+      languages={languages}
+      served={servedLanguages(s)}
+    />,
+  );
+});
+/** A rule on a page of its own: `new` for a blank one. Under « Règles » in the breadcrumb. */
+const RULES = { under: "/admin/rules" };
+rulesRoutes.get("/new", (c) => page(c, "Nouvelle règle", <RulePage />, RULES));
+rulesRoutes.get("/:id{[0-9]+}", async (c) => {
+  const id = intParam(c, "id");
+  const rule = (await listRules()).find((r) => r.id === id);
+  if (!rule) return c.notFound();
+  return page(c, rule.name, <RulePage rule={rule} />, RULES);
+});
+/** The served languages: the boxes ticked, among the catalogue's own languages; at least one. */
+rulesRoutes.post("/languages", async (c) => {
+  const langs = await saveServedLanguages((await c.req.formData()).getAll("lang").map(String));
+  if (!langs.length) return back(c, "/admin/rules", { err: "Choisir au moins une langue" });
+  return back(c, "/admin/rules", { ok: `Langues servies : ${langs.join(", ")} — à appliquer par un passage à partir de « Groupement »` });
+});
 rulesRoutes.post(
   "/",
   zValidator("form", ruleSchema, (r, c) => {
@@ -33,7 +79,8 @@ rulesRoutes.post(
   async (c) => {
     const rule = c.req.valid("form");
     const err = await checkRuleQuery(rule.query, rule.kind);
-    if (err) return back(c, "/admin/rules", { err: `Requête invalide : ${err}` });
+    // Back to the rule's page: the mistake is fixed where it was made.
+    if (err) return back(c, rule.id ? `/admin/rules/${rule.id}` : "/admin/rules/new", { err: `Requête invalide : ${err}` });
     await saveRule(rule);
     return back(c, "/admin/rules", { ok: "Règle enregistrée — à appliquer par un passage à partir de « Filtres »" });
   },

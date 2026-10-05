@@ -1,8 +1,8 @@
 import { Cron } from "croner";
 import { getSettings, isXtreamConfigured, type Settings } from "@/config";
-import { describeError, isCancelled, withCancel } from "@/shared";
+import { checkCancelled, describeError, isCancelled, withCancel } from "@/shared";
 import { runSync } from "@/providers/xtream";
-import { runTrending } from "@/providers/tmdb";
+import { getTmdbClient, runTrending } from "@/providers/tmdb";
 import { runEnrich } from "./matching";
 import { runEpgRebuild } from "./epg";
 import { variantCountsByKind } from "./queries";
@@ -14,31 +14,32 @@ import { startStep, finishStep, startRun, finishRun, purgeRuns, closeStaleRun, t
 import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
 
 /**
- * The catalogue pipeline. Eight steps, each a plain function of its own module:
- *   source  — read the provider's lists into their raw copy, checked against the catalogue (providers/xtream)
- *   merge   — raw copy → catalogue by difference, then parse the names (no network)
- *   channels — live variants matched to the iptv-org database: logo, theme, adult (providers/iptv)
- *   enrich  — TMDB matching of every pending entry, hidden ones included, and a share of the stale cache (matching.ts)
- *   filters — recompute hidden_by_rule from the rules (no network)
- *   group   — variants → contents, aggregates over the visible variants (no network)
- *   trending — TMDB's weekly trending lists, for the « Top 10 » rows
- *   epg     — download the XMLTV guide (providers/xtream), keep the programmes of the visible channels (epg.ts)
- * Matching comes before the filters so that unhiding something never shows it unmatched;
- * grouping comes after them because its aggregates only count visible variants.
+ * The catalogue pipeline. Four steps, each a plain function of its own modules:
+ *   source  — the provider's lists into their raw copy, checked against the catalogue (providers/xtream),
+ *             then raw copy → catalogue by difference and the names parsed (merge.ts, no network)
+ *   enrich  — TMDB matching of every pending film and series, hidden ones included, and a share of the
+ *             stale cache (matching.ts); live variants matched to iptv-org: logo, theme, country (channels.ts)
+ *   group   — variants → contents in the served languages, aggregates over the visible variants (no network)
+ *   filters — the rules judge the contents (`hidden_by_rule`), then `visible` and the waitlist (no network)
+ * Matching comes first so that a title shown never waits for its TMDB sheet. The rules come last: they
+ * read the content as the app shows it. A content the grouping just made is hidden until they judge it.
  *
- * Two tasks run them, by cron or from the admin: `pipeline` (the seven catalogue steps, the
- * TMDB ones only with a key) and `epg`. A run is journalled twice: a `task_runs` row with a
+ * Three tasks run them, by cron or from the admin: `pipeline` (the four steps), `epg` (download the
+ * XMLTV guide, keep the programmes of the visible channels, epg.ts) and `trending` (TMDB's weekly
+ * trending lists, for the « Top 10 » rows). A run is journalled twice: a `task_runs` row with a
  * `task_steps` row per step (the summary the admin lists), and a text file of everything printed
- * meanwhile (the detail).
+ * meanwhile, each part of a step included (the detail).
  */
-export type Step = "source" | "merge" | "channels" | "filters" | "enrich" | "group" | "trending" | "epg";
-export type Task = "pipeline" | "epg";
-export const TASKS: readonly Task[] = ["pipeline", "epg"];
+export type Step = "source" | "enrich" | "filters" | "group" | "trending" | "epg";
+export type Task = "pipeline" | "epg" | "trending";
+export const TASKS: readonly Task[] = ["pipeline", "epg", "trending"];
+/** The steps of the pipeline, in order. */
+export const PIPELINE_STEPS: readonly Step[] = ["source", "enrich", "group", "filters"];
 /**
- * Steps that only enrich (iptv-org, TMDB): when they fail (a service or the DNS down), the run
- * goes on without them and ends in error. The imported catalogue still gets filtered and grouped.
+ * A step that only enriches (iptv-org, TMDB): when it fails (a service or the DNS down), the run
+ * goes on without it and ends in error. The imported catalogue still gets filtered and grouped.
  */
-const SKIPPABLE: ReadonlySet<Step> = new Set(["channels", "enrich", "trending"]);
+const SKIPPABLE: ReadonlySet<Step> = new Set(["enrich"]);
 /** Runs and their files are kept this long. */
 export const RETENTION_DAYS = 90;
 
@@ -47,16 +48,40 @@ export type RunOptions = { acceptShrink?: boolean };
 type StepContext = RunOptions & { steps: Step[] };
 
 const RUNNERS: Record<Step, (ctx: StepContext) => Promise<unknown>> = {
-  source: async (ctx) => runSync({ acceptShrink: ctx.acceptShrink, currentCounts: await variantCountsByKind() }),
-  merge: (ctx) => runMerge(ctx),
-  channels: runChannels,
-  enrich: () => runEnrich(),
-  // `group` recomputes the visibility right after: no need to do it twice.
-  filters: (ctx) => applyRules({ refresh: !ctx.steps.includes("group") }),
+  source: async (ctx) => {
+    const read = await runSync({ acceptShrink: ctx.acceptShrink, currentCounts: await variantCountsByKind() });
+    checkCancelled();
+    return { ...read, ...(await runMerge(ctx)) };
+  },
+  enrich: runEnrichment,
   group: runGrouping,
+  filters: () => applyRules(),
   trending: runTrending,
   epg: runEpgRebuild,
 };
+
+/**
+ * TMDB (with a key) then iptv-org, one after the other: one of them down does not keep the other from
+ * running. The step fails afterwards with what went wrong, and the run goes on (`SKIPPABLE`).
+ */
+async function runEnrichment(): Promise<Record<string, number>> {
+  const parts: [name: string, fn: () => Promise<Record<string, number>>][] = [["iptv-org", runChannels]];
+  if (await getTmdbClient()) parts.unshift(["TMDB", () => runEnrich()]);
+  const stats: Record<string, number> = {};
+  const failed: string[] = [];
+  for (const [name, fn] of parts) {
+    checkCancelled();
+    try {
+      Object.assign(stats, await fn());
+    } catch (e) {
+      if (isCancelled(e)) throw e;
+      failed.push(`${name} : ${describeError(e)}`);
+      note(`${name} en échec : ${describeError(e)}`);
+    }
+  }
+  if (failed.length) throw new Error(failed.join(" ; "));
+  return stats;
+}
 
 const running = new Map<Step, Date>();
 const runningTasks = new Set<string>();
@@ -155,23 +180,12 @@ function purge() {
   purgeRuns(RETENTION_DAYS).catch((e) => console.error("[pipeline] purge du journal échouée :", describeError(e)));
 }
 
-/** The steps of the full pipeline: the TMDB ones only with a key. */
-export async function pipelineSteps(): Promise<Step[]> {
-  const tmdb = Boolean((await getSettings()).tmdb_api_key);
-  return tmdb
-    ? ["source", "merge", "channels", "enrich", "filters", "group", "trending"]
-    : ["source", "merge", "channels", "filters", "group"];
-}
-
-/**
- * The whole chain: source → merge → channels → enrich → filters → group → trending; from `from` on
- * when given (a step the chain does not hold, a TMDB one without a key, runs the whole chain).
- */
-export async function runAll(trigger: Trigger = "manual", from?: Step, opts: RunOptions = {}) {
-  const steps = await pipelineSteps();
-  return runTask("pipeline", trigger, steps.slice(Math.max(0, from ? steps.indexOf(from) : 0)), opts);
+/** The whole chain: source → enrich → group → filters; from `from` on when given (a step it does not hold runs it all). */
+export function runAll(trigger: Trigger = "manual", from?: Step, opts: RunOptions = {}) {
+  return runTask("pipeline", trigger, PIPELINE_STEPS.slice(Math.max(0, from ? PIPELINE_STEPS.indexOf(from) : 0)), opts);
 }
 export const runEpg = (trigger: Trigger = "manual") => runTask("epg", trigger, ["epg"]);
+export const runTrendingTask = (trigger: Trigger = "manual") => runTask("trending", trigger, ["trending"]);
 /** A lone step, as a run of its own (tests, tooling). */
 export const run = (step: Step, trigger: Trigger = "manual") => runTask(step, trigger, [step]);
 
@@ -181,7 +195,7 @@ export const run = (step: Step, trigger: Trigger = "manual") => runTask(step, tr
  */
 export function launch(task: Task, from?: Step, opts: RunOptions = {}): boolean {
   if (runningTasks.has(task)) return false;
-  void (task === "pipeline" ? runAll("manual", from, opts) : runEpg("manual"));
+  void (task === "pipeline" ? runAll("manual", from, opts) : task === "epg" ? runEpg("manual") : runTrendingTask("manual"));
   return true;
 }
 
@@ -204,7 +218,7 @@ export async function killRun(runId: number): Promise<"stopping" | "closed" | "n
 let jobs: Cron[] = [];
 
 /**
- * (Re)create the two cron jobs from the settings; called at boot and whenever the settings
+ * (Re)create the three cron jobs from the settings; called at boot and whenever the settings
  * change. `protect` skips a tick while the previous run is still going. An unconfigured
  * provider is checked at fire time.
  */
@@ -231,6 +245,8 @@ export function schedule(s: Settings) {
   };
   add(s.sync_cron, "traitement complet", () => runAll("cron"));
   add(s.epg_cron, "EPG", () => runEpg("cron"));
+  // Without a TMDB key there is nothing to read: the tick passes.
+  add(s.trending_cron, "tendances TMDB", async () => (await getTmdbClient()) && runTrendingTask("cron"));
 }
 
 /** The planned jobs and their next tick. */

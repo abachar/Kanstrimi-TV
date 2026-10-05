@@ -24,6 +24,15 @@ function windowOf(at: string | undefined): { from: Date; to: Date } {
   return { from, to: new Date(from.getTime() + SLOTS * SLOT_MIN * 60_000) };
 }
 
+/**
+ * The moment whose day the correction panel shows: `at`, else now. Not the grid's window, which starts
+ * half an hour earlier: just after midnight it would show the day before.
+ */
+function dayRef(at: string | undefined): Date {
+  const t = at ? Date.parse(at) : NaN;
+  return Number.isNaN(t) ? new Date() : new Date(t);
+}
+
 /** Where « fermer » and a saved correction lead: back to the EPG page only, it lands in a link and a redirect. */
 const epgBack = (url: string | undefined) => (url && /^\/admin\/epg(\/|\?|$)/.test(url) ? url : "/admin/epg");
 
@@ -72,7 +81,7 @@ epgRoutes.get("/", async (c) => {
     runSearch((ex) => epgGrid(ex, q, search.where)),
     listOffsets(),
     sourceRows(),
-    channel ? panelProps(channel, from, null, null, url.pathname + url.search) : null,
+    channel ? panelProps(channel, dayRef(c.req.query("at")), null, null, url.pathname + url.search) : null,
   ]);
   return page(
     c,
@@ -94,7 +103,7 @@ epgRoutes.get("/preview/:id", async (c) => {
   const minutes = Number(c.req.query("minutes"));
   const props = await panelProps(
     c.req.param("id"),
-    windowOf(c.req.query("at")).from,
+    dayRef(c.req.query("at")),
     Number.isFinite(minutes) ? minutes : null,
     c.req.query("pattern") ?? null,
     epgBack(c.req.query("back")),

@@ -1,19 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { compileQuery } from "@/catalog";
-import { resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
-import { countItems, pageItems, itemCountByCategory, NO_CATEGORY, type CatalogFilter } from "../data";
+import { db } from "@/db";
+import { compileQuery, runNaming, setItemHiddenManual } from "@/catalog";
+import { withCatalogLock } from "@/catalog/lock";
+import { resetDb, closeDb, seedCategories, seedItems, groupAndFilter } from "@/test/db";
+import { searchContents } from "../app-data";
 import { counts } from "../../dashboard/data";
-import { categoryByXtreamId } from "@/catalog";
-import { setCategoryHiddenManual, setItemHiddenManual } from "@/catalog";
-
-const vod = (over: Partial<CatalogFilter> = {}): CatalogFilter => ({
-  kind: "vod",
-  cat: "",
-  ...over,
-  q: over.q ?? "",
-  // `q` in the filter language, compiled as the route does.
-  match: over.q ? compileQuery(over.q, { kind: "vod", lang: "fr-FR" }) : null,
-});
 
 beforeAll(async () => {
   await resetDb();
@@ -29,10 +20,17 @@ beforeAll(async () => {
     { kind: "vod", xtreamId: "5", name: "Sans catégorie amont", matchStatus: "unmatched" },
     { kind: "live", xtreamId: "100", name: "TF1", cat: "20" },
   ]);
+  await runNaming();
+  await groupAndFilter();
 });
 afterAll(closeDb);
 
-describe("admin catalogue browsing", () => {
+/** How many films a search of the screen finds. */
+const found = async (q: string) => (await searchContents(db, "vod", compileQuery(q, { kind: "vod", lang: "fr-FR" })!, 0)).total;
+/** The switches recompute their content in the background, under the catalogue lock. */
+const settled = () => withCatalogLock(async () => {});
+
+describe("admin catalogue", () => {
   it("counts per kind, a hidden category hiding its items too; TMDB counts visible entries only", async () => {
     const c = await counts();
     const v = c.items.find((r) => r.kind === "vod")!;
@@ -40,48 +38,24 @@ describe("admin catalogue browsing", () => {
     expect(c.categories.find((r) => r.kind === "vod")).toMatchObject({ total: 2, hidden: 1 });
   });
 
-  it("filters by query: visibility and TMDB status are independent", async () => {
-    expect(await countItems(vod())).toBe(5);
-    expect(await countItems(vod({ q: "visible:oui" }))).toBe(3);
-    expect(await countItems(vod({ q: "visible:non" }))).toBe(2);
-    expect(await countItems(vod({ q: "tmdb:oui" }))).toBe(1);
-    expect(await countItems(vod({ q: "tmdb:non" }))).toBe(3);
-    expect(await countItems(vod({ q: "visible:non tmdb:attente" }))).toBe(1);
-    expect(await countItems(vod({ q: "tmdb:non,attente" }))).toBe(4);
-    expect(await countItems(vod({ q: "mat" }))).toBe(1);
-    expect(await countItems(vod({ cat: "11" }))).toBe(1);
-    // No category upstream: reachable by the sentinel, and visible (no category can hide it).
-    expect(await countItems(vod({ cat: NO_CATEGORY }))).toBe(1);
-    expect(await countItems(vod({ cat: NO_CATEGORY, q: "visible:oui" }))).toBe(1);
+  it("searches the contents: visibility and TMDB status are independent", async () => {
+    expect(await found("visible:oui")).toBe(3);
+    expect(await found("visible:non")).toBe(2);
+    expect(await found("tmdb:oui")).toBe(1);
+    expect(await found("tmdb:non")).toBe(3);
+    expect(await found("visible:non tmdb:attente")).toBe(1);
+    expect(await found("tmdb:non,attente")).toBe(4);
+    expect(await found("mat")).toBe(1);
   });
 
-  it("pages in provider order and says whether more remain", async () => {
-    const p1 = await pageItems(vod(), 1, 3);
-    expect(p1.rows.map((r) => r.xtreamId)).toEqual(["1", "2", "3"]);
-    expect(p1.hasMore).toBe(true);
-    const p2 = await pageItems(vod(), 2, 3);
-    expect(p2.rows.map((r) => r.xtreamId)).toEqual(["4", "5"]);
-    expect(p2.hasMore).toBe(false);
-  });
-
-  it("counts every entry per category for the Xtream view, hidden ones included", async () => {
-    const all = new Map([
-      ["10", 3],
-      ["11", 1],
-      [NO_CATEGORY, 1],
-    ]);
-    expect(await itemCountByCategory(vod())).toEqual(all);
-    expect(await itemCountByCategory(vod({ cat: "11", q: "zzz" }))).toEqual(all); // neither the category nor a search narrows it
-  });
-
-  it("the manual switches write hidden_manual and nothing else", async () => {
-    const [heat] = (await pageItems(vod({ q: "heat" }), 1)).rows;
-    await setItemHiddenManual(heat.id, true);
-    expect(await countItems(vod({ q: "visible:oui" }))).toBe(2);
-    await setItemHiddenManual(heat.id, false);
-    const hidden = await categoryByXtreamId("vod", "11");
-    await setCategoryHiddenManual(hidden!.id, false);
-    expect(await countItems(vod({ q: "visible:oui" }))).toBe(4);
-    expect(await categoryByXtreamId("vod", "missing")).toBeNull();
+  it("the manual switch writes hidden_manual, and the content follows", async () => {
+    const heat = (await searchContents(db, "vod", compileQuery("heat", { kind: "vod", lang: "fr-FR" })!, 0)).rows[0];
+    const [variant] = await db.query.catalogVariants.findMany({ where: (v, { eq }) => eq(v.contentId, heat.id) });
+    await setItemHiddenManual(variant.id, true);
+    await settled();
+    expect(await found("visible:oui")).toBe(2);
+    await setItemHiddenManual(variant.id, false);
+    await settled();
+    expect(await found("visible:oui")).toBe(3);
   });
 });

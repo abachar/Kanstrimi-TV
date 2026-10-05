@@ -36,27 +36,30 @@ si le changement est voulu, réécrire les fichiers : `UPDATE_CONTRACT=1 npx vit
 
 ## Traitement
 
-Le pipeline (`catalog/pipeline.ts`) enchaîne des étapes indépendantes ; chacune n'écrit que ce qui change et peut se
-relancer seule (**Tâches → Lancer à partir de…**).
+Trois tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres : **Traitement complet** (quatre étapes),
+**EPG** et **Tendances TMDB**. Chaque étape n'écrit que ce qui change ; le traitement peut repartir d'une étape
+(**Tâches → Lancer à partir de…**).
 
 | Étape | Rôle |
 |---|---|
-| `source` | copie brute des listes Xtream ; refuse une réponse vide ou un catalogue qui fond de moitié (panne du fournisseur) |
-| `merge` | copie brute → variantes du catalogue, par différence ; analyse des noms (titre, année, marché, langue, qualité, édition) |
-| `channels` | rattache les chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région |
-| `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`) ; relit peu à peu les fiches anciennes |
-| `filters` | règles de masquage (langage de filtre), une variante masquée par la dernière règle qui correspond |
-| `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles, arrivées de la liste d'attente |
-| `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf) |
-| `epg` | guide des programmes des chaînes visibles, deux fois par jour (le fournisseur ne couvre qu'un jour et demi), l'EPG de chaque variante, complété par les sources de secours ; décalages horaires corrigés dans l'admin |
+| `source` | copie brute des listes Xtream, refusée si vide ou si le catalogue fond de moitié (panne du fournisseur) ; puis copie brute → variantes du catalogue, par différence, et analyse des noms (titre, année, marché, langue, qualité, édition) |
+| `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`), qui relit peu à peu les fiches anciennes ; puis rattachement des chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région. L'un en panne n'empêche pas l'autre |
+| `group` | d'abord les langues servies (films et séries, `catalog/languages.ts`), puis variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
+| `filters` | les règles (langage de filtre) jugent les contenus, la dernière qui correspond l'emporte ; puis `visible` et les arrivées de la liste d'attente. Un contenu que le groupement vient de créer reste masqué jusqu'à ce jugement |
 
-TMDB passe avant les filtres : tout est matché une fois, et démasquer ne fait jamais apparaître de titres non matchés.
+| Tâche à part | Rôle |
+|---|---|
+| `epg` | guide des programmes des chaînes visibles, deux fois par jour (le fournisseur ne couvre qu'un jour et demi), l'EPG de chaque variante, complété par les sources de secours ; décalages horaires corrigés dans l'admin |
+| `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf), une fois par jour ; sans clé TMDB, le cron passe son tour |
+
+TMDB passe en premier : tout est matché une fois, et un titre affiché n'attend jamais sa fiche. Les règles passent en
+dernier : elles lisent le contenu tel que l'app le montre.
 Le matching est un seul algorithme, `explainMatch` : `enrich` applique son verdict, l'admin l'affiche sous « Pourquoi ? ».
 Une panne de TMDB (réseau, 429 qui dure) laisse l'élément en attente, jamais `unmatched` ; le client TMDB ne dépasse
 pas 35 requêtes par seconde.
-Un passage s'arrête à la première étape en échec, sauf `channels`, `enrich` et `trending` (réseau externe). Chaque passage
-laisse une ligne dans `task_runs` / `task_steps` et un fichier de log dans `DATA_DIR/logs/` (90 jours) ; il peut être arrêté
-depuis l'admin.
+Un passage s'arrête à la première étape en échec, sauf `enrich` (réseau externe). Chaque passage laisse une ligne dans
+`task_runs`, une par étape dans `task_steps`, et un fichier de log dans `DATA_DIR/logs/` (90 jours) avec le détail de
+chaque partie d'une étape ; il peut être arrêté depuis l'admin.
 
 ## Tables
 
@@ -109,18 +112,26 @@ par son index.
   `HX-Redirect`). Toute écriture (POST, PUT, PATCH, DELETE) doit venir du site, quel que soit son `Content-Type`.
 - **Langage de filtre** (`catalog/query/`, aide dans l'admin) : `genre:anim` contient, `genre:"animation"` égal,
   `a,b` l'un de, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; casse et accents ignorés. Une requête est une
-  condition sur une variante (champs TMDB lus dans le cache de sa fiche), vérifiée champ par champ avant tout SQL, ses
-  valeurs toujours en paramètres. Sert aux recherches de l'admin et aux règles.
-- **Règles** : une requête chacune ; la dernière qui correspond l'emporte, une règle « garder » fait de son type une liste
-  blanche, une catégorie dont toutes les variantes sont masquées l'est aussi. Enregistrer une règle ne l'applique pas
-  (trop lent) : `rules_pending` affiche un bandeau, l'étape `filters` les applique.
-- **Écrans Live, Films, Séries de l'admin** : « Catalogue » (par défaut) montre ce que l'app affiche, par les fonctions
-  mêmes de `/player` : ses rangées repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; « Xtream », les catégories et flux du fournisseur. Tout mène à la fiche d'un contenu
-  (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream et les corrections (TMDB, iptv-org,
-  séparer, fusionner) ; `/admin/item/:id` y redirige. La fiche d'une chaîne montre aussi son rapprochement EPG (les
+  condition sur un contenu (ses colonnes, sa fiche TMDB en cache), vérifiée champ par champ avant tout SQL, ses valeurs
+  toujours en paramètres. Sert aux recherches de l'admin et aux règles. Les champs du fournisseur (`catégorie`,
+  `section`, `édition`) sont vrais si une de ses variantes les a, et réservés aux recherches.
+- **Règles** : une requête chacune, sur les contenus (`catalog_contents.hidden_by_rule`, null = pas encore jugé) ; la
+  dernière qui correspond l'emporte, une règle « garder » fait de son type une liste blanche. Elles ne masquent jamais
+  une variante : seules la langue servie, la main et la catégorie le font. Enregistrer une règle ne l'applique pas
+  (trop lent) : `rules_pending` affiche un bandeau, l'étape `filters` les applique. Un regroupement manuel (séparer,
+  fusionner, associer TMDB ou iptv-org) fait juger aussitôt les contenus qu'il touche.
+- **Écrans Live, Films, Séries de l'admin** : ce que l'app affiche, par les fonctions mêmes de `/player` : ses rangées
+  repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; la recherche porte sur les
+  contenus. Tout mène à la fiche d'un contenu (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream,
+  leur interrupteur de visibilité et les corrections (TMDB, iptv-org, séparer, fusionner) ; `/admin/item/:id` y redirige
+  (une variante pas encore groupée s'y montre seule). Plus d'écran pour masquer une catégorie : celles masquées à la main
+  le restent. La fiche d'une chaîne montre aussi son rapprochement EPG (les
   identifiants que chaque variante essaie, dans l'ordre de l'app, et la source de secours) et tous ses programmes en base.
   Un fil d'Ariane dans l'en-tête place chaque page sous son entrée du menu (`page(…, { under })` pour une page de détail).
-- **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Tout ce que voit l'app (tris, dates, compteurs, rangées)
+- **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Une variante est visible si sa langue est servie
+  (`served_languages`, choisies dans la page Règles, films et séries, vide = toutes ; le direct n'est pas concerné ;
+  appliquées au groupement suivant, `languages_pending` affiche le bandeau), que ni la main ni sa catégorie ne la
+  masquent ; un contenu est visible si une de ses variantes l'est et qu'aucune règle ne le masque. Tout ce que voit l'app (tris, dates, compteurs, rangées)
   se calcule sur les seules variantes visibles. Côté app, `player/contents.ts` y ajoute le réglage adulte : `visibleContent`
   pour les contenus, `servedVariant` pour les variantes (un contenu mixte reste servi, sans ses variantes adultes).
   Les genres de Films et Séries restent en mémoire jusqu'à ce que le groupement réécrive les contenus
@@ -155,7 +166,7 @@ par son index.
 - **Carrousel de l'accueil** : le Top Shelf sans « Reprendre » (`shelfPicks`), six au plus ; sans rien à y mettre, les
   dernières nouveautés. `trending` refuse une liste vide et garde celle de la semaine précédente. Un film mal reconnu (clé `fallback:`) ne se détecte qu'une fois son match TMDB corrigé.
 - **Groupes du direct** : pays × thème (« France · Sport », `section` et `theme` dans `/channels`). Un marché
-  régional (`ar`) se découpe par pays : l'étape `channels` écrit `country` (`regionCountry`) : pays iptv-org s'il est
+  régional (`ar`) se découpe par pays : l'étape `enrich` (partie iptv-org) écrit `country` (`regionCountry`) : pays iptv-org s'il est
   dans la région, sinon la section du fournisseur ; une chaîne rangée sous un thème ou un bouquet seulement (beIN,
   OSN) reste sous « Monde arabe ».
 - **« Si vous avez aimé… »** (`catalog/recommendations.ts`, `player/related.ts`) : recommandations TMDB (`/recommendations`,

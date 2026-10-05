@@ -115,6 +115,7 @@ export function SettingsView({ s }: { s: Settings }) {
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <F name="sync_cron" label="Traitement complet" hint={describeCron(s.sync_cron)} />
               <F name="epg_cron" label="Import EPG" hint={describeCron(s.epg_cron)} />
+              <F name="trending_cron" label="Tendances TMDB" hint={describeCron(s.trending_cron)} />
             </div>
           </Card>
         </div>

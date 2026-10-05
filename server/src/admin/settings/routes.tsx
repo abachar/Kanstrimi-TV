@@ -15,6 +15,7 @@ const settingsSchema = z.object({
   tmdb_language: z.string().trim().default(""), // empty = DEFAULTS, filled by getSettings
   sync_cron: z.string().trim().refine(isValidCron, "expression cron invalide (5 champs)"),
   epg_cron: z.string().trim().refine(isValidCron, "expression cron invalide (5 champs)"),
+  trending_cron: z.string().trim().refine(isValidCron, "expression cron invalide (5 champs)"),
   public_base_url: z.string().trim(),
   /** Checkbox: present ("on") when checked, absent otherwise. */
   serve_adult: z.string().optional(),

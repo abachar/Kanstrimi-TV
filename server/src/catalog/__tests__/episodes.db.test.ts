@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema, type Content, type Variant } from "@/db";
-import { resetDb, closeDb, seedItems } from "@/test/db";
+import { resetDb, closeDb, seedItems, groupAndFilter } from "@/test/db";
 import { setSecretsForTests } from "@/config";
-import { runGrouping, runNaming } from "../grouping/group";
+import { runNaming } from "../grouping/group";
 import { ensureEpisodes, UpstreamUnavailable } from "../episodes";
 
 /** get_series_info of one variant: season 1, `n` episodes. */
@@ -32,7 +32,7 @@ beforeEach(async () => {
   setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await seedItems([{ kind: "series", xtreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
   await runNaming();
-  await runGrouping();
+  await groupAndFilter();
   [content] = await db.select().from(schema.catalogContents);
   variants = await db.select().from(schema.catalogVariants);
 });
@@ -68,7 +68,7 @@ describe("ensureEpisodes", () => {
       { kind: "series", xtreamId: "302", name: "|FR| Dark (VF)", matchStatus: "unmatched", addedAt: new Date() },
     ]);
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
     [content] = await db.select().from(schema.catalogContents);
     variants = await db.select().from(schema.catalogVariants);
     expect(variants).toHaveLength(3);

@@ -6,6 +6,7 @@ import type { TmdbDetails } from "@/providers/tmdb";
 import { getSettings } from "@/config";
 import {
   contentById,
+  hidingRule,
   epgSourceById,
   itemById,
   iptvChannelById,
@@ -52,7 +53,14 @@ export type ChannelGuide = {
 };
 
 /** A content and every provider entry under it; `content` is null for an entry not grouped yet. A channel brings its guide. */
-export type ContentDetail = { content: Content | null; variants: VariantDetail[]; tmdbLang: string; guide: ChannelGuide | null };
+export type ContentDetail = {
+  content: Content | null;
+  variants: VariantDetail[];
+  tmdbLang: string;
+  guide: ChannelGuide | null;
+  /** The rule that hides the content, when one does. */
+  rule: string | null;
+};
 
 /** What the base holds per guide id: how many programmes, until when. */
 async function guideStats(ids: string[]): Promise<Map<string, { programmes: number; until: Date }>> {
@@ -124,8 +132,12 @@ export async function contentDetail(id: number): Promise<ContentDetail | null> {
   if (!content) return null;
   const tmdbLang = (await getSettings()).tmdb_language;
   const items = await variantsOfContent(content.id);
-  const [variants, guide] = await Promise.all([variantDetails(items, tmdbLang), guideOf(content, items)]);
-  return { content, variants, tmdbLang, guide };
+  const [variants, guide, rule] = await Promise.all([
+    variantDetails(items, tmdbLang),
+    guideOf(content, items),
+    content.hiddenByRule ? hidingRule(content) : null,
+  ]);
+  return { content, variants, tmdbLang, guide, rule };
 }
 
 /** An entry the grouping has not placed yet: the page shows it alone. */
@@ -133,5 +145,5 @@ export async function orphanDetail(itemId: number): Promise<ContentDetail | null
   const item = await itemById(itemId);
   if (!item) return null;
   const tmdbLang = (await getSettings()).tmdb_language;
-  return { content: null, variants: await variantDetails([item], tmdbLang), tmdbLang, guide: null };
+  return { content: null, variants: await variantDetails([item], tmdbLang), tmdbLang, guide: null, rule: null };
 }

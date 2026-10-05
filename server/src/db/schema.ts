@@ -69,7 +69,6 @@ export const catalogCategories = pgTable(
     name: text("name").notNull(),
     parentId: integer("parent_id").default(0).notNull(),
     position: integer("position").default(0).notNull(),
-    hiddenByRule: boolean("hidden_by_rule").default(false).notNull(),
     hiddenManual: boolean("hidden_manual").default(false).notNull(),
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     /** Last time the provider's copy of this row changed (`merge`). */
@@ -97,8 +96,9 @@ export const catalogVariants = pgTable(
     name: text("name").notNull(),
     categoryXtreamId: text("category_xtream_id"),
     position: integer("position").default(0).notNull(),
-    hiddenByRule: boolean("hidden_by_rule").default(false).notNull(),
     hiddenManual: boolean("hidden_manual").default(false).notNull(),
+    /** Films and series: its language is not among the served ones (`served_languages`), written by the grouping. */
+    hiddenByLanguage: boolean("hidden_by_language").default(false).notNull(),
     /** Raw JSON object as returned by upstream get_*_streams / get_series. */
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     // TMDB matching (vod + series only)
@@ -219,7 +219,13 @@ export const catalogContents = pgTable(
     dynamicRange: text("dynamic_range"),
     /** Live: every theme of its variants; a channel sits in each of its groups. */
     themes: text("themes").array().default([]).notNull(),
+    /** Visible for the app: one of its variants is (`visibleItem`) and no rule hides it. */
     visible: boolean("visible").default(false).notNull(),
+    /**
+     * The rules' verdict, written by the `filters` step: true = hidden. Null = not judged yet, a content
+     * the grouping just made: hidden until the rules have seen it.
+     */
+    hiddenByRule: boolean("hidden_by_rule"),
     /** TMDB's adult flag, or every variant flagged adult. Served to the app only when `serve_adult` is on. */
     adult: boolean("adult").default(false).notNull(),
     /** TMDB's own adult flag, copied with the card: `adult` is computed from it and the variants. */

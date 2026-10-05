@@ -6,7 +6,7 @@ import { closestName, resolveCode } from "./codes";
 import { closestField, distance, fieldByName, fieldKey, TITLE, type Field, type FieldContext, type Pred } from "./fields";
 
 /**
- * A query checked against the fields, then written as one condition on a variant. Nothing reaches the
+ * A query checked against the fields, then written as one condition on a content. Nothing reaches the
  * database before every term is valid: an unknown field, a regex on a number, a word where a number
  * goes all fail here with their column.
  */
@@ -159,7 +159,7 @@ export async function checkRegexes(text: string): Promise<void> {
   }
 }
 
-/** The condition on `catalog_variants` a query stands for; null for an empty query. Throws `QueryError`. */
+/** The condition on `catalog_contents` (never aliased) a query stands for; null for an empty query. Throws `QueryError`. */
 export function compileQuery(text: string, o: CompileOptions): SQL | null {
   const terms = parseQuery(text);
   if (!terms.length) return null;

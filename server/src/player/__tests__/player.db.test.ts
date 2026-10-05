@@ -7,19 +7,9 @@ import { nightEnd } from "../epg";
 import { remaining } from "../cards";
 import { encodeCursor } from "../lists";
 import { liveChip } from "../channels";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
 
-import {
-  addStudio,
-  listStudios,
-  moveStudio,
-  parseStudioRef,
-  removeStudio,
-  runGrouping,
-  runNaming,
-  studioDetail,
-  studioSuggestions,
-} from "@/catalog";
+import { addStudio, listStudios, moveStudio, parseStudioRef, removeStudio, runNaming, studioDetail, studioSuggestions } from "@/catalog";
 import { resetPairingState } from "@/devices";
 import { setSecretsForTests, setSettings } from "@/config";
 
@@ -270,7 +260,7 @@ beforeAll(async () => {
     { kind: "series", xtreamId: vost.xtreamId, data: providerInfo({ "1": ["e11v", "e12v"] }, {}) },
   ]);
   await runNaming();
-  await runGrouping();
+  await groupAndFilter();
 });
 afterAll(closeDb);
 
@@ -414,12 +404,12 @@ describe("GET /movies and /series", () => {
       expect(await rowIds()).toContain("crime");
       // Hidden for real: the grouping writes it, and the genres follow.
       await shown(true);
-      await runGrouping();
+      await groupAndFilter();
       expect(await rowIds()).not.toContain("crime");
       expect((await get("/movies?genre=crime")).body.items).toEqual([]);
     } finally {
       await shown(false);
-      await runGrouping();
+      await groupAndFilter();
     }
     expect(await rowIds()).toContain("crime");
     expect((await get("/movies?genre=crime")).body.items.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
@@ -965,7 +955,7 @@ describe("Nouveautés, release order and visible variants", () => {
       });
     }
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
   });
 
   it("Nouveautés: released in the last twelve months, whatever the arrival", async () => {
@@ -1033,7 +1023,7 @@ describe("sagas", () => {
       });
     }
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
   });
 
   it("GET /movies/sagas: two visible movies or more, freshest first, by cursor", async () => {
@@ -1107,7 +1097,7 @@ describe("people", () => {
       credits: { cast: [{ id: 6384, name: "Keanu Reeves", character: "Caché", profile_path: "/keanu.jpg" }], crew: [] },
     });
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
   });
 
   it("movie sheet: an actor without photo has photo null", async () => {
@@ -1178,7 +1168,7 @@ describe("studios and top 10", () => {
       { mediaType: "tv", rank: 1, tmdbId: 4003 },
     ]);
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
   });
 
   it("GET /movies/studios and /series/studios: the chosen studios holding visible titles of that kind, in order", async () => {
@@ -1429,7 +1419,7 @@ describe("« Liste d'attente »: hero and Top Shelf", () => {
   it("an awaited movie that arrived is the hero and heads the Top Shelf until 5 % of it is played", async () => {
     await db.insert(schema.curationWaitlist).values({ contentKey: "tmdb:movie:949", tmdbId: 949, title: "Heat" });
     // Heat is visible already: the next regroup flags it available.
-    expect((await runGrouping()).waitlist_available).toBe(1);
+    expect((await groupAndFilter()).waitlist_available).toBe(1);
     expect((await get("/home")).body.heroes[0]).toMatchObject({ tagline: "FILM · ENFIN DISPONIBLE", item: { id: "tmdb:movie:949" } });
     const [first] = (await get("/top-shelf")).body;
     expect([first.reason, first.play_id, first.open_id, first.context]).toEqual([
@@ -1468,7 +1458,7 @@ describe("guide per quality", () => {
       { channelId: "m6-4k.fr", start: -10, end: 50, title: "Match en 4K" },
     ]);
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
   });
 
   it("a quality without a guide takes the closest lower one's; one with its own guide keeps it", async () => {
@@ -1504,7 +1494,7 @@ describe("guide of a channel with two languages", () => {
       { channelId: "duo-vo.fr", start: -10, end: 50, title: "Original version" },
     ]);
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
   });
 
   it("the catalog stores the guide the app serves: the first version's, best language first", async () => {
@@ -1531,7 +1521,7 @@ describe("errors of /player", () => {
       { kind: "series", xtreamId: "900", name: "|FR| Sans Reseau (MULTI)", cat: "30", matchStatus: "unmatched", addedAt: new Date() },
     ]);
     await runNaming();
-    await runGrouping();
+    await groupAndFilter();
     const [content] = await db
       .select()
       .from(schema.catalogContents)

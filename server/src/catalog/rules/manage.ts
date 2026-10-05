@@ -60,19 +60,19 @@ export async function setRuleEnabled(id: number, enabled: boolean) {
   await markRulesPending();
 }
 
-/** What a rule would match: the search of its query on the variants of its kind, the first names and the count. */
+/** What a rule would match: the search of its query on the contents of its kind, the first titles and the count. */
 export async function previewRule(r: Pick<RuleInput, "query" | "kind">): Promise<RulePreview> {
   const error = await checkRuleQuery(r.query, r.kind);
   if (error) return { error };
   const where = compileQuery(r.query, { kind: kindOf(r.kind), lang: (await getSettings()).tmdb_language, rule: true })!;
-  const v = schema.catalogVariants;
-  const scope = r.kind === "all" ? where : sql`${v.kind} = ${r.kind} and ${where}`;
+  const c = schema.catalogContents;
+  const scope = r.kind === "all" ? where : sql`${c.kind} = ${r.kind} and ${where}`;
   return db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout = '15s'`);
     const [[{ n }], rows] = await Promise.all([
-      tx.select({ n: sql<number>`count(*)::int` }).from(v).where(scope),
-      tx.select({ name: v.name, kind: v.kind }).from(v).where(scope).orderBy(asc(v.kind), asc(v.position)).limit(PREVIEW_LIMIT),
+      tx.select({ n: sql<number>`count(*)::int` }).from(c).where(scope),
+      tx.select({ title: c.title, kind: c.kind }).from(c).where(scope).orderBy(asc(c.kind), asc(c.title)).limit(PREVIEW_LIMIT),
     ]);
-    return { matches: rows.map((row) => `[${row.kind}] ${row.name}`), total: n };
+    return { matches: rows.map((row) => `[${row.kind}] ${row.title}`), total: n };
   });
 }

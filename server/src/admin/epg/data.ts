@@ -31,13 +31,10 @@ const guideId = sql<
 >`case when ${providerGuided} then ${schema.catalogContents.epgChannelId} else ${schema.catalogContents.epgFallbackId} end`;
 const withGuide = sql`exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = ${guideId})`;
 
-/** One page of the grid: the channels with a guide whose variants meet `match` (the compiled `q`), with their programmes. */
+/** One page of the grid: the channels with a guide that meet `match` (the compiled `q`), with their programmes. */
 export async function epgGrid(ex: Exec, g: GridQuery, match: SQL | null): Promise<{ channels: GridChannel[]; total: number }> {
   const where: SQL[] = [eq(schema.catalogContents.kind, "live"), eq(schema.catalogContents.visible, true), withGuide];
-  if (match)
-    where.push(
-      sql`exists (select 1 from ${schema.catalogVariants} where ${schema.catalogVariants.contentId} = ${schema.catalogContents.id} and ${match})`,
-    );
+  if (match) where.push(match);
   const cond = and(...where);
   const [rows, [{ n }]] = await Promise.all([
     ex

@@ -19,6 +19,7 @@ import { contentKey, hasFallbackKey } from "../keys";
 import { checkCancelled, searchText } from "@/shared";
 import { withCatalogLock } from "../lock";
 import { markWaitlistAvailable } from "../waitlist";
+import { applyServedLanguages } from "../languages";
 
 /**
  * The `group` step: no network, idempotent, all set-based SQL.
@@ -43,6 +44,7 @@ export type GroupStats = {
   multi_variant: number;
   orphans_removed: number;
   waitlist_available: number;
+  not_served: number;
 };
 
 /**
@@ -63,6 +65,8 @@ async function rewritingContents<T>(fn: () => Promise<T>): Promise<T> {
 export async function runGrouping(): Promise<GroupStats> {
   return withCatalogLock(() =>
     rewritingContents(async () => {
+      // First: the aggregates below count only the variants in a served language.
+      const { not_served } = await applyServedLanguages();
       const n = await assignKeys();
       await upsertContents();
       await fillCardFields();
@@ -77,14 +81,18 @@ export async function runGrouping(): Promise<GroupStats> {
         multi_variant: c.multi,
         orphans_removed: orphans,
         waitlist_available: available,
+        not_served,
       } satisfies GroupStats;
     }),
   );
 }
 
-/** Regroup a handful of items (manual TMDB assignment, merge, split) without a full run. */
-export async function regroupItems(ids: number[]) {
-  if (!ids.length) return;
+/**
+ * Regroup a handful of items (manual TMDB assignment, merge, split) without a full run. Returns the
+ * contents touched: a new one is not judged by the rules yet, its caller has them judge it (`applyRules`).
+ */
+export async function regroupItems(ids: number[]): Promise<number[]> {
+  if (!ids.length) return [];
   return withCatalogLock(() =>
     rewritingContents(async () => {
       const before = await db
@@ -101,6 +109,7 @@ export async function regroupItems(ids: number[]) {
       await fillCardFields(touched);
       await refreshAggregates(touched);
       await deleteOrphans();
+      return touched;
     }),
   );
 }
@@ -115,11 +124,31 @@ export async function refreshCards(contentIds: number[]) {
 }
 
 /**
- * Aggregates only, of every content or of `contentIds`: what the filters and the admin visibility switches need.
+ * Aggregates only, of every content or of `contentIds`: what the admin visibility switches need.
  * Takes no lock: its callers hold it.
  */
 export async function refreshVisibility(contentIds?: number[]) {
   await rewritingContents(() => refreshAggregates(contentIds));
+}
+
+/**
+ * `visible` alone, of every content or of `contentIds`, once the rules gave their verdict: one of its
+ * variants is served and no rule hides it. The aggregates do not move. Takes no lock: its callers hold
+ * it. Returns the waitlist's arrivals.
+ */
+export async function refreshContentVisibility(contentIds?: number[]): Promise<number> {
+  const scope = contentIds ? sql`and c.id = any(${`{${contentIds.join(",")}}`}::int[])` : sql``;
+  return rewritingContents(async () => {
+    await db.execute(sql`
+      update catalog_contents c set visible = x.visible, updated_at = now()
+      from (
+        select c2.id, exists (select 1 from ${schema.catalogVariants} where content_id = c2.id and ${visibleItem})
+          and coalesce(not c2.hidden_by_rule, false) as visible
+        from catalog_contents c2
+      ) x
+      where x.id = c.id and c.visible is distinct from x.visible ${scope}`);
+    return markWaitlistAvailable();
+  });
 }
 
 // ---------------------------------------------------------------- 1. keys
@@ -511,7 +540,7 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
   const langOrder = `{${DEFAULT_LANGUAGE_ORDER.join(",")}}`;
   await db.execute(sql`
     update catalog_contents c set
-      variant_count = a.n, added_at = a.added_at, visible = a.visible,
+      variant_count = a.n, added_at = a.added_at, visible = a.visible and coalesce(not c.hidden_by_rule, false),
       max_quality_rank = a.max_q, languages = a.langs, dynamic_range = a.dr, themes = a.themes,
       market = coalesce(c.market, a.market), country = a.country, category_xtream_id = a.cat, iptv_id = a.iptv, logo_url = a.logo_url,
       channel_number = a.num, epg_channel_id = a.epg, adult = c.tmdb_adult or a.all_adult, updated_at = now()
@@ -558,7 +587,7 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
       and (c.variant_count, c.added_at, c.visible, c.max_quality_rank, c.languages, c.dynamic_range, c.themes, c.market, c.country,
            c.category_xtream_id, c.iptv_id, c.logo_url, c.channel_number, c.epg_channel_id, c.adult)
           is distinct from
-          (a.n, a.added_at, a.visible, a.max_q, a.langs, a.dr, a.themes, coalesce(c.market, a.market), a.country,
+          (a.n, a.added_at, a.visible and coalesce(not c.hidden_by_rule, false), a.max_q, a.langs, a.dr, a.themes, coalesce(c.market, a.market), a.country,
            a.cat, a.iptv, a.logo_url, a.num, a.epg, c.tmdb_adult or a.all_adult)`);
   return markWaitlistAvailable();
 }

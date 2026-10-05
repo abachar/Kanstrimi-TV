@@ -223,7 +223,7 @@ export function TasksView(p: { tasks: TaskState[]; runs: RunWithSteps[]; total: 
   return (
     <>
       <Title t="Tâches" sub={`Tâches planifiées, leurs passages et leurs logs, gardés ${p.retentionDays} jours`} />
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {p.tasks.map((t) => (
           <TaskCard {...t} />
         ))}

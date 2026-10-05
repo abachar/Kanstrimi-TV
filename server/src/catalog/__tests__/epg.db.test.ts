@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
 import { db, schema } from "@/db";
 import { setSecretsForTests } from "@/config";
-import { run } from "@/catalog";
+import { runAll } from "@/catalog";
 import { epgStat, runEpgRebuild } from "../epg";
 import { compile, offsetOf, setOffset } from "../epg-offsets";
 import { guideNameKey } from "../epg-ids";
@@ -57,7 +57,7 @@ beforeAll(async () => {
     { kind: "live", xtreamId: "103", name: "BEIN SPORTS 1", cat: "20", raw: { epg_channel_id: "beINSports1Fr.qa" } },
     { kind: "live", xtreamId: "104", name: "AL AOULA", cat: "20" },
   ]);
-  expect(await run("group")).toBe(true);
+  expect(await runAll("manual", "group")).toBe(true); // group → filters
   // Rows the pruning must drop: a programme long over, from an older import.
   await db.execute(sql`insert into catalog_epg_programmes (channel_id, start_at, end_at, title, imported_at)
     values ('TF1.fr', now() - interval '2 days', now() - interval '47 hours', 'Vieux', now() - interval '3 days')`);
