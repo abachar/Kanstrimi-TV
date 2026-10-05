@@ -3,20 +3,38 @@ import { db, type Kind } from "@/db";
 import { QUALITY_RANK } from "../naming";
 import { parseQuery, QueryError, type QueryOp, type QueryTerm, type QueryValue } from "./parse";
 import { closestName, resolveCode } from "./codes";
-import { closestField, distance, fieldByName, fieldKey, TITLE, type Field, type FieldContext, type Pred } from "./fields";
+import {
+  closestField,
+  distance,
+  fieldByName,
+  fieldKey,
+  otherKindsOf,
+  TITLE,
+  type Field,
+  type FieldContext,
+  type Level,
+  type Pred,
+} from "./fields";
 
 /**
- * A query checked against the fields, then written as one condition on a content. Nothing reaches the
+ * A query checked against the fields of its kind, then written as conditions. Nothing reaches the
  * database before every term is valid: an unknown field, a regex on a number, a word where a number
  * goes all fail here with their column.
  */
 
 export type CompileOptions = FieldContext & {
-  /** The kind searched; null: a rule for every kind, where a live-only field just finds nothing among films. */
-  kind: Kind | null;
-  /** A rule: the fields only searches may use are refused. */
+  /** The kind searched or judged: each kind has its own fields. */
+  kind: Kind;
+  /** A rule: the fields only searches may use are refused, and version fields make it judge versions. */
   rule?: boolean;
 };
+
+/**
+ * A compiled query. `target` content: `where` is about `catalog_contents` (never aliased), versions
+ * fields read as « one of its versions ». `target` variant (a rule naming version fields): `where` is
+ * about `catalog_variants` (never aliased).
+ */
+export type CompiledQuery = { where: SQL; target: Level };
 
 /** Case and accents never matter: both sides go through `unaccent(lower(…))`. */
 const norm = (e: SQL | Column) => sql`unaccent(lower(${e}))`;
@@ -120,18 +138,23 @@ function codesPred(op: QueryOp, f: Field, at: number): Pred {
   return textPred(codes);
 }
 
-function termSql(t: QueryTerm, o: CompileOptions): SQL {
-  const f = t.field === null ? TITLE : fieldByName(t.field);
-  if (!f) {
-    const near = closestField(t.field!);
-    throw new QueryError(
-      `Champ inconnu : ${t.field}${near ? ` — voulais-tu ${near} ?` : ""} (un texte avec deux-points s'écrit entre guillemets)`,
-      t.fieldAt,
-    );
-  }
+const KIND_NAMES: Record<Kind, string> = { live: "au direct", vod: "aux films", series: "aux séries" };
+
+function fieldOf(t: QueryTerm, o: CompileOptions): Field {
+  if (t.field === null) return TITLE;
+  const f = fieldByName(t.field, o.kind);
+  if (f) return f;
+  const elsewhere = [...new Set(otherKindsOf(t.field))];
+  if (elsewhere.length) throw new QueryError(`${t.field} ne s'applique qu'${elsewhere.map((k) => KIND_NAMES[k]).join(" et ")}`, t.fieldAt);
+  const near = closestField(t.field, o.kind);
+  throw new QueryError(
+    `Champ inconnu : ${t.field}${near ? ` — voulais-tu ${near} ?` : ""} (un texte avec deux-points s'écrit entre guillemets)`,
+    t.fieldAt,
+  );
+}
+
+function termSql(t: QueryTerm, f: Field, o: CompileOptions): SQL {
   if (o.rule && f.searchOnly) throw new QueryError(`${f.names[0]} ne sert qu'aux recherches, pas aux règles`, t.fieldAt);
-  if (o.kind && f.kinds && !f.kinds.includes(o.kind))
-    throw new QueryError(`${f.names[0]} ne s'applique qu'${f.kinds.includes("live") ? "au direct" : "aux films et séries"}`, t.fieldAt);
   let cond: SQL;
   if (f.type === "enum") cond = choice(t.op, f, f.choices!(o), t.fieldAt);
   else if (f.type === "number" || f.type === "quality") cond = numeric(t.op, f, f.value!(o));
@@ -142,6 +165,8 @@ function termSql(t: QueryTerm, o: CompileOptions): SQL {
   // A missing value is no match, and its negation a match: `-genre:horreur` keeps the films without genre.
   return t.neg ? sql`not coalesce(${cond}, false)` : sql`coalesce(${cond}, false)`;
 }
+
+const and = (conds: SQL[]) => sql`(${sql.join(conds, sql` and `)})`;
 
 /**
  * Ask Postgres whether it accepts the regexes of a query: JavaScript takes some it refuses
@@ -159,12 +184,25 @@ export async function checkRegexes(text: string): Promise<void> {
   }
 }
 
-/** The condition on `catalog_contents` (never aliased) a query stands for; null for an empty query. Throws `QueryError`. */
-export function compileQuery(text: string, o: CompileOptions): SQL | null {
-  const terms = parseQuery(text);
+/**
+ * What a query stands for; null for an empty one. Throws `QueryError`. In a search, the version terms
+ * together describe one of its versions: `variant.langue:"vf" variant.qualité:4k` is a film with a
+ * version in VF and 4K. In a rule, version terms make it judge versions: those that match, in the
+ * contents its other terms match (`marché:"ar" xtream.nom:2m`, the « 2m » versions of the Arab channels).
+ */
+export function compileQuery(text: string, o: CompileOptions): CompiledQuery | null {
+  const terms = parseQuery(text).map((t) => ({ t, f: fieldOf(t, o) }));
   if (!terms.length) return null;
-  return sql`(${sql.join(
-    terms.map((t) => termSql(t, o)),
-    sql` and `,
-  )})`;
+  const content = terms.filter((x) => x.f.level === "content").map((x) => termSql(x.t, x.f, o));
+  const variant = terms.filter((x) => x.f.level === "variant").map((x) => termSql(x.t, x.f, o));
+  if (o.rule && variant.length) {
+    if (content.length)
+      variant.push(
+        sql`exists (select 1 from catalog_contents where catalog_contents.id = catalog_variants.content_id and ${and(content)})`,
+      );
+    return { where: and(variant), target: "variant" };
+  }
+  if (variant.length)
+    content.push(sql`exists (select 1 from catalog_variants where catalog_variants.content_id = catalog_contents.id and ${and(variant)})`);
+  return { where: and(content), target: "content" };
 }

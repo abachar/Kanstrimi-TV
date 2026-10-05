@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
-import { setSettings } from "@/config";
 import { runNaming, regroupItems, refreshVisibility, groupingCounts } from "../group";
 import { inArray } from "drizzle-orm";
 
@@ -329,7 +328,7 @@ describe("runGrouping", () => {
   });
 });
 
-describe("served languages", () => {
+describe("rules on versions", () => {
   beforeAll(async () => {
     await resetDb();
     await seedItems([
@@ -345,32 +344,35 @@ describe("served languages", () => {
     await runNaming();
   });
 
-  const hiddenByLanguage = async () =>
-    (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.hiddenByLanguage, true))).map((v) => v.xtreamId).sort();
+  const hiddenVersions = async () =>
+    (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.hiddenByRule, true))).map((v) => v.xtreamId).sort();
+  const languages = (query: string) =>
+    db.insert(schema.curationFilterRules).values({ name: "Langues", kind: "vod", query, target: "variant", enabled: true });
 
-  it("serves every language while the setting is empty", async () => {
+  it("serves every version while no rule hides one", async () => {
     const stats = await groupAndFilter();
-    expect(stats.not_served).toBe(0);
+    expect(stats.variants_hidden).toBe(0);
     expect((await content("tmdb:movie:1001")).visible).toBe(true);
   });
 
-  it("hides the films and series in another language before the aggregates, never a channel", async () => {
-    await setSettings({ served_languages: "VF,VO,AR" });
+  it("hides the versions before the aggregates: a content keeps the others, or disappears; a kind's rule never touches another", async () => {
+    await languages('-variant.langue:"vf","vo","ar"');
     const stats = await groupAndFilter();
-    expect(await hiddenByLanguage()).toEqual(["2", "3", "4"]);
-    expect(stats.not_served).toBe(3);
+    expect(await hiddenVersions()).toEqual(["2", "3", "4"]);
+    expect(stats.variants_hidden).toBe(3);
     const dune = await content("tmdb:movie:438631");
     expect(dune).toMatchObject({ visible: true, variantCount: 1, languages: ["VF"] });
     expect((await content("tmdb:movie:1001")).visible).toBe(false); // Italian only
     expect((await content("tmdb:movie:1002")).visible).toBe(false); // VOSTFR only
     const [rai] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.kind, "live"));
-    expect(rai.visible).toBe(true); // a channel's language is its market's: the rules choose it
+    expect(rai.visible).toBe(true); // a film rule
   });
 
-  it("serves a language again once ticked back", async () => {
-    await setSettings({ served_languages: "VF,VO,AR,IT" });
+  it("serves a version again once the rule lets it through", async () => {
+    await db.delete(schema.curationFilterRules);
+    await languages('-variant.langue:"vf","vo","ar","it"');
     await groupAndFilter();
-    expect(await hiddenByLanguage()).toEqual(["4"]);
+    expect(await hiddenVersions()).toEqual(["4"]);
     expect((await content("tmdb:movie:438631")).variantCount).toBe(2);
   });
 });

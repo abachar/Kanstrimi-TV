@@ -13,16 +13,16 @@ export const inHiddenCategory: SQL = sql`exists (
     and c.hidden_manual)`;
 
 /**
- * Served to the players: in a served language, neither hidden by hand nor through its category. The
- * rules judge the content, not its variants: `catalog_contents.visible` adds their verdict.
+ * Served to the players: hidden neither by a rule on versions, nor by hand, nor through its category.
+ * The rules on contents judge the content: `catalog_contents.visible` adds their verdict.
  */
 export const visibleItem: SQL = and(
-  eq(schema.catalogVariants.hiddenByLanguage, false),
+  eq(schema.catalogVariants.hiddenByRule, false),
   eq(schema.catalogVariants.hiddenManual, false),
   sql`not ${inHiddenCategory}`,
 )!;
 export const hiddenItem: SQL = or(
-  eq(schema.catalogVariants.hiddenByLanguage, true),
+  eq(schema.catalogVariants.hiddenByRule, true),
   eq(schema.catalogVariants.hiddenManual, true),
   inHiddenCategory,
 )!;
@@ -35,8 +35,8 @@ export function isCategoryHidden(c: Pick<Category, "hiddenManual"> | null | unde
 
 /** The same rule as `hiddenItem`, on rows already loaded; the category may be unknown. */
 export function isItemHidden(
-  it: Pick<Variant, "hiddenByLanguage" | "hiddenManual">,
+  it: Pick<Variant, "hiddenByRule" | "hiddenManual">,
   category?: Pick<Category, "hiddenManual"> | null,
 ): boolean {
-  return it.hiddenByLanguage || it.hiddenManual || isCategoryHidden(category);
+  return it.hiddenByRule || it.hiddenManual || isCategoryHidden(category);
 }

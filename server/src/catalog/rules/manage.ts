@@ -2,77 +2,91 @@ import { asc, eq, sql } from "drizzle-orm";
 import type { FilterRule, Kind } from "@/db";
 import { db, schema } from "@/db";
 import { getSettings } from "@/config";
-import { checkRegexes, compileQuery, QueryError } from "../query";
-import { markRulesPending } from "./apply";
+import { checkRegexes, compileQuery, QueryError, type CompiledQuery, type Level } from "../query";
+import { markRulesPending } from "./compiled";
 
+/** A rule as the admin writes it: it only hides; its kind is fixed once created, what it judges is read from its query. */
 export type RuleInput = {
   id?: number;
   name: string;
-  kind: Kind | "all";
+  kind: Kind;
   query: string;
-  action: "hide" | "keep";
   enabled: boolean;
-  position: number;
 };
-export type RulePreview = { matches: string[]; total: number } | { error: string };
+/** What a rule would hide: contents, or versions for a rule on versions. */
+export type RulePreview = { target: Level; matches: string[]; total: number } | { error: string };
 export const PREVIEW_LIMIT = 50;
 
+const r = schema.curationFilterRules;
+
 export async function listRules(): Promise<FilterRule[]> {
-  return db.select().from(schema.curationFilterRules).orderBy(asc(schema.curationFilterRules.position), asc(schema.curationFilterRules.id));
+  return db.select().from(r).orderBy(asc(r.kind), asc(r.name), asc(r.id));
 }
 
-const kindOf = (k: Kind | "all") => (k === "all" ? null : k);
+export async function ruleById(id: number): Promise<FilterRule | null> {
+  const [rule] = await db.select().from(r).where(eq(r.id, id));
+  return rule ?? null;
+}
 
-/** What is wrong with a rule's query, said in a sentence with its column; null when it compiles. */
-export async function checkRuleQuery(query: string, kind: Kind | "all"): Promise<string | null> {
+/** The query compiled as a rule of `kind`, or what is wrong with it, said in a sentence with its column. */
+async function compileRule(query: string, kind: Kind): Promise<CompiledQuery | string> {
   try {
-    if (!compileQuery(query, { kind: kindOf(kind), lang: (await getSettings()).tmdb_language, rule: true })) return "Requête vide";
+    const compiled = compileQuery(query, { kind, lang: (await getSettings()).tmdb_language, rule: true });
+    if (!compiled) return "Requête vide";
     await checkRegexes(query);
-    return null;
+    return compiled;
   } catch (e) {
     if (e instanceof QueryError) return `${e.message} (colonne ${e.at + 1})`;
     throw e;
   }
 }
 
-/** Insert or update; the catalogue follows at the next `filters` step. */
+/** What is wrong with a rule's query; null when it compiles. */
+export async function checkRuleQuery(query: string, kind: Kind): Promise<string | null> {
+  const compiled = await compileRule(query, kind);
+  return typeof compiled === "string" ? compiled : null;
+}
+
+/** Insert or update, its query checked first; the catalogue follows at the step that applies it. */
 export async function saveRule(input: RuleInput) {
+  const existing = input.id ? await ruleById(input.id) : null;
+  const kind = existing?.kind ?? input.kind;
+  const compiled = await compileRule(input.query, kind);
+  if (typeof compiled === "string") throw new QueryError(compiled, 0);
   const row = {
     name: input.name,
-    kind: kindOf(input.kind),
     query: input.query.trim(),
-    action: input.action,
+    target: compiled.target,
     enabled: input.enabled,
-    position: input.position,
   };
-  if (input.id) await db.update(schema.curationFilterRules).set(row).where(eq(schema.curationFilterRules.id, input.id));
-  else await db.insert(schema.curationFilterRules).values(row);
+  if (existing) await db.update(r).set(row).where(eq(r.id, existing.id));
+  else await db.insert(r).values({ ...row, kind });
   await markRulesPending();
 }
 
 export async function deleteRule(id: number) {
-  await db.delete(schema.curationFilterRules).where(eq(schema.curationFilterRules.id, id));
-  await markRulesPending();
+  const [gone] = await db.delete(r).where(eq(r.id, id)).returning({ target: r.target });
+  if (gone) await markRulesPending();
 }
 
 export async function setRuleEnabled(id: number, enabled: boolean) {
-  await db.update(schema.curationFilterRules).set({ enabled }).where(eq(schema.curationFilterRules.id, id));
-  await markRulesPending();
+  const [rule] = await db.update(r).set({ enabled }).where(eq(r.id, id)).returning({ target: r.target });
+  if (rule) await markRulesPending();
 }
 
-/** What a rule would match: the search of its query on the contents of its kind, the first titles and the count. */
-export async function previewRule(r: Pick<RuleInput, "query" | "kind">): Promise<RulePreview> {
-  const error = await checkRuleQuery(r.query, r.kind);
-  if (error) return { error };
-  const where = compileQuery(r.query, { kind: kindOf(r.kind), lang: (await getSettings()).tmdb_language, rule: true })!;
-  const c = schema.catalogContents;
-  const scope = r.kind === "all" ? where : sql`${c.kind} = ${r.kind} and ${where}`;
+/** What a rule would hide: the contents, or the versions, of its kind it matches, the first ones and the count. */
+export async function previewRule(input: Pick<RuleInput, "query" | "kind">): Promise<RulePreview> {
+  const compiled = await compileRule(input.query, input.kind);
+  if (typeof compiled === "string") return { error: compiled };
+  const table = compiled.target === "variant" ? schema.catalogVariants : schema.catalogContents;
+  const label = compiled.target === "variant" ? schema.catalogVariants.name : schema.catalogContents.title;
+  const scope = sql`${table.kind} = ${input.kind} and ${compiled.where}`;
   return db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout = '15s'`);
     const [[{ n }], rows] = await Promise.all([
-      tx.select({ n: sql<number>`count(*)::int` }).from(c).where(scope),
-      tx.select({ title: c.title, kind: c.kind }).from(c).where(scope).orderBy(asc(c.kind), asc(c.title)).limit(PREVIEW_LIMIT),
+      tx.select({ n: sql<number>`count(*)::int` }).from(table).where(scope),
+      tx.select({ label }).from(table).where(scope).orderBy(asc(label)).limit(PREVIEW_LIMIT),
     ]);
-    return { matches: rows.map((row) => `[${row.kind}] ${row.title}`), total: n };
+    return { target: compiled.target, matches: rows.map((row) => row.label), total: n };
   });
 }

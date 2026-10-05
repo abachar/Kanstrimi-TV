@@ -14,11 +14,9 @@ export const SETTING_KEYS = [
   "trending_cron", // cron expr for TMDB's trending lists
   "public_base_url", // optional, e.g. http://192.168.1.10:3000
   "serve_adult", // "1" = adult-flagged contents are served to the apps; off by default
-  "served_languages", // films and series: the languages served, comma-separated (`VF,VO,AR`); empty = all
-  "languages_pending", // "1": the served languages changed since the last `group` step, the catalogue does not follow them yet
   "last_sync_at",
   "last_epg_at",
-  "rules_pending", // "1": a rule changed since the last `filters` step, the catalogue does not follow it yet
+  "rules_pending", // not empty: a rule changed since the last `filters` step, the catalogue does not follow it yet
   "session_generation", // bumped by « Déconnecter toutes les sessions »: every admin cookie issued before is refused
 ] as const;
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -75,13 +73,6 @@ export async function setSettings(values: Partial<Record<SettingKey, string>>) {
   const fresh = await getSettings();
   for (const fn of listeners) fn(fresh);
 }
-
-/** The languages served for films and series, upper case; empty = every language. */
-export const servedLanguages = (s: Settings): string[] =>
-  s.served_languages
-    .split(",")
-    .map((l) => l.trim().toUpperCase())
-    .filter(Boolean);
 
 export function isXtreamConfigured(s: Settings) {
   return Boolean(s.xtream_url && s.xtream_username && s.xtream_password);

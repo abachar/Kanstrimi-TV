@@ -26,7 +26,7 @@ beforeAll(async () => {
 afterAll(closeDb);
 
 /** How many films a search of the screen finds. */
-const found = async (q: string) => (await searchContents(db, "vod", compileQuery(q, { kind: "vod", lang: "fr-FR" })!, 0)).total;
+const found = async (q: string) => (await searchContents(db, "vod", compileQuery(q, { kind: "vod", lang: "fr-FR" })!.where, 0)).total;
 /** The switches recompute their content in the background, under the catalogue lock. */
 const settled = () => withCatalogLock(async () => {});
 
@@ -49,7 +49,7 @@ describe("admin catalogue", () => {
   });
 
   it("the manual switch writes hidden_manual, and the content follows", async () => {
-    const heat = (await searchContents(db, "vod", compileQuery("heat", { kind: "vod", lang: "fr-FR" })!, 0)).rows[0];
+    const heat = (await searchContents(db, "vod", compileQuery("heat", { kind: "vod", lang: "fr-FR" })!.where, 0)).rows[0];
     const [variant] = await db.query.catalogVariants.findMany({ where: (v, { eq }) => eq(v.contentId, heat.id) });
     await setItemHiddenManual(variant.id, true);
     await settled();

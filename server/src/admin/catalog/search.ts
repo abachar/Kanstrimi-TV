@@ -18,7 +18,7 @@ const col = (at: number) => `colonne ${at + 1}`;
 export async function compileSearch(kind: Kind, q: string): Promise<Search> {
   if (!q.trim()) return { where: null, error: null };
   try {
-    const where = compileQuery(q, { kind, lang: (await getSettings()).tmdb_language });
+    const where = compileQuery(q, { kind, lang: (await getSettings()).tmdb_language })?.where ?? null;
     await checkRegexes(q);
     return { where, error: null };
   } catch (e) {

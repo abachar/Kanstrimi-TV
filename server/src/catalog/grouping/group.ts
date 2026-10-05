@@ -19,7 +19,6 @@ import { contentKey, hasFallbackKey } from "../keys";
 import { checkCancelled, searchText } from "@/shared";
 import { withCatalogLock } from "../lock";
 import { markWaitlistAvailable } from "../waitlist";
-import { applyServedLanguages } from "../languages";
 
 /**
  * The `group` step: no network, idempotent, all set-based SQL.
@@ -44,7 +43,6 @@ export type GroupStats = {
   multi_variant: number;
   orphans_removed: number;
   waitlist_available: number;
-  not_served: number;
 };
 
 /**
@@ -65,8 +63,6 @@ async function rewritingContents<T>(fn: () => Promise<T>): Promise<T> {
 export async function runGrouping(): Promise<GroupStats> {
   return withCatalogLock(() =>
     rewritingContents(async () => {
-      // First: the aggregates below count only the variants in a served language.
-      const { not_served } = await applyServedLanguages();
       const n = await assignKeys();
       await upsertContents();
       await fillCardFields();
@@ -81,7 +77,6 @@ export async function runGrouping(): Promise<GroupStats> {
         multi_variant: c.multi,
         orphans_removed: orphans,
         waitlist_available: available,
-        not_served,
       } satisfies GroupStats;
     }),
   );

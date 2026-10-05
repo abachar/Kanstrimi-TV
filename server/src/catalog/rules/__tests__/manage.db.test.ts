@@ -2,10 +2,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { compileQuery } from "@/catalog";
-import { resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, groupAndFilter } from "@/test/db";
 import { runGrouping, runNaming } from "../../grouping/group";
 import { listRules, saveRule, deleteRule, setRuleEnabled, previewRule, checkRuleQuery } from "../manage";
-import { applyRules, hidingRule, rulesPending } from "../apply";
+import { applyRules, hidingRule } from "../apply";
+import { rulesPending } from "../compiled";
+import { variantHidingRule } from "../variants";
 import { searchContents } from "@/admin/catalog/app-data";
 
 beforeAll(async () => {
@@ -36,54 +38,89 @@ const hidden = async (kind: "vod" | "live") =>
     .sort();
 const rule = (over: Partial<Parameters<typeof saveRule>[0]> = {}) => ({
   name: "r",
-  kind: "all" as const,
+  kind: "live" as const,
   query: 'marché:"it"',
-  action: "hide" as const,
   enabled: true,
-  position: 0,
   ...over,
 });
 
+/** The xtream ids of the versions of `kind` the rules on versions hide. */
+const hiddenVersions = async (kind: "vod" | "live") =>
+  (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.kind, kind)))
+    .filter((v) => v.hiddenByRule)
+    .map((v) => v.xtreamId)
+    .sort();
+
 describe("filter rules", () => {
-  it("previews a query on the contents of its kind, and says what is wrong", async () => {
-    expect(await previewRule({ query: "titre:clan", kind: "all" })).toEqual({ matches: ["[vod] Clan of Violence"], total: 1 });
-    expect(await previewRule({ query: "titre:matrix", kind: "live" })).toEqual({ matches: [], total: 0 });
+  it("previews a query on the contents, or the versions, of its kind, and says what is wrong", async () => {
+    expect(await previewRule({ query: "titre:clan", kind: "vod" })).toEqual({ target: "content", matches: ["Clan of Violence"], total: 1 });
+    expect(await previewRule({ query: 'xtream.marché:"it"', kind: "vod" })).toEqual({
+      target: "variant",
+      matches: ["|IT| Heat"],
+      total: 1,
+    });
+    expect(await previewRule({ query: "titre:matrix", kind: "live" })).toEqual({ target: "content", matches: [], total: 0 });
     expect(await previewRule({ query: "genr:x", kind: "vod" })).toMatchObject({ error: expect.stringContaining("voulais-tu genre") });
     expect(await checkRuleQuery("visible:non", "vod")).toContain("recherches");
-    // A rule judges the content: the provider's fields, about one of its variants, are for searches.
-    expect(await checkRuleQuery("catégorie:xxx", "vod")).toContain("recherches");
-    expect(await checkRuleQuery("genre:anim", "all")).toBeNull(); // a rule for every kind takes every field
+    expect(await checkRuleQuery("genre:anim", "live")).toContain("qu'aux films et aux séries"); // each kind its own fields
   });
 
   it("saving only marks the rules pending; the filters step applies them to the contents", async () => {
     await saveRule(rule());
     expect(await rulesPending()).toBe(true);
-    expect(await hidden("vod")).toEqual([]); // not applied yet
-    expect(await applyRules()).toMatchObject({ contents: 2 });
+    expect(await hidden("live")).toEqual([]); // not applied yet
+    expect(await applyRules()).toMatchObject({ contents: 1 });
     expect(await rulesPending()).toBe(false);
-    expect(await hidden("vod")).toEqual(["Heat"]);
     expect(await hidden("live")).toEqual(["RAI 1"]);
-    const [heat] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.title, "Heat"));
-    expect(heat.visible).toBe(false);
-    expect(await hidingRule(heat)).toBe("r");
+    const [rai] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.title, "RAI 1"));
+    expect(rai.visible).toBe(false);
+    expect(await hidingRule(rai)).toBe("r");
     const [r] = await listRules();
     await setRuleEnabled(r.id, false);
     expect(await rulesPending()).toBe(true);
     await applyRules();
-    expect(await hidden("vod")).toEqual([]);
+    expect(await hidden("live")).toEqual([]);
     await deleteRule(r.id);
     expect(await listRules()).toEqual([]);
   });
 
-  it("the last matching rule wins, and a « keep » rule makes its kind a whitelist", async () => {
-    await saveRule(rule({ name: "IT", position: 0 }));
-    await saveRule(rule({ name: "sauf Heat", query: "heat", action: "keep", kind: "vod", position: 1 }));
+  it("a rule on versions applies at the filters step: the content keeps its other versions, or disappears", async () => {
+    await saveRule(rule({ name: "Pas d'italien", kind: "vod", query: 'xtream.marché:"it"' }));
+    expect(await rulesPending()).toBe(true);
+    await groupAndFilter();
+    expect(await rulesPending()).toBe(false);
+    expect(await hiddenVersions("vod")).toEqual(["2"]);
+    const [heat] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.title, "Heat"));
+    expect(heat.visible).toBe(false); // its only version
+    const [variant] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "2"));
+    expect(await variantHidingRule(variant)).toBe("Pas d'italien");
+    for (const r of await listRules()) await deleteRule(r.id);
+    await applyRules(); // « Filtres » alone applies every rule
+    expect(await hiddenVersions("vod")).toEqual([]);
+    expect((await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.title, "Heat")))[0].visible).toBe(true);
+  });
+
+  it("a rule mixing content and version fields hides the matching versions of the matching contents", async () => {
+    await saveRule(rule({ name: "TF1 en italien", query: 'titre:tf1 xtream.marché:"it"' })); // TF1 has no Italian version
+    await saveRule(rule({ name: "RAI en italien", query: 'titre:rai xtream.marché:"it"' }));
+    expect(await previewRule({ kind: "live", query: 'titre:rai xtream.marché:"it"' })).toMatchObject({ target: "variant", total: 1 });
     await applyRules();
-    // Whitelist for films: only what a keep rule matches stays; Heat is kept again by the later rule.
+    expect(await hiddenVersions("live")).toEqual(["100"]);
+    expect(await hidden("live")).toEqual([]); // no rule on contents: RAI 1 is hidden for having no version left
+    const [rai] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.title, "RAI 1"));
+    expect(rai.visible).toBe(false);
+    for (const r of await listRules()) await deleteRule(r.id);
+    await applyRules();
+  });
+
+  it("a rule only hides: one matching is enough, in no order; an exception is written in the query", async () => {
+    await saveRule(rule({ name: "Italie" }));
+    await saveRule(rule({ name: "Tout sauf la France", query: '-marché:"fr"' }));
+    await applyRules();
+    expect(await hidden("live")).toEqual(["RAI 1"]); // matched by both: hidden once
+    await saveRule(rule({ name: "Films sauf Heat", kind: "vod", query: "-heat" }));
+    await applyRules();
     expect(await hidden("vod")).toEqual(["Clan of Violence", "Matrix"]);
-    const [matrix] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.title, "Matrix"));
-    expect(await hidingRule(matrix)).toBe("aucune règle « garder » ne la retient");
-    expect(await hidden("live")).toEqual(["RAI 1"]); // the keep rule is for films only
     for (const r of await listRules()) await deleteRule(r.id);
     await applyRules();
     expect(await hidden("vod")).toEqual([]);
@@ -101,21 +138,19 @@ describe("filter rules", () => {
   });
 
   it("the admin's searches see the rules' verdict", async () => {
-    await saveRule(rule({ name: "Italie", kind: "live" }));
+    await saveRule(rule({ name: "Italie" }));
     await applyRules();
-    const visible = compileQuery("visible:oui", { kind: "live", lang: "fr-FR" })!;
+    const visible = compileQuery("visible:oui", { kind: "live", lang: "fr-FR" })!.where;
     expect((await searchContents(db, "live", visible, 0)).rows.map((c) => c.title)).toEqual(["TF1"]);
     for (const r of await listRules()) await deleteRule(r.id);
     await applyRules();
   });
 
   it("refuses a regex that JavaScript accepts and Postgres does not, and skips such a rule on apply", async () => {
-    expect(await checkRuleQuery("titre:/(?<x>FR)/", "all")).toContain("régulière");
-    expect(await checkRuleQuery("titre:/\\bFR\\b/", "all")).toBeNull();
+    expect(await checkRuleQuery("titre:/(?<x>FR)/", "vod")).toContain("régulière");
+    expect(await checkRuleQuery("titre:/\\bFR\\b/", "vod")).toBeNull();
     // A rule saved before the check existed: skipped, the step does not fail.
-    await db
-      .insert(schema.curationFilterRules)
-      .values({ name: "Cassée", kind: null, query: "titre:/(?<x>FR)/", action: "hide", enabled: true, position: 0 });
+    await db.insert(schema.curationFilterRules).values({ name: "Cassée", kind: "vod", query: "titre:/(?<x>FR)/", enabled: true });
     await expect(applyRules()).resolves.toMatchObject({ contents: 0 });
     expect(await hidden("vod")).toEqual([]);
     for (const r of await listRules()) await deleteRule(r.id);

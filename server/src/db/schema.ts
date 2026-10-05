@@ -19,7 +19,6 @@ import {
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
 
 export const kindEnum = pgEnum("content_kind", ["live", "vod", "series"]);
-export const ruleActionEnum = pgEnum("rule_action", ["hide", "keep"]);
 export const matchStatusEnum = pgEnum("match_status", ["pending", "matched", "unmatched", "manual", "skipped"]);
 export const syncStatusEnum = pgEnum("sync_status", ["running", "success", "error", "killed"]);
 
@@ -97,8 +96,8 @@ export const catalogVariants = pgTable(
     categoryXtreamId: text("category_xtream_id"),
     position: integer("position").default(0).notNull(),
     hiddenManual: boolean("hidden_manual").default(false).notNull(),
-    /** Films and series: its language is not among the served ones (`served_languages`), written by the grouping. */
-    hiddenByLanguage: boolean("hidden_by_language").default(false).notNull(),
+    /** A rule on versions hides it (`curation_filter_rules.target = variant`), written at the start of the grouping. */
+    hiddenByRule: boolean("hidden_by_rule").default(false).notNull(),
     /** Raw JSON object as returned by upstream get_*_streams / get_series. */
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     // TMDB matching (vod + series only)
@@ -308,13 +307,13 @@ export const xtreamInfoCache = pgTable(
 export const curationFilterRules = pgTable("curation_filter_rules", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  /** null = all kinds */
-  kind: kindEnum("kind"),
-  /** What the rule matches, in the filter language (`catalog/query`): `nom:/\|IT\|/`, `langue-vo:hindi`… */
+  /** Each kind has its own fields: a rule is for one kind, fixed at its creation. */
+  kind: kindEnum("kind").notNull(),
+  /** What the rule matches, in the filter language (`catalog/query`): `marché:"fr"`, `-variant.langue:"vf"`… */
   query: text("query").notNull(),
-  action: ruleActionEnum("action").default("hide").notNull(),
+  /** What it judges, read from its query when saved: `content` (the step `filters`) or `variant` (the step `group`). */
+  target: text("target").$type<"content" | "variant">().default("content").notNull(),
   enabled: boolean("enabled").default(true).notNull(),
-  position: integer("position").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

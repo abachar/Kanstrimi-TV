@@ -281,6 +281,27 @@
       "when": 1791153838932,
       "tag": "0039_rules-on-contents",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1791159553604,
+      "tag": "0040_rules-by-kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791159617123,
+      "tag": "0041_drop-served-languages",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791160275668,
+      "tag": "0042_rules-only-hide",
+      "breakpoints": true
     }
   ]
 }

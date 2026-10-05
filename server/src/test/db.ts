@@ -102,5 +102,5 @@ export async function seedProgrammes(rows: { channelId: string; start: number; e
 export async function groupAndFilter() {
   const stats = await runGrouping();
   const judged = await applyRules();
-  return { ...stats, waitlist_available: stats.waitlist_available + judged.waitlist_available };
+  return { ...stats, variants_hidden: judged.variants_hidden, waitlist_available: stats.waitlist_available + judged.waitlist_available };
 }

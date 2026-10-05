@@ -8,68 +8,45 @@ import {
   deleteRule,
   setRuleEnabled,
   previewRule,
+  ruleById,
   rulesPending,
   isTaskRunning,
-  languagesOfCatalogue,
-  languagesPending,
-  saveServedLanguages,
 } from "@/catalog";
-import { getSettings, servedLanguages } from "@/config";
+import { KINDS, type Kind } from "@/db";
 import { page, back, checked, zerr, intParam } from "../http";
-import { RulesView, RulePage, RulePreview } from "./view";
+import { RulesView, RulePage, RulePreview, KindChoice } from "./view";
 
+const kind = z.enum(KINDS as unknown as [Kind, ...Kind[]]);
 const ruleSchema = z.object({
   id: z.coerce.number().optional(),
   name: z.string().trim().min(1),
-  kind: z.enum(["all", "live", "vod", "series"]),
+  kind,
   query: z.string().trim().min(1),
-  action: z.enum(["hide", "keep"]),
   enabled: z.coerce.boolean().default(false),
-  position: z.coerce.number().int().default(0),
 });
-const previewSchema = z.object({
-  query: z.string().default(""),
-  kind: z.enum(["all", "live", "vod", "series"]).default("all"),
-});
+const previewSchema = z.object({ query: z.string().default(""), kind });
 
-/** `/admin/rules`: the rules in the filter language; saving only marks them pending, the `filters` step applies them. */
+/**
+ * `/admin/rules`: every rule in one list; a rule is written on a page of its own, for one kind chosen
+ * first. Saving only marks the catalogue behind; a pass from « Filtres » applies every rule.
+ */
 export const rulesRoutes = new Hono();
+/** A rule's page sits under « Règles » in the breadcrumb. */
+const RULES = { under: "/admin/rules" };
 
 rulesRoutes.get("/", async (c) => {
-  const [rules, pending, langsPending, languages, s] = await Promise.all([
-    listRules(),
-    rulesPending(),
-    languagesPending(),
-    languagesOfCatalogue(),
-    getSettings(),
-  ]);
-  return page(
-    c,
-    "Règles",
-    <RulesView
-      rules={rules}
-      pending={pending}
-      languagesPending={langsPending}
-      busy={isTaskRunning("pipeline")}
-      languages={languages}
-      served={servedLanguages(s)}
-    />,
-  );
+  const [rules, pending] = await Promise.all([listRules(), rulesPending()]);
+  return page(c, "Règles", <RulesView rules={rules} pending={pending} busy={isTaskRunning("pipeline")} />);
 });
-/** A rule on a page of its own: `new` for a blank one. Under « Règles » in the breadcrumb. */
-const RULES = { under: "/admin/rules" };
-rulesRoutes.get("/new", (c) => page(c, "Nouvelle règle", <RulePage />, RULES));
+/** A new rule: its kind first (each has its own fields), then its form. */
+rulesRoutes.get("/new", (c) => {
+  const k = kind.safeParse(c.req.query("kind"));
+  return k.success ? page(c, "Nouvelle règle", <RulePage kind={k.data} />, RULES) : page(c, "Nouvelle règle", <KindChoice />, RULES);
+});
 rulesRoutes.get("/:id{[0-9]+}", async (c) => {
-  const id = intParam(c, "id");
-  const rule = (await listRules()).find((r) => r.id === id);
+  const rule = await ruleById(intParam(c, "id"));
   if (!rule) return c.notFound();
-  return page(c, rule.name, <RulePage rule={rule} />, RULES);
-});
-/** The served languages: the boxes ticked, among the catalogue's own languages; at least one. */
-rulesRoutes.post("/languages", async (c) => {
-  const langs = await saveServedLanguages((await c.req.formData()).getAll("lang").map(String));
-  if (!langs.length) return back(c, "/admin/rules", { err: "Choisir au moins une langue" });
-  return back(c, "/admin/rules", { ok: `Langues servies : ${langs.join(", ")} — à appliquer par un passage à partir de « Groupement »` });
+  return page(c, rule.name, <RulePage kind={rule.kind} rule={rule} />, RULES);
 });
 rulesRoutes.post(
   "/",
@@ -80,9 +57,10 @@ rulesRoutes.post(
     const rule = c.req.valid("form");
     const err = await checkRuleQuery(rule.query, rule.kind);
     // Back to the rule's page: the mistake is fixed where it was made.
-    if (err) return back(c, rule.id ? `/admin/rules/${rule.id}` : "/admin/rules/new", { err: `Requête invalide : ${err}` });
+    if (err)
+      return back(c, rule.id ? `/admin/rules/${rule.id}` : `/admin/rules/new?kind=${rule.kind}`, { err: `Requête invalide : ${err}` });
     await saveRule(rule);
-    return back(c, "/admin/rules", { ok: "Règle enregistrée — à appliquer par un passage à partir de « Filtres »" });
+    return back(c, "/admin/rules", { ok: "Règle enregistrée — à appliquer par un passage du traitement" });
   },
 );
 rulesRoutes.post("/:id/delete", async (c) => {

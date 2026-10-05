@@ -8,7 +8,7 @@ import { startRun } from "@/catalog/journal";
 import { withCatalogLock } from "@/catalog/lock";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
-import { getSettings, setSettings } from "@/config";
+import { getSettings } from "@/config";
 import { setFavorite, setProgress, listProgress } from "@/player";
 import { admin } from "..";
 
@@ -117,8 +117,10 @@ describe("admin", () => {
     expect((await call("/admin/catalog/items?kind=vod&cat=10")).status).toBe(404);
     // The search reads the contents; a wrong query says why instead of failing.
     expect(await html("/admin/catalog?kind=vod&q=visible%3Anon")).toContain("Aucun contenu"); // nothing hidden
-    expect(await html("/admin/catalog?kind=vod&q=matrix%20vost")).toContain(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`); // a variant's name
-    expect(await html("/admin/catalog?kind=vod&q=cat%C3%A9gorie%3Afilms")).toContain("1 contenu pour"); // a variant's category
+    expect(await html("/admin/catalog?kind=vod&q=matrix%20xtream.nom%3Avost")).toContain(
+      `/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`,
+    ); // one of its versions' names
+    expect(await html("/admin/catalog?kind=vod&q=xtream.cat%C3%A9gorie%3Afilms")).toContain("1 contenu pour"); // one of its versions' category
     expect(await html("/admin/catalog?kind=vod&q=tmdb%3Apeut-etre")).toContain("tmdb vaut oui, non ou attente");
     expect(await html("/admin/catalog?kind=vod")).not.toContain('name="view"');
     expect(await html("/admin/catalog?kind=live")).toContain("Rechercher : tf1, thème:sport"); // examples of the kind
@@ -287,16 +289,16 @@ describe("admin", () => {
   });
 
   it("rules: preview, save without applying, the banner to apply them, delete", async () => {
-    const preview = await post("/admin/rules/preview", { query: "vost", kind: "vod" });
+    const preview = await post("/admin/rules/preview", { query: "matrix", kind: "vod" });
     expect(await preview.text()).toContain("1 fiche(s) concernée(s)");
+    const versions = await post("/admin/rules/preview", { query: "xtream.nom:vost", kind: "vod" });
+    expect(await versions.text()).toContain("1 version(s) concernée(s)");
     expect(await (await post("/admin/rules/preview", { query: "genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
     const created = await post("/admin/rules", {
-      name: "VOST",
+      name: "Matrix",
       kind: "vod",
-      query: "vost",
-      action: "hide",
+      query: "matrix",
       enabled: "true",
-      position: "0",
     });
     expect(flash(created)).toContain("à appliquer");
     const page = await html("/admin/rules");
@@ -305,14 +307,15 @@ describe("admin", () => {
     // The list holds no form: a rule is created and edited on a page of its own, under « Règles ».
     expect(page).not.toContain('name="query"');
     expect(page).toContain('href="/admin/rules/new"');
-    const blank = await html("/admin/rules/new");
+    expect(await html("/admin/rules/new")).not.toContain('name="query"'); // the kind first
+    const blank = await html("/admin/rules/new?kind=vod");
     expect(blank).toContain('name="query"');
     expect(blank).toMatch(/aria-label="Fil d'Ariane".*<a href="\/admin\/rules"[^>]*>Règles<\/a>/s);
-    const invalid = await post("/admin/rules", { name: "Cassée", kind: "vod", query: "titre:/(/", action: "hide", position: "0" });
+    const invalid = await post("/admin/rules", { name: "Cassée", kind: "vod", query: "titre:/(/" });
     expect(flash(invalid)).toContain("Requête invalide");
-    expect(invalid.headers.get("location")).toMatch(/^\/admin\/rules\/new\?/);
+    expect(invalid.headers.get("location")).toMatch(/^\/admin\/rules\/new\?kind=vod&/);
     const id = /hx-post="\/admin\/rules\/(\d+)\/delete"/.exec(page)![1];
-    expect(await html(`/admin/rules/${id}`)).toContain('value="vost"');
+    expect(await html(`/admin/rules/${id}`)).toContain('value="matrix"');
     expect((await call("/admin/rules/999999")).status).toBe(404);
     expect((await post(`/admin/rules/${id}/delete`, {})).status).toBe(303);
     expect(await html("/admin/rules")).toContain("Aucune règle");
@@ -521,35 +524,33 @@ describe("admin", () => {
     }
   });
 
-  it("served languages, on the Rules page: the catalogue's languages, at least one, applied from « Groupement »", async () => {
-    expect(await html("/admin/settings")).not.toContain("Langues servies");
-    const page = await html("/admin/rules");
-    expect(page).toContain("Langues servies (films et séries)");
-    expect(page).toMatch(/name="lang" value="VF" checked/); // empty setting: every language served
-    const langs = (body: string) =>
-      call("/admin/rules/languages", {
-        method: "POST",
-        body: new URLSearchParams(body),
-        headers: { "content-type": "application/x-www-form-urlencoded", origin: "http://localhost" },
-      });
+  it("a rule on versions, from its kind's page: applied from « Filtres », its name on the version and the content", async () => {
+    expect(await html("/admin/rules")).not.toContain("Langues servies");
+    expect(await html("/admin/rules/new")).toContain('href="/admin/rules/new?kind=vod"'); // the kind first
+    const form = await html("/admin/rules/new?kind=vod");
+    expect(form).toContain('name="kind" value="vod"');
+    expect(form).toContain("Champs d&#39;une version");
+    expect(form).not.toContain('<code class="font-mono text-xs">visible</code>'); // searches only
+    const save = (query: string, id?: string) =>
+      post("/admin/rules", { ...(id ? { id } : {}), name: "Langues", kind: "vod", query, enabled: "true" });
     try {
-      expect(flash(await langs("lang=VOSTFR&lang=KLINGON"))).toContain("Langues servies : VOSTFR");
-      expect((await getSettings()).served_languages).toBe("VOSTFR");
-      expect(flash(await langs("lang=KLINGON"))).toContain("au moins une langue");
-      expect((await getSettings()).served_languages).toBe("VOSTFR");
-      const pending = await html("/admin/rules");
-      expect(pending).toContain("Langues servies modifiées");
-      expect(pending).toContain('<input type="hidden" name="from" value="group"/>');
-      expect(await runAll("manual", "group")).toBe(true);
+      expect(flash(await save('-variant.langue:"vf"'))).toContain("Règle enregistrée");
+      const list = await html("/admin/rules");
+      expect(list).toContain('title="Films"'); // its kind, an icon before its name
+      expect(list).toContain('<input type="hidden" name="from" value="filters"/>');
+      expect(await runAll("manual", "filters")).toBe(true);
       expect(await html("/admin/rules")).not.toContain("modifiées depuis le dernier passage");
-      // Matrix keeps its VOST version; served nothing at all, its page says why.
+      // Matrix keeps its VF version, its VOST one names the rule.
       const matrix = (await itemById(matrixId))!.contentId!;
-      expect(await html(`/admin/content/${matrix}`)).toContain("Visible dans l&#39;app");
-      await setSettings({ served_languages: "IT" });
-      expect(await runAll("manual", "group")).toBe(true);
-      expect(await html(`/admin/content/${matrix}`)).toMatch(/Aucune variante servie : langue non servie \(VF, VOSTFR,/);
+      const page = await html(`/admin/content/${matrix}`);
+      expect(page).toContain("Visible dans l&#39;app");
+      expect(page).toContain("par la règle « Langues »");
+      const [r] = await db.select().from(schema.curationFilterRules);
+      expect(flash(await save('-variant.langue:"it"', String(r.id)))).toContain("Règle enregistrée");
+      expect(await runAll("manual", "filters")).toBe(true);
+      expect(await html(`/admin/content/${matrix}`)).toContain("Aucune version servie : règle « Langues »");
     } finally {
-      await setSettings({ served_languages: "" });
+      await db.delete(schema.curationFilterRules);
       await runAll("manual", "group");
     }
   });

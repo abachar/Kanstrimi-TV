@@ -1,5 +1,4 @@
 export { refreshCardOnOpen } from "./cards";
-export { languagesOfCatalogue, languagesPending, saveServedLanguages } from "./languages";
 export { setItemHiddenManual } from "./hiding";
 export { trendingContents } from "./trending";
 export { ensureEpisodes, seasonsOf, UpstreamUnavailable } from "./episodes";
@@ -59,7 +58,7 @@ export {
   type Step,
   type Task,
 } from "./pipeline";
-export { checkRegexes, compileQuery, FIELDS as QUERY_FIELDS, QueryError, type CompileOptions, type Field as QueryField } from "./query";
+export { checkRegexes, compileQuery, fieldsOf as queryFieldsOf, QueryError, type CompileOptions, type Field as QueryField } from "./query";
 export { cachedRecommendedKeys, recommendedKeys } from "./recommendations";
 export { contentById, contentIdByKey, itemById, variantsOfContent } from "./queries";
 export {
@@ -78,8 +77,10 @@ export {
   type StudioSuggestion,
   studioSuggestions,
 } from "./studios";
-export { checkRuleQuery, deleteRule, listRules, previewRule, type RulePreview, saveRule, setRuleEnabled } from "./rules/manage";
-export { applyRules, hidingRule, rulesPending } from "./rules/apply";
+export { checkRuleQuery, deleteRule, listRules, previewRule, ruleById, type RulePreview, saveRule, setRuleEnabled } from "./rules/manage";
+export { applyRules, hidingRule } from "./rules/apply";
+export { rulesPending } from "./rules/compiled";
+export { variantHidingRule } from "./rules/variants";
 export {
   addToWaitlist,
   availableWaitlistKeys,

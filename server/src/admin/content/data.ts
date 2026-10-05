@@ -7,6 +7,7 @@ import { getSettings } from "@/config";
 import {
   contentById,
   hidingRule,
+  variantHidingRule,
   epgSourceById,
   itemById,
   iptvChannelById,
@@ -23,6 +24,8 @@ export type VariantDetail = {
   category: Category | null;
   tmdb: TmdbDetails | null;
   iptv: IptvorgChannel | null;
+  /** The rule on versions that hides it, when one does. */
+  rule: string | null;
 };
 
 /** A programme of a channel's guide. */
@@ -123,6 +126,7 @@ async function variantDetails(items: Variant[], tmdbLang: string): Promise<Varia
       category: item.categoryXtreamId ? (catOf.get(item.categoryXtreamId) ?? null) : null,
       tmdb: item.tmdbId && item.kind !== "live" ? await getCachedDetails(tmdbMediaType(item.kind), item.tmdbId, tmdbLang) : null,
       iptv: item.kind === "live" ? await iptvChannelById(item.iptvId) : null,
+      rule: item.hiddenByRule ? await variantHidingRule(item) : null,
     })),
   );
 }

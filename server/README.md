@@ -44,8 +44,8 @@ Trois tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres : 
 |---|---|
 | `source` | copie brute des listes Xtream, refusée si vide ou si le catalogue fond de moitié (panne du fournisseur) ; puis copie brute → variantes du catalogue, par différence, et analyse des noms (titre, année, marché, langue, qualité, édition) |
 | `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`), qui relit peu à peu les fiches anciennes ; puis rattachement des chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région. L'un en panne n'empêche pas l'autre |
-| `group` | d'abord les langues servies (films et séries, `catalog/languages.ts`), puis variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
-| `filters` | les règles (langage de filtre) jugent les contenus, la dernière qui correspond l'emporte ; puis `visible` et les arrivées de la liste d'attente. Un contenu que le groupement vient de créer reste masqué jusqu'à ce jugement |
+| `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
+| `filters` | toutes les règles (`catalog/rules/`) : celles de versions masquent des versions et les contenus touchés recomptent leurs agrégats, puis celles de contenus jugent les contenus ; enfin `visible` (une version servie et aucune règle) et les arrivées de la liste d'attente. Un contenu sans version servie est masqué ; un contenu que le groupement vient de créer reste masqué jusqu'à ce jugement |
 
 | Tâche à part | Rôle |
 |---|---|
@@ -111,15 +111,18 @@ par son index.
   script ni gestionnaire en ligne (`onsubmit`, `hx-on`), une confirmation passe par `hx-confirm` (`back()` répond alors
   `HX-Redirect`). Toute écriture (POST, PUT, PATCH, DELETE) doit venir du site, quel que soit son `Content-Type`.
 - **Langage de filtre** (`catalog/query/`, aide dans l'admin) : `genre:anim` contient, `genre:"animation"` égal,
-  `a,b` l'un de, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; casse et accents ignorés. Une requête est une
-  condition sur un contenu (ses colonnes, sa fiche TMDB en cache), vérifiée champ par champ avant tout SQL, ses valeurs
-  toujours en paramètres. Sert aux recherches de l'admin et aux règles. Les champs du fournisseur (`catégorie`,
-  `section`, `édition`) sont vrais si une de ses variantes les a, et réservés aux recherches.
-- **Règles** : une requête chacune, sur les contenus (`catalog_contents.hidden_by_rule`, null = pas encore jugé) ; la
-  dernière qui correspond l'emporte, une règle « garder » fait de son type une liste blanche. Elles ne masquent jamais
-  une variante : seules la langue servie, la main et la catégorie le font. Enregistrer une règle ne l'applique pas
-  (trop lent) : `rules_pending` affiche un bandeau, l'étape `filters` les applique. Un regroupement manuel (séparer,
-  fusionner, associer TMDB ou iptv-org) fait juger aussitôt les contenus qu'il touche.
+  `a,b` l'un de, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; casse et accents ignorés. Chaque type
+  (Direct, Films, Séries) a ses champs, dans un seul registre (`catalog/query/fields.ts`) qui sert aux recherches, aux
+  règles et à l'aide : sans préfixe, la fiche (ses colonnes, sa fiche TMDB en cache) ; `variant.` et `xtream.`, une
+  version (ce qu'on en lit, ce qu'en dit le fournisseur). Dans une recherche, les termes de version décrivent une de ses
+  versions. Vérifiée champ par champ avant tout SQL, ses valeurs toujours en paramètres.
+- **Règles** : une requête chacune, pour un type choisi à la création ; une règle ne fait que masquer, une seule qui
+  correspond suffit, sans ordre (une exception s'écrit dans la requête : `-xtream.catégorie:manga`). Sans champ de
+  version, elle masque le contenu (`catalog_contents.hidden_by_rule`, null = pas encore jugé) ; avec un champ de version,
+  elle masque les versions qui correspondent dans les contenus que ses autres termes désignent
+  (`catalog_variants.hidden_by_rule`, par exemple `-variant.langue:"vf","vo","ar"` ou `marché:"ar" xtream.nom:2m`).
+  Toutes s'appliquent à l'étape `filters`. Enregistrer une règle ne l'applique pas (trop lent) : `rules_pending` affiche
+  un bandeau. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
 - **Écrans Live, Films, Séries de l'admin** : ce que l'app affiche, par les fonctions mêmes de `/player` : ses rangées
   repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; la recherche porte sur les
   contenus. Tout mène à la fiche d'un contenu (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream,
@@ -128,10 +131,8 @@ par son index.
   le restent. La fiche d'une chaîne montre aussi son rapprochement EPG (les
   identifiants que chaque variante essaie, dans l'ordre de l'app, et la source de secours) et tous ses programmes en base.
   Un fil d'Ariane dans l'en-tête place chaque page sous son entrée du menu (`page(…, { under })` pour une page de détail).
-- **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Une variante est visible si sa langue est servie
-  (`served_languages`, choisies dans la page Règles, films et séries, vide = toutes ; le direct n'est pas concerné ;
-  appliquées au groupement suivant, `languages_pending` affiche le bandeau), que ni la main ni sa catégorie ne la
-  masquent ; un contenu est visible si une de ses variantes l'est et qu'aucune règle ne le masque. Tout ce que voit l'app (tris, dates, compteurs, rangées)
+- **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Une variante est visible si ni une règle de versions, ni
+  la main, ni sa catégorie ne la masquent ; un contenu est visible si une de ses variantes l'est et qu'aucune règle ne le masque. Tout ce que voit l'app (tris, dates, compteurs, rangées)
   se calcule sur les seules variantes visibles. Côté app, `player/contents.ts` y ajoute le réglage adulte : `visibleContent`
   pour les contenus, `servedVariant` pour les variantes (un contenu mixte reste servi, sans ses variantes adultes).
   Les genres de Films et Séries restent en mémoire jusqu'à ce que le groupement réécrive les contenus

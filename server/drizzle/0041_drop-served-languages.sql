@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_variants" DROP COLUMN "hidden_by_language";

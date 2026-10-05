@@ -306,7 +306,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
                   ["tmdb_id", raw.tmdb ?? raw.tmdb_id],
                   ["Année", raw.year ?? raw.releaseDate ?? raw.release_date],
                   ["Note", raw.rating],
-                  ["Masquée", it.hiddenByLanguage ? "langue non servie" : it.hiddenManual ? "à la main" : null],
+                  ["Masquée", it.hiddenByRule ? `par la règle « ${v.rule ?? "?"} »` : it.hiddenManual ? "à la main" : null],
                 ]}
               />
               <details class="group">
@@ -325,7 +325,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
       <div class="absolute end-3 top-1 flex h-9 items-center gap-1">
         <VisibilityToggle
           id={it.id}
-          hiddenByLanguage={it.hiddenByLanguage}
+          rule={it.hiddenByRule ? (v.rule ?? "?") : null}
           hiddenManual={it.hiddenManual}
           catHidden={isCategoryHidden(cat)}
           short
@@ -339,38 +339,30 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
 
 /** The sheet as the app receives it: picture, titles, what it plays in, its story; the bookkeeping on a grey line. */
 /**
- * Why a content is hidden, in a sentence: not judged yet, a rule, or none of its variants served — by
- * language, by hand, through its category, each cause named once. Null when it is visible.
+ * Why a content is hidden, in a sentence: not judged yet, a rule on contents, or none of its versions
+ * served — by a rule on versions, by hand, through its category, each cause named once. Null when visible.
  */
-function hidingReason(c: Content, variants: VariantDetail[], rule: string | null): unknown {
+function hidingReason(c: Content, variants: VariantDetail[], rule: string | null): string | null {
   if (c.visible) return null;
   if (c.hiddenByRule === null) return "Pas encore jugé par les règles";
   if (c.hiddenByRule) return `Masqué par la règle « ${rule ?? "?"} »`;
-  const langs = new Set<string>();
+  const rules = new Set<string>();
   const cats = new Set<string>();
   let manual = 0;
-  for (const { item, category } of variants) {
-    if (item.hiddenByLanguage) langs.add(item.lang ?? "?");
-    else if (item.hiddenManual) manual++;
-    else if (isCategoryHidden(category)) cats.add(category!.name);
+  for (const v of variants) {
+    if (v.item.hiddenByRule) rules.add(`« ${v.rule ?? "?"} »`);
+    else if (v.item.hiddenManual) manual++;
+    else if (isCategoryHidden(v.category)) cats.add(v.category!.name);
   }
-  const causes: unknown[] = [];
-  if (langs.size)
-    causes.push(
-      <>
-        langue non servie ({[...langs].join(", ")},{" "}
-        <a href="/admin/rules" class="underline hover:text-foreground">
-          langues servies
-        </a>
-        )
-      </>,
-    );
-  if (manual) causes.push(manual > 1 ? `${manual} variantes masquées à la main` : "variante masquée à la main");
-  if (cats.size) causes.push(`catégorie masquée (${[...cats].join(", ")})`);
-  return causes.length ? <>Aucune variante servie : {causes.map((x, i) => (i ? <>, {x}</> : x))}</> : "Aucune variante servie";
+  const causes = [
+    rules.size ? `${rules.size > 1 ? "règles" : "règle"} ${[...rules].join(", ")}` : null,
+    manual ? (manual > 1 ? `${manual} versions masquées à la main` : "version masquée à la main") : null,
+    cats.size ? `catégorie masquée (${[...cats].join(", ")})` : null,
+  ].filter(Boolean);
+  return causes.length ? `Aucune version servie : ${causes.join(", ")}` : "Aucune version servie";
 }
 
-function Hero({ c, total, reason }: { c: Content; total: number; reason: unknown }) {
+function Hero({ c, total, reason }: { c: Content; total: number; reason: string | null }) {
   const live = c.kind === "live";
   const quality = [qualityOfRank(c.maxQualityRank), c.dynamicRange].filter(Boolean);
   const originals = [c.originalTitle, c.titleEn].filter((t) => t && t !== c.title);

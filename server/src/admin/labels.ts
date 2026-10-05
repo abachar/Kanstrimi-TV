@@ -5,7 +5,6 @@ import type { Tone } from "./ui";
 /** French vocabulary of the admin, in one place. */
 
 export const KIND_TITLES: Record<Kind, string> = { live: "Live", vod: "Films", series: "Séries" };
-export const KIND_LABELS: Record<Kind | "all", string> = { all: "tous", live: "live", vod: "films", series: "séries" };
 
 /** How a content got its key, as shown on its page. */
 export const KEY_KIND_LABELS: Record<KeyKind, string> = {
@@ -84,7 +83,7 @@ export const STAT_LABELS: Record<string, string> = {
   multi_variant: "à plusieurs variantes",
   orphans_removed: "contenus retirés",
   waitlist_available: "attendus devenus disponibles",
-  not_served: "variantes d'une langue non servie",
+  variants_hidden: "versions masquées par les règles",
   items: "éléments",
   categories: "catégories",
   bytes: "", // bytes are already rendered as "x Mo"
