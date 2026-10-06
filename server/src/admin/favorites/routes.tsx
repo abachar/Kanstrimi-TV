@@ -5,7 +5,7 @@ import { back, page } from "../http";
 import { favoriteRows } from "./data";
 import { FavoritesView } from "./view";
 
-/** `/admin/favorites`: « Ma liste » as the app stores it; a line can be removed, nothing else. */
+/** `/admin/favorites`: « Ma liste » as the app stores it; a line can be removed, a content's page adds one. */
 export const favoritesRoutes = new Hono();
 
 favoritesRoutes.get("/", async (c) => {

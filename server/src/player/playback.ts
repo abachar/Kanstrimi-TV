@@ -7,7 +7,7 @@ import { fail, json, noContent } from "./http";
 import { contentByKey, keyExists, variantsOf } from "./contents";
 import { deleteProgress, getProgress, isResumable, setFinished, setProgress } from "./progress";
 import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
-import { currentEpisode, type EpisodeRow, episodeWire, episodesOf } from "./episodes";
+import { currentEpisode, type EpisodeRow, episodeWire, episodesOf, setSeriesWatched } from "./episodes";
 import { badgesOf, castOf, episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
 import { addWatchTime } from "./watch-time";
@@ -70,14 +70,7 @@ playbackRoutes.put("/:id/watched", async (c) => {
   if (parsed.kind === "series" && parsed.episode === undefined) {
     const content = await contentByKey(ctx, key);
     if (!content) return fail("not_found", "Contenu introuvable");
-    const episodes = (await episodesOf(ctx, content)).episodes.filter(
-      (e) => body.data.season === undefined || e.season === body.data.season,
-    );
-    if (!episodes.length) return fail("not_found", "Saison introuvable");
-    await setFinished(
-      episodes.map((e) => e.key),
-      body.data.watched,
-    );
+    if (!(await setSeriesWatched(ctx, content, body.data.watched, body.data.season))) return fail("not_found", "Saison introuvable");
     return noContent();
   }
   if (!(await keyExists(ctx, key))) return fail("not_found", "Contenu introuvable");

@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import {
+  contentById,
   contentIdByKey,
   explainMatch,
   itemById,
@@ -8,12 +9,16 @@ import {
   resetVariant,
   mergeVariantInto,
   mergeCandidates,
+  UpstreamUnavailable,
 } from "@/catalog";
+import { getSettings } from "@/config";
 import { getTmdbClient } from "@/providers/tmdb";
+import { contextFor, setFavorite, setFinished, setSeriesWatched } from "@/player";
 import { describeError } from "@/shared";
 import { back, form, page, intField, intParam } from "../http";
 import { InlineResult } from "../ui";
-import { contentDetail, orphanDetail } from "./data";
+import { contentDetail, episodeOf, orphanDetail } from "./data";
+import { episodeAnchor } from "./episodes";
 import { ContentView, MergeForm } from "./view";
 import { ExplainView } from "./explain";
 import { contentLink } from "./links";
@@ -32,6 +37,40 @@ contentRoutes.get("/:id", async (c) => {
   return page(c, detail.content.title, <ContentView {...detail} open={Number(c.req.query("v")) || null} />, {
     under: `/admin/catalog?kind=${detail.content.kind}`,
   });
+});
+
+/** Puts the content in « Ma liste » (`on`), or takes it out. */
+contentRoutes.post("/:id/favorite", async (c) => {
+  const content = await contentById(intParam(c, "id"));
+  if (!content) return c.notFound();
+  const on = (await form(c)).on === "1";
+  await setFavorite(content.key, on);
+  return back(c, `/admin/content/${content.id}`, { ok: on ? "Ajouté à Ma liste" : "Retiré de Ma liste" });
+});
+
+/** « Vu » (`on`) or not: a movie, one `episode` of a series, or every episode of it, as the app marks them. */
+contentRoutes.post("/:id/watched", async (c) => {
+  const content = await contentById(intParam(c, "id"));
+  if (!content || content.kind === "live") return c.notFound();
+  const f = await form(c);
+  const on = f.on === "1";
+  const to = `/admin/content/${content.id}`;
+  if (f.episode) {
+    const episode = await episodeOf(content.id, f.episode);
+    if (!episode) return c.notFound();
+    await setFinished(episode.key, on);
+    return back(c, `${to}#${episodeAnchor(episode)}`, { ok: on ? "Épisode marqué comme vu" : "Épisode retiré de mes vus" });
+  }
+  if (content.kind === "series") {
+    try {
+      const ctx = contextFor(c.req.raw, null, await getSettings());
+      if (!(await setSeriesWatched(ctx, content, on))) return back(c, to, { err: "Aucun épisode servi dans cette série" });
+    } catch (e) {
+      if (!(e instanceof UpstreamUnavailable)) throw e;
+      return back(c, to, { err: e.message });
+    }
+  } else await setFinished(content.key, on);
+  return back(c, to, { ok: on ? "Marqué comme vu" : "Retiré de mes vus" });
 });
 
 /** `/admin/item/:id`: a provider entry, shown on its content's page; the actions on one entry. */

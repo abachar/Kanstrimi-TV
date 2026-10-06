@@ -5,6 +5,7 @@ import { isFallbackKey, keyKind, qualityOfRank } from "@/catalog";
 import { runtimeText } from "@/player";
 import { signedImagePath } from "@/shared";
 import type { ContentDetail, VariantDetail } from "./data";
+import { EpisodesCard } from "./episodes";
 import { GuideCard } from "./guide";
 import { fmt } from "../format";
 import { KEY_KIND_LABELS, MATCH_LABELS, MATCH_TONES } from "../labels";
@@ -374,7 +375,19 @@ function hidingReason(c: Content, variants: VariantDetail[]): string | null {
   return causes.length ? `Aucune version servie : ${causes.join(", ")}` : "Aucune version servie";
 }
 
-function Hero({ c, total, reason }: { c: Content; total: number; reason: string | null }) {
+function Hero({
+  c,
+  total,
+  reason,
+  favorite,
+  watched,
+}: {
+  c: Content;
+  total: number;
+  reason: string | null;
+  favorite: boolean;
+  watched: ContentDetail["watched"];
+}) {
   const live = c.kind === "live";
   const quality = [qualityOfRank(c.maxQualityRank), c.dynamicRange].filter(Boolean);
   const originals = [c.originalTitle, c.titleEn].filter((t) => t && t !== c.title);
@@ -425,6 +438,37 @@ function Hero({ c, total, reason }: { c: Content; total: number; reason: string 
           <span class="text-sm text-muted-foreground">{meta.filter(Boolean).join(" · ")}</span>
         </div>
         {c.overview && <p class="text-sm leading-relaxed">{c.overview}</p>}
+        <div class="flex flex-wrap items-center gap-2">
+          <form method="post" action={`/admin/content/${c.id}/favorite`}>
+            {!favorite && <input type="hidden" name="on" value="1" />}
+            <button class="btn" data-variant="outline" data-size="sm">
+              <Icon name="favorites" cls={favorite ? "fill-current text-amber-400" : undefined} />
+              {favorite ? "Retirer de Ma liste" : "Ajouter à Ma liste"}
+            </button>
+          </form>
+          {watched && (watched.seen < watched.total || watched.total === 0) && (
+            <form method="post" action={`/admin/content/${c.id}/watched`}>
+              <input type="hidden" name="on" value="1" />
+              <button class="btn" data-variant="outline" data-size="sm">
+                <Icon name="success" />
+                Marquer comme vu
+              </button>
+            </form>
+          )}
+          {watched && watched.seen > 0 && (
+            <form method="post" action={`/admin/content/${c.id}/watched`}>
+              <button class="btn" data-variant="outline" data-size="sm">
+                <Icon name="x" />
+                Retirer de mes vus
+              </button>
+            </form>
+          )}
+          {watched && c.kind === "series" && watched.total > 0 && (
+            <span class="text-sm text-muted-foreground">
+              {fmt(watched.seen)} / {fmt(watched.total)} épisodes vus
+            </span>
+          )}
+        </div>
         <p class="mt-auto text-xs text-muted-foreground">
           <code class="font-mono">{c.key}</code> · ajouté le {c.addedAt.toLocaleDateString("fr-FR")} · {fmt(c.variantCount)} variante
           {c.variantCount > 1 ? "s" : ""} visible{c.variantCount > 1 ? "s" : ""} sur {fmt(total)}
@@ -439,13 +483,22 @@ function Hero({ c, total, reason }: { c: Content; total: number; reason: string 
  * One page per content: the sheet the app receives, then each provider entry grouped under it as a
  * row, the one asked for (`open`) unfolded. An entry not grouped yet is shown alone.
  */
-export function ContentView({ content, variants, tmdbLang, guide, open }: ContentDetail & { open: number | null }) {
+export function ContentView({
+  content,
+  variants,
+  tmdbLang,
+  guide,
+  favorite,
+  watched,
+  episodes,
+  open,
+}: ContentDetail & { open: number | null }) {
   const kind = content?.kind ?? variants[0].item.kind;
   const alone = variants.length < 2;
   return (
     <>
       {content ? (
-        <Hero c={content} total={variants.length} reason={hidingReason(content, variants)} />
+        <Hero c={content} total={variants.length} reason={hidingReason(content, variants)} favorite={favorite} watched={watched} />
       ) : (
         <div>
           <h1 class="text-2xl font-semibold tracking-tight break-words">{variants[0].item.name}</h1>
@@ -468,6 +521,7 @@ export function ContentView({ content, variants, tmdbLang, guide, open }: Conten
           ))}
         </div>
       </section>
+      {content?.kind === "series" && <EpisodesCard c={content} episodes={episodes} />}
       {content && guide && <GuideCard c={content} g={guide} />}
     </>
   );

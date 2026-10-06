@@ -14,7 +14,7 @@ import {
   parseSourceGuideId,
   variantsOfContent,
 } from "@/catalog";
-import { epgIdsOf } from "@/player";
+import { epgIdsOf, favoriteSet, getProgress, type Progress } from "@/player";
 
 /** One provider entry of a content: the row, its category, the TMDB sheet it matched, its iptv-org channel (live). */
 export type VariantDetail = {
@@ -51,12 +51,21 @@ export type ChannelGuide = {
   programmes: GuideLine[];
 };
 
+/** An episode in base and what the app recorded of it. */
+export type EpisodeLine = { key: string; season: number; number: number; title: string | null; progress: Progress | null };
+
 /** A content and every provider entry under it; `content` is null for an entry not grouped yet. A channel brings its guide. */
 export type ContentDetail = {
   content: Content | null;
   variants: VariantDetail[];
   tmdbLang: string;
   guide: ChannelGuide | null;
+  /** In « Ma liste ». */
+  favorite: boolean;
+  /** What is seen of it: a movie is one, a series its episodes in base (none before it is first opened); null for a channel. */
+  watched: { seen: number; total: number } | null;
+  /** A series' episodes in base, in order. */
+  episodes: EpisodeLine[];
 };
 
 /** What the base holds per guide id: how many programmes, until when. */
@@ -124,13 +133,42 @@ async function variantDetails(items: Variant[], tmdbLang: string): Promise<Varia
   );
 }
 
+async function watchedOf(c: Content): Promise<Pick<ContentDetail, "watched" | "episodes">> {
+  if (c.kind === "live") return { watched: null, episodes: [] };
+  if (c.kind === "vod") return { watched: { seen: (await getProgress([c.key])).get(c.key)?.finished ? 1 : 0, total: 1 }, episodes: [] };
+  const e = schema.catalogEpisodes;
+  const rows = await db
+    .select({ key: e.key, season: e.season, number: e.number, title: e.title })
+    .from(e)
+    .where(eq(e.contentId, c.id))
+    .orderBy(asc(e.season), asc(e.number));
+  const progress = await getProgress(rows.map((r) => r.key));
+  const episodes = rows.map((r) => ({ ...r, progress: progress.get(r.key) ?? null }));
+  return { watched: { seen: episodes.filter((x) => x.progress?.finished).length, total: episodes.length }, episodes };
+}
+
+/** An episode of this series, by its key. */
+export async function episodeOf(contentId: number, key: string) {
+  const e = schema.catalogEpisodes;
+  const [row] = await db
+    .select({ key: e.key, season: e.season, number: e.number })
+    .from(e)
+    .where(and(eq(e.contentId, contentId), eq(e.key, key)));
+  return row ?? null;
+}
+
 export async function contentDetail(id: number): Promise<ContentDetail | null> {
   const content = await contentById(id);
   if (!content) return null;
   const tmdbLang = (await getSettings()).tmdb_language;
   const items = await variantsOfContent(content.id);
-  const [variants, guide] = await Promise.all([variantDetails(items, tmdbLang), guideOf(content, items)]);
-  return { content, variants, tmdbLang, guide };
+  const [variants, guide, favorites, watched] = await Promise.all([
+    variantDetails(items, tmdbLang),
+    guideOf(content, items),
+    favoriteSet(),
+    watchedOf(content),
+  ]);
+  return { content, variants, tmdbLang, guide, favorite: favorites.has(content.key), ...watched };
 }
 
 /** An entry the grouping has not placed yet: the page shows it alone. */
@@ -138,5 +176,13 @@ export async function orphanDetail(itemId: number): Promise<ContentDetail | null
   const item = await itemById(itemId);
   if (!item) return null;
   const tmdbLang = (await getSettings()).tmdb_language;
-  return { content: null, variants: await variantDetails([item], tmdbLang), tmdbLang, guide: null };
+  return {
+    content: null,
+    variants: await variantDetails([item], tmdbLang),
+    tmdbLang,
+    guide: null,
+    favorite: false,
+    watched: null,
+    episodes: [],
+  };
 }

@@ -11,7 +11,7 @@ export function FavoritesView({ rows }: { rows: FavoriteRow[] }) {
       <Title t="Favoris" sub={`« Ma liste » telle que l'app l'a enregistrée · ${fmt(rows.length)} entrées`} />
       <Card title="Ma liste" icon="favorites" extra={fmt(rows.length)}>
         {rows.length === 0 ? (
-          <Empty title="Aucun favori" sub="L'app n'a encore rien ajouté à « Ma liste »." />
+          <Empty title="Aucun favori" sub="Rien dans « Ma liste » : l'app ou la fiche d'un contenu y ajoute un titre." />
         ) : (
           <ul class="flex flex-col divide-y">
             {rows.map((r) => (
@@ -29,7 +29,15 @@ export function FavoritesView({ rows }: { rows: FavoriteRow[] }) {
                   <div class="h-[69px] w-[46px] shrink-0 rounded-md bg-muted" aria-hidden="true"></div>
                 )}
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <div class="truncate font-medium">{r.content?.title ?? <code class="font-mono text-xs">{r.key}</code>}</div>
+                  <div class="truncate font-medium">
+                    {r.content ? (
+                      <a class="hover:underline" href={`/admin/content/${r.content.id}`}>
+                        {r.content.title}
+                      </a>
+                    ) : (
+                      <code class="font-mono text-xs">{r.key}</code>
+                    )}
+                  </div>
                   <div class="text-sm text-muted-foreground">
                     {r.content
                       ? `${KIND[r.content.kind] ?? r.content.kind}${r.content.year ? ` · ${r.content.year}` : ""}`

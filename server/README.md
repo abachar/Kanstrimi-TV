@@ -128,7 +128,8 @@ par son index.
 - **Écrans Live, Films, Séries de l'admin** : ce que l'app affiche, par les fonctions mêmes de `/player` : ses rangées
   repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; la recherche porte sur les
   contenus. Tout mène à la fiche d'un contenu (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream,
-  leur interrupteur de visibilité et les corrections (TMDB, iptv-org, séparer, fusionner) ; `/admin/item/:id` y redirige
+  leur interrupteur de visibilité et les corrections (TMDB, iptv-org, séparer, fusionner), et des boutons : « Ma liste »,
+  et pour un film ou une série « Marquer comme vu » / « Retirer de mes vus » (la série entière, ou un épisode dans sa liste) ; `/admin/item/:id` y redirige
   (une variante pas encore groupée s'y montre seule). Plus d'écran pour masquer une catégorie : celles masquées à la main
   le restent. La fiche d'une chaîne montre aussi son rapprochement EPG (les
   identifiants que chaque variante essaie, dans l'ordre de l'app, et la source de secours) et tous ses programmes en base.

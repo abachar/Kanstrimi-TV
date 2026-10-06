@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { Hono } from "hono";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { itemById, launch } from "@/catalog";
 import { runAll, runNaming } from "@/catalog";
@@ -239,6 +239,15 @@ describe("admin", () => {
     expect(flash(await post(`/admin/favorites/${encodeURIComponent("tmdb:movie:603")}/remove`, {}))).toContain("Favori retiré");
     await post(`/admin/favorites/${encodeURIComponent("tmdb:movie:1")}/remove`, {});
     expect(await html("/admin/favorites")).toContain("Aucun favori");
+    // A content's page puts it in « Ma liste », then takes it out.
+    const sheet = (await call(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`)).headers.get("location")!;
+    expect(await html(sheet)).toContain("Ajouter à Ma liste");
+    expect(flash(await post(`${sheet}/favorite`, { on: "1" }))).toBe(`${sheet}?ok=Ajouté à Ma liste`);
+    expect(await html(sheet)).toContain("Retirer de Ma liste");
+    expect(await html("/admin/favorites")).toContain(`href="${sheet}"`);
+    expect(flash(await post(`${sheet}/favorite`, {}))).toContain("Retiré de Ma liste");
+    expect(await html("/admin/favorites")).toContain("Aucun favori");
+    expect((await post("/admin/content/999999/favorite", { on: "1" })).status).toBe(404);
   });
 
   it("history: a position moves from « En cours » to « Vus » and back to nothing", async () => {
@@ -556,6 +565,61 @@ describe("admin", () => {
     spy.mockImplementationOnce(() => true);
     await post("/admin/jobs/pipeline", { from: "nope" });
     expect(spy).toHaveBeenLastCalledWith("pipeline", undefined, { acceptShrink: false });
+  });
+
+  it("a content's page marks a movie seen, or every episode of a series, and undoes it", async () => {
+    const sheetOf = async (key: string) => (await call(`/admin/content/k/${encodeURIComponent(key)}`)).headers.get("location")!;
+    const movie = await sheetOf("tmdb:movie:603");
+    expect(await html(movie)).not.toContain("Retirer de mes vus");
+    expect(flash(await post(`${movie}/watched`, { on: "1" }))).toBe(`${movie}?ok=Marqué comme vu`);
+    expect(await listProgress()).toMatchObject([{ contentKey: "tmdb:movie:603", finished: true }]);
+    const seen = await html(movie);
+    expect(seen).toContain("Retirer de mes vus");
+    expect(seen).not.toContain("Marquer comme vu");
+    expect(flash(await post(`${movie}/watched`, {}))).toContain("Retiré de mes vus");
+    expect(await listProgress()).toEqual([]);
+
+    // A series: its episodes come from the provider's sheet (in cache here), all marked at once.
+    await seedCategories([{ kind: "series", xtreamId: "30", name: "|FR| SERIES" }]);
+    await seedTmdb("tv", 1396, { name: "Vincenzo", first_air_date: "2021-02-20" });
+    await seedItems([{ kind: "series", xtreamId: "200", name: "|FR| Vincenzo (MULTI)", cat: "30", tmdbId: 1396, matchStatus: "matched" }]);
+    await db.insert(schema.xtreamInfoCache).values({
+      kind: "series",
+      xtreamId: "200",
+      data: {
+        seasons: [],
+        info: {},
+        episodes: {
+          "1": [1, 2].map((n) => ({ id: `e1${n}`, episode_num: n, season: 1, title: `Vincenzo 1x0${n}`, container_extension: "mkv" })),
+        },
+      },
+    });
+    await runNaming();
+    await groupAndFilter();
+    const series = await sheetOf("tmdb:tv:1396");
+    expect(await html(series)).toContain("Marquer comme vu");
+    expect(flash(await post(`${series}/watched`, { on: "1" }))).toContain("Marqué comme vu");
+    expect((await listProgress()).map((p) => [p.contentKey, p.finished]).sort()).toEqual([
+      ["tmdb:tv:1396:s01e01", true],
+      ["tmdb:tv:1396:s01e02", true],
+    ]);
+    const all = await html(series);
+    expect(all).toContain("2 / 2 épisodes vus");
+    expect(all).not.toContain("Marquer comme vu");
+    await post(`${series}/watched`, {});
+    expect(await listProgress()).toEqual([]);
+    // One episode on its own: the page comes back on its line.
+    const one = "tmdb:tv:1396:s01e02";
+    expect(await html(series)).toContain(`name="episode" value="${one}"`);
+    expect(flash(await post(`${series}/watched`, { episode: one, on: "1" }))).toBe(`${series}?ok=Épisode marqué comme vu#e1-2`);
+    expect((await listProgress()).map((p) => [p.contentKey, p.finished])).toEqual([[one, true]]);
+    expect(await html(series)).toContain("1 / 2 épisodes vus");
+    expect(flash(await post(`${series}/watched`, { episode: one }))).toContain("Épisode retiré de mes vus");
+    expect(await listProgress()).toEqual([]);
+    expect((await post(`${series}/watched`, { episode: "tmdb:movie:603", on: "1" })).status).toBe(404);
+    const tf1 = await sheetOf("live:fr-tf1");
+    expect(await html(tf1)).not.toContain("Marquer comme vu");
+    expect((await post(`${tf1}/watched`, { on: "1" })).status).toBe(404);
   });
 
   it("ends every session, this one included; a new login opens one again", async () => {

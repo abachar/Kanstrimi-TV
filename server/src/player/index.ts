@@ -59,7 +59,7 @@ player.route("/top-shelf", topShelfRoutes);
 
 // What the admin reads and edits of the app's own data (favourites, positions); `player` itself never imports `admin`.
 export { contextFor, type RestContext } from "./context";
-export { setFavorite } from "./favorites";
+export { favoriteSet, setFavorite } from "./favorites";
 export { channelGroups } from "./channels";
 export { catalogRows, listContents } from "./lists";
 export { studiosOf } from "./studios";
@@ -67,5 +67,6 @@ export { listSagaWires, sagaSheet } from "./sagas";
 export { gridCard, runtimeText } from "./cards";
 export { epgIdsOf } from "./versions";
 export { isShelfPair } from "./top-shelf";
-export { listProgress, deleteProgress, setFinished, setProgress, type Progress } from "./progress";
+export { listProgress, deleteProgress, getProgress, setFinished, setProgress, type Progress } from "./progress";
+export { setSeriesWatched } from "./episodes";
 export type { Card, CatalogRow, ChannelGroupWire, ChannelWire, SagaWire, StudioWire, Version } from "./types";

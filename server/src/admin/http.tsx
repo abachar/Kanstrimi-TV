@@ -37,17 +37,17 @@ export const page = (c: Context, title: string, body: unknown, { loggedIn = true
 /**
  * Redirect after a form post, carrying a flash message. A post htmx sent (a form behind
  * `hx-confirm`) gets `HX-Redirect` instead: the browser would follow a 303 inside the request and
- * htmx would swap the whole page into the form.
+ * htmx would swap the whole page into the form. An anchor in `to` is kept.
  */
 export const back = (c: Context, to: string, msg: { ok?: string; err?: string }) => {
   const u = new URL(to, "http://x");
   if (msg.ok) u.searchParams.set("ok", msg.ok);
   if (msg.err) u.searchParams.set("err", msg.err);
   if (c.req.header("HX-Request")) {
-    c.header("HX-Redirect", u.pathname + u.search);
+    c.header("HX-Redirect", u.pathname + u.search + u.hash);
     return c.body(null, 204);
   }
-  return c.redirect(u.pathname + u.search, 303);
+  return c.redirect(u.pathname + u.search + u.hash, 303);
 };
 
 export const form = async (c: Context) => Object.fromEntries((await c.req.formData()).entries()) as Record<string, string>;

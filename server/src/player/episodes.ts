@@ -5,7 +5,7 @@ import { languageLabel, qualityBadgeOf, sourceId, versionsOf, versionsSummary, t
 import { badgesOf, imageUrl, isWatched, progressWire, remaining, runtimeText } from "./cards";
 import type { RestContext } from "./context";
 import { variantsOf, type Variants } from "./contents";
-import { isResumable, type Progress } from "./progress";
+import { isResumable, setFinished, type Progress } from "./progress";
 import type { EpisodeWire, SeasonWire, Version } from "./types";
 
 export type EpisodeRow = Episode & { playables: Playable[] };
@@ -61,6 +61,17 @@ export async function episodesOf(ctx: RestContext, content: Content): Promise<{ 
   const variants = await variantsOf(ctx, content);
   await ensureEpisodes(content, variants.items, ctx.tmdbLang);
   return { variants, episodes: await loadEpisodes(content, variants.items, variants.categoryName) };
+}
+
+/** « Vu » / « Non vu » on every episode of a series, or of one `season`; false when it has none. */
+export async function setSeriesWatched(ctx: RestContext, content: Content, watched: boolean, season?: number): Promise<boolean> {
+  const episodes = (await episodesOf(ctx, content)).episodes.filter((e) => season === undefined || e.season === season);
+  if (!episodes.length) return false;
+  await setFinished(
+    episodes.map((e) => e.key),
+    watched,
+  );
+  return true;
 }
 
 /** The episode a series resumes on: the one in progress, else the first never started. */
