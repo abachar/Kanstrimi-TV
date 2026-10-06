@@ -57,7 +57,6 @@ Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non p
     (fond, logo ou titre, infos) qui affiche le film en focus et change à chaque déplacement.
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **Plus de génériques** : le dernier chapitre d'un film pris pour son générique (souvent juste, parfois faux de
-    plusieurs minutes), à mesurer d'abord sur de vrais fichiers. Les séries françaises, arabes et turques ne sont
-    presque dans aucune base d'intros.
+    plusieurs minutes), à mesurer d'abord sur de vrais fichiers.
   - **Notification de la liste d'attente** : une alerte push (APNs) sur l'iPhone, une pastille sur l'Apple TV, quand un film
     attendu arrive. Demande le programme Apple Developer payant.

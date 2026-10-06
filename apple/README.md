@@ -110,14 +110,8 @@ Pas de `Simulator.app` : ni télécommande ni doigt à piloter.
 
 ## Défauts constatés sur appareil
 
-- **Retour du PiP d'une chaîne** : un bref éclair de l'image PiP avant la vidéo. Cosmétique.
 - **Son perdu sur le direct** sans réaction de l'app (le chien de garde ne voit que la phase du moteur). Si ça se
   reproduit : relever les journaux `AetherEngine` et `dev.crafters.kanstrimi` dans Console.app autour de la coupure.
-
-## À mesurer sur appareil
-
-- Atmos par une barre de son en HDMI.
-- Sous-titres en image (PGS) sur Apple TV, film à bandes noires.
 
 ## Licence
 
