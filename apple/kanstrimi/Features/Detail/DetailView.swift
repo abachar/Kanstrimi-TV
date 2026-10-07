@@ -19,11 +19,10 @@ struct DetailView: View {
         }
         .background(Theme.background)
         .task {
-            if model == nil {
-                let m = DetailModel(id: id, env: env)
-                model = m
-                await m.load()
-            }
+            // Also when the sheet comes back before its first load ended: leaving the screen cancelled it.
+            let m = model ?? DetailModel(id: id, env: env)
+            model = m
+            if m.detail == nil { await m.load() }
         }
         .onChange(of: env.player.progressRevision) { Task { await model?.refresh() } }
         .platformSheet(isPresented: $showPicker) {

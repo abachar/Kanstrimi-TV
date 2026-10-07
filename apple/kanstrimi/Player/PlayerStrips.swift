@@ -152,7 +152,7 @@ struct PlayerInfos: View {
 
 }
 
-/// Épisodes: the season playing, the current episode marked; a click plays another.
+/// Épisodes: the season playing, the current episode marked by its progress; a click plays another.
 struct SeasonEpisodesStrip: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
@@ -175,7 +175,7 @@ struct SeasonEpisodesStrip: View {
                 ProgressView()
             } else {
                 ScrollView(.horizontal) {
-                    HStack(spacing: 24) {
+                    HStack(spacing: metrics.cardSpacing) {
                         ForEach(episodes) { ep in
                             Button { play(ep) } label: { card(ep) }
                                 .cardButtonStyle()
@@ -183,7 +183,7 @@ struct SeasonEpisodesStrip: View {
                                 .focused($focused, equals: ep.id)
                         }
                     }
-                    .padding(.vertical, 20)
+                    .padding(.vertical, metrics.compact ? 8 : 20)
                 }
                 .scrollClipDisabled()
             }
@@ -193,19 +193,11 @@ struct SeasonEpisodesStrip: View {
         .task(id: player.context?.seriesID) { await player.loadTitleCard() }
     }
 
+    /// Similaires' size, the title and « É4 · 42 min » drawn on the picture at the sheet's still size, so the text
+    /// leaves the picture alone; the episode on screen shows its progress.
     private func card(_ ep: Episode) -> some View {
-        let isCurrent = ep.id == player.context?.content.id
-        return VStack(alignment: .leading, spacing: 10) {
-            WideCard(item: ep.item, showsTitle: false, playing: isCurrent ? player.fraction : nil)
-                .frame(width: metrics.stillWidth * 1.3)
-            HStack(spacing: 8) {
-                Text("É\(ep.number)").foregroundStyle(isCurrent ? Theme.accent : Theme.secondary)
-                Text(ep.title).lineLimit(1)
-            }
-            .font(.callout.weight(.semibold))
-            .frame(width: metrics.stillWidth * 1.3, alignment: .leading)
-        }
-        .padding(12)
+        WideCard(item: ep.item, playing: ep.id == player.context?.content.id ? player.fraction : nil, titleWidth: metrics.stillWidth * 1.3)
+            .frame(width: metrics.resumeWidth * 1.25)
     }
 
     private func play(_ ep: Episode) {

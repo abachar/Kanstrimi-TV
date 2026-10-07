@@ -27,6 +27,8 @@ final class DetailModel {
             if d.kind == .series {
                 selectedSeason = d.currentEpisode?.season ?? d.seasons?.first?.number
             }
+        } catch is CancellationError {
+            // The sheet left the screen first (a saga closing above it): it loads again when it comes back.
         } catch {
             self.error = (error as? CatalogError) ?? .server(error.localizedDescription)
         }
