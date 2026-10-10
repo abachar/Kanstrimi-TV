@@ -11,7 +11,7 @@ import { applyFilters } from "./filters/apply";
 import { runGrouping } from "./grouping/group";
 import { runMerge } from "./merge";
 import { runChannels } from "./channels";
-import { startStep, finishStep, startRun, finishRun, purgeRuns, closeStaleRun, type Trigger } from "./journal";
+import { startStep, finishStep, startRun, finishRun, purgeRuns, closeStaleRun, runById, type RunWithSteps, type Trigger } from "./journal";
 import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
 
 /**
@@ -100,6 +100,12 @@ export const getLastError = () => lastError;
 
 const unrecorded = (step: Step) => (e: unknown) => console.error(`[pipeline] ${step} : fin de l'étape non enregistrée,`, describeError(e));
 
+const runListeners: ((run: RunWithSteps) => void)[] = [];
+/** Called with each finished run of the `pipeline` task, its steps included (the app's summary alert, wired by `main.ts`). */
+export function onRunFinished(fn: (run: RunWithSteps) => void) {
+  runListeners.push(fn);
+}
+
 /** One step under the journal. Null when it went well, else what went wrong. */
 async function runStep(step: Step, runId: number, ctx: StepContext): Promise<string | null> {
   if (running.has(step)) return "déjà en cours";
@@ -169,6 +175,10 @@ async function runTask(task: string, trigger: Trigger, steps: Step[], opts: RunO
         await finishRun(run.id, killed ? "killed" : error ? "error" : "success", killed ? KILLED : (error ?? undefined)).catch((e) =>
           console.error(`[pipeline] ${task} : fin du passage non enregistrée,`, describeError(e)),
         );
+        if (task === "pipeline" && runListeners.length) {
+          const finished = await runById(run.id).catch(() => null);
+          if (finished) for (const fn of runListeners) fn(finished);
+        }
         return !error && !killed;
       }),
     );

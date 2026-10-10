@@ -44,6 +44,14 @@ nonisolated enum PairingStatus: Codable, Hashable, Sendable {
     }
 }
 
+/// `PUT /devices/me/push`: the phone's APNs token, and the gateway it belongs to (`sandbox` for a build from Xcode,
+/// `production` for one from TestFlight).
+nonisolated struct PushRegistration: Codable, Hashable, Sendable {
+    let platform: String
+    let token: String
+    let environment: String
+}
+
 nonisolated struct CatalogCounts: Codable, Hashable, Sendable {
     let movies: Int
     let series: Int

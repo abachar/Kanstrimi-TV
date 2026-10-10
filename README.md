@@ -70,5 +70,5 @@ Ce qui vient après la V1.4 (tvOS, iPhone, iPad), par version, puis les idées n
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **Plus de génériques** : le dernier chapitre d'un film pris pour son générique (souvent juste, parfois faux de
     plusieurs minutes), à mesurer d'abord sur de vrais fichiers.
-  - **Notification de la liste d'attente** : une alerte push (APNs) sur l'iPhone, une pastille sur l'Apple TV, quand un film
-    attendu arrive. Demande le programme Apple Developer payant.
+  - **Alertes sur les autres appareils** : l'iPhone reçoit « Film attendu arrivé » et « Traitement complet terminé » ;
+    restent une pastille sur l'Apple TV, l'iPad, et la tablette Android (Firebase Cloud Messaging, projet Firebase à créer).

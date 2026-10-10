@@ -559,6 +559,40 @@ export const appDevices = pgTable("app_devices", {
 });
 
 /**
+ * The push registration of a device: the APNs token an iPhone sends at each launch, the environment
+ * it was issued for (a build from Xcode talks to APNs' sandbox, one from TestFlight to production),
+ * and which alerts the admin lets it receive. One row per device; gone with it.
+ */
+export const devicePush = pgTable("device_push", {
+  deviceId: integer("device_id")
+    .primaryKey()
+    .references(() => appDevices.id, { onDelete: "cascade" }),
+  platform: text("platform").notNull(), // ios
+  token: text("token").notNull(),
+  environment: text("environment").notNull(), // sandbox | production
+  waitlist: boolean("notify_waitlist").default(true).notNull(), // « Film attendu arrivé »
+  runs: boolean("notify_runs").default(true).notNull(), // « Traitement complet terminé »
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Every alert sent (or refused by APNs), for the admin's log. `link`: the `kanstrimi://` URL the alert opens. */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: serial("id").primaryKey(),
+    deviceId: integer("device_id").references(() => appDevices.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(), // waitlist | run | test
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    link: text("link"),
+    status: text("status").notNull(), // sent | failed | unregistered
+    detail: text("detail"), // APNs' reason or the error when it failed
+    sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("notifications_sent_idx").on(t.sentAt)],
+);
+
+/**
  * The studio hubs the app shows, chosen and ordered in the admin: a TMDB production company
  * (`company`: Pixar, A24) or a TV network (`network`: HBO, Netflix). Name and logo are copied
  * from TMDB when the studio is added.
@@ -718,3 +752,5 @@ export type TaskRun = typeof taskRuns.$inferSelect;
 export type IptvorgChannel = typeof iptvorgChannels.$inferSelect;
 export type Studio = typeof curationStudios.$inferSelect;
 export type WaitlistEntry = typeof curationWaitlist.$inferSelect;
+export type DevicePush = typeof devicePush.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;

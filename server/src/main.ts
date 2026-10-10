@@ -1,7 +1,8 @@
 import { serve } from "@hono/node-server";
 import { client } from "@/db";
 import { getSettings, onSettingsChange, verifyPassword } from "@/config";
-import { schedule, closeOrphanLogs } from "@/catalog";
+import { schedule, closeOrphanLogs, onRunFinished, onWaitlistAvailable } from "@/catalog";
+import { isApnsConfigured, notifyArrivals, notifyRunFinished } from "@/notify";
 import { describeError, env } from "@/shared";
 import { app } from "./app";
 
@@ -22,6 +23,10 @@ const server = serve({ fetch: app.fetch, port: env.port, hostname: "0.0.0.0" }, 
       if (n) console.log(`[boot] ${n} étape(s) interrompue(s) par le redémarrage précédent`);
     })
     .catch((e) => console.error("[boot] clôture des étapes orphelines échouée:", describeError(e)));
+  // The app's alerts hang on the catalogue's events; without the APNs key they stay journalled as failed.
+  if (!isApnsConfigured()) console.log("[boot] APNs non configuré (APNS_KEY, APNS_KEY_ID, APNS_TEAM_ID) : pas d'alertes sur l'iPhone");
+  onWaitlistAvailable((arrivals) => void notifyArrivals(arrivals).catch((e) => console.error("[notify] arrivées :", describeError(e))));
+  onRunFinished((run) => void notifyRunFinished(run).catch((e) => console.error("[notify] traitement :", describeError(e))));
   // The schedule follows the settings: built now, rebuilt after every save.
   onSettingsChange(schedule);
   void getSettings()

@@ -1,8 +1,20 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { approvePairing, pairingState, listDevices, revokeDevice, forgetDevice, getDevice, isCode } from "@/devices";
+import {
+  approvePairing,
+  pairingState,
+  listDevices,
+  revokeDevice,
+  forgetDevice,
+  getDevice,
+  isCode,
+  pushByDevice,
+  setPushPreference,
+  PUSH_KINDS,
+} from "@/devices";
+import { isApnsConfigured, recentNotifications, sendTestNotification } from "@/notify";
 import { clientIp } from "@/shared";
-import { page, back, form } from "../http";
+import { page, back, form, checked } from "../http";
 import { PairView, DevicesView } from "./view";
 
 /** `/admin/pair/{code}`, the page the TV's QR code opens. */
@@ -50,7 +62,26 @@ pairRoutes.post("/:code", async (c) => {
 /** `/admin/devices`: the paired TVs. */
 export const devicesRoutes = new Hono();
 
-devicesRoutes.get("/", async (c) => page(c, "Appareils", <DevicesView devices={await listDevices()} />));
+devicesRoutes.get("/", async (c) => {
+  const devices = await listDevices();
+  const [push, log] = await Promise.all([pushByDevice(devices.map((d) => d.id)), recentNotifications()]);
+  return page(c, "Appareils", <DevicesView devices={devices} push={push} apns={isApnsConfigured()} log={log} />);
+});
+/** The two switches of a device, posted by htmx at each change (an unchecked box is absent). */
+devicesRoutes.post("/:code/push", async (c) => {
+  const code = c.req.param("code").toUpperCase();
+  for (const kind of PUSH_KINDS) await setPushPreference(code, kind, await checked(c, kind));
+  return c.body(null, 204);
+});
+devicesRoutes.post("/:code/push/test", async (c) => {
+  const n = await sendTestNotification(c.req.param("code").toUpperCase());
+  const msg = !n
+    ? { err: "Cet appareil n'a pas d'enregistrement push" }
+    : n.status === "sent"
+      ? { ok: "Alerte de test envoyée" }
+      : { err: `Alerte de test en échec : ${n.detail ?? n.status}` };
+  return back(c, "/admin/devices", msg);
+});
 devicesRoutes.post("/:code/revoke", async (c) => {
   const ok = await revokeDevice(c.req.param("code").toUpperCase());
   return back(c, "/admin/devices", ok ? { ok: "Appareil dissocié" } : { err: "Appareil introuvable ou déjà dissocié" });

@@ -36,6 +36,12 @@ final class HTTPCatalogClient: CatalogClient {
     func deleteDevice(code: String) async throws {
         try await sendNoContent("DELETE", "devices/\(code)")
     }
+    func registerPush(_ registration: PushRegistration) async throws {
+        try await sendNoContent("PUT", "devices/me/push", body: registration)
+    }
+    func unregisterPush() async throws {
+        try await sendNoContent("DELETE", "devices/me/push")
+    }
     func info() async throws -> ServerInfo { try await send("GET", "info") }
 
     // MARK: - Home, movies, series

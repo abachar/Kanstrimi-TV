@@ -142,7 +142,10 @@ describe("admin", () => {
     expect((await call("/admin/content/k/nope")).status).toBe(404);
     expect((await call("/admin/content/999999")).status).toBe(404);
     expect(await html("/admin/filters")).toContain("tout est gardé");
-    expect(await html("/admin/devices")).toContain("Aucun appareil");
+    const devices = await html("/admin/devices");
+    expect(devices).toContain("Aucun appareil");
+    expect(devices).toContain("Alertes envoyées");
+    expect(devices).toContain("APNS_KEY_ID"); // the hint when APNs is not configured
     const logs = await html("/admin/tasks");
     expect(logs).toContain("Groupement"); // the lone step run of beforeAll
     expect(logs).toContain("Traitement complet");

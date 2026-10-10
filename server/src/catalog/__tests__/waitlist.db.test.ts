@@ -11,8 +11,10 @@ import {
   availableWaitlistKeys,
   listWaitlist,
   markWaitlistStarted,
+  onWaitlistAvailable,
   removeFromWaitlist,
   searchWaitlistCandidates,
+  type WaitlistArrival,
 } from "../waitlist";
 
 let duneId = 0;
@@ -141,7 +143,9 @@ describe("« Liste d'attente »", () => {
     ]);
   });
 
-  it("flags an arrival once its content turns visible, once", async () => {
+  it("flags an arrival once its content turns visible, once, and tells the listeners", async () => {
+    const heard: WaitlistArrival[][] = [];
+    onWaitlistAvailable((a) => heard.push(a));
     expect((await groupAndFilter()).waitlist_available).toBe(0);
     // The switch recomputes its content in the background: the arrival is flagged there, before any `group`.
     await setItemHiddenManual(duneId, false);
@@ -150,6 +154,7 @@ describe("« Liste d'attente »", () => {
     const { availableAt } = await entry("tmdb:movie:1100");
     expect(availableAt).not.toBeNull();
     expect(await availableWaitlistKeys()).toEqual(["tmdb:movie:1100"]);
+    expect(heard).toEqual([[{ contentKey: "tmdb:movie:1100", title: "Dune : Troisième partie", year: 2026 }]]);
     expect((await listWaitlist()).map((e) => [e.contentKey, e.status])).toEqual([
       ["tmdb:movie:1100", "available"],
       ["tmdb:movie:1200", "waiting"],
@@ -160,6 +165,7 @@ describe("« Liste d'attente »", () => {
     await setItemHiddenManual(duneId, false);
     expect((await groupAndFilter()).waitlist_available).toBe(0);
     expect((await entry("tmdb:movie:1100")).availableAt).toEqual(availableAt);
+    expect(heard).toHaveLength(1);
   });
 
   it("a started movie is no longer announced, and stays listed as started", async () => {

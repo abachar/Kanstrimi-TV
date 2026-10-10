@@ -285,6 +285,9 @@ export type PlaybackMarkers = {
 /** `/search`: movies, series and channels in one list, the most relevant first. */
 export type SearchResults = { query: string; items: ContentItem[] };
 
+/** `PUT /devices/me/push`: what the phone registers; `environment` tells which APNs gateway its token belongs to. */
+export type PushRegistration = { platform: "ios"; token: string; environment: "sandbox" | "production" };
+
 export type ServerInfo = {
   server_version: string;
   counts: { movies: number; series: number; channels: number };

@@ -73,7 +73,7 @@ Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_cont
 
 | Route | Rôle |
 |---|---|
-| `/player/*` | API de l'app Apple. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`). |
+| `/player/*` | API des apps. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`) ; `PUT /devices/me/push` enregistre le jeton APNs d'un iPhone. |
 | `/img/…` | images TMDB et logos iptv-org en cache disque (un téléchargement demande une URL signée par le serveur (`?k=`) ; un fichier déjà en cache se sert à tous) ; `/img/shelf/…` = images du Top Shelf, logo du titre dessiné sur le fond par `sharp` |
 | `/admin` | administration |
 | `/health` | santé (base joignable) ; en production, la cause d'une panne reste dans le journal |
@@ -82,7 +82,7 @@ Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_cont
 
 Un dossier par chose que fait le système, chacun importé par son `index.ts` (`@/catalog`, jamais un chemin profond).
 Dépendances de bas en haut, vérifiées par `src/__tests__/architecture.test.ts` :
-`shared ← db ← config ← providers/* ← catalog ← devices ← player ← admin`.
+`shared ← db ← config ← providers/* ← catalog ← devices ← notify ← player ← admin`.
 
 ```
 main.ts     démarrage : écoute, planification, arrêt propre
@@ -90,7 +90,8 @@ app.ts      l'application HTTP : montages, /health, erreurs
 admin/      pages de l'admin ; aucune écriture en base (vérifié), elle appelle le domaine
 player/     /player, un fichier par ressource ; types.ts = le contrat
 catalog/    le domaine : grammaire des noms, clés, filtres, groupement, épisodes, pipeline
-devices/    appairage, jetons
+devices/    appairage, jetons, enregistrement push des téléphones
+notify/     les alertes de l'app (APNs) : textes, envoi, journal ; branché sur les événements du catalogue par main.ts
 providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), iptv/, skipdb/, theintrodb/, introdb/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_`), vérifié par `architecture.test.ts`
 config/     réglages (base et environnement), mot de passe
 db/         client, schéma, migrations, prédicats de visibilité
@@ -167,6 +168,13 @@ par son index.
 - **Liste d'attente** (`catalog/waitlist.ts`, admin › Application) : des films cherchés sur TMDB avant que le fournisseur ne les ait. Dès
   qu'un contenu visible porte leur clé `tmdb:movie:<id>`, ils passent en tête du Top Shelf et du carrousel de l'accueil,
   jusqu'à 5 % de lecture.
+- **Alertes sur l'iPhone** (`notify/`) : deux alertes, « Film attendu arrivé » (une par film, avec le lien `kanstrimi://open/<id>`)
+  et « Traitement complet terminé » (le résumé du passage `pipeline` : durée, ajoutés et supprimés, fiches TMDB
+  associées, attendus arrivés, l'erreur s'il y en a). Chacune est un interrupteur par appareil dans admin › Appareils,
+  qui montre aussi le journal des envois et un bouton « Envoyer un test ». Le catalogue n'importe pas `notify` : il
+  expose `onWaitlistAvailable` et `onRunFinished`, `main.ts` les branche. APNs en HTTP/2 avec jeton fournisseur (JWT
+  ES256 signé par la clé `.p8`, renouvelé toutes les 50 min), `apns-topic` = `dev.crafters.kanstrimi` ; un jeton
+  d'appareil mort (`BadDeviceToken`, `Unregistered`) efface l'enregistrement. Sans `APNS_*`, tout reste au journal en échec.
 - **Carrousel de l'accueil** : le Top Shelf sans « Reprendre » (`shelfPicks`), six au plus ; sans rien à y mettre, les
   dernières nouveautés. `trending` refuse une liste vide et garde celle de la semaine précédente. Un film mal reconnu (clé `fallback:`) ne se détecte qu'une fois son match TMDB corrigé.
 - **Groupes du direct** : pays × thème (« France · Sport », `section` et `theme` dans `/channels`). Un marché
@@ -210,7 +218,8 @@ seul `sharp` (libvips natif) reste hors du bundle et forme l'unique `node_module
 
 - Variables : `ADMIN_PASSWORD_HASH`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `DATA_DIR`, `PORT`, `TZ`, et le
   compte du fournisseur `XTREAM_URL`, `XTREAM_USERNAME`, `XTREAM_PASSWORD` avec `TMDB_API_KEY` (secrets podman,
-  `Secret=…,type=env,target=…` dans le Quadlet).
+  `Secret=…,type=env,target=…` dans le Quadlet) ; les alertes de l'iPhone avec `APNS_KEY` (le texte PEM de la clé
+  `.p8`, `\n` échappés ou non), `APNS_KEY_ID` et `APNS_TEAM_ID`, facultatives.
 - `DATA_DIR` ne contient que des caches reconstructibles et les logs : seule la base se sauvegarde.
 - Le mot de passe circule en clair dans les URL Xtream : LAN ou HTTPS uniquement.
 

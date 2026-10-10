@@ -25,6 +25,8 @@ final class SwitchingCatalogClient: CatalogClient {
     func createDevice() async throws -> PairingCode { try await active.createDevice() }
     func pollDevice(code: String) async throws -> PairingStatus { try await active.pollDevice(code: code) }
     func deleteDevice(code: String) async throws { try await authenticated { try await $0.deleteDevice(code: code) } }
+    func registerPush(_ registration: PushRegistration) async throws { try await authenticated { try await $0.registerPush(registration) } }
+    func unregisterPush() async throws { try await authenticated { try await $0.unregisterPush() } }
     func info() async throws -> ServerInfo { try await authenticated { try await $0.info() } }
     func home() async throws -> HomeScreen { try await authenticated { try await $0.home() } }
     func rows(kind: ContentKind) async throws -> [CatalogRow] { try await authenticated { try await $0.rows(kind: kind) } }

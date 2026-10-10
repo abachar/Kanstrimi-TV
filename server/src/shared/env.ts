@@ -31,6 +31,10 @@ const schema = z
     XTREAM_USERNAME: z.string().trim().default(""),
     XTREAM_PASSWORD: z.string().default(""),
     TMDB_API_KEY: z.string().trim().default(""),
+    /** APNs, for the iPhone's alerts: the `.p8` key (its PEM text, `\n` escaped or not), its id, the team id. All three or none. */
+    APNS_KEY: z.string().trim().default(""),
+    APNS_KEY_ID: z.string().trim().default(""),
+    APNS_TEAM_ID: z.string().trim().default(""),
   })
   .superRefine((v, ctx) => {
     if (v.NODE_ENV !== "production") return;
@@ -69,6 +73,11 @@ export const env = {
     xtream_password: parsed.data.XTREAM_PASSWORD,
     tmdb_api_key: parsed.data.TMDB_API_KEY,
   },
+  /** APNs, when the three variables are there; `key` is the PEM text of the `.p8`. */
+  apns:
+    parsed.data.APNS_KEY && parsed.data.APNS_KEY_ID && parsed.data.APNS_TEAM_ID
+      ? { key: parsed.data.APNS_KEY.replace(/\\n/g, "\n"), keyId: parsed.data.APNS_KEY_ID, teamId: parsed.data.APNS_TEAM_ID }
+      : null,
   /** Changes at every start: what the dev reload poll compares. */
   bootId: randomBytes(6).toString("hex"),
 };

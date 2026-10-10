@@ -127,6 +127,9 @@ struct SettingsView: View {
                     InfoRow("Nom de cet appareil", value: deviceName)
                     InfoRow("Serveur", value: prefs.serverURL)
                 }
+                #if os(iOS)
+                if !Platform.isPad { NotificationsRow() }
+                #endif
                 Toggle("Client de démonstration (données embarquées)", isOn: $prefs.useMockClient)
                 Button(role: .destructive) { confirmUnpair = true } label: {
                     Label("Dissocier cet appareil", systemImage: "xmark.circle")
@@ -230,6 +233,34 @@ private struct RowToggleStyle: ToggleStyle {
 
 /// A read-only line. On tvOS it is a focusable row that does nothing: the focus only reaches, and so only
 /// scrolls to, focusable rows, and À propos would otherwise stay out of sight at the bottom of the list.
+#if os(iOS)
+/// iPhone: what the system allows for the alerts, and the way to change it (the system's own settings once refused).
+private struct NotificationsRow: View {
+    @Environment(AppEnvironment.self) private var env
+    private var registrar: PushRegistrar { PushRegistrar.shared }
+
+    var body: some View {
+        Group {
+            switch registrar.authorization {
+            case .authorized, .provisional, .ephemeral:
+                InfoRow("Notifications", value: "Activées")
+            case .denied:
+                Button {
+                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                } label: {
+                    LabeledContent("Notifications") { Text("Refusées · ouvrir Réglages").foregroundStyle(Theme.secondary) }
+                }
+            default:
+                Button { Task { await registrar.register() } } label: {
+                    LabeledContent("Notifications") { Text("Activer").foregroundStyle(Theme.secondary) }
+                }
+            }
+        }
+        .task { await registrar.refreshStatus() }
+    }
+}
+#endif
+
 private struct InfoRow: View {
     let title: String
     let value: String

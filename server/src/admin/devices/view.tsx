@@ -1,7 +1,8 @@
-import type { Device } from "@/db";
+import type { Device, DevicePush } from "@/db";
 import type { PairingState } from "@/devices";
+import type { NotificationRow } from "@/notify";
 import { ago, fmt, hhmm } from "../format";
-import { Badge, Card, CardIcon, Empty, Title, type Tone } from "../ui";
+import { Badge, Card, CardIcon, Empty, Table, Title, type Tone } from "../ui";
 import { Icon } from "../icons";
 
 /** `/admin/pair/{code}`, opened from the QR code on the TV: name it, confirm. */
@@ -84,14 +85,65 @@ const STATUS: Record<string, [string, Tone]> = {
   revoked: ["Dissocié", "bad"],
 };
 
-export function DevicesView({ devices }: { devices: Device[] }) {
+/** The alerts, as the switches and the log name them. */
+const KIND_LABELS: Record<string, string> = { waitlist: "Film attendu arrivé", runs: "Traitement complet", test: "Test" };
+const SENT_STATUS: Record<string, [string, Tone]> = {
+  sent: ["Envoyée", "ok"],
+  failed: ["Échec", "warn"],
+  unregistered: ["Jeton retiré", "muted"],
+};
+
+/** Under an approved device: its alert switches and the test button, or why it gets none yet. */
+function PushRow({ device, push, apns }: { device: Device; push: DevicePush | undefined; apns: boolean }) {
+  if (!push)
+    return (
+      <div class="col-span-2 flex items-center gap-2 text-sm text-muted-foreground md:col-span-12 md:pl-6">
+        <Icon name="bell" cls="size-4 shrink-0" />
+        Alertes : non enregistrées · ouvrir l'app sur l'iPhone et accepter les notifications
+      </div>
+    );
+  return (
+    <div class="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm md:col-span-12 md:pl-6">
+      <Icon name="bell" cls="size-4 shrink-0 text-muted-foreground" />
+      <form class="flex flex-wrap items-center gap-4" hx-post={`/admin/devices/${device.code}/push`} hx-trigger="change" hx-swap="none">
+        {(["waitlist", "runs"] as const).map((kind) => (
+          <label class="flex items-center gap-2">
+            <input class="input" type="checkbox" role="switch" name={kind} checked={push[kind]} />
+            {KIND_LABELS[kind]}
+          </label>
+        ))}
+      </form>
+      <span class="text-muted-foreground">
+        jeton {push.environment === "sandbox" ? "bac à sable" : "production"} · {ago(push.updatedAt.toISOString())}
+      </span>
+      <form method="post" action={`/admin/devices/${device.code}/push/test`}>
+        <button class="btn" data-variant="outline" data-size="sm" disabled={!apns} title={apns ? undefined : "APNs non configuré"}>
+          <Icon name="test" />
+          Envoyer un test
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export function DevicesView({
+  devices,
+  push,
+  apns,
+  log,
+}: {
+  devices: Device[];
+  push: Map<number, DevicePush>;
+  apns: boolean;
+  log: NotificationRow[];
+}) {
   return (
     <>
-      <Title t="Appareils" sub="Les Apple TV et iPhone appairés à ce serveur et leurs jetons" />
+      <Title t="Appareils" sub="Les Apple TV, iPhone, iPad et tablettes appairés à ce serveur, leurs jetons et leurs alertes" />
       <Card
         title="Appareils"
         icon="devices"
-        hint={`${fmt(devices.filter((d) => d.status === "approved").length)} appareil(s) appairé(s). Un appareil dissocié voit ses favoris et sa progression conservés : ils appartiennent au serveur, pas à l'appareil.`}
+        hint={`${fmt(devices.filter((d) => d.status === "approved").length)} appareil(s) appairé(s). Un appareil dissocié voit ses favoris et sa progression conservés : ils appartiennent au serveur, pas à l'appareil.${apns ? "" : " APNs n'est pas configuré (APNS_KEY, APNS_KEY_ID, APNS_TEAM_ID) : les alertes restent au journal, en échec."}`}
       >
         {devices.length === 0 ? (
           <Empty title="Aucun appareil" sub="Ouvrez l'application sur l'Apple TV (QR code) ou l'iPhone (lien vers l'admin)." />
@@ -151,10 +203,51 @@ export function DevicesView({ devices }: { devices: Device[] }) {
                       </form>
                     )}
                   </div>
+                  {d.status === "approved" && <PushRow device={d} push={push.get(d.id)} apns={apns} />}
                 </li>
               );
             })}
           </ul>
+        )}
+      </Card>
+      <Card title="Alertes envoyées" icon="bell" hint="Les dernières alertes poussées sur les iPhone, et ce qu'APNs en a dit.">
+        {log.length === 0 ? (
+          <Empty title="Aucune alerte" sub="Un film attendu qui arrive ou un traitement complet qui se termine en envoie une." />
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <th>Quand</th>
+                <th>Appareil</th>
+                <th>Alerte</th>
+                <th>Texte</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {log.map((n) => {
+                const [label, tone] = SENT_STATUS[n.status] ?? [n.status, "plain"];
+                return (
+                  <tr>
+                    <td class="whitespace-nowrap text-muted-foreground" title={n.sentAt.toISOString()}>
+                      {ago(n.sentAt.toISOString())}
+                    </td>
+                    <td>{n.deviceName ?? "(appareil oublié)"}</td>
+                    <td>{KIND_LABELS[n.kind] ?? n.kind}</td>
+                    <td class="max-w-md">
+                      <span class="font-medium">{n.title}</span> <span class="text-muted-foreground">{n.body}</span>
+                    </td>
+                    <td>
+                      <Badge tone={tone} title={n.detail ?? undefined}>
+                        {label}
+                      </Badge>
+                      {n.detail && n.status !== "sent" ? <span class="ml-1 text-xs text-muted-foreground">{n.detail}</span> : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
         )}
       </Card>
     </>

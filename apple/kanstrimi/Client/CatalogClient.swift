@@ -77,6 +77,10 @@ protocol CatalogClient: AnyObject {
     func pollDevice(code: String) async throws -> PairingStatus
     /// `DELETE /devices/{code}`
     func deleteDevice(code: String) async throws
+    /// `PUT /devices/me/push`: the APNs token of this phone, sent at each launch.
+    func registerPush(_ registration: PushRegistration) async throws
+    /// `DELETE /devices/me/push`
+    func unregisterPush() async throws
     /// `GET /info`
     func info() async throws -> ServerInfo
 

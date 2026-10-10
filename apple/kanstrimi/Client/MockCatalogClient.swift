@@ -278,6 +278,8 @@ final class MockCatalogClient: CatalogClient {
     }
 
     func deleteDevice(code: String) async throws { try await gate() }
+    func registerPush(_ registration: PushRegistration) async throws { try await gate() }
+    func unregisterPush() async throws { try await gate() }
 
     func info() async throws -> ServerInfo {
         try await gate()

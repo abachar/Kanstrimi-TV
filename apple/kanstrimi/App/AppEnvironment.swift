@@ -66,6 +66,9 @@ final class AppEnvironment {
         self.channelCache = ChannelCache(client: client)
         self.player = PlayerService(client: client, preferences: preferences, failedSources: failed, progressQueue: progressQueue)
         client.onUnauthorized = { [weak self] in self?.handleUnauthorized() }
+        #if os(iOS)
+        PushRegistrar.shared.environment = self
+        #endif
     }
 
     /// A 401 anywhere: token gone, cache gone, back to the QR code. Once: the calls already in flight answer 401 too.
@@ -117,6 +120,10 @@ final class AppEnvironment {
 
     func loadInfo() async {
         info = try? await client.info()
+        #if os(iOS)
+        // The phone's alerts: asked once paired, the token sent at each launch. Nothing for the demo client, which has no server.
+        if device.isPaired, !client.isMock { await PushRegistrar.shared.register() }
+        #endif
     }
 
     /// Bumped when the app comes back after a long absence: the home and the Direct reload, what is on air and the

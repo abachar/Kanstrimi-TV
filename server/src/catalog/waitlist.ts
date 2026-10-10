@@ -154,6 +154,14 @@ export async function removeFromWaitlist(tmdbId: number) {
   await db.delete(schema.curationWaitlist).where(eq(schema.curationWaitlist.contentKey, tmdbKey("vod", tmdbId)));
 }
 
+/** An entry the catalogue now carries, as the arrival listeners receive it. */
+export type WaitlistArrival = { contentKey: string; title: string; year: number | null };
+const arrivalListeners: ((arrivals: WaitlistArrival[]) => void)[] = [];
+/** Called after each `markWaitlistAvailable` that flagged something (the alerts of the app hang here, wired by `main.ts`). */
+export function onWaitlistAvailable(fn: (arrivals: WaitlistArrival[]) => void) {
+  arrivalListeners.push(fn);
+}
+
 /** Entries whose key a visible content now carries: flagged available, once. Returns how many. */
 export async function markWaitlistAvailable(): Promise<number> {
   const w = schema.curationWaitlist;
@@ -161,7 +169,8 @@ export async function markWaitlistAvailable(): Promise<number> {
     .update(w)
     .set({ availableAt: new Date() })
     .where(and(isNull(w.availableAt), sql`exists (select 1 from ${schema.catalogContents} c where c.key = ${w.contentKey} and c.visible)`))
-    .returning({ key: w.contentKey });
+    .returning({ contentKey: w.contentKey, title: w.title, year: w.year });
+  if (rows.length) for (const fn of arrivalListeners) fn(rows);
   return rows.length;
 }
 

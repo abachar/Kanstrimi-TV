@@ -9,7 +9,7 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 
 | Dossier | Rôle |
 |---|---|
-| `App/` | Démarrage, `AppEnvironment` (services partagés, navigation), `RootView` (appairage puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants). |
+| `App/` | Démarrage, `AppEnvironment` (services partagés, navigation), `RootView` (appairage puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants), `PushNotifications+iOS` (les alertes du serveur sur l'iPhone). |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`). |
 | `Client/` | `CatalogClient` : `HTTPCatalogClient` (le serveur), `MockCatalogClient` (fixtures JSON de démo), `SwitchingCatalogClient`. |
 | `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping ; il parle au moteur par la façade `PlaybackEngine`, que les tests remplacent), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
@@ -76,6 +76,12 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
 - **Top Shelf** : tvOS n'affiche aucun titre dans le carrousel et l'API publique n'a pas de logo séparé : le serveur dessine
   le logo dans l'image. Jeton et adresse du serveur passent par le Keychain partagé ; Jouer et En savoir plus ouvrent
   `kanstrimi://play/<id>` et `kanstrimi://open/<id>`. L'extension ne partage aucun fichier avec l'app.
+- **Alertes (iPhone)** : `PushRegistrar` demande la permission une fois l'appareil appairé (depuis `loadInfo`, jamais
+  avec le client de démo), envoie le jeton APNs au serveur à chaque lancement (`PUT /devices/me/push`) avec le
+  guichet qu'il vise, lu dans l'entitlement `aps-environment` du profil embarqué (`development` = bac à sable, Xcode ;
+  `production` = TestFlight). Une alerte reçue app ouverte s'affiche en bannière ; touchée, son `link`
+  (`kanstrimi://open/<id>`) passe par `DeepLink`. L'iPad et l'Apple TV ne s'enregistrent pas (l'entitlement est
+  partagé, le code est sous `!Platform.isPad`). Réglages › Appareil montre l'état et renvoie aux réglages système si refusé.
 - **Éditions** (« Version longue », « Director's Cut ») : une version à part, jamais choisie d'office tant que le
   montage habituel existe ; elle se prend dans le sélecteur, puis la langue de la série la garde.
 - **« Si vous avez aimé… »** : « Titres similaires » en bas de la fiche ; dans le lecteur, `PlayerService` demande
