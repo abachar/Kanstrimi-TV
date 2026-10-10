@@ -101,7 +101,7 @@ fun HomeScreen() {
                             index = heroIndex,
                             isFavorite = favorites[hero.item.id] ?: hero.isFavorite,
                             inset = inset,
-                            onPlay = { env.notify("Lecteur : prochain lot") },
+                            onPlay = { env.player.play(hero.playId) },
                             onFavorite = {
                                 val next = !(favorites[hero.item.id] ?: hero.isFavorite)
                                 favorites = favorites + (hero.item.id to next)

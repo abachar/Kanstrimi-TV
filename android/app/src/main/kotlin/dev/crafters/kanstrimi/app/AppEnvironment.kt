@@ -6,6 +6,7 @@ import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.client.HttpCatalogClient
 import dev.crafters.kanstrimi.client.MockCatalogClient
 import dev.crafters.kanstrimi.contract.ServerInfo
+import dev.crafters.kanstrimi.player.PlayerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,6 +26,8 @@ class AppEnvironment(context: Context) {
 
     /** The server, or the demo client when the preference says so. */
     val client: CatalogClient get() = if (preferences.useMock.value) mock else http
+
+    val player = PlayerService(this)
 
     private val _info = MutableStateFlow<ServerInfo?>(null)
     val info: StateFlow<ServerInfo?> = _info.asStateFlow()
