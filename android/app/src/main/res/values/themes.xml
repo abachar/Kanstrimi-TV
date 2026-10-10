@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window behind Compose: the page colour from the first frame, dark bars. -->
+    <style name="Theme.Kanstrimi" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#07080B</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

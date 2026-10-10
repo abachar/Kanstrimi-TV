@@ -2,7 +2,7 @@
 
 Système de streaming **personnel et mono-utilisateur**. Il se branche sur **un** fournisseur
 Xtream Codes, importe son catalogue, le nettoie, l'enrichit via **TMDB** et le sert à
-l'app Apple maison (Apple TV, iPhone et iPad).
+l'app Apple maison (Apple TV, iPhone et iPad) et à l'app Android (tablette, en construction).
 
 Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées, et chaque source porte l'URL
 du fournisseur, que l'app lit directement (sans passer par le serveur, donc par le VPN de l'appareil s'il en a un).
@@ -11,7 +11,7 @@ Cette URL contient le compte du fournisseur : seuls les appareils appairés la r
 ```
 Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enrichi, groupé)
                           │
-                          ├──► API REST /player + images ──► apple/
+                          ├──► API REST /player + images ──► apple/, android/
                           └──► URL du fournisseur ─────────► le flux vidéo, lu par l'app
 ```
 
@@ -21,6 +21,7 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enri
 |---|---|---|---|
 | `server/` | Import, enrichissement, groupement des variantes, masquage, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Tailwind 4 / Basecoat | [`server/README.md`](server/README.md) |
 | `apple/` | Client natif Apple TV 4K, iPhone et iPad, consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27, AetherEngine 7 (FFmpeg + VideoToolbox), une cible et trois destinations | [`apple/README.md`](apple/README.md) |
+| `android/` | Client tablette Android (Galaxy Tab S9), consomme `/player` ; en construction | Kotlin, Jetpack Compose, Material 3 adaptive, Media3 à venir | [`android/README.md`](android/README.md) |
 
 Le serveur porte la logique, l'app affiche : les listes envoient des `ContentItem` dont les textes (« 2019 · ★ 8.5 »,
 badges, « 1 h 08 restantes ») sont déjà écrits, pour qu'un autre client n'ait rien à refaire. Le contrat entre les deux
@@ -51,7 +52,8 @@ Copyright © 2026 Abdelhakim Bachar - Crafters.
 Ce qui vient après la V1.4 (tvOS, iPhone, iPad), par version, puis les idées non planifiées.
 
 - V1.5 :
-  - **Tablette Android** : un troisième client, dossier `android/` (Kotlin, Compose, Media3), ciblant la Galaxy Tab S9.
+  - **Tablette Android** : `android/` est posé (contrat, client, appairage, accueil, réglages) ; restent Films, Séries,
+    Recherche, fiche, le lecteur Media3 et le Direct.
 
 - Non planifiées :
   - **Fond qui suit le focus (tvOS, POC)** : un film qui prend le focus change le fond de l'écran pour son fond TMDB
