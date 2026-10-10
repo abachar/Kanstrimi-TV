@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm run -s css && { tailwindcss -i src/admin/assets/admin.css -o dist/assets/admin.css --watch=always & node --env-file-if-exists=.env --import tsx --watch src/main.ts; }",
-    "css": "tailwindcss -i src/admin/assets/admin.css -o dist/assets/admin.css --minify && cp node_modules/basecoat-css/dist/js/all.min.js dist/assets/basecoat.min.js && cp node_modules/htmx.org/dist/htmx.min.js dist/assets/htmx.min.js",
+    "css": "tailwindcss -i src/admin/assets/admin.css -o dist/assets/admin.css --minify && cp node_modules/basecoat-css/dist/js/all.min.js dist/assets/basecoat.min.js && cp node_modules/htmx.org/dist/htmx.min.js dist/assets/htmx.min.js && cp src/admin/assets/favicon.ico src/admin/assets/favicon.png src/admin/assets/apple-touch-icon.png dist/assets/",
     "build": "npm run -s css && esbuild src/main.ts src/db/migrate.ts --bundle --external:sharp --platform=node --format=esm --target=node22 --outdir=dist --tsconfig=tsconfig.json --sourcemap --log-level=warning",
     "start": "node --enable-source-maps dist/main.js",
     "start:dev": "npm run -s css && node --env-file-if-exists=.env --import tsx src/main.ts",

@@ -36,6 +36,9 @@ si elle ne les décode plus. Les fixtures de `apple/kanstrimi/Client/Fixtures/` 
 - Chaque dossier porte ses décisions structurantes dans son `README.md`.
 - **Une seule version** pour l'app et le serveur : `MARKETING_VERSION` de toutes les cibles Apple (extension Top Shelf
   comprise) et `version` de `server/package.json` (que l'app affiche dans ses réglages) avancent ensemble.
+- **Logo** : `K.png` à la racine est la source ; les icônes en dérivent par `ffmpeg` (tvOS : couche arrière = la page
+  `#06060A`, couche avant = le K détouré, Top Shelf ; iOS/iPadOS 1024 + variante teintée ; Android : avant-plan
+  adaptatif par densité dans `mipmap-*` ; admin : `favicon.ico`/`.png` et `apple-touch-icon.png` dans `server/src/admin/assets`).
 
 ## Licence
 

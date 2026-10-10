@@ -153,6 +153,8 @@ export function Layout({
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title} · Kanstrimi</title>
 <link href="/admin/assets/admin.css?v=${v}" rel="stylesheet">
+<link rel="icon" href="/admin/assets/favicon.png?v=${v}" type="image/png">
+<link rel="apple-touch-icon" href="/admin/assets/apple-touch-icon.png?v=${v}">
 <script src="/admin/assets/basecoat.min.js?v=${v}" defer></script>
 <script src="/admin/assets/htmx.min.js?v=${v}" defer></script>
 <meta name="htmx-config" content="${HTMX_CONFIG}">

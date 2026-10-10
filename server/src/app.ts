@@ -45,6 +45,7 @@ app.get("/health", async (c) => {
   }
 });
 app.get("/", (c) => c.redirect("/admin"));
+app.get("/favicon.ico", (c) => c.redirect("/admin/assets/favicon.ico"));
 app.route("/img/logos", logoRoute); // before /img: « logos » is no TMDB size
 // The Top Shelf composition lives with the TMDB images, which do not know the catalogue: the player says which pairs exist.
 app.use("/img/shelf/:scale/:backdrop/:logo", async (c, next) =>
