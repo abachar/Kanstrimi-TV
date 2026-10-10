@@ -49,6 +49,9 @@ import androidx.compose.ui.unit.sp
 import dev.crafters.kanstrimi.R
 import dev.crafters.kanstrimi.app.AppEnvironment
 import dev.crafters.kanstrimi.contract.Language
+import dev.crafters.kanstrimi.ui.LiveTag
+import dev.crafters.kanstrimi.ui.ProgressBar
+import dev.crafters.kanstrimi.ui.formatHour
 import dev.crafters.kanstrimi.ui.theme.Theme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -68,6 +71,8 @@ fun PlayerControls(
     onPanel: (BarPanel?) -> Unit,
     onExit: () -> Unit,
     onPictureInPicture: (() -> Unit)?,
+    /** Live: « Chaînes » opens the channel list beside the video. */
+    onChannels: () -> Unit,
     /** Any touch in the controls: they stay up a while longer. */
     onActivity: () -> Unit,
 ) {
@@ -75,7 +80,7 @@ fun PlayerControls(
         val stops = if (panel != null) arrayOf(0f to Color.Black.copy(alpha = 0.5f), 0.3f to Color.Black.copy(alpha = 0.35f), 0.55f to Color.Black.copy(alpha = 0.88f), 1f to Color.Black.copy(alpha = 0.88f))
         else arrayOf(0f to Color.Black.copy(alpha = 0.55f), 0.25f to Color.Transparent, 0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.8f))
         Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(*stops)))
-        if (!player.isLive && panel == null) Transport(player, onActivity, modifier = Modifier.align(Alignment.Center))
+        if (panel == null) Transport(player, onActivity, modifier = Modifier.align(Alignment.Center))
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 RoundIcon(androidx.compose.ui.graphics.vector.rememberVectorPainter(Icons.Filled.Close), "Fermer") { onExit() }
@@ -83,21 +88,31 @@ fun PlayerControls(
             }
             Spacer(modifier = Modifier.weight(1f))
             if (panel != null) {
-                Buttons(player, panel, onPanel, onActivity)
+                Buttons(player, panel, onPanel, onChannels, onActivity)
                 PanelContent(panel, player, env, onPick = { onPanel(null) })
             } else {
                 PlayerHeader(player)
-                Progress(player, scrubTime, onActivity)
-                Buttons(player, null, onPanel, onActivity)
+                if (player.isLive) LiveProgress(player) else Progress(player, scrubTime, onActivity)
+                Buttons(player, null, onPanel, onChannels, onActivity)
             }
         }
     }
 }
 
-/** The episode and the title, or the title alone. */
+/** Live: « EN DIRECT », the channel and its programme. Otherwise the episode and the title, or the title alone. */
 @Composable
 private fun PlayerHeader(player: PlayerService) {
     val c = player.context?.content ?: return
+    if (player.isLive) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                LiveTag("EN DIRECT", size = 12)
+                Text(player.channel?.name ?: c.title, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Theme.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            player.epg.now?.let { Text(it.title, style = MaterialTheme.typography.titleMedium, color = Theme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+        return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val ep = c.episode
         val sub = c.subtitle
@@ -106,11 +121,16 @@ private fun PlayerHeader(player: PlayerService) {
     }
 }
 
-/** ±10 s on a tap; held, fast forward or rewind until released; play/pause in the middle, where the loading badge stands otherwise. */
+/**
+ * ±10 s on a tap; held, fast forward or rewind until released; play/pause in the middle, where the loading badge
+ * stands otherwise. Live never pauses nor seeks, like a TV: only « ▶ » remains, when the engine was stopped
+ * (audio focus lost) and the channel is to be taken up again.
+ */
 @Composable
 private fun Transport(player: PlayerService, onActivity: () -> Unit, modifier: Modifier = Modifier) {
+    if (player.isLive && player.phase != PlayerService.Phase.PAUSED && player.phase != PlayerService.Phase.ENDED) return
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(64.dp), verticalAlignment = Alignment.CenterVertically) {
-        SkipControl(player, forward = false, onActivity)
+        if (!player.isLive) SkipControl(player, forward = false, onActivity)
         Box(modifier = Modifier.size(76.dp), contentAlignment = Alignment.Center) {
             if (player.phase != PlayerService.Phase.OPENING && !player.isBuffering) {
                 val playing = player.phase == PlayerService.Phase.PLAYING
@@ -124,7 +144,24 @@ private fun Transport(player: PlayerService, onActivity: () -> Unit, modifier: M
                 }
             }
         }
-        SkipControl(player, forward = true, onActivity)
+        if (!player.isLive) SkipControl(player, forward = true, onActivity)
+    }
+}
+
+/** The live bar: where the programme stands (full without a guide, a live is always at its end), when it started, what follows. */
+@Composable
+private fun LiveProgress(player: PlayerService) {
+    val now = player.epg.now
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        ProgressBar(now?.fraction() ?: 1f, height = 5)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            if (now != null) {
+                Text(formatHour(now.start), style = MaterialTheme.typography.bodyMedium, color = Theme.text)
+                Text(player.epg.next?.nextLine ?: formatHour(now.end), style = MaterialTheme.typography.bodyMedium, color = Theme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            } else {
+                Text("Programme inconnu", style = MaterialTheme.typography.bodyMedium, color = Theme.secondary)
+            }
+        }
     }
 }
 
@@ -189,20 +226,15 @@ private fun Progress(player: PlayerService, scrubTime: Double?, onActivity: () -
     }
 }
 
-/** Panels on the left, menus on the right. */
+/** Panels on the left (live: « Chaînes » first, the list beside the video), menus on the right. */
 @Composable
-private fun Buttons(player: PlayerService, panel: BarPanel?, onPanel: (BarPanel?) -> Unit, onActivity: () -> Unit) {
+private fun Buttons(player: PlayerService, panel: BarPanel?, onPanel: (BarPanel?) -> Unit, onChannels: () -> Unit, onActivity: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (player.isLive && player.channels.size > 1) Chip("Chaînes", selected = false) { onChannels(); onActivity() }
             player.panels.forEach { p ->
                 val selected = p == panel
-                Text(
-                    p.title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
-                    color = if (selected) Color.Black else Theme.text, maxLines = 1,
-                    modifier = Modifier.background(if (selected) Color.White else Theme.surfaceRaised, RoundedCornerShape(50))
-                        .clickable(role = Role.Button) { onPanel(if (selected) null else p); onActivity() }
-                        .padding(horizontal = 16.dp, vertical = 9.dp),
-                )
+                Chip(p.title, selected) { onPanel(if (selected) null else p); onActivity() }
             }
         }
         if (player.offersVersions) VersionsMenu(player, onActivity)
@@ -211,7 +243,18 @@ private fun Buttons(player: PlayerService, panel: BarPanel?, onPanel: (BarPanel?
     }
 }
 
-/** The Versions menu: by language, the one playing checked. */
+@Composable
+private fun Chip(title: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
+        color = if (selected) Color.Black else Theme.text, maxLines = 1,
+        modifier = Modifier.background(if (selected) Color.White else Theme.surfaceRaised, RoundedCornerShape(50))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+    )
+}
+
+/** The Versions menu: by language, the one playing checked; a channel's versions by their chip. */
 @Composable
 private fun VersionsMenu(player: PlayerService, onActivity: () -> Unit) {
     var open by remember { mutableStateOf(false) }
@@ -224,7 +267,7 @@ private fun VersionsMenu(player: PlayerService, onActivity: () -> Unit) {
                 versions.filter { it.language == language }.forEach { v ->
                     val current = v.id == player.version?.id
                     DropdownMenuItem(
-                        text = { Text(listOfNotNull(v.qualityLabel, v.edition).joinToString(" · ")) },
+                        text = { Text(v.chip ?: listOfNotNull(v.qualityLabel, v.edition).joinToString(" · ")) },
                         leadingIcon = { if (current) Icon(Icons.Filled.Check, contentDescription = null) else Spacer(modifier = Modifier.width(24.dp)) },
                         onClick = { open = false; player.switchVersion(v); onActivity() },
                     )

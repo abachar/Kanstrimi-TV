@@ -289,14 +289,26 @@ data class Channel(
     val number: Int? = null,
     val logo: String? = null,
     @SerialName("max_quality") val maxQuality: Quality? = null,
-    @SerialName("has_epg") val hasEpg: Boolean = false,
+    /** Sent for every listed channel; null for a channel built from a card (the home), whose guide is unknown until its detail. */
+    @SerialName("has_epg") val hasEpg: Boolean? = null,
     @SerialName("is_favorite") val isFavorite: Boolean = false,
     val versions: List<Version> = emptyList(),
     val now: Programme? = null,
     val next: Programme? = null,
     /** 1 = the most watched over the last 30 days (« Les plus regardées », 10 channels at most); absent otherwise. */
     @SerialName("watched_rank") val watchedRank: Int? = null,
-)
+) {
+    /** What a channel shows now and next, and whether the guide knows it at all (`hasEpg` null: not said). */
+    data class Guide(val now: Programme?, val next: Programme?, val hasEpg: Boolean?) {
+        companion object {
+            val empty = Guide(null, null, null)
+        }
+    }
+
+    /** The guide of that version: its own when the server sent one (each quality may have its own), else the channel's. */
+    fun guide(version: Version?): Guide =
+        if (version?.hasEpg != null) Guide(version.now, version.next, version.hasEpg) else Guide(now, next, hasEpg)
+}
 
 /** A country (« Maroc », the market name) and a theme (« Sport »); `name` = « Maroc · Sport ». */
 @Serializable

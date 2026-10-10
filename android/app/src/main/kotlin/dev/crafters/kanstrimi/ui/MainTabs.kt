@@ -29,6 +29,7 @@ import dev.crafters.kanstrimi.features.catalog.SagasGridScreen
 import dev.crafters.kanstrimi.features.catalog.StudioGridScreen
 import dev.crafters.kanstrimi.features.detail.DetailScreen
 import dev.crafters.kanstrimi.features.home.HomeScreen
+import dev.crafters.kanstrimi.features.live.LiveScreen
 import dev.crafters.kanstrimi.features.search.SearchScreen
 import dev.crafters.kanstrimi.features.settings.SettingsScreen
 import dev.crafters.kanstrimi.contract.ContentKind
@@ -113,7 +114,7 @@ private fun TabStack(tab: MainTab, active: Boolean) {
 private fun TabRoot(tab: MainTab) {
     when (tab) {
         MainTab.HOME -> HomeScreen()
-        MainTab.LIVE -> ComingSoon(tab.title)
+        MainTab.LIVE -> LiveScreen()
         MainTab.MOVIES -> CatalogScreen(ContentKind.MOVIE)
         MainTab.SERIES -> CatalogScreen(ContentKind.SERIES)
         MainTab.SEARCH -> SearchScreen()

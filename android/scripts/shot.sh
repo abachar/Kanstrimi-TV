@@ -8,7 +8,7 @@ cd "${0:A:h}"
 SDK=${ANDROID_HOME:-$HOME/Library/Android/sdk}
 ADB=$SDK/platform-tools/adb
 APP=dev.crafters.kanstrimi
-SCREENS=(Appairage Accueil Direct Films Series Recherche Recherche-resultats Fiche-film Fiche-serie Reglages Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-passer-intro)
+SCREENS=(Appairage Accueil Direct Films Series Recherche Recherche-resultats Fiche-film Fiche-serie Reglages Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-passer-intro Lecteur-direct)
 screen=$1; stamp=${2:-$(date +%Y-%m-%d_%H-%M-%S)}
 if [[ -z $screen ]] || (( ! ${SCREENS[(Ie)$screen]} )); then echo "usage: shot.sh <écran>"; echo "écrans : ${SCREENS[*]}"; exit 1; fi
 
@@ -40,10 +40,13 @@ case $screen in
   Lecteur-echec)            extras+=(--ez debug.autopair true --es debug.play tmdb:movie:603 --es debug.playerState failure) ;;
   Lecteur-episode-suivant)  extras+=(--ez debug.autopair true --es debug.play tmdb:tv:1396:s01e01 --es debug.playerState nextEpisode) ;;
   Lecteur-passer-intro)     extras+=(--ez debug.autopair true --es debug.play tmdb:tv:1396:s01e01 --es debug.playerState skipIntro) ;;
+  Lecteur-direct)           extras+=(--ez debug.autopair true --es debug.play live --es debug.playerState livePlaying) ;;
 esac
 # A start right after an install sometimes reaches the instance being stopped: give the stop a moment.
 $ADB shell am force-stop $APP; sleep 1
 $ADB shell am start -n $APP/.app.MainActivity ${extras[@]} >/dev/null
+# The live player hides its controls after 4 s of playback: captured before, like a finger just lifted.
+[[ $screen == Lecteur-direct ]] && : ${WAIT:=3}
 sleep ${WAIT:-5}
 mkdir -p ../ui-review/$screen
 $ADB exec-out screencap -p > "../ui-review/$screen/$stamp.png"

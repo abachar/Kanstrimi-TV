@@ -25,6 +25,8 @@ data class Metrics(val width: Dp) {
     /** A 16:9 card: two posters and the gap between them. */
     val wideWidth: Dp = posterWidth * 2 + spacing
     val studioWidth: Dp = posterWidth * 1.5f + spacing / 2
+    /** A channel card in a row (the home's « Chaînes les plus regardées », the player's Récentes). */
+    val channelCardWidth: Dp = posterWidth * 1.5f + spacing / 2
     val stillWidth: Dp = posterWidth * 1.4f
     val castPhoto: Dp = 100.dp
     val castCell: Dp = 136.dp

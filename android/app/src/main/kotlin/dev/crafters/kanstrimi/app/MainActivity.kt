@@ -33,9 +33,10 @@ class MainActivity : ComponentActivity() {
      *   debug.tab         — home | live | movies | series | search | settings
      *   debug.open        — a title's id (`tmdb:movie:603`) or a saga's: its sheet is pushed above the tab
      *   debug.search      — the query the search screen starts with (with `debug.tab search`)
-     *   debug.play        — a content id the player opens (a movie, a series, an episode of the demo)
-     *   debug.playerState — vodPaused | opening | failure | nextEpisode | nextTitle | panel | skipIntro: with
-     *                       debug.play, stages the player in that state instead of streaming (no stream in the demo)
+     *   debug.play        — a content id the player opens (a movie, a series, an episode of the demo), or `live`
+     *                       / `live:<id>` for a channel of the demo in its list
+     *   debug.playerState — vodPaused | opening | failure | nextEpisode | nextTitle | panel | skipIntro | livePlaying:
+     *                       with debug.play, stages the player in that state instead of streaming (no stream in the demo)
      *   debug.playUrl     — a public test file (an MP4 or MKV of Big Buck Bunny…) played by the engine on the
      *                       emulator; never a provider URL
      */

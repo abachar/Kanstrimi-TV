@@ -65,6 +65,16 @@ object Fixtures {
     }
 
     fun report(id: String, position: Double): ProgressReport = ProgressReport(id, position, 6000.0)
+
+    /** A channel with one TS source per quality (FHD then HD), its programme on air for an hour from `now`. */
+    fun channel(id: String = "live:fr-tf1", name: String = "TF1", now: java.time.Instant? = null, hasEpg: Boolean = true): Channel {
+        val versions = listOf(Quality.FHD, Quality.HD).map { q ->
+            Version(id = "$id-${q.label}", language = "VF", quality = q, chip = q.label, sources = listOf(source("$id-${q.label}", "http://provider.test/live/u/p/$id-${q.label}.ts")))
+        }
+        val programme = now?.let { Programme("Journal", it.minusSeconds(600), it.plusSeconds(3000), "Les titres du jour.") }
+        val next = now?.let { Programme("Film du soir", it.plusSeconds(3000), it.plusSeconds(10200), null) }
+        return Channel(id = id, name = name, maxQuality = Quality.FHD, hasEpg = hasEpg, versions = versions, now = programme, next = next)
+    }
 }
 
 /** Plain preferences for the tests. */
@@ -132,6 +142,9 @@ class FakeCatalogClient : CatalogClient {
     var suggestionsAnswer = Suggestions()
     var reportFails: ((ProgressReport) -> CatalogException?)? = null
     var detailCalls = 0
+    /** Live: the watch times received, and the detail answered for any channel asked. */
+    val watchTimes = ArrayList<Pair<String, Int>>()
+    var channelAnswer: ((String) -> Channel)? = null
 
     fun reported(id: String): ProgressReport? = reports.lastOrNull { it.contentId == id }
 
@@ -143,8 +156,9 @@ class FakeCatalogClient : CatalogClient {
         reportFails?.invoke(progress)?.let { throw it }
         reports.add(progress)
     }
-    override suspend fun reportWatchTime(id: String, seconds: Int) {}
+    override suspend fun reportWatchTime(id: String, seconds: Int) { watchTimes.add(id to seconds) }
     override suspend fun detail(id: String): Card { detailCalls += 1; return Card(id = id, kind = ContentKind.MOVIE, title = "Matrix") }
+    override suspend fun channel(id: String): Channel = channelAnswer?.invoke(id) ?: error("unused")
 
     override suspend fun createDevice(): PairingCode = error("unused")
     override suspend fun pollDevice(code: String): PairingStatus = error("unused")
@@ -158,7 +172,6 @@ class FakeCatalogClient : CatalogClient {
     override suspend fun saga(id: String): SagaSheet = error("unused")
     override suspend fun person(id: String): PersonSheet = error("unused")
     override suspend fun channels(): List<ChannelGroup> = error("unused")
-    override suspend fun channel(id: String): Channel = error("unused")
     override suspend fun programmes(channelId: String, version: String?): List<Programme> = error("unused")
     override suspend fun search(query: String): SearchResults = error("unused")
     override suspend fun removeFromResume(id: String) = error("unused")

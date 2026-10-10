@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -44,6 +45,7 @@ import dev.crafters.kanstrimi.ui.MenuPoster
 import dev.crafters.kanstrimi.ui.StatePanel
 import dev.crafters.kanstrimi.ui.theme.Theme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * A field always at the top, then one grid of posters, films, series and channels mixed, the most relevant first:
@@ -58,6 +60,7 @@ fun SearchScreen() {
     var results by remember { mutableStateOf<SearchResults?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
+    val scope = rememberCoroutineScope()
     val query = text.trim()
 
     LaunchedEffect(query, attempt) {
@@ -90,10 +93,10 @@ fun SearchScreen() {
                 verticalArrangement = Arrangement.spacedBy(metrics.spacing),
             ) {
                 items(r.items, key = { it.id }) { item ->
-                    // A channel plays at once (the Direct lot); anything else opens its sheet.
+                    // A channel plays at once; anything else opens its sheet.
                     MenuPoster(
                         item, width = metrics.posterWidth,
-                        onOpen = { if (item.kind == ContentKind.LIVE) env.notify("Direct : prochain lot") else env.open(item.id) },
+                        onOpen = { if (item.kind == ContentKind.LIVE) scope.launch { env.watchChannel(item.id) } else env.open(item.id) },
                         onPlay = { env.player.play(item.id) },
                     )
                 }

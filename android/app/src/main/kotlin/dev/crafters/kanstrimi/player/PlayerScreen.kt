@@ -36,6 +36,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
@@ -66,6 +67,8 @@ fun PlayerScreen() {
     val engine = env.playerEngine
     var controlsVisible by remember { mutableStateOf(true) }
     var panel by remember { mutableStateOf<BarPanel?>(null) }
+    /** Live: the channel list beside the video (« Chaînes », or a swipe to the right). */
+    var channelsOpen by remember { mutableStateOf(false) }
     var scrubTime by remember { mutableStateOf<Double?>(null) }
     /** Bumped at each touch in the controls: the hide countdown starts again. */
     var activity by remember { mutableIntStateOf(0) }
@@ -77,7 +80,11 @@ fun PlayerScreen() {
     fun showControls() { controlsVisible = true; activity += 1 }
 
     BackHandler {
-        if (panel != null) { panel = null; showControls() } else player.stop()
+        when {
+            channelsOpen -> { channelsOpen = false; showControls() }
+            panel != null -> { panel = null; showControls() }
+            else -> player.stop()
+        }
     }
     // Hidden by themselves after 4 s of playback, unless a panel is open or a touch restarted the countdown.
     LaunchedEffect(controlsVisible, player.phase, panel, activity) {
@@ -88,6 +95,7 @@ fun PlayerScreen() {
     }
     LaunchedEffect(player.phase) { if (player.phase != PlayerService.Phase.PLAYING) showControls() }
     LaunchedEffect(player.context?.content?.id) { panel = null; showControls() }
+    LaunchedEffect(player.isLive) { if (!player.isLive) channelsOpen = false }
 
     ImmersiveWindow()
     pip.Observe(player)
@@ -109,7 +117,7 @@ fun PlayerScreen() {
         )
         if (player.isMinimized) return@Box
 
-        val dialogUp = player.failure != null || player.nextCountdown != null
+        val dialogUp = player.failure != null || player.nextCountdown != null || channelsOpen
         if (!dialogUp) {
             Box(
                 modifier = Modifier.fillMaxSize()
@@ -129,15 +137,19 @@ fun PlayerScreen() {
                         detectHorizontalDragGestures(
                             onDragStart = { start = player.time; travelled = 0f },
                             onHorizontalDrag = { change, dx ->
+                                travelled += dx
                                 if (player.isLive || player.duration <= 0) return@detectHorizontalDragGestures
                                 change.consume()
-                                travelled += dx
                                 // Half the width sweeps half the file.
                                 val target = start + travelled / size.width * player.duration * 0.5
                                 scrubTime = target.coerceIn(0.0, player.duration - 1)
                                 controlsVisible = true
                             },
-                            onDragEnd = { scrubTime?.let { player.seekTo(it) }; scrubTime = null; showControls() },
+                            onDragEnd = {
+                                // Live: a swipe to the right brings the channels.
+                                if (player.isLive && travelled > 60.dp.toPx()) channelsOpen = true
+                                scrubTime?.let { player.seekTo(it) }; scrubTime = null; showControls()
+                            },
                             onDragCancel = { scrubTime = null },
                         )
                     },
@@ -148,9 +160,10 @@ fun PlayerScreen() {
             PlayerControls(
                 player = player, env = env, scrubTime = scrubTime, panel = panel, onPanel = { panel = it; showControls() },
                 onExit = { player.stop() }, onPictureInPicture = if (pip.isAvailable) ({ pip.enter(engine) }) else null,
-                onActivity = { showControls() },
+                onChannels = { channelsOpen = true }, onActivity = { showControls() },
             )
         }
+        if (channelsOpen) ChannelListOverlay(player, env) { channelsOpen = false; showControls() }
         val offer = player.skipOffer
         if (offer != null && panel == null && !dialogUp && !player.isChangingTitle) {
             SkipButton(offer.label, barShown = controlsVisible) { player.skip(); showControls() }
@@ -216,8 +229,9 @@ private class PictureInPictureHost(private val activity: ComponentActivity?) {
             }
             host.addOnPictureInPictureModeChangedListener(listener)
             val observer = LifecycleEventObserver { _, event ->
-                // The app left without Picture-in-Picture: the film waits, like any player on a tablet.
-                if (event == Lifecycle.Event.ON_STOP && !player.isMinimized) player.pause()
+                // The app left without Picture-in-Picture: the film waits, like any player on a tablet; a channel
+                // never pauses, so it is left, as a television switched off.
+                if (event == Lifecycle.Event.ON_STOP && !player.isMinimized) { if (player.isLive) player.stop() else player.pause() }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose {

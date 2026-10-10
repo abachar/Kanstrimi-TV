@@ -12,12 +12,12 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
 |---|---|
 | `contract/` | `Wire.kt` : les types calqués sur `server/src/player/types.ts`, kotlinx.serialization, clés inconnues ignorées, valeur d'énumération inconnue → `OTHER`. |
 | `client/` | `CatalogClient` (une méthode par route), `HttpCatalogClient` (le serveur : jeton Bearer en HTTPS ou sur le LAN seulement, 502-504 du proxy retentés deux fois sur un GET, 401 → appareil dissocié), `MockCatalogClient` (le client de démo). |
-| `app/` | `KanstrimiApplication` (cache disque des images), `AppEnvironment` (préférences, appareil, client, info du serveur, notice, moteur et service du lecteur, `progressRevision`, `open(id)` / `navigate(route)`), `Navigation.kt` (`Route`, `Navigator` : une pile d'écrans par onglet, tenue à la main), `DeviceStore` (jeton et code), `Preferences` (dont celles du lecteur, par `PlaybackPreferences`), `MainActivity` (hooks `debug.*`). |
-| `ui/` | `RootView` (appairage puis onglets, le lecteur par-dessus quand `player.isPresented`, notice), `MainTabs` (`NavigationSuiteScaffold` ; chaque onglet visité et chaque écran sous le sommet de sa pile restent composés mais ni mesurés ni dessinés, pour garder données et défilement), `Metrics.kt` (largeur d'affiche, marge, colonnes, lues de la largeur de la fenêtre : six affiches en paysage, cinq en portrait ; `LocalMetrics`), `Cards.kt` et `UpNextCard` (cartes bêtes : un `ContentItem` et une action, le parent donne la largeur ; `MenuPoster` ajoute le menu d'appui long Lecture / Voir la fiche), `Pieces.kt` (badges, art, logo ou titre, états, `LoadedScreen`, bouton Retour), `theme/`. |
-| `features/` | Un dossier par écran : `home`, `catalog` (Films et Séries, grille paginée et filtres, sagas, acteur ; `Paginator`), `search`, `detail` (fiche film et série, épisodes, distribution, feuille des versions), `pairing`, `settings`. Le Direct arrive par lot. |
-| `player/` | Le lecteur, service transverse unique, calqué sur `apple/kanstrimi/Player/` : `PlayerService` (phases, versions, pannes, marqueurs, suite, progression ; il parle au moteur par `PlaybackEngine`, que les tests remplacent), `ExoPlaybackEngine` (un ExoPlayer, session média, pistes, cues), `VersionChooser`, `PlaybackReporter` (+ `ProgressQueue`, `FailedSourcesStore`), `PlaybackContext`, `PlayerScreen` (plein écran tactile, image dans l'image), `PlayerControls`, `PlayerPanels` (Épisodes · Similaires · Distribution · Infos), `PlayerOverlays` (chargement, « Passer … », « À suivre », échec, toast), `PlayerDebug` (états mis en scène, fichier public). |
+| `app/` | `KanstrimiApplication` (cache disque des images), `AppEnvironment` (préférences, appareil, client, info du serveur, notice, moteur et service du lecteur, `progressRevision`, `open(id)` / `navigate(route)` ; pour le Direct : `liveVersion`, `guide`, `nowPlaying`, `watchChannel`), `LiveStores.kt` (`LiveGuide` : la règle du programme en cours ; `ChannelCache` : `GET /channels/{id}` gardé une minute ; `RecentChannels` : 20 chaînes récentes en préférences), `Navigation.kt` (`Route`, `Navigator` : une pile d'écrans par onglet, tenue à la main), `DeviceStore` (jeton et code), `Preferences` (dont celles du lecteur, par `PlaybackPreferences`), `MainActivity` (hooks `debug.*`). |
+| `ui/` | `RootView` (appairage puis onglets, le lecteur par-dessus quand `player.isPresented`, notice), `MainTabs` (`NavigationSuiteScaffold` ; chaque onglet visité et chaque écran sous le sommet de sa pile restent composés mais ni mesurés ni dessinés, pour garder données et défilement), `Metrics.kt` (largeur d'affiche, marge, colonnes, lues de la largeur de la fenêtre : six affiches en paysage, cinq en portrait ; `LocalMetrics`), `Cards.kt` et `UpNextCard` (cartes bêtes : un `ContentItem` ou un `ChannelItem` et une action, le parent donne la largeur ; `MenuPoster` ajoute le menu d'appui long Lecture / Voir la fiche ; `ChannelCard`, `ProgrammeCard`), `ChannelViews.kt` (`LoadedChannelCard` : la carte nourrie de ce que l'appareil sait de la chaîne, `channelItem`, `ChannelRow`), `Pieces.kt` (badges, art, logo ou titre, `ChannelLogo`, états, `LoadedScreen`, bouton Retour, heures et « il y a … »), `theme/`. |
+| `features/` | Un dossier par écran : `home`, `live` (le Direct en trois colonnes : catégories, chaînes, aperçu et programme), `catalog` (Films et Séries, grille paginée et filtres, sagas, acteur ; `Paginator`), `search`, `detail` (fiche film et série, épisodes, distribution, feuille des versions), `pairing`, `settings`. |
+| `player/` | Le lecteur, service transverse unique, calqué sur `apple/kanstrimi/Player/` : `PlayerService` (phases, versions, pannes, marqueurs, suite, progression, direct et zapping ; il parle au moteur par `PlaybackEngine`, que les tests remplacent), `ExoPlaybackEngine` (un ExoPlayer, session média, pistes, cues), `LivePreview` (le second ExoPlayer de l'aperçu du Direct), `VersionChooser`, `PlaybackReporter` (+ `ProgressQueue`, `FailedSourcesStore`), `PlaybackContext`, `PlayerScreen` (plein écran tactile, image dans l'image), `PlayerControls`, `PlayerPanels` (direct : Programme · Récentes · Infos ; sinon Épisodes · Similaires · Distribution · Infos), `LiveOverlays` (liste des chaînes, panneaux du direct), `PlayerOverlays` (chargement, « Passer … », « À suivre », échec, toast), `PlayerDebug` (états mis en scène, fichier public). |
 | `../scripts/` | `avd.sh` (crée l'émulateur « Tablet », 2 560 × 1 600 à 280 dpi), `shot.sh` / `shot-all.sh` (captures du client de démo dans `ui-review/`, hors git). |
-| `app/src/test/` | `ContractTest` : décode chaque réponse enregistrée par le serveur ; `HttpCatalogClientTest` ; `player/` : `VersionChooserTest`, `ProgressQueueTest`, `PlayerServiceTest` (faux moteur `FakePlaybackEngine` : bascule de source, essais, dialogue, coupure, générique, suite, marqueurs, progression). |
+| `app/src/test/` | `ContractTest` : décode chaque réponse enregistrée par le serveur ; `HttpCatalogClientTest` ; `app/LiveGuideTest` (programme en cours, guide de la version, chaînes récentes) ; `player/` : `VersionChooserTest`, `ProgressQueueTest`, `PlayerServiceTest` (faux moteur `FakePlaybackEngine` : bascule de source, essais, dialogue, coupure, générique, suite, marqueurs, progression, direct : guide, zapping, temps regardé, qualité mémorisée). |
 
 ## Choix
 
@@ -29,6 +29,41 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
   des transferts (`xml/data_extraction_rules.xml`, `xml/backup_rules.xml`).
 - **Une version** pour tous : `versionName` suit `MARKETING_VERSION` et `server/package.json`.
 - **Français** à l'écran, anglais dans les commentaires, comme partout.
+- **Client de démo** : le guide des chaînes enregistrées est décalé au présent (le programme en cours a commencé il y a
+  vingt minutes), sinon les captures montreraient un programme terminé.
+
+## Direct : choix et pièges
+
+- **Trois colonnes** comme l'iPad, sans focus : un tap choisit la chaîne (carte soulignée, aperçu et programme à
+  droite), un second tap, l'aperçu ou « Regarder » la lit ; choisir une catégorie choisit sa première chaîne. Au
+  retour du lecteur la chaîne lue reste choisie (un zap la déplace) et son aperçu repart ; l'écran recharge
+  `GET /channels` quand `progressRevision` bouge (le temps regardé change « Les plus regardées »).
+- **Une seule connexion au fournisseur** : l'aperçu (`LivePreview`, son propre ExoPlayer, muet jusqu'à la première
+  image puis sonore, 400 ms de temporisation) ne tourne que quand l'onglet Direct est celui à l'écran, rien de poussé
+  au-dessus, le lecteur baissé et l'app devant ; il est coupé de façon synchrone avant toute lecture (`watch`,
+  `env.watchChannel`). Un échec du flux laisse « Aperçu indisponible », sans nouvel essai.
+- **Programme en cours** : une seule règle, `LiveGuide.nowPlaying` (le détail reçu tant que son programme dure,
+  sinon la copie de la liste), portée par `env.channelItem` jusqu'à `ChannelCard` ; `LoadedChannelCard` demande le
+  détail quand rien n'est connu. Le guide montré est celui de la version lue ou de départ (`env.guide`,
+  `Channel.guide(version)` : une qualité peut avoir le sien). Les lignes du Direct ne demandent rien : la colonne de
+  droite montre déjà le programme de la chaîne choisie.
+- **Version de départ** (`PlayerService.startChoice`) : celle mémorisée pour la chaîne (un changement de qualité dans
+  le lecteur la mémorise), sinon la meilleure ; la lecture, l'aperçu et les badges s'en servent.
+- **Lecteur en direct** : jamais de pause ni de recherche (seul « ▶ » reparaît si le moteur a été arrêté, perte du
+  focus audio) ; barre du programme en cours, heure de début à gauche, « Ensuite : … · 20:00 » à droite ; « Chaînes »
+  (ou un glissé vers la droite) ouvre la liste de la catégorie de départ en panneau latéral, un tap zappe sur le même
+  ExoPlayer ; panneaux Programme (`GET /channels/{id}/programmes` de la version lue), Récentes, Infos. L'app quittée
+  arrête une chaîne (une télé éteinte), là où un film attend. Pannes : le même chemin que la VOD ; « Réessayer »
+  redemande `GET /channels/{id}`.
+- **Temps regardé** : `POST /playback/{id}/watch-time` toutes les 10 s et en quittant la chaîne (zap compris), le
+  serveur somme ; `progressRevision` ne bouge qu'en quittant le lecteur, pas à chaque zap. Pas de progression ni de
+  marqueurs en direct.
+- **Media3 en direct** : un flux TS en HTTP, `DefaultLoadControl` par défaut ; si le moteur expose une fenêtre
+  dynamique (HLS, DASH), `seekToDefaultPosition` au premier `READY` la rejoint au bord du direct. À mesurer sur la
+  Tab S9 avec de vrais flux : le délai à l'image, un zap enchaîné (le `stop` ferme-t-il la connexion avant le
+  `prepare` suivant), et le son HE-AAC à 50 i/s (Canal+ Foot) qui saccadait sur Apple TV, réglé là par une fenêtre
+  de retour de 30 s ; si cela se reproduit, jouer sur `DefaultLoadControl` (tampon minimal) ou sur le décodage
+  audio par FFmpeg.
 
 ## Lecteur : choix et pièges
 
@@ -65,11 +100,12 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
   `JAVA_HOME=$(/usr/libexec/java_home -v 21)` ; `local.properties` pointe sur le SDK). Lint échoue sur une erreur,
   pas sur un avertissement.
 - **Écrans** : `scripts/shot-all.sh` compile, installe et capture ; `scripts/shot.sh <écran>` un seul (dont
-  `Recherche-resultats`, `Fiche-film`, `Fiche-serie`, `Lecteur-pause`, `Lecteur-chargement`, `Lecteur-echec`,
-  `Lecteur-episode-suivant`, `Lecteur-passer-intro`). L'émulateur
+  `Recherche-resultats`, `Fiche-film`, `Fiche-serie`, `Direct`, `Lecteur-pause`, `Lecteur-chargement`, `Lecteur-echec`,
+  `Lecteur-episode-suivant`, `Lecteur-passer-intro`, `Lecteur-direct`). L'émulateur
   se crée une fois par `scripts/avd.sh` et démarre sans fenêtre. Les hooks `debug.mock`, `debug.autopair`, `debug.unpair`,
   `debug.tab`, `debug.open` (un id de titre ou de saga, sa fiche poussée au-dessus de l'onglet), `debug.search` (la requête de
-  départ de la recherche), `debug.play <id>` (+ `debug.playerState vodPaused | opening | failure | nextEpisode | nextTitle | panel | skipIntro`,
+  départ de la recherche), `debug.play <id>` (un titre, ou `live` / `live:<id>` pour une chaîne de la démo ;
+  + `debug.playerState vodPaused | opening | failure | nextEpisode | nextTitle | panel | skipIntro | livePlaying`,
   le lecteur mis en scène sans flux) et `debug.playUrl <url>` (un fichier public, jamais le fournisseur) sont des extras
   de l'intent de lancement (`adb shell am start … --ez debug.mock true --es debug.tab home`). La première mise en plein
   écran affiche l'aide système « Viewing full screen » : la fermer une fois (`adb shell input tap`) avant les captures.

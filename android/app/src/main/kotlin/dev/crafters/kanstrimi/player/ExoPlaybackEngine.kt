@@ -81,6 +81,9 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
         private set
     private var videoDecoder: String? = null
     private var audioDecoder: String? = null
+    /** The item loaded is a channel: once ready, a dynamic window (HLS, DASH) is joined at its live edge. */
+    private var isLiveItem = false
+    private var joinedLiveEdge = false
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -92,7 +95,15 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
     }
 
     private val playerListener = object : Player.Listener {
-        override fun onPlaybackStateChanged(playbackState: Int) = publishPhase()
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            // A plain TS stream has no window to speak of; a manifest-driven live one is joined at its edge once.
+            val p = player
+            if (playbackState == Player.STATE_READY && isLiveItem && !joinedLiveEdge && p != null) {
+                joinedLiveEdge = true
+                if (p.isCurrentMediaItemLive) p.seekToDefaultPosition()
+            }
+            publishPhase()
+        }
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = publishPhase()
         override fun onPlayerError(error: PlaybackException) {
             Log.w(TAG, "erreur du moteur ${error.errorCodeName}: ${error.message}")
@@ -135,6 +146,7 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
         cues = emptyList()
         audioTracks = emptyList(); textTracks = emptyList(); streamFacts = null
         videoDecoder = null; audioDecoder = null
+        isLiveItem = live; joinedLiveEdge = false
         val metadata = MediaMetadata.Builder().setTitle(description.title).setArtist(description.subtitle)
             .setArtworkUri(description.artwork?.let(Uri::parse)).build()
         val item = MediaItem.Builder().setUri(url).setMediaMetadata(metadata).build()
@@ -192,10 +204,7 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
 
     private fun build(): ExoPlayer {
         val renderers = FfmpegRenderersFactory(context)
-        val http = DefaultHttpDataSource.Factory()
-            .setUserAgent("Kanstrimi/Android")
-            .setConnectTimeoutMs(15_000).setReadTimeoutMs(15_000)
-            .setAllowCrossProtocolRedirects(true)
+        val http = httpFactory()
         val audio = AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build()
         val p = ExoPlayer.Builder(context, renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(http))
@@ -215,7 +224,7 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
      * one it lacks (DTS, TrueHD) is decoded in software. Decoder fallback on, so a codec that fails to start hands
      * over to the next one.
      */
-    private class FfmpegRenderersFactory(context: Context) : DefaultRenderersFactory(context) {
+    internal class FfmpegRenderersFactory(context: Context) : DefaultRenderersFactory(context) {
         init {
             setExtensionRendererMode(EXTENSION_RENDERER_MODE_OFF)
             setEnableDecoderFallback(true)
@@ -289,6 +298,12 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
 
     companion object {
         private const val TICK_MS = 500L
+
+        /** The HTTP source of the player and of the Direct's preview: the same agent and timeouts. */
+        internal fun httpFactory(): DefaultHttpDataSource.Factory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Kanstrimi/Android")
+            .setConnectTimeoutMs(15_000).setReadTimeoutMs(15_000)
+            .setAllowCrossProtocolRedirects(true)
 
         /** The track's own name, else its language in full, with the codec and channels: « Français (EAC3 5.1) ». */
         fun audioName(format: Format, index: Int): String {

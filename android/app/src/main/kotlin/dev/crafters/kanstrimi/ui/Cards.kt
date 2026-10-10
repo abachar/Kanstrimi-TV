@@ -2,6 +2,7 @@ package dev.crafters.kanstrimi.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,11 +15,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -48,8 +51,10 @@ import dev.crafters.kanstrimi.R
 import dev.crafters.kanstrimi.contract.ContentItem
 import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.contract.Person
+import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.Studio
 import dev.crafters.kanstrimi.ui.theme.Theme
+import java.time.Instant
 
 /**
  * The cards, dumb like the Apple app's (`Shared/Cards`): a `ContentItem` and an action in, nothing loaded, the
@@ -177,6 +182,94 @@ fun CastCell(person: Person, width: Dp, photo: Dp, onClick: (() -> Unit)? = null
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(person.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
             person.role?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Theme.secondary, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+    }
+}
+
+/**
+ * A channel as every channel card shows it, built by the screens (`channelItem`): the quality last chosen, the
+ * programme on air and whether it was played belong to this device.
+ */
+data class ChannelItem(
+    val id: String,
+    val name: String,
+    val logo: String? = null,
+    val status: Status? = null,
+    /** The quality last chosen for it, else its best. */
+    val quality: String? = null,
+    val isFavorite: Boolean = false,
+    val now: Programme? = null,
+    /** false: the server knows it has no guide (« Pas de programme »). */
+    val hasEpg: Boolean? = null,
+) {
+    sealed interface Status {
+        data object Playing : Status
+        data class Watched(val at: Instant) : Status
+    }
+}
+
+/**
+ * Every channel the same way: logo, name and favourite, then « EN COURS » or when it was watched, the quality last
+ * chosen; under them what is on air with its progress, its hours when `hours`. As wide as its parent makes it (a
+ * tile in a row, the whole width of a list): the home, the Direct screen, the player's list and its « Récentes ».
+ * `selected`: the channel the Direct's side column shows, outlined.
+ */
+@Composable
+fun ChannelCard(item: ChannelItem, modifier: Modifier = Modifier, hours: Boolean = false, selected: Boolean = false, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        modifier = modifier.clip(shape).background(if (selected) Theme.surfaceRaised else Theme.surface, shape)
+            .then(if (selected) Modifier.border(1.5.dp, Theme.text.copy(alpha = 0.6f), shape) else Modifier)
+            .clickable(onClick = onClick).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            ChannelLogo(id = item.id, name = item.name, logo = item.logo, size = 64.dp)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (item.isFavorite) Icon(Icons.Filled.Favorite, contentDescription = "Favori", tint = Theme.accent, modifier = Modifier.size(14.dp))
+                }
+                when (val s = item.status) {
+                    ChannelItem.Status.Playing -> OnAirLabel()
+                    is ChannelItem.Status.Watched -> Text(formatAgo(s.at), style = MaterialTheme.typography.bodySmall, color = Theme.secondary, maxLines = 1)
+                    null -> {}
+                }
+            }
+            item.quality?.let { Badge(it) }
+        }
+        val p = item.now
+        if (p != null) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(p.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ProgressBar(p.fraction(), modifier = Modifier.weight(1f))
+                    if (hours) Text("${formatHour(p.start)} – ${formatHour(p.end)}", style = MaterialTheme.typography.bodySmall, color = Theme.secondary, maxLines = 1)
+                }
+            }
+        } else {
+            Text(if (item.hasEpg == false) "Pas de programme" else " ", style = MaterialTheme.typography.bodyLarge, color = Theme.secondary, maxLines = 1)
+        }
+    }
+}
+
+/**
+ * A programme of the guide: its hours, title and summary, then « EN COURS » and its progress while on air. The
+ * player's Programme panel and the Direct screen. As large as its parent makes it: given a height, « EN COURS »
+ * sits at the bottom of the card; else the card is as tall as its text.
+ */
+@Composable
+fun ProgrammeCard(programme: Programme, modifier: Modifier = Modifier) {
+    val now = Instant.now()
+    val onAir = !programme.start.isAfter(now) && programme.end.isAfter(now)
+    Column(modifier = modifier.clip(RoundedCornerShape(14.dp)).background(Theme.surface).padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("${formatHour(programme.start)} – ${formatHour(programme.end)}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = Theme.secondary)
+        Text(programme.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        programme.overview?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Theme.secondary, maxLines = 3, overflow = TextOverflow.Ellipsis) }
+        if (onAir) {
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f, fill = false))
+            OnAirLabel()
+            ProgressBar(programme.fraction())
         }
     }
 }

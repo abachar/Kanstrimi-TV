@@ -1,6 +1,9 @@
 package dev.crafters.kanstrimi.player
 
+import dev.crafters.kanstrimi.contract.Channel
 import dev.crafters.kanstrimi.contract.Credits
+import dev.crafters.kanstrimi.contract.Programme
+import dev.crafters.kanstrimi.contract.Quality
 import dev.crafters.kanstrimi.contract.FileFacts
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Skip
@@ -10,6 +13,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -23,11 +27,13 @@ class PlayerServiceTest {
     private val client = FakeCatalogClient()
     private val preferences = FakePreferences()
     private var revisions = 0
+    /** The clock the service counts the time watched on, moved by hand. */
+    private var now: Instant = Instant.parse("2026-10-10T20:00:00Z")
 
     private fun TestScope.service(): PlayerService = PlayerService(
         client = { client }, preferences = preferences, engine = engine, scope = backgroundScope, progressQueue = ProgressQueue(),
         capabilities = VersionChooser.Capabilities(dev.crafters.kanstrimi.contract.Quality.UHD, true, true),
-        onProgressReported = { revisions += 1 },
+        onProgressReported = { revisions += 1 }, now = { now },
     )
 
     private fun url(name: String) = "http://provider.test/movie/u/p/$name.mkv"
@@ -348,6 +354,124 @@ class PlayerServiceTest {
         assertEquals(1, player.suggestions?.related?.size)
         assertEquals("tmdb:movie:604", player.nextContext?.content?.id)
         assertTrue(player.upNext is PlayerService.UpNext.TitleNext)
+        player.stop()
+    }
+
+    // MARK: - Live
+
+    private val tf1 = Fixtures.channel("live:fr-tf1", "TF1")
+    private val france2 = Fixtures.channel("live:fr-france2", "FRANCE 2")
+
+    @Test
+    fun `une chaîne s'ouvre dans sa version de départ, son guide arrive avec son détail, et ne se met jamais en pause`() = runTest {
+        client.channelAnswer = { id -> Fixtures.channel(id, now = now) }
+        val player = service()
+        player.playChannel(tf1, listOf(tf1, france2))
+        assertTrue(player.isLive)
+        assertEquals(listOf("http://provider.test/live/u/p/live:fr-tf1-FHD.ts"), engine.loads)
+        assertEquals(Channel.Guide.empty, player.epg)
+        runCurrent()
+        assertEquals("Journal", player.epg.now?.title)
+        assertEquals("Film du soir", player.epg.next?.title)
+        engine.emit(EnginePhase.PLAYING)
+        player.togglePlayPause()
+        player.pause()
+        player.seekBy(-10.0)
+        assertEquals(PlayerService.Phase.PLAYING, player.phase)
+        assertTrue(engine.seeks.isEmpty())
+        player.stop()
+    }
+
+    @Test
+    fun `zapper envoie le temps regardé de la chaîne quittée sans recharger l'accueil, quitter l'envoie et le recharge`() = runTest {
+        client.channelAnswer = { id -> Fixtures.channel(id, now = now) }
+        val player = service()
+        player.playChannel(tf1, listOf(tf1, france2))
+        engine.emit(EnginePhase.PLAYING)
+        now = now.plusSeconds(90)
+        player.zap(1)
+        runCurrent()
+        assertEquals("live:fr-france2", player.channel?.id)
+        assertEquals(2, engine.loads.size, "the same engine takes the new source")
+        assertEquals(listOf("live:fr-tf1" to 90), client.watchTimes)
+        assertEquals(0, revisions, "not reloaded on a zap")
+        // Around the end of the list, back to the first.
+        engine.emit(EnginePhase.LOADING)
+        engine.emit(EnginePhase.PLAYING)
+        now = now.plusSeconds(30)
+        player.zap(1)
+        runCurrent()
+        assertEquals("live:fr-tf1", player.channel?.id)
+        assertEquals(listOf("live:fr-tf1" to 90, "live:fr-france2" to 30), client.watchTimes)
+        engine.emit(EnginePhase.LOADING)
+        engine.emit(EnginePhase.PLAYING)
+        now = now.plusSeconds(45)
+        player.stop()
+        runCurrent()
+        assertEquals("live:fr-tf1" to 45, client.watchTimes.last())
+        assertEquals(1, revisions)
+        assertNull(player.channel)
+        assertTrue(player.channels.isEmpty())
+    }
+
+    @Test
+    fun `le temps regardé part toutes les 10 s, le serveur en fait la somme`() = runTest {
+        client.channelAnswer = { id -> Fixtures.channel(id, now = now) }
+        val player = service()
+        player.playChannel(tf1, listOf(tf1))
+        engine.emit(EnginePhase.PLAYING)
+        now = now.plusSeconds(10)
+        advanceTimeBy(PlayerService.PROGRESS_INTERVAL_MS + 1)
+        runCurrent()
+        assertEquals(listOf("live:fr-tf1" to 10), client.watchTimes)
+        now = now.plusSeconds(7)
+        player.stop()
+        runCurrent()
+        assertEquals(listOf("live:fr-tf1" to 10, "live:fr-tf1" to 7), client.watchTimes)
+    }
+
+    @Test
+    fun `changer de qualité en direct garde la position au bord du direct, suit le guide de la version et se mémorise pour la chaîne`() = runTest {
+        client.channelAnswer = { id ->
+            val c = Fixtures.channel(id, now = now)
+            // The HD quality has a guide of its own.
+            c.copy(versions = c.versions.map { v -> if (v.quality == Quality.HD) v.copy(hasEpg = true, now = Programme("Journal HD", now, now.plusSeconds(1800), null), next = null) else v })
+        }
+        val player = service()
+        player.playChannel(tf1, listOf(tf1))
+        runCurrent()
+        engine.emit(EnginePhase.PLAYING)
+        assertEquals("Journal", player.epg.now?.title)
+        val hd = tf1.versions.first { it.quality == Quality.HD }
+        player.switchVersion(hd)
+        assertEquals(2, engine.loads.size)
+        assertEquals("Journal HD", player.epg.now?.title)
+        assertNull(player.epg.next)
+        assertEquals(hd.id, preferences.rememberedVersion("live:fr-tf1"))
+        player.stop()
+        // The remembered quality is the one the channel starts in next time.
+        val again = service()
+        again.playChannel(tf1, listOf(tf1))
+        assertEquals(hd.id, again.version?.id)
+        again.stop()
+    }
+
+    @Test
+    fun `une chaîne qui ne démarre pas passe à la source suivante puis au dialogue, comme un film`() = runTest {
+        client.channelAnswer = { id -> Fixtures.channel(id, now = now) }
+        val player = service()
+        player.playChannel(tf1, listOf(tf1))
+        for (n in 2..3) {
+            engine.emit(EnginePhase.LOADING)
+            engine.emitError()
+            runCurrent()
+            assertEquals(n, engine.loads.size)
+        }
+        engine.emit(EnginePhase.LOADING)
+        engine.emitError()
+        runCurrent()
+        assertEquals(PlayerService.Phase.FAILED, player.phase)
+        assertTrue(player.isLive)
         player.stop()
     }
 }

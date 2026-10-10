@@ -48,6 +48,9 @@ import coil3.compose.AsyncImage
 import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.ui.theme.Theme
 import java.text.NumberFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** A screen not built yet. */
@@ -152,13 +155,44 @@ fun AccentTag(text: String) {
     )
 }
 
-/** « DIRECT » on red, over a channel's poster. */
+/** « DIRECT » on red, over a channel's poster; « EN DIRECT » beside a channel's name. */
 @Composable
-fun LiveTag(text: String = "DIRECT") {
+fun LiveTag(text: String = "DIRECT", size: Int = 11) {
     Text(
-        text, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp,
+        text, fontSize = size.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp,
         modifier = Modifier.background(Theme.live, RoundedCornerShape(5.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
     )
+}
+
+/** « EN COURS » over a programme or a channel. */
+@Composable
+fun OnAirLabel() {
+    Text("EN COURS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Theme.accent, letterSpacing = 1.sp)
+}
+
+/**
+ * A channel's logo (iptv-org's, served by our server, else the provider's) on a light tile: most logos are drawn for
+ * a light background. Initials on the channel's colour meanwhile, when it fails, or without one.
+ */
+@Composable
+fun ChannelLogo(id: String, name: String, logo: String?, size: Dp) {
+    var loaded by remember(logo) { mutableStateOf(false) }
+    var failed by remember(logo) { mutableStateOf(logo == null) }
+    val (a, b) = Theme.art(id)
+    val shape = RoundedCornerShape(size * 0.22f)
+    Box(
+        modifier = Modifier.size(size).clip(shape).then(if (loaded) Modifier.background(Theme.logoTile, shape) else Modifier.background(Brush.linearGradient(listOf(a, b)), shape)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (!loaded) Text(initials(name), fontSize = (size.value * 0.36f).sp, fontWeight = FontWeight.Black, color = Color.White)
+        if (logo != null && !failed) {
+            AsyncImage(
+                model = logo, contentDescription = name, contentScale = ContentScale.Fit,
+                onSuccess = { loaded = true }, onError = { failed = true },
+                modifier = Modifier.fillMaxSize().padding(size * 0.12f),
+            )
+        }
+    }
 }
 
 /** A white check on a dark disc, top corner of a card already seen. */
@@ -242,3 +276,19 @@ fun initials(name: String): String = name.split(' ', '-').filter { it.isNotEmpty
 
 /** A count beside a title, grouped the French way: « 1 227 ». */
 fun formatCount(n: Int): String = NumberFormat.getIntegerInstance(Locale.FRANCE).format(n)
+
+private val hourFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.FRENCH)
+
+/** « 21:14 », in the device's zone. */
+fun formatHour(instant: Instant, zone: ZoneId = ZoneId.systemDefault()): String = hourFormat.format(instant.atZone(zone))
+
+/** « à l'instant », « il y a 12 min », « il y a 3 h », « il y a 2 j »: when a channel was watched. */
+fun formatAgo(date: Instant, now: Instant = Instant.now()): String {
+    val s = now.epochSecond - date.epochSecond
+    return when {
+        s < 60 -> "à l'instant"
+        s < 3600 -> "il y a ${s / 60} min"
+        s < 86400 -> "il y a ${s / 3600} h"
+        else -> "il y a ${s / 86400} j"
+    }
+}

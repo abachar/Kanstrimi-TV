@@ -1,15 +1,13 @@
 package dev.crafters.kanstrimi.player
 
+import dev.crafters.kanstrimi.ui.formatHour
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToLong
 
 /** The player's few texts: the clock, the hour it ends at. The rest comes written by the server. */
 object PlayerFormat {
-    private val hour = DateTimeFormatter.ofPattern("HH:mm", Locale.FRENCH)
-
     /** « 1:01:00 », « 4:05 ». */
     fun clock(seconds: Double): String {
         val s = seconds.coerceAtLeast(0.0).roundToLong()
@@ -18,7 +16,7 @@ object PlayerFormat {
     }
 
     /** « 21:14 ». */
-    fun hour(instant: Instant, zone: ZoneId = ZoneId.systemDefault()): String = hour.format(instant.atZone(zone))
+    fun hour(instant: Instant, zone: ZoneId = ZoneId.systemDefault()): String = formatHour(instant, zone)
 
     /** « −1:01:00 · fin à 21:14 ». */
     fun remainingLine(remaining: Double, now: Instant = Instant.now()): String =

@@ -46,12 +46,12 @@ import dev.crafters.kanstrimi.ui.theme.Theme
 import kotlinx.coroutines.launch
 
 /** What the bar of the touch controls opens above its buttons (the Apple app's `BarPanel`). */
-enum class BarPanel(val title: String) { EPISODES("Épisodes"), RELATED("Similaires"), CAST("Distribution"), INFOS("Infos") }
+enum class BarPanel(val title: String) { PROGRAMME("Programme"), RECENTS("Récentes"), EPISODES("Épisodes"), RELATED("Similaires"), CAST("Distribution"), INFOS("Infos") }
 
-/** The panels the bar offers: an episode, a film. Similaires once the server answered with some, Distribution when the title has a cast. */
+/** The panels the bar offers: live, an episode, a film. Similaires once the server answered with some, Distribution when the title has a cast. */
 val PlayerService.panels: List<BarPanel>
     get() {
-        if (isLive) return listOf(BarPanel.INFOS)
+        if (isLive) return listOf(BarPanel.PROGRAMME, BarPanel.RECENTS, BarPanel.INFOS)
         val episodes = if (context?.content?.kind == ContentKind.EPISODE) listOf(BarPanel.EPISODES) else emptyList()
         val related = if (suggestions?.related?.isNotEmpty() == true) listOf(BarPanel.RELATED) else emptyList()
         val cast = if (context?.cast?.isNotEmpty() == true) listOf(BarPanel.CAST) else emptyList()
@@ -61,6 +61,8 @@ val PlayerService.panels: List<BarPanel>
 @Composable
 fun PanelContent(panel: BarPanel, player: PlayerService, env: AppEnvironment, onPick: () -> Unit) {
     when (panel) {
+        BarPanel.PROGRAMME -> ProgrammeStrip(player, env)
+        BarPanel.RECENTS -> RecentChannelsStrip(player, env, onPick)
         BarPanel.EPISODES -> SeasonEpisodesStrip(player, env, onPick)
         BarPanel.RELATED -> RelatedStrip(player, env, onPick)
         BarPanel.CAST -> PlayerCastStrip(player, env)
@@ -138,9 +140,13 @@ private fun PlayerCastStrip(player: PlayerService, env: AppEnvironment) {
     }
 }
 
-/** Infos: the title's facts and summary, then what the engine reads in the stream: the picture's badges, the sound's. */
+/** Infos: in live the channel and what it shows; otherwise the title's facts and summary. Then what the engine reads in the stream: the picture's badges, the sound's. */
 @Composable
 private fun PlayerInfos(player: PlayerService) {
+    if (player.isLive) {
+        LivePlayerInfos(player) { StreamFactsRow(player) }
+        return
+    }
     LaunchedEffect(player.context?.content?.id) { player.loadTitleCard() }
     val card = player.titleCard
     val id = player.context?.content?.id

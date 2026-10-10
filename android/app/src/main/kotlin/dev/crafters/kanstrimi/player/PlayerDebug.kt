@@ -17,6 +17,7 @@ object PlayerDebug {
     /** `debug.play <id>` with `debug.playerState`: the demo title in that state; without a state, played for real (no stream in the demo: the dialog after 10 s). */
     suspend fun play(player: PlayerService, client: CatalogClient, id: String, state: String?) {
         val staged = state?.let { s -> PlayerService.PreviewState.entries.firstOrNull { it.name == s } }
+        if (id == "live" || id.startsWith("live:")) return playChannel(player, client, id, staged)
         var ctx = runCatching { player.loadContext(id) }.getOrNull() ?: return
         if (staged == null) return player.play(ctx)
         // The demo's `/playback` names no next episode: the one after the current in the sheet stands in, else the first.
@@ -31,6 +32,15 @@ object PlayerDebug {
         }
         val suggestions = runCatching { client.suggestions(ctx.content.id) }.getOrNull()
         player.debugPut(ctx, staged, suggestions)
+    }
+
+    /** `debug.play live` or `live:<id>`: the demo's channel in its list; staged with `livePlaying`, else played (no stream in the demo). */
+    private suspend fun playChannel(player: PlayerService, client: CatalogClient, id: String, staged: PlayerService.PreviewState?) {
+        val all = runCatching { client.channels() }.getOrNull().orEmpty().flatMap { it.channels }.distinctBy { it.id }
+        val channel = all.firstOrNull { it.id == id } ?: all.firstOrNull() ?: return
+        if (staged == null) return player.playChannel(channel, all)
+        val ctx = PlaybackContext(PlaybackContent(channel.id, ContentKind.LIVE, channel.name), channel.versions)
+        player.debugPut(ctx, staged, channels = all)
     }
 
     /** `debug.playUrl <url>`: a public file played as a one-version, one-source title, through the whole pipeline. */

@@ -52,6 +52,7 @@ import dev.crafters.kanstrimi.contract.HomeRowKind
 import dev.crafters.kanstrimi.ui.ArtImage
 import dev.crafters.kanstrimi.ui.Badge
 import dev.crafters.kanstrimi.ui.CardRow
+import dev.crafters.kanstrimi.ui.ChannelRow
 import dev.crafters.kanstrimi.ui.LoadingPanel
 import dev.crafters.kanstrimi.ui.LocalMetrics
 import dev.crafters.kanstrimi.ui.LogoOrTitle
@@ -114,12 +115,15 @@ fun HomeScreen() {
                     }
                 }
                 items(h.rows, key = { it.id }) { row ->
-                    // A channel plays (the Direct lot); a title opens its sheet.
-                    CardRow(title = row.title, cards = row.cards, landscape = row.kind == HomeRowKind.RESUME || row.kind == HomeRowKind.MOST_WATCHED_CHANNELS,
-                        onPlay = { env.player.play(it.id) }) { card ->
-                        // « Reprendre » launches the player directly, like the Apple app; the other rows open the sheet.
+                    if (row.kind == HomeRowKind.MOST_WATCHED_CHANNELS) {
+                        // Channel cards, each asking its programme; a tap plays the channel.
+                        ChannelRow(title = row.title, cards = row.cards) { id -> scope.launch { env.watchChannel(id) } }
+                        return@items
+                    }
+                    CardRow(title = row.title, cards = row.cards, landscape = row.kind == HomeRowKind.RESUME, onPlay = { env.player.play(it.id) }) { card ->
+                        // « Reprendre » launches the player directly, like the Apple app; a channel plays; the other rows open the sheet.
                         when {
-                            card.kind == ContentKind.LIVE -> env.notify("Direct : prochain lot")
+                            card.kind == ContentKind.LIVE -> scope.launch { env.watchChannel(card.id) }
                             row.kind == HomeRowKind.RESUME -> env.player.play(card.id)
                             else -> env.open(card.id)
                         }

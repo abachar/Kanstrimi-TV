@@ -14,6 +14,7 @@ import dev.crafters.kanstrimi.contract.ContentItem
 import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.contract.NextEpisode
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
+import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
 import dev.crafters.kanstrimi.contract.Skip
 import dev.crafters.kanstrimi.contract.Source
@@ -50,6 +51,8 @@ class PlayerService(
     private val notify: (String) -> Unit = {},
     /** The final report of a playback reached the server (or the queue): the home reloads on it. */
     private val onProgressReported: () -> Unit = {},
+    /** The clock, injected by the tests: the time watched on a channel is counted on it. */
+    private val now: () -> Instant = Instant::now,
 ) : PlaybackEngine.Listener {
     enum class Phase { IDLE, OPENING, BUFFERING, PLAYING, PAUSED, ENDED, FAILED }
 
@@ -99,9 +102,13 @@ class PlayerService(
     var titleCardFailed: Boolean by mutableStateOf(false); private set
     private var titleCardId: String? = null
     var nextContext: PlaybackContext? by mutableStateOf(null); private set
-    /** Live: the ordered channel list to zap through, and the current one (the Direct lot plugs in here). */
+    /** Live: the ordered channel list to zap through, and the current one. */
     var channels: List<Channel> by mutableStateOf(emptyList()); private set
     var channel: Channel? by mutableStateOf(null); private set
+    /** The playing channel as `GET /channels/{id}` gives it: its guide, and each quality's own. */
+    private var channelDetail: Channel? = null
+    /** Live: the guide of the version playing (now, next), empty until the channel's detail arrived. */
+    var epg: Channel.Guide by mutableStateOf(Channel.Guide.empty); private set
     /** Fast forward / rewind while a direction is held: where the seek lands on release, and the signed rate. */
     var scanTarget: Double? by mutableStateOf(null); private set
     var scanRate: Double by mutableDoubleStateOf(0.0); private set
@@ -153,6 +160,13 @@ class PlayerService(
     val chooser: VersionChooser
         get() = VersionChooser(preferences.languageOrder, preferences.maxQuality, capabilities) { failedSources.isFailed(it) }
 
+    /**
+     * The version a title or a channel starts in (`VersionChooser.start`): « TF1 » switched to FHD reopens, previews
+     * and shows its guide in FHD.
+     */
+    fun startChoice(id: String, versions: List<Version>, seriesId: String? = null): VersionChooser.Choice? =
+        chooser.start(id, versions, seriesId, preferences)
+
     // MARK: - Entry points
 
     /**
@@ -187,7 +201,7 @@ class PlayerService(
 
     /** Chooses the version with the chooser and starts. Called by every « Lecture ». */
     fun play(ctx: PlaybackContext) {
-        val choice = chooser.start(ctx.content.id, ctx.versions, ctx.seriesId, preferences)
+        val choice = startChoice(ctx.content.id, ctx.versions, ctx.seriesId)
         if (choice == null) { notify("Lecture impossible · aucune source"); return }
         start(ctx, choice.version, choice.source, ctx.resumeAt)
     }
@@ -211,11 +225,41 @@ class PlayerService(
         return true
     }
 
-    /** Plays a channel out of an ordered list: the Direct lot. The service keeps the list and the channel for it. */
+    /**
+     * Live: plays a channel out of an ordered list (the category it was chosen in), in the version it starts in. The
+     * same engine takes the new source: a zap is this again. The channel's detail is asked for its guide.
+     */
     fun playChannel(channel: Channel, order: List<Channel>) {
         channels = order
         this.channel = channel
-        notify("Direct : prochain lot")
+        channelDetail = null
+        epg = Channel.Guide.empty
+        val ctx = PlaybackContext(PlaybackContent(channel.id, ContentKind.LIVE, channel.name), channel.versions)
+        play(ctx)
+        scope.launch {
+            val full = runCatching { client().channel(channel.id) }.getOrNull()
+            if (this@PlayerService.channel?.id == channel.id) {
+                channelDetail = full
+                showGuide()
+            }
+        }
+    }
+
+    /** The channel `offset` places further in the list, around its ends. */
+    fun zap(offset: Int) {
+        if (!isLive) return
+        val current = channel ?: return
+        val idx = channels.indexOfFirst { it.id == current.id }
+        if (idx < 0 || channels.isEmpty()) return
+        playChannel(channels[((idx + offset) % channels.size + channels.size) % channels.size], channels)
+    }
+
+    /** The guide of the version playing, as the detail knows it: each quality may have its own (« M6 4K »), else the channel's. */
+    private fun showGuide() {
+        val detail = channelDetail ?: return
+        if (detail.id != channel?.id) return
+        val v = version?.let { playing -> detail.versions.firstOrNull { it.id == playing.id } ?: playing }
+        epg = detail.guide(v)
     }
 
     /** Asks for the sheet of the title playing, unless it is already there or on its way; a failure may be retried. */
@@ -238,6 +282,7 @@ class PlayerService(
         changeJob?.cancel(); changeJob = null
         engine.stop()
         context = null; version = null; source = null; channel = null; channels = emptyList()
+        channelDetail = null; epg = Channel.Guide.empty
         phase = Phase.IDLE; time = 0.0; duration = 0.0; isMinimized = false; isBuffering = false
         failure = null; toast = null; nextCountdown = null; nextContext = null; nextTriggered = false
         suggestions = null; suggestionsJob?.cancel(); prefetchJob?.cancel(); isChangingTitle = false
@@ -459,7 +504,9 @@ class PlayerService(
         // Another version, another source, the same one again: each start opens a file, its markers asked anew.
         forgetMarkers()
         context = ctx
+        val changedVersion = version?.id != v.id
         version = v
+        if (changedVersion && ctx.isLive) showGuide()
         source = s
         failure = null
         debugFrame = false
@@ -485,7 +532,7 @@ class PlayerService(
     private fun markStarted() {
         if (isStarted) return
         isStarted = true
-        if (isLive && liveWatchedFrom == null) liveWatchedFrom = Instant.now()
+        if (isLive && liveWatchedFrom == null) liveWatchedFrom = now()
         startAttempts = 0
         startDeadline?.cancel()
         source?.let { failedSources.clear(it.id) }
@@ -561,13 +608,19 @@ class PlayerService(
         }
     }
 
-    /** « Réessayer »: asks `/playback` again, in case the catalogue changed since, then restarts on the same version at the same position. */
+    /**
+     * « Réessayer »: asks `/playback` (`/channels/{id}` in live) again, in case the catalogue changed since, then
+     * restarts on the same version at the same position.
+     */
     private fun restartWithFreshLinks(v: Version) {
         val ctx = context ?: return
         val at = time
         restartJob?.cancel()
         restartJob = scope.launch {
-            val fresh = runCatching { PlaybackContext(ctx.content, client().playback(ctx.content.id)) }.getOrNull() ?: ctx
+            val fresh = runCatching {
+                if (ctx.isLive) PlaybackContext(ctx.content, client().channel(ctx.content.id).versions)
+                else PlaybackContext(ctx.content, client().playback(ctx.content.id))
+            }.getOrNull() ?: ctx
             if (context?.content?.id != ctx.content.id) return@launch
             restartJob = null
             val version = fresh.versions.firstOrNull { it.id == v.id } ?: v
@@ -719,15 +772,20 @@ class PlayerService(
         }
     }
 
+    /**
+     * Live: the time watched since the last report (every ten seconds, and when leaving the channel), summed by the
+     * server for « Chaînes les plus regardées ». Out of the live player the home and the Direct reload; not on a zap,
+     * which would reload them at every channel.
+     */
     private fun sendWatchTime(final: Boolean) {
         val ctx = context ?: return
         val from = liveWatchedFrom ?: return
-        val seconds = (Instant.now().epochSecond - from.epochSecond).toInt()
-        liveWatchedFrom = if (final) null else Instant.now()
+        val seconds = (now().epochSecond - from.epochSecond).toInt()
+        liveWatchedFrom = if (final) null else now()
         if (seconds <= 0) return
         scope.launch {
             reporter.reportWatchTime(ctx.content.id, seconds)
-            if (final) onProgressReported()
+            if (final && !isLive) onProgressReported()
         }
     }
 
@@ -808,10 +866,10 @@ class PlayerService(
 
     // MARK: - Debug
 
-    enum class PreviewState { vodPaused, opening, failure, nextEpisode, nextTitle, panel, skipIntro }
+    enum class PreviewState { vodPaused, opening, failure, nextEpisode, nextTitle, panel, skipIntro, livePlaying }
 
     /** Previews and captures: puts the player in a given state without a stream, a drawn picture for the video. */
-    fun debugPut(ctx: PlaybackContext, state: PreviewState, suggestions: Suggestions? = null) {
+    fun debugPut(ctx: PlaybackContext, state: PreviewState, suggestions: Suggestions? = null, channels: List<Channel> = emptyList()) {
         engine.stop()
         cancelTimers()
         debugFrame = true
@@ -825,7 +883,20 @@ class PlayerService(
         textTracks = listOf(EngineTrack("1:0", "Français", "fr", false))
         streamFacts = StreamFacts("HEVC", 1920, 1080, "HDR10", 23.976f, "c2.exynos.hevc.decoder", "EAC3", 6, "OMX.google.eac3.decoder")
         failure = null; nextCountdown = null; markers = null; isBuffering = false
+        this.channels = channels; channel = channels.firstOrNull { it.id == ctx.content.id } ?: channels.firstOrNull()
+        channelDetail = null; epg = Channel.Guide.empty
         when (state) {
+            PreviewState.livePlaying -> {
+                phase = Phase.PLAYING
+                duration = 0.0; time = 0.0
+                val start = now().minusSeconds(3200)
+                epg = Channel.Guide(
+                    now = Programme("Ligue · Lyon – Nantes", start, start.plusSeconds(7200), "Le choc de la journée, en direct du Groupama Stadium."),
+                    next = Programme("Le Mag du foot", start.plusSeconds(7200), start.plusSeconds(9000), null),
+                    hasEpg = true,
+                )
+                streamFacts = StreamFacts("H.264", 1920, 1080, null, 50f, "c2.exynos.avc.decoder", "AAC", 2, "c2.android.aac.decoder")
+            }
             PreviewState.vodPaused -> phase = Phase.PAUSED
             PreviewState.failure -> { phase = Phase.FAILED; failure = Failure(2) }
             PreviewState.nextEpisode, PreviewState.nextTitle -> { phase = Phase.PLAYING; time = duration - 8; nextCountdown = 7 }
