@@ -42,6 +42,10 @@ android {
         abortOnError = true
         warningsAsErrors = false
     }
+    testOptions {
+        // The player logs through `android.util.Log`, which the JVM tests have no implementation of.
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
@@ -61,7 +65,15 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    // The player: ExoPlayer, its Compose surface and the View subtitle renderer, the media session, and Jellyfin's
+    // build of the FFmpeg audio decoder (DTS, TrueHD, anything the device has no codec for).
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.ui.compose)
+    implementation(libs.media3.session)
+    implementation(libs.media3.ffmpeg.decoder)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -77,7 +78,9 @@ fun HomeScreen() {
             if (home == null) error = e.message
         }
     }
-    LaunchedEffect(Unit) { load() }
+    // Loaded once, then again each time the player leaves a title (its progress moved « Reprendre »).
+    val progressRevision by env.progressRevision.collectAsState()
+    LaunchedEffect(progressRevision) { load() }
     LaunchedEffect(heroIndex, home?.heroes?.size) {
         val count = home?.heroes?.size ?: 0
         if (count > 1) {

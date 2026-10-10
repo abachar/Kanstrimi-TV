@@ -6,7 +6,10 @@ import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.client.HttpCatalogClient
 import dev.crafters.kanstrimi.client.MockCatalogClient
 import dev.crafters.kanstrimi.contract.ServerInfo
+import dev.crafters.kanstrimi.player.ExoPlaybackEngine
 import dev.crafters.kanstrimi.player.PlayerService
+import dev.crafters.kanstrimi.player.PreferencesQueueStore
+import dev.crafters.kanstrimi.player.ProgressQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,7 +30,17 @@ class AppEnvironment(context: Context) {
     /** The server, or the demo client when the preference says so. */
     val client: CatalogClient get() = if (preferences.useMock.value) mock else http
 
-    val player = PlayerService(this)
+    /** Bumped once the final report of a playback reached the server (or the offline queue): the home reloads on it. */
+    private val _progressRevision = MutableStateFlow(0)
+    val progressRevision: StateFlow<Int> = _progressRevision.asStateFlow()
+
+    /** The engine (one ExoPlayer at a time) and the player service, the one entry point of every « Lecture ». */
+    val playerEngine = ExoPlaybackEngine(context)
+    val player = PlayerService(
+        client = { client }, preferences = preferences, engine = playerEngine, scope = scope,
+        progressQueue = ProgressQueue(PreferencesQueueStore(context)),
+        notify = { notify(it) }, onProgressReported = { _progressRevision.value += 1 },
+    )
 
     private val _info = MutableStateFlow<ServerInfo?>(null)
     val info: StateFlow<ServerInfo?> = _info.asStateFlow()
