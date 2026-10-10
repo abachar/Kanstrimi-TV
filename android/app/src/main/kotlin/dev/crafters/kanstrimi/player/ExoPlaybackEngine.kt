@@ -126,10 +126,10 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
             readTracks(tracks)
             listener?.onTracks()
             // No decoder for the picture (MPEG-2 on a tablet): the sound alone would play over a black screen.
-            unsupportedVideo(tracks)?.let { reason ->
-                Log.w(TAG, "image non décodable: $reason")
+            unsupportedVideo(tracks)?.let { codec ->
+                Log.w(TAG, "image non décodable par ExoPlayer : $codec")
                 phase = EnginePhase.ERROR
-                handler.post { listener?.onUnsupported(reason) }
+                handler.post { listener?.onUnsupported(codec) }
             }
         }
         override fun onCues(cueGroup: CueGroup) {
@@ -312,6 +312,7 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
             videoCodec = video?.let { codecName(it.sampleMimeType) }, width = video?.width ?: 0, height = video?.height ?: 0,
             dynamicRange = video?.let(::rangeName), frameRate = video?.frameRate ?: 0f, videoDecoder = videoDecoder,
             audioCodec = sound?.let { codecName(it.sampleMimeType) }, channels = sound?.channelCount ?: 0, audioDecoder = audioDecoder,
+            engine = "ExoPlayer",
         )
     }
 
@@ -339,9 +340,17 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
 
         fun languageName(code: String?): String? {
             if (code.isNullOrEmpty() || code == "und") return null
-            val name = Locale.forLanguageTag(code).getDisplayLanguage(Locale.FRENCH)
-            return if (name.isEmpty() || name == code) code.uppercase() else name.replaceFirstChar { it.titlecase(Locale.FRENCH) }
+            // Transport streams tag their tracks with ISO 639-2 codes the locale data may not know: the common ones are mapped.
+            val tag = ISO_639_2[code.lowercase()] ?: code
+            val name = Locale.forLanguageTag(tag).getDisplayLanguage(Locale.FRENCH)
+            return if (name.isEmpty() || name == tag) code.uppercase() else name.replaceFirstChar { it.titlecase(Locale.FRENCH) }
         }
+
+        private val ISO_639_2 = mapOf(
+            "fra" to "fr", "fre" to "fr", "eng" to "en", "deu" to "de", "ger" to "de", "spa" to "es", "ita" to "it", "por" to "pt",
+            "ara" to "ar", "nld" to "nl", "dut" to "nl", "tur" to "tr", "rus" to "ru", "pol" to "pl", "jpn" to "ja", "kor" to "ko",
+            "zho" to "zh", "chi" to "zh", "hin" to "hi", "ber" to "ber", "mul" to "mul", "qaa" to "qaa",
+        )
 
         fun channelsLabel(channels: Int): String? = when {
             channels <= 0 -> null
@@ -353,16 +362,15 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
         }
 
         /**
-         * The reason the stream cannot show its picture here, or null: the stream has video, and no track of it is
-         * supported by any renderer. Android tablets and phones have no MPEG-2 decoder (the system's software one
-         * is reserved to the TV profile) and the FFmpeg build decodes sound only.
+         * The codec of a picture ExoPlayer cannot show (« MPEG-2 »), or null: the stream has video, and no track of it
+         * is supported by any renderer. Android tablets and phones have no MPEG-2 decoder (the system's software one
+         * is reserved to the TV profile) and the FFmpeg build decodes sound only: mpv takes over.
          */
         fun unsupportedVideo(tracks: Tracks): String? {
             val video = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
             // Beyond the decoder's declared capabilities still plays (the selector allows it); only the codec itself counts.
             if (video.isEmpty() || video.any { g -> (0 until g.length).any { g.isTrackSupported(it, true) } }) return null
-            val codec = codecName(video.first().getTrackFormat(0).sampleMimeType) ?: "inconnu"
-            return "L'image de ce flux est en $codec, que cet appareil ne sait pas décoder."
+            return codecName(video.first().getTrackFormat(0).sampleMimeType) ?: "inconnu"
         }
 
         /** « HEVC », « EAC3 », « DTS », « TrueHD »: the codec as the badges name it. */

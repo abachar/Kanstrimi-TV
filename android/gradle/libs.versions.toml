@@ -11,6 +11,7 @@ okhttp = "5.5.0"
 coil = "3.6.3"
 media3 = "1.9.0"
 media3Ffmpeg = "1.9.0+1"
+libmpv = "1.0.0"
 junit = "4.13.2"
 
 [libraries]
@@ -36,6 +37,7 @@ media3-ui-compose = { group = "androidx.media3", name = "media3-ui-compose", ver
 media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
 media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 media3-ffmpeg-decoder = { group = "org.jellyfin.media3", name = "media3-ffmpeg-decoder", version.ref = "media3Ffmpeg" }
+libmpv = { group = "dev.jdtech.mpv", name = "libmpv", version.ref = "libmpv" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }

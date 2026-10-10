@@ -10,6 +10,8 @@ import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ServerInfo
 import dev.crafters.kanstrimi.contract.Version
 import dev.crafters.kanstrimi.player.ExoPlaybackEngine
+import dev.crafters.kanstrimi.player.FallbackPlaybackEngine
+import dev.crafters.kanstrimi.player.MpvPlaybackEngine
 import dev.crafters.kanstrimi.player.LivePreview
 import dev.crafters.kanstrimi.player.PlayerService
 import dev.crafters.kanstrimi.player.PreferencesQueueStore
@@ -56,8 +58,8 @@ class AppEnvironment(context: Context) {
         }
     }
 
-    /** The engine (one ExoPlayer at a time) and the player service, the one entry point of every « Lecture ». */
-    val playerEngine = ExoPlaybackEngine(context)
+    /** The engines (ExoPlayer, mpv behind it for what ExoPlayer cannot decode) and the player service, the one entry point of every « Lecture ». */
+    val playerEngine = FallbackPlaybackEngine(ExoPlaybackEngine(context), MpvPlaybackEngine(context))
     val player = PlayerService(
         client = { client }, preferences = preferences, engine = playerEngine, scope = scope,
         progressQueue = ProgressQueue(PreferencesQueueStore(context)),

@@ -101,7 +101,8 @@ fun PlayerScreen() {
     pip.Observe(player)
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        engine.player?.let { p -> ContentFrame(p, Modifier.fillMaxSize(), SURFACE_TYPE_SURFACE_VIEW, ContentScale.Fit) }
+        if (engine.usesMpv) engine.mpv?.let { MpvSurface(it, Modifier.fillMaxSize()) }
+        else engine.exo.player?.let { p -> ContentFrame(p, Modifier.fillMaxSize(), SURFACE_TYPE_SURFACE_VIEW, ContentScale.Fit) }
         if (player.debugFrame) PreviewFrame()
         // Edge to edge like the video: a bitmap subtitle is placed against the picture's frame.
         AndroidView(
@@ -112,7 +113,7 @@ fun PlayerScreen() {
                     setBottomPaddingFraction(0.08f)
                 }
             },
-            update = { it.setCues(engine.cues) },
+            update = { it.setCues(if (engine.usesMpv) emptyList() else engine.exo.cues) },
             modifier = Modifier.fillMaxSize(),
         )
         if (player.isMinimized) return@Box
@@ -201,9 +202,13 @@ private fun ImmersiveWindow() {
 private class PictureInPictureHost(private val activity: ComponentActivity?) {
     val isAvailable: Boolean = activity != null && activity.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
 
-    private fun params(engine: ExoPlaybackEngine, autoEnter: Boolean): PictureInPictureParams {
-        val size = engine.player?.videoSize
-        val ratio = if (size != null && size.width > 0 && size.height > 0) Rational(size.width, size.height) else Rational(16, 9)
+    private fun params(engine: FallbackPlaybackEngine<ExoPlaybackEngine, MpvPlaybackEngine>, autoEnter: Boolean): PictureInPictureParams {
+        val size = engine.exo.player?.videoSize
+        val ratio = when {
+            engine.usesMpv && (engine.mpv?.videoWidth ?: 0) > 0 -> Rational(engine.mpv!!.videoWidth, engine.mpv.videoHeight)
+            size != null && size.width > 0 && size.height > 0 -> Rational(size.width, size.height)
+            else -> Rational(16, 9)
+        }
         // Android refuses a ratio outside 1:2.39 … 2.39:1.
         val clamped = if (ratio.toFloat() > 2.39f) Rational(239, 100) else if (ratio.toFloat() < 1 / 2.39f) Rational(100, 239) else ratio
         val builder = PictureInPictureParams.Builder().setAspectRatio(clamped)
@@ -211,7 +216,7 @@ private class PictureInPictureHost(private val activity: ComponentActivity?) {
         return builder.build()
     }
 
-    fun enter(engine: ExoPlaybackEngine) {
+    fun enter(engine: FallbackPlaybackEngine<ExoPlaybackEngine, MpvPlaybackEngine>) {
         if (!isAvailable) return
         runCatching { activity?.enterPictureInPictureMode(params(engine, autoEnter = false)) }
     }

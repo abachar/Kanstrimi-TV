@@ -15,6 +15,8 @@ android {
         // One version for the server and every app: `server/package.json`, `MARKETING_VERSION` of the Apple targets.
         versionCode = 1
         versionName = "1.4"
+        // libmpv ships four ABIs (100 Mo); the tablet and the emulator are arm64: the others are left out.
+        ndk { abiFilters += listOf("arm64-v8a") }
     }
 
     buildTypes {
@@ -77,6 +79,7 @@ dependencies {
     implementation(libs.media3.ui.compose)
     implementation(libs.media3.session)
     implementation(libs.media3.ffmpeg.decoder)
+    implementation(libs.libmpv)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)

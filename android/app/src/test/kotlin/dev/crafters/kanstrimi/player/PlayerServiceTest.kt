@@ -80,7 +80,7 @@ class PlayerServiceTest {
         runCurrent()
         assertEquals(PlayerService.Phase.FAILED, player.phase)
         assertEquals(listOf(url("a")), engine.loads)
-        assertEquals("L'image de ce flux est en MPEG-2, que cet appareil ne sait pas décoder.", player.failure?.reason)
+        assertEquals("L'image de ce flux est en MPEG-2, qu'aucun décodeur de cet appareil ne sait lire.", player.failure?.reason)
         player.stop()
     }
 

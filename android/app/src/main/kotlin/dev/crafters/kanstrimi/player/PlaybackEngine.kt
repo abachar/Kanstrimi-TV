@@ -20,15 +20,17 @@ data class StreamFacts(
     val audioCodec: String? = null,
     val channels: Int = 0,
     val audioDecoder: String? = null,
+    /** « ExoPlayer » or « mpv »: which engine plays. */
+    val engine: String? = null,
 )
 
 /** What the player shows about the title in the system's media controls. */
 data class MediaDescription(val title: String, val subtitle: String? = null, val artwork: String? = null)
 
 /**
- * All `PlayerService` asks of the engine and all it hears from it: `ExoPlaybackEngine` in the app, a fake in the
- * tests, which play the failures, the restarts and the ends that a real stream cannot be made to play on demand.
- * Every call and callback happens on the main thread.
+ * All `PlayerService` asks of the engine and all it hears from it: `FallbackPlaybackEngine` in the app (ExoPlayer,
+ * then mpv for what it cannot decode), a fake in the tests, which play the failures, the restarts and the ends that a
+ * real stream cannot be made to play on demand. Every call and callback happens on the main thread.
  */
 interface PlaybackEngine {
     interface Listener {
@@ -39,8 +41,8 @@ interface PlaybackEngine {
         fun onFirstFrame()
         fun onTracks()
         fun onError(message: String)
-        /** The stream's picture is in a codec the device has no decoder for: no retry will help; `reason` is for the user. */
-        fun onUnsupported(reason: String)
+        /** The stream's picture is in a codec (« MPEG-2 ») this engine cannot decode: no retry on it will help. */
+        fun onUnsupported(codec: String)
     }
 
     var listener: Listener?

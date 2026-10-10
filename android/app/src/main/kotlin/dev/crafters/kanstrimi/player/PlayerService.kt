@@ -840,11 +840,11 @@ class PlayerService(
         handleStreamFailure()
     }
 
-    override fun onUnsupported(reason: String) {
-        Log.i(TAG, "image non décodable: $reason")
+    override fun onUnsupported(codec: String) {
+        Log.i(TAG, "image non décodable : $codec")
         if (phase == Phase.IDLE || phase == Phase.FAILED) return
         // Another source carries the same picture: straight to the dialog, with the reason and the other versions.
-        presentFailure(reason)
+        presentFailure("L'image de ce flux est en $codec, qu'aucun décodeur de cet appareil ne sait lire.")
     }
 
     override fun onTime(position: Double, duration: Double, bufferedPercent: Int) {

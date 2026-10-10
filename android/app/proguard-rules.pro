@@ -9,6 +9,8 @@
 
 # Jellyfin's FFmpeg decoder: JNI reaches the Java side by name.
 -keep class androidx.media3.decoder.ffmpeg.** { *; }
+# libmpv: its events and log lines come back from native code by name.
+-keep class dev.jdtech.mpv.** { *; }
 
 # OkHttp's optional platforms.
 -dontwarn okhttp3.internal.platform.**

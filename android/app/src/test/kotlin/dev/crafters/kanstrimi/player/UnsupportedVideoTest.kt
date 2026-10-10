@@ -18,7 +18,7 @@ class UnsupportedVideoTest {
     @Test
     fun `mpeg2 sans décodeur - la raison nomme le codec`() {
         val tracks = Tracks(listOf(group(MimeTypes.VIDEO_MPEG2, C.FORMAT_UNSUPPORTED_SUBTYPE), group(MimeTypes.AUDIO_MPEG, C.FORMAT_HANDLED, true)))
-        assertEquals("L'image de ce flux est en MPEG-2, que cet appareil ne sait pas décoder.", ExoPlaybackEngine.unsupportedVideo(tracks))
+        assertEquals("MPEG-2", ExoPlaybackEngine.unsupportedVideo(tracks))
     }
 
     @Test

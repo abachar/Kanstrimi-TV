@@ -129,9 +129,9 @@ class FakePlaybackEngine : PlaybackEngine {
         phase = EnginePhase.ERROR
         listener?.onError("connexion fermée")
     }
-    fun emitUnsupported() {
+    fun emitUnsupported(codec: String = "MPEG-2") {
         phase = EnginePhase.ERROR
-        listener?.onUnsupported("L'image de ce flux est en MPEG-2, que cet appareil ne sait pas décoder.")
+        listener?.onUnsupported(codec)
     }
     /** The playback clock, as the engine publishes it. */
     fun emitTime(position: Double, duration: Double = fileFacts?.duration ?: 0.0) { listener?.onTime(position, duration, 100) }

@@ -18,7 +18,7 @@ import dev.crafters.kanstrimi.app.KanstrimiApplication
  * promise the system holds us to, with the process killed thirty seconds later if nothing played by then.
  */
 class PlaybackService : MediaSessionService() {
-    private val engine: ExoPlaybackEngine? get() = (application as? KanstrimiApplication)?.environment?.playerEngine as? ExoPlaybackEngine
+    private val engine: ExoPlaybackEngine? get() = (application as? KanstrimiApplication)?.environment?.playerEngine?.exo
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = engine?.session
 

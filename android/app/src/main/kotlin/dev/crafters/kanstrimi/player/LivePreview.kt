@@ -41,7 +41,7 @@ class LivePreview(context: Context) {
     /** The stream failed: the placeholder says so, nothing retried. */
     var failed: Boolean by mutableStateOf(false)
         private set
-    /** With `failed`, the reason when it is the picture's codec, for the placeholder; null for a plain failure. */
+    /** With `failed`, the caption when it is the picture's codec (ExoPlayer only here); null for a plain failure. */
     var failedReason: String? by mutableStateOf(null)
         private set
 
@@ -61,9 +61,10 @@ class LivePreview(context: Context) {
             release()
         }
         override fun onTracksChanged(tracks: Tracks) {
-            val reason = ExoPlaybackEngine.unsupportedVideo(tracks) ?: return
-            Log.w(TAG, "aperçu sans image possible: $reason")
-            failedReason = reason
+            val codec = ExoPlaybackEngine.unsupportedVideo(tracks) ?: return
+            Log.w(TAG, "aperçu sans image possible : $codec")
+            // The preview is ExoPlayer only; the player itself falls back to mpv for this picture.
+            failedReason = "Aperçu indisponible · image en $codec, lisible en plein écran"
             failed = true
             hasImage = false
             handler.post { if (failed) release() }

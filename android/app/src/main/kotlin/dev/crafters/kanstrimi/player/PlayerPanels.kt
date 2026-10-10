@@ -179,6 +179,7 @@ private fun StreamFactsRow(player: PlayerService) {
     Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
         FactGroup(R.drawable.ic_movie, picture)
         if (sound.isNotEmpty()) FactGroup(R.drawable.ic_audiotrack, sound)
+        facts?.engine?.let { if (it != "ExoPlayer") Badge(it, small = true) }
         val source = player.source
         if (version.sources.size > 1 && source != null) Text(player.sourceLabel(source, version), style = MaterialTheme.typography.bodySmall, color = Theme.secondary)
     }
@@ -200,7 +201,7 @@ private fun definition(width: Int): String = when {
     else -> "?"
 }
 
-/** « FFmpeg » for Jellyfin's decoder, « MediaCodec » for the device's; null until known. */
+/** « FFmpeg » for Jellyfin's or mpv's software decoders, « MediaCodec » for the device's; null until known. */
 private fun decoderLabel(name: String?): String? = when {
     name == null -> null
     name.startsWith("ffmpeg", ignoreCase = true) -> "FFmpeg"
