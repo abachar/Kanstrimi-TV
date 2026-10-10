@@ -59,7 +59,11 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
     /** The subtitle cues on screen now, drawn by `SubtitleView`. */
     var cues: List<Cue> by mutableStateOf(emptyList())
         private set
-    private var session: MediaSession? = null
+    /** The engine's media session while something is loaded; `PlaybackService` lends it to the system. */
+    var session: MediaSession? = null
+        private set
+    /** The media service while it runs, to stop it with the engine. */
+    var service: PlaybackService? = null
 
     override var phase: EnginePhase = EnginePhase.IDLE
         private set
@@ -164,6 +168,7 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
 
     override fun stop() {
         handler.removeCallbacks(ticker)
+        service?.stopSelf(); service = null
         session?.release(); session = null
         player?.let {
             it.removeListener(playerListener)
@@ -216,6 +221,8 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
         p.addListener(playerListener)
         p.addAnalyticsListener(analytics)
         session = MediaSession.Builder(context, p).setId("kanstrimi-${System.currentTimeMillis()}").build()
+        // The system's media card and the foreground state come from the service, which reads this session.
+        PlaybackService.start(context)
         return p
     }
 

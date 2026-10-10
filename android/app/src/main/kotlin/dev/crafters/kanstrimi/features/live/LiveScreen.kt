@@ -117,7 +117,8 @@ fun LiveScreen() {
 
     // Loaded once, then again each time the player leaves a channel (its watch time moves « Les plus regardées »).
     val progressRevision by env.progressRevision.collectAsState()
-    LaunchedEffect(progressRevision, attempt) {
+    val resumeRevision by env.resumeRevision.collectAsState()
+    LaunchedEffect(progressRevision, resumeRevision, attempt) {
         try {
             val loaded = env.client.channels()
             groups = loaded

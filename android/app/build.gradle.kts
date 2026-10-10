@@ -19,7 +19,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: the app shrinks and obfuscates; `proguard-rules.pro` keeps what reflection and JNI reach.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Signed with the debug key until a release key exists: installable on the tablet, not publishable.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     buildFeatures {

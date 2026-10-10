@@ -1,5 +1,6 @@
 package dev.crafters.kanstrimi.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,11 +19,29 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val env = (application as KanstrimiApplication).environment
         debugHooks(env)
+        DeepLink.parse(intent.data)?.let { env.handle(it) }
         setContent {
             CompositionLocalProvider(LocalEnvironment provides env) {
                 KanstrimiTheme { RootView() }
             }
         }
+    }
+
+    /** The activity is `singleTask`: a link opened while the app runs lands here. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        DeepLink.parse(intent.data)?.let { (application as KanstrimiApplication).environment.handle(it) }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        (application as KanstrimiApplication).environment.sceneBecame(active = true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        (application as KanstrimiApplication).environment.sceneBecame(active = false)
     }
 
     /**

@@ -91,7 +91,10 @@ fun SettingsScreen() {
             val rememberVersion by env.preferences.rememberVersionPerTitleFlow.collectAsState()
             val switchSource by env.preferences.switchSourceOnFailureFlow.collectAsState()
             val maxQuality by env.preferences.maxQualityFlow.collectAsState()
+            val languageOrder by env.preferences.languageOrderFlow.collectAsState()
             Section("Lecture") {
+                MenuRow("Langue audio", value = languageOrder.joinToString(" › ") { Language.short(it) }, options = languageOrders,
+                    label = { it.joinToString(" › ") { l -> Language.short(l) } }) { env.preferences.setLanguageOrder(it) }
                 ToggleRow("Lire la suite automatiquement", autoPlayNext) { env.preferences.setAutoPlayNext(it) }
                 ToggleRow("Retenir la version choisie pour chaque titre", rememberVersion) { env.preferences.setRememberVersionPerTitle(it) }
                 ToggleRow("Changer de source en cas de panne", switchSource) { env.preferences.setSwitchSourceOnFailure(it) }
@@ -124,6 +127,29 @@ fun SettingsScreen() {
             confirmButton = { TextButton(onClick = { confirmUnpair = false; scope.launch { env.unpair() } }) { Text("Dissocier", color = Theme.danger) } },
             dismissButton = { TextButton(onClick = { confirmUnpair = false }) { Text("Annuler") } },
         )
+    }
+}
+
+/** The orders the language can be tried in, like the Apple app's Réglages. */
+private val languageOrders: List<List<String>> = listOf(
+    listOf(Language.VF, Language.VOSTFR, Language.VO), listOf(Language.VOSTFR, Language.VF, Language.VO),
+    listOf(Language.VO, Language.VOSTFR, Language.VF), listOf(Language.VF, Language.VO, Language.VOSTFR),
+)
+
+/** A setting picked among a few values: the value on the right opens a menu of the options. */
+@Composable
+private fun <T> MenuRow(title: String, value: String, options: List<T>, label: (T) -> String, onSelect: (T) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text(title)
+        Box {
+            TextButton(onClick = { open = true }, colors = androidx.compose.material3.ButtonDefaults.textButtonColors(containerColor = Theme.surfaceButton, contentColor = Theme.text)) { Text(value) }
+            androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                options.forEach { option ->
+                    androidx.compose.material3.DropdownMenuItem(text = { Text(label(option)) }, onClick = { open = false; onSelect(option) })
+                }
+            }
+        }
     }
 }
 

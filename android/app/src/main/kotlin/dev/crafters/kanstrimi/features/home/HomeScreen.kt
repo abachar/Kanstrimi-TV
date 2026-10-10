@@ -83,7 +83,8 @@ fun HomeScreen() {
     }
     // Loaded once, then again each time the player leaves a title (its progress moved « Reprendre »).
     val progressRevision by env.progressRevision.collectAsState()
-    LaunchedEffect(progressRevision) { load() }
+    val resumeRevision by env.resumeRevision.collectAsState()
+    LaunchedEffect(progressRevision, resumeRevision) { load() }
     LaunchedEffect(heroIndex, home?.heroes?.size) {
         val count = home?.heroes?.size ?: 0
         if (count > 1) {

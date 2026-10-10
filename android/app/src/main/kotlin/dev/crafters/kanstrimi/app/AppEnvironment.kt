@@ -38,6 +38,24 @@ class AppEnvironment(context: Context) {
     private val _progressRevision = MutableStateFlow(0)
     val progressRevision: StateFlow<Int> = _progressRevision.asStateFlow()
 
+    /** Bumped when the app comes back after more than ten minutes away: the home and the Direct reload on it. */
+    private val _resumeRevision = MutableStateFlow(0)
+    val resumeRevision: StateFlow<Int> = _resumeRevision.asStateFlow()
+    private val absence = AbsenceClock()
+
+    fun sceneBecame(active: Boolean) {
+        if (absence.became(active)) _resumeRevision.value += 1
+    }
+
+    /** A `kanstrimi://` link, once the device is paired: a sheet above the tab, or a title played where it was left. */
+    fun handle(link: DeepLink) {
+        if (!device.isPaired) return
+        when (link) {
+            is DeepLink.Open -> { if (player.isPresented) player.stop(); open(link.id) }
+            is DeepLink.Play -> if (link.id.startsWith("live:")) scope.launch { watchChannel(link.id) } else player.play(link.id)
+        }
+    }
+
     /** The engine (one ExoPlayer at a time) and the player service, the one entry point of every « Lecture ». */
     val playerEngine = ExoPlaybackEngine(context)
     val player = PlayerService(
