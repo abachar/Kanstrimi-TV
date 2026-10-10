@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
      *                       with debug.play, stages the player in that state instead of streaming (no stream in the demo)
      *   debug.playUrl     — a public test file (an MP4 or MKV of Big Buck Bunny…) played by the engine on the
      *                       emulator; never a provider URL
+     *   debug.codecs      — the device's video decoders logged under the tag kanstrimi.codecs
      */
     private fun debugHooks(env: AppEnvironment) {
         if (!BuildConfig.DEBUG) return
@@ -75,5 +76,6 @@ class MainActivity : ComponentActivity() {
             env.scope.launch { delay(800); PlayerDebug.play(env.player, env.client, id, state) }
         }
         intent.getStringExtra("debug.playUrl")?.let { url -> env.scope.launch { delay(800); PlayerDebug.playUrl(env.player, url) } }
+        if (intent.getBooleanExtra("debug.codecs", false)) PlayerDebug.logCodecs()
     }
 }

@@ -56,6 +56,8 @@ Ce qui vient après la V1.4 (tvOS, iPhone, iPad), par version, puis les idées n
     fiches, sagas, acteurs, lecteur Media3 des films et épisodes : versions, pistes, pannes, récap/intro/générique, suite,
     image dans l'image, Direct en trois colonnes avec aperçu, lecteur en direct, zapping, guide) ; reste l'essai sur la
     Galaxy Tab S9 (flux réels : aperçu, zapping, son HE-AAC à 50 i/s).
+  - **MPEG-2 sur Android** : les tablettes n'ont pas de décodeur MPEG-2 (réservé au profil TV), les chaînes SD en
+    MPEG-2 s'arrêtent sur « Image non prise en charge » ; un décodeur vidéo FFmpeg compilé par nous lèverait la limite.
 
 - Non planifiées :
   - **Fond qui suit le focus (tvOS, POC)** : un film qui prend le focus change le fond de l'écran pour son fond TMDB

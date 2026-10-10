@@ -57,7 +57,8 @@ class PlayerService(
     enum class Phase { IDLE, OPENING, BUFFERING, PLAYING, PAUSED, ENDED, FAILED }
 
     data class Toast(val text: String, val detail: String?)
-    data class Failure(val attempts: Int)
+    /** `reason`: the picture's codec has no decoder here, no retry offered; null after the attempts ran out. */
+    data class Failure(val attempts: Int, val reason: String? = null)
 
     /** What the « À suivre » card offers: the next episode, else the title the server suggests. */
     sealed interface UpNext {
@@ -630,13 +631,13 @@ class PlayerService(
     }
 
     /** Stops and shows the failure dialog. */
-    private fun presentFailure() {
+    private fun presentFailure(reason: String? = null) {
         if (version == null || source == null) return
         sendWatchTime(final = true)
         cancelTimers(keepCountdown = true)
         engine.stop()
         phase = Phase.FAILED
-        failure = Failure(startAttempts)
+        failure = Failure(startAttempts, reason)
     }
 
     fun sourceLabel(s: Source, v: Version): String {
@@ -837,6 +838,13 @@ class PlayerService(
         Log.i(TAG, "erreur $message")
         if (phase == Phase.IDLE || phase == Phase.FAILED) return
         handleStreamFailure()
+    }
+
+    override fun onUnsupported(reason: String) {
+        Log.i(TAG, "image non décodable: $reason")
+        if (phase == Phase.IDLE || phase == Phase.FAILED) return
+        // Another source carries the same picture: straight to the dialog, with the reason and the other versions.
+        presentFailure(reason)
     }
 
     override fun onTime(position: Double, duration: Double, bufferedPercent: Int) {

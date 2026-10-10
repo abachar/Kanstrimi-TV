@@ -72,6 +72,19 @@ class PlayerServiceTest {
     }
 
     @Test
+    fun `une image sans décodeur va droit au dialogue, avec la raison, sans autre source`() = runTest {
+        val player = service()
+        player.play(Fixtures.film(sources = listOf("a", "b")))
+        engine.emit(EnginePhase.LOADING)
+        engine.emitUnsupported()
+        runCurrent()
+        assertEquals(PlayerService.Phase.FAILED, player.phase)
+        assertEquals(listOf(url("a")), engine.loads)
+        assertEquals("L'image de ce flux est en MPEG-2, que cet appareil ne sait pas décoder.", player.failure?.reason)
+        player.stop()
+    }
+
+    @Test
     fun `sans image après 10 s, la source est relancée`() = runTest {
         val player = service()
         player.play(Fixtures.film(sources = listOf("a", "b")))

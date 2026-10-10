@@ -39,6 +39,8 @@ interface PlaybackEngine {
         fun onFirstFrame()
         fun onTracks()
         fun onError(message: String)
+        /** The stream's picture is in a codec the device has no decoder for: no retry will help; `reason` is for the user. */
+        fun onUnsupported(reason: String)
     }
 
     var listener: Listener?

@@ -13,6 +13,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -40,6 +41,9 @@ class LivePreview(context: Context) {
     /** The stream failed: the placeholder says so, nothing retried. */
     var failed: Boolean by mutableStateOf(false)
         private set
+    /** With `failed`, the reason when it is the picture's codec, for the placeholder; null for a plain failure. */
+    var failedReason: String? by mutableStateOf(null)
+        private set
 
     private var pendingUrl: String? = null
     private val debounce = Runnable { pendingUrl?.let { start(it) } }
@@ -55,6 +59,14 @@ class LivePreview(context: Context) {
             failed = true
             hasImage = false
             release()
+        }
+        override fun onTracksChanged(tracks: Tracks) {
+            val reason = ExoPlaybackEngine.unsupportedVideo(tracks) ?: return
+            Log.w(TAG, "aperçu sans image possible: $reason")
+            failedReason = reason
+            failed = true
+            hasImage = false
+            handler.post { if (failed) release() }
         }
     }
 
@@ -78,12 +90,14 @@ class LivePreview(context: Context) {
         channelId = null
         hasImage = false
         failed = false
+        failedReason = null
     }
 
     private fun start(url: String) {
         pendingUrl = null
         hasImage = false
         failed = false
+        failedReason = null
         val p = player ?: build().also { player = it }
         p.volume = 0f
         p.stop()

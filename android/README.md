@@ -75,6 +75,12 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
   explicitement après les renderers MediaCodec, donc pris seulement quand l'appareil n'a pas le codec. Décoder
   fallback activé. Les décodeurs « goldfish » de l'émulateur échouent au premier buffer sous GPU logiciel : ils sont
   filtrés par le `MediaCodecSelector` (aucun appareil réel n'en a).
+- **MPEG-2 : pas d'image sur tablette.** Android ne donne le décodeur MPEG-2 logiciel qu'au profil TV
+  (`domain="tv"` dans `media_codecs.xml`), et la bibliothèque FFmpeg de Jellyfin ne décode que le son. Une chaîne en
+  MPEG-2 (beaucoup de SD) jouerait le son sur un écran noir : `ExoPlaybackEngine.unsupportedVideo` le voit dès les
+  pistes (`NO_UNSUPPORTED_TYPE` sur toute la vidéo) et le lecteur va droit au dialogue « Image non prise en charge »,
+  sans ressayer (une autre source porte la même image) ; l'aperçu du Direct l'écrit à la place de « Aperçu
+  indisponible ». Lever la limite voudrait un décodeur vidéo FFmpeg compilé par nous (piste).
 - **Marqueurs** : Media3 ne lit pas les chapitres Matroska ; `POST /playback/{id}/markers` part avec la durée et une
   liste de chapitres vide. Le serveur ne peut donc donner que ce qu'IntroDB/SkipDB connaissent, pas le dernier chapitre.
 - **Pannes** : un seul chemin (`handleStreamFailure`) : source suivante, deux essais, puis le dialogue ; seuils dans
@@ -92,6 +98,10 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
 - **Session média** : `PlaybackService`, un `MediaSessionService` de Media3 démarré avec le premier flux et arrêté
   avec le moteur, prête la session du lecteur au système : notification, écran de verrouillage, réglages rapides,
   et le processus reste au premier plan pendant la lecture. Le lecteur lui-même reste dans `ExoPlaybackEngine`.
+  Démarré par `startService` (pas `startForegroundService`) et la session lui est remise dans `onStartCommand`
+  (`addSession`) : c'est Media3 qui passe le service au premier plan quand la lecture démarre et l'en sort quand la
+  session est libérée (la session se libère avant `stopSelf`). Démarré au premier plan par nous sans que Media3
+  connaisse la session, le système tuait l'app 30 s plus tard (`ForegroundServiceDidNotStartInTimeException`).
 - **Liens `kanstrimi://open/<id>` et `kanstrimi://play/<id>`** (`DeepLink`) : une fiche poussée, un titre lu où il
   en était, une chaîne jouée ; seuls nos identifiants passent. `MainActivity` est `singleTask` : un lien reçu en
   cours de route arrive par `onNewIntent`.
@@ -114,12 +124,16 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
   `debug.tab`, `debug.open` (un id de titre ou de saga, sa fiche poussée au-dessus de l'onglet), `debug.search` (la requête de
   départ de la recherche), `debug.play <id>` (un titre, ou `live` / `live:<id>` pour une chaîne de la démo ;
   + `debug.playerState vodPaused | opening | failure | nextEpisode | nextTitle | panel | skipIntro | livePlaying`,
-  le lecteur mis en scène sans flux) et `debug.playUrl <url>` (un fichier public, jamais le fournisseur) sont des extras
+  le lecteur mis en scène sans flux), `debug.playUrl <url>` (un fichier public, jamais le fournisseur) et `debug.codecs`
+  (les décodeurs vidéo de l'appareil sous le tag `kanstrimi.codecs`) sont des extras
   de l'intent de lancement (`adb shell am start … --ez debug.mock true --es debug.tab home`). La première mise en plein
   écran affiche l'aide système « Viewing full screen » : la fermer une fois (`adb shell input tap`) avant les captures.
 - **Moteur** : `debug.playUrl` avec un fichier de test public (MKV Matroska test5 : H.264, AAC, SRT ; un MKV DTS de
   samples.mplayerhq.hu : le son passe par FFmpeg) et `adb logcat -s kanstrimi.player` : les décodeurs choisis
-  (`c2.android.avc.decoder`, `ffmpegLavc…-dca`) et les phases ; le panneau Infos montre MediaCodec / FFmpeg.
+  (`c2.android.avc.decoder`, `ffmpegLavc…-dca`) et les phases ; le panneau Infos montre MediaCodec / FFmpeg. En debug,
+  l'`EventLogger` de Media3 (tag `EventLogger`) liste les pistes et pourquoi une est écartée (`supported=…`). Un
+  fichier local se sert par `python3 -m http.server 8765` + `adb reverse tcp:8765 tcp:8765` et `http://localhost:8765/…`
+  (`ffmpeg -f lavfi -i testsrc2 … -c:v mpeg2video -f mpegts` fabrique un flux MPEG-2 sans fournisseur).
 - **Appareil réel** : `adb install -r app/build/outputs/apk/debug/app-debug.apk`, l'appairage se fait par l'admin.
 
 ## Licence

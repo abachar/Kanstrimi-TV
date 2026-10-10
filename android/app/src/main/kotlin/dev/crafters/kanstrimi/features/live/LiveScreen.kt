@@ -307,7 +307,7 @@ private fun PreviewBox(modifier: Modifier) {
                 Icon(painterResource(R.drawable.ic_tv), contentDescription = null, tint = Theme.secondary, modifier = Modifier.size(50.dp))
                 val caption = when {
                     preview.channelId == null -> "Aperçu de la chaîne choisie"
-                    preview.failed -> "Aperçu indisponible"
+                    preview.failed -> preview.failedReason ?: "Aperçu indisponible"
                     else -> "Ouverture du flux… ≈ 2 s"
                 }
                 Text(caption, style = MaterialTheme.typography.bodyLarge, color = Theme.secondary)

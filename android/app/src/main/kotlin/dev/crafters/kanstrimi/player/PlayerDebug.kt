@@ -1,5 +1,8 @@
 package dev.crafters.kanstrimi.player
 
+import android.media.MediaCodec
+import android.media.MediaCodecList
+import android.util.Log
 import dev.crafters.kanstrimi.client.CatalogClient
 import dev.crafters.kanstrimi.contract.ContentItem
 import dev.crafters.kanstrimi.contract.ContentKind
@@ -41,6 +44,20 @@ object PlayerDebug {
         if (staged == null) return player.playChannel(channel, all)
         val ctx = PlaybackContext(PlaybackContent(channel.id, ContentKind.LIVE, channel.name), channel.versions)
         player.debugPut(ctx, staged, channels = all)
+    }
+
+    /**
+     * `debug.codecs`: the device's video decoders in logcat (tag kanstrimi.codecs), one line each with the MIME
+     * types it takes, then whether the MPEG-2 software decoder the system hides from tablets can be opened by name.
+     */
+    fun logCodecs() {
+        val tag = "kanstrimi.codecs"
+        MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos.filter { !it.isEncoder && it.supportedTypes.any { t -> t.startsWith("video/") } }
+            .forEach { Log.i(tag, "${it.name} ${if (it.isHardwareAccelerated) "matériel" else "logiciel"} ${it.supportedTypes.joinToString(" ")}") }
+        for (name in listOf("c2.android.mpeg2.decoder", "OMX.google.mpeg2.decoder")) {
+            val result = runCatching { MediaCodec.createByCodecName(name).release(); "ouvert" }.getOrElse { "refusé: $it" }
+            Log.i(tag, "$name par son nom: $result")
+        }
     }
 
     /** `debug.playUrl <url>`: a public file played as a one-version, one-source title, through the whole pipeline. */

@@ -98,21 +98,26 @@ fun SkipButton(label: String, barShown: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** After 10 s without an image and the automatic attempts: Réessayer, another version, Quitter. */
+/**
+ * After 10 s without an image and the automatic attempts: Réessayer, another version, Quitter. When the picture's
+ * codec has no decoder here (`Failure.reason`), the reason replaces the count and Réessayer: only another version
+ * can help.
+ */
 @Composable
 fun StreamFailureDialog(player: PlayerService) {
+    val reason = player.failure?.reason
     Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier.widthIn(max = 560.dp).background(Color(0xF21C1D23), RoundedCornerShape(28.dp)).padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Text(player.context?.content?.title ?: "", style = MaterialTheme.typography.titleMedium, color = Theme.secondary)
-            Text("Le flux ne démarre pas", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Theme.text)
+            Text(if (reason != null) "Image non prise en charge" else "Le flux ne démarre pas", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Theme.text)
             player.failure?.let { f ->
-                Text("La vidéo n'a pas démarré après ${f.attempts} tentative${if (f.attempts > 1) "s" else ""}.", color = Theme.secondary)
+                Text(reason ?: "La vidéo n'a pas démarré après ${f.attempts} tentative${if (f.attempts > 1) "s" else ""}.", color = Theme.secondary)
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = { player.retryFromServer() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Theme.text, contentColor = Color.Black)) {
+                if (reason == null) Button(onClick = { player.retryFromServer() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Theme.text, contentColor = Color.Black)) {
                     Icon(Icons.Filled.Refresh, contentDescription = null)
                     Text("Réessayer", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 6.dp))
                 }
@@ -127,7 +132,7 @@ fun StreamFailureDialog(player: PlayerService) {
                 }
                 TextButton(onClick = { player.stop() }, modifier = Modifier.fillMaxWidth()) { Text("Quitter", color = Theme.text) }
             }
-            Text("Réessayer suffit souvent : la source change d'une tentative à l'autre.", style = MaterialTheme.typography.bodySmall, color = Theme.secondary)
+            if (reason == null) Text("Réessayer suffit souvent : la source change d'une tentative à l'autre.", style = MaterialTheme.typography.bodySmall, color = Theme.secondary)
         }
     }
 }

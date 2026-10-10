@@ -1,6 +1,7 @@
 package dev.crafters.kanstrimi.player
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -34,6 +35,7 @@ import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.MediaSession
 import dev.crafters.kanstrimi.contract.FileFacts
 import java.util.Locale
@@ -51,6 +53,7 @@ private const val TAG = "kanstrimi.player"
 class ExoPlaybackEngine(context: Context) : PlaybackEngine {
     private val context = context.applicationContext
     private val handler = Handler(Looper.getMainLooper())
+    private val isDebuggable = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     override var listener: PlaybackEngine.Listener? = null
 
     /** The player while something is loaded, for `PlayerSurface` and the media session. */
@@ -122,6 +125,12 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
         override fun onTracksChanged(tracks: Tracks) {
             readTracks(tracks)
             listener?.onTracks()
+            // No decoder for the picture (MPEG-2 on a tablet): the sound alone would play over a black screen.
+            unsupportedVideo(tracks)?.let { reason ->
+                Log.w(TAG, "image non décodable: $reason")
+                phase = EnginePhase.ERROR
+                handler.post { listener?.onUnsupported(reason) }
+            }
         }
         override fun onCues(cueGroup: CueGroup) {
             cues = cueGroup.cues
@@ -168,8 +177,9 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
 
     override fun stop() {
         handler.removeCallbacks(ticker)
-        service?.stopSelf(); service = null
+        // The session first: Media3 takes the service out of the foreground and removes the card on its release.
         session?.release(); session = null
+        service?.stopSelf(); service = null
         player?.let {
             it.removeListener(playerListener)
             it.removeAnalyticsListener(analytics)
@@ -220,8 +230,10 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
             .build()
         p.addListener(playerListener)
         p.addAnalyticsListener(analytics)
+        // Debug builds: Media3's own log of tracks, decoders and the reasons a track is left out (tag EventLogger).
+        if (isDebuggable) p.addAnalyticsListener(EventLogger())
         session = MediaSession.Builder(context, p).setId("kanstrimi-${System.currentTimeMillis()}").build()
-        // The system's media card and the foreground state come from the service, which reads this session.
+        // The system's media card and the foreground state come from the service, which takes this session.
         PlaybackService.start(context)
         return p
     }
@@ -340,11 +352,25 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
             else -> "$channels.0"
         }
 
+        /**
+         * The reason the stream cannot show its picture here, or null: the stream has video, and no track of it is
+         * supported by any renderer. Android tablets and phones have no MPEG-2 decoder (the system's software one
+         * is reserved to the TV profile) and the FFmpeg build decodes sound only.
+         */
+        fun unsupportedVideo(tracks: Tracks): String? {
+            val video = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
+            // Beyond the decoder's declared capabilities still plays (the selector allows it); only the codec itself counts.
+            if (video.isEmpty() || video.any { g -> (0 until g.length).any { g.isTrackSupported(it, true) } }) return null
+            val codec = codecName(video.first().getTrackFormat(0).sampleMimeType) ?: "inconnu"
+            return "L'image de ce flux est en $codec, que cet appareil ne sait pas décoder."
+        }
+
         /** « HEVC », « EAC3 », « DTS », « TrueHD »: the codec as the badges name it. */
         fun codecName(mime: String?): String? = when (mime) {
             null -> null
             MimeTypes.VIDEO_H265 -> "HEVC"
             MimeTypes.VIDEO_H264 -> "H.264"
+            MimeTypes.VIDEO_MPEG2 -> "MPEG-2"
             MimeTypes.VIDEO_AV1 -> "AV1"
             MimeTypes.VIDEO_VP9 -> "VP9"
             MimeTypes.VIDEO_DOLBY_VISION -> "Dolby Vision"
