@@ -15,6 +15,7 @@ struct RootView: View {
                 PairingView()
             }
         }
+        .adaptiveMetrics()
         .task { await debugHooks() }
         .onChange(of: scenePhase) { _, phase in env.sceneBecame(active: phase == .active) }
         .onOpenURL { url in
@@ -32,7 +33,7 @@ struct RootView: View {
         .detailCover(env)
         .fullScreenCover(isPresented: Binding(get: { env.player.isPresented && !env.player.isMinimized && env.presentedDetail == nil },
                                               set: { if !$0, !env.player.isMinimized { env.player.stop() } })) {
-            PlayerScreen().environment(env).interactiveDismissDisabled()
+            PlayerScreen().environment(env).adaptiveMetrics().interactiveDismissDisabled()
         }
     }
 }
@@ -66,7 +67,7 @@ private extension RootView {
         try? await Task.sleep(for: .seconds(1))
         if let tab = defaults.string(forKey: "debug.tab").flatMap(MainTab.init(rawValue:)) {
             // iPhone: Réglages is pushed from the home screen, it has no tab.
-            if tab == .settings, !Platform.isTV { env.selectedTab = .home; env.navigate(.settings) } else { env.selectedTab = tab }
+            if tab == .settings, !Platform.hasSettingsTab { env.selectedTab = .home; env.navigate(.settings) } else { env.selectedTab = tab }
         }
         if let id = defaults.string(forKey: "debug.open") { env.open(ContentID(id)) }
         await debugAutoplay(defaults)
@@ -131,12 +132,13 @@ struct MainTabsView: View {
                 Image(systemName: "magnifyingglass").accessibilityLabel("Recherche")
             }
             // iPhone keeps five tabs: Réglages is reached from the home screen (`settingsToolbar`).
-            if Platform.isTV {
+            if Platform.hasSettingsTab {
                 Tab(value: .settings) { stack(.settings) { SettingsView() } } label: {
                     Image(systemName: "gearshape").accessibilityLabel("Réglages")
                 }
             }
         }
+        .adaptiveTabs()
     }
 
     /// Each tab owns a navigation stack: `env.navigate` pushes onto it on iOS. On tvOS the stack

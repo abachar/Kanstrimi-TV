@@ -72,13 +72,17 @@ extension View {
         #endif
     }
 
-    /// iPhone: the gear that opens Réglages from the home screen. tvOS has a tab for it.
+    /// iPhone: the gear that opens Réglages from the home screen. tvOS and the tablet have a tab for it.
     @ViewBuilder func settingsToolbar(_ env: AppEnvironment) -> some View {
         #if os(iOS)
-        toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { env.navigate(.settings) } label: { Image(systemName: "gearshape") }
-                    .accessibilityLabel("Réglages")
+        if Platform.hasSettingsTab {
+            self
+        } else {
+            toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { env.navigate(.settings) } label: { Image(systemName: "gearshape") }
+                        .accessibilityLabel("Réglages")
+                }
             }
         }
         #else

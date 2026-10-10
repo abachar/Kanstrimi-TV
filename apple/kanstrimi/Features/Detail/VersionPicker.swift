@@ -15,7 +15,7 @@ struct VersionPicker: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // A floating panel over the dimmed screen on TV; the sheet is the panel on iOS.
-            if !metrics.compact { Color.black.opacity(0.6).ignoresSafeArea() }
+            if Platform.isTV { Color.black.opacity(0.6).ignoresSafeArea() }
             VStack(alignment: .leading, spacing: 26) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(isSeries ? "Langue de la série" : "Choisir une version").font(.title2.weight(.bold))
@@ -41,7 +41,7 @@ struct VersionPicker: View {
                     .padding(.horizontal, Platform.isTV ? 40 : 0)
                 }
                 .padding(.horizontal, Platform.isTV ? -40 : 0)
-                .frame(maxHeight: metrics.compact ? .infinity : 560)
+                .frame(maxHeight: Platform.isTV ? 560 : .infinity)
             }
             .padding(metrics.panelPadding)
             .frame(maxWidth: metrics.pickerWidth ?? .infinity, alignment: .leading)

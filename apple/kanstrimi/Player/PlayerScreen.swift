@@ -186,10 +186,10 @@ struct LoadingBadge: View {
     }
 
     var body: some View {
-        if metrics.compact { centred } else { corner }
+        if Platform.isTV { corner } else { centred }
     }
 
-    /// iPhone: in the middle of the video, where the play button stands otherwise (the corner holds buttons).
+    /// Touch: in the middle of the video, where the play button stands otherwise (the corner holds buttons).
     private var centred: some View {
         VStack(spacing: 12) {
             if isLoading {

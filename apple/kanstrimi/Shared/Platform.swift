@@ -2,19 +2,18 @@ import AVKit
 import SwiftUI
 import UIKit
 
-/// What differs between the television and the phone, in one place. Views stay free of
+/// What differs between the television, the phone and the tablet, in one place. Views stay free of
 /// `#if os(...)`: they read `Metrics` for sizes and use the modifiers below for the APIs one
 /// platform lacks.
 nonisolated enum Platform {
-    /// "Apple TV" or "iPhone": the device the app runs on, for the messages that name it.
-    /// iPad will need the runtime idiom; for now the platform is enough.
-    static let deviceKind: String = {
+    /// "Apple TV", "iPad" or "iPhone": the device the app runs on, for the messages that name it.
+    static var deviceKind: String {
         #if os(tvOS)
         "Apple TV"
         #else
-        "iPhone"
+        isPad ? "iPad" : "iPhone"
         #endif
-    }()
+    }
 
     static var isTV: Bool {
         #if os(tvOS)
@@ -23,6 +22,19 @@ nonisolated enum Platform {
         false
         #endif
     }
+
+    /// The tablet: touch like the phone, room like the television. Known at run time, the one binary serving both.
+    static let isPad: Bool = {
+        #if os(tvOS)
+        false
+        #else
+        // Read once, at the first use, which the app makes on the main thread.
+        MainActor.assumeIsolated { UIDevice.current.userInterfaceIdiom == .pad }
+        #endif
+    }()
+
+    /// Réglages is a tab on the television and the tablet; the phone keeps five tabs and pushes it from the home screen.
+    static var hasSettingsTab: Bool { isTV || isPad }
 
     /// tvOS: whether Réglages › Vidéo et audio › Ajuster le contenu lets the player switch the television
     /// to the dynamic range of what plays. nil where the screen is the device's own.
@@ -50,12 +62,13 @@ nonisolated enum Platform {
 
 }
 
-/// Sizes tuned for a screen seen from the sofa versus one held in the hand. One value per
-/// platform today; a compact/regular variant will do for iPad. `nil` means "no fixed size":
-/// the element takes the width it is given.
+/// Sizes tuned for a screen seen from the sofa, one held in the hand, and the tablet in between. Three sets:
+/// `tv`, `phone` and `pad`; the tablet takes `phone` while its window is narrow (Split View, Slide Over). `nil`
+/// means "no fixed size": the element takes the width it is given.
 nonisolated struct Metrics: Sendable {
-    /// Layout for a screen held in the hand (iPhone): fewer facts on a card, actions sized for a thumb,
-    /// system bars and titles. The television keeps its own, focus-driven layout.
+    /// Layout for a screen held in the hand (iPhone, a narrow iPad window): fewer facts on a card, actions sized for a
+    /// thumb, system bars and titles. The television and the wide tablet keep the roomy, focus-born layout; what is
+    /// focus itself (lift, halo, label on the focused one) asks `Platform.isTV`.
     var compact: Bool
     /// Side margin of every screen. On tvOS the overscan safe zone (80 pt) plus a little air.
     var inset: CGFloat
@@ -88,9 +101,9 @@ nonisolated struct Metrics: Sendable {
     /// Empty and error panels: icon size and padding.
     var stateIcon: CGFloat
     var statePadding: CGFloat
-    /// Live: three columns with a preview (TV) or a stacked list (phone).
+    /// Live: three columns with a preview (TV, tablet) or a stacked list (phone).
     var liveColumns: Bool
-    /// Pairing: title size, QR code shown (TV) or a link to the admin (phone), code cell width,
+    /// Pairing: title size, QR code shown (TV) or a link to the admin (phone, tablet), code cell width,
     /// and the right column width.
     var pairingTitle: CGFloat
     var showsQR: Bool
@@ -176,11 +189,38 @@ nonisolated struct Metrics: Sendable {
                                                       name: .headline, programme: .subheadline, episode: .subheadline,
                                                       title: .headline, lines: 1, time: .caption.monospacedDigit(),
                                                       liveBarSpacing: 6, liveBarHeight: 4))
+    /// The tablet, window wide: the television's layouts at a size for 1 024 to 1 366 points of width, no room kept for a
+    /// focus growth. Six posters across in landscape, five upright (`gridColumns` nil: as many as fit).
+    static let pad = Metrics(compact: false, inset: 40, posterWidth: 170, resumeWidth: 300, cardSpacing: 20, rowPadding: 10, factsGap: 8, gridColumns: nil,
+                             artTitle: 22, badge: 14, badgeSmall: 11,
+                             heroHeight: 460, heroTitle: 48, detailTitle: 52, detailTop: 100, detailLogo: CGSize(width: 420, height: 140), stillWidth: 200, textWidth: 760,
+                             stateIcon: 48, statePadding: 40, liveColumns: true,
+                             pairingTitle: 40, showsQR: false, codeCell: 52, pairingColumn: 420,
+                             panelPadding: 32, panelCard: 240, listWidth: 420, recentCard: 320,
+                             dialogTitle: 34, dialogWidth: 640, nextCard: 460, dialogMargin: 40,
+                             pickerWidth: nil, iconButton: 56, castPhoto: 100, subtitleSize: 30,
+                             cardRadius: 12, wideRadius: 14,
+                             playerText: PlayerText(liveSpacing: 6, vodSpacing: 4, tagSpacing: 12, liveTag: .large,
+                                                    name: .title3.weight(.bold), programme: .headline, episode: .subheadline,
+                                                    title: .title2.weight(.bold), lines: 1, time: .callout.monospacedDigit(),
+                                                    liveBarSpacing: 8, liveBarHeight: 5))
+
+    /// The device's own set, its window taken as wide: the environment's default and what the previews use.
+    /// `adaptiveMetrics()` narrows the tablet to `phone` when its window is.
     static var current: Metrics {
         #if os(tvOS)
         return .tv
         #else
-        return .phone
+        return Platform.isPad ? .pad : .phone
+        #endif
+    }
+
+    /// The set for the window's width class: the tablet in a narrow window lays out like the phone.
+    static func resolve(sizeClass: UserInterfaceSizeClass?) -> Metrics {
+        #if os(tvOS)
+        return .tv
+        #else
+        return Platform.isPad && sizeClass != .compact ? .pad : .phone
         #endif
     }
 }
@@ -189,19 +229,34 @@ extension EnvironmentValues {
     @Entry var metrics: Metrics = .current
 }
 
+/// Sets `metrics` from the window's width class: the root of the app and the player's cover, which has its own.
+private struct AdaptiveMetrics: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    func body(content: Content) -> some View {
+        content.environment(\.metrics, Metrics.resolve(sizeClass: sizeClass))
+    }
+}
+
 // MARK: - Modifiers hiding an API one platform lacks
 
-/// On iOS `.card` does not exist: a plain button that shrinks a little while pressed.
+/// On iOS `.card` does not exist: a plain button that shrinks a little while pressed, and lifts under a pointer.
 private struct TouchCardStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .hoverEffect(.lift)
     }
 }
 
 extension View {
+    /// The metrics of the window's width: the device's set, the tablet narrowed to the phone's in a narrow window.
+    func adaptiveMetrics() -> some View {
+        modifier(AdaptiveMetrics())
+    }
+
     /// The lifting, focus-following card of tvOS; a touch feedback on iOS.
     @ViewBuilder func cardButtonStyle() -> some View {
         #if os(tvOS)
@@ -249,12 +304,12 @@ extension View {
 
     /// Margins of what floats over the video. The player lives in its own hosting controller on
     /// tvOS, which hands the safe area (80 pt) back to its content: the inset alone is the margin.
-    /// On iOS the player keeps the safe area (notch, home indicator): a little air on top of it.
+    /// On iOS the player keeps the safe area (notch, home indicator): a little air on top of it, more on the tablet.
     @ViewBuilder func playerChromeInsets() -> some View {
         #if os(tvOS)
         padding(.horizontal, Metrics.tv.inset).padding(.vertical, 60).ignoresSafeArea()
         #else
-        padding(.horizontal, 12).padding(.vertical, 8)
+        padding(.horizontal, Platform.isPad ? 28 : 12).padding(.vertical, Platform.isPad ? 20 : 8)
         #endif
     }
 
@@ -268,14 +323,21 @@ extension View {
         #endif
     }
 
-    /// iPhone: the screen's title in the navigation bar, large, shrinking into the bar as the content
-    /// scrolls. tvOS has no navigation bar: the screen draws its own title.
-    @ViewBuilder func phoneLargeTitle(_ title: String) -> some View {
+    /// iOS: the tabs adapt to the tablet (a bar at the top, a sidebar on demand); the phone keeps its bottom bar.
+    /// tvOS keeps its own bar: the sidebar style would replace it.
+    @ViewBuilder func adaptiveTabs() -> some View {
         #if os(iOS)
-        navigationTitle(title).navigationBarTitleDisplayMode(.large)
+        tabViewStyle(.sidebarAdaptable)
         #else
         self
         #endif
+    }
+
+    /// The screen's title. Phone: in the navigation bar, large, shrinking into the bar as the content scrolls.
+    /// Tablet, wide: the screen draws its own title like the television, the bar keeps none (the title still
+    /// names the back button). tvOS has no navigation bar.
+    func screenTitle(_ title: String) -> some View {
+        modifier(ScreenTitle(title: title))
     }
 
     /// The search field. iPhone: always shown under the title; by default iOS hides it until the
@@ -345,6 +407,23 @@ extension View {
         fullScreenCover(isPresented: isPresented, content: content)
         #else
         sheet(isPresented: isPresented, content: content)
+        #endif
+    }
+}
+
+private struct ScreenTitle: ViewModifier {
+    @Environment(\.metrics) private var metrics
+    let title: String
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if metrics.compact {
+            content.navigationTitle(title).navigationBarTitleDisplayMode(.large)
+        } else {
+            content.navigationTitle(title).navigationBarTitleDisplayMode(.inline).toolbar(removing: .title)
+        }
+        #else
+        content
         #endif
     }
 }

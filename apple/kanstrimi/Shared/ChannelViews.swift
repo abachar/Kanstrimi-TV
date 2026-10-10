@@ -41,10 +41,11 @@ struct LoadedChannelCard: View {
     var status: ChannelItem.Status? = nil
     var hours = false
     var loads = true
+    var selected = false
     let action: () -> Void
 
     var body: some View {
-        ChannelCard(item: env.channelItem(channel, status: status), hours: hours, action: action)
+        ChannelCard(item: env.channelItem(channel, status: status), hours: hours, selected: selected, action: action)
             .task(id: channel.id) { if loads { await env.loadNowPlaying(on: channel) } }
     }
 }

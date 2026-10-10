@@ -1,9 +1,10 @@
 #!/bin/zsh
-# usage: shot.sh <écran> <tvos|iphone> [horodatage]
+# usage: shot.sh <écran> <tvos|iphone|ipad> [horodatage]
 # Capture un écran de l'app (client de démo) dans apple/ui-review/<écran>/<horodatage>-<cible>.png (hors git).
 # L'app Debug doit être installée sur le simulateur (shot-all.sh la compile et l'installe).
 # Sagas, Saga, Acteur et les grilles genre/studio ne se capturent pas : leurs `#Preview` sont dans `Features/ScreenPreviews.swift`.
-# Simulateurs : TVOS_UDID / IPHONE_UDID pour changer ; WAIT=<s> pour attendre plus longtemps.
+# Simulateurs : TVOS_UDID / IPHONE_UDID / IPAD_UDID pour changer ; WAIT=<s> pour attendre plus longtemps.
+# L'iPad se capture dans l'orientation où est le simulateur (portrait au démarrage ; simctl ne le tourne pas).
 # LANDSCAPE=1 : iPhone, le lecteur en paysage (fichier …-iphone-paysage.png).
 # PANEL=<Programme|Récentes|Épisodes|Infos|Chaînes> : iPhone, ce panneau du lecteur ouvert (ou la liste des chaînes).
 set -e
@@ -14,12 +15,13 @@ SCREENS=(Appairage Accueil Direct Films Series Recherche Recherche-resultats Reg
 
 screen=$1; target=$2; stamp=${3:-$(date +%Y-%m-%d_%H-%M-%S)}
 if [[ -z $screen || -z $target ]] || (( ! ${SCREENS[(Ie)$screen]} )); then
-  echo "usage: shot.sh <écran> <tvos|iphone>"; echo "écrans : ${SCREENS[*]}"; exit 1
+  echo "usage: shot.sh <écran> <tvos|iphone|ipad>"; echo "écrans : ${SCREENS[*]}"; exit 1
 fi
 case $target in
   tvos)   UDID=${TVOS_UDID:-6F40AAF4-FF49-4B23-BB36-642EF4FB6AB6} ;;
   iphone) UDID=${IPHONE_UDID:-9E91C633-731D-4100-AFCA-268F5C1C47B0} ;;
-  *) echo "cible inconnue : $target (tvos|iphone)"; exit 1 ;;
+  ipad)   UDID=${IPAD_UDID:-F7622A1A-0B34-4EC1-BC81-57814EFFBE17} ;;
+  *) echo "cible inconnue : $target (tvos|iphone|ipad)"; exit 1 ;;
 esac
 
 # Réglages de lancement (clés debug.* lues par RootView.debugHooks, sauf debug.landscape et debug.panel lues par PlayerScreen+iOS ; Debug seulement)
@@ -50,7 +52,7 @@ esac
 xcrun simctl boot $UDID 2>/dev/null || true
 xcrun simctl bootstatus $UDID >/dev/null
 xcrun simctl get_app_container $UDID $B >/dev/null 2>&1 || { echo "app absente sur $target : lancer shot-all.sh $target"; exit 1; }
-[[ $target == iphone ]] && xcrun simctl status_bar $UDID override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+[[ $target != tvos ]] && xcrun simctl status_bar $UDID override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
 
 xcrun simctl terminate $UDID $B >/dev/null 2>&1 || true
 for k in debug.tab debug.search debug.open debug.autoplay debug.playerState debug.resumeAt debug.unpair debug.autopair debug.landscape debug.panel; do

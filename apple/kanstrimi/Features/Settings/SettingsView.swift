@@ -11,10 +11,15 @@ struct SettingsView: View {
             // Like the Réglages of the Apple TV: the app's name centred on the left, the list on the right half.
             HStack(spacing: 0) {
                 brand.frame(maxWidth: .infinity)
-                // A focused row grows past the half-screen column: let it spill instead of clipping it at the sides.
-                form.scrollClipDisabled().toggleStyle(RowToggleStyle()).frame(maxWidth: .infinity)
+                if Platform.isTV {
+                    // A focused row grows past the half-screen column: let it spill instead of clipping it at the sides.
+                    form.scrollClipDisabled().toggleStyle(RowToggleStyle()).frame(maxWidth: .infinity)
+                } else {
+                    form.toggleStyle(.switch).tint(Theme.accent).frame(maxWidth: .infinity)
+                }
             }
             .background(Theme.background)
+            .screenTitle("Réglages")
         } else {
             form
                 .navigationTitle("Réglages")
@@ -84,7 +89,7 @@ struct SettingsView: View {
             Section {
                 // iPhone: who this device is and which server it talks to, like the account card atop the iOS Réglages.
                 HStack(spacing: 14) {
-                    Image(systemName: "iphone")
+                    Image(systemName: Platform.isPad ? "ipad" : "iphone")
                         .font(.title2.weight(.semibold)).foregroundStyle(.black)
                         .frame(width: 52, height: 52)
                         .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))

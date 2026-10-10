@@ -1,5 +1,5 @@
 #!/bin/zsh
-# usage: shot-all.sh <tvos|iphone>
+# usage: shot-all.sh <tvos|iphone|ipad>
 # Compile l'app en Debug, l'installe sur le simulateur puis capture tous les écrans de shot.sh
 # avec le même horodatage. NOBUILD=1 pour réutiliser l'app déjà installée.
 set -e
@@ -8,7 +8,8 @@ target=$1
 case $target in
   tvos)   UDID=${TVOS_UDID:-6F40AAF4-FF49-4B23-BB36-642EF4FB6AB6}; SDK=appletvsimulator ;;
   iphone) UDID=${IPHONE_UDID:-9E91C633-731D-4100-AFCA-268F5C1C47B0}; SDK=iphonesimulator ;;
-  *) echo "usage: shot-all.sh <tvos|iphone>"; exit 1 ;;
+  ipad)   UDID=${IPAD_UDID:-F7622A1A-0B34-4EC1-BC81-57814EFFBE17}; SDK=iphonesimulator ;;
+  *) echo "usage: shot-all.sh <tvos|iphone|ipad>"; exit 1 ;;
 esac
 
 if [[ -z $NOBUILD ]]; then

@@ -149,8 +149,8 @@ struct HomeView: View {
         }
     }
 
-    /// TV: Lecture (a long press offers the versions), Ma liste and Fiche between two invisible stops, focusable
-    /// once the focus is in the row (coming up from a row below never lands on it): reaching one turns the carousel.
+    /// TV and tablet: Lecture (a long press offers the versions), Ma liste and Fiche. On TV, between two invisible stops,
+    /// focusable once the focus is in the row (coming up from a row below never lands on it): reaching one turns the carousel.
     private func tvHero(_ hero: HomeHero, model: HomeModel) -> some View {
         HeroBanner(item: hero.item, tagline: hero.tagline, certification: hero.certification, slideID: hero.playID) {
             if Platform.isTV { edge(.previous) }
@@ -197,6 +197,12 @@ private extension HomeView {
         .prominentButtonStyle()
         .focused($heroFocus, equals: .play)
         .onLongPressGesture(minimumDuration: 0.5) { if VersionPicker.lineCount(hero.versions) > 1 { showPicker = true } }
+        // The tablet: the same choice from the long press menu, as on the phone.
+        .touchContextMenu {
+            if VersionPicker.lineCount(hero.versions) > 1 {
+                Button { showPicker = true } label: { Label("Choisir la version", systemImage: "rectangle.stack.badge.play") }
+            }
+        }
         // The round icons of the sheet, their name under the focused one.
         let favorite = model.isFavorite(hero)
         IconAction(title: favorite ? "Dans ma liste" : "Ma liste", systemImage: favorite ? "heart.fill" : "heart", focused: heroFocus == .favorite) {

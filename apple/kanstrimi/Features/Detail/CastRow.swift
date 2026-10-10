@@ -12,7 +12,7 @@ struct CastRow: View {
             // Scrolls to the screen edge: the parent's margin moves inside the scroll content.
             CastStrip(cast: cast, inset: metrics.inset, onSelect: onSelect)
                 .padding(.horizontal, -metrics.inset)
-                .padding(.vertical, metrics.compact ? 0 : -28)
+                .padding(.vertical, Platform.isTV ? -28 : 0)
         }
     }
 }
@@ -42,7 +42,8 @@ struct CastStrip: View {
                 }
             }
             .padding(.horizontal, inset)
-            .padding(.vertical, metrics.compact ? 4 : 28)
+            // tvOS: room for the focused photo to grow; the others keep a little air.
+            .padding(.vertical, Platform.isTV ? 28 : 4)
         }
         .scrollClipDisabled()
         // As tall as the cells: a sideways scroll otherwise takes all the height it is offered, which pushed the

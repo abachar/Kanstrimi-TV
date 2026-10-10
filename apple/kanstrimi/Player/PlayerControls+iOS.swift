@@ -59,9 +59,12 @@ struct PlayerControls: View {
             if player.isPictureInPictureAvailable {
                 round("pip.enter", label: "Image dans l'image") { player.startPictureInPicture() }
             }
-            round(isPortrait ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left",
-                  label: isPortrait ? "Plein écran" : "Quitter le plein écran") {
-                OrientationLock.rotate(to: isPortrait ? .landscapeRight : .portrait)
+            // The tablet is never locked and its player already fills the screen: no rotation button.
+            if !Platform.isPad {
+                round(isPortrait ? "arrow.up.left.and.arrow.down.right" : "arrow.down.right.and.arrow.up.left",
+                      label: isPortrait ? "Plein écran" : "Quitter le plein écran") {
+                    OrientationLock.rotate(to: isPortrait ? .landscapeRight : .portrait)
+                }
             }
         }
     }

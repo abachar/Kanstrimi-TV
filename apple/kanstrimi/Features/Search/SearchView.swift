@@ -19,7 +19,7 @@ struct SearchView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Theme.background)
             .searchField(text: $text, prompt: "Titre, acteur, réalisateur")
-            .phoneLargeTitle("Recherche")
+            .screenTitle("Recherche")
             .task {
                 #if DEBUG
                 // `debug.search` (RootView.debugHooks): the screen is built after the hooks ran, it reads the key itself.

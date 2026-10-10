@@ -54,7 +54,7 @@ struct CatalogView: View {
             }
         }
         .background(Theme.background)
-        .phoneLargeTitle(kind == .series ? "Séries" : "Films")
+        .screenTitle(kind == .series ? "Séries" : "Films")
         // Every appearance: on tvOS, crossing the tab bar selects then leaves this tab, which cancels the load midway.
         .task { await load() }
         .routeCover($cover)

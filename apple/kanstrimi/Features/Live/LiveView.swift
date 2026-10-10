@@ -3,9 +3,10 @@ import AetherEngine
 import Combine
 import SwiftUI
 
-/// Direct in three columns on TV: categories with their count, the channels of the selected one,
-/// and on the right the live preview of the focused channel with its programme. On a phone the
-/// categories are chips above the channel list and a tap plays the channel; no preview.
+/// Direct in three columns on TV and the tablet: categories with their count, the channels of the selected one,
+/// and on the right the live preview of the focused channel with its programme. The tablet has no focus: a tap
+/// selects the channel (its preview), a second tap, the preview or « Regarder » plays it. On a phone the
+/// categories are a menu above the channel list and a tap plays the channel; no preview.
 struct LiveView: View {
     private enum CategoryID: Hashable { case recent, mostWatched, favorites, group(String) }
 
@@ -72,7 +73,7 @@ struct LiveView: View {
             }
         }
         .background(Theme.background)
-        .phoneLargeTitle("Direct")
+        .screenTitle("Direct")
         .task { if groups.isEmpty { await load() } }
         // A channel left: its watch time may change « Les plus regardées ».
         .onChange(of: env.player.progressRevision) { Task { await load() } }
@@ -241,7 +242,11 @@ struct LiveView: View {
         let on = selected == id
         return Button {
             selected = id
-            if let first = visible.first { focus = .channel(first.id) }
+            if let first = visible.first {
+                focus = .channel(first.id)
+                // No focus on the tablet: the first channel of the category is selected by hand.
+                if !Platform.isTV { focusChannel(first.id) }
+            }
         } label: {
             // Every name starts at the same edge: the groups keep an empty slot where the others have their icon,
             // which faces the name rather than the two lines.
@@ -277,7 +282,7 @@ struct LiveView: View {
     }
 
     /// iPhone: the programme's hours, a long press to watch. tvOS: nothing asked from the row, the side column shows the
-    /// focused channel's programme.
+    /// focused channel's programme. Tablet: the same column, a tap selects the channel for it, a second one watches.
     @ViewBuilder private func channelRow(_ c: Channel) -> some View {
         if metrics.compact {
             LoadedChannelCard(channel: c, hours: true) { watch(c) }
@@ -285,8 +290,14 @@ struct LiveView: View {
                     Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
                 }
         } else {
-            LoadedChannelCard(channel: c, loads: false) { watch(c) }
-                .focused($focus, equals: .channel(c.id))
+            let selected = !Platform.isTV && focusedChannelID == c.id
+            LoadedChannelCard(channel: c, loads: false, selected: selected) {
+                if Platform.isTV || selected { watch(c) } else { focusChannel(c.id) }
+            }
+            .focused($focus, equals: .channel(c.id))
+            .touchContextMenu {
+                Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill") }
+            }
         }
     }
 
@@ -294,18 +305,14 @@ struct LiveView: View {
 
     private var side: some View {
         VStack(alignment: .leading, spacing: 20) {
-            ZStack {
-                VideoSurface(view: preview.videoView)
-                if preview.channelID == nil || !preview.hasImage {
-                    VStack(spacing: 10) {
-                        Image(systemName: "tv").font(.system(size: 50)).foregroundStyle(Theme.secondary)
-                        Text(preview.channelID == nil ? "Aperçu de la chaîne focalisée" : "Ouverture du flux… ≈ 2 s").font(.callout).foregroundStyle(Theme.secondary)
-                    }
-                }
+            // TV: a fixed height in the column; tablet: 16:9 in the width left, a tap plays the channel full screen.
+            if Platform.isTV {
+                previewBox.frame(height: 360)
+            } else {
+                previewBox.aspectRatio(16 / 9, contentMode: .fit)
+                    .contentShape(RoundedRectangle(cornerRadius: 22))
+                    .onTapGesture { if let c = focusedChannel { watch(c) } }
             }
-            .frame(height: 360)
-            .background(.black)
-            .clipShape(RoundedRectangle(cornerRadius: 22))
             if let c = focusedChannel {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {
@@ -329,9 +336,29 @@ struct LiveView: View {
                                 .accessibilityLabel("\(v.quality.rawValue) \(v.language.label)")
                         }
                     }
+                    if !Platform.isTV {
+                        Button { watch(c) } label: { Label("Regarder", systemImage: "play.fill").font(.headline).frame(maxWidth: .infinity).frame(height: 40) }
+                            .prominentButtonStyle()
+                            .padding(.top, 6)
+                    }
                 }
             }
         }
+    }
+
+    private var previewBox: some View {
+        ZStack {
+            VideoSurface(view: preview.videoView)
+            if preview.channelID == nil || !preview.hasImage {
+                VStack(spacing: 10) {
+                    Image(systemName: "tv").font(.system(size: 50)).foregroundStyle(Theme.secondary)
+                    Text(preview.channelID == nil ? (Platform.isTV ? "Aperçu de la chaîne focalisée" : "Aperçu de la chaîne choisie") : "Ouverture du flux… ≈ 2 s")
+                        .font(.callout).foregroundStyle(Theme.secondary)
+                }
+            }
+        }
+        .background(.black)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
     }
 
     private func watch(_ c: Channel) {

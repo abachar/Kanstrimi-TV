@@ -1,6 +1,6 @@
-# Kanstrimi — app Apple (Apple TV, iPhone ; iPad à venir)
+# Kanstrimi — app Apple (Apple TV, iPhone, iPad)
 
-`kanstrimi.xcodeproj` : **une cible `kanstrimi`, deux destinations** (tvOS 27 et iOS 27), plus l'extension tvOS
+`kanstrimi.xcodeproj` : **une cible `kanstrimi`, trois destinations** (tvOS 27, iOS 27 iPhone et iPad), plus l'extension tvOS
 `TopShelf`. SwiftUI en français, Swift 6 (isolation `MainActor` par défaut), Swift Testing, **AetherEngine 7.x** en SPM
 (FFmpeg démuxe, VideoToolbox décode, le moteur pilote HDR et Dolby Vision). Le fournisseur ne sert pas de HLS : le moteur
 lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
@@ -14,28 +14,33 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 | `Client/` | `CatalogClient` : `HTTPCatalogClient` (le serveur), `MockCatalogClient` (fixtures JSON de démo), `SwitchingCatalogClient`. |
 | `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping ; il parle au moteur par la façade `PlaybackEngine`, que les tests remplacent), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
 | `Features/` | Un dossier par écran, une seule vue pour les deux plateformes. |
-| `Shared/` | `Platform.swift` (`Metrics` et modificateurs par plateforme), `Theme`, `CardViews` (images, rangées, grilles, menu d'une affiche), `ChannelViews` (logo, `LoadedChannelCard`, `channelItem`), `Stores`. |
+| `Shared/` | `Platform.swift` (`Metrics`, `Platform.isTV` / `isPad`, modificateurs par plateforme), `Theme`, `CardViews` (images, rangées, grilles, menu d'une affiche), `ChannelViews` (logo, `LoadedChannelCard`, `channelItem`), `Stores`. |
 | `Shared/Cards/` | Les cartes (`PosterCard`, `WideCard`, `ChannelCard`, `ProgrammeCard`, `UpNextCard`, `HeroBanner`, `SeeAllCard`, `RetryCard`, `StudioTile`, `CastCell`), un fichier chacune avec ses `#Preview` (données fixes). Composants bêtes : un modèle (`ContentItem` du contrat, `ChannelItem`…) et des actions en entrée, jamais `AppEnvironment` ni `.task` (vérifié par `CardsArchitectureTests`) ; charger, garder l'état, le focus et agir reste à l'écran. Le parent (rangée, grille, colonne) fixe la largeur, souvent depuis `Metrics` ; la carte prend toute celle qu'on lui donne et en tire sa hauteur. |
 | `../TopShelf/` | Extension Top Shelf (tvOS seul) : appelle `GET /player/top-shelf`, carrousel plein écran. |
 | `../Entitlements/` | Groupe de Keychain partagé par l'app et l'extension. |
 | `scripts/` | `shot.sh` / `shot-all.sh` : captures du client de démo dans `ui-review/` (hors git). |
 | `../kanstrimiTests/` | Swift Testing : client HTTP, choix de version, progression et file hors ligne, pannes du lecteur (faux moteur `FakePlaybackEngine` : bascule de source, essais, dialogue, coupure), liens. |
 
-## Une vue, deux plateformes
+## Une vue, trois appareils
 
 Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois niveaux :
 
-1. **`Metrics`** (`@Environment(\.metrics)`) : tailles, marges, colonnes. `Metrics.tv` et `Metrics.phone`, l'iPad sera un
-   troisième jeu. `metrics.compact` choisit une disposition tenue en main, sans toucher au rendu tvOS.
+1. **`Metrics`** (`@Environment(\.metrics)`) : tailles, marges, colonnes. Trois jeux, `Metrics.tv`, `Metrics.phone` et
+   `Metrics.pad`, choisis à l'exécution (`adaptiveMetrics()` à la racine et sur le lecteur) : l'iPad prend `pad` en largeur
+   régulière et `phone` en fenêtre étroite (Split View, Slide Over). `metrics.compact` choisit une disposition tenue en
+   main ; l'iPad large reprend les dispositions de la télé (hero, Direct en colonnes, fiche sur fond) sans leur focus :
+   ce qui tient au focus (place pour la levée, libellé sous l'icône focalisée, bouton dessiné) demande `Platform.isTV`.
 2. **Modificateurs de `Platform.swift`** qui cachent une API absente d'une plateforme (`cardButtonStyle`, `onBackCommand`,
    `platformSheet`, `touchContextMenu`…).
 3. **Un fichier par plateforme** (`+tvOS.swift`, `+iOS.swift`, entièrement sous `#if os`) seulement là où l'entrée diffère :
    lecteur, Picture-in-Picture, orientation, Top Shelf. Aucune exception de membre dans le groupe synchronisé du projet,
    sauf l'`Info.plist` partiel.
 
-`Platform.isTV` dans une vue ne sert qu'aux capacités (focus, couvertures, télécommande) ; une disposition passe par `metrics.compact`.
+`Platform.isTV` dans une vue ne sert qu'aux capacités (focus, couvertures, télécommande), `Platform.isPad` à ce que la
+tablette a en propre (onglet Réglages, orientations libres, pas de bouton de rotation) ; une disposition passe par `metrics.compact`.
 
-`env.open(id)` est l'unique entrée vers une fiche : cover sur tvOS, push dans l'onglet courant sur iPhone. Une saga, un studio, un acteur ou une grille s'ouvre de même par `env.open(route, cover: $cover)` : l'écran qui ouvre garde un `@State cover: Route?` et le modificateur `.routeCover($cover)` (couverture sur tvOS, rien sur iPhone).
+`env.open(id)` est l'unique entrée vers une fiche : cover sur tvOS, push dans l'onglet courant sur iPhone et iPad. Les
+onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en haut et barre latérale sur l'iPad. Une saga, un studio, un acteur ou une grille s'ouvre de même par `env.open(route, cover: $cover)` : l'écran qui ouvre garde un `@State cover: Route?` et le modificateur `.routeCover($cover)` (couverture sur tvOS, rien sur iPhone).
 
 ## Choix et pièges
 
@@ -51,6 +56,11 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 - **Retour après 10 min d'absence** : l'accueil et le Direct se rechargent (`resumeRevision`). Une action qui échoue
   hors de la vue (Reprendre, lien, marquer vu) le dit par un message commun (`env.attempt`).
 - **Sous-titres** : dessinés par l'app (`SubtitleOverlay`), le moteur ne le fait pas ; placés sur le cadre de l'image.
+- **iPad** : tourne librement (l'iPhone reste en portrait hors lecteur, `OrientationLock`), le lecteur est celui du
+  tactile avec les marges de `Metrics.pad`, les cartes se lèvent sous le pointeur (`hoverEffect`). Direct en trois colonnes
+  sans focus : un tap choisit la chaîne (aperçu et programme à droite, carte soulignée), un second tap, l'aperçu ou
+  « Regarder » la lit. Réglages est un onglet ; le sélecteur de versions est une feuille. Qualité plafonnée à FHD comme
+  l'iPhone (`VersionChooser.Capabilities`).
 - **Picture-in-Picture (iPhone)** : le lecteur ne se cache qu'une fois l'image dans l'image démarrée, sinon iOS
   l'abandonne ; lancée par iOS au balayage vers l'accueil, elle ne cache rien.
 - **Carte « En lecture » (iPhone)** : par `MPNowPlayingInfoCenter` directement, la session du moteur laissant le direct sans carte.
@@ -98,12 +108,12 @@ Les vues ne contiennent pas de `#if os(...)`. Ce qui diffère passe par trois ni
 
 Pas de `Simulator.app` : ni télécommande ni doigt à piloter.
 
-- **À chaque modification**, compiler et tester sur les deux destinations (« Apple TV 4K (3rd generation) » et
-  « iPhone 17 Pro », runtimes 27) : outils Xcode (`BuildProject`, `RunAllTests`) ou
+- **À chaque modification**, compiler et tester sur les trois destinations (« Apple TV 4K (3rd generation) »,
+  « iPhone 17 Pro » et « iPad Pro 13-inch (M5) », runtimes 27) : outils Xcode (`BuildProject`, `RunAllTests`) ou
   `xcodebuild -scheme kanstrimi -destination 'id=<udid>' test`. Démarrer le simulateur iPhone avant.
 - **Simulateur tvOS en arm64 seulement** (`LibDovi`).
 - **Écrans** : `#Preview` de `Features/ScreenPreviews.swift` et `Player/PlayerPreviews.swift` ; captures par
-  `scripts/shot.sh <écran> <tvos|iphone>`. L'app se pilote par des clés `debug.*` dans `UserDefaults`, listées dans
+  `scripts/shot.sh <écran> <tvos|iphone|ipad>` (l'iPad dans l'orientation du simulateur, portrait au démarrage). L'app se pilote par des clés `debug.*` dans `UserDefaults`, listées dans
   `RootView.debugHooks`. Ce qui demande focus ou défilement passe par la visite `ScreenTour` (cible `kanstrimiUITests`).
 - **Appareils réels** : `xcodebuild … -destination 'id=<udid>' -allowProvisioningUpdates build`, puis
   `xcrun devicectl device install app` et `device process launch`.

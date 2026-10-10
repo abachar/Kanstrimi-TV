@@ -78,7 +78,7 @@ struct StreamFailureDialog: View {
 }
 
 /// « Passer le récap », « Passer l'intro », at the bottom right while one plays; its name comes from the server.
-/// iPhone: a button to tap. tvOS: drawn as a focused button and not one, the video keeps the remote and its click
+/// Touch: a button to tap. tvOS: drawn as a focused button and not one, the video keeps the remote and its click
 /// is this one (`PlayerScreen.select`).
 struct SkipButton: View {
     let label: String
@@ -92,7 +92,7 @@ struct SkipButton: View {
             Spacer()
             HStack {
                 Spacer()
-                if metrics.compact {
+                if !Platform.isTV {
                     Button(action: action) { title.font(.subheadline.weight(.semibold)).padding(.horizontal, 6).padding(.vertical, 4) }
                         .prominentButtonStyle()
                 } else {
@@ -104,7 +104,8 @@ struct SkipButton: View {
                 }
             }
             .padding(metrics.dialogMargin)
-            .padding(.bottom, barShown ? (metrics.compact ? 120 : metrics.dialogMargin * 2) : 0)
+            // Touch: above the bottom controls of the touch player; tvOS: above the bar and its times.
+            .padding(.bottom, barShown ? (Platform.isTV ? metrics.dialogMargin * 2 : 120) : 0)
         }
     }
 
@@ -124,7 +125,7 @@ struct NextEpisodeCard: View {
 
     var body: some View {
         if let upNext = player.upNext {
-            if metrics.compact { compactPlacement(card(upNext)) } else { tvPlacement(card(upNext)) }
+            if Platform.isTV { tvPlacement(card(upNext)) } else { compactPlacement(card(upNext)) }
         }
     }
 
@@ -139,7 +140,7 @@ struct NextEpisodeCard: View {
             .frame(width: metrics.upNextWidth)
     }
 
-    /// iPhone: at the top right, above the video upright and clear of the controls sideways.
+    /// Touch: at the top right, above the video upright and clear of the controls at the bottom.
     private func compactPlacement(_ card: some View) -> some View {
         VStack {
             HStack {

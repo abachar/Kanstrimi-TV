@@ -2,10 +2,10 @@
 import SwiftUI
 import UIKit
 
-/// The app is portrait; the player follows the phone, upright or sideways. UIKit asks the delegate for
-/// the allowed orientations; the player widens the mask on appearance and can ask the scene to rotate.
+/// The phone app is portrait; its player follows the phone, upright or sideways. The tablet turns freely everywhere.
+/// UIKit asks the delegate for the allowed orientations; the player widens the mask on appearance and can ask the scene to rotate.
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    static var orientations: UIInterfaceOrientationMask = .portrait
+    static var orientations: UIInterfaceOrientationMask = Platform.isPad ? .all : .portrait
 
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         Self.orientations
@@ -43,10 +43,14 @@ enum OrientationLock {
 }
 
 extension View {
-    /// Upright or sideways while this view is on screen, upright again when it leaves.
-    func allowsRotation() -> some View {
-        onAppear { OrientationLock.set(.allButUpsideDown) }
-            .onDisappear { OrientationLock.set(.portrait) }
+    /// Phone: upright or sideways while this view is on screen, upright again when it leaves. The tablet is never locked.
+    @ViewBuilder func allowsRotation() -> some View {
+        if Platform.isPad {
+            self
+        } else {
+            onAppear { OrientationLock.set(.allButUpsideDown) }
+                .onDisappear { OrientationLock.set(.portrait) }
+        }
     }
 }
 #endif

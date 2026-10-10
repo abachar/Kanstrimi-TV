@@ -28,6 +28,8 @@ struct ChannelCard: View {
     @Environment(\.metrics) private var metrics
     let item: ChannelItem
     var hours = false
+    /// Tablet: the channel the side column shows, outlined (the television shows it by its focus).
+    var selected = false
     let action: () -> Void
 
     var body: some View {
@@ -51,7 +53,10 @@ struct ChannelCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             // tvOS: the card style draws the platter; touch screens have none, so the card draws its own.
             .background {
-                if !Platform.isTV { RoundedRectangle(cornerRadius: metrics.cardRadius).fill(Theme.surface) }
+                if !Platform.isTV {
+                    RoundedRectangle(cornerRadius: metrics.cardRadius).fill(selected ? Theme.surfaceRaised : Theme.surface)
+                        .strokeBorder(Theme.text.opacity(selected ? 0.6 : 0), lineWidth: 1.5)
+                }
             }
         }
         .cardButtonStyle()

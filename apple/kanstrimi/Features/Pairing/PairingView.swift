@@ -90,7 +90,7 @@ struct PairingView: View {
                 Wordmark(size: 30, tracking: 4)
                 Text(metrics.showsQR ? "Connectez-vous avec votre téléphone" : "Ajoutez cet appareil depuis l'admin")
                     .font(.system(size: metrics.pairingTitle, weight: .bold)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                step(1, metrics.showsQR ? "Scannez le QR code avec l'appareil photo" : "Ouvrez l'admin avec le bouton ci-dessous")
+                step(1, metrics.showsQR ? "Scannez le QR code avec l'appareil photo" : "Ouvrez l'admin avec le bouton « Ouvrir l'admin »")
                 step(2, "Connectez-vous à l'admin et nommez cet appareil")
                 step(3, "L'appareil est ajouté, sans rien saisir ici")
                 if metrics.showsQR {
@@ -104,8 +104,15 @@ struct PairingView: View {
                 }
 
                 Spacer().frame(height: 10)
-                Button("Nouveau code") { model.stop(); Task { await model.newCode(env) } }
-                    .disabled(model.isBusy)
+                // tvOS draws its focused button; the tablet needs a visible one.
+                if Platform.isTV {
+                    Button("Nouveau code") { model.stop(); Task { await model.newCode(env) } }
+                        .disabled(model.isBusy)
+                } else {
+                    Button { model.stop(); Task { await model.newCode(env) } } label: { Label("Nouveau code", systemImage: "arrow.clockwise") }
+                        .buttonStyle(.bordered)
+                        .disabled(model.isBusy)
+                }
                 if !env.client.isMock {
                     Text("Serveur : \(model.host)").font(.callout).foregroundStyle(Theme.secondary)
                 }
@@ -117,7 +124,7 @@ struct PairingView: View {
             if metrics.showsQR {
                 qrPanel
             } else if let url = model.code?.url, model.status != .expired {
-                // The phone is the device that validates: the admin opens in Safari, the app keeps polling.
+                // The phone or the tablet is the device that validates: the admin opens in Safari, the app keeps polling.
                 Link(destination: url) { Label("Ouvrir l'admin pour valider", systemImage: "safari") }
                     .prominentButtonStyle()
             }

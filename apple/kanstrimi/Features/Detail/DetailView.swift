@@ -433,7 +433,8 @@ struct EpisodeRow: View {
 }
 
 /// A secondary action of the sheet: a round icon, its label under it. On tvOS the label shows
-/// only on the focused one, so the row stays light; touch and pointer screens always show it.
+/// only on the focused one, so the row stays light; touch screens always show it, and on the phone
+/// the actions share the width of the line.
 struct IconAction: View {
     @Environment(\.metrics) private var metrics
     let title: String
@@ -442,18 +443,19 @@ struct IconAction: View {
     let action: () -> Void
 
     var body: some View {
-        if !metrics.compact {
+        if Platform.isTV {
             // An overlay: the label of the focused one must not push its neighbours apart.
             button
                 .padding(.bottom, 44)
                 .overlay(alignment: .bottom) { label.opacity(focused ? 1 : 0) }
         } else {
-            // The actions share the width of the line; a long label takes two lines instead of being cut.
+            // A long label takes two lines instead of being cut.
             VStack(spacing: 6) {
                 button
                 Text(title).font(.caption2).foregroundStyle(Theme.secondary).lineLimit(2).multilineTextAlignment(.center)
+                    .frame(width: metrics.compact ? nil : metrics.iconButton * 1.6)
             }
-            .frame(maxWidth: .infinity, alignment: .top)
+            .frame(maxWidth: metrics.compact ? .infinity : nil, alignment: .top)
         }
     }
 

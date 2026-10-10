@@ -2,7 +2,7 @@
 
 Système de streaming **personnel et mono-utilisateur**. Il se branche sur **un** fournisseur
 Xtream Codes, importe son catalogue, le nettoie, l'enrichit via **TMDB** et le sert à
-l'app Apple maison (Apple TV et iPhone, iPad à venir).
+l'app Apple maison (Apple TV, iPhone et iPad).
 
 Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées, et chaque source porte l'URL
 du fournisseur, que l'app lit directement (sans passer par le serveur, donc par le VPN de l'appareil s'il en a un).
@@ -20,7 +20,7 @@ Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enri
 | Dossier | Rôle | Pile | Doc |
 |---|---|---|---|
 | `server/` | Import, enrichissement, groupement des variantes, masquage, diffusion, admin web | Node 22, Hono, Postgres + Drizzle, Hono JSX + HTMX + Tailwind 4 / Basecoat | [`server/README.md`](server/README.md) |
-| `apple/` | Client natif Apple TV 4K et iPhone (iPad à venir), consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27, AetherEngine 7 (FFmpeg + VideoToolbox), une cible et deux destinations | [`apple/README.md`](apple/README.md) |
+| `apple/` | Client natif Apple TV 4K, iPhone et iPad, consomme `/player` | SwiftUI, Swift 6, tvOS 27 + iOS 27, AetherEngine 7 (FFmpeg + VideoToolbox), une cible et trois destinations | [`apple/README.md`](apple/README.md) |
 
 Le serveur porte la logique, l'app affiche : les listes envoient des `ContentItem` dont les textes (« 2019 · ★ 8.5 »,
 badges, « 1 h 08 restantes ») sont déjà écrits, pour qu'un autre client n'ait rien à refaire. Le contrat entre les deux
@@ -48,7 +48,10 @@ Copyright © 2026 Abdelhakim Bachar - Crafters.
 
 ## Pistes
 
-Ce qui vient après la V1.4 (tvOS et iPhone), par version, puis les idées non planifiées.
+Ce qui vient après la V1.4 (tvOS, iPhone, iPad), par version, puis les idées non planifiées.
+
+- V1.5 :
+  - **Tablette Android** : un troisième client, dossier `android/` (Kotlin, Compose, Media3), ciblant la Galaxy Tab S9.
 
 - Non planifiées :
   - **Fond qui suit le focus (tvOS, POC)** : un film qui prend le focus change le fond de l'écran pour son fond TMDB
