@@ -7,15 +7,31 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,12 +41,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.ui.theme.Theme
+import java.text.NumberFormat
+import java.util.Locale
 
 /** A screen not built yet. */
 @Composable
@@ -47,10 +65,41 @@ fun StatePanel(title: String, message: String, actionTitle: String? = null, acti
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-        Text(message, color = Theme.secondary, textAlign = TextAlign.Center)
+        Text(message, color = Theme.secondary, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 560.dp))
         if (actionTitle != null && action != null) {
             Button(onClick = action, colors = ButtonDefaults.buttonColors(containerColor = Theme.surfaceButton, contentColor = Theme.text)) { Text(actionTitle) }
         }
+    }
+}
+
+/** A spinner in the middle of the screen while the first answer is awaited. */
+@Composable
+fun LoadingPanel() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Theme.text) }
+}
+
+/**
+ * A screen built from one answer: the spinner, then `content`, or the error with « Réessayer ». `load` runs once per
+ * `key`, and again on a retry.
+ */
+@Composable
+fun <T : Any> LoadedScreen(errorTitle: String, key: Any = Unit, load: suspend () -> T, content: @Composable (T) -> Unit) {
+    var value by remember(key) { mutableStateOf<T?>(null) }
+    var error by remember(key) { mutableStateOf<String?>(null) }
+    var attempt by remember(key) { mutableIntStateOf(0) }
+    LaunchedEffect(key, attempt) {
+        try {
+            value = load()
+            error = null
+        } catch (e: CatalogException) {
+            error = e.message
+        }
+    }
+    val v = value
+    when {
+        v != null -> content(v)
+        error != null -> StatePanel(errorTitle, error ?: "", actionTitle = "Réessayer") { attempt++ }
+        else -> LoadingPanel()
     }
 }
 
@@ -61,7 +110,7 @@ fun ArtImage(id: String, url: String?, modifier: Modifier = Modifier, title: Str
     Box(modifier = modifier.background(Brush.linearGradient(listOf(a, b))), contentAlignment = Alignment.Center) {
         if (title != null) {
             Text(
-                title, color = Color.White.copy(alpha = 0.85f), fontWeight = FontWeight.Black, fontSize = titleSize.sp,
+                title, color = Color.White.copy(alpha = 0.85f), fontWeight = FontWeight.Black, fontSize = titleSize.sp, lineHeight = (titleSize * 1.15f).sp,
                 textAlign = TextAlign.Center, maxLines = 5, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(10.dp),
             )
         }
@@ -69,6 +118,12 @@ fun ArtImage(id: String, url: String?, modifier: Modifier = Modifier, title: Str
             AsyncImage(model = url, contentDescription = title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
     }
+}
+
+/** The lower part of a backdrop melting into the page: transparent at the top, the background at the bottom. */
+@Composable
+fun BackdropFade(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Transparent, 0.6f to Theme.background.copy(alpha = 0.85f), 1f to Theme.background)))
 }
 
 /** Small bordered badge: « 4K », « DOLBY VISION », « FR ». */
@@ -97,6 +152,23 @@ fun AccentTag(text: String) {
     )
 }
 
+/** « DIRECT » on red, over a channel's poster. */
+@Composable
+fun LiveTag(text: String = "DIRECT") {
+    Text(
+        text, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp,
+        modifier = Modifier.background(Theme.live, RoundedCornerShape(5.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
+
+/** A white check on a dark disc, top corner of a card already seen. */
+@Composable
+fun WatchedCheck(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.size(24.dp).background(Color.Black.copy(alpha = 0.7f), CircleShape), contentAlignment = Alignment.Center) {
+        Icon(Icons.Filled.Check, contentDescription = "Vu", tint = Color.White, modifier = Modifier.size(15.dp))
+    }
+}
+
 /** Thin progress bar drawn on cards. */
 @Composable
 fun ProgressBar(fraction: Float, modifier: Modifier = Modifier, height: Int = 4) {
@@ -114,8 +186,8 @@ fun Wordmark(size: Int, tracking: Float = 3f) {
 /** A title's logo when TMDB has one, held in the box; the title in large type while it loads, when it fails and without one. */
 @Composable
 fun LogoOrTitle(title: String, logo: String?, modifier: Modifier = Modifier, titleSize: Int = 40, maxLogoWidth: Int = 380, logoHeight: Int = 110) {
-    var failed by androidx.compose.runtime.remember(logo) { androidx.compose.runtime.mutableStateOf(logo == null) }
-    var loaded by androidx.compose.runtime.remember(logo) { androidx.compose.runtime.mutableStateOf(false) }
+    var failed by remember(logo) { mutableStateOf(logo == null) }
+    var loaded by remember(logo) { mutableStateOf(false) }
     Box(modifier = modifier) {
         if (logo != null && !failed) {
             AsyncImage(
@@ -129,3 +201,44 @@ fun LogoOrTitle(title: String, logo: String?, modifier: Modifier = Modifier, tit
         }
     }
 }
+
+/** A secondary action: a round icon, its label under it. The sheet's buttons and the home hero. */
+@Composable
+fun RoundAction(title: String, onClick: () -> Unit, enabled: Boolean = true, icon: @Composable () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.widthIn(max = 96.dp)) {
+        FilledIconButton(
+            onClick = onClick, enabled = enabled,
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = Theme.surfaceRaised, contentColor = Theme.text, disabledContainerColor = Theme.surfaceDim, disabledContentColor = Theme.secondary),
+            modifier = Modifier.size(52.dp),
+        ) { icon() }
+        Text(title, style = MaterialTheme.typography.labelSmall, color = Theme.secondary, textAlign = TextAlign.Center, maxLines = 2)
+    }
+}
+
+/** The back button drawn top left of a pushed screen, under the status bar. */
+@Composable
+fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    FilledIconButton(
+        onClick = onClick,
+        colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.Black.copy(alpha = 0.45f), contentColor = Theme.text),
+        modifier = modifier.statusBarsPadding().padding(start = 16.dp, top = 12.dp).size(44.dp),
+    ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour") }
+}
+
+/** A person's photo cropped to a circle; their initials on a plain disc without a photo or while it loads. */
+@Composable
+fun CastPhoto(name: String, url: String?, diameter: Dp) {
+    Box(modifier = Modifier.size(diameter).clip(CircleShape).background(Theme.surfaceButton), contentAlignment = Alignment.Center) {
+        Text(initials(name), fontSize = (diameter.value * 0.34f).sp, fontWeight = FontWeight.SemiBold, color = Theme.secondary)
+        if (url != null) {
+            // A TMDB portrait is 2:3: shown whole it would cut the forehead, so the top of it is favoured.
+            AsyncImage(model = url, contentDescription = name, contentScale = ContentScale.Crop, alignment = Alignment.TopCenter, modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+
+/** « Keanu Reeves » → « KR ». */
+fun initials(name: String): String = name.split(' ', '-').filter { it.isNotEmpty() }.take(2).joinToString("") { it.first().uppercase() }
+
+/** A count beside a title, grouped the French way: « 1 227 ». */
+fun formatCount(n: Int): String = NumberFormat.getIntegerInstance(Locale.FRANCE).format(n)

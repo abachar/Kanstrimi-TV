@@ -8,8 +8,11 @@ import dev.crafters.kanstrimi.contract.Channel
  * owns the engine and the player screen. A stub until the player lot lands: every call says so in a notice.
  */
 class PlayerService(private val env: AppEnvironment) {
-    /** Plays a movie, an episode, or a series (the server resolves the episode to play), from its resume point. */
-    fun play(id: String, fromStart: Boolean = false) {
+    /**
+     * Plays a movie, an episode, or a series (the server resolves the episode to play), from its resume point.
+     * `versionId`: the version the sheet's picker chose, null for the engine's own choice.
+     */
+    fun play(id: String, fromStart: Boolean = false, versionId: String? = null) {
         env.notify("Lecteur : prochain lot")
     }
 

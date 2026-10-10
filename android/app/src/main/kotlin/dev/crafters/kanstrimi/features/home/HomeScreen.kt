@@ -22,10 +22,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,13 +44,17 @@ import androidx.compose.ui.unit.sp
 import dev.crafters.kanstrimi.app.LocalEnvironment
 import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.contract.ContentItem
+import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.contract.Home
 import dev.crafters.kanstrimi.contract.HomeHero
 import dev.crafters.kanstrimi.contract.HomeRowKind
 import dev.crafters.kanstrimi.ui.ArtImage
 import dev.crafters.kanstrimi.ui.Badge
 import dev.crafters.kanstrimi.ui.CardRow
+import dev.crafters.kanstrimi.ui.LoadingPanel
+import dev.crafters.kanstrimi.ui.LocalMetrics
 import dev.crafters.kanstrimi.ui.LogoOrTitle
+import dev.crafters.kanstrimi.ui.RoundAction
 import dev.crafters.kanstrimi.ui.StatePanel
 import dev.crafters.kanstrimi.ui.theme.Theme
 import kotlinx.coroutines.delay
@@ -63,6 +64,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen() {
     val env = LocalEnvironment.current
+    val metrics = LocalMetrics.current
     var home by remember { mutableStateOf<Home?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var heroIndex by remember { mutableIntStateOf(0) }
@@ -88,10 +90,7 @@ fun HomeScreen() {
 
     val h = home
     when {
-        h != null -> BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            // Six posters across in landscape, five upright: the width decides.
-            val inset = 32.dp
-            val posterWidth = if (maxWidth > 1000.dp) 150.dp else 130.dp
+        h != null -> Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(22.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 40.dp)) {
                 h.heroes.getOrNull(heroIndex)?.let { hero ->
                     item(key = "hero") {
@@ -100,25 +99,26 @@ fun HomeScreen() {
                             count = h.heroes.size,
                             index = heroIndex,
                             isFavorite = favorites[hero.item.id] ?: hero.isFavorite,
-                            inset = inset,
+                            inset = metrics.inset,
                             onPlay = { env.player.play(hero.playId) },
                             onFavorite = {
                                 val next = !(favorites[hero.item.id] ?: hero.isFavorite)
                                 favorites = favorites + (hero.item.id to next)
                                 scope.launch { env.attempt("Ma liste") { env.client.setFavorite(hero.item.id, next) } }
                             },
-                            onOpen = { env.notify("Fiche : prochain lot") },
+                            onOpen = { env.open(hero.item.id) },
                         )
                     }
                 }
                 items(h.rows, key = { it.id }) { row ->
+                    // A channel plays (the Direct lot); a title opens its sheet.
                     CardRow(title = row.title, cards = row.cards, landscape = row.kind == HomeRowKind.RESUME || row.kind == HomeRowKind.MOST_WATCHED_CHANNELS,
-                        inset = inset, posterWidth = posterWidth) { card -> env.notify("${card.title} : prochain lot") }
+                        onPlay = { env.player.play(it.id) }) { card -> if (card.kind == ContentKind.LIVE) env.notify("Direct : prochain lot") else env.open(card.id) }
                 }
             }
         }
         error != null -> StatePanel("Serveur injoignable", error ?: "", actionTitle = "Réessayer") { scope.launch { load() } }
-        else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Theme.text) }
+        else -> LoadingPanel()
     }
 }
 
@@ -157,8 +157,8 @@ private fun HeroBanner(hero: HomeHero, count: Int, index: Int, isFavorite: Boole
                         Spacer(modifier = Modifier.padding(3.dp))
                         Text(hero.playLabel, fontWeight = FontWeight.SemiBold)
                     }
-                    RoundAction(if (isFavorite) "Dans ma liste" else "Ma liste", if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, onFavorite)
-                    RoundAction("Fiche", Icons.Filled.Info, onOpen)
+                    RoundAction(if (isFavorite) "Dans ma liste" else "Ma liste", onFavorite) { Icon(if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, contentDescription = null) }
+                    RoundAction("Fiche", onOpen) { Icon(Icons.Filled.Info, contentDescription = null) }
                 }
             }
             if (count > 1) {
@@ -170,16 +170,5 @@ private fun HeroBanner(hero: HomeHero, count: Int, index: Int, isFavorite: Boole
                 }
             }
         }
-    }
-}
-
-/** A secondary action: a round icon, its label under it. */
-@Composable
-private fun RoundAction(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        FilledIconButton(onClick = onClick, colors = IconButtonDefaults.filledIconButtonColors(containerColor = Theme.surfaceRaised, contentColor = Theme.text)) {
-            Icon(icon, contentDescription = title)
-        }
-        Text(title, style = MaterialTheme.typography.labelSmall, color = Theme.secondary)
     }
 }

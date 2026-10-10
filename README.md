@@ -52,8 +52,8 @@ Copyright © 2026 Abdelhakim Bachar - Crafters.
 Ce qui vient après la V1.4 (tvOS, iPhone, iPad), par version, puis les idées non planifiées.
 
 - V1.5 :
-  - **Tablette Android** : `android/` est posé (contrat, client, appairage, accueil, réglages) ; restent Films, Séries,
-    Recherche, fiche, le lecteur Media3 et le Direct.
+  - **Tablette Android** : `android/` est posé (contrat, client, appairage, accueil, réglages, Films, Séries, Recherche,
+    fiches, sagas, acteurs) ; restent le lecteur Media3 (et le choix de version dans la fiche) et le Direct.
 
 - Non planifiées :
   - **Fond qui suit le focus (tvOS, POC)** : un film qui prend le focus change le fond de l'écran pour son fond TMDB

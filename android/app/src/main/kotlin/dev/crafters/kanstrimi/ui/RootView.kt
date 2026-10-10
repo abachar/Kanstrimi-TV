@@ -23,7 +23,7 @@ import dev.crafters.kanstrimi.ui.theme.Theme
 
 /** Pairing gate, then the tabs; the notice floats above everything. */
 @Composable
-fun RootView(initialTab: String? = null) {
+fun RootView() {
     val env = LocalEnvironment.current
     val token by env.device.token.collectAsState()
     val notice by env.notice.collectAsState()
@@ -32,7 +32,7 @@ fun RootView(initialTab: String? = null) {
 
     Surface(modifier = Modifier.fillMaxSize(), color = Theme.background) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (token != null) MainTabs(initialTab = initialTab) else PairingScreen()
+            if (token != null) MainTabs() else PairingScreen()
             AnimatedVisibility(visible = notice != null, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
                 Text(
                     text = notice ?: "",

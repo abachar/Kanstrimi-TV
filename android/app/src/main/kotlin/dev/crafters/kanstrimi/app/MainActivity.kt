@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
         debugHooks(env)
         setContent {
             CompositionLocalProvider(LocalEnvironment provides env) {
-                KanstrimiTheme { RootView(initialTab = intent.getStringExtra("debug.tab")) }
+                KanstrimiTheme { RootView() }
             }
         }
     }
@@ -28,6 +28,8 @@ class MainActivity : ComponentActivity() {
      *   debug.autopair  — with the demo client, pairs at once
      *   debug.unpair    — forgets the token, back to the pairing screen
      *   debug.tab       — home | live | movies | series | search | settings
+     *   debug.open      — a title's id (`tmdb:movie:603`) or a saga's: its sheet is pushed above the tab
+     *   debug.search    — the query the search screen starts with (with `debug.tab search`)
      */
     private fun debugHooks(env: AppEnvironment) {
         if (!BuildConfig.DEBUG) return
@@ -37,5 +39,8 @@ class MainActivity : ComponentActivity() {
             env.device.store(token = "mock-debug", code = "DEBUG0")
             env.preferences.setDeviceName("Tablette")
         }
+        intent.getStringExtra("debug.tab")?.let { env.navigator.select(it) }
+        intent.getStringExtra("debug.open")?.let { env.open(it) }
+        intent.getStringExtra("debug.search")?.let { env.debugSearch = it }
     }
 }

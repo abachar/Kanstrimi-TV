@@ -29,6 +29,12 @@ class AppEnvironment(context: Context) {
 
     val player = PlayerService(this)
 
+    /** The tab selected and what each tab pushed above itself. */
+    val navigator = Navigator()
+
+    /** `debug.search` (MainActivity): the query the search screen starts with, read once. */
+    var debugSearch: String? = null
+
     private val _info = MutableStateFlow<ServerInfo?>(null)
     val info: StateFlow<ServerInfo?> = _info.asStateFlow()
 
@@ -61,6 +67,17 @@ class AppEnvironment(context: Context) {
         notify("$action impossible · ${e.message}")
         null
     }
+
+    /** Opens a title's sheet, or a saga's screen, above the selected tab. A channel plays (the Direct lot). */
+    fun open(id: String) {
+        when {
+            id.startsWith("saga:") -> navigate(Route.Saga(id))
+            id.startsWith("live:") -> notify("Direct : prochain lot")
+            else -> navigate(Route.Detail(id))
+        }
+    }
+
+    fun navigate(route: Route) = navigator.push(route)
 
     fun notify(message: String) {
         _notice.value = message
