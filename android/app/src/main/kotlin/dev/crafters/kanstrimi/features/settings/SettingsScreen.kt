@@ -86,6 +86,25 @@ fun SettingsScreen() {
                     Text("Dissocier cet appareil", color = Theme.danger)
                 }
             }
+            // The player's choices, read by `PlayerService` through `PlaybackPreferences`.
+            val autoPlayNext by env.preferences.autoPlayNextFlow.collectAsState()
+            val rememberVersion by env.preferences.rememberVersionPerTitleFlow.collectAsState()
+            val switchSource by env.preferences.switchSourceOnFailureFlow.collectAsState()
+            val maxQuality by env.preferences.maxQualityFlow.collectAsState()
+            Section("Lecture") {
+                ToggleRow("Lire la suite automatiquement", autoPlayNext) { env.preferences.setAutoPlayNext(it) }
+                ToggleRow("Retenir la version choisie pour chaque titre", rememberVersion) { env.preferences.setRememberVersionPerTitle(it) }
+                ToggleRow("Changer de source en cas de panne", switchSource) { env.preferences.setSwitchSourceOnFailure(it) }
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Qualité maximale")
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        dev.crafters.kanstrimi.contract.Quality.entries.forEach { q ->
+                            val selected = q == maxQuality
+                            TextButton(onClick = { env.preferences.setMaxQuality(q) }, colors = androidx.compose.material3.ButtonDefaults.textButtonColors(containerColor = if (selected) Theme.text else Theme.surfaceButton, contentColor = if (selected) Color.Black else Theme.text)) { Text(q.label) }
+                        }
+                    }
+                }
+            }
             Section("À propos") {
                 InfoRow("Application", appVersion)
                 InfoRow("Serveur", info?.let { "$host · ${it.serverVersion}" } ?: "—")

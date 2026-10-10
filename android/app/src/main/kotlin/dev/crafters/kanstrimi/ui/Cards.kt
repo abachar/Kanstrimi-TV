@@ -98,7 +98,7 @@ private fun ChannelPoster(item: ContentItem) {
 
 /** A 16:9 card: the picture, the badges on top, the title and the caption (« 1 h 08 restantes ») drawn at the bottom. */
 @Composable
-fun WideCard(item: ContentItem, width: Dp, onClick: () -> Unit, showsTitle: Boolean = true) {
+fun WideCard(item: ContentItem, width: Dp, showsTitle: Boolean = true, onClick: () -> Unit) {
     Box(modifier = Modifier.width(width).aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick)) {
         ArtImage(id = item.id, url = item.picture ?: item.poster, modifier = Modifier.fillMaxSize())
         Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(0.35f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.8f))))

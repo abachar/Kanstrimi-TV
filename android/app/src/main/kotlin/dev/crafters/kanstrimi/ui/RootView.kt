@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.crafters.kanstrimi.app.LocalEnvironment
 import dev.crafters.kanstrimi.features.pairing.PairingScreen
+import dev.crafters.kanstrimi.player.PlayerScreen
 import dev.crafters.kanstrimi.ui.theme.Theme
 
 /** Pairing gate, then the tabs; the notice floats above everything. */
@@ -33,7 +34,9 @@ fun RootView() {
     Surface(modifier = Modifier.fillMaxSize(), color = Theme.background) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (token != null) MainTabs() else PairingScreen()
-            AnimatedVisibility(visible = notice != null, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
+            // The player, full screen over the tabs while something plays; it draws the notice itself.
+            if (env.player.isPresented) PlayerScreen()
+            AnimatedVisibility(visible = notice != null && !env.player.isPresented, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
                 Text(
                     text = notice ?: "",
                     style = MaterialTheme.typography.bodyLarge,

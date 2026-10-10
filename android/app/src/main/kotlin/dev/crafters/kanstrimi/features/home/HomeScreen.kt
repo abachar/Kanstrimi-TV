@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -79,7 +80,9 @@ fun HomeScreen() {
             if (home == null) error = e.message
         }
     }
-    LaunchedEffect(Unit) { load() }
+    // Loaded once, then again each time the player leaves a title (its progress moved « Reprendre »).
+    val progressRevision by env.progressRevision.collectAsState()
+    LaunchedEffect(progressRevision) { load() }
     LaunchedEffect(heroIndex, home?.heroes?.size) {
         val count = home?.heroes?.size ?: 0
         if (count > 1) {
@@ -113,7 +116,14 @@ fun HomeScreen() {
                 items(h.rows, key = { it.id }) { row ->
                     // A channel plays (the Direct lot); a title opens its sheet.
                     CardRow(title = row.title, cards = row.cards, landscape = row.kind == HomeRowKind.RESUME || row.kind == HomeRowKind.MOST_WATCHED_CHANNELS,
-                        onPlay = { env.player.play(it.id) }) { card -> if (card.kind == ContentKind.LIVE) env.notify("Direct : prochain lot") else env.open(card.id) }
+                        onPlay = { env.player.play(it.id) }) { card ->
+                        // « Reprendre » launches the player directly, like the Apple app; the other rows open the sheet.
+                        when {
+                            card.kind == ContentKind.LIVE -> env.notify("Direct : prochain lot")
+                            row.kind == HomeRowKind.RESUME -> env.player.play(card.id)
+                            else -> env.open(card.id)
+                        }
+                    }
                 }
             }
         }

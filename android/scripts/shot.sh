@@ -8,7 +8,7 @@ cd "${0:A:h}"
 SDK=${ANDROID_HOME:-$HOME/Library/Android/sdk}
 ADB=$SDK/platform-tools/adb
 APP=dev.crafters.kanstrimi
-SCREENS=(Appairage Accueil Direct Films Series Recherche Recherche-resultats Fiche-film Fiche-serie Reglages)
+SCREENS=(Appairage Accueil Direct Films Series Recherche Recherche-resultats Fiche-film Fiche-serie Reglages Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-passer-intro)
 screen=$1; stamp=${2:-$(date +%Y-%m-%d_%H-%M-%S)}
 if [[ -z $screen ]] || (( ! ${SCREENS[(Ie)$screen]} )); then echo "usage: shot.sh <écran>"; echo "écrans : ${SCREENS[*]}"; exit 1; fi
 
@@ -34,6 +34,12 @@ case $screen in
   Fiche-film)  extras+=(--ez debug.autopair true --es debug.tab movies --es debug.open tmdb:movie:535544) ;;
   Fiche-serie) extras+=(--ez debug.autopair true --es debug.tab series --es debug.open tmdb:tv:300388) ;;
   Reglages)  extras+=(--ez debug.autopair true --es debug.tab settings) ;;
+  # Le lecteur mis en scène sans flux (debug.play + debug.playerState) : un film de la démo, ou un épisode pour la suite.
+  Lecteur-pause)            extras+=(--ez debug.autopair true --es debug.play tmdb:movie:603 --es debug.playerState vodPaused) ;;
+  Lecteur-chargement)       extras+=(--ez debug.autopair true --es debug.play tmdb:movie:603 --es debug.playerState opening) ;;
+  Lecteur-echec)            extras+=(--ez debug.autopair true --es debug.play tmdb:movie:603 --es debug.playerState failure) ;;
+  Lecteur-episode-suivant)  extras+=(--ez debug.autopair true --es debug.play tmdb:tv:1396:s01e01 --es debug.playerState nextEpisode) ;;
+  Lecteur-passer-intro)     extras+=(--ez debug.autopair true --es debug.play tmdb:tv:1396:s01e01 --es debug.playerState skipIntro) ;;
 esac
 # A start right after an install sometimes reaches the instance being stopped: give the stop a moment.
 $ADB shell am force-stop $APP; sleep 1

@@ -18,4 +18,4 @@ if ! $ADB get-state >/dev/null 2>&1; then
 fi
 $ADB install -r ../app/build/outputs/apk/debug/app-debug.apk >/dev/null
 stamp=$(date +%Y-%m-%d_%H-%M-%S)
-for s in Appairage Accueil Direct Films Series Recherche Recherche-resultats Fiche-film Fiche-serie Reglages; do ./shot.sh $s $stamp; done
+for s in Appairage Accueil Direct Films Series Recherche Recherche-resultats Fiche-film Fiche-serie Reglages Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-passer-intro; do ./shot.sh $s $stamp; done
