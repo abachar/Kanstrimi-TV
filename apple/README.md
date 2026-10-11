@@ -76,6 +76,12 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
 - **Top Shelf** : tvOS n'affiche aucun titre dans le carrousel et l'API publique n'a pas de logo séparé : le serveur dessine
   le logo dans l'image. Jeton et adresse du serveur passent par le Keychain partagé ; Jouer et En savoir plus ouvrent
   `kanstrimi://play/<id>` et `kanstrimi://open/<id>`. L'extension ne partage aucun fichier avec l'app.
+- **Relais privé iCloud (iPhone, iPad)** : il fait passer tout le trafic HTTP non chiffré des apps par les relais
+  Apple/Cloudflare, dont les résolveurs appliquent les blocages judiciaires français et dont les adresses de sortie
+  sont refusées par le fournisseur : les flux (`http://`) meurent en « connexion réseau perdue », 0 octet, alors que
+  l'API (HTTPS) répond. Symptôme vu le 2026-10-11 en 4G avec « Limiter le suivi de l'adresse IP » actif sur le
+  cellulaire. Rien à faire dans l'app : désactiver cette option pour le réseau concerné (ou le relais privé), ou un
+  jour relayer le flux en HTTPS par le serveur.
 - **Alertes (iPhone)** : `PushRegistrar` demande la permission une fois l'appareil appairé (depuis `loadInfo`, jamais
   avec le client de démo), envoie le jeton APNs au serveur à chaque lancement (`PUT /devices/me/push`) avec le
   guichet qu'il vise, lu dans l'entitlement `aps-environment` du profil embarqué (`development` = bac à sable, Xcode ;
