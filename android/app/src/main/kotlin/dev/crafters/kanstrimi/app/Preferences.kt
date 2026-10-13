@@ -25,9 +25,8 @@ class Preferences(context: Context) : PlaybackPreferences {
 
     // The player's: the language order, the quality ceiling (FHD, the tablet's screen), what follows a title, the
     // remembered versions. Plain values read by `PlayerService` through `PlaybackPreferences`, flows for the screens.
-    private val _languageOrder = MutableStateFlow(prefs.getString(KEY_LANGUAGE_ORDER, null)?.split(',')?.filter { it.isNotEmpty() } ?: PlaybackPreferences.defaultLanguageOrder)
-    override val languageOrder: List<String> get() = _languageOrder.value
-    val languageOrderFlow: StateFlow<List<String>> = _languageOrder.asStateFlow()
+    /** None of its own: the versions arrive in the order of the profile's filter, the first one plays. */
+    override val languageOrder: List<String> get() = emptyList()
     private val _maxQuality = MutableStateFlow(Quality.entries.firstOrNull { it.label == prefs.getString(KEY_MAX_QUALITY, null) } ?: Quality.FHD)
     override val maxQuality: Quality get() = _maxQuality.value
     val maxQualityFlow: StateFlow<Quality> = _maxQuality.asStateFlow()
@@ -41,7 +40,6 @@ class Preferences(context: Context) : PlaybackPreferences {
     override val switchSourceOnFailure: Boolean get() = _switchSourceOnFailure.value
     val switchSourceOnFailureFlow: StateFlow<Boolean> = _switchSourceOnFailure.asStateFlow()
 
-    fun setLanguageOrder(order: List<String>) { _languageOrder.value = order; prefs.edit { putString(KEY_LANGUAGE_ORDER, order.joinToString(",")) } }
     fun setMaxQuality(quality: Quality) { _maxQuality.value = quality; prefs.edit { putString(KEY_MAX_QUALITY, quality.label) } }
     fun setAutoPlayNext(on: Boolean) { _autoPlayNext.value = on; prefs.edit { putBoolean(KEY_AUTO_PLAY_NEXT, on) } }
     fun setRememberVersionPerTitle(on: Boolean) { _rememberVersionPerTitle.value = on; prefs.edit { putBoolean(KEY_REMEMBER_VERSION, on) } }
@@ -65,7 +63,6 @@ class Preferences(context: Context) : PlaybackPreferences {
         private const val KEY_SERVER = "pref.serverURL"
         private const val KEY_DEVICE_NAME = "pref.deviceName"
         private const val KEY_USE_MOCK = "pref.useMock"
-        private const val KEY_LANGUAGE_ORDER = "pref.languageOrder"
         private const val KEY_MAX_QUALITY = "pref.maxQuality"
         private const val KEY_AUTO_PLAY_NEXT = "pref.autoPlayNext"
         private const val KEY_REMEMBER_VERSION = "pref.rememberVersion"

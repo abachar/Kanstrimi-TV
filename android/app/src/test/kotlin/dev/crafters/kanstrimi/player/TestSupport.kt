@@ -168,6 +168,7 @@ class FakeCatalogClient : CatalogClient {
     override suspend fun pollDevice(code: String): PairingStatus = error("unused")
     override suspend fun deleteDevice(code: String) = error("unused")
     override suspend fun info(): ServerInfo = error("unused")
+    override suspend fun profiles(): List<dev.crafters.kanstrimi.contract.Profile> = error("unused")
     override suspend fun home(): Home = error("unused")
     override suspend fun rows(kind: ContentKind): List<CatalogRow> = error("unused")
     override suspend fun list(query: ListQuery): Page<ContentItem> = error("unused")

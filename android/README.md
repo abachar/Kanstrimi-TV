@@ -112,6 +112,14 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
   en était, une chaîne jouée ; seuls nos identifiants passent. `MainActivity` est `singleTask` : un lien reçu en
   cours de route arrive par `onNewIntent`.
 - **Retour après 10 min d'absence** (`AbsenceClock`, `resumeRevision`) : l'accueil et le Direct se rechargent.
+- **Profils** (`features/profiles/`) : `GET /profiles` au lancement une fois appairé, à chaque ouverture de l'onglet
+  Profil et au retour après une longue absence ; chaque appel porte `X-Profile` avec le profil choisi sur la tablette
+  (`DeviceStore.profileId`), rien tant qu'aucun n'est choisi (le serveur répond pour le profil par défaut). Plusieurs
+  profils et aucun choisi : « Qui regarde ? » avant les onglets ; un seul : choisi d'office. Le changer arrête le
+  lecteur et l'aperçu, vide les piles et rebâtit les onglets (`profileRevision`) ; un `unknown_profile` efface le choix
+  et redemande. L'onglet Profil, en tête, ne montre que la photo (`Avatar`, l'initiale sur la couleur du serveur sans
+  photo). Plus de réglage « Langue audio » : l'ordre des versions est celui du serveur, donc du filtre du profil
+  (`VersionChooser` sans ordre le suit). Le client de démo a quatre profils et part sur le premier, sauf `debug.chooseProfile`.
 - **Release** : R8 avec `proguard-rules.pro` (sérialiseurs de kotlinx.serialization, classes JNI du décodeur
   FFmpeg), signée avec la clé de debug tant qu'une clé de release n'existe pas : installable, pas publiable.
   `./gradlew assembleRelease` → `app/build/outputs/apk/release/app-release.apk` (11 Mo contre 51 en debug).

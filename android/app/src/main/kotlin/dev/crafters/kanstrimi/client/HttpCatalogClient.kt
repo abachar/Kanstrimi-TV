@@ -16,6 +16,8 @@ import dev.crafters.kanstrimi.contract.PairingStatusWire
 import dev.crafters.kanstrimi.contract.PersonSheet
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
+import dev.crafters.kanstrimi.contract.Profile
+import dev.crafters.kanstrimi.contract.Profiles
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
 import dev.crafters.kanstrimi.contract.SagaSheet
@@ -50,14 +52,18 @@ import kotlin.coroutines.resumeWithException
 import kotlin.math.roundToLong
 
 /**
- * The server over HTTP. The token comes from `token` at each call, so a device paired or unpaired meanwhile is
- * seen at once; a 401 reaches `onUnauthorized` whatever the caller. A GET answered 502-504 by the reverse proxy
+ * The server over HTTP. The token and the profile come from `token` and `profileId` at each call, so a device paired,
+ * unpaired or switched meanwhile is seen at once; a 401 reaches `onUnauthorized`, an `unknown_profile` reaches
+ * `onUnknownProfile`, whatever the caller. A GET answered 502-504 by the reverse proxy
  * (the server restarting) is tried twice more; a write is never replayed.
  */
 class HttpCatalogClient(
     baseUrl: String,
     private val token: () -> String?,
     private val onUnauthorized: () -> Unit = {},
+    /** The profile this device is on, sent as `X-Profile`; null: none chosen yet, the server answers for the default one. */
+    private val profileId: () -> Int? = { null },
+    private val onUnknownProfile: () -> Unit = {},
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build(),
 ) : CatalogClient {
@@ -70,6 +76,7 @@ class HttpCatalogClient(
     override suspend fun pollDevice(code: String): PairingStatus = PairingStatus.of(send<PairingStatusWire>("GET", "devices/$code", auth = false))
     override suspend fun deleteDevice(code: String) = sendNoContent("DELETE", "devices/$code")
     override suspend fun info(): ServerInfo = send("GET", "info")
+    override suspend fun profiles(): List<Profile> = send<Profiles>("GET", "profiles").profiles
 
     override suspend fun home(): Home = send("GET", "home")
     override suspend fun rows(kind: ContentKind): List<CatalogRow> = send("GET", collectionOf(kind))
@@ -158,6 +165,7 @@ class HttpCatalogClient(
             if (auth) {
                 val t = token() ?: throw CatalogException.Unauthorized()
                 if (mayCarryToken(url)) header("Authorization", "Bearer $t")
+                profileId()?.let { header("X-Profile", it.toString()) }
             }
         }.build()
     }
@@ -178,6 +186,7 @@ class HttpCatalogClient(
                 if (isTransient(r.code, text) && delays.isNotEmpty()) { delay(delays.removeFirst()); return@use }
                 val error = error(r.code, text)
                 if (error is CatalogException.Unauthorized) onUnauthorized()
+                if (error is CatalogException.UnknownProfile) onUnknownProfile()
                 throw error
             }
         }
@@ -202,7 +211,7 @@ class HttpCatalogClient(
 
         fun error(status: Int, body: String): CatalogException = when (status) {
             401 -> CatalogException.Unauthorized()
-            404 -> CatalogException.NotFound()
+            404 -> if (parseError(body)?.error?.code == "unknown_profile") CatalogException.UnknownProfile() else CatalogException.NotFound()
             else -> CatalogException.Server(parseError(body)?.error?.message ?: "Erreur serveur ($status)")
         }
 

@@ -28,6 +28,9 @@ class HttpCatalogClientTest {
     fun statusesMapToTheirErrors() {
         assertTrue(HttpCatalogClient.error(401, "") is CatalogException.Unauthorized)
         assertTrue(HttpCatalogClient.error(404, "") is CatalogException.NotFound)
+        // A profile deleted since: its own error, the app asks again; any other 404 stays « introuvable ».
+        assertTrue(HttpCatalogClient.error(404, """{"error":{"code":"unknown_profile","message":"Profil inconnu"}}""") is CatalogException.UnknownProfile)
+        assertTrue(HttpCatalogClient.error(404, """{"error":{"code":"not_found","message":"Contenu introuvable"}}""") is CatalogException.NotFound)
         assertEquals("Fournisseur muet", HttpCatalogClient.error(500, """{"error":{"code":"upstream","message":"Fournisseur muet"}}""").message)
         assertEquals("Erreur serveur (503)", HttpCatalogClient.error(503, "").message)
     }

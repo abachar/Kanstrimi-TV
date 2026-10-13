@@ -439,7 +439,22 @@ data class ServerInfo(
     @SerialName("last_import") val lastImport: WireInstant? = null,
     @SerialName("tmdb_rate") val tmdbRate: Double? = null,
     @SerialName("catalog_languages") val catalogLanguages: List<String> = emptyList(),
+    /** The profile this answer, and every other, is for: the one sent in `X-Profile`, else the default one. */
+    val profile: Profile? = null,
 )
+
+/**
+ * A person of the household (`GET /profiles`). Every request names the one it is for (`X-Profile`); none means the
+ * default profile. The avatar is a square image whose URL changes with the picture.
+ */
+@Serializable
+data class Profile(val id: Int, val name: String, @SerialName("is_default") val isDefault: Boolean = false, val avatar: String) {
+    /** The letter drawn while the picture loads, or when it never comes. */
+    val initial: String get() = name.trim().take(1).uppercase()
+}
+
+@Serializable
+data class Profiles(val profiles: List<Profile> = emptyList())
 
 @Serializable
 data class ApiError(val error: ApiErrorBody)

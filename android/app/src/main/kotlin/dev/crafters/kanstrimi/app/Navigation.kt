@@ -45,6 +45,12 @@ class Navigator(initialTab: String = "home") {
         stacks[tab] = stack(tab) + route
     }
 
+    /** A new profile: back to the home tab, nothing pushed anywhere. */
+    fun reset() {
+        stacks.clear()
+        tab = "home"
+    }
+
     fun pop() {
         val s = stack(tab)
         if (s.isNotEmpty()) stacks[tab] = s.dropLast(1)

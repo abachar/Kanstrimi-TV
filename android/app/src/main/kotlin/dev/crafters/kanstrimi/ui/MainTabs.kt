@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -12,12 +13,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import dev.crafters.kanstrimi.features.profiles.Avatar
+import dev.crafters.kanstrimi.features.profiles.ProfilesScreen
 import dev.crafters.kanstrimi.R
 import dev.crafters.kanstrimi.app.LocalEnvironment
 import dev.crafters.kanstrimi.app.Route
@@ -35,8 +43,12 @@ import dev.crafters.kanstrimi.features.settings.SettingsScreen
 import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.ui.theme.Theme
 
-/** The six tabs. Material's suite puts them in a rail on the side when the window is wide, in a bar at the bottom when narrow. */
+/**
+ * The seven tabs, Profil first: the person's picture alone, no name. Material's suite puts them in a rail on the side
+ * when the window is wide, in a bar at the bottom when narrow.
+ */
 enum class MainTab(val key: String, val title: String, val icon: ImageVector? = null, val drawable: Int? = null) {
+    PROFILE("profile", "Profil"),
     HOME("home", "Accueil", icon = Icons.Filled.Home),
     LIVE("live", "Direct", drawable = R.drawable.ic_live_tv),
     MOVIES("movies", "Films", drawable = R.drawable.ic_movie),
@@ -61,15 +73,29 @@ fun MainTabs() {
     // Not snapshot state: the composition reads `selected`, which is, and the set only grows.
     val visited = remember { linkedSetOf<MainTab>() }
     visited.add(selected)
+    val profiles by env.profiles.collectAsState()
+    val profileId by env.device.profileId.collectAsState()
+    val profile = profiles.firstOrNull { it.id == profileId }
     NavigationSuiteScaffold(
         navigationSuiteItems = {
             MainTab.entries.forEach { tab ->
-                item(
-                    selected = tab == selected,
-                    onClick = { env.navigator.select(tab.key) },
-                    icon = { if (tab.icon != null) Icon(tab.icon, contentDescription = null) else Icon(painterResource(tab.drawable!!), contentDescription = null) },
-                    label = { Text(tab.title) },
-                )
+                if (tab == MainTab.PROFILE) {
+                    item(
+                        selected = tab == selected,
+                        onClick = { env.navigator.select(tab.key) },
+                        icon = {
+                            if (profile != null) Avatar(profile, 30.dp, Modifier.semantics { contentDescription = "Profil ${profile.name}" })
+                            else Icon(Icons.Filled.AccountCircle, contentDescription = "Profil")
+                        },
+                    )
+                } else {
+                    item(
+                        selected = tab == selected,
+                        onClick = { env.navigator.select(tab.key) },
+                        icon = { if (tab.icon != null) Icon(tab.icon, contentDescription = null) else Icon(painterResource(tab.drawable!!), contentDescription = null) },
+                        label = { Text(tab.title) },
+                    )
+                }
             }
         },
         containerColor = Theme.background,
@@ -113,6 +139,7 @@ private fun TabStack(tab: MainTab, active: Boolean) {
 @Composable
 private fun TabRoot(tab: MainTab) {
     when (tab) {
+        MainTab.PROFILE -> ProfilesScreen()
         MainTab.HOME -> HomeScreen()
         MainTab.LIVE -> LiveScreen()
         MainTab.MOVIES -> CatalogScreen(ContentKind.MOVIE)

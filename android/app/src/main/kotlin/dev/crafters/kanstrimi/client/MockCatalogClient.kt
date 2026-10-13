@@ -15,6 +15,8 @@ import dev.crafters.kanstrimi.contract.PairingStatus
 import dev.crafters.kanstrimi.contract.PersonSheet
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
+import dev.crafters.kanstrimi.contract.Profile
+import dev.crafters.kanstrimi.contract.Profiles
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
 import dev.crafters.kanstrimi.contract.SagaSheet
@@ -60,7 +62,14 @@ class MockCatalogClient(private val assets: AssetManager, private val latencyMil
     }
     override suspend fun pollDevice(code: String): PairingStatus = if (++polls >= 2) PairingStatus.Approved("Tablette") else PairingStatus.Pending
     override suspend fun deleteDevice(code: String) {}
-    override suspend fun info(): ServerInfo = read("info")
+    /** The profile the demo answers for: the app's choice (`DeviceStore`). */
+    var profileId: Int? = null
+
+    /** The recorded household (Hakim alone), and three more so the picker has something to choose among. */
+    override suspend fun profiles(): List<Profile> = read<Profiles>("profiles").profiles + DEMO_PROFILES
+    override suspend fun info(): ServerInfo = read<ServerInfo>("info").let { info ->
+        info.copy(profile = profiles().firstOrNull { it.id == profileId } ?: info.profile)
+    }
 
     override suspend fun home(): Home = read("home")
     override suspend fun rows(kind: ContentKind): List<CatalogRow> = read(if (kind == ContentKind.SERIES) "series" else "movies")
@@ -89,5 +98,6 @@ class MockCatalogClient(private val assets: AssetManager, private val latencyMil
     companion object {
         /** The start of the programme on air in `channel.json` and `channels.json`. */
         private val RECORDED_NOW_START: Instant = Instant.parse("2026-10-01T18:00:00Z")
+        private val DEMO_PROFILES = listOf(2 to "Sara", 3 to "Ado", 4 to "Lina").map { (id, name) -> Profile(id, name, avatar = "demo://avatar/$id") }
     }
 }

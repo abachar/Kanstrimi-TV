@@ -15,6 +15,7 @@ import dev.crafters.kanstrimi.contract.PairingStatus
 import dev.crafters.kanstrimi.contract.PersonSheet
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
+import dev.crafters.kanstrimi.contract.Profile
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
 import dev.crafters.kanstrimi.contract.Quality
@@ -29,6 +30,8 @@ sealed class CatalogException(message: String) : Exception(message) {
     /** The token was refused: the device is unpaired. */
     class Unauthorized : CatalogException("Appareil dissocié")
     class NotFound : CatalogException("Introuvable")
+    /** 404 `unknown_profile`: the profile this device was on no longer exists; the app asks again. */
+    class UnknownProfile : CatalogException("Ce profil n'existe plus")
     /** No network, a timeout, a host not found. */
     class Offline(detail: String) : CatalogException("Serveur injoignable · $detail")
     /** The server answered an error of its own, or something unexpected. */
@@ -86,6 +89,8 @@ interface CatalogClient {
     suspend fun pollDevice(code: String): PairingStatus
     suspend fun deleteDevice(code: String)
     suspend fun info(): ServerInfo
+    /** `GET /profiles`: the household, for the picker. */
+    suspend fun profiles(): List<Profile>
 
     suspend fun home(): Home
     suspend fun rows(kind: ContentKind): List<CatalogRow>

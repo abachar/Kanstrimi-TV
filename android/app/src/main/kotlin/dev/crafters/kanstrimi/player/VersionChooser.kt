@@ -48,7 +48,7 @@ class VersionChooser(
             if (v != null) bestSource(v)?.let { return Choice(v, it, Reason.SERIES_LANGUAGE) }
         }
         if (playable.size == 1) bestSource(playable[0])?.let { return Choice(playable[0], it, Reason.ONLY_ONE) }
-        for (language in languageOrder) {
+        for (language in languageOrder.ifEmpty { playable.map { it.language }.distinct() }) {
             val v = best(playable.filter { it.language == language }) ?: continue
             bestSource(v)?.let { return Choice(v, it, Reason.PREFERENCES) }
         }
@@ -67,7 +67,7 @@ class VersionChooser(
 
     /** The versions to try after `current`, best first, for « Autre version ». */
     fun alternatives(current: Version, versions: List<Version>): List<Version> =
-        versions.filter { it.id != current.id && it.sources.isNotEmpty() }.sortedWith(compareBy({ rank(it).first }, { rank(it).second }, { rank(it).third }, { rank(it).fourth }))
+        versions.filter { it.id != current.id && it.sources.isNotEmpty() }.sortedWith(compareBy({ rank(it, versions).first }, { rank(it, versions).second }, { rank(it, versions).third }, { rank(it, versions).fourth }))
 
     /** The first source in server order that has not failed recently; else the first anyway. */
     fun bestSource(version: Version): Source? = version.sources.firstOrNull { !isSourceFailed(it.id) } ?: version.sources.firstOrNull()
@@ -104,8 +104,9 @@ class VersionChooser(
 
     private data class Rank(val first: Int, val second: Int, val third: Int, val fourth: Int)
 
-    private fun rank(v: Version): Rank {
-        val lang = languageOrder.indexOf(v.language).let { if (it < 0) languageOrder.size else it }
+    private fun rank(v: Version, versions: List<Version>): Rank {
+        val order = languageOrder.ifEmpty { versions.map { it.language }.distinct() }
+        val lang = order.indexOf(v.language).let { if (it < 0) order.size else it }
         return Rank(if (fits(v)) 0 else 1, lang, if (v.edition == null) 0 else 1, -v.quality.ordinal)
     }
 

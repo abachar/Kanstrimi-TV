@@ -14,26 +14,43 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.crafters.kanstrimi.app.LocalEnvironment
 import dev.crafters.kanstrimi.features.pairing.PairingScreen
+import dev.crafters.kanstrimi.features.profiles.ProfilesScreen
 import dev.crafters.kanstrimi.player.PlayerScreen
 import dev.crafters.kanstrimi.ui.theme.Theme
 
-/** Pairing gate, then the tabs; the notice floats above everything. */
+/**
+ * Pairing gate, then « Qui regarde ? » while this device is on no profile the server knows, then the tabs (built
+ * again for each profile); the notice floats above everything.
+ */
 @Composable
 fun RootView() {
     val env = LocalEnvironment.current
     val token by env.device.token.collectAsState()
     val notice by env.notice.collectAsState()
+    val profiles by env.profiles.collectAsState()
+    val loaded by env.profilesLoaded.collectAsState()
+    val profileId by env.device.profileId.collectAsState()
+    val revision by env.profileRevision.collectAsState()
 
-    LaunchedEffect(token) { env.loadInfo() }
+    LaunchedEffect(token) {
+        env.loadProfiles()
+        env.loadInfo()
+    }
+    val needsChoice = token != null && loaded && profiles.none { it.id == profileId }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Theme.background) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (token != null) MainTabs() else PairingScreen()
+            when {
+                token == null -> PairingScreen()
+                needsChoice -> ProfilesScreen(gate = true)
+                else -> key(revision) { MainTabs() }
+            }
             // The player, full screen over the tabs while something plays; it draws the notice itself.
             if (env.player.isPresented) PlayerScreen()
             AnimatedVisibility(visible = notice != null && !env.player.isPresented, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {

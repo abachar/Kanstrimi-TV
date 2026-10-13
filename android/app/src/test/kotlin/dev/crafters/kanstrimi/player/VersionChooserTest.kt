@@ -167,4 +167,12 @@ class VersionChooserTest {
         assertEquals("tmdb:tv:1396", seriesIdOf("tmdb:tv:1396:s01e05"))
         assertNull(seriesIdOf("tmdb:movie:603"))
     }
+
+    @Test
+    fun withoutAnOrderTheServersOrderWinsTheProfilesFilter() {
+        val vostFirst = listOf(Fixtures.version("vostfr-fhd", "VOSTFR", Quality.FHD), Fixtures.version("vf-fhd", "VF", Quality.FHD))
+        val chooser = VersionChooser(emptyList(), Quality.FHD)
+        assertEquals("vostfr-fhd", chooser.choose(vostFirst)?.version?.id)
+        assertEquals("vf-fhd", chooser.choose(vostFirst.reversed())?.version?.id)
+    }
 }

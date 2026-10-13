@@ -19,7 +19,8 @@ class ContractTest {
     private val dir = File("../../apple/kanstrimiTests/Contract")
 
     private val readers: Map<String, (String) -> Unit> = mapOf(
-        "info" to { decode<ServerInfo>(it).also { info -> assertTrue(info.counts.movies > 0) } },
+        "info" to { decode<ServerInfo>(it).also { info -> assertTrue(info.counts.movies > 0); assertNotNull(info.profile) } },
+        "profiles" to { decode<Profiles>(it).also { p -> assertTrue(p.profiles.any { it.isDefault }) } },
         "home" to { decode<Home>(it).also { home -> assertTrue(home.rows.isNotEmpty() && home.heroes.isNotEmpty()) } },
         "movies" to { decode<List<CatalogRow>>(it).also { rows -> assertTrue(rows.all { r -> r.cards.isNotEmpty() }) } },
         "series" to { decode<List<CatalogRow>>(it).also { rows -> assertTrue(rows.all { r -> r.cards.isNotEmpty() }) } },

@@ -6,6 +6,7 @@ import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.client.HttpCatalogClient
 import dev.crafters.kanstrimi.client.MockCatalogClient
 import dev.crafters.kanstrimi.contract.Channel
+import dev.crafters.kanstrimi.contract.Profile
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ServerInfo
 import dev.crafters.kanstrimi.contract.Version
@@ -88,12 +89,61 @@ class AppEnvironment(context: Context) {
         scope.launch { preferences.serverUrl.collect { http = makeHttp(it) } }
     }
 
-    private fun makeHttp(url: String) = HttpCatalogClient(url, token = { device.token.value }, onUnauthorized = {
-        scope.launch {
-            device.forget("Le serveur a refusé le jeton de cet appareil : il a été retiré depuis l'admin. Vos favoris et vos reprises sont conservés côté serveur ; il suffit de l'ajouter à nouveau.")
-            _info.value = null
-        }
-    })
+    private fun makeHttp(url: String) = HttpCatalogClient(
+        url, token = { device.token.value }, profileId = { device.profileId.value },
+        onUnauthorized = {
+            scope.launch {
+                device.forget("Le serveur a refusé le jeton de cet appareil : il a été retiré depuis l'admin. Vos favoris et vos reprises sont conservés côté serveur ; il suffit de l'ajouter à nouveau.")
+                _info.value = null
+            }
+        },
+        onUnknownProfile = { scope.launch { handleUnknownProfile() } },
+    )
+
+    // MARK: - Profiles
+
+    /** `GET /profiles`: the household; empty until it answered. */
+    private val _profiles = MutableStateFlow<List<Profile>>(emptyList())
+    val profiles: StateFlow<List<Profile>> = _profiles.asStateFlow()
+    private val _profilesLoaded = MutableStateFlow(false)
+    val profilesLoaded: StateFlow<Boolean> = _profilesLoaded.asStateFlow()
+    /** Moves when the profile changes: the tabs start again, every screen reloads through the new eyes. */
+    private val _profileRevision = MutableStateFlow(0)
+    val profileRevision: StateFlow<Int> = _profileRevision.asStateFlow()
+
+    /** The profile this device is on, among those the server knows. */
+    fun profile(): Profile? = _profiles.value.firstOrNull { it.id == device.profileId.value }
+
+    /** Asked at launch, at each opening of the Profil screen and after a long absence: a profile created meanwhile appears. */
+    suspend fun loadProfiles() {
+        if (!device.isPaired) return
+        val list = runCatching { client.profiles() }.getOrNull()?.takeIf { it.isNotEmpty() } ?: return
+        _profiles.value = list
+        _profilesLoaded.value = true
+        if (device.profileId.value != null && profile() == null) device.choose(null) // deleted since: ask again
+        if (device.profileId.value == null && list.size == 1) device.choose(list[0].id) // nothing to ask
+        mock.profileId = device.profileId.value
+    }
+
+    /** The profile this device is on from now on; the player stops, the tabs start again for it. */
+    fun select(profile: Profile) {
+        if (profile.id == device.profileId.value) return
+        if (player.isPresented) player.stop()
+        livePreview.stop()
+        device.choose(profile.id)
+        mock.profileId = profile.id
+        navigator.reset()
+        _profileRevision.value += 1
+        scope.launch { loadInfo() }
+    }
+
+    /** `unknown_profile` anywhere: the profile was deleted in the admin; the household is asked again. */
+    private suspend fun handleUnknownProfile() {
+        if (device.profileId.value == null) return
+        device.choose(null)
+        mock.profileId = null
+        loadProfiles()
+    }
 
     suspend fun loadInfo() {
         if (!device.isPaired) return

@@ -10,7 +10,7 @@ import dev.crafters.kanstrimi.contract.Version
  * `Preferences` implements it over the app's shared preferences.
  */
 interface PlaybackPreferences {
-    /** The languages to try in order (`VF`, `VOSTFR`, `VO`). */
+    /** The languages to try in order (`VF`, `VOSTFR`, `VO`); empty: the server's order, the profile's filter. */
     val languageOrder: List<String>
     val maxQuality: Quality
     val autoPlayNext: Boolean

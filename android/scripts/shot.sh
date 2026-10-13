@@ -8,7 +8,7 @@ cd "${0:A:h}"
 SDK=${ANDROID_HOME:-$HOME/Library/Android/sdk}
 ADB=$SDK/platform-tools/adb
 APP=dev.crafters.kanstrimi
-SCREENS=(Appairage Accueil Direct Films Series Recherche Recherche-resultats Fiche-film Fiche-serie Reglages Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-passer-intro Lecteur-direct)
+SCREENS=(Appairage Qui-regarde Profil Accueil Direct Films Series Recherche Recherche-resultats Fiche-film Fiche-serie Reglages Lecteur-pause Lecteur-chargement Lecteur-echec Lecteur-episode-suivant Lecteur-passer-intro Lecteur-direct)
 screen=$1; stamp=${2:-$(date +%Y-%m-%d_%H-%M-%S)}
 if [[ -z $screen ]] || (( ! ${SCREENS[(Ie)$screen]} )); then echo "usage: shot.sh <écran>"; echo "écrans : ${SCREENS[*]}"; exit 1; fi
 
@@ -25,6 +25,8 @@ typeset -a extras
 extras=(--ez debug.mock true)
 case $screen in
   Appairage) extras+=(--ez debug.unpair true) ;;
+  Qui-regarde) extras+=(--ez debug.autopair true --ez debug.chooseProfile true) ;;
+  Profil)    extras+=(--ez debug.autopair true --es debug.tab profile) ;;
   Accueil)   extras+=(--ez debug.autopair true --es debug.tab home) ;;
   Direct)    extras+=(--ez debug.autopair true --es debug.tab live) ;;
   Films)     extras+=(--ez debug.autopair true --es debug.tab movies) ;;

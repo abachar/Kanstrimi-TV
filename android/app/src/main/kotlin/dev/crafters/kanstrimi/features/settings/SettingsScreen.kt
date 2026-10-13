@@ -91,10 +91,8 @@ fun SettingsScreen() {
             val rememberVersion by env.preferences.rememberVersionPerTitleFlow.collectAsState()
             val switchSource by env.preferences.switchSourceOnFailureFlow.collectAsState()
             val maxQuality by env.preferences.maxQualityFlow.collectAsState()
-            val languageOrder by env.preferences.languageOrderFlow.collectAsState()
+            // No « Langue audio » any more: the versions come in the order of the profile's filter, set in the admin.
             Section("Lecture") {
-                MenuRow("Langue audio", value = languageOrder.joinToString(" › ") { Language.short(it) }, options = languageOrders,
-                    label = { it.joinToString(" › ") { l -> Language.short(l) } }) { env.preferences.setLanguageOrder(it) }
                 ToggleRow("Lire la suite automatiquement", autoPlayNext) { env.preferences.setAutoPlayNext(it) }
                 ToggleRow("Retenir la version choisie pour chaque titre", rememberVersion) { env.preferences.setRememberVersionPerTitle(it) }
                 ToggleRow("Changer de source en cas de panne", switchSource) { env.preferences.setSwitchSourceOnFailure(it) }
@@ -129,12 +127,6 @@ fun SettingsScreen() {
         )
     }
 }
-
-/** The orders the language can be tried in, like the Apple app's Réglages. */
-private val languageOrders: List<List<String>> = listOf(
-    listOf(Language.VF, Language.VOSTFR, Language.VO), listOf(Language.VOSTFR, Language.VF, Language.VO),
-    listOf(Language.VO, Language.VOSTFR, Language.VF), listOf(Language.VF, Language.VO, Language.VOSTFR),
-)
 
 /** A setting picked among a few values: the value on the right opens a menu of the options. */
 @Composable
