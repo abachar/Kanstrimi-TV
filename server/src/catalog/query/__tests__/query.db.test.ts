@@ -25,6 +25,7 @@ beforeAll(async () => {
     runtime: 136,
     production_companies: [{ name: "Warner Bros. Pictures" }],
     belongs_to_collection: { id: 2344, name: "Matrix - Saga" },
+    release_dates: { results: [{ iso_3166_1: "FR", release_dates: [{ certification: "12" }] }] },
   });
   await seedTmdb("movie", 900, {
     title: "Dilwale",
@@ -178,6 +179,13 @@ describe("filter language: conditions on a content", () => {
     expect(await kept('genre:comedie || variant.langue:"vostfr"')).toEqual([DILWALE_V, MATRIX_VOST]);
     expect(await kept('-(matrix && variant.langue:"vostfr")')).toEqual([DILWALE_V, UNKNOWN_V, MATRIX_4K]);
     expect(await kept('matrix && variant.langue:"vostfr"')).toEqual([MATRIX_VOST]);
+  });
+
+  it("reads the classification exactly, « aucun » for the many without one", async () => {
+    expect(await find('classification:"12"')).toEqual([MATRIX]);
+    expect(await find('classification:"TP","U","12"')).toEqual([MATRIX]);
+    expect(await find("classification:aucun")).toEqual([DILWALE, UNKNOWN]);
+    expect(await find('classification:"12" || classification:aucun')).toEqual([DILWALE, UNKNOWN, MATRIX]);
   });
 
   it("aucun, bare: a field without a value", async () => {

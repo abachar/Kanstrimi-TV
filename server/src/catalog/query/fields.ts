@@ -164,6 +164,15 @@ export const FIELDS: Field[] = [
     text: (_, p) => p(c.sagaName),
   },
   {
+    names: ["classification", "certification"],
+    type: "text",
+    doc: "Classification TMDB du pays de la langue, sinon des États-Unis : TP, U, 10, 12, 16, 18, G, PG, PG-13, R, TV-Y, TV-Y7, TV-G, TV-14, TV-MA… ; aucun = sans",
+    example: 'classification:"TP","U","G"',
+    kinds: VOD_SERIES,
+    level: "content",
+    text: (_, p) => p(c.certification),
+  },
+  {
     names: ["année", "year"],
     type: "number",
     doc: "Année de sortie",

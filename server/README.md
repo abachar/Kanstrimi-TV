@@ -141,6 +141,8 @@ par son index.
   `variant.langue:"vf","vo","ar" && xtream.marché:"fr","ar","en"` pour les films. Ils s'appliquent à l'étape `filters` ;
   enregistrer un filtre ne l'applique pas (`applied_at` null : bandeau) ; un profil créé ne voit rien tant que l'étape ne l'a pas
   jugé. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
+  Un profil d'enfant se fait par le filtre : `genre:"animation" && classification:"TP","U","G" && variant.langue:"vf"`
+  (la classification TMDB manque sur la moitié des films : `|| classification:aucun` les garde), `thème:"jeunesse"` au Direct.
   Les langues que le filtre Films ou Séries nomme (`variant.langue:"vf","vo"`), dans l'ordre écrit, sont l'ordre des versions
   servies au profil et donc son ordre de lecture (`filterLanguages`, `ctx.languageOrder`) ; sans langue nommée, VF, VOSTFR, VO.
 - **Écrans Live, Films, Séries de l'admin** : ce que l'app affiche, par les fonctions mêmes de `/player` : ses rangées
