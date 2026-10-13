@@ -75,6 +75,8 @@ async function apply(contentIds?: number[], profileId?: number) {
   );
   checkCancelled();
   const waitlist_available = touched.size ? await refreshVisibility([...touched]) : 0;
+  // The verdict tables move by tens of thousands of rows at once: fresh statistics, or the planner guesses for a day.
+  await db.execute(sql`analyze catalog_variant_profiles, catalog_content_profiles`);
   const [r] = await db.execute<{ n: number }>(sql`select count(*)::int as n from catalog_variants where hidden_by_rule`);
   return { variants_hidden: r.n, waitlist_available };
 }
