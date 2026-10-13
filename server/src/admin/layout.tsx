@@ -30,13 +30,13 @@ export const NAV: readonly (readonly [group: string | null, items: readonly NavI
       ["/admin/catalog?kind=vod", "Films", "film"],
       ["/admin/catalog?kind=series", "Séries", "series"],
       ["/admin/studios", "Studios", "studios"],
-      ["/admin/filters", "Filtres", "rules"],
       ["/admin/epg", "EPG", "epg"],
     ],
   ],
   [
     "Application",
     [
+      ["/admin/profiles", "Profils", "profiles"],
       ["/admin/devices", "Appareils", "devices"],
       ["/admin/favorites", "Favoris", "favorites"],
       ["/admin/history", "Historique", "history"],
@@ -129,10 +129,13 @@ export function Layout({
   under,
   loggedIn = true,
   collapsed = false,
+  assets = [],
   children,
 }: {
   title: string;
   path: string;
+  /** Scripts and stylesheets of `/admin/assets` a page needs besides the usual ones (Cropper.js on the profile forms). */
+  assets?: string[];
   /** A detail page: the menu entry it belongs to (`/admin/studios`), the parent in its breadcrumb. */
   under?: string;
   flash?: { ok?: string; err?: string };
@@ -157,6 +160,11 @@ export function Layout({
 <link rel="apple-touch-icon" href="/admin/assets/apple-touch-icon.png?v=${v}">
 <script src="/admin/assets/basecoat.min.js?v=${v}" defer></script>
 <script src="/admin/assets/htmx.min.js?v=${v}" defer></script>
+${assets.map((a) =>
+  a.endsWith(".css")
+    ? html`<link href="/admin/assets/${a}?v=${v}" rel="stylesheet">`
+    : html`<script src="/admin/assets/${a}?v=${v}" defer></script>`,
+)}
 <meta name="htmx-config" content="${HTMX_CONFIG}">
 </head>
 <body class="bg-background text-foreground antialiased">

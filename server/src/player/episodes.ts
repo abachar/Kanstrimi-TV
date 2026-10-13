@@ -68,6 +68,7 @@ export async function setSeriesWatched(ctx: RestContext, content: Content, watch
   const episodes = (await episodesOf(ctx, content)).episodes.filter((e) => season === undefined || e.season === season);
   if (!episodes.length) return false;
   await setFinished(
+    ctx.profile.id,
     episodes.map((e) => e.key),
     watched,
   );

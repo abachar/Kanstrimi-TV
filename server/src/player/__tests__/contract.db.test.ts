@@ -4,7 +4,7 @@ import path from "node:path";
 import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { sha256 } from "@/shared";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
+import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
 import { setSecretsForTests, setSettings } from "@/config";
 import { addStudio, runNaming } from "@/catalog";
 import { player as api } from "..";
@@ -74,6 +74,7 @@ const ROUTES: Record<string, string | { path: string; body: unknown }> = {
   search: "/search?q=matrix",
   person: "/people/person:6384",
   "top-shelf": "/top-shelf",
+  profiles: "/profiles",
   error: "/movies/tmdb:movie:999999",
 };
 
@@ -295,11 +296,13 @@ beforeAll(async () => {
 
   // What the app recorded: a movie in progress, an episode seen, a favourite, a channel watched.
   await db.insert(schema.appWatchProgress).values([
-    { contentKey: "tmdb:movie:949", position: 3000, duration: 10200, finished: false, updatedAt: at(-120) },
-    { contentKey: "tmdb:tv:1396:s01e01", position: 4700, duration: 4800, finished: true, updatedAt: at(-60) },
+    { profileId: PROFILE, contentKey: "tmdb:movie:949", position: 3000, duration: 10200, finished: false, updatedAt: at(-120) },
+    { profileId: PROFILE, contentKey: "tmdb:tv:1396:s01e01", position: 4700, duration: 4800, finished: true, updatedAt: at(-60) },
   ]);
-  await db.insert(schema.appFavorites).values({ contentKey: "tmdb:tv:1396", createdAt: daysAgo(2) });
-  await db.execute(sql`insert into app_live_watch (content_key, day, seconds) values ('live:fr-tf1', current_date, 1800)`);
+  await db.insert(schema.appFavorites).values({ profileId: PROFILE, contentKey: "tmdb:tv:1396", createdAt: daysAgo(2) });
+  await db.execute(
+    sql`insert into app_live_watch (profile_id, content_key, day, seconds) values (${PROFILE}, 'live:fr-tf1', current_date, 1800)`,
+  );
   await db.insert(schema.tmdbTrending).values([
     { mediaType: "movie", rank: 1, tmdbId: 604, fetchedAt: daysAgo(1) },
     { mediaType: "movie", rank: 2, tmdbId: 603, fetchedAt: daysAgo(1) },
@@ -315,6 +318,7 @@ beforeAll(async () => {
     .insert(schema.theintrodbCache)
     .values({ mediaType: "movie", tmdbId: 603, season: 0, episode: 0, duration: 8160, segments: [], fetchedAt: at(-10) });
   await db.insert(schema.curationWaitlist).values({
+    profileId: PROFILE,
     contentKey: "tmdb:movie:604",
     tmdbId: 604,
     title: "Matrix Reloaded",

@@ -25,7 +25,7 @@ const HOME_ROW = 24;
 
 export async function home(ctx: RestContext): Promise<Home> {
   const [resume, recentMovies, recentSeries, favKeys, watchedKeys, picks, recommended] = await Promise.all([
-    resumeKeys(20),
+    resumeKeys(ctx.profile.id, 20),
     db
       .select()
       .from(schema.catalogContents)
@@ -38,8 +38,8 @@ export async function home(ctx: RestContext): Promise<Home> {
       .where(visibleContent(ctx, "series"))
       .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
       .limit(HOME_ROW),
-    favoriteKeys(),
-    mostWatchedKeys(),
+    favoriteKeys(ctx.profile.id),
+    mostWatchedKeys(ctx.profile.id),
     shelfPicks(ctx, { resume: false }),
     recommendedRow(ctx),
   ]);
@@ -62,7 +62,10 @@ export async function home(ctx: RestContext): Promise<Home> {
         .filter((c) => c.posterPath && c.backdropPath)
         .slice(0, TOP_SHELF_SIZE)
         .map((c) => ({ content: c, playId: c.key, context: "Nouveauté" }));
-  const progress = await getProgress([...recentMovies, ...recentSeries, ...slides.map((p) => p.content)].map((c) => c.key));
+  const progress = await getProgress(
+    ctx.profile.id,
+    [...recentMovies, ...recentSeries, ...slides.map((p) => p.content)].map((c) => c.key),
+  );
   if (recentMovies.length) {
     rows.push({
       id: "recent-movies",

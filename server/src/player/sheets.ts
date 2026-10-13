@@ -34,7 +34,11 @@ export function sheetRoutes(kind: "vod" | "series") {
 export async function movieSheet(ctx: RestContext, content: Content): Promise<Card> {
   const variants = await variantsOf(ctx, content);
   const versions = versionsOf(ctx, variants.playables);
-  const [progress, favs, saga] = await Promise.all([getProgress([content.key]), favoriteSet(), sagaRefOf(ctx, content.sagaId)]);
+  const [progress, favs, saga] = await Promise.all([
+    getProgress(ctx.profile.id, [content.key]),
+    favoriteSet(ctx.profile.id),
+    sagaRefOf(ctx, content.sagaId),
+  ]);
   return {
     ...sheetCard(ctx, content, provenance(variants)),
     ...versionsSummary(versions),
@@ -49,7 +53,13 @@ export async function movieSheet(ctx: RestContext, content: Content): Promise<Ca
 /** Seasons, episodes with versions and progress, current episode. */
 export async function seriesSheet(ctx: RestContext, content: Content): Promise<Card> {
   const { variants, episodes } = await episodesOf(ctx, content);
-  const [progress, favs] = await Promise.all([getProgress(episodes.map((e) => e.key)), favoriteSet()]);
+  const [progress, favs] = await Promise.all([
+    getProgress(
+      ctx.profile.id,
+      episodes.map((e) => e.key),
+    ),
+    favoriteSet(ctx.profile.id),
+  ]);
   const seasons = await seasonsWire(ctx, content, episodes, progress);
   const versions = seriesVersions(ctx, episodes);
   const current = currentEpisode(episodes, progress);

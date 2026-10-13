@@ -1,4 +1,4 @@
-import type { Category, Content, IptvorgChannel, Variant } from "@/db";
+import type { Category, Content, IptvorgChannel, Profile, Variant } from "@/db";
 import { db, schema, tmdbMediaType } from "@/db";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getCachedDetails } from "@/providers/tmdb";
@@ -6,12 +6,15 @@ import type { TmdbDetails } from "@/providers/tmdb";
 import { getSettings } from "@/config";
 import {
   contentById,
+  defaultProfile,
   epgSourceById,
-  itemById,
   iptvChannelById,
+  itemById,
+  listProfiles,
   offsetOf,
   offsetRules,
   parseSourceGuideId,
+  profileById,
   variantsOfContent,
 } from "@/catalog";
 import { epgIdsOf, favoriteSet, getProgress, type Progress } from "@/player";
@@ -60,7 +63,10 @@ export type ContentDetail = {
   variants: VariantDetail[];
   tmdbLang: string;
   guide: ChannelGuide | null;
-  /** In « Ma liste ». */
+  /** The profile whose list and positions the page shows and edits (`?profile=`, else the default one), among all of them. */
+  profile: Profile;
+  profiles: Profile[];
+  /** In the profile's « Ma liste ». */
   favorite: boolean;
   /** What is seen of it: a movie is one, a series its episodes in base (none before it is first opened); null for a channel. */
   watched: { seen: number; total: number } | null;
@@ -133,16 +139,20 @@ async function variantDetails(items: Variant[], tmdbLang: string): Promise<Varia
   );
 }
 
-async function watchedOf(c: Content): Promise<Pick<ContentDetail, "watched" | "episodes">> {
+async function watchedOf(profileId: number, c: Content): Promise<Pick<ContentDetail, "watched" | "episodes">> {
   if (c.kind === "live") return { watched: null, episodes: [] };
-  if (c.kind === "vod") return { watched: { seen: (await getProgress([c.key])).get(c.key)?.finished ? 1 : 0, total: 1 }, episodes: [] };
+  if (c.kind === "vod")
+    return { watched: { seen: (await getProgress(profileId, [c.key])).get(c.key)?.finished ? 1 : 0, total: 1 }, episodes: [] };
   const e = schema.catalogEpisodes;
   const rows = await db
     .select({ key: e.key, season: e.season, number: e.number, title: e.title })
     .from(e)
     .where(eq(e.contentId, c.id))
     .orderBy(asc(e.season), asc(e.number));
-  const progress = await getProgress(rows.map((r) => r.key));
+  const progress = await getProgress(
+    profileId,
+    rows.map((r) => r.key),
+  );
   const episodes = rows.map((r) => ({ ...r, progress: progress.get(r.key) ?? null }));
   return { watched: { seen: episodes.filter((x) => x.progress?.finished).length, total: episodes.length }, episodes };
 }
@@ -157,22 +167,28 @@ export async function episodeOf(contentId: number, key: string) {
   return row ?? null;
 }
 
-export async function contentDetail(id: number): Promise<ContentDetail | null> {
+/** The profile a page acts for: `?profile=` when it names one, else the default one. */
+export async function profileOfQuery(id: number | undefined): Promise<Profile> {
+  return (id ? await profileById(id) : null) ?? (await defaultProfile());
+}
+
+export async function contentDetail(id: number, profile: Profile): Promise<ContentDetail | null> {
   const content = await contentById(id);
   if (!content) return null;
   const tmdbLang = (await getSettings()).tmdb_language;
   const items = await variantsOfContent(content.id);
-  const [variants, guide, favorites, watched] = await Promise.all([
+  const [variants, guide, favorites, watched, profiles] = await Promise.all([
     variantDetails(items, tmdbLang),
     guideOf(content, items),
-    favoriteSet(),
-    watchedOf(content),
+    favoriteSet(profile.id),
+    watchedOf(profile.id, content),
+    listProfiles(),
   ]);
-  return { content, variants, tmdbLang, guide, favorite: favorites.has(content.key), ...watched };
+  return { content, variants, tmdbLang, guide, profile, profiles, favorite: favorites.has(content.key), ...watched };
 }
 
 /** An entry the grouping has not placed yet: the page shows it alone. */
-export async function orphanDetail(itemId: number): Promise<ContentDetail | null> {
+export async function orphanDetail(itemId: number, profile: Profile): Promise<ContentDetail | null> {
   const item = await itemById(itemId);
   if (!item) return null;
   const tmdbLang = (await getSettings()).tmdb_language;
@@ -181,6 +197,8 @@ export async function orphanDetail(itemId: number): Promise<ContentDetail | null
     variants: await variantDetails([item], tmdbLang),
     tmdbLang,
     guide: null,
+    profile,
+    profiles: await listProfiles(),
     favorite: false,
     watched: null,
     episodes: [],

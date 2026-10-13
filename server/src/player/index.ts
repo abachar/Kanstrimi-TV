@@ -17,6 +17,7 @@ import { channelRoutes } from "./channels";
 import { playbackRoutes } from "./playback";
 import { searchRoutes } from "./search";
 import { favoriteRoutes } from "./favorites";
+import { profileRoutes } from "./profiles";
 
 /**
  * `/player`, the contract of `types.ts`, one file per resource. Bearer device token everywhere
@@ -56,6 +57,7 @@ player.route("/search", searchRoutes);
 player.route("/favorites", favoriteRoutes);
 player.route("/people", peopleRoutes);
 player.route("/top-shelf", topShelfRoutes);
+player.route("/profiles", profileRoutes);
 
 // What the admin reads and edits of the app's own data (favourites, positions); `player` itself never imports `admin`.
 export { contextFor, type RestContext } from "./context";
@@ -67,6 +69,7 @@ export { listSagaWires, sagaSheet } from "./sagas";
 export { gridCard, runtimeText } from "./cards";
 export { epgIdsOf } from "./versions";
 export { isShelfPair } from "./top-shelf";
+export { avatarRoute, encodeAvatar } from "./profiles";
 export { listProgress, deleteProgress, getProgress, setFinished, setProgress, type Progress } from "./progress";
 export { setSeriesWatched } from "./episodes";
 export type { Card, CatalogRow, ChannelGroupWire, ChannelWire, SagaWire, StudioWire, Version } from "./types";

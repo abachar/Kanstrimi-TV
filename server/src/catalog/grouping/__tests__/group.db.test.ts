@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
+import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
 import { runNaming, regroupItems, refreshVisibility, groupingCounts } from "../group";
 import { inArray } from "drizzle-orm";
 
@@ -348,9 +348,9 @@ describe("rules on versions", () => {
     (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.hiddenByRule, true))).map((v) => v.xtreamId).sort();
   const languages = (query: string) =>
     db
-      .insert(schema.curationFilters)
-      .values({ kind: "vod", query })
-      .onConflictDoUpdate({ target: schema.curationFilters.kind, set: { query } });
+      .insert(schema.appProfileFilters)
+      .values({ profileId: PROFILE, kind: "vod", query })
+      .onConflictDoUpdate({ target: [schema.appProfileFilters.profileId, schema.appProfileFilters.kind], set: { query } });
 
   it("serves every version while no filter is set", async () => {
     const stats = await groupAndFilter();

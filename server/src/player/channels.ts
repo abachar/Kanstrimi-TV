@@ -184,8 +184,8 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
       .select()
       .from(schema.catalogVariants)
       .where(and(eq(schema.catalogVariants.kind, "live"), servedVariant(ctx), sql`${schema.catalogVariants.contentId} is not null`)),
-    favoriteSet(),
-    mostWatchedKeys(),
+    favoriteSet(ctx.profile.id),
+    mostWatchedKeys(ctx.profile.id),
   ]);
   const visibleKeys = new Set(channels.map((c) => c.key));
   const watchedRank = new Map(
@@ -240,7 +240,7 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
 }
 
 export async function channelSheet(ctx: RestContext, content: Content): Promise<ChannelWire> {
-  const [{ playables: own }, favs] = await Promise.all([variantsOf(ctx, content), favoriteSet()]);
+  const [{ playables: own }, favs] = await Promise.all([variantsOf(ctx, content), favoriteSet(ctx.profile.id)]);
   const playables = withFallback(content, own);
   return channelWire(ctx, content, playables, favs, await epgOf(playables.flatMap((p) => p.epgIds)));
 }

@@ -26,7 +26,7 @@ export function VisibilityToggle({
     filtered !== false
       ? short
         ? "Filtre"
-        : "Écartée par le filtre"
+        : "Écartée par les filtres de tous les profils"
       : catHidden
         ? short
           ? "Catégorie"
@@ -35,7 +35,7 @@ export function VisibilityToggle({
   const label = forced ?? (visible ? "Visible" : "Masqué");
   const title =
     filtered === null
-      ? "Pas encore jugée par le filtre : elle le sera au prochain passage de l'étape « Filtres »."
+      ? "Pas encore jugée par les filtres : elle le sera au prochain passage de l'étape « Filtres »."
       : filtered
         ? "Le filtre de son type ne la garde pas : modifiez-le pour la réafficher."
         : catHidden

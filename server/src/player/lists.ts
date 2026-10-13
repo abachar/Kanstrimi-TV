@@ -60,11 +60,11 @@ export function listRoutes(kind: "vod" | "series") {
 type Genre = { id: number; slug: string; name: string; total: number };
 /**
  * The genres and their totals take a scan of the visible contents (30 to 50 ms for the movies):
- * kept per (kind, adult setting) until the grouping rewrites the contents (`contentsGeneration`).
+ * kept per (kind, profile, adult setting) until the grouping rewrites the contents (`contentsGeneration`).
  */
 const genreCache = new Map<string, { generation: number; genres: Promise<Genre[]> }>();
 function genresOf(ctx: RestContext, kind: "vod" | "series"): Promise<Genre[]> {
-  const key = `${kind}:${ctx.serveAdult}`;
+  const key = `${kind}:${ctx.profile.id}:${ctx.serveAdult}`;
   const generation = contentsGeneration(); // read before the query: a change during it makes the result stale
   const hit = genreCache.get(key);
   if (hit?.generation === generation) return hit.genres;
@@ -114,7 +114,10 @@ export async function catalogRows(ctx: RestContext, kind: "vod" | "series"): Pro
   genres.forEach((g, i) => {
     rows.push({ id: g.slug, name: g.name, total: g.total, cards: byGenre[i] });
   });
-  const progress = await getProgress(rows.flatMap((r) => r.cards.map((c) => c.key)));
+  const progress = await getProgress(
+    ctx.profile.id,
+    rows.flatMap((r) => r.cards.map((c) => c.key)),
+  );
   const field = kind === "series" ? "series" : "movies";
   return rows.map(
     (r) =>
@@ -191,7 +194,10 @@ export async function listContents(ctx: RestContext, kind: "vod" | "series", q: 
     .orderBy(...order)
     .limit(limit + 1);
   const pageRows = rows.slice(0, limit);
-  const progress = await getProgress(pageRows.map((c) => c.key));
+  const progress = await getProgress(
+    ctx.profile.id,
+    pageRows.map((c) => c.key),
+  );
   const last = pageRows[pageRows.length - 1];
   return {
     items: pageRows.map((c) => contentItem(ctx, c, progress.get(c.key))),

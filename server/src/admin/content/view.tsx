@@ -1,4 +1,4 @@
-import type { Content } from "@/db";
+import type { Content, Profile } from "@/db";
 import type { MergeCandidate } from "@/catalog";
 import { isCategoryHidden, isItemHidden } from "@/db";
 import { isFallbackKey, keyKind, qualityOfRank } from "@/catalog";
@@ -318,9 +318,9 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
                   [
                     "Masquée",
                     it.hiddenByRule === null
-                      ? "pas encore jugée par le filtre"
+                      ? "pas encore jugée par les filtres"
                       : it.hiddenByRule
-                        ? "écartée par le filtre"
+                        ? "écartée par les filtres"
                         : it.hiddenManual
                           ? "à la main"
                           : null,
@@ -367,12 +367,37 @@ function hidingReason(c: Content, variants: VariantDetail[]): string | null {
     else if (isCategoryHidden(v.category)) cats.add(v.category!.name);
   }
   const causes = [
-    filtered ? (filtered > 1 ? `${filtered} versions écartées par le filtre` : "version écartée par le filtre") : null,
-    unjudged ? (unjudged > 1 ? `${unjudged} versions pas encore jugées par le filtre` : "version pas encore jugée par le filtre") : null,
+    filtered ? (filtered > 1 ? `${filtered} versions écartées par les filtres` : "version écartée par les filtres") : null,
+    unjudged
+      ? unjudged > 1
+        ? `${unjudged} versions pas encore jugées par les filtres`
+        : "version pas encore jugée par les filtres"
+      : null,
     manual ? (manual > 1 ? `${manual} versions masquées à la main` : "version masquée à la main") : null,
     cats.size ? `catégorie masquée (${[...cats].join(", ")})` : null,
   ].filter(Boolean);
   return causes.length ? `Aucune version servie : ${causes.join(", ")}` : "Aucune version servie";
+}
+
+/** Whose list and positions the page shows: one link per profile, the current one marked. */
+function ProfileTabs({ c, profile, profiles }: { c: Content; profile: Profile; profiles: Profile[] }) {
+  if (profiles.length < 2) return null;
+  return (
+    <nav class="flex flex-wrap items-center gap-1 text-sm" aria-label="Profil">
+      <span class="mr-1 text-muted-foreground">Pour</span>
+      {profiles.map((p) => (
+        <a
+          class="btn"
+          data-variant={p.id === profile.id ? "secondary" : "ghost"}
+          data-size="sm"
+          href={`/admin/content/${c.id}${p.isDefault ? "" : `?profile=${p.id}`}`}
+          aria-current={p.id === profile.id ? "page" : undefined}
+        >
+          {p.name}
+        </a>
+      ))}
+    </nav>
+  );
 }
 
 function Hero({
@@ -381,12 +406,16 @@ function Hero({
   reason,
   favorite,
   watched,
+  profile,
+  profiles,
 }: {
   c: Content;
   total: number;
   reason: string | null;
   favorite: boolean;
   watched: ContentDetail["watched"];
+  profile: Profile;
+  profiles: Profile[];
 }) {
   const live = c.kind === "live";
   const quality = [qualityOfRank(c.maxQualityRank), c.dynamicRange].filter(Boolean);
@@ -438,8 +467,10 @@ function Hero({
           <span class="text-sm text-muted-foreground">{meta.filter(Boolean).join(" · ")}</span>
         </div>
         {c.overview && <p class="text-sm leading-relaxed">{c.overview}</p>}
+        <ProfileTabs c={c} profile={profile} profiles={profiles} />
         <div class="flex flex-wrap items-center gap-2">
           <form method="post" action={`/admin/content/${c.id}/favorite`}>
+            <input type="hidden" name="profile" value={profile.id} />
             {!favorite && <input type="hidden" name="on" value="1" />}
             <button class="btn" data-variant="outline" data-size="sm">
               <Icon name="favorites" cls={favorite ? "fill-current text-amber-400" : undefined} />
@@ -448,6 +479,7 @@ function Hero({
           </form>
           {watched && (watched.seen < watched.total || watched.total === 0) && (
             <form method="post" action={`/admin/content/${c.id}/watched`}>
+              <input type="hidden" name="profile" value={profile.id} />
               <input type="hidden" name="on" value="1" />
               <button class="btn" data-variant="outline" data-size="sm">
                 <Icon name="success" />
@@ -457,6 +489,7 @@ function Hero({
           )}
           {watched && watched.seen > 0 && (
             <form method="post" action={`/admin/content/${c.id}/watched`}>
+              <input type="hidden" name="profile" value={profile.id} />
               <button class="btn" data-variant="outline" data-size="sm">
                 <Icon name="x" />
                 Retirer de mes vus
@@ -491,6 +524,8 @@ export function ContentView({
   favorite,
   watched,
   episodes,
+  profile,
+  profiles,
   open,
 }: ContentDetail & { open: number | null }) {
   const kind = content?.kind ?? variants[0].item.kind;
@@ -498,7 +533,15 @@ export function ContentView({
   return (
     <>
       {content ? (
-        <Hero c={content} total={variants.length} reason={hidingReason(content, variants)} favorite={favorite} watched={watched} />
+        <Hero
+          c={content}
+          total={variants.length}
+          reason={hidingReason(content, variants)}
+          favorite={favorite}
+          watched={watched}
+          profile={profile}
+          profiles={profiles}
+        />
       ) : (
         <div>
           <h1 class="text-2xl font-semibold tracking-tight break-words">{variants[0].item.name}</h1>
@@ -521,7 +564,7 @@ export function ContentView({
           ))}
         </div>
       </section>
-      {content?.kind === "series" && <EpisodesCard c={content} episodes={episodes} />}
+      {content?.kind === "series" && <EpisodesCard c={content} episodes={episodes} profile={profile} />}
       {content && guide && <GuideCard c={content} g={guide} />}
     </>
   );

@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { getSettings } from "@/config";
+import { defaultProfile } from "@/catalog";
 import { contextFor, setFavorite } from "@/player";
-import { back, page } from "../http";
+import { back, intParam, page } from "../http";
 import { favoriteRows } from "./data";
 import { FavoritesView } from "./view";
 
@@ -9,10 +10,10 @@ import { FavoritesView } from "./view";
 export const favoritesRoutes = new Hono();
 
 favoritesRoutes.get("/", async (c) => {
-  const ctx = contextFor(c.req.raw, null, await getSettings());
+  const ctx = await contextFor(c.req.raw, null, await getSettings(), await defaultProfile());
   return page(c, "Favoris", <FavoritesView rows={await favoriteRows(ctx)} />);
 });
-favoritesRoutes.post("/:key/remove", async (c) => {
-  await setFavorite(c.req.param("key"), false);
+favoritesRoutes.post("/:profile{\\d+}/:key/remove", async (c) => {
+  await setFavorite(intParam(c, "profile"), c.req.param("key"), false);
   return back(c, "/admin/favorites", { ok: "Favori retiré" });
 });

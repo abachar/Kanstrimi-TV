@@ -79,7 +79,26 @@ export {
   type StudioSuggestion,
   studioSuggestions,
 } from "./studios";
-export { filtersPending, listFilters, previewFilter, saveFilter, type FilterPreview } from "./filters/filters";
+export {
+  filterLanguages,
+  filtersPending,
+  languageOrderOf,
+  listFilters,
+  previewFilter,
+  saveFilter,
+  type FilterPreview,
+} from "./filters/filters";
+export {
+  createProfile,
+  defaultProfile,
+  deleteProfile,
+  listProfiles,
+  profileAvatar,
+  profileById,
+  ProfileError,
+  setDefaultProfile,
+  updateProfile,
+} from "./profiles";
 export { applyFilters } from "./filters/apply";
 export {
   addToWaitlist,

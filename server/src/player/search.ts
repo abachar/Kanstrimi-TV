@@ -122,7 +122,10 @@ export async function search(
     )
     .slice(0, SEARCH_RESULTS)
     .map(({ r }) => r.content);
-  const progress = await getProgress(ranked.filter((c) => c.kind !== "live").map((c) => c.key));
+  const progress = await getProgress(
+    ctx.profile.id,
+    ranked.filter((c) => c.kind !== "live").map((c) => c.key),
+  );
   return { query, items: ranked.map((c) => resultItem(ctx, c, progress.get(c.key))) };
 }
 

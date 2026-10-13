@@ -1,4 +1,5 @@
 import type { WaitlistCandidate, WaitlistRow, WaitlistStatus } from "@/catalog";
+import type { Profile } from "@/db";
 import { runtimeText } from "@/player";
 import { signedImagePath } from "@/shared";
 import { Badge, Card, Empty, Title, type Tone } from "../ui";
@@ -94,13 +95,16 @@ function Entry({ e }: { e: WaitlistRow }) {
         {s?.overview && <p class="line-clamp-4 max-w-3xl text-sm">{s.overview}</p>}
         <div class="mt-auto flex flex-wrap items-center gap-2 pt-1 text-sm text-muted-foreground">
           <Badge tone={STATUS[e.status][1]}>{STATUS[e.status][0]}</Badge>
+          <Badge tone="plain" title="Le profil qui l'attend">
+            {e.profileName}
+          </Badge>
           <span>{when(e)}</span>
           <div class="ml-auto flex gap-1">
             <TmdbLink id={e.tmdbId} title={e.title} />
             <form
               method="post"
-              action={`/admin/waitlist/${e.tmdbId}/remove`}
-              hx-post={`/admin/waitlist/${e.tmdbId}/remove`}
+              action={`/admin/waitlist/${e.profileId}/${e.tmdbId}/remove`}
+              hx-post={`/admin/waitlist/${e.profileId}/${e.tmdbId}/remove`}
               hx-confirm={`Retirer ${e.title} de la liste ?`}
             >
               <button class="btn" data-variant="ghost" data-size="sm" title="Retirer" aria-label={`Retirer ${e.title}`}>
@@ -127,18 +131,23 @@ export function WaitlistView({
   q,
   candidates,
   error,
+  profiles,
+  profile,
 }: {
   rows: WaitlistRow[];
   q: string;
   /** Null: no TMDB key; undefined: no search yet. */
   candidates: WaitlistCandidate[] | null | undefined;
   error: string | null;
+  profiles: Profile[];
+  /** The profile a found movie is added for. */
+  profile: Profile;
 }) {
   return (
     <>
       <Title
         t="Liste d'attente"
-        sub="Des films que le fournisseur n'a pas encore. Dès qu'une source visible existe, le film passe en tête du carrousel de l'accueil et du Top Shelf, jusqu'à ce qu'il soit entamé. Le traitement complet le vérifie à chaque passage."
+        sub="Des films que le fournisseur n'a pas encore, attendus par un profil. Dès que ce profil en voit une source, le film passe en tête de son carrousel de l'accueil et de son Top Shelf, jusqu'à ce qu'il soit entamé. Le traitement complet le vérifie à chaque passage."
       />
       <Card title="Films attendus" icon="waitlist" extra={fmt(rows.length)}>
         {rows.length === 0 ? (
@@ -157,8 +166,22 @@ export function WaitlistView({
         hint="Recherche TMDB : la fiche est mise en cache dès l'ajout, prête le jour où le film arrive."
       >
         <div class="flex flex-col gap-4">
-          <form method="get" action="/admin/waitlist" class="flex gap-2" role="search">
-            <input class="input" type="search" name="q" value={q} placeholder="Titre du film" aria-label="Chercher un film sur TMDB" />
+          <form method="get" action="/admin/waitlist" class="flex flex-wrap gap-2" role="search">
+            <select class="select w-auto" name="profile" aria-label="Profil qui attend le film">
+              {profiles.map((p) => (
+                <option value={p.id} selected={p.id === profile.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <input
+              class="input flex-1"
+              type="search"
+              name="q"
+              value={q}
+              placeholder="Titre du film"
+              aria-label="Chercher un film sur TMDB"
+            />
             <button class="btn" data-variant="outline">
               <Icon name="search" />
               Chercher
@@ -170,14 +193,24 @@ export function WaitlistView({
               </a>
             )}
           </form>
-          <Results q={q} candidates={candidates} error={error} />
+          <Results q={q} candidates={candidates} error={error} profile={profile} />
         </div>
       </Card>
     </>
   );
 }
 
-function Results({ q, candidates, error }: { q: string; candidates: WaitlistCandidate[] | null | undefined; error: string | null }) {
+function Results({
+  q,
+  candidates,
+  error,
+  profile,
+}: {
+  q: string;
+  candidates: WaitlistCandidate[] | null | undefined;
+  error: string | null;
+  profile: Profile;
+}) {
   if (error) return <Empty title="TMDB injoignable" sub={error} />;
   if (candidates === null) return <Empty title="Clé API TMDB non configurée" sub="TMDB_API_KEY manque dans l'environnement." />;
   if (candidates === undefined) return null;
@@ -210,15 +243,16 @@ function Results({ q, candidates, error }: { q: string; candidates: WaitlistCand
                 <form method="post" action="/admin/waitlist">
                   <input type="hidden" name="tmdb_id" value={m.tmdbId} />
                   <input type="hidden" name="q" value={q} />
+                  <input type="hidden" name="profile" value={profile.id} />
                   <button
                     class="btn"
                     data-variant="outline"
                     data-size="sm"
-                    title={`Attendre ${m.title}`}
-                    aria-label={`Attendre ${m.title}`}
+                    title={`Attendre ${m.title} pour ${profile.name}`}
+                    aria-label={`Attendre ${m.title} pour ${profile.name}`}
                   >
                     <Icon name="plus" />
-                    Attendre
+                    Attendre pour {profile.name}
                   </button>
                 </form>
               )}

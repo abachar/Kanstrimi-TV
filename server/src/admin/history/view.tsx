@@ -23,8 +23,10 @@ const Action = ({
 }) => (
   <form
     method="post"
-    action={`/admin/history/${encodeURIComponent(row.key)}/${verb}`}
-    {...(confirm ? { "hx-post": `/admin/history/${encodeURIComponent(row.key)}/${verb}`, "hx-confirm": confirm } : {})}
+    action={`/admin/history/${row.progress.profileId}/${encodeURIComponent(row.key)}/${verb}`}
+    {...(confirm
+      ? { "hx-post": `/admin/history/${row.progress.profileId}/${encodeURIComponent(row.key)}/${verb}`, "hx-confirm": confirm }
+      : {})}
   >
     <button class="btn" data-variant={variant} data-size="sm">
       <Icon name={icon} />
@@ -40,6 +42,7 @@ function Rows({ rows, finished }: { rows: HistoryRow[]; finished: boolean }) {
       <thead>
         <tr>
           <th>Titre</th>
+          <th>Profil</th>
           <th>Position</th>
           <th class="text-end">%</th>
           <th>Dernière lecture</th>
@@ -64,6 +67,7 @@ function Rows({ rows, finished }: { rows: HistoryRow[]; finished: boolean }) {
                 </span>
               </div>
             </td>
+            <td class="text-sm">{r.profileName}</td>
             <td class="text-sm tabular-nums">
               <div class="flex min-w-32 flex-col gap-1">
                 <span>
@@ -96,7 +100,7 @@ function Rows({ rows, finished }: { rows: HistoryRow[]; finished: boolean }) {
 export function HistoryView({ ongoing, finished }: { ongoing: HistoryRow[]; finished: HistoryRow[] }) {
   return (
     <>
-      <Title t="Historique" sub="Les positions de lecture telles que l'app les envoie ; « vu » à partir de 90 %" />
+      <Title t="Historique" sub="Les positions de lecture de chaque profil, telles que l'app les envoie ; « vu » à partir de 90 %" />
       <Card title="En cours" icon="play" extra={fmt(ongoing.length)}>
         <Rows rows={ongoing} finished={false} />
       </Card>

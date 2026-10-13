@@ -1,14 +1,15 @@
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 import { getSettings } from "@/config";
 import { db, schema, type WaitlistEntry } from "@/db";
 import { cardFields, getDetails, getTmdbClient, type TmdbDetails } from "@/providers/tmdb";
 import { tmdbKey } from "./keys";
 
 /**
- * « Liste d'attente »: movies the provider does not have yet, chosen in the admin from a TMDB search.
- * The pipeline flags an entry available once a visible content carries its key (`markWaitlistAvailable`,
- * after every visibility change); the app then shows it as the home hero and at the head of the Top
- * Shelf until it is started (`markWaitlistStarted`, 5 % played, as « Reprendre » counts it).
+ * « Liste d'attente »: movies the provider does not have yet, chosen in the admin from a TMDB search,
+ * each for a profile. The pipeline flags an entry available once a content the profile sees carries
+ * its key (`markWaitlistAvailable`, after every visibility change); the app then shows it as the home
+ * hero and at the head of the Top Shelf until it is started (`markWaitlistStarted`, 5 % played, as
+ * « Reprendre » counts it).
  */
 
 export type WaitlistStatus = "waiting" | "available" | "started";
@@ -25,7 +26,7 @@ export type WaitlistSheet = {
   director: string | null;
   cast: string[];
 };
-export type WaitlistRow = WaitlistEntry & { status: WaitlistStatus; sheet: WaitlistSheet | null };
+export type WaitlistRow = WaitlistEntry & { status: WaitlistStatus; sheet: WaitlistSheet | null; profileName: string };
 export type WaitlistCandidate = {
   tmdbId: number;
   title: string;
@@ -42,20 +43,26 @@ export type WaitlistCandidate = {
 const statusOf = (e: WaitlistEntry): WaitlistStatus => (e.startedAt ? "started" : e.availableAt ? "available" : "waiting");
 const yearOf = (date: unknown) => (typeof date === "string" && /^\d{4}/.test(date) ? Number(date.slice(0, 4)) : null);
 
-/** Available and not started first, then waiting, then started; the latest first in each. */
+/** Every profile's entries: available and not started first, then waiting, then started; the latest first in each. */
 export async function listWaitlist(): Promise<WaitlistRow[]> {
   const w = schema.curationWaitlist;
   const rows = await db
-    .select()
+    .select({ entry: w, profileName: schema.appProfiles.name })
     .from(w)
+    .innerJoin(schema.appProfiles, eq(schema.appProfiles.id, w.profileId))
     .orderBy(
       sql`case when ${w.startedAt} is not null then 2 when ${w.availableAt} is not null then 0 else 1 end`,
       desc(sql`coalesce(${w.startedAt}, ${w.availableAt}, ${w.addedAt})`),
       w.title,
     );
-  const sheets = await cachedSheets(rows.map((e) => e.tmdbId));
-  return rows.map((e) => ({ ...e, status: statusOf(e), sheet: sheets.get(e.tmdbId) ?? null }));
+  const sheets = await cachedSheets(rows.map((r) => r.entry.tmdbId));
+  return rows.map(({ entry: e, profileName }) => ({ ...e, status: statusOf(e), sheet: sheets.get(e.tmdbId) ?? null, profileName }));
 }
+
+/** A content the profile sees carries `key`. */
+const seenBy = (profileId: SQL | number, key: SQL | string) => sql`exists (
+  select 1 from ${schema.catalogContents} c join ${schema.catalogContentProfiles} cp on cp.content_id = c.id
+  where c.key = ${key} and cp.profile_id = ${profileId})`;
 
 /** The cached TMDB documents of these movies, in the cards' language, read as a sheet. No network. */
 async function cachedSheets(tmdbIds: number[]): Promise<Map<number, WaitlistSheet>> {
@@ -84,8 +91,8 @@ async function cachedSheets(tmdbIds: number[]): Promise<Map<number, WaitlistShee
   );
 }
 
-/** Movies of TMDB matching `query`, flagged when the catalogue or the list already has them. Null without a TMDB key. */
-export async function searchWaitlistCandidates(query: string, limit = 12): Promise<WaitlistCandidate[] | null> {
+/** Movies of TMDB matching `query`, flagged when the profile's catalogue or list already has them. Null without a TMDB key. */
+export async function searchWaitlistCandidates(profileId: number, query: string, limit = 12): Promise<WaitlistCandidate[] | null> {
   const client = await getTmdbClient();
   if (!client) return null;
   const hits = ((await client.searchMovie(query)).results ?? []).slice(0, limit);
@@ -95,11 +102,12 @@ export async function searchWaitlistCandidates(query: string, limit = 12): Promi
     db
       .select({ key: schema.catalogContents.key })
       .from(schema.catalogContents)
-      .where(and(inArray(schema.catalogContents.key, keys), eq(schema.catalogContents.visible, true))),
+      .innerJoin(schema.catalogContentProfiles, eq(schema.catalogContentProfiles.contentId, schema.catalogContents.id))
+      .where(and(inArray(schema.catalogContents.key, keys), eq(schema.catalogContentProfiles.profileId, profileId))),
     db
       .select({ key: schema.curationWaitlist.contentKey })
       .from(schema.curationWaitlist)
-      .where(inArray(schema.curationWaitlist.contentKey, keys)),
+      .where(and(eq(schema.curationWaitlist.profileId, profileId), inArray(schema.curationWaitlist.contentKey, keys))),
   ]);
   const inCatalog = new Set(visible.map((r) => r.key));
   const listed = new Set(waiting.map((r) => r.key));
@@ -119,18 +127,18 @@ export async function searchWaitlistCandidates(query: string, limit = 12): Promi
 export type WaitlistAddResult = "added" | "already" | "in_catalog" | "no_tmdb" | "unknown";
 
 /**
- * Add a movie by its TMDB id. Its TMDB document is fetched now and stays in `tmdb_cache`: the day the
- * provider lists it, its card is ready.
+ * Add a movie by its TMDB id to a profile's list. Its TMDB document is fetched now and stays in
+ * `tmdb_cache`: the day the provider lists it, its card is ready.
  */
-export async function addToWaitlist(tmdbId: number): Promise<WaitlistAddResult> {
+export async function addToWaitlist(profileId: number, tmdbId: number): Promise<WaitlistAddResult> {
   const contentKey = tmdbKey("vod", tmdbId);
-  const [listed] = await db.select().from(schema.curationWaitlist).where(eq(schema.curationWaitlist.contentKey, contentKey));
+  const [listed] = await db
+    .select()
+    .from(schema.curationWaitlist)
+    .where(and(eq(schema.curationWaitlist.profileId, profileId), eq(schema.curationWaitlist.contentKey, contentKey)));
   if (listed) return "already";
-  const [present] = await db
-    .select({ id: schema.catalogContents.id })
-    .from(schema.catalogContents)
-    .where(and(eq(schema.catalogContents.key, contentKey), eq(schema.catalogContents.visible, true)));
-  if (present) return "in_catalog";
+  const [present] = await db.execute<{ seen: boolean }>(sql`select ${seenBy(profileId, contentKey)} as seen`);
+  if (present.seen) return "in_catalog";
   const client = await getTmdbClient();
   if (!client) return "no_tmdb";
   const d = await getDetails(client, "movie", tmdbId);
@@ -139,6 +147,7 @@ export async function addToWaitlist(tmdbId: number): Promise<WaitlistAddResult> 
   await db
     .insert(schema.curationWaitlist)
     .values({
+      profileId,
       contentKey,
       tmdbId,
       title: d.title,
@@ -150,46 +159,54 @@ export async function addToWaitlist(tmdbId: number): Promise<WaitlistAddResult> 
   return "added";
 }
 
-export async function removeFromWaitlist(tmdbId: number) {
-  await db.delete(schema.curationWaitlist).where(eq(schema.curationWaitlist.contentKey, tmdbKey("vod", tmdbId)));
+export async function removeFromWaitlist(profileId: number, tmdbId: number) {
+  await db
+    .delete(schema.curationWaitlist)
+    .where(and(eq(schema.curationWaitlist.profileId, profileId), eq(schema.curationWaitlist.contentKey, tmdbKey("vod", tmdbId))));
 }
 
 /** An entry the catalogue now carries, as the arrival listeners receive it. */
-export type WaitlistArrival = { contentKey: string; title: string; year: number | null };
+export type WaitlistArrival = { profileId: number; contentKey: string; title: string; year: number | null };
 const arrivalListeners: ((arrivals: WaitlistArrival[]) => void)[] = [];
 /** Called after each `markWaitlistAvailable` that flagged something (the alerts of the app hang here, wired by `main.ts`). */
 export function onWaitlistAvailable(fn: (arrivals: WaitlistArrival[]) => void) {
   arrivalListeners.push(fn);
 }
 
-/** Entries whose key a visible content now carries: flagged available, once. Returns how many. */
+/** Entries whose key a content their profile sees now carries: flagged available, once. Returns how many. */
 export async function markWaitlistAvailable(): Promise<number> {
   const w = schema.curationWaitlist;
   const rows = await db
     .update(w)
     .set({ availableAt: new Date() })
-    .where(and(isNull(w.availableAt), sql`exists (select 1 from ${schema.catalogContents} c where c.key = ${w.contentKey} and c.visible)`))
-    .returning({ contentKey: w.contentKey, title: w.title, year: w.year });
+    .where(and(isNull(w.availableAt), seenBy(sql`${w.profileId}`, sql`${w.contentKey}`)))
+    .returning({ profileId: w.profileId, contentKey: w.contentKey, title: w.title, year: w.year });
   if (rows.length) for (const fn of arrivalListeners) fn(rows);
   return rows.length;
 }
 
-/** The app played 5 % of it: the entry leaves the hero and the Top Shelf for « Reprendre ». */
-export async function markWaitlistStarted(contentKeys: string | string[]) {
+/** The profile played 5 % of it: the entry leaves the hero and the Top Shelf for « Reprendre ». */
+export async function markWaitlistStarted(profileId: number, contentKeys: string | string[]) {
   const w = schema.curationWaitlist;
   await db
     .update(w)
     .set({ startedAt: new Date() })
-    .where(and(inArray(w.contentKey, typeof contentKeys === "string" ? [contentKeys] : contentKeys), isNull(w.startedAt)));
+    .where(
+      and(
+        eq(w.profileId, profileId),
+        inArray(w.contentKey, typeof contentKeys === "string" ? [contentKeys] : contentKeys),
+        isNull(w.startedAt),
+      ),
+    );
 }
 
-/** Keys available and not started, the latest available first: what the hero and the Top Shelf announce. */
-export async function availableWaitlistKeys(): Promise<string[]> {
+/** The profile's keys available and not started, the latest available first: what the hero and the Top Shelf announce. */
+export async function availableWaitlistKeys(profileId: number): Promise<string[]> {
   const w = schema.curationWaitlist;
   const rows = await db
     .select({ key: w.contentKey })
     .from(w)
-    .where(and(isNotNull(w.availableAt), isNull(w.startedAt)))
+    .where(and(eq(w.profileId, profileId), isNotNull(w.availableAt), isNull(w.startedAt)))
     .orderBy(desc(w.availableAt), w.contentKey);
   return rows.map((r) => r.key);
 }

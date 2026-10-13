@@ -31,10 +31,13 @@ type WatchState = "seen" | "started";
  * Seen or in progress, per content. A movie: finished, or resumable. A series: its last episode
  * finished = seen; any episode finished or resumable = in progress.
  */
-async function watchStates(contents: Content[]): Promise<Map<string, WatchState>> {
+async function watchStates(ctx: RestContext, contents: Content[]): Promise<Map<string, WatchState>> {
   const states = new Map<string, WatchState>();
   const movies = contents.filter((c) => c.kind === "vod");
-  for (const [key, p] of await getProgress(movies.map((c) => c.key))) {
+  for (const [key, p] of await getProgress(
+    ctx.profile.id,
+    movies.map((c) => c.key),
+  )) {
     if (isWatched(p)) states.set(key, "seen");
     else if (isResumable(p)) states.set(key, "started");
   }
@@ -43,7 +46,12 @@ async function watchStates(contents: Content[]): Promise<Map<string, WatchState>
   const rows = await db
     .select()
     .from(schema.appWatchProgress)
-    .where(or(...series.map((c) => like(schema.appWatchProgress.contentKey, `${c.key.replace(/[\\%_]/g, "\\$&")}:%`))));
+    .where(
+      and(
+        eq(schema.appWatchProgress.profileId, ctx.profile.id),
+        or(...series.map((c) => like(schema.appWatchProgress.contentKey, `${c.key.replace(/[\\%_]/g, "\\$&")}:%`))),
+      ),
+    );
   const watched = new Map<string, Progress[]>();
   for (const p of rows) {
     if (!isWatched(p) && !isResumable(p)) continue;
@@ -79,9 +87,12 @@ async function recommendedContents(ctx: RestContext, content: Content, waitMs: n
 /** The sheet's row: nothing seen, ten at most. */
 export async function sheetRelated(ctx: RestContext, content: Content): Promise<ContentItem[]> {
   const candidates = await recommendedContents(ctx, content, SHEET_WAIT_MS);
-  const states = await watchStates(candidates);
+  const states = await watchStates(ctx, candidates);
   const kept = candidates.filter((c) => states.get(c.key) !== "seen").slice(0, SHEET_RELATED);
-  const progress = await getProgress(kept.map((c) => c.key));
+  const progress = await getProgress(
+    ctx.profile.id,
+    kept.map((c) => c.key),
+  );
   return kept.map((c) => contentItem(ctx, c, progress.get(c.key)));
 }
 
@@ -94,7 +105,7 @@ export async function suggestions(ctx: RestContext, key: string): Promise<Sugges
   const content = await contentByKey(ctx, episode ? parsed.seriesKey : key);
   if (!content) return null;
   const candidates = await recommendedContents(ctx, content, PLAYER_WAIT_MS);
-  const states = await watchStates(candidates);
+  const states = await watchStates(ctx, candidates);
   const related = candidates.filter((c) => states.get(c.key) !== "seen").slice(0, PLAYER_RELATED);
   const fresh = candidates.filter((c) => !states.has(c.key));
 
@@ -127,7 +138,7 @@ async function nextInSaga(ctx: RestContext, movie: Content): Promise<Content | n
       ),
     )
     .orderBy(asc(schema.catalogContents.releaseDate), asc(schema.catalogContents.id));
-  const states = await watchStates(later);
+  const states = await watchStates(ctx, later);
   return later.find((c) => !states.has(c.key)) ?? null;
 }
 
@@ -144,7 +155,7 @@ async function hasEpisodeAfter(ctx: RestContext, series: Content, key: string): 
  * without recommendations yet are fetched in the background, the row fills at a later visit.
  */
 export async function recommendedRow(ctx: RestContext): Promise<ContentItem[]> {
-  const [history, favs] = await Promise.all([listProgress(), favoriteKeys()]);
+  const [history, favs] = await Promise.all([listProgress(ctx.profile.id), favoriteKeys(ctx.profile.id)]);
   const seeds = new Map<string, number>();
   for (const p of history) {
     if (seeds.size >= HOME_SEEDS) break;
@@ -165,7 +176,7 @@ export async function recommendedRow(ctx: RestContext): Promise<ContentItem[]> {
     ctx,
     ranked.map(([k]) => k),
   );
-  const states = await watchStates(candidates);
+  const states = await watchStates(ctx, candidates);
   return candidates
     .filter((c) => !states.has(c.key))
     .slice(0, HOME_RELATED)

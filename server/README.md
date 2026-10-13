@@ -1,7 +1,8 @@
 # Kanstrimi — serveur
 
 Node 22 · Hono · TypeScript · Postgres + Drizzle · Biome · Vitest · esbuild. Admin rendue côté serveur (Hono JSX, HTMX,
-Tailwind CSS 4 et Basecoat, icônes Lucide ; **aucun CSS ni JS maison**).
+Tailwind CSS 4 et Basecoat, icônes Lucide ; **aucun CSS ni JS maison**, à une exception près : `assets/avatar.js`, la glu
+de Cropper.js pour recadrer la photo d'un profil).
 Le serveur importe le catalogue du fournisseur, le nettoie, l'enrichit et le sert à l'app Apple ; la vidéo ne le
 traverse jamais (l'app lit l'URL du fournisseur).
 
@@ -15,8 +16,8 @@ npm run db:migrate
 npm run dev                                # http://localhost:3000/admin
 ```
 
-Puis dans l'admin : **Paramètres** (URL publique, langue TMDB, planification), **Tâches → Traitement complet**, et
-**Appareils** pour appairer l'Apple TV ou l'iPhone. En local, `DEV_PASSWORD` dans `.env` saute la connexion (refusé en
+Puis dans l'admin : **Paramètres** (URL publique, langue TMDB, planification), **Tâches → Traitement complet**,
+**Profils** (les personnes du foyer, chacune avec ses filtres) et **Appareils** pour appairer l'Apple TV ou l'iPhone. En local, `DEV_PASSWORD` dans `.env` saute la connexion (refusé en
 production).
 
 | Script | Rôle |
@@ -45,7 +46,7 @@ Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres :
 | `source` | copie brute des listes Xtream, refusée si vide ou si le catalogue fond de moitié (panne du fournisseur) ; puis copie brute → variantes du catalogue, par différence, et analyse des noms (titre, année, marché, langue, qualité, édition) |
 | `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`), qui relit peu à peu les fiches anciennes ; puis rattachement des chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région. L'un en panne n'empêche pas l'autre |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
-| `filters` | le filtre de chaque type (`catalog/filters/`) garde ou écarte chaque version, puis les contenus touchés recomptent leurs agrégats, `visible` (une version servie) et les arrivées de la liste d'attente. Un contenu sans version servie est masqué ; une version que le filtre n'a pas encore vue est écartée |
+| `filters` | les filtres de chaque profil (`catalog/filters/`) gardent ou écartent chaque version pour ce profil (`catalog_variant_profiles`) ; `hidden_by_rule` = écartée par tous ; puis les contenus touchés recomptent leurs agrégats, `visible` (vue par un profil au moins), ce que voit chaque profil (`catalog_content_profiles`) et les arrivées de la liste d'attente. Une version qu'aucun filtre n'a encore vue est écartée |
 
 | Tâche à part | Rôle |
 |---|---|
@@ -54,7 +55,8 @@ Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres :
 | `markers` | export quotidien de SkipDB (récaps, intros, génériques, aperçus du prochain épisode), remplacé en entier ; un export vide ou fondu de moitié garde le précédent |
 
 TMDB passe en premier : tout est matché une fois, et un titre affiché n'attend jamais sa fiche. Les filtres passent en
-dernier : ils lisent le contenu tel que l'app le montre.
+dernier : ils lisent le contenu tel que l'app le montre. L'étape peut ne juger qu'un profil (`applyFilters({ profileId })`,
+« Appliquer maintenant », un profil créé) : l'union se recalcule quand même.
 Le matching est un seul algorithme, `explainMatch` : `enrich` applique son verdict, l'admin l'affiche sous « Pourquoi ? ».
 Une panne de TMDB (réseau, 429 qui dure) laisse l'élément en attente, jamais `unmatched` ; le client TMDB ne dépasse
 pas 35 requêtes par seconde.
@@ -65,16 +67,19 @@ partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque pa
 ## Tables
 
 Le préfixe dit d'où vient la donnée : `xtream_` (copie et cache du fournisseur), `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_` (caches des sources),
-`catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes et les épisodes construits à l'ouverture d'une fiche), `curation_` (choix de l'admin), `app_` (ce que l'app enregistre : favoris,
-progression, temps regardé du direct, appareils), `task_` (journal), et `settings`.
+`catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes et les épisodes construits à l'ouverture d'une fiche ; `catalog_variant_profiles` et `catalog_content_profiles` = ce que chaque profil garde et voit), `curation_` (choix de l'admin), `app_` (les personnes du foyer, `app_profiles`, leurs filtres, et ce que l'app enregistre pour chacune : favoris,
+progression, temps regardé du direct, liste d'attente ; les appareils), `task_` (journal), et `settings`.
 Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_contents.key`, la seule identité exposée à l'app).
+Tout ce qui est personnel porte un `profile_id` ; un profil est par défaut (`is_default`, un seul) : celui des appareils tant que
+l'app n'en dit pas d'autre, du Top Shelf et de l'admin quand elle regarde « avec les yeux de l'app ». Il ne se supprime pas ;
+supprimer un autre profil emporte tout ce qu'il a enregistré.
 
 ## API
 
 | Route | Rôle |
 |---|---|
-| `/player/*` | API des apps. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`) ; `PUT /devices/me/push` enregistre le jeton APNs d'un iPhone. |
-| `/img/…` | images TMDB et logos iptv-org en cache disque (un téléchargement demande une URL signée par le serveur (`?k=`) ; un fichier déjà en cache se sert à tous) ; `/img/shelf/…` = images du Top Shelf, logo du titre dessiné sur le fond par `sharp` |
+| `/player/*` | API des apps. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`) ; `X-Profile: <id>` dit pour quel profil (sans : le profil par défaut ; supprimé depuis : `unknown_profile`, l'app rechoisit) ; `GET /profiles` les liste, `/info` dit celui qui répond ; `PUT /devices/me/push` enregistre le jeton APNs d'un iPhone. |
+| `/img/…` | images TMDB et logos iptv-org en cache disque (un téléchargement demande une URL signée par le serveur (`?k=`) ; un fichier déjà en cache se sert à tous) ; `/img/shelf/…` = images du Top Shelf, logo du titre dessiné sur le fond par `sharp` ; `/img/avatars/{id}.webp?v=…` = la photo d'un profil, lue en base (une initiale sur une couleur s'il n'en a pas) |
 | `/admin` | administration |
 | `/health` | santé (base joignable) ; en production, la cause d'une panne reste dans le journal |
 
@@ -89,7 +94,7 @@ main.ts     démarrage : écoute, planification, arrêt propre
 app.ts      l'application HTTP : montages, /health, erreurs
 admin/      pages de l'admin ; aucune écriture en base (vérifié), elle appelle le domaine
 player/     /player, un fichier par ressource ; types.ts = le contrat
-catalog/    le domaine : grammaire des noms, clés, filtres, groupement, épisodes, pipeline
+catalog/    le domaine : grammaire des noms, clés, profils et leurs filtres, groupement, épisodes, pipeline
 devices/    appairage, jetons, enregistrement push des téléphones
 notify/     les alertes de l'app (APNs) : textes, envoi, journal ; branché sur les événements du catalogue par main.ts
 providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), iptv/, skipdb/, theintrodb/, introdb/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_`), vérifié par `architecture.test.ts`
@@ -109,9 +114,17 @@ par son index.
 - **Biome** formate et vérifie (linter) ; `noUnusedLocals` côté TypeScript. Une erreur inattendue de l'admin s'affiche
   en page, ou en toast pour une requête HTMX.
 - **Admin** : uniquement des classes Tailwind et Basecoat écrites en entier, pas d'attribut `style`. CSP stricte
-  (`script-src 'self'`, `app.ts`) : htmx et Basecoat servis depuis `/admin/assets` (copiés par `npm run css`), aucun
-  script ni gestionnaire en ligne (`onsubmit`, `hx-on`), une confirmation passe par `hx-confirm` (`back()` répond alors
-  `HX-Redirect`). Toute écriture (POST, PUT, PATCH, DELETE) doit venir du site, quel que soit son `Content-Type`.
+  (`script-src 'self'`, `app.ts`) : htmx, Basecoat, Cropper.js et `avatar.js` servis depuis `/admin/assets` (copiés par
+  `npm run css` ; une page les demande par `page(c, …, { assets })`), aucun script ni gestionnaire en ligne (`onsubmit`,
+  `hx-on`), une confirmation passe par `hx-confirm` (`back()` répond alors `HX-Redirect`). Toute écriture (POST, PUT,
+  PATCH, DELETE) doit venir du site, quel que soit son `Content-Type`.
+- **Profils** (admin › Application) : la liste, et une page par profil : nom, photo (choisie et recadrée carrée dans le
+  navigateur, envoyée en data URL, réencodée en WebP 256 px par `sharp`, gardée en base), ses trois filtres avec
+  prévisualisation, « Appliquer maintenant » (l'étape `filters` pour ce seul profil, en fond), « Définir par défaut »,
+  « Supprimer ». Un profil créé est jugé aussitôt en fond. Favoris, Historique et Liste d'attente montrent le profil de
+  chaque ligne (la liste d'attente ajoute pour le profil choisi en tête du formulaire) ; la fiche d'un contenu agit pour
+  le profil choisi (`?profile=`, onglets « Pour »), le profil par défaut sans rien dire ; les écrans Live, Films, Séries
+  regardent avec les yeux du profil par défaut.
 - **Langage de filtre** (`catalog/query/`, aide dans l'admin) : `genre:anim` contient, `genre:"animation"` égal,
   `a,b` l'un de, `pays:aucun` sans valeur, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; `&&` « et », `||` « ou » (plus faible),
   toujours écrits (un espace seul entre deux termes est une erreur ; des mots libres qui se suivent forment un seul
@@ -120,25 +133,30 @@ par son index.
   filtres et à l'aide : sans préfixe, la fiche (ses colonnes, sa fiche TMDB en cache) ; `variant.` et `xtream.`, une
   version (ce qu'on en lit, ce qu'en dit le fournisseur). Avec un champ de version, l'expression se juge version par
   version, ses champs de fiche lus sur la fiche de la version : une recherche trouve les fiches dont une version passe. Vérifiée champ par champ avant tout SQL, ses valeurs toujours en paramètres.
-- **Filtres** (`curation_filters`) : un au plus par type, une requête qui dit ce que l'app garde, comme une recherche dit
-  ce qu'elle affiche ; sans filtre, tout est gardé. Il se juge version par version, ses champs de fiche lus sur la fiche de
-  la version (`catalog_variants.hidden_by_rule` : true écartée, null pas encore jugée) ; une fiche sans version gardée
-  disparaît. Par exemple `marché:"fr" || (marché:"ar" && (pays:maroc || (thème:"sport" && pays:aucun)))` pour le
-  direct, `variant.langue:"vf","vo","ar" && xtream.marché:"fr","ar","en"` pour les films. Ils s'appliquent à l'étape `filters` ;
-  enregistrer un filtre ne l'applique pas (trop lent) : `filters_pending` affiche un bandeau. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
+- **Filtres** (`app_profile_filters`) : par profil, un au plus par type, une requête qui dit ce que ce profil voit, comme une
+  recherche dit ce qu'elle affiche ; sans filtre (ou vide), le profil voit tout. Il se juge version par version, ses champs de
+  fiche lus sur la fiche de la version (`catalog_variant_profiles` : gardée pour ce profil ; `catalog_variants.hidden_by_rule` :
+  true écartée par tous, null pas encore jugée) ; une fiche sans version gardée disparaît pour ce profil. Par exemple
+  `marché:"fr" || (marché:"ar" && (pays:maroc || (thème:"sport" && pays:aucun)))` pour le direct,
+  `variant.langue:"vf","vo","ar" && xtream.marché:"fr","ar","en"` pour les films. Ils s'appliquent à l'étape `filters` ;
+  enregistrer un filtre ne l'applique pas (`applied_at` null : bandeau) ; un profil créé ne voit rien tant que l'étape ne l'a pas
+  jugé. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
+  Les langues que le filtre Films ou Séries nomme (`variant.langue:"vf","vo"`), dans l'ordre écrit, sont l'ordre des versions
+  servies au profil et donc son ordre de lecture (`filterLanguages`, `ctx.languageOrder`) ; sans langue nommée, VF, VOSTFR, VO.
 - **Écrans Live, Films, Séries de l'admin** : ce que l'app affiche, par les fonctions mêmes de `/player` : ses rangées
   repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; la recherche porte sur les
   contenus. Tout mène à la fiche d'un contenu (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream,
-  leur interrupteur de visibilité et les corrections (TMDB, iptv-org, séparer, fusionner), et des boutons : « Ma liste »,
-  et pour un film ou une série « Marquer comme vu » / « Retirer de mes vus » (la série entière, ou un épisode dans sa liste) ; `/admin/item/:id` y redirige
+  leur interrupteur de visibilité et les corrections (TMDB, iptv-org, séparer, fusionner), et des boutons, pour le profil
+  choisi : « Ma liste », et pour un film ou une série « Marquer comme vu » / « Retirer de mes vus » (la série entière, ou un épisode dans sa liste) ; `/admin/item/:id` y redirige
   (une variante pas encore groupée s'y montre seule). Plus d'écran pour masquer une catégorie : celles masquées à la main
   le restent. La fiche d'une chaîne montre aussi son rapprochement EPG (les
   identifiants que chaque variante essaie, dans l'ordre de l'app, et la source de secours) et tous ses programmes en base.
   Un fil d'Ariane dans l'en-tête place chaque page sous son entrée du menu (`page(…, { under })` pour une page de détail).
-- **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Une variante est visible si son filtre la garde et que ni
-  la main, ni sa catégorie ne la masquent ; un contenu est visible si une de ses variantes l'est. Tout ce que voit l'app (tris, dates, compteurs, rangées)
-  se calcule sur les seules variantes visibles. Côté app, `player/contents.ts` y ajoute le réglage adulte : `visibleContent`
-  pour les contenus, `servedVariant` pour les variantes (un contenu mixte reste servi, sans ses variantes adultes).
+- **Visibilité** : un seul jeu de prédicats (`db/visibility.ts`). Une variante est visible si un filtre la garde et que ni
+  la main, ni sa catégorie ne la masquent ; un contenu est visible si une de ses variantes l'est. Les agrégats (tris, dates, badges, compteurs)
+  se calculent sur ces variantes-là : ceux du foyer, pas d'un profil. Côté app, `player/contents.ts` y ajoute le profil du
+  contexte (`ctx.profile`, ses tables de verdict) et le réglage adulte : `visibleContent` pour les contenus, `servedVariant` pour
+  les variantes (un contenu mixte reste servi, sans ses variantes adultes).
   Les genres de Films et Séries restent en mémoire jusqu'à ce que le groupement réécrive les contenus
   (`contentsGeneration`) : une écriture directe dans `catalog_contents` ne les rafraîchit pas.
 - **Dates** : arrivée = date du fournisseur (`added`, `last_modified` pour une série) ; sortie = TMDB, tri par défaut.
@@ -165,9 +183,9 @@ par son index.
 - **Liens de lecture** : `stream_url` est l'URL du fournisseur, compte compris, envoyée aux seuls appareils appairés ;
   l'app la lit elle-même (le fournisseur répond encore un `302` vers son backend) et ne redemande `/playback` qu'au « Réessayer » d'une panne.
 - **Ne jamais journaliser une URL brute** : le mot de passe Xtream y circule. Passer par `requestLogger()`.
-- **Liste d'attente** (`catalog/waitlist.ts`, admin › Application) : des films cherchés sur TMDB avant que le fournisseur ne les ait. Dès
-  qu'un contenu visible porte leur clé `tmdb:movie:<id>`, ils passent en tête du Top Shelf et du carrousel de l'accueil,
-  jusqu'à 5 % de lecture.
+- **Liste d'attente** (`catalog/waitlist.ts`, admin › Application) : des films cherchés sur TMDB avant que le fournisseur ne les ait,
+  chacun pour un profil. Dès qu'un contenu que ce profil voit porte leur clé `tmdb:movie:<id>`, ils passent en tête de son Top
+  Shelf et de son carrousel de l'accueil, jusqu'à 5 % de lecture.
 - **Alertes sur l'iPhone** (`notify/`) : deux alertes, « Film attendu arrivé » (une par film, avec le lien `kanstrimi://open/<id>`)
   et « Traitement complet terminé » (le résumé du passage `pipeline` : durée, ajoutés et supprimés, fiches TMDB
   associées, attendus arrivés, l'erreur s'il y en a). Chacune est un interrupteur par appareil dans admin › Appareils,

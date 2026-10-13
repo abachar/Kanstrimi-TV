@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { db, schema } from "@/db";
 import { sha256 } from "@/shared";
-import { resetDb, closeDb } from "@/test/db";
+import { profileSeesVisible, resetDb, closeDb } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { extrasSettled, resetExtras } from "@/providers/tmdb";
 import { introdbSettled, resetIntrodb } from "@/providers/introdb";
@@ -118,6 +118,7 @@ beforeAll(async () => {
   await content("tmdb:movie:4", "vod", 4, false);
   const [series] = await content("tmdb:tv:88516", "series", 88516);
   await db.insert(schema.catalogEpisodes).values({ contentId: series.id, key: "tmdb:tv:88516:s02e02", season: 2, number: 2 });
+  await profileSeesVisible();
 });
 beforeEach(async () => {
   await db.delete(schema.tmdbExtras);

@@ -1,4 +1,4 @@
-import type { Content } from "@/db";
+import type { Content, Profile } from "@/db";
 import type { EpisodeLine } from "./data";
 import { fmt } from "../format";
 import { Icon } from "../icons";
@@ -8,7 +8,7 @@ import { Badge, Card, Empty } from "../ui";
 export const episodeAnchor = (e: { season: number; number: number }) => `e${e.season}-${e.number}`;
 
 /** An episode: its number and title, what the app recorded of it, and the button that marks it seen or not. */
-function Line({ c, e }: { c: Content; e: EpisodeLine }) {
+function Line({ c, e, profile }: { c: Content; e: EpisodeLine; profile: Profile }) {
   const seen = Boolean(e.progress?.finished);
   const percent = e.progress && !seen && e.progress.duration > 0 ? Math.round((e.progress.position / e.progress.duration) * 100) : 0;
   return (
@@ -17,6 +17,7 @@ function Line({ c, e }: { c: Content; e: EpisodeLine }) {
       <span class="min-w-0 flex-1 truncate">{e.title ?? `Épisode ${e.number}`}</span>
       {seen ? <Badge tone="ok">Vu</Badge> : percent > 0 && <Badge tone="info">{percent} %</Badge>}
       <form method="post" action={`/admin/content/${c.id}/watched`}>
+        <input type="hidden" name="profile" value={profile.id} />
         <input type="hidden" name="episode" value={e.key} />
         {!seen && <input type="hidden" name="on" value="1" />}
         <button
@@ -35,11 +36,15 @@ function Line({ c, e }: { c: Content; e: EpisodeLine }) {
 }
 
 /** A series' episodes as the base holds them, season by season, each marked seen or not on its own. */
-export function EpisodesCard({ c, episodes }: { c: Content; episodes: EpisodeLine[] }) {
+export function EpisodesCard({ c, episodes, profile }: { c: Content; episodes: EpisodeLine[]; profile: Profile }) {
   const seasons = [...new Set(episodes.map((e) => e.season))];
   const seen = episodes.filter((e) => e.progress?.finished).length;
   return (
-    <Card title="Épisodes" icon="programmes" extra={episodes.length ? `${fmt(seen)} / ${fmt(episodes.length)} vus` : undefined}>
+    <Card
+      title="Épisodes"
+      icon="programmes"
+      extra={episodes.length ? `${fmt(seen)} / ${fmt(episodes.length)} vus par ${profile.name}` : undefined}
+    >
       {episodes.length === 0 ? (
         <Empty title="Aucun épisode en base" sub="Ils se construisent quand l'app ouvre la série, ou par « Marquer comme vu »." />
       ) : (
@@ -51,7 +56,7 @@ export function EpisodesCard({ c, episodes }: { c: Content; episodes: EpisodeLin
                 {episodes
                   .filter((e) => e.season === s)
                   .map((e) => (
-                    <Line c={c} e={e} />
+                    <Line c={c} e={e} profile={profile} />
                   ))}
               </ul>
             </section>

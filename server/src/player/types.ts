@@ -294,8 +294,18 @@ export type ServerInfo = {
   last_import: string | null;
   tmdb_rate: number | null;
   catalog_languages: string[];
+  /** The profile this answer (and every other) is for: the `X-Profile` header, else the default profile. */
+  profile: ProfileWire;
 };
 
+/**
+ * A person of the household (`GET /profiles`). Every request names the one it is for with `X-Profile: <id>`
+ * (none: `is_default`); a profile deleted since answers `unknown_profile`, the app then picks again. `avatar`
+ * is a square image whose URL changes with the picture.
+ */
+export type ProfileWire = { id: number; name: string; is_default: boolean; avatar: string };
+export type Profiles = { profiles: ProfileWire[] };
+
 export type ApiError = {
-  error: { code: "unauthorized" | "not_found" | "bad_request" | "upstream" | "too_many_requests"; message: string };
+  error: { code: "unauthorized" | "not_found" | "unknown_profile" | "bad_request" | "upstream" | "too_many_requests"; message: string };
 };

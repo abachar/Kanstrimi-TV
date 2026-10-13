@@ -66,9 +66,10 @@ async function broadcast(kind: PushKind, alert: ApnsAlert) {
   for (const target of await pushTargets(kind)) await deliver(kind, target, alert);
 }
 
-/** Films of the waitlist the catalogue now carries: one alert per film. */
+/** Films of the waitlist the catalogue now carries: one alert per film, however many profiles awaited it. */
 export async function notifyArrivals(arrivals: Arrival[]) {
-  for (const a of arrivals) await broadcast("waitlist", waitlistAlert(a));
+  const once = new Map(arrivals.map((a) => [a.contentKey, a]));
+  for (const a of once.values()) await broadcast("waitlist", waitlistAlert(a));
 }
 
 /** The pipeline ended: its summary. */

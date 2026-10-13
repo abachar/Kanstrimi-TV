@@ -118,7 +118,10 @@ export async function sagaSheet(ctx: RestContext, key: string): Promise<SagaShee
     .from(schema.catalogContents)
     .where(and(visibleContent(ctx, "vod"), eq(schema.catalogContents.sagaId, id)))
     .orderBy(desc(byRelease), desc(schema.catalogContents.id));
-  const progress = await getProgress(movies.map((m) => m.key));
+  const progress = await getProgress(
+    ctx.profile.id,
+    movies.map((m) => m.key),
+  );
   return {
     ...sagaWire(ctx, saga),
     heading: "SAGA",

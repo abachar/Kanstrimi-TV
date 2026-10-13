@@ -1,23 +1,22 @@
 import { db, schema } from "@/db";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
-export async function setFavorite(contentKey: string, favorite: boolean) {
-  if (favorite) await db.insert(schema.appFavorites).values({ contentKey }).onConflictDoNothing();
-  else await db.delete(schema.appFavorites).where(eq(schema.appFavorites.contentKey, contentKey));
+const f = schema.appFavorites;
+
+export async function setFavorite(profileId: number, contentKey: string, favorite: boolean) {
+  if (favorite) await db.insert(f).values({ profileId, contentKey }).onConflictDoNothing();
+  else await db.delete(f).where(and(eq(f.profileId, profileId), eq(f.contentKey, contentKey)));
 }
 
-/** Every favourite key, oldest first (the order "Ma liste" shows). */
-export async function favoriteKeys(): Promise<string[]> {
-  return (
-    await db
-      .select({ k: schema.appFavorites.contentKey })
-      .from(schema.appFavorites)
-      .orderBy(asc(schema.appFavorites.createdAt), asc(schema.appFavorites.contentKey))
-  ).map((r) => r.k);
+/** The profile's favourite keys, oldest first (the order "Ma liste" shows). */
+export async function favoriteKeys(profileId: number): Promise<string[]> {
+  return (await db.select({ k: f.contentKey }).from(f).where(eq(f.profileId, profileId)).orderBy(asc(f.createdAt), asc(f.contentKey))).map(
+    (r) => r.k,
+  );
 }
 
-export async function favoriteSet(): Promise<Set<string>> {
-  return new Set(await favoriteKeys());
+export async function favoriteSet(profileId: number): Promise<Set<string>> {
+  return new Set(await favoriteKeys(profileId));
 }
 
 // ---------------------------------------------------------------- routes
@@ -35,7 +34,7 @@ for (const method of ["put", "delete"] as const) {
     const key = c.req.param("id");
     const parsed = parseKey(key);
     if (!parsed || parsed.episode !== undefined || !(await keyExists(c.get("ctx"), key))) return fail("not_found", "Contenu introuvable");
-    await setFavorite(key, method === "put");
+    await setFavorite(c.get("ctx").profile.id, key, method === "put");
     return noContent();
   });
 }

@@ -1,12 +1,14 @@
-import { eq, sql, type SQL } from "drizzle-orm";
-import { db, schema, type Filter, type Kind } from "@/db";
-import { getSettings, setSettings } from "@/config";
-import { checkRegexes, compileQuery, QueryError } from "../query";
+import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
+import { db, schema, type Kind, type ProfileFilter } from "@/db";
+import { getSettings } from "@/config";
+import { checkRegexes, compileQuery, parseQuery, QueryError, type QueryNode } from "../query";
+import { DEFAULT_LANGUAGE_ORDER } from "../naming";
 
 /**
- * The filters: at most one per kind, a query of the filter language saying what the app keeps, as a
- * search says what it shows. Judged version by version: a content left without a version disappears.
- * Saving one only marks the catalogue behind (`filters_pending`): the `filters` step applies them (`apply.ts`).
+ * The filters of a profile: at most one per kind, a query of the filter language saying what the
+ * profile sees, as a search says what it shows. Judged version by version at the `filters` step
+ * (`apply.ts`): a content left without a version disappears for that profile. No filter, or an empty
+ * one: the profile sees everything. Saving one only marks it behind (`applied_at` null) until the step judges it.
  */
 
 /** What a filter would keep: versions and contents, out of all of its kind, and the first contents kept and left out. */
@@ -15,10 +17,22 @@ export type FilterPreview =
   | { error: string };
 export const PREVIEW_LIMIT = 50;
 
-const f = schema.curationFilters;
+const f = schema.appProfileFilters;
 
-export async function listFilters(): Promise<Partial<Record<Kind, Filter>>> {
-  return Object.fromEntries((await db.select().from(f)).map((row) => [row.kind, row]));
+/** The filters of a profile by kind; a kind without a row, or with an empty query, has no filter. */
+export async function listFilters(profileId: number): Promise<Partial<Record<Kind, ProfileFilter>>> {
+  return Object.fromEntries((await db.select().from(f).where(eq(f.profileId, profileId))).map((row) => [row.kind, row]));
+}
+
+/** Every profile's filters, by profile id (the step reads them all at once). */
+export async function allFilters(): Promise<Map<number, Partial<Record<Kind, ProfileFilter>>>> {
+  const out = new Map<number, Partial<Record<Kind, ProfileFilter>>>();
+  for (const row of await db.select().from(f)) {
+    const mine = out.get(row.profileId) ?? {};
+    mine[row.kind] = row;
+    out.set(row.profileId, mine);
+  }
+  return out;
 }
 
 /** A filter's query compiled for `kind`, about `catalog_variants`; or what is wrong with it, in a sentence with its column. */
@@ -35,22 +49,25 @@ export async function compileFilter(query: string, kind: Kind): Promise<SQL | st
 }
 
 /**
- * The filter of `kind`, its query checked first; an empty query removes it, everything kept. Returns
- * what is wrong with the query, null once saved. The catalogue follows at the step that applies it.
+ * The filter of `kind` for a profile, its query checked first; an empty query means everything is
+ * seen. Returns what is wrong with the query, null once saved. The profile follows at the step that
+ * applies it (`applied_at` null meanwhile).
  */
-export async function saveFilter(kind: Kind, query: string): Promise<string | null> {
+export async function saveFilter(profileId: number, kind: Kind, query: string): Promise<string | null> {
   const q = query.trim();
-  const [current] = await db.select().from(f).where(eq(f.kind, kind));
+  const [current] = await db
+    .select()
+    .from(f)
+    .where(and(eq(f.profileId, profileId), eq(f.kind, kind)));
   if ((current?.query ?? "") === q) return null;
   if (q) {
     const where = await compileFilter(q, kind);
     if (typeof where === "string") return where;
-    await db
-      .insert(f)
-      .values({ kind, query: q })
-      .onConflictDoUpdate({ target: f.kind, set: { query: q, updatedAt: new Date() } });
-  } else await db.delete(f).where(eq(f.kind, kind));
-  await setSettings({ filters_pending: "1" });
+  }
+  await db
+    .insert(f)
+    .values({ profileId, kind, query: q, appliedAt: null })
+    .onConflictDoUpdate({ target: [f.profileId, f.kind], set: { query: q, updatedAt: new Date(), appliedAt: null } });
   return null;
 }
 
@@ -88,6 +105,56 @@ export async function previewFilter(kind: Kind, query: string): Promise<FilterPr
   });
 }
 
-/** A filter changed since the last `filters` step: the catalogue does not follow it yet. */
-export const filtersPending = async () => Boolean((await getSettings()).filters_pending);
-export const filtersApplied = () => setSettings({ filters_pending: "" });
+/** A filter changed since the step last judged it (of one profile, or of any): the catalogue does not follow it yet. */
+export async function filtersPending(profileId?: number): Promise<boolean> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(f)
+    .where(and(isNull(f.appliedAt), profileId === undefined ? undefined : eq(f.profileId, profileId)));
+  return row.n > 0;
+}
+
+/** The step judged these: their verdict is in the catalogue. */
+export async function filtersApplied(profileId: number, kinds: Kind[]) {
+  if (!kinds.length) return;
+  await db
+    .update(f)
+    .set({ appliedAt: new Date() })
+    .where(and(eq(f.profileId, profileId), sql`${f.kind} = any(${`{${kinds.join(",")}}`}::content_kind[])`));
+}
+
+/**
+ * The languages a profile's filter names for `kind`, in the order written: `variant.langue:"vf","vo"`
+ * reads « VF first, then VO ». Terms negated, or under a negated group, say what is left out, not an
+ * order. Without one, the default order. These are the versions the profile plays and their order.
+ */
+export function filterLanguages(query: string, fallback: readonly string[] = DEFAULT_LANGUAGE_ORDER): string[] {
+  let tree: QueryNode | null;
+  try {
+    tree = parseQuery(query);
+  } catch {
+    return [...fallback];
+  }
+  const out: string[] = [];
+  const walk = (node: QueryNode | null, neg: boolean) => {
+    if (!node) return;
+    if (node.kind !== "term") {
+      for (const n of node.nodes) walk(n, neg !== node.neg);
+      return;
+    }
+    const t = node.term;
+    if (neg !== t.neg || !t.field || !["variant.langue", "variant.lang"].includes(t.field.toLowerCase()) || t.op.kind !== "match") return;
+    for (const v of t.op.values) {
+      const code = v.text.trim().toUpperCase();
+      if (code && !out.includes(code)) out.push(code);
+    }
+  };
+  walk(tree, false);
+  return out.length ? out : [...fallback];
+}
+
+/** The language order of a profile, for the films and for the series, from its filters. */
+export async function languageOrderOf(profileId: number): Promise<Record<"vod" | "series", string[]>> {
+  const filters = await listFilters(profileId);
+  return { vod: filterLanguages(filters.vod?.query ?? ""), series: filterLanguages(filters.series?.query ?? "") };
+}

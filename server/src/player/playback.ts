@@ -45,7 +45,7 @@ playbackRoutes.put("/:id/progress", async (c) => {
   const body = progressBody.safeParse(await c.req.json().catch(() => null));
   if (!body.success) return fail("bad_request", "position et duration (secondes, ≥ 0) attendus");
   if (!(await keyExists(c.get("ctx"), key))) return fail("not_found", "Contenu introuvable");
-  await setProgress(key, body.data.position, body.data.duration);
+  await setProgress(c.get("ctx").profile.id, key, body.data.position, body.data.duration);
   return noContent();
 });
 
@@ -54,7 +54,7 @@ playbackRoutes.delete("/:id/progress", async (c) => {
   const key = c.req.param("id");
   const parsed = parseKey(key);
   if (!parsed || parsed.kind === "live" || !(await keyExists(c.get("ctx"), key))) return fail("not_found", "Contenu introuvable");
-  await deleteProgress(key);
+  await deleteProgress(c.get("ctx").profile.id, key);
   return noContent();
 });
 
@@ -74,7 +74,7 @@ playbackRoutes.put("/:id/watched", async (c) => {
     return noContent();
   }
   if (!(await keyExists(ctx, key))) return fail("not_found", "Contenu introuvable");
-  await setFinished(key, body.data.watched);
+  await setFinished(ctx.profile.id, key, body.data.watched);
   return noContent();
 });
 
@@ -86,7 +86,7 @@ playbackRoutes.post("/:id/watch-time", async (c) => {
   const body = watchTimeBody.safeParse(await c.req.json().catch(() => null));
   if (!body.success) return fail("bad_request", "seconds (≥ 0) attendu");
   if (!(await keyExists(c.get("ctx"), key))) return fail("not_found", "Chaîne introuvable");
-  await addWatchTime(key, body.data.seconds);
+  await addWatchTime(c.get("ctx").profile.id, key, body.data.seconds);
   return noContent();
 });
 
@@ -120,12 +120,19 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
   if (!content) return null;
   if (content.kind === "series") {
     const { episodes } = await episodesOf(ctx, content);
-    const e = currentEpisode(episodes, await getProgress(episodes.map((e) => e.key))) ?? episodes[0];
+    const e =
+      currentEpisode(
+        episodes,
+        await getProgress(
+          ctx.profile.id,
+          episodes.map((e) => e.key),
+        ),
+      ) ?? episodes[0];
     return e ? episodePlayback(ctx, content, episodes, episodes.indexOf(e)) : null;
   }
   const versions = versionsOf(ctx, (await variantsOf(ctx, content)).playables);
   if (content.kind === "live") return { versions, resume_at: null, duration: null, next: null, cast: [] };
-  const p = (await getProgress([key])).get(key);
+  const p = (await getProgress(ctx.profile.id, [key])).get(key);
   return {
     versions,
     resume_at: isResumable(p) ? p.position : null,
@@ -139,7 +146,7 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
 async function episodePlayback(ctx: RestContext, series: Content, episodes: EpisodeRow[], idx: number): Promise<Playback> {
   const e = episodes[idx],
     next = episodes[idx + 1];
-  const p = (await getProgress([e.key])).get(e.key);
+  const p = (await getProgress(ctx.profile.id, [e.key])).get(e.key);
   const nextVersions = next ? versionsOf(ctx, next.playables, false) : [];
   return {
     // Named for whoever plays it from its id alone (« Reprendre »): the app titles the player with it.

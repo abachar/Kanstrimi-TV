@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { itemById, setItemHiddenManual, searchCandidates, assignManual } from "@/catalog";
+import { assignManual, defaultProfile, itemById, searchCandidates, setItemHiddenManual } from "@/catalog";
 import { page, form, checked, intField, intParam } from "../http";
 import { InlineResult } from "../ui";
 import { describeError } from "@/shared";
@@ -42,7 +42,7 @@ catalogRoutes.get("/", async (c) => {
     );
   }
   // What a device-less app gets: the same functions as `/player`, the adult setting included.
-  const ctx = contextFor(c.req.raw, null, await getSettings());
+  const ctx = await contextFor(c.req.raw, null, await getSettings(), await defaultProfile());
   return page(
     c,
     title,
@@ -75,7 +75,7 @@ catalogRoutes.get("/shelf", async (c) => {
   const kind = kindParam(c.req.query("kind"));
   const shelf = c.req.query("shelf") ?? "";
   if (kind === "live") return c.notFound();
-  const ctx = contextFor(c.req.raw, null, await getSettings());
+  const ctx = await contextFor(c.req.raw, null, await getSettings(), await defaultProfile());
   const result = await shelfPage(ctx, kind, shelf, c.req.query("cursor") || undefined);
   if (!result) return c.notFound();
   return c.html(<ShelfRows kind={kind} shelf={shelf} page={result} n={offsetParam(c.req.query("n"))} />);

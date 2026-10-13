@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { Hono } from "hono";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
+import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { itemById, launch } from "@/catalog";
 import { runAll, runNaming } from "@/catalog";
@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { getSettings } from "@/config";
 import { setFavorite, setProgress, listProgress } from "@/player";
 import { admin } from "..";
+import { app as server } from "@/app";
 
 /** `launch` is the real one unless a test answers in its place: no pipeline runs from here. */
 vi.mock("@/catalog", async (importOriginal) => {
@@ -93,9 +94,9 @@ describe("admin", () => {
     expect(wrongEmail.headers.get("location")).toContain("e=bad");
     const noEmail = await post("/admin/login", { password: "test" });
     expect(noEmail.headers.get("location")).toContain("e=bad");
-    const ok = await post("/admin/login?next=/admin/filters", { email: " Admin@Kanstrimi.test ", password: "test" });
+    const ok = await post("/admin/login?next=/admin/profiles", { email: " Admin@Kanstrimi.test ", password: "test" });
     expect(ok.status).toBe(303);
-    expect(ok.headers.get("location")).toBe("/admin/filters");
+    expect(ok.headers.get("location")).toBe("/admin/profiles");
     cookie = ok.headers.get("set-cookie")!.split(";")[0];
     expect(cookie).toMatch(/^kanstrimi_admin=/);
   });
@@ -141,7 +142,9 @@ describe("admin", () => {
     expect((await call(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`)).headers.get("location")).toBe(toContent.split("?")[0]);
     expect((await call("/admin/content/k/nope")).status).toBe(404);
     expect((await call("/admin/content/999999")).status).toBe(404);
-    expect(await html("/admin/filters")).toContain("tout est gardé");
+    expect(await html("/admin/profiles")).toContain("Hakim");
+    expect(await html(`/admin/profiles/${PROFILE}`)).toContain("tout est vu");
+    expect((await call("/admin/profiles/999")).status).toBe(404);
     const devices = await html("/admin/devices");
     expect(devices).toContain("Aucun appareil");
     expect(devices).toContain("Alertes envoyées");
@@ -220,12 +223,12 @@ describe("admin", () => {
     expect(menu).toMatch(/href="\/admin\/epg"[^>]*aria-current="page"/);
     expect(await html("/admin/menu?path=https%3A%2F%2Fevil.test")).toMatch(/href="\/admin"[^>]*aria-current="page"/);
     // A form behind a confirmation posts through htmx, which answers by a redirect htmx follows.
-    await setFavorite("tmdb:movie:603", true);
+    await setFavorite(PROFILE, "tmdb:movie:603", true);
     const key = encodeURIComponent("tmdb:movie:603");
     expect(await html("/admin/favorites")).toMatch(
-      new RegExp(`hx-post="/admin/favorites/${key}/remove"[^>]*hx-confirm="Retirer ce favori \\?"`),
+      new RegExp(`hx-post="/admin/favorites/${PROFILE}/${key}/remove"[^>]*hx-confirm="Retirer ce favori \\?"`),
     );
-    const r = await call(`/admin/favorites/${key}/remove`, {
+    const r = await call(`/admin/favorites/${PROFILE}/${key}/remove`, {
       method: "POST",
       headers: { origin: "http://localhost", "HX-Request": "true" },
     });
@@ -234,39 +237,39 @@ describe("admin", () => {
   });
 
   it("favourites: a key the app stored shows up, then goes away by POST", async () => {
-    await setFavorite("tmdb:movie:603", true);
-    await setFavorite("tmdb:movie:1", true); // points nowhere: shown as dead, never hidden
+    await setFavorite(PROFILE, "tmdb:movie:603", true);
+    await setFavorite(PROFILE, "tmdb:movie:1", true); // points nowhere: shown as dead, never hidden
     const list = await html("/admin/favorites");
     expect(list).toContain("Matrix");
     expect(list).toContain("supprimé");
-    expect(flash(await post(`/admin/favorites/${encodeURIComponent("tmdb:movie:603")}/remove`, {}))).toContain("Favori retiré");
-    await post(`/admin/favorites/${encodeURIComponent("tmdb:movie:1")}/remove`, {});
+    expect(flash(await post(`/admin/favorites/${PROFILE}/${encodeURIComponent("tmdb:movie:603")}/remove`, {}))).toContain("Favori retiré");
+    await post(`/admin/favorites/${PROFILE}/${encodeURIComponent("tmdb:movie:1")}/remove`, {});
     expect(await html("/admin/favorites")).toContain("Aucun favori");
     // A content's page puts it in « Ma liste », then takes it out.
     const sheet = (await call(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`)).headers.get("location")!;
     expect(await html(sheet)).toContain("Ajouter à Ma liste");
-    expect(flash(await post(`${sheet}/favorite`, { on: "1" }))).toBe(`${sheet}?ok=Ajouté à Ma liste`);
+    expect(flash(await post(`${sheet}/favorite`, { on: "1" }))).toBe(`${sheet}?ok=Ajouté à la liste de Hakim`);
     expect(await html(sheet)).toContain("Retirer de Ma liste");
     expect(await html("/admin/favorites")).toContain(`href="${sheet}"`);
-    expect(flash(await post(`${sheet}/favorite`, {}))).toContain("Retiré de Ma liste");
+    expect(flash(await post(`${sheet}/favorite`, {}))).toContain("Retiré de la liste de Hakim");
     expect(await html("/admin/favorites")).toContain("Aucun favori");
     expect((await post("/admin/content/999999/favorite", { on: "1" })).status).toBe(404);
   });
 
   it("history: a position moves from « En cours » to « Vus » and back to nothing", async () => {
-    await setProgress("tmdb:movie:603", 600, 7200);
+    await setProgress(PROFILE, "tmdb:movie:603", 600, 7200);
     const ongoing = await html("/admin/history");
     expect(ongoing).toContain("Matrix");
     expect(ongoing).toContain("Marquer vu");
     expect(ongoing).toContain("8 %");
-    expect(flash(await post(`/admin/history/${encodeURIComponent("tmdb:movie:603")}/finished`, {}))).toContain("Marqué vu");
+    expect(flash(await post(`/admin/history/${PROFILE}/${encodeURIComponent("tmdb:movie:603")}/finished`, {}))).toContain("Marqué vu");
     const [p] = await listProgress();
     expect(p).toMatchObject({ contentKey: "tmdb:movie:603", position: 7200, duration: 7200, finished: true });
     expect(await html("/admin/history")).toContain("Marquer non vu");
-    await post(`/admin/history/${encodeURIComponent("tmdb:movie:603")}/unfinished`, {});
+    await post(`/admin/history/${PROFILE}/${encodeURIComponent("tmdb:movie:603")}/unfinished`, {});
     expect(await listProgress()).toEqual([]);
-    await setProgress("tmdb:movie:603", 600, 7200);
-    await post(`/admin/history/${encodeURIComponent("tmdb:movie:603")}/delete`, {});
+    await setProgress(PROFILE, "tmdb:movie:603", 600, 7200);
+    await post(`/admin/history/${PROFILE}/${encodeURIComponent("tmdb:movie:603")}/delete`, {});
     expect(await listProgress()).toEqual([]);
     const dashboard = await html("/admin");
     expect(dashboard).toMatch(/>0<\/div><div[^>]*>favoris/);
@@ -300,21 +303,68 @@ describe("admin", () => {
     expect((await post("/admin/catalog/category/1/visible", {})).status).toBe(404); // no screen hides a category any more
   });
 
-  it("filters: preview, save without applying, the banner to apply them, a refused query typed again, clear", async () => {
-    const preview = await (await post("/admin/filters/preview", { query: "matrix", kind: "vod" })).text();
+  it("a profile's filters: preview, save without applying, the banner to apply them, a refused query typed again, clear", async () => {
+    const me = `/admin/profiles/${PROFILE}`;
+    const preview = await (await post("/admin/profiles/preview", { query: "matrix", kind: "vod" })).text();
     expect(preview).toMatch(/Garde <span[^>]*>1<\/span> fiche sur 1 \(2 versions sur 2\)/);
-    expect(await (await post("/admin/filters/preview", { query: "genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
-    expect(flash(await post("/admin/filters", { kind: "live", query: 'marché:"fr"' }))).toContain("à appliquer");
-    const page = await html("/admin/filters");
+    expect(await (await post("/admin/profiles/preview", { query: "genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
+    expect(flash(await post(`${me}/filters`, { kind: "live", query: 'marché:"fr"' }))).toContain("à appliquer");
+    const page = await html(me);
     expect(page).toContain("Filtres modifiés depuis le dernier passage");
-    expect(page).toContain('name="from" value="filters"');
+    expect(page).toContain(`action="${me}/apply"`);
     expect(page).toContain("marché:&quot;fr&quot;</textarea>");
-    expect(page).toContain("tout est gardé"); // the films and series have none
-    const invalid = await (await post("/admin/filters", { kind: "vod", query: "titre:/(/" })).text();
+    expect(page).toContain("tout est vu"); // the films and series have none
+    expect(await html("/admin/profiles")).toContain("filtres à appliquer");
+    const invalid = await (await post(`${me}/filters`, { kind: "vod", query: "titre:/(/" })).text();
     expect(invalid).toContain("Requête invalide");
     expect(invalid).toContain("titre:/(/</textarea>");
-    expect(flash(await post("/admin/filters", { kind: "live", query: "" }))).toContain("Filtre enregistré");
-    expect(await db.select().from(schema.curationFilters)).toEqual([]);
+    expect(flash(await post(`${me}/filters`, { kind: "live", query: "" }))).toContain("Filtre enregistré");
+    expect((await db.select().from(schema.appProfileFilters)).map((f) => f.query)).toEqual([""]);
+    // « Appliquer maintenant » judges this profile alone, in the background.
+    expect(flash(await post(`${me}/apply`, {}))).toContain("lancé");
+    await withCatalogLock(async () => {});
+    expect(await html(me)).not.toContain("modifiés depuis le dernier passage");
+  });
+
+  it("profiles: created with a cropped picture, renamed, made default, deleted; the default one stays", async () => {
+    const { default: sharp } = await import("sharp");
+    const png = await sharp({ create: { width: 40, height: 30, channels: 3, background: "#3366cc" } })
+      .png()
+      .toBuffer();
+    const avatar = `data:image/png;base64,${png.toString("base64")}`;
+    expect(await (await post("/admin/profiles", { name: "Sara", avatar: "" })).text()).toContain("La photo est obligatoire");
+    expect(await (await post("/admin/profiles", { name: " ", avatar })).text()).toContain("Le nom est obligatoire");
+    const created = await post("/admin/profiles", { name: " Sara ", avatar });
+    expect(created.status).toBe(303);
+    const to = created.headers.get("location")!;
+    expect(to).toMatch(/^\/admin\/profiles\/\d+\?ok=/);
+    const sara = Number(/\/profiles\/(\d+)/.exec(to)![1]);
+    await withCatalogLock(async () => {}); // judged in the background
+    const list = await html("/admin/profiles");
+    expect(list).toContain("Sara");
+    expect(list).toContain(`/img/avatars/${sara}.webp?v=`);
+    expect(list).not.toContain("pas encore jugé");
+    // The picture, a square WebP whatever was sent.
+    const img = await server.request(`/img/avatars/${sara}.webp`);
+    expect(img.headers.get("content-type")).toBe("image/webp");
+    expect(await sharp(Buffer.from(await img.arrayBuffer())).metadata()).toMatchObject({ width: 256, height: 256, format: "webp" });
+    expect(await (await post("/admin/profiles", { name: "sara", avatar })).text()).toContain("déjà"); // the name is unique, as cleaned
+    expect(flash(await post(`/admin/profiles/${sara}`, { name: "Sarah", avatar: "" }))).toContain("Profil enregistré");
+    expect(await (await post(`/admin/profiles/${sara}`, { name: "Hakim", avatar: "" })).text()).toContain("déjà");
+    expect(await (await post(`/admin/profiles/${sara}`, { name: "Sarah", avatar: "data:image/png;base64,bm9wZQ==" })).text()).toContain(
+      "Photo illisible",
+    );
+    // The content page acts for the profile it shows.
+    const sheet = await html(`/admin/content/${matrixId > 0 ? (await itemById(matrixId))!.contentId : 1}?profile=${sara}`);
+    expect(sheet).toContain('aria-current="page"');
+    expect(sheet).toContain(`name="profile" value="${sara}"`);
+    // The default one cannot be deleted; the default moves.
+    expect(flash(await post(`/admin/profiles/${PROFILE}/delete`, {}))).toContain("ne se supprime pas");
+    expect(flash(await post(`/admin/profiles/${sara}/default`, {}))).toContain("Profil par défaut");
+    expect(flash(await post(`/admin/profiles/${sara}/delete`, {}))).toContain("ne se supprime pas");
+    expect(flash(await post(`/admin/profiles/${PROFILE}/default`, {}))).toContain("Profil par défaut");
+    expect(flash(await post(`/admin/profiles/${sara}/delete`, {}))).toContain("Profil supprimé");
+    expect((await call(`/admin/profiles/${sara}`)).status).toBe(404);
   });
 
   it("content page: split a variant and put it back, the page following the variant", async () => {
@@ -347,14 +397,21 @@ describe("admin", () => {
       const found = await html("/admin/waitlist?q=mission");
       expect(found).toContain("Au catalogue"); // Matrix
       expect(found).toContain('name="tmdb_id" value="1200"');
-      expect(flash(await post("/admin/waitlist", { tmdb_id: "1200", q: "mission" }))).toContain("Film ajouté à la liste d'attente");
-      expect(flash(await post("/admin/waitlist", { tmdb_id: "603" }))).toContain("déjà visible dans le catalogue");
+      expect(found).toContain(`name="profile" value="${PROFILE}"`);
+      expect(flash(await post("/admin/waitlist", { tmdb_id: "1200", q: "mission", profile: String(PROFILE) }))).toContain(
+        "Film ajouté à la liste d'attente",
+      );
+      expect(flash(await post("/admin/waitlist", { tmdb_id: "603", profile: String(PROFILE) }))).toContain(
+        "déjà visible dans le catalogue",
+      );
+      expect(flash(await post("/admin/waitlist", { tmdb_id: "603", profile: "999" }))).toContain("Profil inconnu");
       const listed = await html("/admin/waitlist");
       expect(listed).toContain("Mission : Impossible 9");
       expect(listed).toContain("En attente");
       expect(listed).toContain("Sortie le 21 mai 2027");
       expect(listed).toContain("https://www.themoviedb.org/movie/1200");
-      expect(flash(await post("/admin/waitlist/1200/remove", {}))).toContain("Film retiré");
+      expect(listed).toContain("Hakim");
+      expect(flash(await post(`/admin/waitlist/${PROFILE}/1200/remove`, {}))).toContain("Film retiré");
       expect(await html("/admin/waitlist")).toContain("Aucun film attendu");
     } finally {
       vi.unstubAllGlobals();
@@ -521,24 +578,24 @@ describe("admin", () => {
   });
 
   it("a filter on versions, applied from « Filtres »: the version and the content say so", async () => {
-    const page = await html("/admin/filters");
+    const page = await html(`/admin/profiles/${PROFILE}`);
     expect(page).toContain("Champs d&#39;une version");
     expect(page).not.toContain('<code class="font-mono text-xs">visible</code>'); // searches only
-    const save = (query: string) => post("/admin/filters", { kind: "vod", query });
+    const save = (query: string) => post(`/admin/profiles/${PROFILE}/filters`, { kind: "vod", query });
     try {
       expect(flash(await save('variant.langue:"vf"'))).toContain("Filtre enregistré");
       expect(await runAll("manual", "filters")).toBe(true);
-      expect(await html("/admin/filters")).not.toContain("modifiés depuis le dernier passage");
+      expect(await html(`/admin/profiles/${PROFILE}`)).not.toContain("modifiés depuis le dernier passage");
       // Matrix keeps its VF version, its VOST one is left out.
       const matrix = (await itemById(matrixId))!.contentId!;
       const sheet = await html(`/admin/content/${matrix}`);
       expect(sheet).toContain("Visible dans l&#39;app");
-      expect(sheet).toContain("écartée par le filtre");
+      expect(sheet).toContain("écartée par les filtres");
       expect(flash(await save('variant.langue:"it"'))).toContain("Filtre enregistré");
       expect(await runAll("manual", "filters")).toBe(true);
-      expect(await html(`/admin/content/${matrix}`)).toContain("Aucune version servie : 2 versions écartées par le filtre");
+      expect(await html(`/admin/content/${matrix}`)).toContain("Aucune version servie : 2 versions écartées par les filtres");
     } finally {
-      await db.delete(schema.curationFilters);
+      await db.delete(schema.appProfileFilters);
       await runAll("manual", "group");
     }
   });
@@ -574,12 +631,12 @@ describe("admin", () => {
     const sheetOf = async (key: string) => (await call(`/admin/content/k/${encodeURIComponent(key)}`)).headers.get("location")!;
     const movie = await sheetOf("tmdb:movie:603");
     expect(await html(movie)).not.toContain("Retirer de mes vus");
-    expect(flash(await post(`${movie}/watched`, { on: "1" }))).toBe(`${movie}?ok=Marqué comme vu`);
+    expect(flash(await post(`${movie}/watched`, { on: "1" }))).toBe(`${movie}?ok=Marqué vu pour Hakim`);
     expect(await listProgress()).toMatchObject([{ contentKey: "tmdb:movie:603", finished: true }]);
     const seen = await html(movie);
     expect(seen).toContain("Retirer de mes vus");
     expect(seen).not.toContain("Marquer comme vu");
-    expect(flash(await post(`${movie}/watched`, {}))).toContain("Retiré de mes vus");
+    expect(flash(await post(`${movie}/watched`, {}))).toContain("Retiré des vus de Hakim");
     expect(await listProgress()).toEqual([]);
 
     // A series: its episodes come from the provider's sheet (in cache here), all marked at once.
@@ -601,7 +658,7 @@ describe("admin", () => {
     await groupAndFilter();
     const series = await sheetOf("tmdb:tv:1396");
     expect(await html(series)).toContain("Marquer comme vu");
-    expect(flash(await post(`${series}/watched`, { on: "1" }))).toContain("Marqué comme vu");
+    expect(flash(await post(`${series}/watched`, { on: "1" }))).toContain("Marqué vu pour Hakim");
     expect((await listProgress()).map((p) => [p.contentKey, p.finished]).sort()).toEqual([
       ["tmdb:tv:1396:s01e01", true],
       ["tmdb:tv:1396:s01e02", true],
@@ -614,10 +671,10 @@ describe("admin", () => {
     // One episode on its own: the page comes back on its line.
     const one = "tmdb:tv:1396:s01e02";
     expect(await html(series)).toContain(`name="episode" value="${one}"`);
-    expect(flash(await post(`${series}/watched`, { episode: one, on: "1" }))).toBe(`${series}?ok=Épisode marqué comme vu#e1-2`);
+    expect(flash(await post(`${series}/watched`, { episode: one, on: "1" }))).toBe(`${series}?ok=Épisode marqué vu pour Hakim#e1-2`);
     expect((await listProgress()).map((p) => [p.contentKey, p.finished])).toEqual([[one, true]]);
     expect(await html(series)).toContain("1 / 2 épisodes vus");
-    expect(flash(await post(`${series}/watched`, { episode: one }))).toContain("Épisode retiré de mes vus");
+    expect(flash(await post(`${series}/watched`, { episode: one }))).toContain("Épisode retiré des vus de Hakim");
     expect(await listProgress()).toEqual([]);
     expect((await post(`${series}/watched`, { episode: "tmdb:movie:603", on: "1" })).status).toBe(404);
     const tf1 = await sheetOf("live:fr-tf1");

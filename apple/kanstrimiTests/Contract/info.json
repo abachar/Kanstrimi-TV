@@ -10,5 +10,11 @@
   "catalog_languages": [
     "VF",
     "VOSTFR"
-  ]
+  ],
+  "profile": {
+    "id": 1,
+    "name": "Hakim",
+    "is_default": true,
+    "avatar": "http://kanstrimi.test/img/avatars/1.webp?v=d41d8cd9"
+  }
 }

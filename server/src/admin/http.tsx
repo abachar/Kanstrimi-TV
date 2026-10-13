@@ -21,11 +21,17 @@ function positiveInt(v: string): number {
  * A full page in the admin layout; flash messages travel in `?ok=` / `?err=`. `under`: the menu entry
  * a detail page belongs to, its parent in the breadcrumb.
  */
-export const page = (c: Context, title: string, body: unknown, { loggedIn = true, under }: { loggedIn?: boolean; under?: string } = {}) =>
+export const page = (
+  c: Context,
+  title: string,
+  body: unknown,
+  { loggedIn = true, under, assets }: { loggedIn?: boolean; under?: string; assets?: string[] } = {},
+) =>
   c.html(
     Layout({
       title,
       under,
+      assets,
       path: new URL(c.req.url).pathname + new URL(c.req.url).search,
       flash: loggedIn ? { ok: c.req.query("ok"), err: c.req.query("err") } : {},
       loggedIn,

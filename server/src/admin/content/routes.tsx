@@ -17,7 +17,7 @@ import { contextFor, setFavorite, setFinished, setSeriesWatched } from "@/player
 import { describeError } from "@/shared";
 import { back, form, page, intField, intParam } from "../http";
 import { InlineResult } from "../ui";
-import { contentDetail, episodeOf, orphanDetail } from "./data";
+import { contentDetail, episodeOf, orphanDetail, profileOfQuery } from "./data";
 import { episodeAnchor } from "./episodes";
 import { ContentView, MergeForm } from "./view";
 import { ExplainView } from "./explain";
@@ -31,8 +31,15 @@ contentRoutes.get("/k/:key", async (c) => {
   return id ? c.redirect(`/admin/content/${id}`, 302) : c.notFound();
 });
 
+/** The profile the page shows and acts for: `?profile=` on the page, `profile` in its forms. */
+const profileOf = async (c: Context, f?: Record<string, string>) =>
+  profileOfQuery(Number(f?.profile ?? c.req.query("profile")) || undefined);
+/** Back to the page, on the same profile when it is not the default one. */
+const pageOf = (id: number, profile: { id: number; isDefault: boolean }) =>
+  `/admin/content/${id}${profile.isDefault ? "" : `?profile=${profile.id}`}`;
+
 contentRoutes.get("/:id", async (c) => {
-  const detail = await contentDetail(intParam(c, "id"));
+  const detail = await contentDetail(intParam(c, "id"), await profileOf(c));
   if (!detail?.content) return c.notFound();
   return page(c, detail.content.title, <ContentView {...detail} open={Number(c.req.query("v")) || null} />, {
     under: `/admin/catalog?kind=${detail.content.kind}`,
@@ -43,9 +50,13 @@ contentRoutes.get("/:id", async (c) => {
 contentRoutes.post("/:id/favorite", async (c) => {
   const content = await contentById(intParam(c, "id"));
   if (!content) return c.notFound();
-  const on = (await form(c)).on === "1";
-  await setFavorite(content.key, on);
-  return back(c, `/admin/content/${content.id}`, { ok: on ? "Ajouté à Ma liste" : "Retiré de Ma liste" });
+  const f = await form(c);
+  const on = f.on === "1";
+  const profile = await profileOf(c, f);
+  await setFavorite(profile.id, content.key, on);
+  return back(c, pageOf(content.id, profile), {
+    ok: on ? `Ajouté à la liste de ${profile.name}` : `Retiré de la liste de ${profile.name}`,
+  });
 });
 
 /** « Vu » (`on`) or not: a movie, one `episode` of a series, or every episode of it, as the app marks them. */
@@ -54,23 +65,26 @@ contentRoutes.post("/:id/watched", async (c) => {
   if (!content || content.kind === "live") return c.notFound();
   const f = await form(c);
   const on = f.on === "1";
-  const to = `/admin/content/${content.id}`;
+  const profile = await profileOf(c, f);
+  const to = pageOf(content.id, profile);
   if (f.episode) {
     const episode = await episodeOf(content.id, f.episode);
     if (!episode) return c.notFound();
-    await setFinished(episode.key, on);
-    return back(c, `${to}#${episodeAnchor(episode)}`, { ok: on ? "Épisode marqué comme vu" : "Épisode retiré de mes vus" });
+    await setFinished(profile.id, episode.key, on);
+    return back(c, `${to}#${episodeAnchor(episode)}`, {
+      ok: on ? `Épisode marqué vu pour ${profile.name}` : `Épisode retiré des vus de ${profile.name}`,
+    });
   }
   if (content.kind === "series") {
     try {
-      const ctx = contextFor(c.req.raw, null, await getSettings());
+      const ctx = await contextFor(c.req.raw, null, await getSettings(), profile);
       if (!(await setSeriesWatched(ctx, content, on))) return back(c, to, { err: "Aucun épisode servi dans cette série" });
     } catch (e) {
       if (!(e instanceof UpstreamUnavailable)) throw e;
       return back(c, to, { err: e.message });
     }
-  } else await setFinished(content.key, on);
-  return back(c, to, { ok: on ? "Marqué comme vu" : "Retiré de mes vus" });
+  } else await setFinished(profile.id, content.key, on);
+  return back(c, to, { ok: on ? `Marqué vu pour ${profile.name}` : `Retiré des vus de ${profile.name}` });
 });
 
 /** `/admin/item/:id`: a provider entry, shown on its content's page; the actions on one entry. */
@@ -80,7 +94,7 @@ itemRoutes.get("/:id", async (c) => {
   const it = await itemById(intParam(c, "id"));
   if (!it) return c.notFound();
   if (it.contentId) return c.redirect(contentLink(it.contentId, it.id), 302);
-  const detail = (await orphanDetail(it.id))!;
+  const detail = (await orphanDetail(it.id, await profileOf(c)))!;
   return page(c, it.name, <ContentView {...detail} open={it.id} />, { under: `/admin/catalog?kind=${it.kind}` });
 });
 

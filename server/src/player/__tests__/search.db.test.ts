@@ -2,13 +2,15 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { searchText } from "@/shared";
-import { resetDb, closeDb } from "@/test/db";
+import { profileSeesVisible, resetDb, closeDb, testLanguageOrder, testProfile } from "@/test/db";
 import { search } from "../search";
 import type { RestContext } from "../context";
 
 const ctx: RestContext = {
   baseUrl: "http://k.test",
   device: null,
+  profile: testProfile,
+  languageOrder: testLanguageOrder,
   tmdbLang: "fr-FR",
   providerName: "p",
   upstreamUrl: () => null,
@@ -37,6 +39,7 @@ beforeAll(async () => {
       search: sql`to_tsvector('simple', ${searchText(title)})`,
     })),
   );
+  await profileSeesVisible();
 });
 afterAll(closeDb);
 

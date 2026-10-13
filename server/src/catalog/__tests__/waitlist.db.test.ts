@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { setItemHiddenManual } from "@/catalog";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
+import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { runNaming } from "../grouping/group";
 import { withCatalogLock } from "../lock";
@@ -65,7 +65,7 @@ describe("« Liste d'attente »", () => {
       );
     });
     vi.stubGlobal("fetch", fetch);
-    expect(await addToWaitlist(1200)).toBe("added");
+    expect(await addToWaitlist(PROFILE, 1200)).toBe("added");
     expect(await entry("tmdb:movie:1200")).toMatchObject({
       tmdbId: 1200,
       title: "Mission : Impossible 9",
@@ -89,10 +89,10 @@ describe("« Liste d'attente »", () => {
       director: "Christopher McQuarrie",
       cast: ["Tom Cruise"],
     });
-    expect(await addToWaitlist(1200)).toBe("already");
-    expect(await addToWaitlist(603)).toBe("in_catalog");
+    expect(await addToWaitlist(PROFILE, 1200)).toBe("already");
+    expect(await addToWaitlist(PROFILE, 603)).toBe("in_catalog");
     // In the catalogue but hidden: worth waiting for, and its document is cached already.
-    expect(await addToWaitlist(1100)).toBe("added");
+    expect(await addToWaitlist(PROFILE, 1100)).toBe("added");
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -106,7 +106,7 @@ describe("« Liste d'attente »", () => {
         ],
       }),
     );
-    expect(await searchWaitlistCandidates("m")).toEqual([
+    expect(await searchWaitlistCandidates(PROFILE, "m")).toEqual([
       {
         tmdbId: 603,
         title: "Matrix",
@@ -153,8 +153,8 @@ describe("« Liste d'attente »", () => {
     expect((await groupAndFilter()).waitlist_available).toBe(0);
     const { availableAt } = await entry("tmdb:movie:1100");
     expect(availableAt).not.toBeNull();
-    expect(await availableWaitlistKeys()).toEqual(["tmdb:movie:1100"]);
-    expect(heard).toEqual([[{ contentKey: "tmdb:movie:1100", title: "Dune : Troisième partie", year: 2026 }]]);
+    expect(await availableWaitlistKeys(PROFILE)).toEqual(["tmdb:movie:1100"]);
+    expect(heard).toEqual([[{ profileId: PROFILE, contentKey: "tmdb:movie:1100", title: "Dune : Troisième partie", year: 2026 }]]);
     expect((await listWaitlist()).map((e) => [e.contentKey, e.status])).toEqual([
       ["tmdb:movie:1100", "available"],
       ["tmdb:movie:1200", "waiting"],
@@ -169,13 +169,13 @@ describe("« Liste d'attente »", () => {
   });
 
   it("a started movie is no longer announced, and stays listed as started", async () => {
-    await markWaitlistStarted("tmdb:movie:1100");
-    expect(await availableWaitlistKeys()).toEqual([]);
+    await markWaitlistStarted(PROFILE, "tmdb:movie:1100");
+    expect(await availableWaitlistKeys(PROFILE)).toEqual([]);
     expect((await listWaitlist()).map((e) => [e.contentKey, e.status])).toEqual([
       ["tmdb:movie:1200", "waiting"],
       ["tmdb:movie:1100", "started"],
     ]);
-    await removeFromWaitlist(1200);
+    await removeFromWaitlist(PROFILE, 1200);
     expect(await entry("tmdb:movie:1200")).toBeUndefined();
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { resetDb, closeDb, seedItems, groupAndFilter } from "@/test/db";
+import { PROFILE, resetDb, closeDb, seedItems, groupAndFilter, testLanguageOrder, testProfile } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { runNaming } from "@/catalog";
 import { home } from "../home";
@@ -21,6 +21,8 @@ vi.mock("@/catalog", async (importOriginal) => {
 const ctx = {
   baseUrl: "http://x",
   device: null,
+  profile: testProfile,
+  languageOrder: testLanguageOrder,
   tmdbLang: "fr-FR",
   providerName: "provider.test",
   upstreamUrl: () => null,
@@ -40,6 +42,7 @@ beforeAll(async () => {
     .set({ backdropPath: "/b.jpg", titleLogoPath: "/l.png" })
     .where(eq(schema.catalogContents.id, content.id));
   await db.insert(schema.appWatchProgress).values({
+    profileId: PROFILE,
     contentKey: `${content.key}:s01e01`,
     position: 2900,
     duration: 3000,

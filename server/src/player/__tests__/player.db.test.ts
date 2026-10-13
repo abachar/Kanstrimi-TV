@@ -7,9 +7,23 @@ import { nightEnd } from "../epg";
 import { remaining } from "../cards";
 import { encodeCursor } from "../lists";
 import { liveChip } from "../channels";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
+import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
 
-import { addStudio, listStudios, moveStudio, parseStudioRef, removeStudio, runNaming, studioDetail, studioSuggestions } from "@/catalog";
+import {
+  addStudio,
+  applyFilters,
+  createProfile,
+  deleteProfile,
+  listStudios,
+  moveStudio,
+  parseStudioRef,
+  removeStudio,
+  runNaming,
+  saveFilter,
+  studioDetail,
+  studioSuggestions,
+} from "@/catalog";
+import { app } from "@/app";
 import { resetPairingState } from "@/devices";
 import { setSecretsForTests, setSettings } from "@/config";
 
@@ -352,6 +366,52 @@ describe("GET /info", () => {
     expect(body.catalog_languages).toEqual(["VF", "VOSTFR"]);
     expect(body.default_language_order).toBeUndefined();
     expect(typeof body.server_version).toBe("string");
+  });
+});
+
+describe("profiles", () => {
+  it("GET /profiles lists the household with avatars; /info says which one answers; X-Profile picks it", async () => {
+    const { body } = await get("/profiles");
+    expect(body.profiles).toEqual([
+      {
+        id: PROFILE,
+        name: "Hakim",
+        is_default: true,
+        avatar: expect.stringMatching(/^http:\/\/kanstrimi\.test\/img\/avatars\/1\.webp\?v=[0-9a-f]{8}$/),
+      },
+    ]);
+    expect((await get("/info")).body.profile).toEqual(body.profiles[0]);
+    const vost = await createProfile({ name: "VOST", avatar: null });
+    expect(await saveFilter(vost.id, "vod", 'variant.langue:"vostfr","vf"')).toBeNull();
+    await applyFilters({ profileId: vost.id });
+    // biome-ignore lint/suspicious/noExplicitAny: read field by field, as the app would
+    const withHeader = async (path: string): Promise<any> => (await call(path, { headers: { "x-profile": String(vost.id) } })).json();
+    expect((await withHeader("/info")).profile).toMatchObject({ id: vost.id, name: "VOST", is_default: false });
+    // The filter's order: VOST first; its languages only.
+    const sheet = await withHeader("/movies/tmdb:movie:603");
+    expect(sheet.versions.map((v: { id: string }) => v.id)).toEqual(["vostfr-hd", "vf-4k-dv"]);
+    expect(sheet.languages).toEqual(["VOSTFR", "VF"]);
+    expect((await get("/movies/tmdb:movie:603")).body.versions.map((v: { id: string }) => v.id)).toEqual(["vf-4k-dv", "vostfr-hd"]);
+    // Its own list and progress.
+    await call("/favorites/tmdb:movie:603", { method: "PUT", headers: { "x-profile": String(vost.id) } });
+    expect((await withHeader("/movies/tmdb:movie:603")).is_favorite).toBe(true);
+    expect((await get("/movies/tmdb:movie:603")).body.is_favorite).toBe(false);
+    // An unknown or malformed profile.
+    const gone = await call("/info", { headers: { "x-profile": "999" } });
+    expect(gone.status).toBe(404);
+    expect(((await gone.json()) as { error: { code: string } }).error.code).toBe("unknown_profile");
+    expect((await call("/info", { headers: { "x-profile": "abc" } })).status).toBe(404);
+    await deleteProfile(vost.id);
+  });
+
+  it("/img/avatars/{id}.webp: the picture, or an initial on a colour; 404 for a stranger", async () => {
+    const r = await app.request("/img/avatars/1.webp?v=abc");
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toBe("image/webp");
+    expect(r.headers.get("cache-control")).toContain("immutable");
+    expect((await r.arrayBuffer()).byteLength).toBeGreaterThan(100);
+    expect((await app.request("/img/avatars/999.webp")).status).toBe(404);
+    expect((await app.request("/img/avatars/x.webp")).status).toBe(404);
   });
 });
 
@@ -1300,9 +1360,9 @@ describe("« Chaînes les plus regardées »", () => {
   it("5 minutes over the last 30 days at least, most watched first: a home row after « Reprendre » and a rank on /channels", async () => {
     const day = (n: number) => ymd(daysAgo(n));
     await db.insert(schema.appLiveWatch).values([
-      { contentKey: "live:fr-bein-sports-1", day: day(1), seconds: 2000 },
+      { profileId: PROFILE, contentKey: "live:fr-bein-sports-1", day: day(1), seconds: 2000 },
       // Out of the window: 30 days ago does not count.
-      { contentKey: "live:fr-tf1", day: day(30), seconds: 99999 },
+      { profileId: PROFILE, contentKey: "live:fr-tf1", day: day(30), seconds: 99999 },
     ]);
     const rows = await homeRows();
     // First, or right after « Reprendre » when something is in progress.
@@ -1326,6 +1386,7 @@ describe("« Chaînes les plus regardées »", () => {
 
 describe("GET /top-shelf", () => {
   const progressRow = (contentKey: string, position: number, duration: number, updatedAt: Date) => ({
+    profileId: PROFILE,
     contentKey,
     position,
     duration,
@@ -1417,7 +1478,7 @@ describe("GET /top-shelf", () => {
 
 describe("« Liste d'attente »: hero and Top Shelf", () => {
   it("an awaited movie that arrived is the hero and heads the Top Shelf until 5 % of it is played", async () => {
-    await db.insert(schema.curationWaitlist).values({ contentKey: "tmdb:movie:949", tmdbId: 949, title: "Heat" });
+    await db.insert(schema.curationWaitlist).values({ profileId: PROFILE, contentKey: "tmdb:movie:949", tmdbId: 949, title: "Heat" });
     // Heat is visible already: the next regroup flags it available.
     expect((await groupAndFilter()).waitlist_available).toBe(1);
     expect((await get("/home")).body.heroes[0]).toMatchObject({ tagline: "FILM · ENFIN DISPONIBLE", item: { id: "tmdb:movie:949" } });

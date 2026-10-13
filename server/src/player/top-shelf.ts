@@ -75,12 +75,12 @@ const moviePick = (c: Content, reason: ShelfPick["reason"], context: string): Sh
 
 /** The « Liste d'attente » movies the provider now has and nobody started, the latest arrival first. */
 async function availablePicks(ctx: RestContext): Promise<ShelfPick[]> {
-  const contents = await contentsInOrder(ctx, await availableWaitlistKeys(), "vod");
+  const contents = await contentsInOrder(ctx, await availableWaitlistKeys(ctx.profile.id), "vod");
   return contents.filter(hasShelfArt).map((c) => moviePick(c, "available", "Enfin disponible"));
 }
 
 async function resumePick(ctx: RestContext): Promise<ShelfPick | null> {
-  for (const p of await resumeKeys(20)) {
+  for (const p of await resumeKeys(ctx.profile.id, 20)) {
     const parsed = parseKey(p.contentKey);
     if (!parsed) continue;
     const content = await contentByKey(ctx, parsed.seriesKey);
@@ -107,7 +107,7 @@ async function newEpisodePick(ctx: RestContext, skip: Set<string>): Promise<Shel
   const watched = await db
     .select({ key: schema.appWatchProgress.contentKey, at: schema.appWatchProgress.updatedAt })
     .from(schema.appWatchProgress)
-    .where(sql`${schema.appWatchProgress.contentKey} ~ ':s[0-9]+e[0-9]+$'`)
+    .where(and(eq(schema.appWatchProgress.profileId, ctx.profile.id), sql`${schema.appWatchProgress.contentKey} ~ ':s[0-9]+e[0-9]+$'`))
     .orderBy(desc(schema.appWatchProgress.updatedAt));
   const lastWatched = new Map<string, Date>();
   for (const w of watched) {
@@ -130,7 +130,10 @@ async function newEpisodePick(ctx: RestContext, skip: Set<string>): Promise<Shel
       throw e;
     }
     const episodes = await loadEpisodes(content, items, categoryName);
-    const progress = await getProgress(episodes.map((e) => e.key));
+    const progress = await getProgress(
+      ctx.profile.id,
+      episodes.map((e) => e.key),
+    );
     const last = episodes.reduce((at, e, i) => (progress.has(e.key) ? i : at), -1);
     const next = episodes.slice(last + 1).find((e) => !progress.has(e.key) && e.playables.length);
     if (!next) continue;

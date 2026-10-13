@@ -6,6 +6,7 @@ const STATUS: Record<ApiError["error"]["code"], 400 | 401 | 404 | 429 | 502> = {
   bad_request: 400,
   unauthorized: 401,
   not_found: 404,
+  unknown_profile: 404,
   too_many_requests: 429,
   upstream: 502,
 };

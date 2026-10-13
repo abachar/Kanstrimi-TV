@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema, type Kind } from "@/db";
-import { compileQuery } from "@/catalog";
-import { resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
+import { compileQuery, createProfile, defaultProfile, deleteProfile, filterLanguages, listProfiles, setDefaultProfile } from "@/catalog";
+import { PROFILE, resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
 import { runGrouping, runNaming } from "../../grouping/group";
 import { filtersPending, listFilters, previewFilter, saveFilter } from "../filters";
 import { applyFilters } from "../apply";
@@ -42,9 +42,16 @@ const left = async (kind: Kind) =>
     .sort();
 /** Saved then applied: what a pass from « Filtres » does. */
 async function filter(kind: Kind, query: string) {
-  expect(await saveFilter(kind, query)).toBeNull();
+  expect(await saveFilter(PROFILE, kind, query)).toBeNull();
   await applyFilters();
 }
+/** The queries of the profile's filters by kind, the empty ones (« everything ») left out. */
+const queries = async () =>
+  Object.fromEntries(
+    Object.entries(await listFilters(PROFILE))
+      .filter(([, f]) => f?.query)
+      .map(([k, f]) => [k, f!.query]),
+  );
 
 describe("filters", () => {
   it("previews what a query would keep, contents and versions, and says what is wrong", async () => {
@@ -58,24 +65,25 @@ describe("filters", () => {
     });
     expect(await previewFilter("live", "titre:matrix")).toMatchObject({ keptContents: 0, left: ["RAI 1", "TF1"] });
     expect(await previewFilter("vod", "genr:x")).toMatchObject({ error: expect.stringContaining("voulais-tu genre") });
-    expect(await saveFilter("vod", "visible:non")).toContain("recherches");
-    expect(await saveFilter("live", "genre:anim")).toContain("qu'aux films et aux séries"); // each kind its own fields
-    expect(await saveFilter("vod", "titre:/(?<x>FR)/")).toContain("régulière"); // JavaScript takes it, Postgres does not
-    expect(await listFilters()).toEqual({});
+    expect(await saveFilter(PROFILE, "vod", "visible:non")).toContain("recherches");
+    expect(await saveFilter(PROFILE, "live", "genre:anim")).toContain("qu'aux films et aux séries"); // each kind its own fields
+    expect(await saveFilter(PROFILE, "vod", "titre:/(?<x>FR)/")).toContain("régulière"); // JavaScript takes it, Postgres does not
+    expect(await queries()).toEqual({});
   });
 
   it("saving only marks the filters pending; the filters step keeps what matches", async () => {
-    expect(await saveFilter("live", 'marché:"fr"')).toBeNull();
+    expect(await saveFilter(PROFILE, "live", 'marché:"fr"')).toBeNull();
     expect(await filtersPending()).toBe(true);
+    expect(await filtersPending(PROFILE)).toBe(true);
     expect(await visible("live")).toEqual(["RAI 1", "TF1"]); // not applied yet
     await applyFilters();
     expect(await filtersPending()).toBe(false);
     expect(await visible("live")).toEqual(["TF1"]);
     expect(await left("live")).toEqual(["100"]); // RAI's only version
-    expect(await saveFilter("live", ' marché:"fr" ')).toBeNull();
+    expect(await saveFilter(PROFILE, "live", ' marché:"fr" ')).toBeNull();
     expect(await filtersPending()).toBe(false); // the same query
     await filter("live", ""); // no filter: everything kept
-    expect(await listFilters()).toEqual({});
+    expect(await queries()).toEqual({});
     expect(await visible("live")).toEqual(["RAI 1", "TF1"]);
   });
 
@@ -112,10 +120,85 @@ describe("filters", () => {
   it("a filter that no longer compiles leaves its kind as it was", async () => {
     await filter("live", 'marché:"fr"');
     // Saved before a check existed: skipped, the step does not fail.
-    await db.update(schema.curationFilters).set({ query: "titre:/(?<x>FR)/" }).where(eq(schema.curationFilters.kind, "live"));
+    await db.update(schema.appProfileFilters).set({ query: "titre:/(?<x>FR)/" }).where(eq(schema.appProfileFilters.kind, "live"));
     await expect(applyFilters()).resolves.toBeTruthy();
     expect(await visible("live")).toEqual(["TF1"]);
-    await db.delete(schema.curationFilters);
+    await db.delete(schema.appProfileFilters);
     await applyFilters();
+  });
+});
+
+/** The titles of `kind` a profile sees. */
+const seenBy = async (profileId: number, kind: Kind) =>
+  (
+    await db
+      .select({ title: schema.catalogContents.title })
+      .from(schema.catalogContents)
+      .innerJoin(schema.catalogContentProfiles, eq(schema.catalogContentProfiles.contentId, schema.catalogContents.id))
+      .where(and(eq(schema.catalogContentProfiles.profileId, profileId), eq(schema.catalogContents.kind, kind)))
+  )
+    .map((r) => r.title)
+    .sort();
+
+describe("profiles", () => {
+  it("each profile is judged by its own filters; a profile without one sees everything; the catalogue is their union", async () => {
+    const teen = await createProfile({ name: "Ado", avatar: null });
+    expect((await listProfiles()).map((p) => [p.name, p.isDefault])).toEqual([
+      ["Hakim", true],
+      ["Ado", false],
+    ]);
+    // Just created, not judged yet: sees nothing until the step runs for it.
+    expect(await seenBy(teen.id, "vod")).toEqual([]);
+    await applyFilters({ profileId: teen.id });
+    expect(await seenBy(teen.id, "vod")).toEqual(["Clan of Violence", "Heat", "Heat 2", "Matrix"]);
+
+    await filter("vod", 'xtream.marché:"fr"'); // the default profile's
+    expect(await seenBy(PROFILE, "vod")).toEqual(["Clan of Violence", "Heat 2", "Matrix"]);
+    expect(await seenBy(teen.id, "vod")).toEqual(["Clan of Violence", "Heat", "Heat 2", "Matrix"]); // sees everything
+    expect(await left("vod")).toEqual([]); // kept by the teen: the union keeps it
+    expect(await visible("vod")).toEqual(["Clan of Violence", "Heat", "Heat 2", "Matrix"]);
+
+    expect(await saveFilter(teen.id, "vod", "titre:heat")).toBeNull();
+    expect(await filtersPending(teen.id)).toBe(true);
+    expect(await filtersPending(PROFILE)).toBe(false);
+    await applyFilters({ profileId: teen.id });
+    expect(await filtersPending()).toBe(false);
+    expect(await seenBy(teen.id, "vod")).toEqual(["Heat", "Heat 2"]);
+    expect(await seenBy(PROFILE, "vod")).toEqual(["Clan of Violence", "Heat 2", "Matrix"]);
+    expect(await visible("vod")).toEqual(["Clan of Violence", "Heat", "Heat 2", "Matrix"]);
+
+    // Nobody keeps the Italian Heat any more: the union leaves it out.
+    expect(await saveFilter(teen.id, "vod", 'titre:heat && xtream.marché:"fr"')).toBeNull();
+    await applyFilters();
+    expect(await left("vod")).toEqual(["2"]);
+    expect(await visible("vod")).toEqual(["Clan of Violence", "Heat 2", "Matrix"]);
+    expect(await seenBy(teen.id, "vod")).toEqual(["Heat 2"]);
+  });
+
+  it("the default profile moves and cannot be deleted; a deleted profile takes its verdicts along", async () => {
+    const [teen] = (await listProfiles()).filter((p) => !p.isDefault);
+    expect(await deleteProfile(PROFILE)).toBe("default");
+    expect(await setDefaultProfile(teen.id)).toBe(true);
+    expect((await defaultProfile()).name).toBe("Ado");
+    expect(await deleteProfile(teen.id)).toBe("default");
+    expect(await setDefaultProfile(PROFILE)).toBe(true);
+    expect(await deleteProfile(teen.id)).toBe("deleted");
+    expect(await deleteProfile(teen.id)).toBe("unknown");
+    expect(await db.select().from(schema.catalogContentProfiles).where(eq(schema.catalogContentProfiles.profileId, teen.id))).toEqual([]);
+    expect(await db.select().from(schema.catalogVariantProfiles).where(eq(schema.catalogVariantProfiles.profileId, teen.id))).toEqual([]);
+    // The verdicts of a gone profile leave the union at the next step.
+    await filter("vod", "");
+    expect(await visible("vod")).toEqual(["Clan of Violence", "Heat", "Heat 2", "Matrix"]);
+    expect(await createProfile({ name: " Hakim ", avatar: null }).catch((e) => e.message)).toContain("déjà");
+  });
+});
+
+describe("filterLanguages", () => {
+  it("reads the languages a filter names, in their order; negations and groups left out; the default otherwise", () => {
+    expect(filterLanguages('variant.langue:"it","vf" && xtream.marché:"fr"')).toEqual(["IT", "VF"]);
+    expect(filterLanguages('(variant.lang:vostfr || variant.langue:"vf") && -variant.langue:"ar"')).toEqual(["VOSTFR", "VF"]);
+    expect(filterLanguages('-(variant.langue:"vo") && titre:heat')).toEqual(["VF", "VOSTFR", "VO"]);
+    expect(filterLanguages("")).toEqual(["VF", "VOSTFR", "VO"]);
+    expect(filterLanguages("titre:/(/")).toEqual(["VF", "VOSTFR", "VO"]);
   });
 });

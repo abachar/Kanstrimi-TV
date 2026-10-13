@@ -4,7 +4,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { bodyLimit } from "hono/body-limit";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { isShelfPair, player } from "@/player";
+import { avatarRoute, isShelfPair, player } from "@/player";
 import { imgRoute } from "@/providers/tmdb";
 import { logoRoute } from "@/providers/iptv";
 import { admin } from "@/admin";
@@ -22,7 +22,7 @@ const ADMIN_CSP = {
   defaultSrc: ["'self'"],
   scriptSrc: ["'self'"],
   styleSrc: ["'self'"],
-  imgSrc: ["'self'", "data:", "https:", "http:"],
+  imgSrc: ["'self'", "data:", "blob:", "https:", "http:"], // blob: the picture chosen for an avatar, shown before upload
   objectSrc: ["'none'"],
   baseUri: ["'none'"],
   formAction: ["'self'"],
@@ -47,6 +47,7 @@ app.get("/health", async (c) => {
 app.get("/", (c) => c.redirect("/admin"));
 app.get("/favicon.ico", (c) => c.redirect("/admin/assets/favicon.ico"));
 app.route("/img/logos", logoRoute); // before /img: « logos » is no TMDB size
+app.route("/img/avatars", avatarRoute); // same: the profiles' pictures, from the database
 // The Top Shelf composition lives with the TMDB images, which do not know the catalogue: the player says which pairs exist.
 app.use("/img/shelf/:scale/:backdrop/:logo", async (c, next) =>
   (await isShelfPair(c.req.param("backdrop"), c.req.param("logo"))) ? next() : c.text("Not found", 404),

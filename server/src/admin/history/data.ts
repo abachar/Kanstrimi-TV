@@ -1,12 +1,13 @@
 import { eq, inArray } from "drizzle-orm";
 import { db, schema, type Content } from "@/db";
-import { parseKey } from "@/catalog";
+import { listProfiles, parseKey } from "@/catalog";
 import { gridCard, listProgress, type Card, type Progress, type RestContext } from "@/player";
 
 /** One line of « Historique »: a progress row, resolved to a movie or to an episode of a series. */
 export type HistoryRow = {
   key: string;
   progress: Progress;
+  profileName: string;
   /** The movie, or the series of the episode; null when the key points nowhere any more. */
   content: Content | null;
   card: Card | null;
@@ -18,6 +19,7 @@ export type HistoryRow = {
 /** Every progress row joined to what it points at, most recent first; orphans keep their raw key. */
 export async function historyRows(ctx: RestContext): Promise<{ ongoing: HistoryRow[]; finished: HistoryRow[] }> {
   const progress = await listProgress();
+  const names = new Map((await listProfiles()).map((p) => [p.id, p.name]));
   const episodeKeys = progress.map((p) => p.contentKey).filter((k) => parseKey(k)?.episode !== undefined);
   const movieKeys = progress.map((p) => p.contentKey).filter((k) => !episodeKeys.includes(k));
   const [movies, episodes] = await Promise.all([
@@ -43,6 +45,7 @@ export async function historyRows(ctx: RestContext): Promise<{ ongoing: HistoryR
     return {
       key,
       progress: p,
+      profileName: names.get(p.profileId) ?? `profil ${p.profileId}`,
       content,
       card: content ? gridCard(ctx, content, p) : null,
       label,

@@ -1,6 +1,7 @@
-import type { Device } from "@/db";
+import type { Device, Profile } from "@/db";
 import type { Settings } from "@/config";
 import { upstreamStreamUrl } from "@/providers/xtream";
+import { languageOrderOf } from "@/catalog";
 
 /** What every authenticated request carries: who asks, and how to spell URLs and titles for them. */
 export type RestContext = {
@@ -8,6 +9,10 @@ export type RestContext = {
   baseUrl: string;
   /** The paired device asking, or `null` when the admin looks through the app's eyes (no stream links then). */
   device: Device | null;
+  /** Whose eyes: the profile the device is on (`X-Profile`, else the default one), or the admin's choice. */
+  profile: Profile;
+  /** The languages the profile's filters name, in their order: the versions it plays, the first one first. */
+  languageOrder: Record<"vod" | "series", string[]>;
   tmdbLang: string;
   /** Display name of the single Xtream account (its host). */
   providerName: string;
@@ -28,7 +33,7 @@ export function publicBaseUrl(req: Request, settings: Settings) {
   return `${proto}://${host}`;
 }
 
-export function contextFor(req: Request, device: Device | null, s: Settings): RestContext {
+export async function contextFor(req: Request, device: Device | null, s: Settings, profile: Profile): Promise<RestContext> {
   let providerName = "Fournisseur";
   try {
     providerName = new URL(s.xtream_url.startsWith("http") ? s.xtream_url : `http://${s.xtream_url}`).hostname;
@@ -38,6 +43,8 @@ export function contextFor(req: Request, device: Device | null, s: Settings): Re
   return {
     baseUrl: publicBaseUrl(req, s),
     device,
+    profile,
+    languageOrder: await languageOrderOf(profile.id),
     tmdbLang: s.tmdb_language,
     providerName,
     upstreamUrl: (kind, id, ext) => upstreamStreamUrl(s, kind, id, ext),

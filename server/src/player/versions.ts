@@ -9,15 +9,17 @@ export const sourceId = (kind: "item" | "episode", id: number) => `src-${kind ==
 
 /** A version = language × quality × dynamic range × edition; its sources are the playable variants behind it. */
 
-const LANG_RANK = (l: string) => {
-  const i = DEFAULT_LANGUAGE_ORDER.indexOf(l);
-  return i === -1 ? 3 : i;
+/** The rank of a language in `order` (the profile's, else the default); unknown languages after, together. */
+const langRank = (order: readonly string[], l: string) => {
+  const i = order.indexOf(l);
+  return i === -1 ? order.length : i;
 };
 /** How a language reads on screen, the way French cinemas write it: « FR », « VOSTF », « VO ». The codes stay the contract's. */
 export const languageLabel = (code: string): string => (code === "VF" ? "FR" : code === "VOSTFR" ? "VOSTF" : code);
 
-export function sortLanguages(langs: Iterable<string>): string[] {
-  return [...new Set(langs)].sort((a, b) => LANG_RANK(a) - LANG_RANK(b) || a.localeCompare(b));
+/** Languages in `order` (a profile's for its kind, else the default), the rest alphabetically. */
+export function sortLanguages(langs: Iterable<string>, order: readonly string[] = DEFAULT_LANGUAGE_ORDER): string[] {
+  return [...new Set(langs)].sort((a, b) => langRank(order, a) - langRank(order, b) || a.localeCompare(b));
 }
 /** Unknown quality is served as HD: the app needs a value, and providers rarely ship worse. */
 export const qualityOf = (q: string | null | undefined): Quality => (q && q in QUALITY_RANK ? (q as Quality) : "HD");
@@ -75,6 +77,7 @@ const streamUrl = (ctx: RestContext, r: Playable) => (ctx.device && ctx.upstream
 
 /** Group playable rows by language × quality × dynamic range × edition; sources in server order. */
 export function versionsOf(ctx: RestContext, rows: Playable[], withSources = true): Version[] {
+  const order = ctx.languageOrder[rows[0]?.upstream.kind === "series" ? "series" : "vod"];
   const map = new Map<string, Version & { _q: number; _d: number; _e: string }>();
   const sorted = [...rows].sort((a, b) => b.qualityRank - a.qualityRank || a.position - b.position || a.id - b.id);
   for (const r of sorted) {
@@ -107,11 +110,11 @@ export function versionsOf(ctx: RestContext, rows: Playable[], withSources = tru
         origin: r.categoryName,
       });
   }
-  // The usual cut first: an edition is a choice, never what plays by default.
+  // The profile's languages in its order, then the usual cut first: an edition is a choice, never what plays by default.
   return [...map.values()]
     .sort(
       (a, b) =>
-        LANG_RANK(a.language) - LANG_RANK(b.language) ||
+        langRank(order, a.language) - langRank(order, b.language) ||
         a.language.localeCompare(b.language) ||
         Number(Boolean(a._e)) - Number(Boolean(b._e)) ||
         b._q - a._q ||
@@ -137,6 +140,6 @@ export function versionsSummary(versions: Version[]): { max_quality?: Quality; d
   return {
     ...(q ? { max_quality: qualityOfRank(q) } : {}),
     ...(d ? { dynamic_range: d === 2 ? "DV" : "HDR" } : {}),
-    languages: sortLanguages(versions.map((v) => v.language)),
+    languages: [...new Set(versions.map((v) => v.language))], // `versionsOf` already put the profile's first
   };
 }

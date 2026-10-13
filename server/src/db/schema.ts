@@ -302,15 +302,78 @@ export const xtreamInfoCache = pgTable(
   (t) => [uniqueIndex("xtream_info_cache_idx").on(t.kind, t.xtreamId)],
 );
 
+const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
+
 /**
- * The filter of a kind, at most one: a query of the filter language (`catalog/query`) saying what the app
- * keeps, judged version by version; what does not match is left out. No row: everything is kept.
+ * A person of the household: what the app records (positions, « Ma liste », live time, the waitlist)
+ * is theirs, and their filters (`app_profile_filters`) say what they see. One is the default: the
+ * profile a device starts on, the Top Shelf's, the admin's « through the app's eyes ».
  */
-export const curationFilters = pgTable("curation_filters", {
-  kind: kindEnum("kind").primaryKey(),
-  query: text("query").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const appProfiles = pgTable(
+  "app_profiles",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull().unique(),
+    /** A square WebP, served by `/img/avatars/{id}`; null only for a profile the migration created. */
+    avatar: bytea("avatar"),
+    isDefault: boolean("is_default").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    /** The last time the `filters` step judged every version for it; null until the first time: it sees nothing yet. */
+    judgedAt: timestamp("judged_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("app_profiles_default_idx").on(t.isDefault).where(sql`is_default`)],
+);
+
+/**
+ * The filter of a profile for a kind: a query of the filter language (`catalog/query`) saying what
+ * this profile sees, judged version by version at the `filters` step. No row, or an empty query:
+ * everything. `applied_at` null: saved since the step last judged it, the catalogue does not follow it yet.
+ */
+export const appProfileFilters = pgTable(
+  "app_profile_filters",
+  {
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
+    kind: kindEnum("kind").notNull(),
+    query: text("query").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.kind] })],
+);
+
+/** The versions a profile's filter keeps (a row = kept); `catalog_variants.hidden_by_rule` is « kept by no profile ». */
+export const catalogVariantProfiles = pgTable(
+  "catalog_variant_profiles",
+  {
+    variantId: integer("variant_id")
+      .notNull()
+      .references(() => catalogVariants.id, { onDelete: "cascade" }),
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.variantId, t.profileId] }), index("catalog_variant_profiles_profile_idx").on(t.profileId, t.variantId)],
+);
+
+/**
+ * The contents a profile sees (a row = visible): one of its versions kept by the profile's filter and
+ * hidden neither by hand nor through its category. Rewritten with the aggregates (`refreshAggregates`);
+ * `catalog_contents.visible` is « seen by one profile at least ».
+ */
+export const catalogContentProfiles = pgTable(
+  "catalog_content_profiles",
+  {
+    contentId: integer("content_id")
+      .notNull()
+      .references(() => catalogContents.id, { onDelete: "cascade" }),
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.contentId, t.profileId] }), index("catalog_content_profiles_profile_idx").on(t.profileId, t.contentId)],
+);
 
 /**
  * The channels of the iptv-org database (github.com/iptv-org/database), refreshed daily by the
@@ -507,36 +570,53 @@ export const curationEpgLinks = pgTable(
 );
 export type EpgLink = typeof curationEpgLinks.$inferSelect;
 
-/** Playback position per content key (movie or episode). Single user: no device column. */
-export const appWatchProgress = pgTable("app_watch_progress", {
-  contentKey: text("content_key").primaryKey(),
-  /** Seconds. */
-  position: integer("position").notNull(),
-  duration: integer("duration").notNull(),
-  /** Derived at write time: position ≥ 90 % of duration. */
-  finished: boolean("finished").default(false).notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+/** Playback position per profile and content key (movie or episode). */
+export const appWatchProgress = pgTable(
+  "app_watch_progress",
+  {
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
+    contentKey: text("content_key").notNull(),
+    /** Seconds. */
+    position: integer("position").notNull(),
+    duration: integer("duration").notNull(),
+    /** Derived at write time: position ≥ 90 % of duration. */
+    finished: boolean("finished").default(false).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.contentKey] })],
+);
 
 /**
- * Seconds of live watched, per channel and per day (the server's `TZ`): the app adds what it played
- * every 30 s and when it leaves a channel. « Chaînes les plus regardées » sums the last 30 days.
+ * Seconds of live watched, per profile, channel and day (the server's `TZ`): the app adds what it
+ * played every 30 s and when it leaves a channel. « Chaînes les plus regardées » sums the last 30 days.
  */
 export const appLiveWatch = pgTable(
   "app_live_watch",
   {
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
     contentKey: text("content_key").notNull(),
     day: date("day").notNull(),
     seconds: integer("seconds").default(0).notNull(),
   },
-  (t) => [primaryKey({ columns: [t.contentKey, t.day] })],
+  (t) => [primaryKey({ columns: [t.profileId, t.contentKey, t.day] })],
 );
 
-/** "Ma liste": movies, series and channels by content key. */
-export const appFavorites = pgTable("app_favorites", {
-  contentKey: text("content_key").primaryKey(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+/** "Ma liste" of a profile: movies, series and channels by content key. */
+export const appFavorites = pgTable(
+  "app_favorites",
+  {
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
+    contentKey: text("content_key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.contentKey] })],
+);
 
 export const deviceStatusEnum = pgEnum("device_status", ["pending", "approved", "revoked"]);
 
@@ -616,17 +696,24 @@ export const curationStudios = pgTable(
  * `available_at`: the first time a visible content carried the key; `started_at`: the first time the
  * app played 5 % of it. Available and not started = the home hero and the head of the Top Shelf.
  */
-export const curationWaitlist = pgTable("curation_waitlist", {
-  contentKey: text("content_key").primaryKey(),
-  tmdbId: integer("tmdb_id").notNull(),
-  title: text("title").notNull(),
-  year: integer("year"),
-  posterPath: text("poster_path"),
-  releaseDate: date("release_date"),
-  addedAt: timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
-  availableAt: timestamp("available_at", { withTimezone: true }),
-  startedAt: timestamp("started_at", { withTimezone: true }),
-});
+export const curationWaitlist = pgTable(
+  "curation_waitlist",
+  {
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
+    contentKey: text("content_key").notNull(),
+    tmdbId: integer("tmdb_id").notNull(),
+    title: text("title").notNull(),
+    year: integer("year"),
+    posterPath: text("poster_path"),
+    releaseDate: date("release_date"),
+    addedAt: timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
+    availableAt: timestamp("available_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.contentKey] })],
+);
 
 /** TMDB's weekly trending lists, replaced by the `trending` step: the « Top 10 » rows cross them with the catalogue. */
 export const tmdbTrending = pgTable(
@@ -746,7 +833,9 @@ export type Episode = typeof catalogEpisodes.$inferSelect;
 export type Device = typeof appDevices.$inferSelect;
 export type Content = typeof catalogContents.$inferSelect;
 export type Category = typeof catalogCategories.$inferSelect;
-export type Filter = typeof curationFilters.$inferSelect;
+export type ProfileFilter = typeof appProfileFilters.$inferSelect;
+/** A profile as the lists carry it: its avatar stays in its row (`profileAvatar`), `avatarVersion` changes with it (the image URL). */
+export type Profile = Omit<typeof appProfiles.$inferSelect, "avatar"> & { avatarVersion: string };
 export type TaskStep = typeof taskSteps.$inferSelect;
 export type TaskRun = typeof taskRuns.$inferSelect;
 export type IptvorgChannel = typeof iptvorgChannels.$inferSelect;

@@ -38,7 +38,7 @@ export function baseCard(ctx: RestContext, c: Content): Card {
     poster: c.kind === "live" ? channelLogo(ctx.baseUrl, c.logoUrl) : imageUrl(ctx.baseUrl, "w500", c.posterPath) || null,
     ...(c.maxQualityRank ? { max_quality: qualityOfRank(c.maxQualityRank) } : {}),
     ...(drOf(c.dynamicRange) ? { dynamic_range: drOf(c.dynamicRange) } : {}),
-    languages: sortLanguages(c.languages),
+    languages: sortLanguages(c.languages, ctx.languageOrder[c.kind === "series" ? "series" : "vod"]),
   };
 }
 

@@ -4,21 +4,29 @@ import { parseKey } from "@/catalog";
 import type { RestContext } from "./context";
 import { playableOfItem, type Playable } from "./versions";
 
-/** What the app may see: the admin's visibility, and adult contents only when the setting allows them. */
-
+/**
+ * What the profile may see: a content its filter keeps (`catalog_content_profiles`, written with the
+ * aggregates), and adult contents only when the setting allows them.
+ */
 export const visibleContent = (ctx: RestContext, kind?: "live" | "vod" | "series"): SQL =>
   and(
     kind ? eq(schema.catalogContents.kind, kind) : undefined,
+    // `visible` (seen by one profile at least) is implied by the profile's row; kept for the indexes, which start with it.
     eq(schema.catalogContents.visible, true),
+    sql`exists (select 1 from ${schema.catalogContentProfiles} cp where cp.content_id = ${schema.catalogContents.id} and cp.profile_id = ${ctx.profile.id})`,
     ctx.serveAdult ? undefined : eq(schema.catalogContents.adult, false),
   )!;
 
 /**
- * What the app may play: a visible variant, flagged adult only when the setting allows it. A content
- * is adult when all its variants are, so a mixed one stays served without its adult variants.
+ * What the profile may play: a visible variant its filter keeps, flagged adult only when the setting
+ * allows it. A content is adult when all its variants are, so a mixed one stays served without its adult variants.
  */
 export const servedVariant = (ctx: RestContext): SQL =>
-  and(visibleItem, ctx.serveAdult ? undefined : eq(schema.catalogVariants.adult, false))!;
+  and(
+    visibleItem,
+    sql`exists (select 1 from ${schema.catalogVariantProfiles} vp where vp.variant_id = ${schema.catalogVariants.id} and vp.profile_id = ${ctx.profile.id})`,
+    ctx.serveAdult ? undefined : eq(schema.catalogVariants.adult, false),
+  )!;
 
 /** « Nouveautés » holds the movies released in the last twelve months. */
 export const NEW_RELEASE_MONTHS = 12;

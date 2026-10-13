@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { db, schema } from "@/db";
-import { resetDb, closeDb } from "@/test/db";
+import { PROFILE, profileSeesVisible, resetDb, closeDb, testLanguageOrder, testProfile } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { recommendedKeys } from "@/catalog";
 import { recommendationsSettled, resetRecommendations } from "@/providers/tmdb";
@@ -13,6 +13,8 @@ import type { RestContext } from "../context";
 const ctx: RestContext = {
   baseUrl: "http://k.test",
   device: null,
+  profile: testProfile,
+  languageOrder: testLanguageOrder,
   tmdbLang: "fr-FR",
   providerName: "p",
   upstreamUrl: () => null,
@@ -61,6 +63,7 @@ beforeAll(async () => {
     { contentId: lost.id, key: "tmdb:tv:4607:s01e01", season: 1, number: 1 },
     { contentId: lost.id, key: "tmdb:tv:4607:s06e18", season: 6, number: 18 },
   ]);
+  await profileSeesVisible();
 });
 beforeEach(async () => {
   await db.delete(schema.tmdbRecommendations);
@@ -91,8 +94,8 @@ describe("sheet", () => {
 
   it("drops what was seen, keeps what is in progress with its progress", async () => {
     stubTmdb();
-    await setProgress("tmdb:movie:1", 5900, 6000);
-    await setProgress("tmdb:movie:2", 1000, 6000);
+    await setProgress(PROFILE, "tmdb:movie:1", 5900, 6000);
+    await setProgress(PROFILE, "tmdb:movie:2", 1000, 6000);
     const cards = await sheetRelated(ctx, (await contentByKey(ctx, "tmdb:movie:603"))!);
     expect(ids(cards)).toEqual(["tmdb:movie:2", "tmdb:movie:3", "tmdb:movie:604"]);
     expect(cards[0]).toMatchObject({ progress: 1000 / 6000, watched: false, caption: "1 h 23 restantes" });
@@ -101,9 +104,9 @@ describe("sheet", () => {
   it("a series is seen once its last episode is", async () => {
     stubTmdb();
     const got = await contentByKey(ctx, "tmdb:tv:1399");
-    await setProgress("tmdb:tv:4607:s01e01", 2500, 2600);
+    await setProgress(PROFILE, "tmdb:tv:4607:s01e01", 2500, 2600);
     expect(ids(await sheetRelated(ctx, got!))).toEqual(["tmdb:tv:4607", "tmdb:tv:66732"]);
-    await setProgress("tmdb:tv:4607:s06e18", 2500, 2600);
+    await setProgress(PROFILE, "tmdb:tv:4607:s06e18", 2500, 2600);
     expect(ids(await sheetRelated(ctx, got!))).toEqual(["tmdb:tv:66732"]);
   });
 });
@@ -151,10 +154,10 @@ describe("player", () => {
 
   it("the saga's next movie seen: the one after it; none left: TMDB's first, nothing seen or in progress", async () => {
     stubTmdb();
-    await setProgress("tmdb:movie:604", 5900, 6000);
+    await setProgress(PROFILE, "tmdb:movie:604", 5900, 6000);
     expect((await suggestions(ctx, "tmdb:movie:603"))!.next).toMatchObject({ reason: "saga", item: { id: "tmdb:movie:605" } });
-    await setProgress("tmdb:movie:605", 1000, 6000);
-    await setProgress("tmdb:movie:1", 1000, 6000);
+    await setProgress(PROFILE, "tmdb:movie:605", 1000, 6000);
+    await setProgress(PROFILE, "tmdb:movie:1", 1000, 6000);
     expect((await suggestions(ctx, "tmdb:movie:603"))!.next).toMatchObject({
       reason: "recommended",
       heading: "À SUIVRE",
@@ -164,7 +167,7 @@ describe("player", () => {
 
   it("the last episode of a series: another series, never started", async () => {
     stubTmdb();
-    await setProgress("tmdb:tv:4607:s01e01", 1000, 2600);
+    await setProgress(PROFILE, "tmdb:tv:4607:s01e01", 1000, 2600);
     const s = (await suggestions(ctx, "tmdb:tv:1399:s08e06"))!;
     expect(ids(s.related)).toEqual(["tmdb:tv:4607", "tmdb:tv:66732"]);
     expect(s.next).toMatchObject({
@@ -191,16 +194,16 @@ describe("home", () => {
   it("filled in the background, weighed by rank and recency, without what was seen, started or listed", async () => {
     stubTmdb();
     vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-02T20:00:00Z") });
-    await setProgress("tmdb:movie:603", 5900, 6000);
+    await setProgress(PROFILE, "tmdb:movie:603", 5900, 6000);
     vi.setSystemTime(new Date("2026-10-02T20:01:00Z")); // watched later: the more recent seed
-    await setProgress("tmdb:movie:1", 3000, 6000);
+    await setProgress(PROFILE, "tmdb:movie:1", 3000, 6000);
     vi.useRealTimers();
-    await setProgress("tmdb:tv:1399:s01e01", 10, 3000); // below 5 %: not a seed
-    await setFavorite("tmdb:tv:66732", true);
+    await setProgress(PROFILE, "tmdb:tv:1399:s01e01", 10, 3000); // below 5 %: not a seed
+    await setFavorite(PROFILE, "tmdb:tv:66732", true);
     expect(await recommendedRow(ctx)).toEqual([]);
     await recommendationsSettled();
     expect(calls.sort()).toEqual(["movie:1", "movie:603", "tv:66732"]);
-    await setProgress("tmdb:movie:3", 1000, 6000);
+    await setProgress(PROFILE, "tmdb:movie:3", 1000, 6000);
     // Interstellar is recommended by both seeds; Matrix (seen) and Inception (started) are seeds themselves.
     const row = ids(await recommendedRow(ctx));
     expect(row).toEqual(["tmdb:movie:2", "tmdb:movie:5", "tmdb:movie:604", "tmdb:tv:1399"]);

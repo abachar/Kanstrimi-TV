@@ -351,6 +351,13 @@
       "when": 1791671401044,
       "tag": "0049_push-notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791916562326,
+      "tag": "0050_profiles",
+      "breakpoints": true
     }
   ]
 }

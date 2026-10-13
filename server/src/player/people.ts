@@ -37,7 +37,10 @@ export async function personSheet(ctx: RestContext, key: string): Promise<Person
     .orderBy(desc(byRelease), desc(schema.catalogContents.id));
   if (rows.length === 0) return null;
   const me = rows[0].cast?.find((p) => p.id === id);
-  const progress = await getProgress(rows.map((r) => r.key));
+  const progress = await getProgress(
+    ctx.profile.id,
+    rows.map((r) => r.key),
+  );
   const cards = (kind: "vod" | "series") => rows.filter((r) => r.kind === kind).map((r) => contentItem(ctx, r, progress.get(r.key)));
   return {
     id: `person:${id}`,

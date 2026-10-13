@@ -7,6 +7,7 @@ import type { Env, RestContext } from "./context";
 import { json } from "./http";
 import { servedVariant, visibleContent } from "./contents";
 import { sortLanguages } from "./versions";
+import { profileWire } from "./profiles";
 import type { ServerInfo } from "./types";
 
 export const infoRoutes = new Hono<Env>();
@@ -37,6 +38,10 @@ export async function serverInfo(ctx: RestContext): Promise<ServerInfo> {
     counts: { movies: n("vod"), series: n("series"), channels: n("live") },
     last_import: s.last_sync_at || null,
     tmdb_rate: rate[0].decided ? Math.round((rate[0].matched / rate[0].decided) * 100) / 100 : null,
-    catalog_languages: sortLanguages(langs.map((r) => r.l)),
+    catalog_languages: sortLanguages(
+      langs.map((r) => r.l),
+      ctx.languageOrder.vod,
+    ),
+    profile: profileWire(ctx, ctx.profile),
   };
 }

@@ -508,7 +508,7 @@ const variantEpgId = sql`case
 /**
  * The variant visibility is the shared predicate, so the app and the admin can never disagree with the
  * aggregate. A content is written only when one of its aggregates moved. Every visibility change goes
- * through here: the waitlist learns of its arrivals at the same time. Returns those.
+ * through here: what each profile sees follows, and the waitlist learns of its arrivals at the same time. Returns those.
  */
 async function refreshAggregates(onlyIds?: number[]): Promise<number> {
   const scope = onlyIds ? sql`and content_id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``;
@@ -564,7 +564,30 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
           is distinct from
           (a.n, a.added_at, a.visible, a.max_q, a.langs, a.dr, a.themes, coalesce(c.market, a.market), a.country,
            a.cat, a.iptv, a.logo_url, a.num, a.epg, c.tmdb_adult or a.all_adult)`);
+  await refreshProfileVisibility(onlyIds);
   return markWaitlistAvailable();
+}
+
+/**
+ * What each profile sees, from the same predicate: a content is visible to a profile when one of its
+ * versions is kept by the profile's filter (`catalog_variant_profiles`) and hidden neither by hand nor
+ * through its category. Rows removed then added, only where it changed.
+ */
+async function refreshProfileVisibility(onlyIds?: number[]) {
+  const ids = onlyIds ? sql`${`{${onlyIds.join(",")}}`}::int[]` : null;
+  const seen = sql`exists (
+    select 1 from catalog_variants join catalog_variant_profiles vp on vp.variant_id = catalog_variants.id
+    where catalog_variants.content_id = catalog_content_profiles.content_id and vp.profile_id = catalog_content_profiles.profile_id
+      and ${visibleItem})`;
+  await db.execute(sql`
+    delete from catalog_content_profiles
+    where ${ids ? sql`catalog_content_profiles.content_id = any(${ids}) and` : sql``} not ${seen}`);
+  await db.execute(sql`
+    insert into catalog_content_profiles (content_id, profile_id)
+    select distinct catalog_variants.content_id, vp.profile_id
+    from catalog_variants join catalog_variant_profiles vp on vp.variant_id = catalog_variants.id
+    where catalog_variants.content_id is not null ${ids ? sql`and catalog_variants.content_id = any(${ids})` : sql``} and ${visibleItem}
+    on conflict do nothing`);
 }
 
 // ---------------------------------------------------------------- 5. orphans
