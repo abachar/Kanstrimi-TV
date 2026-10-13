@@ -9,14 +9,14 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 
 | Dossier | Rôle |
 |---|---|
-| `App/` | Démarrage, `AppEnvironment` (services partagés, navigation), `RootView` (appairage puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants), `PushNotifications+iOS` (les alertes du serveur sur l'iPhone). |
+| `App/` | Démarrage, `AppEnvironment` (services partagés, navigation, profils), `RootView` (appairage, puis « Qui regarde ? » si l'appareil n'est sur aucun profil, puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton et profil choisi en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants), `PushNotifications+iOS` (les alertes du serveur sur l'iPhone). |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`). |
 | `Client/` | `CatalogClient` : `HTTPCatalogClient` (le serveur), `MockCatalogClient` (fixtures JSON de démo), `SwitchingCatalogClient`. |
 | `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping ; il parle au moteur par la façade `PlaybackEngine`, que les tests remplacent), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
-| `Features/` | Un dossier par écran, une seule vue pour les deux plateformes. |
+| `Features/` | Un dossier par écran, une seule vue pour les deux plateformes ; `Profiles/` = « Qui regarde ? », l'écran Profil et l'avatar. |
 | `Shared/` | `Platform.swift` (`Metrics`, `Platform.isTV` / `isPad`, modificateurs par plateforme), `Theme`, `CardViews` (images, rangées, grilles, menu d'une affiche), `ChannelViews` (logo, `LoadedChannelCard`, `channelItem`), `Stores`. |
 | `Shared/Cards/` | Les cartes (`PosterCard`, `WideCard`, `ChannelCard`, `ProgrammeCard`, `UpNextCard`, `HeroBanner`, `SeeAllCard`, `RetryCard`, `StudioTile`, `CastCell`), un fichier chacune avec ses `#Preview` (données fixes). Composants bêtes : un modèle (`ContentItem` du contrat, `ChannelItem`…) et des actions en entrée, jamais `AppEnvironment` ni `.task` (vérifié par `CardsArchitectureTests`) ; charger, garder l'état, le focus et agir reste à l'écran. Le parent (rangée, grille, colonne) fixe la largeur, souvent depuis `Metrics` ; la carte prend toute celle qu'on lui donne et en tire sa hauteur. |
-| `../TopShelf/` | Extension Top Shelf (tvOS seul) : appelle `GET /player/top-shelf`, carrousel plein écran. |
+| `../TopShelf/` | Extension Top Shelf (tvOS seul) : appelle `GET /player/top-shelf` pour le profil de l'Apple TV (`X-Profile` lu dans le Keychain partagé), carrousel plein écran. |
 | `../Entitlements/` | Groupe de Keychain partagé par l'app et l'extension. |
 | `scripts/` | `shot.sh` / `shot-all.sh` : captures du client de démo dans `ui-review/` (hors git). |
 | `../kanstrimiTests/` | Swift Testing : client HTTP, choix de version, progression et file hors ligne, pannes du lecteur (faux moteur `FakePlaybackEngine` : bascule de source, essais, dialogue, coupure), liens. |
@@ -43,6 +43,18 @@ tablette a en propre (onglet Réglages, orientations libres, pas de bouton de ro
 onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en haut et barre latérale sur l'iPad. Une saga, un studio, un acteur ou une grille s'ouvre de même par `env.open(route, cover: $cover)` : l'écran qui ouvre garde un `@State cover: Route?` et le modificateur `.routeCover($cover)` (couverture sur tvOS, rien sur iPhone).
 
 ## Choix et pièges
+
+- **Profils** : `GET /profiles` au lancement une fois appairé, à chaque ouverture de l'écran Profil et au retour après une
+  longue absence (un profil créé dans l'admin apparaît sans relancer) ; chaque appel porte `X-Profile` avec le profil choisi sur
+  cet appareil (`DeviceStore.profileID`, Keychain partagé avec le Top Shelf), rien tant qu'aucun n'est choisi (le serveur
+  répond alors pour le profil par défaut). Plusieurs profils et aucun choisi : « Qui regarde ? » avant les onglets ; un
+  seul : choisi d'office. Le choix tient jusqu'au suivant ; le changer stoppe le lecteur, vide les caches et rebâtit les
+  onglets (`profileRevision`). Un `unknown_profile` (profil supprimé dans l'admin) efface le choix et redemande. tvOS et
+  iPad : un onglet en tête de barre, la seule photo du profil (la barre ne dessine que des images : `TabAvatar` la
+  télécharge et la découpe en rond) ; iPhone : l'avatar en haut à gauche de l'accueil. L'écran est celui de « Qui
+  regarde ? », façon YouTube : des cercles sans plateau qui grossissent au focus avec un anneau blanc, l'actuel cerclé d'ambre. Les filtres, la
+  liste et les photos se gèrent dans l'admin ; l'app n'a plus de réglage « Langue audio » : l'ordre des versions est
+  celui du serveur, le filtre du profil (`[Version].languages` le garde, `VersionChooser` sans ordre le suit).
 
 - **Une seule connexion au fournisseur** : `maxConcurrentSourceRequests: 1`, et l'aperçu du Direct (son propre
   `PlayerCore`, sonore dès que l'image paraît) est coupé avant toute lecture. Pas d'option du moteur qui ouvrirait une seconde connexion (`confirmAtmos`).

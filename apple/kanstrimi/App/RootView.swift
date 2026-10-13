@@ -9,8 +9,18 @@ struct RootView: View {
     var body: some View {
         Group {
             if env.device.isPaired {
-                MainTabsView()
-                    .task(id: env.device.token) { await env.loadInfo() }
+                Group {
+                    if env.needsProfileChoice {
+                        ProfilePickerView()
+                    } else {
+                        // A new profile: new tabs, every screen starting again for it.
+                        MainTabsView().id(env.profileRevision)
+                    }
+                }
+                .task(id: env.device.token) {
+                    await env.loadProfiles()
+                    await env.loadInfo()
+                }
             } else {
                 PairingView()
             }
@@ -43,7 +53,8 @@ private extension RootView {
     /// (`xcrun simctl spawn <udid> defaults write dev.crafters.kanstrimi <key> <value>`):
     ///   debug.autopair  — with the mock client (`pref.useMock`), pairs at once
     ///   debug.unpair    — forgets the token, back to the pairing screen
-    ///   debug.tab       — home | live | movies | series | search | settings
+    ///   debug.chooseProfile — forgets the profile chosen: « Qui regarde ? » again
+    ///   debug.tab       — profile | home | live | movies | series | search | settings
     ///   debug.open      — a content id whose detail opens
     ///   debug.search    — a query typed in the search screen (read and erased by `SearchView`, built later)
     ///   debug.autoplay  — live | live:<id> | <content id>, plus debug.resumeAt in seconds
@@ -56,7 +67,7 @@ private extension RootView {
         let defaults = UserDefaults.standard
         // One launch only: a key left behind (by scripts/shot.sh) would unpair or replay on every start.
         defer {
-            for key in ["debug.unpair", "debug.autopair", "debug.tab", "debug.open", "debug.autoplay", "debug.playerState", "debug.resumeAt"] {
+            for key in ["debug.unpair", "debug.chooseProfile", "debug.autopair", "debug.tab", "debug.open", "debug.autoplay", "debug.playerState", "debug.resumeAt"] {
                 defaults.removeObject(forKey: key)
             }
         }
@@ -64,10 +75,15 @@ private extension RootView {
         if defaults.bool(forKey: "debug.autopair"), env.client.isMock, !env.device.isPaired {
             env.device.store(token: "mock-debug", code: "DEBUG0")
         }
+        if defaults.bool(forKey: "debug.chooseProfile") { env.device.choose(profile: nil) } else if env.client.isMock, env.device.profileID == nil {
+            env.device.choose(profile: 1) // the demo's default, so a capture never stops at « Qui regarde ? »
+        }
         try? await Task.sleep(for: .seconds(1))
         if let tab = defaults.string(forKey: "debug.tab").flatMap(MainTab.init(rawValue:)) {
-            // iPhone: Réglages is pushed from the home screen, it has no tab.
-            if tab == .settings, !Platform.hasSettingsTab { env.selectedTab = .home; env.navigate(.settings) } else { env.selectedTab = tab }
+            // iPhone: Profil and Réglages are pushed from the home screen, they have no tab.
+            if tab == .settings, !Platform.hasSettingsTab { env.selectedTab = .home; env.navigate(.settings) }
+            else if tab == .profile, !Platform.hasSettingsTab { env.selectedTab = .home; env.navigate(.profile) }
+            else { env.selectedTab = tab }
         }
         if let id = defaults.string(forKey: "debug.open") { env.open(ContentID(id)) }
         await debugAutoplay(defaults)
@@ -123,6 +139,15 @@ struct MainTabsView: View {
     var body: some View {
         @Bindable var env = env
         TabView(selection: $env.selectedTab) {
+            // First in the bar, the person's picture alone: tvOS and the tablet. iPhone opens it from the avatar on the home screen.
+            if Platform.hasSettingsTab {
+                Tab(value: .profile) { stack(.profile) { ProfileView() } } label: {
+                    Group {
+                        if let avatar = env.tabAvatar { Image(uiImage: avatar).renderingMode(.original) } else { Image(systemName: "person.crop.circle") }
+                    }
+                    .accessibilityLabel(env.profile.map { "Profil \($0.name)" } ?? "Profil")
+                }
+            }
             Tab("Accueil", systemImage: "house", value: .home) { stack(.home) { HomeView() } }
             Tab("Direct", systemImage: "tv", value: .live) { stack(.live) { LiveView() } }
             Tab("Films", systemImage: "film", value: .movies) { stack(.movies) { CatalogView(kind: .movie) } }

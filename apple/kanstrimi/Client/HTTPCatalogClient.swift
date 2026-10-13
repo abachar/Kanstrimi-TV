@@ -1,8 +1,8 @@
 import Foundation
 
 /// `/player` over HTTPS, the real thing behind `CatalogClient`. One URLSession, the device
-/// token read from the Keychain store at every call (it appears right after pairing),
-/// server errors mapped to `CatalogError` so a 401 anywhere becomes the unpairing flow.
+/// token and the profile read from the Keychain store at every call (they appear right after pairing and the
+/// choice), server errors mapped to `CatalogError` so a 401 anywhere becomes the unpairing flow.
 final class HTTPCatalogClient: CatalogClient {
     let baseURL: URL
     private let device: DeviceStore
@@ -43,6 +43,7 @@ final class HTTPCatalogClient: CatalogClient {
         try await sendNoContent("DELETE", "devices/me/push")
     }
     func info() async throws -> ServerInfo { try await send("GET", "info") }
+    func profiles() async throws -> [Profile] { try await (send("GET", "profiles") as Profiles).profiles }
 
     // MARK: - Home, movies, series
 
@@ -143,6 +144,8 @@ final class HTTPCatalogClient: CatalogClient {
             guard let token = device.token else { throw CatalogError.unauthorized }
             guard Self.mayCarryToken(url) else { throw CatalogError.server("Adresse du serveur non chiffrée : https requis hors du réseau local") }
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            // The profile this device is on; none yet: the server answers for the default one.
+            if let profile = device.profileID { req.setValue(String(profile), forHTTPHeaderField: "X-Profile") }
         }
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -203,6 +206,7 @@ final class HTTPCatalogClient: CatalogClient {
         let body = try? JSONDecoder().decode(ErrorBody.self, from: data)
         switch status {
         case 401: return .unauthorized
+        case 404 where body?.error.code == "unknown_profile": return .unknownProfile
         case 404: return .notFound
         default: return .server(body?.error.message ?? "Erreur serveur (\(status))")
         }

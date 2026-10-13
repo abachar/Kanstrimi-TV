@@ -5,6 +5,8 @@ nonisolated enum CatalogError: Error, LocalizedError, Equatable {
     case offline
     /// 401: the device token was revoked.
     case unauthorized
+    /// 404 `unknown_profile`: the profile this device was on no longer exists; the app picks again.
+    case unknownProfile
     case notFound
     case server(String)
     case decoding(String)
@@ -13,6 +15,7 @@ nonisolated enum CatalogError: Error, LocalizedError, Equatable {
         switch self {
         case .offline: "Serveur injoignable"
         case .unauthorized: "Cet appareil a été dissocié"
+        case .unknownProfile: "Ce profil n'existe plus"
         case .notFound: "Introuvable"
         case .server(let m): m
         case .decoding(let m): "Réponse illisible : \(m)"
@@ -83,6 +86,8 @@ protocol CatalogClient: AnyObject {
     func unregisterPush() async throws
     /// `GET /info`
     func info() async throws -> ServerInfo
+    /// `GET /profiles`: the household, for the picker.
+    func profiles() async throws -> [Profile]
 
     // Home
     /// `GET /home`

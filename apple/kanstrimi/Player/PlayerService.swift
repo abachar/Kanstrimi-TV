@@ -176,7 +176,7 @@ final class PlayerService {
     }
 
     var chooser: VersionChooser {
-        VersionChooser(languageOrder: preferences.languageOrder, maxQuality: preferences.maxQuality, capabilities: capabilities,
+        VersionChooser(languageOrder: [], maxQuality: preferences.maxQuality, capabilities: capabilities,
                        isSourceFailed: { [failedSources] in failedSources.isFailed($0) })
     }
 

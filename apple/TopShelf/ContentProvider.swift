@@ -3,8 +3,9 @@ import Security
 import TVServices
 
 /// The Apple TV home screen's full-screen carousel: `GET /player/top-shelf`, built by the server (the last title in
-/// progress, a series with a new episode, the week's top movies). The token and the server address come from the
-/// Keychain group shared with the app; without them, or offline, tvOS keeps the static Top Shelf image.
+/// progress, a series with a new episode, the week's top movies) for the profile this Apple TV is on. The token, the
+/// profile and the server address come from the Keychain group shared with the app; without the token, or offline,
+/// tvOS keeps the static Top Shelf image.
 final class ContentProvider: TVTopShelfContentProvider {
     override func loadTopShelfContent() async -> (any TVTopShelfContent)? {
         guard let token = Keychain.read("device-token") else { return nil }
@@ -12,6 +13,7 @@ final class ContentProvider: TVTopShelfContentProvider {
         guard let url = URL(string: "\(server)/player/top-shelf") else { return nil }
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let profile = Keychain.read("profile-id") { request.setValue(profile, forHTTPHeaderField: "X-Profile") }
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let wire = try? JSONDecoder().decode([Wire].self, from: data), !wire.isEmpty else { return nil }

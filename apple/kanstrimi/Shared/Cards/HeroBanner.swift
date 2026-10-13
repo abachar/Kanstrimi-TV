@@ -19,11 +19,13 @@ struct HeroBanner<Buttons: View>: View {
         if metrics.compact { phone } else { tv }
     }
 
-    /// iPhone, after Prime Video: the same backdrop as the TV, whole, across the width under the bars, fading into the
-    /// background; the logo (or the title), one line of facts and the buttons below it. Nothing of the picture is cut:
-    /// a backdrop rarely has its subject in the middle, a crop to fill a taller box would lose it.
+    /// iPhone, like the sheet: the backdrop from the very top of the screen, under the status bar and the buttons of the
+    /// bar, as tall as the sheet's (`phoneBackdrop`), fading into the background; the logo (or the title) over its faded
+    /// end, one line of facts and the buttons below. The sides of a 16:9 picture are cut a little, never its middle.
+    private var phoneBackdrop: CGFloat { 320 }
+
     private var phone: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 0) {
             ZStack {
                 ArtView(id: item.id, url: item.picture ?? item.poster)
                     .id(slideID).transition(.opacity)
@@ -31,8 +33,9 @@ struct HeroBanner<Buttons: View>: View {
                 LinearGradient(stops: [.init(color: .clear, location: 0.55), .init(color: Theme.background, location: 1)],
                                startPoint: .top, endPoint: .bottom)
             }
-            .aspectRatio(16 / 9, contentMode: .fit)
             .frame(maxWidth: .infinity)
+            .frame(height: phoneBackdrop)
+            .clipped()
             .contentShape(Rectangle())
             .onTapGesture(perform: onTapPicture)
             VStack(spacing: 12) {
@@ -49,6 +52,7 @@ struct HeroBanner<Buttons: View>: View {
                 HStack(spacing: 14) { buttons() }.padding(.top, 4)
             }
             .padding(.horizontal, metrics.inset + 8)
+            .padding(.top, -44) // over the faded end of the picture, as the sheet's title
             .padding(.bottom, 28)
         }
     }

@@ -8,13 +8,14 @@ struct ContractTests {
     private static let names = ["info", "home", "movies", "series", "movies-list", "movies-studio", "movie-detail", "series-detail",
                                 "studios-movies", "studios-series", "sagas", "saga", "person", "channels", "channel",
                                 "channel-programmes", "playback-movie", "playback-series", "playback-episode", "suggestions",
-                                "suggestions-episode", "markers-episode", "markers-none", "search", "error", "top-shelf"]
+                                "suggestions-episode", "markers-episode", "markers-none", "search", "error", "top-shelf", "profiles"]
 
     /// How the app reads each file; false for a name it does not know.
     @MainActor private static func read(_ name: String, _ data: Data) throws -> Bool {
         let d = HTTPCatalogClient.makeDecoder()
         switch name {
         case "info": _ = try d.decode(ServerInfo.self, from: data)
+        case "profiles": return try !d.decode(Profiles.self, from: data).profiles.isEmpty
         case "home": _ = try d.decode(HomeScreen.self, from: data)
         case "movies", "series": _ = try d.decode([CatalogRow].self, from: data)
         case "movies-list", "movies-studio": _ = try d.decode(Page<ContentItem>.self, from: data)

@@ -65,9 +65,11 @@ nonisolated struct ServerInfo: Codable, Hashable, Sendable {
     let lastImport: Date?
     let tmdbRate: Double?
     let catalogLanguages: [Language]
+    /// The profile this answer, and every other, is for: the one sent in `X-Profile`, else the default one.
+    let profile: Profile
 
     enum CodingKeys: String, CodingKey {
-        case counts
+        case counts, profile
         case serverVersion = "server_version"
         case lastImport = "last_import"
         case tmdbRate = "tmdb_rate"

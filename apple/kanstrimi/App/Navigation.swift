@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The tabs of the app; iPhone shows five, Réglages being pushed from the home screen.
+/// The tabs of the app; iPhone shows five, Profil and Réglages being pushed from the home screen.
 enum MainTab: String, Hashable, CaseIterable {
-    case home, live, movies, series, search, settings
+    case profile, home, live, movies, series, search, settings
 }
 
 /// Where a tab's navigation stack can go. On iOS these are pushed screens; on tvOS a detail
@@ -16,6 +16,8 @@ nonisolated enum Route: Hashable {
     case studio(ContentKind, Studio)
     /// iPhone only: the tab bar holds five tabs, so Réglages is pushed from the home screen.
     case settings
+    /// iPhone only: the profile, opened from the avatar on the home screen; a tab elsewhere.
+    case profile
 }
 
 extension Route: Identifiable {
@@ -36,6 +38,7 @@ struct RouteView: View {
         case .person(let ref): PersonView(ref: ref, onSelect: onSelect)
         case .studio(let kind, let studio): GenreGridView(studio: studio, kind: kind)
         case .settings: SettingsView()
+        case .profile: ProfileView()
         }
     }
 }
@@ -72,13 +75,21 @@ extension View {
         #endif
     }
 
-    /// iPhone: the gear that opens Réglages from the home screen. tvOS and the tablet have a tab for it.
+    /// iPhone: the avatar that opens the profile and the gear that opens Réglages, from the home screen. tvOS and
+    /// the tablet have a tab for each.
     @ViewBuilder func settingsToolbar(_ env: AppEnvironment) -> some View {
         #if os(iOS)
         if Platform.hasSettingsTab {
             self
         } else {
-            toolbar {
+            // The bar draws nothing of its own: the hero's picture runs under it.
+            toolbarBackground(.hidden, for: .navigationBar).toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { env.navigate(.profile) } label: {
+                        if let p = env.profile { AvatarView(profile: p, size: 28) } else { Image(systemName: "person.crop.circle") }
+                    }
+                    .accessibilityLabel(env.profile.map { "Profil \($0.name)" } ?? "Profil")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { env.navigate(.settings) } label: { Image(systemName: "gearshape") }
                         .accessibilityLabel("Réglages")

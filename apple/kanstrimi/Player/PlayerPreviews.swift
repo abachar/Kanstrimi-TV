@@ -9,6 +9,10 @@ enum PreviewData {
         e.scenario.latency = 0
         return e
     }
+    /// The demo's household (`Fixtures/state.json`), without waiting for the mock.
+    static let profiles: [Profile] = [(1, "Hakim", true), (2, "Sara", false), (3, "Ado", false), (4, "Lina", false)].map {
+        Profile(id: $0.0, name: $0.1, isDefault: $0.2, avatar: URL(string: "demo://avatar/\($0.0)")!)
+    }
     static func movieContext(_ env: AppEnvironment) async -> PlaybackContext {
         try! await env.playbackContext(for: env.client.detail(id: ContentID("tmdb:movie:535544")))
     }

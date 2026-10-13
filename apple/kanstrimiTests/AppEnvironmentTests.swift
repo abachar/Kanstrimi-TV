@@ -16,6 +16,32 @@ struct AppEnvironmentTests {
         env = AppEnvironment(forceMock: true, defaults: defaults, secrets: MemorySecrets(), now: { clock.date })
     }
 
+    @Test("Profils : plusieurs et aucun choisi → « Qui regarde ? » ; le choix tient, rebâtit les onglets et suit l'appareil")
+    func profilesAskThenRemember() async {
+        env.scenario.latency = 0
+        env.device.store(token: "mock", code: "DEMO01")
+        #expect(!env.needsProfileChoice) // not known yet: the tabs, on the default profile
+        await env.loadProfiles()
+        #expect(env.profiles.map(\.name) == ["Hakim", "Sara", "Ado", "Lina"])
+        #expect(env.needsProfileChoice)
+        env.select(env.profiles[1])
+        #expect(env.device.profileID == 2)
+        #expect(env.profile?.name == "Sara")
+        #expect(!env.needsProfileChoice)
+        #expect(env.profileRevision == 1)
+        env.select(env.profiles[1])
+        #expect(env.profileRevision == 1) // the same again: nothing moves
+        await env.loadInfo()
+        #expect(env.info?.profile.name == "Sara") // the demo answers for the chosen one
+        // Deleted in the admin meanwhile: the device forgets it and asks again.
+        env.handleUnknownProfile()
+        #expect(env.device.profileID == nil)
+        await env.loadProfiles()
+        #expect(env.needsProfileChoice)
+        env.device.forget(reason: nil)
+        #expect(env.device.profileID == nil && !env.needsProfileChoice)
+    }
+
     @Test("Une action qui échoue hors de la vue le dit : « <action> impossible · <raison> », et rend nil")
     func attemptReportsAFailure() async {
         let result: Int? = await env.attempt("Lecture") { throw CatalogError.server("Le fournisseur n'a pas répondu") }

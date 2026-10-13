@@ -14,8 +14,23 @@ private struct ScreenHost<Content: View>: View {
 }
 
 // Grouped by screen, in the order of the tabs; a shared prefix keeps a screen's states together in the canvas.
-#Preview("App · onglets") { ScreenHost { MainTabsView() } }
+#Preview("App · onglets") {
+    ScreenHost(setup: { env in
+        env.device.choose(profile: 1); env.adopt(profiles: PreviewData.profiles)
+        env.tabAvatar = TabAvatar.render(nil, profile: PreviewData.profiles[0])
+    }) { MainTabsView() }
+}
 #Preview("Appairage") { ScreenHost { PairingView() } }
+#Preview("Profil · qui regarde ?") {
+    ScreenHost(setup: { env in env.device.store(token: "mock-debug", code: "DEBUG0"); env.device.choose(profile: nil); env.adopt(profiles: PreviewData.profiles) }) {
+        ProfilePickerView()
+    }
+}
+#Preview("Profil") {
+    ScreenHost(setup: { env in env.device.store(token: "mock-debug", code: "DEBUG0"); env.device.choose(profile: 2); env.adopt(profiles: PreviewData.profiles) }) {
+        NavigationStack { ProfileView() }
+    }
+}
 #Preview("Appairage · code expiré") { ScreenHost(setup: { $0.scenario.pairingExpires = true }) { PairingView() } }
 #Preview("Appairage · jeton révoqué") {
     ScreenHost(setup: { $0.device.forget(reason: "L'appareil « Salon » a été retiré depuis l'admin du serveur. Vos favoris et vos reprises sont conservés côté serveur ; il suffit de l'ajouter à nouveau.") }) { PairingView() }

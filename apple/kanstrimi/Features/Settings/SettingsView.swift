@@ -103,9 +103,6 @@ struct SettingsView: View {
             }
 
             Section {
-                ChoiceRow("Langue audio", selection: languageBinding(prefs), options: languageOrders) {
-                    $0.map(\.short).joined(separator: " › ")
-                }
                 ChoiceRow("Qualité maximale", selection: $prefs.maxQuality, options: Quality.allCases.reversed()) { $0.label }
                 Toggle(isOn: $prefs.autoPlayNext) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -119,7 +116,7 @@ struct SettingsView: View {
                 Text("Lecture")
             } footer: {
                 // A note, not a setting: a footer, so nothing focusable on tvOS.
-                Text("Un choix fait dans le sélecteur de versions est mémorisé pour le titre et prime sur ces réglages.")
+                Text("La langue jouée d'office est la première du filtre du profil, réglé dans l'admin. Un choix fait dans le sélecteur de versions est mémorisé pour le titre et prime sur ces réglages.")
             }
 
             Section("Appareil") {
@@ -182,15 +179,6 @@ struct SettingsView: View {
             }
             }
         }
-    }
-
-    private var languageOrders: [[Language]] {
-        [[.vf, .vostfr, .vo], [.vostfr, .vf, .vo], [.vo, .vostfr, .vf], [.vf, .vo, .vostfr]]
-    }
-
-    private func languageBinding(_ prefs: Preferences) -> Binding<[Language]> {
-        Binding(get: { languageOrders.contains(prefs.languageOrder) ? prefs.languageOrder : languageOrders[0] },
-                set: { prefs.languageOrder = $0 })
     }
 
     private var appVersion: String {

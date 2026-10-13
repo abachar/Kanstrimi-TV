@@ -76,9 +76,9 @@ struct HomeView: View {
                 }
                 .padding(.bottom, 20)
             }
-            // tvOS: the hero runs under the floating tab bar instead of leaving a black band above it. iPhone: the picture
-            // starts under the status bar and the Réglages button, which would hide a third of a 16:9 backdrop.
-            .ignoresSafeArea(edges: metrics.compact ? .horizontal : [.horizontal, .top])
+            // The hero runs under the bars instead of leaving a black band above it: the floating tab bar on tvOS, the
+            // status bar and the profile and Réglages buttons on iPhone, as on the sheet.
+            .ignoresSafeArea(edges: [.horizontal, .top])
         } else if let error = model.error {
             StatePanel(icon: "wifi.exclamationmark", title: "Serveur injoignable",
                        message: "\(error.localizedDescription). Aucun accueil en cache sur cet appareil.") {

@@ -1,9 +1,10 @@
 import Foundation
 
 /// Picks the version and source `Lecture` will play, without asking.
-/// Order: choice remembered for this title › series language › preferences (language order,
-/// max quality) › TV capabilities › server order. A recently failed source is skipped. An edition
-/// ("Version longue") is never the automatic choice while the usual cut exists: it plays when picked.
+/// Order: choice remembered for this title › series language › the profile's language order (the server lists
+/// the versions in it; `languageOrder` empty means that order) and the max quality › TV capabilities › server
+/// order. A recently failed source is skipped. An edition ("Version longue") is never the automatic choice
+/// while the usual cut exists: it plays when picked.
 struct VersionChooser {
     struct Capabilities: Sendable {
         var maxQuality: Quality = .uhd
@@ -54,7 +55,7 @@ struct VersionChooser {
         if playable.count == 1, let s = bestSource(of: playable[0]) {
             return Choice(version: playable[0], source: s, reason: .onlyOne)
         }
-        for language in languageOrder {
+        for language in languageOrder.isEmpty ? playable.languages : languageOrder {
             if let v = best(among: playable.filter { $0.language == language }), let s = bestSource(of: v) {
                 return Choice(version: v, source: s, reason: .preferences)
             }
@@ -76,7 +77,7 @@ struct VersionChooser {
     /// Versions the engine would try after `current`, best first, for "Autre version".
     func alternatives(to current: Version, in versions: [Version]) -> [Version] {
         let others = versions.filter { $0.id != current.id && !$0.sources.isEmpty }
-        return others.sorted { rank($0) < rank($1) }
+        return others.sorted { rank($0, in: versions) < rank($1, in: versions) }
     }
 
     /// The one warning for an episode missing in the language in use: the sheet and the "À suivre" card say it
@@ -126,8 +127,9 @@ struct VersionChooser {
         }
     }
 
-    private func rank(_ v: Version) -> (Int, Int, Int, Int) {
-        let lang = languageOrder.firstIndex(of: v.language) ?? languageOrder.count
+    private func rank(_ v: Version, in versions: [Version]) -> (Int, Int, Int, Int) {
+        let order = languageOrder.isEmpty ? versions.languages : languageOrder
+        let lang = order.firstIndex(of: v.language) ?? order.count
         let fit = fits(v) ? 0 : 1
         return (fit, lang, v.edition == nil ? 0 : 1, -(Quality.allCases.firstIndex(of: v.quality) ?? 0))
     }

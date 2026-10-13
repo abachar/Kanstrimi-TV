@@ -15,6 +15,16 @@ struct VersionChooserTests {
         #expect(choice?.source.id == "vf-4k-dv-s0")
     }
 
+    @Test("Sans ordre de langues, celui du serveur : les versions arrivent dans l'ordre du profil")
+    func serverOrderWhenNoPreference() {
+        let chooser = VersionChooser(languageOrder: [], maxQuality: .uhd)
+        let vostFirst = versions.filter { $0.language == .vostfr } + versions.filter { $0.language != .vostfr }
+        #expect(chooser.choose(from: vostFirst)?.version.id == "vostfr-4k-hdr")
+        #expect(chooser.choose(from: versions)?.version.id == "vf-4k-dv")
+        #expect(vostFirst.languages == [.vostfr, .vf, .vo])
+        #expect(chooser.alternatives(to: vostFirst[0], in: vostFirst).first?.id == "vostfr-fhd")
+    }
+
     @Test("Le plafond de qualité écarte le 4K")
     func maxQualityCaps() {
         let chooser = VersionChooser(languageOrder: [.vf], maxQuality: .fhd)

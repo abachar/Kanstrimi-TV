@@ -84,5 +84,31 @@
   "tmdb:tv:300388",
   "tmdb:tv:77551",
   "live:fr-tf1"
+ ],
+ "profiles": [
+  {
+   "id": 1,
+   "name": "Hakim",
+   "is_default": true,
+   "avatar": "demo://avatar/1"
+  },
+  {
+   "id": 2,
+   "name": "Sara",
+   "is_default": false,
+   "avatar": "demo://avatar/2"
+  },
+  {
+   "id": 3,
+   "name": "Ado",
+   "is_default": false,
+   "avatar": "demo://avatar/3"
+  },
+  {
+   "id": 4,
+   "name": "Lina",
+   "is_default": false,
+   "avatar": "demo://avatar/4"
+  }
  ]
 }

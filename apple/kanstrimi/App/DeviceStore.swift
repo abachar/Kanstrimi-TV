@@ -2,13 +2,16 @@ import Foundation
 import Observation
 import Security
 
-/// The device token lives in the Keychain; everything else about pairing is derived from it. The Keychain group is
-/// shared with the Top Shelf extension (`Entitlements/`), which reads the token and the server address from it.
+/// The device token lives in the Keychain, with the profile this device is on; everything else about pairing is
+/// derived from it. The Keychain group is shared with the Top Shelf extension (`Entitlements/`), which reads the
+/// token, the profile and the server address from it.
 @Observable
 final class DeviceStore {
     private(set) var token: String?
     /// The pairing code doubles as the device identifier (`DELETE /devices/{code}`).
     private(set) var code: String?
+    /// The profile last chosen on this device (`X-Profile` on every call, the Top Shelf's too); nil until chosen.
+    private(set) var profileID: Int?
     /// Why the user is back on the pairing screen, if the token was just lost.
     var lastRevocationMessage: String?
 
@@ -19,6 +22,7 @@ final class DeviceStore {
         self.secrets = secrets
         token = secrets.read(account: "device-token")
         code = secrets.read(account: "device-code")
+        profileID = secrets.read(account: "profile-id").flatMap(Int.init)
     }
 
     var isPaired: Bool { token != nil }
@@ -31,6 +35,12 @@ final class DeviceStore {
         lastRevocationMessage = nil
     }
 
+    /// The profile chosen on this device, kept until another is chosen; nil when the server no longer knows it.
+    func choose(profile id: Int?) {
+        if let id { secrets.write(String(id), account: "profile-id") } else { secrets.delete(account: "profile-id") }
+        profileID = id
+    }
+
     /// The server address, for the Top Shelf extension: it has no access to the app's preferences.
     func share(serverURL: String) {
         if secrets.read(account: "server-url") != serverURL { secrets.write(serverURL, account: "server-url") }
@@ -40,8 +50,10 @@ final class DeviceStore {
     func forget(reason: String?) {
         secrets.delete(account: "device-token")
         secrets.delete(account: "device-code")
+        secrets.delete(account: "profile-id")
         token = nil
         code = nil
+        profileID = nil
         lastRevocationMessage = reason
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 /// Everything the screens share. Built once at launch, injected in the SwiftUI environment.
 @Observable
@@ -66,6 +67,8 @@ final class AppEnvironment {
         self.channelCache = ChannelCache(client: client)
         self.player = PlayerService(client: client, preferences: preferences, failedSources: failed, progressQueue: progressQueue)
         client.onUnauthorized = { [weak self] in self?.handleUnauthorized() }
+        client.onUnknownProfile = { [weak self] in self?.handleUnknownProfile() }
+        mock.profileID = device.profileID
         #if os(iOS)
         PushRegistrar.shared.environment = self
         #endif
@@ -116,6 +119,61 @@ final class AppEnvironment {
         } else {
             favoriteRevision += 1
         }
+    }
+
+    // MARK: - Profiles
+
+    /// `GET /profiles`: the household; empty until it answered. `profile`: the one this device is on.
+    private(set) var profiles: [Profile] = []
+    private(set) var profilesLoaded = false
+    var profile: Profile? { profiles.first { $0.id == device.profileID } }
+    /// Paired, the household known, and this device on no profile the server knows: « Qui regarde ? » first.
+    var needsProfileChoice: Bool { device.isPaired && profilesLoaded && profile == nil }
+    /// Moves when the profile changes: the tabs rebuild, every screen reloads through the new eyes.
+    private(set) var profileRevision = 0
+    /// The current profile's picture as the tab bar draws it (`TabAvatar`); nil before a profile is known.
+    var tabAvatar: UIImage?
+
+    func loadProfiles() async {
+        guard device.isPaired, let list = try? await client.profiles(), !list.isEmpty else { return }
+        profiles = list
+        profilesLoaded = true
+        if device.profileID != nil, profile == nil { device.choose(profile: nil) } // deleted since: ask again
+        if device.profileID == nil, list.count == 1 { device.choose(profile: list[0].id) } // nothing to ask
+        client.mock.profileID = device.profileID
+        await loadTabAvatar()
+    }
+
+    /// Previews and tests: the household without a server, as if `loadProfiles` had answered.
+    func adopt(profiles list: [Profile]) {
+        profiles = list
+        profilesLoaded = true
+    }
+
+    /// The profile this device is on from now on; the screens start again for it.
+    func select(_ p: Profile) {
+        guard p.id != device.profileID else { return }
+        if player.isPresented { player.stop() }
+        device.choose(profile: p.id)
+        client.mock.profileID = p.id
+        homeCache.clear()
+        paths = [:]
+        presentedDetail = nil
+        presentedCover = nil
+        selectedTab = .home
+        profileRevision += 1
+        shareWithTopShelf()
+        Task { await loadInfo() }
+        Task { await loadTabAvatar() }
+    }
+
+    /// `unknown_profile` anywhere: the profile was deleted in the admin; the household is asked again.
+    func handleUnknownProfile() {
+        guard device.profileID != nil else { return }
+        device.choose(profile: nil)
+        client.mock.profileID = nil
+        homeCache.clear()
+        Task { await loadProfiles() }
     }
 
     func loadInfo() async {

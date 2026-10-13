@@ -62,7 +62,12 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
 }
 
 nonisolated extension Array where Element == Version {
-    var languages: [Language] { Set(map(\.language)).sorted() }
+    /// In the server's order, the profile's: the first one is what plays by default.
+    var languages: [Language] {
+        var seen: [Language] = []
+        for l in map(\.language) where !seen.contains(l) { seen.append(l) }
+        return seen
+    }
     var maxQuality: Quality? { map(\.quality).max() }
     var maxDynamicRange: DynamicRange? { compactMap(\.dynamicRange).max() }
 }

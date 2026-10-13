@@ -16,10 +16,13 @@ final class SwitchingCatalogClient: CatalogClient {
 
     /// A 401 on any authenticated call, whoever made it (a screen, the player, a cache): the device was revoked.
     var onUnauthorized: () -> Void = { }
+    /// `unknown_profile` on any call: the profile this device was on is gone, the app picks again.
+    var onUnknownProfile: () -> Void = { }
 
     private func authenticated<T>(_ work: (CatalogClient) async throws -> T) async throws -> T {
         do { return try await work(active) }
         catch CatalogError.unauthorized { onUnauthorized(); throw CatalogError.unauthorized }
+        catch CatalogError.unknownProfile { onUnknownProfile(); throw CatalogError.unknownProfile }
     }
 
     func createDevice() async throws -> PairingCode { try await active.createDevice() }
@@ -28,6 +31,7 @@ final class SwitchingCatalogClient: CatalogClient {
     func registerPush(_ registration: PushRegistration) async throws { try await authenticated { try await $0.registerPush(registration) } }
     func unregisterPush() async throws { try await authenticated { try await $0.unregisterPush() } }
     func info() async throws -> ServerInfo { try await authenticated { try await $0.info() } }
+    func profiles() async throws -> [Profile] { try await authenticated { try await $0.profiles() } }
     func home() async throws -> HomeScreen { try await authenticated { try await $0.home() } }
     func rows(kind: ContentKind) async throws -> [CatalogRow] { try await authenticated { try await $0.rows(kind: kind) } }
     func list(_ query: ListQuery) async throws -> Page<ContentItem> { try await authenticated { try await $0.list(query) } }

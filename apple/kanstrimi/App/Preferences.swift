@@ -5,12 +5,8 @@ import Observation
 @Observable
 final class Preferences {
     private let defaults: UserDefaults
-    /// The order the server's chips and the settings start from: VF, VOSTFR, VO.
-    static let defaultLanguageOrder: [Language] = [.vf, .vostfr, .vo]
-
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        languageOrder = Self.decode([Language].self, defaults.string(forKey: Keys.languageOrder)) ?? Self.defaultLanguageOrder
         maxQuality = Quality(rawValue: defaults.string(forKey: Keys.maxQuality) ?? "") ?? .uhd
         autoPlayNext = defaults.object(forKey: Keys.autoPlayNext) as? Bool ?? true
         rememberVersionPerTitle = defaults.object(forKey: Keys.rememberVersion) as? Bool ?? true
@@ -23,7 +19,6 @@ final class Preferences {
     }
 
     private enum Keys {
-        static let languageOrder = "pref.languageOrder"
         static let maxQuality = "pref.maxQuality"
         static let autoPlayNext = "pref.autoPlayNext"
         static let rememberVersion = "pref.rememberVersion"
@@ -38,7 +33,6 @@ final class Preferences {
     /// Build setting: the app is personal, the URL ships with it.
     static let compiledServerURL = "https://kanstrimi.crafters.dev"
 
-    var languageOrder: [Language] { didSet { defaults.set(Self.encode(languageOrder), forKey: Keys.languageOrder) } }
     var maxQuality: Quality { didSet { defaults.set(maxQuality.rawValue, forKey: Keys.maxQuality) } }
     var autoPlayNext: Bool { didSet { defaults.set(autoPlayNext, forKey: Keys.autoPlayNext) } }
     var rememberVersionPerTitle: Bool { didSet { defaults.set(rememberVersionPerTitle, forKey: Keys.rememberVersion) } }
@@ -66,7 +60,6 @@ final class Preferences {
     }
 
     func resetAll() {
-        languageOrder = Self.defaultLanguageOrder
         maxQuality = .uhd
         autoPlayNext = true
         rememberVersionPerTitle = true

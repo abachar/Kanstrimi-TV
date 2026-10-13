@@ -82,7 +82,7 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func authenticatedCallsSendTheBearerAndMapErrors() async throws {
-        answer(200, #"{"server_version":"0.2.0","counts":{"movies":1,"series":2,"channels":3},"last_import":null,"tmdb_rate":0.97,"catalog_languages":["VF"],"default_language_order":["VF","VOSTFR","VO"]}"#)
+        answer(200, #"{"server_version":"0.2.0","counts":{"movies":1,"series":2,"channels":3},"last_import":null,"tmdb_rate":0.97,"catalog_languages":["VF"],"profile":{"id":1,"name":"Hakim","is_default":true,"avatar":"https://kanstrimi.test/img/avatars/1.webp?v=abc"}}"#)
         let info = try await client.info()
         #expect(info.counts.channels == 3)
         #expect(info.lastImport == nil)
@@ -96,6 +96,35 @@ struct HTTPCatalogClientTests {
         await #expect(throws: CatalogError.server("Le fournisseur n'a pas répondu")) { try await client.home() }
         answer(200, #"{"not":"a home"}"#)
         await #expect(throws: CatalogError.self) { try await client.home() }
+    }
+
+    @Test("Le profil choisi part en X-Profile ; sans choix, rien, et le serveur répond pour le profil par défaut")
+    func profileHeaderFollowsTheChoice() async throws {
+        answer(200, try golden("info"))
+        _ = try await client.info()
+        #expect(try last.value(forHTTPHeaderField: "X-Profile") == nil)
+        device.choose(profile: 7)
+        _ = try await client.info()
+        #expect(try last.value(forHTTPHeaderField: "X-Profile") == "7")
+        answer(200, try golden("profiles"))
+        let profiles = try await client.profiles()
+        #expect(profiles.first?.name == "Hakim")
+        #expect(profiles.first?.isDefault == true)
+        #expect(profiles.first?.avatar.path.hasSuffix("/img/avatars/1.webp") == true)
+    }
+
+    @Test("Un profil supprimé depuis (unknown_profile) a son erreur à part, et fait rechoisir")
+    func unknownProfileIsItsOwnError() async throws {
+        device.choose(profile: 9)
+        answer(404, #"{"error":{"code":"unknown_profile","message":"Profil inconnu"}}"#)
+        await #expect(throws: CatalogError.unknownProfile) { try await client.info() }
+        let switching = SwitchingCatalogClient(mock: MockCatalogClient(scenario: MockScenario()), http: client, preferences: Preferences(defaults: UserDefaults(suiteName: "http-tests-\(UUID().uuidString)")!))
+        var asked = 0
+        switching.onUnknownProfile = { asked += 1 }
+        await #expect(throws: CatalogError.unknownProfile) { try await switching.home() }
+        #expect(asked == 1)
+        answer(404, try golden("error"))
+        await #expect(throws: CatalogError.notFound) { try await client.info() } // a plain 404 stays what it was
     }
 
     @Test("Un 401 dissocie l'appareil quel que soit l'appelant, jamais pendant l'appairage")

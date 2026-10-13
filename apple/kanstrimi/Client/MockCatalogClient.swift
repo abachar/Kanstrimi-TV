@@ -8,6 +8,7 @@ final class MockCatalogClient: CatalogClient {
         struct Entry: Decodable { let content_id: ContentID; let position: TimeInterval; let duration: TimeInterval; let finished: Bool? }
         let progress: [Entry]
         let favorites: [ContentID]
+        let profiles: [Profile]
     }
 
     let scenario: MockScenario
@@ -23,6 +24,8 @@ final class MockCatalogClient: CatalogClient {
     private var epgTitles: [String: [String]] { fixtures.epgTitles }
     private lazy var progress: [ContentID: Progress] = fixtures.progress
     private lazy var favorites: Set<ContentID> = fixtures.favorites
+    /// The household of the demo; the app's choice (`DeviceStore`) says which one `info` answers for.
+    var profileID: Int?
     private var pairingApproved = false
     private var pairingCreatedAt: Date?
     static let pageSize = 18
@@ -44,6 +47,7 @@ final class MockCatalogClient: CatalogClient {
         let epgTitles: [String: [String]]
         let progress: [ContentID: Progress]
         let favorites: Set<ContentID>
+        let profiles: [Profile]
 
         static func load() -> MockFixtures {
             let decoder = JSONDecoder()
@@ -62,7 +66,8 @@ final class MockCatalogClient: CatalogClient {
             }
             return MockFixtures(movies: load("movies", as: [Card].self), sagas: load("sagas", as: [SagaFixture].self),
                                 studios: load("studios", as: [StudioFixture].self), series: load("series", as: [Card].self),
-                                groups: ch.groups, epgTitles: ch.epg, progress: progress, favorites: Set(state.favorites))
+                                groups: ch.groups, epgTitles: ch.epg, progress: progress, favorites: Set(state.favorites),
+                                profiles: state.profiles)
         }
     }
 
@@ -283,9 +288,15 @@ final class MockCatalogClient: CatalogClient {
 
     func info() async throws -> ServerInfo {
         try await gate()
+        let profiles = fixtures.profiles
+        let profile = profiles.first { $0.id == profileID } ?? profiles.first { $0.isDefault } ?? profiles[0]
         return ServerInfo(serverVersion: "0.9.3 (maquette)", counts: CatalogCounts(movies: 35_219, series: 22_174, channels: 722),
                           lastImport: Calendar.current.date(bySettingHour: 4, minute: 10, second: 0, of: .now), tmdbRate: 0.97,
-                          catalogLanguages: [.vf, .vostfr, .vo])
+                          catalogLanguages: [.vf, .vostfr, .vo], profile: profile)
+    }
+    func profiles() async throws -> [Profile] {
+        try await gate()
+        return fixtures.profiles
     }
 
     // MARK: - Home
