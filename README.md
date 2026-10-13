@@ -1,8 +1,10 @@
 # Kanstrimi
 
-Système de streaming **personnel et mono-utilisateur**. Il se branche sur **un** fournisseur
+Système de streaming **personnel, pour un foyer**. Il se branche sur **un** fournisseur
 Xtream Codes, importe son catalogue, le nettoie, l'enrichit via **TMDB** et le sert à
 l'app Apple maison (Apple TV, iPhone et iPad) et à l'app Android (tablette, en construction).
+Chaque personne a son **profil**, créé dans l'admin : ses filtres (ce qu'elle voit, dans quelles langues), sa
+progression, sa liste et ses films attendus ; chaque appareil retient le dernier profil choisi (« Qui regarde ? »).
 
 Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées, et chaque source porte l'URL
 du fournisseur, que l'app lit directement (sans passer par le serveur, donc par le VPN de l'appareil s'il en a un).
@@ -68,5 +70,3 @@ Ce qui vient après la V1.4 (tvOS, iPhone, iPad), par version, puis les idées n
   - **Collections thématiques** : dernière rangée d'accueil prévue, par IA validée dans l'admin ou par genres et mots-clés TMDB.
   - **Plus de génériques** : le dernier chapitre d'un film pris pour son générique (souvent juste, parfois faux de
     plusieurs minutes), à mesurer d'abord sur de vrais fichiers.
-  - **Alertes sur les autres appareils** : l'iPhone reçoit « Film attendu arrivé » et « Traitement complet terminé » ;
-    restent une pastille sur l'Apple TV, l'iPad, et la tablette Android (Firebase Cloud Messaging, projet Firebase à créer).
