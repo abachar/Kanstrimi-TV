@@ -91,9 +91,9 @@ export function ProfilesView({ rows, error }: { rows: ProfileLine[]; error?: str
         ) : (
           <ul class="flex flex-col divide-y">
             {rows.map(({ profile: p, filters, pending, judged }) => (
-              <li class="flex items-center gap-4 py-3">
-                <Avatar p={p} size={56} />
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
+              <li class="flex items-start gap-5 py-4">
+                <Avatar p={p} size={96} />
+                <div class="flex min-w-0 flex-1 flex-col gap-2">
                   <div class="flex flex-wrap items-center gap-2">
                     <a class="font-medium hover:underline" href={`/admin/profiles/${p.id}`}>
                       {p.name}
@@ -110,9 +110,16 @@ export function ProfilesView({ rows, error }: { rows: ProfileLine[]; error?: str
                       </Badge>
                     )}
                   </div>
-                  <div class="truncate font-mono text-xs text-muted-foreground">
-                    {(KINDS as readonly Kind[]).map((k) => `${KIND_TITLES[k]} : ${filters[k]?.query || "tout"}`).join(" · ")}
-                  </div>
+                  <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                    {(KINDS as readonly Kind[]).map((k) => (
+                      <>
+                        <dt class="text-muted-foreground">{KIND_TITLES[k]}</dt>
+                        <dd class="min-w-0 break-words font-mono text-xs leading-5">
+                          {filters[k]?.query || <span class="font-sans text-sm text-muted-foreground">tout</span>}
+                        </dd>
+                      </>
+                    ))}
+                  </dl>
                 </div>
                 <a class="btn" data-variant="outline" data-size="sm" href={`/admin/profiles/${p.id}`}>
                   <Icon name="edit" />
