@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { Hono } from "hono";
 import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
 import { setSecretsForTests } from "@/config";
-import { itemById, launch } from "@/catalog";
+import { itemById, launch, profileById } from "@/catalog";
 import { runAll, runNaming } from "@/catalog";
 import { startRun } from "@/catalog/journal";
 import { withCatalogLock } from "@/catalog/lock";
@@ -262,6 +262,11 @@ describe("admin", () => {
     expect(ongoing).toContain("Matrix");
     expect(ongoing).toContain("Marquer vu");
     expect(ongoing).toContain("8 %");
+    expect(ongoing).toContain("Les plus regardés");
+    // Played twice (a report 7 h after the last one): the most played card.
+    await db.update(schema.appPlays).set({ lastAt: new Date(Date.now() - 7 * 3600_000) });
+    await setProgress(PROFILE, "tmdb:movie:603", 700, 7200);
+    expect(await html("/admin/history")).toMatch(/Les plus regardés[\s\S]*Matrix[\s\S]*<td class="text-end tabular-nums">2</);
     expect(flash(await post(`/admin/history/${PROFILE}/${encodeURIComponent("tmdb:movie:603")}/finished`, {}))).toContain("Marqué vu");
     const [p] = await listProgress();
     expect(p).toMatchObject({ contentKey: "tmdb:movie:603", position: 7200, duration: 7200, finished: true });
@@ -350,6 +355,19 @@ describe("admin", () => {
     expect(await sharp(Buffer.from(await img.arrayBuffer())).metadata()).toMatchObject({ width: 256, height: 256, format: "webp" });
     expect(await (await post("/admin/profiles", { name: "sara", avatar })).text()).toContain("déjà"); // the name is unique, as cleaned
     expect(flash(await post(`/admin/profiles/${sara}`, { name: "Sarah", avatar: "" }))).toContain("Profil enregistré");
+    // The playback settings: a switch left off is absent from the form.
+    expect(flash(await post(`/admin/profiles/${sara}/settings`, { max_quality: "FHD", remember_versions: "on" }))).toContain(
+      "Réglages de lecture",
+    );
+    expect(await profileById(sara)).toMatchObject({
+      maxQuality: "FHD",
+      autoPlayNext: false,
+      rememberVersions: true,
+      switchSourceOnFailure: false,
+    });
+    expect(await html(`/admin/profiles/${sara}`)).toContain('value="FHD" selected');
+    expect(await html("/admin/profiles")).toContain("HD 1080p max · versions mémorisées");
+    expect((await post(`/admin/profiles/${sara}/settings`, { max_quality: "8K" })).headers.get("location")).toContain("err=");
     expect(await (await post(`/admin/profiles/${sara}`, { name: "Hakim", avatar: "" })).text()).toContain("déjà");
     expect(await (await post(`/admin/profiles/${sara}`, { name: "Sarah", avatar: "data:image/png;base64,bm9wZQ==" })).text()).toContain(
       "Photo illisible",

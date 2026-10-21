@@ -103,20 +103,20 @@ struct SettingsView: View {
             }
 
             Section {
-                ChoiceRow("Qualité maximale", selection: $prefs.maxQuality, options: Quality.allCases.reversed()) { $0.label }
-                Toggle(isOn: $prefs.autoPlayNext) {
+                ChoiceRow("Qualité maximale", selection: setting(\.maxQuality), options: Quality.allCases.reversed()) { $0.label }
+                Toggle(isOn: setting(\.autoPlayNext)) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Lecture automatique de la suite")
                         Text("Démarre 15 s avant la fin").font(.footnote).foregroundStyle(Theme.secondary)
                     }
                 }
-                Toggle("Mémoriser la version par titre", isOn: $prefs.rememberVersionPerTitle)
-                Toggle("Changer de source en cas de panne", isOn: $prefs.switchSourceOnFailure)
+                Toggle("Mémoriser la version par titre", isOn: setting(\.rememberVersions))
+                Toggle("Changer de source en cas de panne", isOn: setting(\.switchSourceOnFailure))
             } header: {
-                Text("Lecture")
+                Text(env.profile.map { "Lecture · \($0.name)" } ?? "Lecture")
             } footer: {
                 // A note, not a setting: a footer, so nothing focusable on tvOS.
-                Text("La langue jouée d'office est la première du filtre du profil, réglé dans l'admin. Un choix fait dans le sélecteur de versions est mémorisé pour le titre et prime sur ces réglages.")
+                Text("Ces réglages suivent le profil sur tous ses appareils. La langue jouée d'office est la première du filtre du profil, réglé dans l'admin. Un choix fait dans le sélecteur de versions est mémorisé pour le titre et prime sur ces réglages.")
             }
 
             Section("Appareil") {
@@ -171,7 +171,6 @@ struct SettingsView: View {
                 InfoRow("Sources en échec mémorisées", value: "\(env.failedSources.count)")
                 InfoRow("Progressions en attente", value: "\(env.progressQueue.pending.count)")
                 Button("Réinitialiser les préférences") { env.preferences.resetAll() }
-                Button("Vider les chaînes récentes") { env.recentChannels.clear() }
             } header: {
                 Text("Démo · pilote le client mock")
             } footer: {
@@ -179,6 +178,12 @@ struct SettingsView: View {
             }
             }
         }
+    }
+
+    /// One of the profile's settings: shown from the cache, sent to the server on change (`env.updateSettings`).
+    private func setting<V: Equatable>(_ path: WritableKeyPath<ProfileSettings, V>) -> Binding<V> {
+        Binding(get: { env.preferences.profileSettings[keyPath: path] },
+                set: { value in Task { await env.updateSettings { $0[keyPath: path] = value } } })
     }
 
     private var appVersion: String {

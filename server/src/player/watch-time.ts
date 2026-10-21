@@ -5,6 +5,8 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 export const MOST_WATCHED_DAYS = 30;
 export const MOST_WATCHED_MIN_SECONDS = 300;
 export const MOST_WATCHED_LIMIT = 10;
+/** « Récentes »: the channels the profile left last, whatever the time spent. */
+export const RECENT_LIMIT = 20;
 /** One report covers at most this: the app sends every 30 s, a longer gap is a suspended app, not watching. */
 export const MAX_REPORT_SECONDS = 600;
 
@@ -16,11 +18,24 @@ export async function addWatchTime(profileId: number, contentKey: string, second
   if (!s) return;
   await db
     .insert(lw)
-    .values({ profileId, contentKey, day: sql`current_date`, seconds: s })
+    .values({ profileId, contentKey, day: sql`current_date`, seconds: s, updatedAt: new Date() })
     .onConflictDoUpdate({
       target: [lw.profileId, lw.contentKey, lw.day],
-      set: { seconds: sql`${lw.seconds} + excluded.seconds` },
+      set: { seconds: sql`${lw.seconds} + excluded.seconds`, updatedAt: new Date() },
     });
+}
+
+/** The profile's channel keys by last report, the last first, `RECENT_LIMIT` at most. Visibility is the caller's. */
+export async function recentKeys(profileId: number): Promise<string[]> {
+  const last = sql<Date>`max(${lw.updatedAt})`;
+  const rows = await db
+    .select({ key: lw.contentKey })
+    .from(lw)
+    .where(eq(lw.profileId, profileId))
+    .groupBy(lw.contentKey)
+    .orderBy(desc(last), lw.contentKey)
+    .limit(RECENT_LIMIT);
+  return rows.map((r) => r.key);
 }
 
 /**

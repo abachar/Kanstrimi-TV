@@ -2,6 +2,7 @@ package dev.crafters.kanstrimi.player
 
 import dev.crafters.kanstrimi.contract.DynamicRange
 import dev.crafters.kanstrimi.contract.Quality
+import dev.crafters.kanstrimi.contract.RememberedVersion
 import dev.crafters.kanstrimi.contract.Version
 import org.junit.Test
 import java.time.Instant
@@ -46,16 +47,15 @@ class VersionChooserTest {
     }
 
     @Test
-    fun `un titre passé en FHD repart en FHD, la première fois la meilleure, plus rien quand la préférence est coupée`() {
-        val prefs = FakePreferences(languageOrder = listOf("VF"))
+    fun `un titre passé en FHD repart en FHD, la première fois la meilleure, la même langue si la version a disparu`() {
         val chooser = VersionChooser(listOf("VF"), Quality.UHD, uhd)
         val list = listOf(Fixtures.version("vf-4k", "VF", Quality.UHD), Fixtures.version("vf-fhd", "VF", Quality.FHD), Fixtures.version("vf-hd", "VF", Quality.HD))
-        assertEquals("vf-4k", chooser.start("live:fr-tf1", list, null, prefs)?.version?.id)
-        prefs.remember("vf-fhd", "live:fr-tf1")
-        assertEquals("vf-fhd", chooser.start("live:fr-tf1", list, null, prefs)?.version?.id)
-        assertEquals("vf-4k", chooser.start("live:fr-m6", list, null, prefs)?.version?.id)
-        prefs.rememberVersionPerTitle = false
-        assertEquals("vf-4k", chooser.start("live:fr-tf1", list, null, prefs)?.version?.id)
+        assertEquals("vf-4k", chooser.start(list, null)?.version?.id)
+        val fhd = RememberedVersion("vf-fhd", "VF", Quality.FHD, label = "FR · FHD")
+        assertEquals("vf-fhd", chooser.start(list, fhd)?.version?.id)
+        val gone = RememberedVersion("vf-sd", "VF", Quality.SD, label = "FR · SD")
+        assertEquals("vf-4k", chooser.start(list, gone)?.version?.id)
+        assertEquals(VersionChooser.Reason.SERIES_LANGUAGE, chooser.start(list, gone)?.reason)
     }
 
     @Test
@@ -117,11 +117,11 @@ class VersionChooserTest {
     }
 
     @Test
-    fun `la série regardée dans une édition y reste, la clé survit à l'aller-retour texte`() {
+    fun `la série regardée dans une édition y reste, ce que le serveur en garde redonne la même clé`() {
         val chooser = VersionChooser(listOf("VF"), Quality.UHD, uhd)
-        val key = VersionChoiceKey(Fixtures.version("vf-hd-nb", "VF", Quality.HD, edition = "Noir et blanc"))
-        assertEquals(key, VersionChoiceKey.parse(key.rawValue))
-        assertNull(VersionChoiceKey.parse("VF/HD/")?.edition)
+        val edition = Fixtures.version("vf-hd-nb", "VF", Quality.HD, edition = "Noir et blanc")
+        val key = VersionChoiceKey(edition)
+        assertEquals(key, VersionChoiceKey(RememberedVersion.of(edition)))
         assertEquals("FR · HD · Noir et blanc", key.label)
         val episode = listOf(Fixtures.version("vf-4k", "VF", Quality.UHD), Fixtures.version("vf-fhd-nb", "VF", Quality.FHD, edition = "Noir et blanc"))
         assertEquals("vf-fhd-nb", chooser.choose(episode, seriesChoice = key)?.version?.id)

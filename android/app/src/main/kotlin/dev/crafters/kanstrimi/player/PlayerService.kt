@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import dev.crafters.kanstrimi.client.CatalogClient
 import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.contract.Card
+import dev.crafters.kanstrimi.contract.RememberedVersion
 import dev.crafters.kanstrimi.contract.Channel
 import dev.crafters.kanstrimi.contract.ContentItem
 import dev.crafters.kanstrimi.contract.ContentKind
@@ -158,15 +159,42 @@ class PlayerService(
         engine.listener = this
     }
 
+    /** The profile's playback settings, as the server last said them. */
+    private val settings get() = preferences.settings
+
     val chooser: VersionChooser
-        get() = VersionChooser(preferences.languageOrder, preferences.maxQuality, capabilities) { failedSources.isFailed(it) }
+        get() = VersionChooser(preferences.languageOrder, settings.maxQuality, capabilities) { failedSources.isFailed(it) }
+
+    /**
+     * The versions chosen on this device since launch, by the title they are kept under (a series for its episodes),
+     * ahead of what the server served: a choice applies at once, before the lists are fetched again. A null value =
+     * forgotten here.
+     */
+    private val chosenVersions = HashMap<String, RememberedVersion?>()
+
+    /** The version the profile chose for a title: the one chosen here since launch, else the server's. */
+    fun remembered(served: RememberedVersion?, id: String): RememberedVersion? =
+        if (chosenVersions.containsKey(id)) chosenVersions[id] else served
 
     /**
      * The version a title or a channel starts in (`VersionChooser.start`): « TF1 » switched to FHD reopens, previews
-     * and shows its guide in FHD.
+     * and shows its guide in FHD. `remembered`: what the server served for the title.
      */
-    fun startChoice(id: String, versions: List<Version>, seriesId: String? = null): VersionChooser.Choice? =
-        chooser.start(id, versions, seriesId, preferences)
+    fun startChoice(id: String, versions: List<Version>, remembered: RememberedVersion?): VersionChooser.Choice? =
+        chooser.start(versions, remembered(remembered, id))
+
+    /** Keeps `version` for the title (the series for an episode), here and on the server; nothing when the setting is off. */
+    fun remember(version: Version, id: String) {
+        if (!settings.rememberVersions) return
+        chosenVersions[id] = RememberedVersion.of(version)
+        scope.launch { runCatching { client().rememberVersion(id, version.id) } }
+    }
+
+    /** The title starts on the best version again, here and on the server. */
+    fun forgetVersion(id: String) {
+        chosenVersions[id] = null
+        scope.launch { runCatching { client().forgetVersion(id) } }
+    }
 
     // MARK: - Entry points
 
@@ -202,7 +230,7 @@ class PlayerService(
 
     /** Chooses the version with the chooser and starts. Called by every « Lecture ». */
     fun play(ctx: PlaybackContext) {
-        val choice = startChoice(ctx.content.id, ctx.versions, ctx.seriesId)
+        val choice = startChoice(ctx.rememberId, ctx.versions, ctx.remembered)
         if (choice == null) { notify("Lecture impossible · aucune source"); return }
         start(ctx, choice.version, choice.source, ctx.resumeAt)
     }
@@ -235,7 +263,7 @@ class PlayerService(
         this.channel = channel
         channelDetail = null
         epg = Channel.Guide.empty
-        val ctx = PlaybackContext(PlaybackContent(channel.id, ContentKind.LIVE, channel.name), channel.versions)
+        val ctx = PlaybackContext(PlaybackContent(channel.id, ContentKind.LIVE, channel.name), channel.versions, remembered = channel.remembered)
         play(ctx)
         scope.launch {
             val full = runCatching { client().channel(channel.id) }.getOrNull()
@@ -384,14 +412,10 @@ class PlayerService(
 
     // MARK: - Versions while playing
 
-    /** Switches version, same position, and remembers it for the title when the preference says so. */
+    /** Switches version, same position, and keeps it for the title (the series for an episode) when the profile's setting says so. */
     fun switchVersion(v: Version) {
         val ctx = context ?: return
-        if (preferences.rememberVersionPerTitle) {
-            val sid = ctx.seriesId
-            if (ctx.content.kind == ContentKind.EPISODE && sid != null) preferences.setSeriesChoice(VersionChoiceKey(v), sid)
-            else preferences.remember(v.id, ctx.content.id)
-        }
+        remember(v, ctx.rememberId)
         play(ctx, v)
     }
 
@@ -460,7 +484,7 @@ class PlayerService(
         if (isChangingTitle) return
         val up = upNext
         val ctx = context
-        if (!preferences.autoPlayNext || nextTriggered || up == null || ctx == null) {
+        if (!settings.autoPlayNext || nextTriggered || up == null || ctx == null) {
             time = duration
             stop()
             return
@@ -587,7 +611,7 @@ class PlayerService(
         val s = source ?: return
         startAttempts += 1
         failedSources.markFailed(s.id)
-        when (val step = failureStep(startAttempts, preferences.switchSourceOnFailure, chooser.nextSource(s, v))) {
+        when (val step = failureStep(startAttempts, settings.switchSourceOnFailure, chooser.nextSource(s, v))) {
             is FailureStep.OtherSource -> {
                 showToast("Source changée automatiquement", "${sourceLabel(s, v)} → ${sourceLabel(step.source, v)} · même version ${v.label}")
                 restart(v, step.source)
@@ -720,7 +744,7 @@ class PlayerService(
 
     /** The card counts down on the position, so it holds while paused; from the credits it starts what follows itself. */
     private fun maybeStartCountdown() {
-        if (!preferences.autoPlayNext || nextTriggered || nextCountdown != null || upNext == null) return
+        if (!settings.autoPlayNext || nextTriggered || nextCountdown != null || upNext == null) return
         val (from, seconds) = nextCardMoment ?: return
         if (shownTime < from || phase != Phase.PLAYING) return
         // Arrived deep in the credits (a seek, a resume): the full count from here, not what is left of it.

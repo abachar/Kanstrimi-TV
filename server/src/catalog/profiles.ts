@@ -15,8 +15,16 @@ const columns = {
   isDefault: p.isDefault,
   createdAt: p.createdAt,
   judgedAt: p.judgedAt,
+  maxQuality: p.maxQuality,
+  autoPlayNext: p.autoPlayNext,
+  rememberVersions: p.rememberVersions,
+  switchSourceOnFailure: p.switchSourceOnFailure,
   avatarVersion: sql<string>`left(md5(coalesce(${p.avatar}, ''::bytea)), 8)`,
 };
+
+/** The playback settings of a profile, as the apps and the admin set them; each one optional in a change. */
+export type ProfileSettingsInput = Partial<Pick<Profile, "maxQuality" | "autoPlayNext" | "rememberVersions" | "switchSourceOnFailure">>;
+export const PROFILE_QUALITIES = ["SD", "HD", "FHD", "4K"] as const;
 
 /** All profiles, the default first, then by name. */
 export async function listProfiles(): Promise<Profile[]> {
@@ -95,6 +103,21 @@ export async function setDefaultProfile(id: number): Promise<boolean> {
     await tx.update(p).set({ isDefault: true }).where(eq(p.id, id));
     return true;
   });
+}
+
+/** The playback settings of a profile; a quality outside `PROFILE_QUALITIES` is refused. Null for a stranger. */
+export async function updateProfileSettings(id: number, input: ProfileSettingsInput): Promise<Profile | null> {
+  const set: Partial<typeof p.$inferInsert> = {};
+  if (input.maxQuality !== undefined) {
+    if (!(PROFILE_QUALITIES as readonly string[]).includes(input.maxQuality)) throw new ProfileError("Qualité inconnue");
+    set.maxQuality = input.maxQuality;
+  }
+  if (input.autoPlayNext !== undefined) set.autoPlayNext = input.autoPlayNext;
+  if (input.rememberVersions !== undefined) set.rememberVersions = input.rememberVersions;
+  if (input.switchSourceOnFailure !== undefined) set.switchSourceOnFailure = input.switchSourceOnFailure;
+  if (!Object.keys(set).length) return profileById(id);
+  const [row] = await db.update(p).set(set).where(eq(p.id, id)).returning(columns);
+  return row ?? null;
 }
 
 /** The `filters` step judged every version for this profile: it sees what its filters keep. */

@@ -148,10 +148,7 @@ struct ProgressQueueTests {
 
 @MainActor
 struct RecentChannelsTests {
-    private func makeStore() -> RecentChannelsStore {
-        let defaults = UserDefaults(suiteName: "tests-\(UUID().uuidString)")!
-        return RecentChannelsStore(defaults: defaults)
-    }
+    private func makeStore() -> RecentChannelsStore { RecentChannelsStore() }
 
     @Test("La plus récente d'abord, sans doublon, huit au plus")
     func orderAndCap() {
@@ -173,10 +170,17 @@ struct RecentChannelsTests {
         #expect(makeStore().previous(excluding: nil) == nil)
     }
 
-    @Test("L'historique est persisté dans les réglages")
-    func persisted() {
-        let defaults = UserDefaults(suiteName: "tests-\(UUID().uuidString)")!
-        RecentChannelsStore(defaults: defaults).record(ContentID("live:a"))
-        #expect(RecentChannelsStore(defaults: defaults).entries.first?.channelID.rawValue == "live:a")
+    @Test("La liste du serveur (recent_rank) nourrit la pile, derrière ce qui a été zappé ici depuis le lancement")
+    func seededByTheServer() {
+        let store = makeStore()
+        let channel = { (id: String, rank: Int?) in Channel(id: ContentID(id), name: id, recentRank: rank) }
+        store.seed(from: [channel("live:x", nil), channel("live:b", 2), channel("live:a", 1)])
+        #expect(store.entries.map(\.channelID.rawValue) == ["live:a", "live:b"])
+        #expect(store.entries.allSatisfy { $0.watchedAt == nil })
+        store.record(ContentID("live:c"))
+        // Fetched again before the server heard of the zap: it stays first; the rest follows the server, no duplicate.
+        store.seed(from: [channel("live:b", 1), channel("live:a", 2), channel("live:c", 3)])
+        #expect(store.entries.map(\.channelID.rawValue) == ["live:c", "live:b", "live:a"])
+        #expect(store.entries.first?.watchedAt != nil)
     }
 }

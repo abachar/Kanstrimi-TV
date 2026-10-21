@@ -13,13 +13,15 @@ import {
   profileById,
   ProfileError,
   saveFilter,
+  PROFILE_QUALITIES,
   setDefaultProfile,
   updateProfile,
+  updateProfileSettings,
 } from "@/catalog";
 import { KINDS, type Kind, type Profile } from "@/db";
 import { encodeAvatar } from "@/player";
 import { describeError } from "@/shared";
-import { page, back, zerr, intParam, form } from "../http";
+import { page, back, zerr, intParam, form, checked } from "../http";
 import { AVATAR_ASSETS, FilterPreview, ProfilesView, ProfileView, type Draft, type ProfileLine } from "./view";
 
 /**
@@ -137,6 +139,25 @@ profilesRoutes.post(
     // Refused: the page again, the query as typed, the mistake under it.
     if (error) return profilePage(c, p, { draft: { kind, query, error: `Requête invalide : ${error}` } });
     return back(c, `/admin/profiles/${p.id}`, { ok: "Filtre enregistré — à appliquer maintenant ou par un passage du traitement" });
+  },
+);
+
+const settingsSchema = z.object({ max_quality: z.enum(PROFILE_QUALITIES) });
+/** The playback settings; a switch left off is simply absent from the form. */
+profilesRoutes.post(
+  "/:id/settings",
+  zValidator("form", settingsSchema, (r, c) => {
+    if (!r.success) return back(c, `/admin/profiles/${c.req.param("id")}`, { err: zerr(r.error) });
+  }),
+  async (c) => {
+    const p = await updateProfileSettings(intParam(c, "id"), {
+      maxQuality: c.req.valid("form").max_quality,
+      autoPlayNext: await checked(c, "auto_play_next"),
+      rememberVersions: await checked(c, "remember_versions"),
+      switchSourceOnFailure: await checked(c, "switch_source_on_failure"),
+    });
+    if (!p) return c.notFound();
+    return back(c, `/admin/profiles/${p.id}`, { ok: "Réglages de lecture enregistrés" });
   },
 );
 

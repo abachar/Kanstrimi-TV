@@ -50,6 +50,8 @@ const call = (path: string, init: RequestInit = {}, auth = true) =>
     },
   });
 // biome-ignore lint/suspicious/noExplicitAny: answers are read field by field, as the app would
+const bodyOf = async (r: Response): Promise<any> => r.json();
+// biome-ignore lint/suspicious/noExplicitAny: answers are read field by field, as the app would
 const get = async (path: string, auth = true): Promise<{ status: number; body: any }> => {
   const r = await call(path, {}, auth);
   return { status: r.status, body: r.status === 204 ? null : await r.json() };
@@ -378,6 +380,7 @@ describe("profiles", () => {
         name: "Hakim",
         is_default: true,
         avatar: expect.stringMatching(/^http:\/\/kanstrimi\.test\/img\/avatars\/1\.webp\?v=[0-9a-f]{8}$/),
+        settings: { max_quality: "4K", auto_play_next: true, remember_versions: true, switch_source_on_failure: true },
       },
     ]);
     expect((await get("/info")).body.profile).toEqual(body.profiles[0]);
@@ -402,6 +405,34 @@ describe("profiles", () => {
     expect(((await gone.json()) as { error: { code: string } }).error.code).toBe("unknown_profile");
     expect((await call("/info", { headers: { "x-profile": "abc" } })).status).toBe(404);
     await deleteProfile(vost.id);
+  });
+
+  it("PUT /profiles/me/settings: each setting optional, the profile answered, a bad quality refused", async () => {
+    const put = (body: unknown, profile?: number) =>
+      call("/profiles/me/settings", {
+        method: "PUT",
+        body: JSON.stringify(body),
+        headers: profile ? { "x-profile": String(profile) } : {},
+      });
+    let r = await put({ max_quality: "FHD", auto_play_next: false });
+    expect(r.status).toBe(200);
+    expect((await bodyOf(r)).settings).toEqual({
+      max_quality: "FHD",
+      auto_play_next: false,
+      remember_versions: true,
+      switch_source_on_failure: true,
+    });
+    expect((await get("/info")).body.profile.settings.max_quality).toBe("FHD");
+    r = await put({ switch_source_on_failure: false });
+    expect((await bodyOf(r)).settings).toMatchObject({ max_quality: "FHD", auto_play_next: false, switch_source_on_failure: false });
+    expect((await put({ max_quality: "8K" })).status).toBe(400);
+    expect((await put({ auto_play_next: "oui" })).status).toBe(400);
+    expect((await put({}, 999)).status).toBe(404);
+    // Another profile keeps its own.
+    const sara = await createProfile({ name: "Sara", avatar: null });
+    expect((await bodyOf(await put({}, sara.id))).settings.max_quality).toBe("4K");
+    await deleteProfile(sara.id);
+    await put({ max_quality: "4K", auto_play_next: true, switch_source_on_failure: true });
   });
 
   it("/img/avatars/{id}.webp: the picture, or an initial on a colour; 404 for a stranger", async () => {
@@ -924,6 +955,8 @@ describe("GET /home", () => {
       ["recent-series", "recent_series"],
       ["favorites", "favorites"],
     ]);
+    // Nothing chosen for these titles yet.
+    expect(body.heroes.map((h: { remembered: unknown }) => h.remembered)).toEqual([null, null]);
     const resume = body.rows[0].cards;
     expect(resume.map((c: { id: string }) => c.id)).toEqual(["tmdb:tv:1396:s01e02", "tmdb:movie:603"]);
     // Logos too: the card draws the title on its picture (null when TMDB has none).
@@ -1381,6 +1414,147 @@ describe("« Chaînes les plus regardées »", () => {
     await watch("live:fr-tf1", { seconds: 299 });
     expect(await homeRows()).not.toContain("most-watched-channels");
     expect(await ranks()).toEqual({ "live:fr-tf1": null, "live:fr-bein-sports-1": null });
+  });
+});
+
+describe("remembered versions", () => {
+  const put = (id: string, version: string, profile?: number) =>
+    call(`/playback/${id}/version`, {
+      method: "PUT",
+      body: JSON.stringify({ version }),
+      headers: profile ? { "x-profile": String(profile) } : {},
+    });
+  const remembered = async (path: string) => (await get(path)).body.remembered ?? null;
+
+  it("PUT /playback/{id}/version keeps a movie's choice, served on the sheet, the playback and the home slide; DELETE forgets it", async () => {
+    expect((await put("tmdb:movie:603", "vostfr-hd")).status).toBe(204);
+    const wire = { id: "vostfr-hd", language: "VOSTFR", quality: "HD", label: "VOSTF · HD" };
+    expect(await remembered("/movies/tmdb:movie:603")).toEqual(wire);
+    expect(await remembered("/playback/tmdb:movie:603")).toEqual(wire);
+    const hero = (await get("/home")).body.heroes.find((h: { play_id: string }) => h.play_id === "tmdb:movie:603");
+    expect(hero.remembered).toEqual(wire);
+    // The dynamic range and the edition travel too, and the label says them.
+    await put("tmdb:movie:603", "vf-4k-dv");
+    expect(await remembered("/movies/tmdb:movie:603")).toEqual({
+      id: "vf-4k-dv",
+      language: "VF",
+      quality: "4K",
+      dynamic_range: "DV",
+      label: "FR · 4K DV",
+    });
+    expect((await call("/playback/tmdb:movie:603/version", { method: "DELETE" })).status).toBe(204);
+    expect(await remembered("/movies/tmdb:movie:603")).toBeNull();
+    expect(await remembered("/playback/tmdb:movie:603")).toBeNull();
+  });
+
+  it("a version the title does not have, a malformed body, an unknown title", async () => {
+    expect((await put("tmdb:movie:603", "vf-8k")).status).toBe(400);
+    expect((await call("/playback/tmdb:movie:603/version", { method: "PUT", body: JSON.stringify({}) })).status).toBe(400);
+    expect((await put("tmdb:movie:999", "vf-4k-dv")).status).toBe(404);
+    expect((await call("/playback/tmdb:movie:999/version", { method: "DELETE" })).status).toBe(404);
+  });
+
+  it("an episode's choice is the series': read on the series sheet, on every episode and on the series' playback", async () => {
+    expect((await put("tmdb:tv:1396:s01e01", "vostfr-hd")).status).toBe(204);
+    const wire = { id: "vostfr-hd", language: "VOSTFR", quality: "HD", label: "VOSTF · HD" };
+    expect(await remembered("/series/tmdb:tv:1396")).toEqual(wire);
+    expect(await remembered("/playback/tmdb:tv:1396:s01e02")).toEqual(wire);
+    expect(await remembered("/playback/tmdb:tv:1396")).toEqual(wire);
+    await call("/playback/tmdb:tv:1396:s02e01/version", { method: "DELETE" });
+    expect(await remembered("/series/tmdb:tv:1396")).toBeNull();
+  });
+
+  it("a channel's choice rides on /channels and /channels/{id}", async () => {
+    expect((await put("live:fr-tf1", "vf-fhd")).status).toBe(204);
+    expect(await remembered("/channels/live:fr-tf1")).toMatchObject({ id: "vf-fhd" });
+    const tf1 = (await get("/channels")).body
+      .flatMap((g: { channels: { id: string }[] }) => g.channels)
+      .find((c: { id: string }) => c.id === "live:fr-tf1");
+    expect(tf1.remembered).toMatchObject({ id: "vf-fhd" });
+    await call("/playback/live:fr-tf1/version", { method: "DELETE" });
+    expect((await get("/channels/live:fr-tf1")).body).not.toHaveProperty("remembered");
+  });
+
+  it("per profile, and nothing while the profile's remember_versions is off", async () => {
+    const sara = await createProfile({ name: "Sara", avatar: null });
+    await applyFilters({ profileId: sara.id });
+    expect((await put("tmdb:movie:603", "vostfr-hd", sara.id)).status).toBe(204);
+    expect(await remembered("/movies/tmdb:movie:603")).toBeNull();
+    const asSara = async (path: string) => (await bodyOf(await call(path, { headers: { "x-profile": String(sara.id) } }))).remembered;
+    expect(await asSara("/movies/tmdb:movie:603")).toMatchObject({ id: "vostfr-hd" });
+    await call("/profiles/me/settings", {
+      method: "PUT",
+      body: JSON.stringify({ remember_versions: false }),
+      headers: { "x-profile": String(sara.id) },
+    });
+    expect(await asSara("/movies/tmdb:movie:603")).toBeNull();
+    expect((await put("tmdb:movie:603", "vf-4k-dv", sara.id)).status).toBe(204); // accepted, not kept
+    await call("/profiles/me/settings", {
+      method: "PUT",
+      body: JSON.stringify({ remember_versions: true }),
+      headers: { "x-profile": String(sara.id) },
+    });
+    expect(await asSara("/movies/tmdb:movie:603")).toMatchObject({ id: "vostfr-hd" });
+    await deleteProfile(sara.id);
+  });
+});
+
+describe("recent channels and most played titles", () => {
+  const watch = (id: string, seconds: number) => call(`/playback/${id}/watch-time`, { method: "POST", body: JSON.stringify({ seconds }) });
+  const recent = async () =>
+    Object.fromEntries(
+      (await get("/channels")).body
+        .flatMap((g: { channels: { id: string; recent_rank?: number }[] }) => g.channels)
+        .map((c: { id: string; recent_rank?: number }) => [c.id, c.recent_rank ?? null]),
+    );
+  const row = async (id: string) => (await get("/home")).body.rows.find((r: { id: string }) => r.id === id);
+
+  it("recent_rank: the channel left last first, whatever the time spent, across days", async () => {
+    await db.delete(schema.appLiveWatch);
+    await watch("live:fr-bein-sports-1", 3);
+    await watch("live:fr-tf1", 10);
+    expect(await recent()).toEqual({ "live:fr-tf1": 1, "live:fr-bein-sports-1": 2 });
+    await watch("live:fr-bein-sports-1", 2);
+    expect(await recent()).toEqual({ "live:fr-tf1": 2, "live:fr-bein-sports-1": 1 });
+    // A day old row keeps its place by its last report.
+    await db
+      .update(schema.appLiveWatch)
+      .set({ day: ymd(daysAgo(1)) })
+      .where(eq(schema.appLiveWatch.contentKey, "live:fr-bein-sports-1"));
+    await watch("live:fr-bein-sports-1", 1);
+    expect(await recent()).toEqual({ "live:fr-tf1": 2, "live:fr-bein-sports-1": 1 });
+    await db.delete(schema.appLiveWatch);
+    expect(await recent()).toEqual({ "live:fr-tf1": null, "live:fr-bein-sports-1": null });
+  });
+
+  it("plays: reports less than 6 h apart are one play; « Vos plus regardés » from two plays of a movie, five episode plays of a series", async () => {
+    await db.delete(schema.appPlays);
+    const report = (id: string, position: number) =>
+      call(`/playback/${id}/progress`, { method: "PUT", body: JSON.stringify({ position, duration: 6000 }) });
+    const plays = async (key: string) =>
+      (await db.select().from(schema.appPlays).where(eq(schema.appPlays.contentKey, key)))[0]?.plays ?? 0;
+    await report("tmdb:movie:949", 100);
+    await report("tmdb:movie:949", 200);
+    expect(await plays("tmdb:movie:949")).toBe(1);
+    expect(await row("most-watched")).toBeUndefined();
+    // Seven hours later: a second play.
+    await db.update(schema.appPlays).set({ lastAt: new Date(Date.now() - 7 * 3600_000) });
+    await report("tmdb:movie:949", 50);
+    expect(await plays("tmdb:movie:949")).toBe(2);
+    let r = await row("most-watched");
+    expect(r).toMatchObject({ kind: "most_watched", title: "Vos plus regardés" });
+    expect(r.cards.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
+    // A series: its episodes' plays summed, five at least, the most played first.
+    for (const ep of ["s01e01", "s01e02", "s02e01"]) await report(`tmdb:tv:1396:${ep}`, 100);
+    expect(await row("most-watched")).not.toBeUndefined();
+    expect((await row("most-watched")).cards.map((c: { id: string }) => c.id)).toEqual(["tmdb:movie:949"]);
+    await db.update(schema.appPlays).set({ plays: 2 }).where(like(schema.appPlays.contentKey, "tmdb:tv:1396:%"));
+    r = await row("most-watched");
+    expect(r.cards.map((c: { id: string }) => c.id)).toEqual(["tmdb:tv:1396", "tmdb:movie:949"]);
+    // « Non vu » forgets the position, not the plays.
+    await call("/playback/tmdb:movie:949/watched", { method: "PUT", body: JSON.stringify({ watched: false }) });
+    expect(await plays("tmdb:movie:949")).toBe(2);
+    await db.delete(schema.appPlays);
   });
 });
 

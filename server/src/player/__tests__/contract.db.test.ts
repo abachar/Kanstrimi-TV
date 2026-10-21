@@ -301,8 +301,25 @@ beforeAll(async () => {
   ]);
   await db.insert(schema.appFavorites).values({ profileId: PROFILE, contentKey: "tmdb:tv:1396", createdAt: daysAgo(2) });
   await db.execute(
-    sql`insert into app_live_watch (profile_id, content_key, day, seconds) values (${PROFILE}, 'live:fr-tf1', current_date, 1800)`,
+    sql`insert into app_live_watch (profile_id, content_key, day, seconds, updated_at) values (${PROFILE}, 'live:fr-tf1', current_date, 1800, ${at(-30).toISOString()}::timestamptz)`,
   );
+  // The versions chosen in the picker, a movie, a series (from an episode) and a channel; the plays of a movie watched again.
+  await db.insert(schema.appProfileVersions).values([
+    {
+      profileId: PROFILE,
+      contentKey: "tmdb:movie:603",
+      versionId: "vf-4k-dv",
+      language: "VF",
+      quality: "4K",
+      dynamicRange: "DV",
+      updatedAt: at(-200),
+    },
+    { profileId: PROFILE, contentKey: "tmdb:tv:1396", versionId: "vostfr-hd", language: "VOSTFR", quality: "HD", updatedAt: at(-150) },
+    { profileId: PROFILE, contentKey: "live:fr-tf1", versionId: "vf-fhd", language: "VF", quality: "FHD", updatedAt: at(-100) },
+  ]);
+  await db
+    .insert(schema.appPlays)
+    .values({ profileId: PROFILE, contentKey: "tmdb:movie:603", plays: 3, firstAt: daysAgo(20), lastAt: daysAgo(2) });
   await db.insert(schema.tmdbTrending).values([
     { mediaType: "movie", rank: 1, tmdbId: 604, fetchedAt: daysAgo(1) },
     { mediaType: "movie", rank: 2, tmdbId: 603, fetchedAt: daysAgo(1) },

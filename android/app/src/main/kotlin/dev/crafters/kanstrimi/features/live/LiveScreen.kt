@@ -124,6 +124,7 @@ fun LiveScreen() {
             groups = loaded
             error = null
             val loadedAll = loaded.flatMap { it.channels }
+            env.recentChannels.seed(loadedAll)
             if (selected == null) {
                 selected = when {
                     env.recentChannels.entries.any { e -> loadedAll.any { it.id == e.id } } -> Category.Recent
@@ -162,7 +163,7 @@ fun LiveScreen() {
         val c = selectedChannel ?: return@LaunchedEffect
         // The version the channel would start in: « TF1 » switched to FHD previews in FHD.
         val versions = detail?.versions ?: c.versions
-        val url = env.player.startChoice(c.id, versions)?.source?.streamUrl ?: return@LaunchedEffect
+        val url = env.player.startChoice(c.id, versions, c.remembered)?.source?.streamUrl ?: return@LaunchedEffect
         preview.show(c.id, url)
     }
 

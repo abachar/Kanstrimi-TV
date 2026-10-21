@@ -7,11 +7,13 @@ import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
 import { contentByKey, liveCategories, servedVariant, variantsOf, visibleContent } from "./contents";
 import { favoriteSet } from "./favorites";
-import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
+import { MOST_WATCHED_LIMIT, mostWatchedKeys, RECENT_LIMIT, recentKeys } from "./watch-time";
+import { rememberedOf, rememberedWire } from "./remembered";
 import { languageLabel, playableOfItem, qualityOfRank, versionsOf, type Playable } from "./versions";
 import { guidesOf } from "./guides";
 import { dayProgrammes, epgOf, type ChannelEpg } from "./epg";
 import { channelLogo } from "./cards";
+import type { ProfileVersion } from "@/db";
 import type { ChannelGroupWire, ChannelWire, Version } from "./types";
 
 /**
@@ -62,18 +64,36 @@ export function liveChip(v: Pick<Version, "quality" | "language">, mixed: boolea
   return mixed ? `${v.quality}/${languageLabel(v.language)}` : v.quality;
 }
 
+/** What the profile recorded of its channels: list, time watched, last watched, chosen versions. */
+type ProfileMarks = {
+  favs: Set<string>;
+  watchedRank: Map<string, number>;
+  recentRank: Map<string, number>;
+  remembered: Map<string, ProfileVersion>;
+};
+async function profileMarks(ctx: RestContext, keys: string[]): Promise<ProfileMarks> {
+  const [favs, watched, recent, remembered] = await Promise.all([
+    favoriteSet(ctx.profile.id),
+    mostWatchedKeys(ctx.profile.id),
+    recentKeys(ctx.profile.id),
+    rememberedOf(ctx.profile, keys),
+  ]);
+  const visible = new Set(keys);
+  const rank = (list: string[], limit: number) =>
+    new Map(
+      list
+        .filter((k) => visible.has(k))
+        .slice(0, limit)
+        .map((k, i) => [k, i + 1]),
+    );
+  return { favs, watchedRank: rank(watched, MOST_WATCHED_LIMIT), recentRank: rank(recent, RECENT_LIMIT), remembered };
+}
+
 /**
  * Lists and sheets alike carry `now` / `next`: the app rolls over on `end` without asking again. The
  * channel's guide is its first version's; a version whose guide differs carries its own.
  */
-function channelWire(
-  ctx: RestContext,
-  c: Content,
-  playables: Playable[],
-  favs: Set<string>,
-  epgs: Map<string, ChannelEpg>,
-  watchedRank?: number,
-): ChannelWire {
+function channelWire(ctx: RestContext, c: Content, playables: Playable[], marks: ProfileMarks, epgs: Map<string, ChannelEpg>): ChannelWire {
   const { versions: all, guides } = guided(ctx, playables, epgs);
   const main = guides.get(all[0]?.id ?? "") ?? null;
   const epg = main ? epgs.get(main) : undefined;
@@ -92,11 +112,13 @@ function channelWire(
     logo: channelLogo(ctx.baseUrl, c.logoUrl),
     ...(c.maxQualityRank ? { max_quality: qualityOfRank(c.maxQualityRank) } : {}),
     has_epg: epg?.hasEpg ?? false,
-    is_favorite: favs.has(c.key),
+    is_favorite: marks.favs.has(c.key),
     versions,
     now: epg?.now ?? null,
     next: epg?.next ?? null,
-    ...(watchedRank ? { watched_rank: watchedRank } : {}),
+    ...(marks.watchedRank.has(c.key) ? { watched_rank: marks.watchedRank.get(c.key) } : {}),
+    ...(marks.recentRank.has(c.key) ? { recent_rank: marks.recentRank.get(c.key) } : {}),
+    ...(marks.remembered.has(c.key) ? { remembered: rememberedWire(marks.remembered.get(c.key)!) } : {}),
   };
 }
 
@@ -174,7 +196,7 @@ const themeRank = (t: string) => {
  * their order, then the provider's own labels alphabetically.
  */
 export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[]> {
-  const [channels, items, favs, watchedKeys] = await Promise.all([
+  const [channels, items] = await Promise.all([
     db
       .select()
       .from(schema.catalogContents)
@@ -184,15 +206,10 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
       .select()
       .from(schema.catalogVariants)
       .where(and(eq(schema.catalogVariants.kind, "live"), servedVariant(ctx), sql`${schema.catalogVariants.contentId} is not null`)),
-    favoriteSet(ctx.profile.id),
-    mostWatchedKeys(ctx.profile.id),
   ]);
-  const visibleKeys = new Set(channels.map((c) => c.key));
-  const watchedRank = new Map(
-    watchedKeys
-      .filter((k) => visibleKeys.has(k))
-      .slice(0, MOST_WATCHED_LIMIT)
-      .map((k, i) => [k, i + 1]),
+  const marks = await profileMarks(
+    ctx,
+    channels.map((c) => c.key),
   );
   const catName = new Map((await liveCategories()).map((c) => [c.xtreamId, c.name]));
   const byContent = new Map<number, Playable[]>();
@@ -211,7 +228,7 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
   for (const c of channels) {
     const playables = withFallback(c, byContent.get(c.id) ?? []);
     if (!playables.length) continue;
-    const wire = channelWire(ctx, c, playables, favs, epg, watchedRank.get(c.key));
+    const wire = channelWire(ctx, c, playables, marks, epg);
     const market = c.country?.toLowerCase() ?? c.market;
     for (const theme of c.themes.length ? c.themes : [LIVE_THEMES[0]]) {
       const key = `${market ?? ""}|${theme}`;
@@ -240,7 +257,7 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
 }
 
 export async function channelSheet(ctx: RestContext, content: Content): Promise<ChannelWire> {
-  const [{ playables: own }, favs] = await Promise.all([variantsOf(ctx, content), favoriteSet(ctx.profile.id)]);
+  const [{ playables: own }, marks] = await Promise.all([variantsOf(ctx, content), profileMarks(ctx, [content.key])]);
   const playables = withFallback(content, own);
-  return channelWire(ctx, content, playables, favs, await epgOf(playables.flatMap((p) => p.epgIds)));
+  return channelWire(ctx, content, playables, marks, await epgOf(playables.flatMap((p) => p.epgIds)));
 }

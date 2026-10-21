@@ -65,16 +65,15 @@ final class DetailModel {
 
     // MARK: - Versions
 
+    /// The version the profile chose for the title: what was chosen here since launch, else what the sheet says.
+    var remembered: RememberedVersion? { env.player.remembered(detail?.remembered, for: id) }
+
     /// The version `Lecture` will play, as the engine decides it.
     var choice: VersionChooser.Choice? {
         guard let d = detail else { return nil }
-        if d.kind == .series {
-            // Series versions carry no sources: choose on the current episode's versions when known.
-            let pool = currentEpisode?.versions ?? d.versions
-            return env.player.chooser.choose(from: pool, seriesChoice: env.preferences.seriesChoice(for: id))
-        }
-        let remembered = env.preferences.rememberVersionPerTitle ? env.preferences.rememberedVersion(for: id) : nil
-        return env.player.chooser.choose(from: d.versions, remembered: remembered)
+        // Series versions carry no sources: choose on the current episode's versions when known.
+        let pool = d.kind == .series ? (currentEpisode?.versions ?? d.versions) : d.versions
+        return env.player.startChoice(id, versions: pool, remembered: d.remembered)
     }
 
     var currentEpisode: Episode? {
@@ -83,7 +82,7 @@ final class DetailModel {
     }
 
     var seriesChoice: VersionChoiceKey? {
-        env.preferences.seriesChoice(for: id) ?? choice.map { VersionChoiceKey($0.version) }
+        remembered?.key ?? choice.map { VersionChoiceKey($0.version) }
     }
 
     /// « Depuis le début » is offered when the main button resumes: the movie, or the current episode.
@@ -108,7 +107,7 @@ final class DetailModel {
         let resume = !fromStart && d.progress?.isResumable == true ? d.progress?.position : nil
         let ctx = PlaybackContext(content: PlaybackContent(id: d.id, kind: .movie, title: d.title, subtitle: nil, episode: nil, backdrop: d.backdrop),
                                   versions: d.versions, resumeAt: resume, duration: d.progress?.duration ?? d.runtime.map { TimeInterval($0 * 60) },
-                                  cast: d.cast)
+                                  cast: d.cast, remembered: d.remembered)
         if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
     }
 
@@ -119,14 +118,14 @@ final class DetailModel {
         env.player.play(fromStart ? ctx.resuming(at: nil) : ctx)
     }
 
-    /// Picker result. A series keeps the language picked; a film plays the version, and forgets the
-    /// one remembered for it: only a switch made while playing is remembered.
+    /// Picker result. A series keeps the language picked (for the profile, on the server); a film plays the version,
+    /// and forgets the one kept for it: only a switch made while playing is kept.
     func chose(version: Version, source: Source?) {
         guard let d = detail else { return }
         if d.kind == .series {
-            env.preferences.setSeriesChoice(VersionChoiceKey(version), for: id)
+            env.player.remember(version, for: id)
         } else {
-            env.preferences.remember(versionID: nil, for: id)
+            env.player.forgetVersion(for: id)
             play(movie: d, version: version, source: source)
         }
     }

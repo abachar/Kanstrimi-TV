@@ -15,6 +15,12 @@
     "id": 1,
     "name": "Hakim",
     "is_default": true,
-    "avatar": "http://kanstrimi.test/img/avatars/1.webp?v=d41d8cd9"
+    "avatar": "http://kanstrimi.test/img/avatars/1.webp?v=d41d8cd9",
+    "settings": {
+      "max_quality": "4K",
+      "auto_play_next": true,
+      "remember_versions": true,
+      "switch_source_on_failure": true
+    }
   }
 }

@@ -280,8 +280,7 @@ final class HomeModel {
 
     var heroChoice: VersionChooser.Choice? {
         guard let hero else { return nil }
-        let remembered = env.preferences.rememberVersionPerTitle ? env.preferences.rememberedVersion(for: hero.item.id) : nil
-        return env.player.chooser.choose(from: hero.versions, remembered: remembered)
+        return env.player.startChoice(hero.item.id, versions: hero.versions, remembered: hero.remembered)
     }
 
     /// Asks `/playback` first (the episode after it, the cast of the Distribution panel), and falls back on what the
@@ -295,7 +294,8 @@ final class HomeModel {
             content = PlaybackContent(id: hero.playID, kind: hero.item.kind.content ?? .movie, title: hero.item.title, subtitle: nil, episode: nil,
                                       backdrop: hero.item.picture)
         }
-        let local = PlaybackContext(content: content, versions: hero.versions, resumeAt: hero.resumeAt, duration: hero.duration)
+        let local = PlaybackContext(content: content, versions: hero.versions, resumeAt: hero.resumeAt, duration: hero.duration,
+                                    remembered: hero.remembered)
         Task {
             var ctx = local
             if let playback = try? await env.client.playback(id: hero.playID) {

@@ -47,6 +47,12 @@
       "sources": []
     }
   ],
+  "remembered": {
+    "id": "vostfr-hd",
+    "language": "VOSTFR",
+    "quality": "HD",
+    "label": "VOSTF · HD"
+  },
   "is_favorite": true,
   "seasons": [
     {

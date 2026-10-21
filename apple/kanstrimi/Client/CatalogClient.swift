@@ -88,6 +88,8 @@ protocol CatalogClient: AnyObject {
     func info() async throws -> ServerInfo
     /// `GET /profiles`: the household, for the picker.
     func profiles() async throws -> [Profile]
+    /// `PUT /profiles/me/settings`: the playback settings of the profile this device is on; answers the profile.
+    func updateSettings(_ patch: ProfileSettingsPatch) async throws -> Profile
 
     // Home
     /// `GET /home`
@@ -133,6 +135,10 @@ protocol CatalogClient: AnyObject {
     func removeFromResume(id: ContentID) async throws
     /// `PUT /playback/{id}/watched`: a movie or an episode; on a series id with `season`, that whole season.
     func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws
+    /// `PUT /playback/{id}/version`: the version chosen for the title (an episode's: for the whole series).
+    func rememberVersion(id: ContentID, _ versionID: String) async throws
+    /// `DELETE /playback/{id}/version`: the title starts on the best version again.
+    func forgetVersion(id: ContentID) async throws
 
     // Search and favourites
     /// `GET /search?q=`: films, series and channels at once.

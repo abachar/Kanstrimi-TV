@@ -71,5 +71,6 @@ export { epgIdsOf } from "./versions";
 export { isShelfPair } from "./top-shelf";
 export { avatarRoute, encodeAvatar } from "./profiles";
 export { listProgress, deleteProgress, getProgress, setFinished, setProgress, type Progress } from "./progress";
+export { mostPlayedKeys, playsOf } from "./plays";
 export { setSeriesWatched } from "./episodes";
 export type { Card, CatalogRow, ChannelGroupWire, ChannelWire, SagaWire, StudioWire, Version } from "./types";

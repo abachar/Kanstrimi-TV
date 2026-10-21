@@ -16,6 +16,7 @@ import dev.crafters.kanstrimi.contract.PersonSheet
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Profile
+import dev.crafters.kanstrimi.contract.ProfileSettingsPatch
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
 import dev.crafters.kanstrimi.contract.Quality
@@ -91,6 +92,8 @@ interface CatalogClient {
     suspend fun info(): ServerInfo
     /** `GET /profiles`: the household, for the picker. */
     suspend fun profiles(): List<Profile>
+    /** `PUT /profiles/me/settings`: the playback settings of the profile this device is on; answers the profile. */
+    suspend fun updateSettings(patch: ProfileSettingsPatch): Profile
 
     suspend fun home(): Home
     suspend fun rows(kind: ContentKind): List<CatalogRow>
@@ -115,6 +118,10 @@ interface CatalogClient {
     suspend fun removeFromResume(id: String)
     suspend fun setWatched(id: String, watched: Boolean, season: Int? = null)
     suspend fun setFavorite(id: String, favorite: Boolean)
+    /** `PUT /playback/{id}/version`: the version chosen for the title (an episode's: for the whole series). */
+    suspend fun rememberVersion(id: String, versionId: String)
+    /** `DELETE /playback/{id}/version`: the title starts on the best version again. */
+    suspend fun forgetVersion(id: String)
 }
 
 /** `tmdb:tv:…` and `fallback:series:…` are series, the rest are movies. */

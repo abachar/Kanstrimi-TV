@@ -31,8 +31,8 @@ struct VersionChooser {
     var isSourceFailed: (String) -> Bool = { _ in false }
 
     /// - Parameters:
-    ///   - remembered: version id remembered for this exact title.
-    ///   - seriesChoice: language × quality remembered for the series this episode belongs to.
+    ///   - remembered: the version id chosen for this title, played again as is when still listed.
+    ///   - seriesChoice: the language × quality chosen for the title (the series of an episode): the closest version.
     func choose(from versions: [Version], remembered: String? = nil, seriesChoice: VersionChoiceKey? = nil) -> Choice? {
         guard !versions.isEmpty else { return nil }
         let playable = versions.filter { !$0.sources.isEmpty }
@@ -67,11 +67,10 @@ struct VersionChooser {
     }
 
     /// The version a title starts in, wherever it starts (Lecture, a channel, the Direct preview, the guide
-    /// shown for it): the one remembered for it when the preference says so, the series' choice, else the best.
-    func start(_ id: ContentID, versions: [Version], seriesID: ContentID? = nil, preferences: Preferences) -> Choice? {
-        let remembered = preferences.rememberVersionPerTitle ? preferences.rememberedVersion(for: id) : nil
-        let series = seriesID.flatMap { preferences.seriesChoice(for: $0) }
-        return choose(from: versions, remembered: remembered, seriesChoice: series)
+    /// shown for it): the one the profile chose for it (the server keeps it, nothing when its setting is off), exactly
+    /// when still listed, else the same language at the best quality (an episode without it), else the best.
+    func start(versions: [Version], remembered: RememberedVersion?) -> Choice? {
+        choose(from: versions, remembered: remembered?.id, seriesChoice: remembered?.key)
     }
 
     /// Versions the engine would try after `current`, best first, for "Autre version".

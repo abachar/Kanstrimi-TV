@@ -4,6 +4,7 @@ import dev.crafters.kanstrimi.contract.Channel
 import dev.crafters.kanstrimi.contract.Credits
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.Quality
+import dev.crafters.kanstrimi.contract.RememberedVersion
 import dev.crafters.kanstrimi.contract.FileFacts
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Skip
@@ -460,11 +461,17 @@ class PlayerServiceTest {
         assertEquals(2, engine.loads.size)
         assertEquals("Journal HD", player.epg.now?.title)
         assertNull(player.epg.next)
-        assertEquals(hd.id, preferences.rememberedVersion("live:fr-tf1"))
+        assertEquals(hd.id, player.remembered(null, "live:fr-tf1")?.id)
+        runCurrent()
+        assertEquals(listOf("live:fr-tf1" to hd.id), client.rememberedVersions)
         player.stop()
-        // The remembered quality is the one the channel starts in next time.
+        // The quality chosen is the one the channel starts in next time, before the server even says it back.
+        player.playChannel(tf1, listOf(tf1))
+        assertEquals(hd.id, player.version?.id)
+        player.stop()
+        // What the server serves for the channel applies to a fresh launch.
         val again = service()
-        again.playChannel(tf1, listOf(tf1))
+        again.playChannel(tf1.copy(remembered = RememberedVersion.of(hd)), listOf(tf1))
         assertEquals(hd.id, again.version?.id)
         again.stop()
     }

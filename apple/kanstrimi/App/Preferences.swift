@@ -1,73 +1,43 @@
 import Foundation
 import Observation
 
-/// Playback and device preferences (`AppStorage`), plus the per-title memory of chosen versions.
+/// What this device keeps for itself (`UserDefaults`): the server, its name, the demo switch, and a copy of the
+/// profile's playback settings so the player has them before `/info` answers. Everything personal (the settings
+/// themselves, the versions chosen, the recent channels) lives on the server, with the profile.
 @Observable
 final class Preferences {
     private let defaults: UserDefaults
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        maxQuality = Quality(rawValue: defaults.string(forKey: Keys.maxQuality) ?? "") ?? .uhd
-        autoPlayNext = defaults.object(forKey: Keys.autoPlayNext) as? Bool ?? true
-        rememberVersionPerTitle = defaults.object(forKey: Keys.rememberVersion) as? Bool ?? true
-        switchSourceOnFailure = defaults.object(forKey: Keys.switchSource) as? Bool ?? true
         serverURL = defaults.string(forKey: Keys.serverURL) ?? Self.compiledServerURL
         useMockClient = defaults.object(forKey: Keys.useMock) as? Bool ?? false
         deviceName = defaults.string(forKey: Keys.deviceName) ?? ""
-        rememberedVersions = Self.decode([String: String].self, defaults.string(forKey: Keys.rememberedVersions)) ?? [:]
-        seriesLanguages = Self.decode([String: String].self, defaults.string(forKey: Keys.seriesLanguages)) ?? [:]
+        profileSettings = Self.decode(ProfileSettings.self, defaults.string(forKey: Keys.profileSettings)) ?? .standard
     }
 
     private enum Keys {
-        static let maxQuality = "pref.maxQuality"
-        static let autoPlayNext = "pref.autoPlayNext"
-        static let rememberVersion = "pref.rememberVersion"
-        static let switchSource = "pref.switchSource"
         static let serverURL = "pref.serverURL"
         static let useMock = "pref.useMock"
         static let deviceName = "pref.deviceName"
-        static let rememberedVersions = "pref.rememberedVersions"
-        static let seriesLanguages = "pref.seriesLanguages"
+        static let profileSettings = "pref.profileSettings"
     }
 
     /// Build setting: the app is personal, the URL ships with it.
     static let compiledServerURL = "https://kanstrimi.crafters.dev"
 
-    var maxQuality: Quality { didSet { defaults.set(maxQuality.rawValue, forKey: Keys.maxQuality) } }
-    var autoPlayNext: Bool { didSet { defaults.set(autoPlayNext, forKey: Keys.autoPlayNext) } }
-    var rememberVersionPerTitle: Bool { didSet { defaults.set(rememberVersionPerTitle, forKey: Keys.rememberVersion) } }
-    var switchSourceOnFailure: Bool { didSet { defaults.set(switchSourceOnFailure, forKey: Keys.switchSource) } }
     var serverURL: String { didSet { defaults.set(serverURL, forKey: Keys.serverURL) } }
     /// Réglages › Démo: the embedded fixtures instead of the server. Off by default; previews force it.
     var useMockClient: Bool { didSet { defaults.set(useMockClient, forKey: Keys.useMock) } }
     var deviceName: String { didSet { defaults.set(deviceName, forKey: Keys.deviceName) } }
 
-    /// Version id remembered per content id (movies), set from the version picker.
-    private(set) var rememberedVersions: [String: String] { didSet { defaults.set(Self.encode(rememberedVersions), forKey: Keys.rememberedVersions) } }
-    /// "language/quality/dr" key remembered per series id, applied to every episode.
-    private(set) var seriesLanguages: [String: String] { didSet { defaults.set(Self.encode(seriesLanguages), forKey: Keys.seriesLanguages) } }
-
-    func rememberedVersion(for id: ContentID) -> String? { rememberedVersions[id.rawValue] }
-    func remember(versionID: String?, for id: ContentID) {
-        if let versionID { rememberedVersions[id.rawValue] = versionID } else { rememberedVersions.removeValue(forKey: id.rawValue) }
-    }
-
-    func seriesChoice(for id: ContentID) -> VersionChoiceKey? {
-        seriesLanguages[id.rawValue].flatMap(VersionChoiceKey.init(rawValue:))
-    }
-    func setSeriesChoice(_ key: VersionChoiceKey?, for id: ContentID) {
-        if let key { seriesLanguages[id.rawValue] = key.rawValue } else { seriesLanguages.removeValue(forKey: id.rawValue) }
-    }
+    /// The profile's playback settings as the server last said them (`/info`, `PUT /profiles/me/settings`): read by
+    /// the player and Réglages › Lecture, kept here so a launch without network still plays as before.
+    var profileSettings: ProfileSettings { didSet { defaults.set(Self.encode(profileSettings), forKey: Keys.profileSettings) } }
 
     func resetAll() {
-        maxQuality = .uhd
-        autoPlayNext = true
-        rememberVersionPerTitle = true
-        switchSourceOnFailure = true
         serverURL = Self.compiledServerURL
         deviceName = ""
-        rememberedVersions = [:]
-        seriesLanguages = [:]
+        profileSettings = .standard
     }
 
     private static func encode<T: Encodable>(_ value: T) -> String? {
@@ -76,38 +46,5 @@ final class Preferences {
     private static func decode<T: Decodable>(_ type: T.Type, _ string: String?) -> T? {
         guard let data = string?.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
-    }
-}
-
-/// A language × quality choice that survives across episodes of a series ("FR · 4K HDR").
-nonisolated struct VersionChoiceKey: Hashable, Codable, RawRepresentable, Sendable {
-    let language: Language
-    let quality: Quality
-    let dynamicRange: DynamicRange?
-    /// The series watched in an edition of its own ("Noir et blanc") stays in it.
-    let edition: String?
-
-    init(language: Language, quality: Quality, dynamicRange: DynamicRange?, edition: String? = nil) {
-        self.language = language; self.quality = quality; self.dynamicRange = dynamicRange; self.edition = edition
-    }
-    init(_ version: Version) {
-        self.init(language: version.language, quality: version.quality, dynamicRange: version.dynamicRange, edition: version.edition)
-    }
-
-    /// "VF/FHD/HDR", plus "/<edition>" for an edition; keys stored before editions have three parts.
-    var rawValue: String {
-        let base = "\(language.rawValue)/\(quality.rawValue)/\(dynamicRange?.rawValue ?? "")"
-        return edition.map { "\(base)/\($0)" } ?? base
-    }
-    init?(rawValue: String) {
-        let parts = rawValue.split(separator: "/", maxSplits: 3, omittingEmptySubsequences: false)
-        guard parts.count >= 3, let q = Quality(rawValue: String(parts[1])) else { return nil }
-        language = Language(String(parts[0])); quality = q
-        dynamicRange = parts[2].isEmpty ? nil : DynamicRange(rawValue: String(parts[2]))
-        edition = parts.count == 4 && !parts[3].isEmpty ? String(parts[3]) : nil
-    }
-    var label: String {
-        let dr = dynamicRange.map { $0 == .sdr ? "" : " \($0.label)" } ?? ""
-        return ["\(language.short) · \(quality.label)\(dr)", edition].compactMap(\.self).joined(separator: " · ")
     }
 }

@@ -56,16 +56,31 @@ struct VersionChooserTests {
 
     @Test("Une chaîne passée en FHD repart en FHD (lecture, aperçu, guide) ; la première fois, la meilleure")
     func channelStartsInRememberedQuality() {
-        let preferences = Preferences(defaults: UserDefaults(suiteName: "tests-\(UUID().uuidString)")!)
         let chooser = VersionChooser(languageOrder: [.vf], maxQuality: .uhd)
-        let tf1 = ContentID("live:fr-tf1")
         let versions = [Fixtures.version("vf-4k", .vf, .uhd), Fixtures.version("vf-fhd", .vf, .fhd), Fixtures.version("vf-hd", .vf, .hd)]
-        #expect(chooser.start(tf1, versions: versions, preferences: preferences)?.version.id == "vf-4k")
-        preferences.remember(versionID: "vf-fhd", for: tf1)
-        #expect(chooser.start(tf1, versions: versions, preferences: preferences)?.version.id == "vf-fhd")
-        #expect(chooser.start(ContentID("live:fr-m6"), versions: versions, preferences: preferences)?.version.id == "vf-4k")
-        preferences.rememberVersionPerTitle = false
-        #expect(chooser.start(tf1, versions: versions, preferences: preferences)?.version.id == "vf-4k")
+        #expect(chooser.start(versions: versions, remembered: nil)?.version.id == "vf-4k")
+        let fhd = RememberedVersion(id: "vf-fhd", language: .vf, quality: .fhd, label: "FR · HD 1080p")
+        #expect(chooser.start(versions: versions, remembered: fhd)?.version.id == "vf-fhd")
+        // The version chosen is gone from the list: the same language at the best quality.
+        let gone = RememberedVersion(id: "vf-sd", language: .vf, quality: .sd, label: "FR · SD")
+        #expect(chooser.start(versions: versions, remembered: gone)?.version.id == "vf-4k")
+        #expect(chooser.start(versions: versions, remembered: gone)?.reason == .seriesLanguage)
+    }
+
+    @Test("Le choix fait ici prime sur ce que le serveur a servi, jusqu'à l'oubli")
+    @MainActor func localChoiceComesFirst() {
+        let env = AppEnvironment(forceMock: true, defaults: UserDefaults(suiteName: "tests-\(UUID().uuidString)")!, secrets: MemorySecrets())
+        let tf1 = ContentID("live:fr-tf1")
+        let served = RememberedVersion(id: "vf-4k", language: .vf, quality: .uhd, label: "FR · 4K")
+        #expect(env.player.remembered(served, for: tf1)?.id == "vf-4k")
+        env.player.remember(Fixtures.version("vf-fhd", .vf, .fhd), for: tf1)
+        #expect(env.player.remembered(served, for: tf1)?.id == "vf-fhd")
+        env.player.forgetVersion(for: tf1)
+        #expect(env.player.remembered(served, for: tf1) == nil)
+        // The setting off: nothing kept.
+        env.preferences.profileSettings.rememberVersions = false
+        env.player.remember(Fixtures.version("vf-hd", .vf, .hd), for: ContentID("live:fr-m6"))
+        #expect(env.player.remembered(nil, for: ContentID("live:fr-m6")) == nil)
     }
 
     @Test("La langue de la série s'applique même si la qualité exacte manque")
@@ -144,8 +159,8 @@ struct VersionChooserTests {
         let chooser = VersionChooser(languageOrder: [.vf], maxQuality: .uhd)
         let edition = Fixtures.version("vf-hd-noir-et-blanc", .vf, .hd, edition: "Noir et blanc")
         let key = VersionChoiceKey(edition)
-        #expect(VersionChoiceKey(rawValue: key.rawValue) == key)
-        #expect(VersionChoiceKey(rawValue: "VF/HD/")?.edition == nil)
+        // What the server keeps of the choice comes back as the same key, edition included.
+        #expect(RememberedVersion(edition).key == key)
         #expect(key.label == "FR · HD · Noir et blanc")
         let episode = [Fixtures.version("vf-4k", .vf, .uhd), Fixtures.version("vf-fhd-noir-et-blanc", .vf, .fhd, edition: "Noir et blanc")]
         #expect(chooser.choose(from: episode, seriesChoice: key)?.version.id == "vf-fhd-noir-et-blanc")

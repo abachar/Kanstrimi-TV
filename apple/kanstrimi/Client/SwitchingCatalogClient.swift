@@ -32,6 +32,7 @@ final class SwitchingCatalogClient: CatalogClient {
     func unregisterPush() async throws { try await authenticated { try await $0.unregisterPush() } }
     func info() async throws -> ServerInfo { try await authenticated { try await $0.info() } }
     func profiles() async throws -> [Profile] { try await authenticated { try await $0.profiles() } }
+    func updateSettings(_ patch: ProfileSettingsPatch) async throws -> Profile { try await authenticated { try await $0.updateSettings(patch) } }
     func home() async throws -> HomeScreen { try await authenticated { try await $0.home() } }
     func rows(kind: ContentKind) async throws -> [CatalogRow] { try await authenticated { try await $0.rows(kind: kind) } }
     func list(_ query: ListQuery) async throws -> Page<ContentItem> { try await authenticated { try await $0.list(query) } }
@@ -51,5 +52,7 @@ final class SwitchingCatalogClient: CatalogClient {
     func removeFromResume(id: ContentID) async throws { try await authenticated { try await $0.removeFromResume(id: id) } }
     func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws { try await authenticated { try await $0.setWatched(id: id, watched, season: season) } }
     func search(_ query: String) async throws -> SearchResults { try await authenticated { try await $0.search(query) } }
+    func rememberVersion(id: ContentID, _ versionID: String) async throws { try await authenticated { try await $0.rememberVersion(id: id, versionID) } }
+    func forgetVersion(id: ContentID) async throws { try await authenticated { try await $0.forgetVersion(id: id) } }
     func setFavorite(id: ContentID, _ favorite: Bool) async throws { try await authenticated { try await $0.setFavorite(id: id, favorite) } }
 }

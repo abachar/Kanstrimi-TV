@@ -175,22 +175,48 @@ final class PlayerService {
         observeEngine()
     }
 
+    /// The profile's playback settings, as the server last said them.
+    var settings: ProfileSettings { preferences.profileSettings }
+
     var chooser: VersionChooser {
-        VersionChooser(languageOrder: [], maxQuality: preferences.maxQuality, capabilities: capabilities,
+        VersionChooser(languageOrder: [], maxQuality: settings.maxQuality, capabilities: capabilities,
                        isSourceFailed: { [failedSources] in failedSources.isFailed($0) })
     }
 
+    /// The versions chosen on this device since launch, by the title they are kept under (a series for its episodes),
+    /// ahead of what the server served: a choice applies at once, before the lists are fetched again. nil = forgotten.
+    private(set) var chosenVersions: [ContentID: RememberedVersion?] = [:]
+
+    /// The version the profile chose for a title: the one chosen here since launch, else the server's.
+    func remembered(_ served: RememberedVersion?, for id: ContentID) -> RememberedVersion? {
+        if let local = chosenVersions[id] { return local }
+        return served
+    }
+
     /// The version a title or a channel starts in (`VersionChooser.start`): « TF1 » switched to FHD reopens,
-    /// previews and shows its guide in FHD.
-    func startChoice(_ id: ContentID, versions: [Version], seriesID: ContentID? = nil) -> VersionChooser.Choice? {
-        chooser.start(id, versions: versions, seriesID: seriesID, preferences: preferences)
+    /// previews and shows its guide in FHD. `remembered`: what the server served for the title.
+    func startChoice(_ id: ContentID, versions: [Version], remembered: RememberedVersion?) -> VersionChooser.Choice? {
+        chooser.start(versions: versions, remembered: self.remembered(remembered, for: id))
+    }
+
+    /// Keeps `version` for the title (the series for an episode), here and on the server; nothing when the setting is off.
+    func remember(_ version: Version, for id: ContentID) {
+        guard settings.rememberVersions else { return }
+        chosenVersions[id] = RememberedVersion(version)
+        Task { [client] in try? await client.rememberVersion(id: id, version.id) }
+    }
+
+    /// The title starts on the best version again, here and on the server.
+    func forgetVersion(for id: ContentID) {
+        chosenVersions[id] = .some(nil)
+        Task { [client] in try? await client.forgetVersion(id: id) }
     }
 
     // MARK: - Entry points
 
     /// Chooses the version with the engine and starts. Called by every "Lecture".
     func play(_ context: PlaybackContext) {
-        guard let choice = startChoice(context.content.id, versions: context.versions, seriesID: context.seriesID) else { return }
+        guard let choice = startChoice(context.rememberID, versions: context.versions, remembered: context.remembered) else { return }
         start(context, version: choice.version, source: choice.source, at: context.resumeAt)
     }
 
@@ -233,7 +259,7 @@ final class PlayerService {
         epg = .empty
         liveResets = 0
         let ctx = PlaybackContext(content: PlaybackContent(id: channel.id, kind: .live, title: channel.name, subtitle: nil, episode: nil, backdrop: nil),
-                                  versions: channel.versions)
+                                  versions: channel.versions, remembered: channel.remembered)
         play(ctx)
         Task { [weak self] in
             guard let self else { return }
@@ -383,16 +409,11 @@ final class PlayerService {
 
     // MARK: - Versions while playing
 
-    /// Switches version, same position, and remembers it for the title when the preference says so.
+    /// Switches version, same position, and keeps it for the title (the series for an episode) when the profile's
+    /// setting says so.
     func switchVersion(_ v: Version) {
         guard let context else { return }
-        if preferences.rememberVersionPerTitle {
-            if context.content.kind == .episode, let sid = context.seriesID {
-                preferences.setSeriesChoice(VersionChoiceKey(v), for: sid)
-            } else {
-                preferences.remember(versionID: v.id, for: context.content.id)
-            }
-        }
+        remember(v, for: context.rememberID)
         play(context, version: v)
     }
 
@@ -437,7 +458,7 @@ final class PlayerService {
     private func followUp() {
         // Already changing: the engine's end after the countdown's own fallback.
         guard !isChangingTitle else { return }
-        guard preferences.autoPlayNext, !nextTriggered, let upNext, let context else {
+        guard settings.autoPlayNext, !nextTriggered, let upNext, let context else {
             time = duration
             stop()
             return
@@ -573,7 +594,7 @@ final class PlayerService {
         guard restartTask == nil, context != nil, let version, let source else { return }
         startAttempts += 1
         failedSources.markFailed(source.id)
-        switch Self.failureStep(attempts: startAttempts, switchesSources: preferences.switchSourceOnFailure,
+        switch Self.failureStep(attempts: startAttempts, switchesSources: settings.switchSourceOnFailure,
                                 nextSource: chooser.nextSource(after: source, in: version)) {
         case .otherSource(let other):
             showToast("Source changée automatiquement", detail: "\(sourceLabel(source, in: version)) → \(sourceLabel(other, in: version)) · même version \(version.label)")
@@ -746,7 +767,7 @@ final class PlayerService {
     /// The card counts down on the position, so it holds while paused. At the end of the file it reaches 0 at the
     /// real end, and the engine's end starts what follows (`followUp`); from the credits it starts it itself.
     private func maybeStartCountdown() {
-        guard preferences.autoPlayNext, !nextTriggered, nextCountdown == nil, upNext != nil, let moment = nextCardMoment,
+        guard settings.autoPlayNext, !nextTriggered, nextCountdown == nil, upNext != nil, let moment = nextCardMoment,
               shownTime >= moment.from, phase == .playing else { return }
         // Arrived deep in the credits (a seek, a resume): the full count from here, not what is left of it.
         let zero = min(shownTime + moment.seconds, duration)

@@ -204,7 +204,8 @@ data class ChannelItem(
 ) {
     sealed interface Status {
         data object Playing : Status
-        data class Watched(val at: Instant) : Status
+        /** Watched before; dated when this device saw it. */
+        data class Watched(val at: Instant?) : Status
     }
 }
 
@@ -232,7 +233,7 @@ fun ChannelCard(item: ChannelItem, modifier: Modifier = Modifier, hours: Boolean
                 }
                 when (val s = item.status) {
                     ChannelItem.Status.Playing -> OnAirLabel()
-                    is ChannelItem.Status.Watched -> Text(formatAgo(s.at), style = MaterialTheme.typography.bodySmall, color = Theme.secondary, maxLines = 1)
+                    is ChannelItem.Status.Watched -> Text(s.at?.let(::formatAgo) ?: "Regardée récemment", style = MaterialTheme.typography.bodySmall, color = Theme.secondary, maxLines = 1)
                     null -> {}
                 }
             }

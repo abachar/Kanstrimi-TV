@@ -1,32 +1,33 @@
 import Foundation
 import Observation
 
-/// The 8 most recently watched channels, most recent first. Local to the device.
+/// The 8 channels the profile watched last, most recent first. The server keeps them (`recent_rank` on `/channels`,
+/// from the time watched the app reports); this store seeds itself from each channel list and records the zaps made
+/// here since, so the strip moves at once and survives nothing but the profile. Memory only.
 @Observable
 final class RecentChannelsStore {
-    nonisolated struct Entry: Codable, Hashable, Sendable {
+    nonisolated struct Entry: Hashable, Sendable {
         let channelID: ContentID
-        let watchedAt: Date
+        /// When it was watched here; nil for a channel the server listed (it does not say when).
+        let watchedAt: Date?
     }
     static let capacity = 8
-    private let defaults: UserDefaults
-    private let key = "live.recentChannels"
-    private(set) var entries: [Entry]
-
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        if let data = defaults.data(forKey: key), let saved = try? JSONDecoder().decode([Entry].self, from: data) {
-            entries = saved
-        } else {
-            entries = []
-        }
-    }
+    private(set) var entries: [Entry] = []
 
     func record(_ id: ContentID, at date: Date = .now) {
         entries.removeAll { $0.channelID == id }
         entries.insert(Entry(channelID: id, watchedAt: date), at: 0)
         if entries.count > Self.capacity { entries.removeLast(entries.count - Self.capacity) }
-        persist()
+    }
+
+    /// The server's list, from the channels' `recentRank`: after what was zapped here since launch, which the
+    /// server may not have been told yet; a channel listed by both keeps its place here.
+    func seed(from channels: [Channel]) {
+        let served = channels.filter { $0.recentRank != nil }.sorted { $0.recentRank! < $1.recentRank! }
+        var seen = Set<ContentID>()
+        let local = entries.filter { $0.watchedAt != nil && seen.insert($0.channelID).inserted }
+        let rest = served.filter { seen.insert($0.id).inserted }.map { Entry(channelID: $0.id, watchedAt: nil) }
+        entries = Array((local + rest).prefix(Self.capacity))
     }
 
     /// The channel watched just before the current one.
@@ -34,11 +35,7 @@ final class RecentChannelsStore {
         entries.first { $0.channelID != current }?.channelID
     }
 
-    func clear() { entries = []; persist() }
-
-    private func persist() {
-        defaults.set(try? JSONEncoder().encode(entries), forKey: key)
-    }
+    func clear() { entries = [] }
 }
 
 /// Sources that failed recently are skipped by the version chooser for 24 h. Memory only.

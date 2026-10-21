@@ -20,6 +20,7 @@ import dev.crafters.kanstrimi.contract.PairingStatus
 import dev.crafters.kanstrimi.contract.PersonSheet
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
+import dev.crafters.kanstrimi.contract.ProfileSettings
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
 import dev.crafters.kanstrimi.contract.Provider
@@ -77,20 +78,14 @@ object Fixtures {
     }
 }
 
-/** Plain preferences for the tests. */
+/** Plain preferences for the tests: the profile's settings as the server would have said them. */
 class FakePreferences(
     override var languageOrder: List<String> = PlaybackPreferences.defaultLanguageOrder,
-    override var maxQuality: Quality = Quality.UHD,
-    override var autoPlayNext: Boolean = true,
-    override var rememberVersionPerTitle: Boolean = true,
-    override var switchSourceOnFailure: Boolean = true,
+    override var settings: ProfileSettings = ProfileSettings(maxQuality = Quality.UHD),
 ) : PlaybackPreferences {
-    private val remembered = HashMap<String, String>()
-    private val series = HashMap<String, VersionChoiceKey>()
-    override fun rememberedVersion(id: String): String? = remembered[id]
-    override fun remember(versionId: String?, id: String) { if (versionId == null) remembered.remove(id) else remembered[id] = versionId }
-    override fun seriesChoice(seriesId: String): VersionChoiceKey? = series[seriesId]
-    override fun setSeriesChoice(key: VersionChoiceKey?, seriesId: String) { if (key == null) series.remove(seriesId) else series[seriesId] = key }
+    var autoPlayNext: Boolean
+        get() = settings.autoPlayNext
+        set(value) { settings = settings.copy(autoPlayNext = value) }
 }
 
 /** The engine as the tests play it: it records what it is asked to open and emits the phases a real stream would. */
@@ -169,6 +164,11 @@ class FakeCatalogClient : CatalogClient {
     override suspend fun deleteDevice(code: String) = error("unused")
     override suspend fun info(): ServerInfo = error("unused")
     override suspend fun profiles(): List<dev.crafters.kanstrimi.contract.Profile> = error("unused")
+    override suspend fun updateSettings(patch: dev.crafters.kanstrimi.contract.ProfileSettingsPatch): dev.crafters.kanstrimi.contract.Profile = error("unused")
+    /** What the player told the server to keep: the title and the version id, in order. */
+    val rememberedVersions = ArrayList<Pair<String, String>>()
+    override suspend fun rememberVersion(id: String, versionId: String) { rememberedVersions += id to versionId }
+    override suspend fun forgetVersion(id: String) { rememberedVersions += id to "" }
     override suspend fun home(): Home = error("unused")
     override suspend fun rows(kind: ContentKind): List<CatalogRow> = error("unused")
     override suspend fun list(query: ListQuery): Page<ContentItem> = error("unused")

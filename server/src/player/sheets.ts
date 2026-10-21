@@ -10,6 +10,7 @@ import { hintOf, playLabel, progressWire, sheetCard } from "./cards";
 import { languageLabel, versionsOf, versionsSummary } from "./versions";
 import { sagaRefOf } from "./sagas";
 import { sheetRelated } from "./related";
+import { rememberedFor } from "./remembered";
 import { currentEpisode, episodesOf, seasonsWire, seriesVersions, type EpisodeRow } from "./episodes";
 import type { Card, EpisodeRef, Version } from "./types";
 
@@ -34,10 +35,11 @@ export function sheetRoutes(kind: "vod" | "series") {
 export async function movieSheet(ctx: RestContext, content: Content): Promise<Card> {
   const variants = await variantsOf(ctx, content);
   const versions = versionsOf(ctx, variants.playables);
-  const [progress, favs, saga] = await Promise.all([
+  const [progress, favs, saga, remembered] = await Promise.all([
     getProgress(ctx.profile.id, [content.key]),
     favoriteSet(ctx.profile.id),
     sagaRefOf(ctx, content.sagaId),
+    rememberedFor(ctx.profile, content.key),
   ]);
   return {
     ...sheetCard(ctx, content, provenance(variants)),
@@ -45,6 +47,7 @@ export async function movieSheet(ctx: RestContext, content: Content): Promise<Ca
     progress: progressWire(progress.get(content.key), true),
     play_label: playLabel(progress.get(content.key)),
     versions,
+    remembered,
     is_favorite: favs.has(content.key),
     ...(saga ? { saga } : {}),
   };
@@ -53,12 +56,13 @@ export async function movieSheet(ctx: RestContext, content: Content): Promise<Ca
 /** Seasons, episodes with versions and progress, current episode. */
 export async function seriesSheet(ctx: RestContext, content: Content): Promise<Card> {
   const { variants, episodes } = await episodesOf(ctx, content);
-  const [progress, favs] = await Promise.all([
+  const [progress, favs, remembered] = await Promise.all([
     getProgress(
       ctx.profile.id,
       episodes.map((e) => e.key),
     ),
     favoriteSet(ctx.profile.id),
+    rememberedFor(ctx.profile, content.key),
   ]);
   const seasons = await seasonsWire(ctx, content, episodes, progress);
   const versions = seriesVersions(ctx, episodes);
@@ -71,6 +75,7 @@ export async function seriesSheet(ctx: RestContext, content: Content): Promise<C
     progress: current ? progressWire(progress.get(current.key), true) : null,
     play_label: playLabel(current && progress.get(current.key), current ?? null),
     versions,
+    remembered,
     is_favorite: favs.has(content.key),
     seasons,
     current_episode: current ? episodeRef(current) : null,

@@ -26,6 +26,9 @@ final class MockCatalogClient: CatalogClient {
     private lazy var favorites: Set<ContentID> = fixtures.favorites
     /// The household of the demo; the app's choice (`DeviceStore`) says which one `info` answers for.
     var profileID: Int?
+    /// What the server keeps per profile, here for the demo and the tests: the settings changed, the versions chosen.
+    private var settings: [Int: ProfileSettings] = [:]
+    private(set) var remembered: [ContentID: RememberedVersion] = [:]
     private var pairingApproved = false
     private var pairingCreatedAt: Date?
     static let pageSize = 18
@@ -286,17 +289,52 @@ final class MockCatalogClient: CatalogClient {
     func registerPush(_ registration: PushRegistration) async throws { try await gate() }
     func unregisterPush() async throws { try await gate() }
 
+    private var currentProfile: Profile {
+        let profiles = fixtures.profiles
+        var profile = profiles.first { $0.id == profileID } ?? profiles.first { $0.isDefault } ?? profiles[0]
+        if let s = settings[profile.id] { profile.settings = s }
+        return profile
+    }
+
     func info() async throws -> ServerInfo {
         try await gate()
-        let profiles = fixtures.profiles
-        let profile = profiles.first { $0.id == profileID } ?? profiles.first { $0.isDefault } ?? profiles[0]
+        let profile = currentProfile
         return ServerInfo(serverVersion: "0.9.3 (maquette)", counts: CatalogCounts(movies: 35_219, series: 22_174, channels: 722),
                           lastImport: Calendar.current.date(bySettingHour: 4, minute: 10, second: 0, of: .now), tmdbRate: 0.97,
                           catalogLanguages: [.vf, .vostfr, .vo], profile: profile)
     }
     func profiles() async throws -> [Profile] {
         try await gate()
-        return fixtures.profiles
+        return fixtures.profiles.map { p in
+            var p = p
+            if let s = settings[p.id] { p.settings = s }
+            return p
+        }
+    }
+    func updateSettings(_ patch: ProfileSettingsPatch) async throws -> Profile {
+        try await gate()
+        var s = currentProfile.settings
+        if let q = patch.maxQuality { s.maxQuality = q }
+        if let a = patch.autoPlayNext { s.autoPlayNext = a }
+        if let r = patch.rememberVersions { s.rememberVersions = r }
+        if let f = patch.switchSourceOnFailure { s.switchSourceOnFailure = f }
+        settings[currentProfile.id] = s
+        return currentProfile
+    }
+
+    /// The title a choice is kept under: the series for an episode.
+    private func rememberID(_ id: ContentID) -> ContentID { id.seriesID ?? id }
+    private func served(_ id: ContentID) -> RememberedVersion? { currentProfile.settings.rememberVersions ? remembered[rememberID(id)] : nil }
+
+    func rememberVersion(id: ContentID, _ versionID: String) async throws {
+        try await gate()
+        let versions = try await playback(id: id).versions
+        guard let v = versions.first(where: { $0.id == versionID }) else { throw CatalogError.server("Version inconnue pour ce titre") }
+        if currentProfile.settings.rememberVersions { remembered[rememberID(id)] = RememberedVersion(v) }
+    }
+    func forgetVersion(id: ContentID) async throws {
+        try await gate()
+        remembered.removeValue(forKey: rememberID(id))
     }
 
     // MARK: - Home
@@ -330,12 +368,14 @@ final class MockCatalogClient: CatalogClient {
             return HomeHero(item: heroItem(m, episode: nil, runtime: m.runtime), tagline: i == 0 ? "FILM · ENFIN DISPONIBLE" : "FILM · N° \(i) CETTE SEMAINE",
                             overview: m.overview, runtime: m.runtime, certification: m.certification, versions: m.versions, playID: m.id, episode: nil,
                             isFavorite: favorites.contains(m.id),
-                            playLabel: Self.playLabel(p), resumeAt: p?.position, duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) })
+                            playLabel: Self.playLabel(p), resumeAt: p?.position, duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) },
+                            remembered: served(m.id))
         }
         if let s = recentSeries.first(where: { $0.backdrop != nil }), let e = s.allEpisodes.last {
             heroes.insert(HomeHero(item: heroItem(s, episode: e, runtime: e.runtime), tagline: "SÉRIE · NOUVEL ÉPISODE · \(e.ref.shortCode)",
                                    overview: e.overview ?? s.overview, runtime: e.runtime, certification: s.certification, versions: e.versions,
-                                   playID: e.id, episode: e.ref, isFavorite: favorites.contains(s.id), playLabel: Self.playLabel(nil, series: e.ref), duration: e.runtime.map { TimeInterval($0 * 60) }),
+                                   playID: e.id, episode: e.ref, isFavorite: favorites.contains(s.id), playLabel: Self.playLabel(nil, series: e.ref), duration: e.runtime.map { TimeInterval($0 * 60) },
+                                   remembered: served(s.id)),
                           at: min(1, heroes.count))
         }
         return HomeScreen(heroes: heroes, rows: rows, generatedAt: .now)
@@ -391,7 +431,11 @@ final class MockCatalogClient: CatalogClient {
         detailCalls += 1
         try await gate()
         if scenario.failingDetail { throw CatalogError.server("Le fournisseur n'a pas répondu.") }
-        if let d = allCards.first(where: { $0.id == id }) { return merged(d) }
+        if let d = allCards.first(where: { $0.id == id }) {
+            var card = merged(d)
+            card.remembered = served(id)
+            return card
+        }
         throw CatalogError.notFound
     }
 
@@ -434,6 +478,7 @@ final class MockCatalogClient: CatalogClient {
             ChannelGroup(id: g.id, name: g.name, section: g.section, theme: g.theme, channels: g.channels.map { c in
                 var c = withFavorite(c)
                 c.watchedRank = ranks[c.id]
+                c.remembered = served(c.id)
                 return c
             })
         }
@@ -448,7 +493,8 @@ final class MockCatalogClient: CatalogClient {
         let day = scenario.emptyEPG || c.hasEPG == false ? [] : schedule(for: c)
         let (now, next) = (day.first, day.dropFirst().first)
         return Channel(id: c.id, name: c.name, number: c.number, logo: c.logo, maxQuality: c.maxQuality, hasEPG: c.hasEPG,
-                       isFavorite: favorites.contains(c.id) || c.isFavorite == true, versions: c.versions, now: now, next: next)
+                       isFavorite: favorites.contains(c.id) || c.isFavorite == true, versions: c.versions, now: now, next: next,
+                       remembered: served(c.id))
     }
 
     private func withFavorite(_ c: Channel) -> Channel {
@@ -489,7 +535,7 @@ final class MockCatalogClient: CatalogClient {
         if let m = movies.first(where: { $0.id == id }) {
             let p = progress[id]
             return Playback(versions: m.versions, resumeAt: p?.isResumable == true ? p?.position : nil,
-                            duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) }, next: nil, cast: m.cast)
+                            duration: p?.duration ?? m.runtime.map { TimeInterval($0 * 60) }, next: nil, cast: m.cast, remembered: served(id))
         }
         if let (s, e) = episode(id) {
             let eps = s.allEpisodes
@@ -505,6 +551,7 @@ final class MockCatalogClient: CatalogClient {
                                     cast: s.cast)
             // Named, as the server does: « Reprendre » plays an episode from its id alone.
             playback.episode = PlaybackEpisode(id: e.id, season: e.season, number: e.number, title: e.title)
+            playback.remembered = served(id)
             return playback
         }
         // A series plays the episode it resumes on, as the server does.
@@ -517,7 +564,7 @@ final class MockCatalogClient: CatalogClient {
             return p
         }
         if let c = rawChannel(id) {
-            return Playback(versions: c.versions, resumeAt: nil, duration: nil, next: nil)
+            return Playback(versions: c.versions, resumeAt: nil, duration: nil, next: nil, remembered: served(id))
         }
         throw CatalogError.notFound
     }

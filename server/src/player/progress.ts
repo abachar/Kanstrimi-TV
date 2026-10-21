@@ -1,6 +1,7 @@
 import { client as pg, db, schema } from "@/db";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { markWaitlistStarted } from "@/catalog";
+import { recordPlay } from "./plays";
 
 /** "Vu" is derived here, once, at write time: 90 % of the duration. */
 const FINISHED_AT = 0.9;
@@ -21,6 +22,7 @@ export async function setProgress(profileId: number, contentKey: string, positio
     .onConflictDoUpdate({ target: [w.profileId, w.contentKey], set: { position: p, duration: d, finished, updatedAt: new Date() } })
     .returning();
   if (finished || (d > 0 && p / d >= RESUMABLE_FROM)) await markWaitlistStarted(profileId, contentKey);
+  await recordPlay(profileId, contentKey);
   return row;
 }
 

@@ -60,7 +60,7 @@ final class AppEnvironment {
         self.client = client
         self.preferences = preferences
         self.device = device
-        self.recentChannels = RecentChannelsStore(defaults: defaults)
+        self.recentChannels = RecentChannelsStore()
         self.failedSources = failed
         self.progressQueue = ProgressQueue()
         self.homeCache = HomeCache()
@@ -121,6 +121,22 @@ final class AppEnvironment {
         }
     }
 
+    /// Réglages › Lecture: the profile's settings, applied here at once and sent to the server; put back as they were
+    /// when the server refuses them.
+    func updateSettings(_ change: (inout ProfileSettings) -> Void) async {
+        let before = preferences.profileSettings
+        var next = before
+        change(&next)
+        guard next != before else { return }
+        preferences.profileSettings = next
+        if let profile = await attempt("Réglage", { try await client.updateSettings(ProfileSettingsPatch(next)) }) {
+            preferences.profileSettings = profile.settings
+            if let i = profiles.firstIndex(where: { $0.id == profile.id }) { profiles[i] = profile }
+        } else {
+            preferences.profileSettings = before
+        }
+    }
+
     // MARK: - Profiles
 
     /// `GET /profiles`: the household; empty until it answered. `profile`: the one this device is on.
@@ -178,6 +194,7 @@ final class AppEnvironment {
 
     func loadInfo() async {
         info = try? await client.info()
+        if let settings = info?.profile.settings { preferences.profileSettings = settings }
         #if os(iOS)
         // The phone's alerts: asked once paired, the token sent at each launch. Nothing for the demo client, which has no server.
         if device.isPaired, !client.isMock { await PushRegistrar.shared.register() }
@@ -203,7 +220,7 @@ final class AppEnvironment {
     /// The version a channel is shown in: the one playing, else the one it would start in (remembered, else
     /// the best). Its quality and language are the channel's badges, its guide the one shown.
     func liveVersion(of channel: Channel) -> Version? {
-        player.channel?.id == channel.id ? player.version : player.startChoice(channel.id, versions: channel.versions)?.version
+        player.channel?.id == channel.id ? player.version : player.startChoice(channel.id, versions: channel.versions, remembered: channel.remembered)?.version
     }
 
     /// A channel's guide as the app shows it, `liveVersion`'s: each quality may have its own (« M6 4K »).
@@ -229,6 +246,7 @@ final class AppEnvironment {
     func watchChannel(_ id: ContentID) async {
         guard let groups = await attempt("Lecture", { try await client.channels() }) else { return }
         let all = groups.flatMap(\.channels)
+        recentChannels.seed(from: all)
         guard let channel = all.first(where: { $0.id == id }) else { return }
         player.play(channel: channel, in: all)
         recentChannels.record(channel.id)

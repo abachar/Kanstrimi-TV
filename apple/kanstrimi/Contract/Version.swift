@@ -61,6 +61,54 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
     static func sourceName(_ index: Int) -> String { "Source \(Character(UnicodeScalar(65 + index)!))" }
 }
 
+/// The version the profile chose for a title, as the server keeps it (`PUT /playback/{id}/version`): a movie or a
+/// channel starts on `id` when it is still listed; a series' choice (made on any episode) is the language × quality ×
+/// dynamic range × edition applied to every episode, falling back to the same language. `label` « FR · 4K DV ».
+nonisolated struct RememberedVersion: Codable, Hashable, Sendable {
+    let id: String
+    let language: Language
+    let quality: Quality
+    var dynamicRange: DynamicRange? = nil
+    var edition: String? = nil
+    let label: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, language, quality, edition, label
+        case dynamicRange = "dynamic_range"
+    }
+
+    init(id: String, language: Language, quality: Quality, dynamicRange: DynamicRange? = nil, edition: String? = nil, label: String) {
+        self.id = id; self.language = language; self.quality = quality; self.dynamicRange = dynamicRange; self.edition = edition; self.label = label
+    }
+    /// What the app remembers of a version it just chose, before the server says it back.
+    init(_ v: Version) {
+        self.init(id: v.id, language: v.language, quality: v.quality, dynamicRange: v.dynamicRange, edition: v.edition, label: VersionChoiceKey(v).label)
+    }
+
+    var key: VersionChoiceKey { VersionChoiceKey(language: language, quality: quality, dynamicRange: dynamicRange, edition: edition) }
+}
+
+/// A language × quality choice that applies across the episodes of a series ("FR · 4K HDR").
+nonisolated struct VersionChoiceKey: Hashable, Sendable {
+    let language: Language
+    let quality: Quality
+    let dynamicRange: DynamicRange?
+    /// The cut, when the choice is an edition: the usual cut is nil.
+    let edition: String?
+
+    init(language: Language, quality: Quality, dynamicRange: DynamicRange?, edition: String? = nil) {
+        self.language = language; self.quality = quality; self.dynamicRange = dynamicRange; self.edition = edition
+    }
+    init(_ version: Version) {
+        self.init(language: version.language, quality: version.quality, dynamicRange: version.dynamicRange, edition: version.edition)
+    }
+
+    var label: String {
+        let dr = dynamicRange.flatMap { $0 == .sdr ? nil : " \($0.shortLabel)" } ?? ""
+        return ["\(language.short) · \(quality.label)\(dr)", edition].compactMap(\.self).joined(separator: " · ")
+    }
+}
+
 nonisolated extension Array where Element == Version {
     /// In the server's order, the profile's: the first one is what plays by default.
     var languages: [Language] {

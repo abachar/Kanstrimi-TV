@@ -35,5 +35,11 @@
       "role": "Invité",
       "photo": "http://kanstrimi.test/img/w185/keanu.jpg?k=yT-g7HBFg_ssh54u"
     }
-  ]
+  ],
+  "remembered": {
+    "id": "vostfr-hd",
+    "language": "VOSTFR",
+    "quality": "HD",
+    "label": "VOSTF · HD"
+  }
 }

@@ -129,6 +129,8 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
     let providerCategory: String?
     let rawTitle: String?
     let versions: [Version]
+    /// The version this profile chose for the title (a series: for every episode), as the server keeps it.
+    var remembered: RememberedVersion? = nil
     var isFavorite: Bool?
     let seasons: [Season]?
     let currentEpisode: EpisodeRef?
@@ -144,7 +146,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, kind, title, poster, languages, backdrop, progress, episode, year, rating, genres, hint
-        case overview, runtime, certification, cast, director, trailer, versions, seasons, saga, logo, related, tagline, facts
+        case overview, runtime, certification, cast, director, trailer, versions, seasons, saga, logo, related, tagline, facts, remembered
         case maxQuality = "max_quality"
         case dynamicRange = "dynamic_range"
         case addedAt = "added_at"
@@ -206,6 +208,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
         providerCategory = try c.decodeIfPresent(String.self, forKey: .providerCategory)
         rawTitle = try c.decodeIfPresent(String.self, forKey: .rawTitle)
         versions = try c.decodeIfPresent([Version].self, forKey: .versions) ?? []
+        remembered = try c.decodeIfPresent(RememberedVersion.self, forKey: .remembered)
         isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite)
         seasons = try c.decodeIfPresent([Season].self, forKey: .seasons)
         currentEpisode = try c.decodeIfPresent(EpisodeRef.self, forKey: .currentEpisode)

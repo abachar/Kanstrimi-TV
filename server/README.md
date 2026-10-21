@@ -67,8 +67,8 @@ partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque pa
 ## Tables
 
 Le préfixe dit d'où vient la donnée : `xtream_` (copie et cache du fournisseur), `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_` (caches des sources),
-`catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes et les épisodes construits à l'ouverture d'une fiche ; `catalog_variant_profiles` et `catalog_content_profiles` = ce que chaque profil garde et voit), `curation_` (choix de l'admin), `app_` (les personnes du foyer, `app_profiles`, leurs filtres, et ce que l'app enregistre pour chacune : favoris,
-progression, temps regardé du direct, liste d'attente ; les appareils), `task_` (journal), et `settings`.
+`catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes et les épisodes construits à l'ouverture d'une fiche ; `catalog_variant_profiles` et `catalog_content_profiles` = ce que chaque profil garde et voit), `curation_` (choix de l'admin), `app_` (les personnes du foyer, `app_profiles` avec leurs réglages de lecture, leurs filtres, et ce que l'app enregistre pour chacune : favoris,
+progression, lectures (`app_plays`), versions choisies (`app_profile_versions`), temps regardé du direct, liste d'attente ; les appareils), `task_` (journal), et `settings`.
 Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_contents.key`, la seule identité exposée à l'app).
 Tout ce qui est personnel porte un `profile_id` ; un profil est par défaut (`is_default`, un seul) : celui des appareils tant que
 l'app n'en dit pas d'autre, du Top Shelf et de l'admin quand elle regarde « avec les yeux de l'app ». Il ne se supprime pas ;
@@ -78,7 +78,7 @@ supprimer un autre profil emporte tout ce qu'il a enregistré.
 
 | Route | Rôle |
 |---|---|
-| `/player/*` | API des apps. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`) ; `X-Profile: <id>` dit pour quel profil (sans : le profil par défaut ; supprimé depuis : `unknown_profile`, l'app rechoisit) ; `GET /profiles` les liste, `/info` dit celui qui répond ; `PUT /devices/me/push` enregistre le jeton APNs d'un iPhone. |
+| `/player/*` | API des apps. Contrat : `src/player/types.ts`. Jeton d'appareil `Bearer`, sauf l'appairage (`/devices`) ; `X-Profile: <id>` dit pour quel profil (sans : le profil par défaut ; supprimé depuis : `unknown_profile`, l'app rechoisit) ; `GET /profiles` les liste, `/info` dit celui qui répond, avec ses réglages de lecture (`PUT /profiles/me/settings` les change) ; `PUT /devices/me/push` enregistre le jeton APNs d'un iPhone. |
 | `/img/…` | images TMDB et logos iptv-org en cache disque (un téléchargement demande une URL signée par le serveur (`?k=`) ; un fichier déjà en cache se sert à tous) ; `/img/shelf/…` = images du Top Shelf, logo du titre dessiné sur le fond par `sharp` ; `/img/avatars/{id}.webp?v=…` = la photo d'un profil, lue en base (une initiale sur une couleur s'il n'en a pas) |
 | `/admin` | administration |
 | `/health` | santé (base joignable) ; en production, la cause d'une panne reste dans le journal |
@@ -119,8 +119,10 @@ par son index.
   `hx-on`), une confirmation passe par `hx-confirm` (`back()` répond alors `HX-Redirect`). Toute écriture (POST, PUT,
   PATCH, DELETE) doit venir du site, quel que soit son `Content-Type`.
 - **Profils** (admin › Application) : la liste, et une page par profil : nom, photo (choisie et recadrée carrée dans le
-  navigateur, envoyée en data URL, réencodée en WebP 256 px par `sharp`, gardée en base), ses trois filtres avec
-  prévisualisation, « Appliquer maintenant » (l'étape `filters` pour ce seul profil, en fond), « Définir par défaut »,
+  navigateur, envoyée en data URL, réencodée en WebP 256 px par `sharp`, gardée en base), ses réglages de lecture
+  (qualité maximale, suite automatique, versions mémorisées, changement de source : les mêmes sur tous ses appareils,
+  l'app les change aussi par `PUT /profiles/me/settings` ; un téléphone ou une tablette plafonne de lui-même à FHD),
+  ses trois filtres avec prévisualisation, « Appliquer maintenant » (l'étape `filters` pour ce seul profil, en fond), « Définir par défaut »,
   « Supprimer ». Un profil créé est jugé aussitôt en fond. Favoris, Historique et Liste d'attente montrent le profil de
   chaque ligne (la liste d'attente ajoute pour le profil choisi en tête du formulaire) ; la fiche d'un contenu agit pour
   le profil choisi (`?profile=`, onglets « Pour »), le profil par défaut sans rien dire ; les écrans Live, Films, Séries
@@ -180,6 +182,19 @@ par son index.
 - **Recherche** (`player/search.ts`) : une seule liste de 40, films, séries et chaînes mêlés, triée par pertinence (titre égal, puis le
   plus proche, puis le plus voté) ; une série le dit (« Série · 2025 »), une chaîne donne son groupe du Direct. un terme d'un caractère est un mot entier, un préfixe à partir de deux ; seuls les
   200 contenus les plus votés par type (préfixes, et mots entiers pour qu'un titre égal à la requête reste) sont classés.
+- **Ce que le profil garde de ses lectures** (rien ne reste sur un appareil, un profil retrouve tout partout) :
+  - *Version choisie* (`app_profile_versions`, `player/remembered.ts`) : `PUT /playback/{id}/version` garde la
+    version prise dans le sélecteur ou en changeant de qualité dans le lecteur ; un film ou une chaîne sous sa clé,
+    une série sous la sienne depuis n'importe quel épisode (langue × qualité × plage dynamique × édition, l'app
+    l'applique à chaque épisode, même langue à défaut). Servie en `remembered` sur la fiche, `/playback`,
+    `/channels` et les diapositives de l'accueil ; `DELETE …/version` l'oublie ; rien n'est servi quand le réglage
+    « versions mémorisées » du profil est coupé.
+  - *Lectures* (`app_plays`, `player/plays.ts`) : comptées sur les rapports de position, une lecture = des rapports à
+    moins de 6 h d'écart ; « Marquer non vu » efface la position, pas les lectures. Rangée d'accueil « Vos plus
+    regardés » : un film lu deux fois au moins, une série dont les lectures d'épisodes atteignent cinq ; admin ›
+    Historique les montre (« Les plus regardés », colonne Lectures).
+  - *Chaînes récentes* : `app_live_watch.updated_at`, touché par chaque rapport de temps regardé ; `recent_rank` sur
+    `/channels` (1 = la dernière quittée, 20 au plus). L'app part de là et y ajoute ses zaps du moment.
 - **Appairage** : `POST /player/devices` rend le code et le jeton de l'appareil (seule son empreinte est en base) ; le jeton
   ne vaut qu'une fois le code approuvé dans l'admin, `GET /player/devices/{code}` ne donne que le statut.
 - **Liens de lecture** : `stream_url` est l'URL du fournisseur, compte compris, envoyée aux seuls appareils appairés ;

@@ -1,14 +1,43 @@
 import { Hono } from "hono";
 import sharp from "sharp";
-import { listProfiles, profileAvatar, profileById } from "@/catalog";
+import { z } from "zod";
+import { listProfiles, PROFILE_QUALITIES, profileAvatar, profileById, ProfileError, updateProfileSettings } from "@/catalog";
 import type { Profile } from "@/db";
 import type { Env, RestContext } from "./context";
-import { json } from "./http";
-import type { Profiles, ProfileWire } from "./types";
+import { fail, json } from "./http";
+import type { Profiles, ProfileSettings, ProfileWire } from "./types";
 
-/** `GET /profiles`: the household, for the app's picker; the one asking is in `/info`. */
+/**
+ * `GET /profiles`: the household, for the app's picker; the one asking is in `/info`.
+ * `PUT /profiles/me/settings`: the playback settings of the profile asking (`X-Profile`), each optional.
+ */
 export const profileRoutes = new Hono<Env>();
 profileRoutes.get("/", async (c) => json(await profiles(c.get("ctx"))));
+
+const settingsBody = z.object({
+  max_quality: z.enum(PROFILE_QUALITIES).optional(),
+  auto_play_next: z.boolean().optional(),
+  remember_versions: z.boolean().optional(),
+  switch_source_on_failure: z.boolean().optional(),
+});
+profileRoutes.put("/me/settings", async (c) => {
+  const body = settingsBody.safeParse(await c.req.json().catch(() => null));
+  if (!body.success)
+    return fail("bad_request", "max_quality (SD, HD, FHD, 4K), auto_play_next, remember_versions, switch_source_on_failure attendus");
+  const ctx = c.get("ctx");
+  try {
+    const p = await updateProfileSettings(ctx.profile.id, {
+      maxQuality: body.data.max_quality,
+      autoPlayNext: body.data.auto_play_next,
+      rememberVersions: body.data.remember_versions,
+      switchSourceOnFailure: body.data.switch_source_on_failure,
+    });
+    return p ? json(profileWire(ctx, p)) : fail("unknown_profile", "Profil inconnu");
+  } catch (e) {
+    if (e instanceof ProfileError) return fail("bad_request", e.message);
+    throw e;
+  }
+});
 
 export async function profiles(ctx: RestContext): Promise<Profiles> {
   return { profiles: (await listProfiles()).map((p) => profileWire(ctx, p)) };
@@ -19,6 +48,14 @@ export const profileWire = (ctx: RestContext, p: Profile): ProfileWire => ({
   name: p.name,
   is_default: p.isDefault,
   avatar: `${ctx.baseUrl}/img/avatars/${p.id}.webp?v=${p.avatarVersion}`,
+  settings: settingsWire(p),
+});
+
+export const settingsWire = (p: Profile): ProfileSettings => ({
+  max_quality: (PROFILE_QUALITIES as readonly string[]).includes(p.maxQuality) ? (p.maxQuality as ProfileSettings["max_quality"]) : "4K",
+  auto_play_next: p.autoPlayNext,
+  remember_versions: p.rememberVersions,
+  switch_source_on_failure: p.switchSourceOnFailure,
 });
 
 // ---------------------------------------------------------------- the pictures

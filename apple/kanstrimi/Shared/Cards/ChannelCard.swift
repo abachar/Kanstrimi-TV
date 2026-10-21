@@ -5,7 +5,8 @@ import SwiftUI
 struct ChannelItem: Hashable {
     enum Status: Hashable {
         case playing
-        case watched(Date)
+        /// Watched before; dated when this device saw it.
+        case watched(Date?)
     }
 
     let id: ContentID
@@ -67,7 +68,7 @@ struct ChannelCard: View {
         case .playing:
             OnAirLabel()
         case .watched(let date):
-            Text(Format.ago(date)).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
+            Text(date.map(Format.ago) ?? "Regardée récemment").font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
         case nil:
             EmptyView()
         }

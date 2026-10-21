@@ -1,7 +1,8 @@
 import Foundation
 
 nonisolated enum HomeRowKind: String, Codable, Sendable {
-    case resume, mostWatchedChannels = "most_watched_channels", recommended, recentMovies = "recent_movies", recentSeries = "recent_series"
+    case resume, mostWatchedChannels = "most_watched_channels", mostWatched = "most_watched", recommended
+    case recentMovies = "recent_movies", recentSeries = "recent_series"
     case favorites, collection
     /// A kind this version does not know: the row still shows, as a plain row of cards.
     case other
@@ -37,9 +38,11 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
     /// Seconds: where Lecture resumes a movie, nil from the start.
     let resumeAt: TimeInterval?
     let duration: TimeInterval?
+    /// The version this profile chose for the title (the series' for an episode), as the server keeps it.
+    let remembered: RememberedVersion?
 
     enum CodingKeys: String, CodingKey {
-        case item, tagline, overview, runtime, certification, versions, episode
+        case item, tagline, overview, runtime, certification, versions, episode, remembered
         case playID = "play_id"
         case isFavorite = "is_favorite"
         case playLabel = "play_label"
@@ -49,10 +52,10 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
 
     init(item: ContentItem, tagline: String, overview: String?, runtime: Int?, certification: String?, versions: [Version],
          playID: ContentID, episode: EpisodeRef?, isFavorite: Bool = false, playLabel: String = "Lecture", resumeAt: TimeInterval? = nil,
-         duration: TimeInterval? = nil) {
+         duration: TimeInterval? = nil, remembered: RememberedVersion? = nil) {
         self.item = item; self.tagline = tagline; self.overview = overview; self.runtime = runtime; self.certification = certification
         self.versions = versions; self.playID = playID; self.episode = episode; self.isFavorite = isFavorite; self.playLabel = playLabel; self.resumeAt = resumeAt
-        self.duration = duration
+        self.duration = duration; self.remembered = remembered
     }
 
     init(from decoder: Decoder) throws {
@@ -69,6 +72,7 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
         playLabel = try c.decode(String.self, forKey: .playLabel)
         resumeAt = try c.decodeIfPresent(TimeInterval.self, forKey: .resumeAt)
         duration = try c.decodeIfPresent(TimeInterval.self, forKey: .duration)
+        remembered = try c.decodeIfPresent(RememberedVersion.self, forKey: .remembered)
     }
 }
 

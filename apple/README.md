@@ -9,7 +9,7 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 
 | Dossier | Rôle |
 |---|---|
-| `App/` | Démarrage, `AppEnvironment` (services partagés, navigation, profils), `RootView` (appairage, puis « Qui regarde ? » si l'appareil n'est sur aucun profil, puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton et profil choisi en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants), `PushNotifications+iOS` (les alertes du serveur sur l'iPhone). |
+| `App/` | Démarrage, `AppEnvironment` (services partagés, navigation, profils), `RootView` (appairage, puis « Qui regarde ? » si l'appareil n'est sur aucun profil, puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton et profil choisi en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants), `PushNotifications+iOS` (les alertes du serveur sur l'iPhone). `Preferences` ne garde que ce qui est à l'appareil (serveur, nom, démo) et une copie des réglages du profil. |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`). |
 | `Client/` | `CatalogClient` : `HTTPCatalogClient` (le serveur), `MockCatalogClient` (fixtures JSON de démo), `SwitchingCatalogClient`. |
 | `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping ; il parle au moteur par la façade `PlaybackEngine`, que les tests remplacent), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
@@ -55,6 +55,14 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
   regarde ? », façon YouTube : des cercles sans plateau qui grossissent au focus avec un anneau blanc, l'actuel cerclé d'ambre. Les filtres, la
   liste et les photos se gèrent dans l'admin ; l'app n'a plus de réglage « Langue audio » : l'ordre des versions est
   celui du serveur, le filtre du profil (`[Version].languages` le garde, `VersionChooser` sans ordre le suit).
+- **Rien de personnel sur l'appareil** : Réglages › Lecture (qualité maximale, suite automatique, versions mémorisées,
+  changement de source) sont ceux du profil, lus dans `/info` et envoyés par `PUT /profiles/me/settings`
+  (`env.updateSettings`, remis comme avant si le serveur refuse) ; `Preferences.profileSettings` n'en est que la copie,
+  pour jouer avant que `/info` réponde. La version choisie pour un titre (sélecteur, changement de qualité dans le
+  lecteur) part au serveur (`PUT /playback/{id}/version`, sous la série pour un épisode) et revient en `remembered`
+  sur la fiche, `/playback`, `/channels` et les diapositives ; `PlayerService.chosenVersions` garde les choix faits
+  depuis le lancement pour qu'ils s'appliquent avant que les listes ne soient rechargées. Les chaînes récentes
+  viennent de `recent_rank` sur `/channels` (`RecentChannelsStore.seed`), les zaps du moment devant, en mémoire seulement.
 
 - **Une seule connexion au fournisseur** : `maxConcurrentSourceRequests: 1`, et l'aperçu du Direct (son propre
   `PlayerCore`, sonore dès que l'image paraît) est coupé avant toute lecture. Pas d'option du moteur qui ouvrirait une seconde connexion (`confirmAtmos`).
@@ -76,8 +84,9 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
 - **Picture-in-Picture (iPhone)** : le lecteur ne se cache qu'une fois l'image dans l'image démarrée, sinon iOS
   l'abandonne ; lancée par iOS au balayage vers l'accueil, elle ne cache rien.
 - **Carte « En lecture » (iPhone)** : par `MPNowPlayingInfoCenter` directement, la session du moteur laissant le direct sans carte.
-- **Version de départ** (`VersionChooser.start`) : celle mémorisée pour le titre ou la chaîne, sinon la meilleure. La
-  lecture, l'aperçu du Direct et le guide affiché s'en servent : TF1 passée en FHD rouvre, s'aperçoit et se guide en FHD.
+- **Version de départ** (`VersionChooser.start`) : celle que le profil a choisie pour le titre ou la chaîne (`remembered`,
+  exacte si elle existe encore, sinon la même langue à la meilleure qualité), sinon la meilleure. La lecture, l'aperçu
+  du Direct et le guide affiché s'en servent : TF1 passée en FHD rouvre, s'aperçoit et se guide en FHD.
 - **Programme en cours** : une seule règle, `env.nowPlaying(on:)` (guide de la liste, sinon le détail reçu tant que
   le programme dure), portée par `env.channelItem` jusqu'à `ChannelCard` ; `LoadedChannelCard` le demande. Les lignes
   du Direct tvOS ne demandent rien : la colonne de droite montre déjà celui de la chaîne en focus.

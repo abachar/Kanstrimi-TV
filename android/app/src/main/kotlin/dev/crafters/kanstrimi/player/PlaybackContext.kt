@@ -8,6 +8,7 @@ import dev.crafters.kanstrimi.contract.EpisodeRef
 import dev.crafters.kanstrimi.contract.NextEpisode
 import dev.crafters.kanstrimi.contract.Person
 import dev.crafters.kanstrimi.contract.Playback
+import dev.crafters.kanstrimi.contract.RememberedVersion
 import dev.crafters.kanstrimi.contract.Version
 
 /** `tmdb:tv:1396:s01e05` → `tmdb:tv:1396`; null when this is not an episode id. */
@@ -34,13 +35,17 @@ data class PlaybackContext(
     val duration: Double? = null,
     val next: NextEpisode? = null,
     val cast: List<Person> = emptyList(),
+    /** The version the profile chose for the title (the series' for an episode), as the server served it. */
+    val remembered: RememberedVersion? = null,
 ) {
     constructor(content: PlaybackContent, playback: Playback) :
-        this(content, playback.versions, playback.resumeAt, playback.duration, playback.next, playback.cast)
+        this(content, playback.versions, playback.resumeAt, playback.duration, playback.next, playback.cast, playback.remembered)
 
     val isLive: Boolean get() = content.kind == ContentKind.LIVE
     /** The series of an episode, for the per-series language choice. */
     val seriesId: String? get() = if (content.kind == ContentKind.EPISODE) seriesIdOf(content.id) else null
+    /** The title a chosen version is kept under: the series for an episode, the title itself otherwise. */
+    val rememberId: String get() = seriesId ?: content.id
 
     /** The same title from `position` (null: from the start), everything else kept. */
     fun resuming(at: Double?): PlaybackContext = copy(resumeAt = at)

@@ -54,10 +54,12 @@ nonisolated struct Playback: Codable, Hashable, Sendable {
     let next: NextEpisode?
     /// The player's « Distribution » panel: the movie's cast, or the series'; empty for a channel.
     var cast: [Person] = []
+    /// The version this profile chose for the title (the series' for an episode); nil when none.
+    var remembered: RememberedVersion? = nil
     var episode: PlaybackEpisode? = nil
 
     enum CodingKeys: String, CodingKey {
-        case versions, duration, next, cast, episode
+        case versions, duration, next, cast, episode, remembered
         case resumeAt = "resume_at"
     }
 }
@@ -156,19 +158,22 @@ nonisolated struct PlaybackContext: Hashable, Sendable {
     let duration: TimeInterval?
     let next: NextEpisode?
     let cast: [Person]
+    /// The version the profile chose for the title (the series' for an episode), as the server served it.
+    let remembered: RememberedVersion?
 
     init(content: PlaybackContent, versions: [Version], resumeAt: TimeInterval? = nil, duration: TimeInterval? = nil, next: NextEpisode? = nil,
-         cast: [Person] = []) {
+         cast: [Person] = [], remembered: RememberedVersion? = nil) {
         self.content = content; self.versions = versions; self.resumeAt = resumeAt; self.duration = duration; self.next = next; self.cast = cast
+        self.remembered = remembered
     }
     init(content: PlaybackContent, playback: Playback) {
         self.init(content: content, versions: playback.versions, resumeAt: playback.resumeAt, duration: playback.duration, next: playback.next,
-                  cast: playback.cast)
+                  cast: playback.cast, remembered: playback.remembered)
     }
 
     /// The same title from `position` (nil: from the start), everything else kept.
     func resuming(at position: TimeInterval?) -> PlaybackContext {
-        PlaybackContext(content: content, versions: versions, resumeAt: position, duration: duration, next: next, cast: cast)
+        PlaybackContext(content: content, versions: versions, resumeAt: position, duration: duration, next: next, cast: cast, remembered: remembered)
     }
 
     /// A list item: a movie as itself, a series through the episode `/playback/{series}` resolved.
@@ -181,4 +186,6 @@ nonisolated struct PlaybackContext: Hashable, Sendable {
 
     /// `tmdb:tv:1396:s01e05` → `tmdb:tv:1396`, for the series language preference.
     var seriesID: ContentID? { content.kind == .episode ? content.id.seriesID : nil }
+    /// The title a chosen version is kept under: the series for an episode, the title itself otherwise.
+    var rememberID: ContentID { seriesID ?? content.id }
 }

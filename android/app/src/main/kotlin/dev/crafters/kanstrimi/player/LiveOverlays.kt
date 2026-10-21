@@ -135,7 +135,7 @@ fun RecentChannelsStrip(player: PlayerService, env: AppEnvironment, onPick: () -
             // The list the live started from knows the channel whole; a channel from elsewhere takes its detail from the cache.
             val channel = player.channels.firstOrNull { it.id == r.id } ?: env.channelCache.latest(r.id) ?: r.channel
             val playing = r.id == player.channel?.id
-            LoadedChannelCard(channel = channel, modifier = Modifier.width(metrics.channelCardWidth), status = if (playing) ChannelItem.Status.Playing else ChannelItem.Status.Watched(r.watchedInstant)) {
+            LoadedChannelCard(channel = channel, modifier = Modifier.width(metrics.channelCardWidth), status = if (playing) ChannelItem.Status.Playing else ChannelItem.Status.Watched(r.watchedAt)) {
                 if (playing) return@LoadedChannelCard
                 val full = if (channel.versions.isEmpty()) env.channelCache.latest(r.id) else channel
                 if (full == null || full.versions.isEmpty()) { env.notify("Chaîne indisponible"); return@LoadedChannelCard }

@@ -12,6 +12,7 @@ import { badgesOf, castOf, episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
 import { addWatchTime } from "./watch-time";
 import { playbackMarkers } from "./markers";
+import { forgetVersion, rememberedFor, rememberVersion } from "./remembered";
 import type { NextEpisode, Playback, Version } from "./types";
 
 /**
@@ -19,7 +20,8 @@ import type { NextEpisode, Playback, Version } from "./types";
  * `GET …/suggestions`: « Si vous avez aimé… » and what follows a movie or a series; `PUT …/progress`: the position watched;
  * `DELETE …/progress`: out of « Reprendre »; `PUT …/watched`: seen or not, a whole season on a series id;
  * `POST …/watch-time`: seconds of a channel played, for « Chaînes les plus regardées »;
- * `POST …/markers`: the intro and the end credits of the file the app opened.
+ * `POST …/markers`: the intro and the end credits of the file the app opened;
+ * `PUT …/version`: the version chosen for the title (a series, from any episode), `DELETE …/version` forgets it.
  */
 export const playbackRoutes = new Hono<Env>();
 
@@ -106,15 +108,40 @@ playbackRoutes.post("/:id/markers", async (c) => {
   return json(await playbackMarkers(key, body.data));
 });
 
+const versionBody = z.object({ version: z.string().min(1).max(200) });
+/** The version the picker chose, one of the title's (an episode's: kept for the whole series). */
+playbackRoutes.put("/:id/version", async (c) => {
+  const key = c.req.param("id");
+  if (!parseKey(key)) return fail("not_found", "Contenu introuvable");
+  const body = versionBody.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return fail("bad_request", "version (identifiant d'une version du titre) attendu");
+  const ctx = c.get("ctx");
+  const p = await playback(ctx, key);
+  if (!p) return fail("not_found", "Contenu introuvable");
+  const version = p.versions.find((v) => v.id === body.data.version);
+  if (!version) return fail("bad_request", "Version inconnue pour ce titre");
+  await rememberVersion(ctx.profile, key, version);
+  return noContent();
+});
+
+/** The title starts on the best version again. */
+playbackRoutes.delete("/:id/version", async (c) => {
+  const key = c.req.param("id");
+  if (!parseKey(key) || !(await keyExists(c.get("ctx"), key))) return fail("not_found", "Contenu introuvable");
+  await forgetVersion(c.get("ctx").profile, key);
+  return noContent();
+});
+
 export async function playback(ctx: RestContext, key: string): Promise<Playback | null> {
   const parsed = parseKey(key);
   if (!parsed) return null;
+  const remembered = await rememberedFor(ctx.profile, key);
   if (parsed.episode !== undefined) {
     const content = await contentByKey(ctx, parsed.seriesKey);
     if (content?.kind !== "series") return null;
     const { episodes } = await episodesOf(ctx, content);
     const idx = episodes.findIndex((e) => e.key === key);
-    return idx === -1 ? null : episodePlayback(ctx, content, episodes, idx);
+    return idx === -1 ? null : episodePlayback(ctx, content, episodes, idx, remembered);
   }
   const content = await contentByKey(ctx, key);
   if (!content) return null;
@@ -128,10 +155,10 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
           episodes.map((e) => e.key),
         ),
       ) ?? episodes[0];
-    return e ? episodePlayback(ctx, content, episodes, episodes.indexOf(e)) : null;
+    return e ? episodePlayback(ctx, content, episodes, episodes.indexOf(e), remembered) : null;
   }
   const versions = versionsOf(ctx, (await variantsOf(ctx, content)).playables);
-  if (content.kind === "live") return { versions, resume_at: null, duration: null, next: null, cast: [] };
+  if (content.kind === "live") return { versions, resume_at: null, duration: null, next: null, cast: [], remembered };
   const p = (await getProgress(ctx.profile.id, [key])).get(key);
   return {
     versions,
@@ -139,11 +166,18 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
     duration: p?.duration || (content.runtime ? content.runtime * 60 : null),
     next: null,
     cast: castOf(ctx, content),
+    remembered,
   };
 }
 
 /** What plays `episodes[idx]` of `series`, with the one that follows. */
-async function episodePlayback(ctx: RestContext, series: Content, episodes: EpisodeRow[], idx: number): Promise<Playback> {
+async function episodePlayback(
+  ctx: RestContext,
+  series: Content,
+  episodes: EpisodeRow[],
+  idx: number,
+  remembered: Playback["remembered"],
+): Promise<Playback> {
   const e = episodes[idx],
     next = episodes[idx + 1];
   const p = (await getProgress(ctx.profile.id, [e.key])).get(e.key);
@@ -156,6 +190,7 @@ async function episodePlayback(ctx: RestContext, series: Content, episodes: Epis
     duration: p?.duration || (e.runtime ? e.runtime * 60 : null),
     next: next ? nextEpisodeOf(ctx, series, next, nextVersions) : null,
     cast: castOf(ctx, series),
+    remembered,
   };
 }
 

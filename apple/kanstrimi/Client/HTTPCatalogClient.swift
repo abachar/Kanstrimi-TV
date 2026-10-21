@@ -44,6 +44,7 @@ final class HTTPCatalogClient: CatalogClient {
     }
     func info() async throws -> ServerInfo { try await send("GET", "info") }
     func profiles() async throws -> [Profile] { try await (send("GET", "profiles") as Profiles).profiles }
+    func updateSettings(_ patch: ProfileSettingsPatch) async throws -> Profile { try await send("PUT", "profiles/me/settings", body: patch) }
 
     // MARK: - Home, movies, series
 
@@ -110,6 +111,14 @@ final class HTTPCatalogClient: CatalogClient {
     func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws {
         struct Body: Encodable { let watched: Bool; let season: Int? }
         try await sendNoContent("PUT", "playback/\(id.rawValue)/watched", body: Body(watched: watched, season: season))
+    }
+
+    func rememberVersion(id: ContentID, _ versionID: String) async throws {
+        struct Body: Encodable { let version: String }
+        try await sendNoContent("PUT", "playback/\(id.rawValue)/version", body: Body(version: versionID))
+    }
+    func forgetVersion(id: ContentID) async throws {
+        try await sendNoContent("DELETE", "playback/\(id.rawValue)/version")
     }
 
     func setFavorite(id: ContentID, _ favorite: Bool) async throws {

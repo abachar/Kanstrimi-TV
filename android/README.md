@@ -12,12 +12,12 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
 |---|---|
 | `contract/` | `Wire.kt` : les types calqués sur `server/src/player/types.ts`, kotlinx.serialization, clés inconnues ignorées, valeur d'énumération inconnue → `OTHER`. |
 | `client/` | `CatalogClient` (une méthode par route), `HttpCatalogClient` (le serveur : jeton Bearer en HTTPS ou sur le LAN seulement, 502-504 du proxy retentés deux fois sur un GET, 401 → appareil dissocié), `MockCatalogClient` (le client de démo). |
-| `app/` | `KanstrimiApplication` (cache disque des images), `AppEnvironment` (préférences, appareil, client, info du serveur, notice, moteur et service du lecteur, `progressRevision`, `open(id)` / `navigate(route)` ; pour le Direct : `liveVersion`, `guide`, `nowPlaying`, `watchChannel`), `LiveStores.kt` (`LiveGuide` : la règle du programme en cours ; `ChannelCache` : `GET /channels/{id}` gardé une minute ; `RecentChannels` : 20 chaînes récentes en préférences), `Navigation.kt` (`Route`, `Navigator` : une pile d'écrans par onglet, tenue à la main), `DeviceStore` (jeton et code), `Preferences` (dont celles du lecteur, par `PlaybackPreferences`), `MainActivity` (hooks `debug.*`). |
+| `app/` | `KanstrimiApplication` (cache disque des images), `AppEnvironment` (préférences, appareil, client, info du serveur, notice, moteur et service du lecteur, `progressRevision`, `open(id)` / `navigate(route)` ; pour le Direct : `liveVersion`, `guide`, `nowPlaying`, `watchChannel`), `LiveStores.kt` (`LiveGuide` : la règle du programme en cours ; `ChannelCache` : `GET /channels/{id}` gardé une minute ; `RecentChannels` : les 20 chaînes récentes du profil, `recent_rank` de `/channels` plus les zaps du moment, en mémoire), `Navigation.kt` (`Route`, `Navigator` : une pile d'écrans par onglet, tenue à la main), `DeviceStore` (jeton et code), `Preferences` (le serveur, le nom, la démo, et une copie des réglages du profil que le lecteur lit par `PlaybackPreferences`), `MainActivity` (hooks `debug.*`). |
 | `ui/` | `RootView` (appairage puis onglets, le lecteur par-dessus quand `player.isPresented`, notice), `MainTabs` (`NavigationSuiteScaffold` ; chaque onglet visité et chaque écran sous le sommet de sa pile restent composés mais ni mesurés ni dessinés, pour garder données et défilement), `Metrics.kt` (largeur d'affiche, marge, colonnes, lues de la largeur de la fenêtre : six affiches en paysage, cinq en portrait ; `LocalMetrics`), `Cards.kt` et `UpNextCard` (cartes bêtes : un `ContentItem` ou un `ChannelItem` et une action, le parent donne la largeur ; `MenuPoster` ajoute le menu d'appui long Lecture / Voir la fiche ; `ChannelCard`, `ProgrammeCard`), `ChannelViews.kt` (`LoadedChannelCard` : la carte nourrie de ce que l'appareil sait de la chaîne, `channelItem`, `ChannelRow`), `Pieces.kt` (badges, art, logo ou titre, `ChannelLogo`, états, `LoadedScreen`, bouton Retour, heures et « il y a … »), `theme/`. |
 | `features/` | Un dossier par écran : `home`, `live` (le Direct en trois colonnes : catégories, chaînes, aperçu et programme), `catalog` (Films et Séries, grille paginée et filtres, sagas, acteur ; `Paginator`), `search`, `detail` (fiche film et série, épisodes, distribution, feuille des versions), `pairing`, `settings`. |
 | `player/` | Le lecteur, service transverse unique, calqué sur `apple/kanstrimi/Player/` : `PlayerService` (phases, versions, pannes, marqueurs, suite, progression, direct et zapping ; il parle au moteur par `PlaybackEngine`, que les tests remplacent), `ExoPlaybackEngine` (un ExoPlayer, session média, pistes, cues), `MpvPlaybackEngine` + `MpvSurface` (libmpv, pour ce qu'ExoPlayer ne décode pas), `FallbackPlaybackEngine` (la façade que le lecteur voit : ExoPlayer puis mpv), `PlaybackService` (la session prêtée au système), `LivePreview` (le second ExoPlayer de l'aperçu du Direct), `VersionChooser`, `PlaybackReporter` (+ `ProgressQueue`, `FailedSourcesStore`), `PlaybackContext`, `PlayerScreen` (plein écran tactile, image dans l'image), `PlayerControls`, `PlayerPanels` (direct : Programme · Récentes · Infos ; sinon Épisodes · Similaires · Distribution · Infos), `LiveOverlays` (liste des chaînes, panneaux du direct), `PlayerOverlays` (chargement, « Passer … », « À suivre », échec, toast), `PlayerDebug` (états mis en scène, fichier public). |
 | `../scripts/` | `avd.sh` (crée l'émulateur « Tablet », 2 560 × 1 600 à 280 dpi), `shot.sh` / `shot-all.sh` (captures du client de démo dans `ui-review/`, hors git). |
-| `app/src/test/` | `ContractTest` : décode chaque réponse enregistrée par le serveur ; `HttpCatalogClientTest` ; `app/LiveGuideTest` (programme en cours, guide de la version, chaînes récentes), `app/DeepLinkTest` (identifiants admis, absence longue) ; `player/` : `VersionChooserTest`, `ProgressQueueTest`, `PlayerServiceTest` (faux moteur `FakePlaybackEngine` : bascule de source, essais, dialogue, coupure, générique, suite, marqueurs, progression, direct : guide, zapping, temps regardé, qualité mémorisée). |
+| `app/src/test/` | `ContractTest` : décode chaque réponse enregistrée par le serveur ; `HttpCatalogClientTest` ; `app/LiveGuideTest` (programme en cours, guide de la version, chaînes récentes et leur amorce par le serveur), `app/DeepLinkTest` (identifiants admis, absence longue) ; `player/` : `VersionChooserTest`, `ProgressQueueTest`, `PlayerServiceTest` (faux moteur `FakePlaybackEngine` : bascule de source, essais, dialogue, coupure, générique, suite, marqueurs, progression, direct : guide, zapping, temps regardé, qualité mémorisée). |
 
 ## Choix
 
@@ -47,8 +47,9 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
   détail quand rien n'est connu. Le guide montré est celui de la version lue ou de départ (`env.guide`,
   `Channel.guide(version)` : une qualité peut avoir le sien). Les lignes du Direct ne demandent rien : la colonne de
   droite montre déjà le programme de la chaîne choisie.
-- **Version de départ** (`PlayerService.startChoice`) : celle mémorisée pour la chaîne (un changement de qualité dans
-  le lecteur la mémorise), sinon la meilleure ; la lecture, l'aperçu et les badges s'en servent.
+- **Version de départ** (`PlayerService.startChoice`) : celle que le profil a choisie pour la chaîne (`remembered` de
+  `/channels` ; un changement de qualité dans le lecteur l'envoie au serveur, `PUT /playback/{id}/version`, et
+  s'applique aussitôt par `chosenVersions`), sinon la meilleure ; la lecture, l'aperçu et les badges s'en servent.
 - **Lecteur en direct** : jamais de pause ni de recherche (seul « ▶ » reparaît si le moteur a été arrêté, perte du
   focus audio) ; barre du programme en cours, heure de début à gauche, « Ensuite : … · 20:00 » à droite ; « Chaînes »
   (ou un glissé vers la droite) ouvre la liste de la catégorie de départ en panneau latéral, un tap zappe sur le même
@@ -123,8 +124,10 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
 - **Release** : R8 avec `proguard-rules.pro` (sérialiseurs de kotlinx.serialization, classes JNI du décodeur
   FFmpeg), signée avec la clé de debug tant qu'une clé de release n'existe pas : installable, pas publiable.
   `./gradlew assembleRelease` → `app/build/outputs/apk/release/app-release.apk` (11 Mo contre 51 en debug).
-- **Qualité** : plafond FHD par défaut (`Preferences.maxQuality`), capacités de la tablette dans `VersionChooser.Capabilities.tablet`
-  (pas de Dolby Vision : la version 4K DV n'est jamais choisie d'office).
+- **Réglages de lecture** : ceux du profil (qualité maximale, suite automatique, versions mémorisées, changement de
+  source), lus dans `/info` et envoyés par `PUT /profiles/me/settings` (`env.updateSettings`) ; `Preferences` n'en
+  garde qu'une copie pour jouer avant la réponse. La tablette plafonne de toute façon à FHD
+  (`VersionChooser.Capabilities.tablet`, pas de Dolby Vision : la version 4K DV n'est jamais choisie d'office).
 
 ## Vérifier
 

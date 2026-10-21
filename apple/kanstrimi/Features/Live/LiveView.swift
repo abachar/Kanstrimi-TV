@@ -110,6 +110,7 @@ struct LiveView: View {
         do {
             groups = try await env.client.channels()
             allChannels = groups.flatMap(\.channels)
+            env.recentChannels.seed(from: allChannels)
             // A channel sits in several groups: the first one wins, as `first(where:)` did.
             channelByID = Dictionary(allChannels.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             error = nil
@@ -153,7 +154,7 @@ struct LiveView: View {
     /// shows the version the channel would start in: « TF1 » switched to FHD previews in FHD.
     private func showPreview(_ c: Channel) {
         let versions = focusedDetail?.id == c.id ? focusedDetail?.versions ?? c.versions : c.versions
-        guard metrics.liveColumns, let url = env.player.startChoice(c.id, versions: versions)?.source.streamURL else { return }
+        guard metrics.liveColumns, let url = env.player.startChoice(c.id, versions: versions, remembered: c.remembered)?.source.streamURL else { return }
         preview.show(c.id, url: url)
     }
 

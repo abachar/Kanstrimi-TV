@@ -65,7 +65,14 @@
           "end": "2026-10-01T21:00:00.000Z",
           "overview": "Un film."
         },
-        "watched_rank": 1
+        "watched_rank": 1,
+        "recent_rank": 1,
+        "remembered": {
+          "id": "vf-fhd",
+          "language": "VF",
+          "quality": "FHD",
+          "label": "FR · FHD"
+        }
       }
     ]
   },

@@ -86,25 +86,23 @@ fun SettingsScreen() {
                     Text("Dissocier cet appareil", color = Theme.danger)
                 }
             }
-            // The player's choices, read by `PlayerService` through `PlaybackPreferences`.
-            val autoPlayNext by env.preferences.autoPlayNextFlow.collectAsState()
-            val rememberVersion by env.preferences.rememberVersionPerTitleFlow.collectAsState()
-            val switchSource by env.preferences.switchSourceOnFailureFlow.collectAsState()
-            val maxQuality by env.preferences.maxQualityFlow.collectAsState()
+            // The profile's settings, kept by the server and read by `PlayerService` through `PlaybackPreferences`.
+            val settings by env.preferences.settingsFlow.collectAsState()
             // No « Langue audio » any more: the versions come in the order of the profile's filter, set in the admin.
-            Section("Lecture") {
-                ToggleRow("Lire la suite automatiquement", autoPlayNext) { env.preferences.setAutoPlayNext(it) }
-                ToggleRow("Retenir la version choisie pour chaque titre", rememberVersion) { env.preferences.setRememberVersionPerTitle(it) }
-                ToggleRow("Changer de source en cas de panne", switchSource) { env.preferences.setSwitchSourceOnFailure(it) }
+            Section(info?.profile?.let { "Lecture · ${it.name}" } ?: "Lecture") {
+                ToggleRow("Lire la suite automatiquement", settings.autoPlayNext) { on -> scope.launch { env.updateSettings { it.copy(autoPlayNext = on) } } }
+                ToggleRow("Retenir la version choisie pour chaque titre", settings.rememberVersions) { on -> scope.launch { env.updateSettings { it.copy(rememberVersions = on) } } }
+                ToggleRow("Changer de source en cas de panne", settings.switchSourceOnFailure) { on -> scope.launch { env.updateSettings { it.copy(switchSourceOnFailure = on) } } }
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("Qualité maximale")
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         dev.crafters.kanstrimi.contract.Quality.entries.forEach { q ->
-                            val selected = q == maxQuality
-                            TextButton(onClick = { env.preferences.setMaxQuality(q) }, colors = androidx.compose.material3.ButtonDefaults.textButtonColors(containerColor = if (selected) Theme.text else Theme.surfaceButton, contentColor = if (selected) Color.Black else Theme.text)) { Text(q.label) }
+                            val selected = q == settings.maxQuality
+                            TextButton(onClick = { scope.launch { env.updateSettings { it.copy(maxQuality = q) } } }, colors = androidx.compose.material3.ButtonDefaults.textButtonColors(containerColor = if (selected) Theme.text else Theme.surfaceButton, contentColor = if (selected) Color.Black else Theme.text)) { Text(q.label) }
                         }
                     }
                 }
+                Text("Ces réglages suivent le profil sur tous ses appareils ; la tablette plafonne d'elle-même à FHD.", color = Theme.secondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
             }
             Section("À propos") {
                 InfoRow("Application", appVersion)

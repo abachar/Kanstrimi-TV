@@ -53,7 +53,7 @@ class LiveGuideTest {
     @Test
     fun `les chaînes récentes - la dernière d'abord, une seule fois, vingt au plus`() {
         var clock = now
-        val recents = RecentChannels(prefs = null, now = { clock })
+        val recents = RecentChannels(now = { clock })
         for (i in 1..25) {
             clock = clock.plusSeconds(60)
             recents.record(Channel(id = "live:$i", name = "Chaîne $i"))
@@ -66,6 +66,20 @@ class LiveGuideTest {
         assertEquals("live:7", recents.entries.first().id)
         assertEquals(1, recents.entries.count { it.id == "live:7" })
         assertEquals("live:25", recents.previous("live:7")?.id)
-        assertTrue(recents.entries.first().watchedInstant == clock)
+        assertTrue(recents.entries.first().watchedAt == clock)
+    }
+
+    @Test
+    fun `les chaînes récentes - la liste du serveur nourrit la pile, derrière ce qui a été zappé ici`() {
+        val recents = RecentChannels(now = { now })
+        val channel = { id: String, rank: Int? -> Channel(id = id, name = id, recentRank = rank) }
+        recents.seed(listOf(channel("live:x", null), channel("live:b", 2), channel("live:a", 1)))
+        assertEquals(listOf("live:a", "live:b"), recents.entries.map { it.id })
+        assertTrue(recents.entries.all { it.watchedAt == null })
+        recents.record(Channel(id = "live:c", name = "C"))
+        // Fetched again before the server heard of the zap: it stays first; the rest follows the server, no duplicate.
+        recents.seed(listOf(channel("live:b", 1), channel("live:a", 2), channel("live:c", 3)))
+        assertEquals(listOf("live:c", "live:b", "live:a"), recents.entries.map { it.id })
+        assertEquals(now, recents.entries.first().watchedAt)
     }
 }

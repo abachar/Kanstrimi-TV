@@ -1,6 +1,6 @@
 import type { ProfileFilter, Kind, Profile } from "@/db";
 import { KINDS } from "@/db";
-import type { FilterPreview as Preview } from "@/catalog";
+import { PROFILE_QUALITIES, type FilterPreview as Preview } from "@/catalog";
 import { Title, Card, Busy, Badge, Empty } from "../ui";
 import { fmt } from "../format";
 import { KIND_ICONS, KIND_TITLES } from "../labels";
@@ -83,7 +83,7 @@ export function ProfilesView({ rows, error }: { rows: ProfileLine[]; error?: str
     <>
       <Title
         t="Profils"
-        sub="Les personnes du foyer. Chacune a ses filtres, qui disent ce qu'elle voit, et ce que l'app enregistre pour elle : positions, « Ma liste », chaînes regardées, films attendus. Le profil par défaut est celui des appareils qui n'en ont pas choisi, du Top Shelf et des écrans de l'admin."
+        sub="Les personnes du foyer. Chacune a ses filtres, qui disent ce qu'elle voit, ses réglages de lecture, et ce que l'app enregistre pour elle : positions, lectures, versions choisies, « Ma liste », chaînes regardées, films attendus. Le profil par défaut est celui des appareils qui n'en ont pas choisi, du Top Shelf et des écrans de l'admin."
       />
       <Card title="Profils" icon="profiles" extra={fmt(rows.length)}>
         {rows.length === 0 ? (
@@ -110,6 +110,12 @@ export function ProfilesView({ rows, error }: { rows: ProfileLine[]; error?: str
                       </Badge>
                     )}
                   </div>
+                  <p class="text-sm text-muted-foreground">
+                    {QUALITY_LABELS[p.maxQuality as (typeof PROFILE_QUALITIES)[number]] ?? p.maxQuality} max
+                    {p.autoPlayNext ? " · suite automatique" : ""}
+                    {p.rememberVersions ? " · versions mémorisées" : ""}
+                    {p.switchSourceOnFailure ? " · change de source" : ""}
+                  </p>
                   <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                     {(KINDS as readonly Kind[]).map((k) => (
                       <>
@@ -226,6 +232,65 @@ export function FilterPreview({ preview }: { preview: Preview }) {
   );
 }
 
+const QUALITY_LABELS: Record<(typeof PROFILE_QUALITIES)[number], string> = { SD: "SD", HD: "HD", FHD: "HD 1080p", "4K": "4K" };
+
+const Switch = ({ name, label, hint, on }: { name: string; label: string; hint?: string; on: boolean }) => (
+  <div class="field" data-orientation="horizontal">
+    <input class="input" type="checkbox" role="switch" name={name} id={`setting-${name}`} checked={on} />
+    <section>
+      <label class="label" for={`setting-${name}`}>
+        {label}
+      </label>
+      {hint && <p class="text-sm text-muted-foreground">{hint}</p>}
+    </section>
+  </div>
+);
+
+/** The playback settings the apps show under Réglages › Lecture: the same for this profile on every device. */
+function SettingsForm({ p }: { p: Profile }) {
+  return (
+    <Card
+      title="Lecture"
+      icon="play"
+      hint="Les mêmes réglages sur tous les appareils où ce profil regarde ; l'app les change aussi (Réglages › Lecture). Un téléphone ou une tablette plafonne de lui-même à HD 1080p."
+    >
+      <form method="post" action={`/admin/profiles/${p.id}/settings`} class="flex flex-col gap-4">
+        <div class="field">
+          <label class="label" for="setting-max_quality">
+            Qualité maximale
+          </label>
+          <select class="select max-w-xs" id="setting-max_quality" name="max_quality">
+            {[...PROFILE_QUALITIES].reverse().map((q) => (
+              <option value={q} selected={q === p.maxQuality}>
+                {QUALITY_LABELS[q]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Switch
+          name="auto_play_next"
+          label="Lecture automatique de la suite"
+          hint="L'épisode suivant, ou la suite proposée, démarre au générique."
+          on={p.autoPlayNext}
+        />
+        <Switch
+          name="remember_versions"
+          label="Mémoriser la version par titre"
+          hint="La version choisie dans le sélecteur est gardée pour le titre (pour une série, pour tous ses épisodes) et rejouée d'office."
+          on={p.rememberVersions}
+        />
+        <Switch name="switch_source_on_failure" label="Changer de source en cas de panne" on={p.switchSourceOnFailure} />
+        <div>
+          <button class="btn" data-variant="primary">
+            <Icon name="save" />
+            Enregistrer
+          </button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
 /** Filters changed since the step last judged this profile: the catalogue does not follow them yet. */
 function PendingBanner({ p, judged, busy }: { p: Profile; judged: boolean; busy: boolean }) {
   return (
@@ -319,6 +384,7 @@ export function ProfileView({
           </div>
         </form>
       </Card>
+      <SettingsForm p={p} />
       {(KINDS as readonly Kind[]).map((kind) => (
         <FilterForm p={p} kind={kind} filter={filters[kind]} draft={draft?.kind === kind ? draft : undefined} />
       ))}

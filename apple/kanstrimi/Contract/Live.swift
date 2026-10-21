@@ -27,20 +27,26 @@ nonisolated struct Channel: Codable, Hashable, Identifiable, Sendable {
     let next: Programme?
     /// 1 = the most watched over the last 30 days (« Les plus regardées », 10 channels at most); nil otherwise.
     var watchedRank: Int?
+    /// 1 = the channel this profile watched last (« Récentes », 20 at most); nil otherwise.
+    var recentRank: Int?
+    /// The version this profile chose for the channel, as the server keeps it.
+    var remembered: RememberedVersion?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, number, logo, versions, now, next
+        case id, name, number, logo, versions, now, next, remembered
         case maxQuality = "max_quality"
         case hasEPG = "has_epg"
         case isFavorite = "is_favorite"
         case watchedRank = "watched_rank"
+        case recentRank = "recent_rank"
     }
 
     init(id: ContentID, name: String, number: Int? = nil, logo: URL? = nil, maxQuality: Quality? = nil, hasEPG: Bool? = nil,
-         isFavorite: Bool? = nil, versions: [Version] = [], now: Programme? = nil, next: Programme? = nil, watchedRank: Int? = nil) {
+         isFavorite: Bool? = nil, versions: [Version] = [], now: Programme? = nil, next: Programme? = nil, watchedRank: Int? = nil,
+         recentRank: Int? = nil, remembered: RememberedVersion? = nil) {
         self.id = id; self.name = name; self.number = number; self.logo = logo; self.maxQuality = maxQuality ?? versions.maxQuality
         self.hasEPG = hasEPG; self.isFavorite = isFavorite; self.versions = versions; self.now = now; self.next = next
-        self.watchedRank = watchedRank
+        self.watchedRank = watchedRank; self.recentRank = recentRank; self.remembered = remembered
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +62,8 @@ nonisolated struct Channel: Codable, Hashable, Identifiable, Sendable {
         now = try c.decodeIfPresent(Programme.self, forKey: .now)
         next = try c.decodeIfPresent(Programme.self, forKey: .next)
         watchedRank = try c.decodeIfPresent(Int.self, forKey: .watchedRank)
+        recentRank = try c.decodeIfPresent(Int.self, forKey: .recentRank)
+        remembered = try c.decodeIfPresent(RememberedVersion.self, forKey: .remembered)
     }
 }
 

@@ -7,6 +7,8 @@ import dev.crafters.kanstrimi.client.HttpCatalogClient
 import dev.crafters.kanstrimi.client.MockCatalogClient
 import dev.crafters.kanstrimi.contract.Channel
 import dev.crafters.kanstrimi.contract.Profile
+import dev.crafters.kanstrimi.contract.ProfileSettings
+import dev.crafters.kanstrimi.contract.ProfileSettingsPatch
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ServerInfo
 import dev.crafters.kanstrimi.contract.Version
@@ -69,7 +71,7 @@ class AppEnvironment(context: Context) {
 
     /** The Direct: the channel details asked at selection, the channels watched lately, the side preview of the Direct screen. */
     val channelCache = ChannelCache(client = { client }, scope = scope)
-    val recentChannels = RecentChannels(context.getSharedPreferences("prefs", Context.MODE_PRIVATE))
+    val recentChannels = RecentChannels()
     val livePreview = LivePreview(context)
 
     /** The tab selected and what each tab pushed above itself. */
@@ -148,6 +150,22 @@ class AppEnvironment(context: Context) {
     suspend fun loadInfo() {
         if (!device.isPaired) return
         runCatching { _info.value = client.info() }
+        _info.value?.profile?.settings?.let(preferences::setSettings)
+    }
+
+    /** Réglages › Lecture: the profile's settings, applied here at once and sent to the server; put back when it refuses them. */
+    suspend fun updateSettings(change: (ProfileSettings) -> ProfileSettings) {
+        val before = preferences.settings
+        val next = change(before)
+        if (next == before) return
+        preferences.setSettings(next)
+        val profile = attempt("Réglage") { client.updateSettings(ProfileSettingsPatch(next)) }
+        if (profile != null) {
+            preferences.setSettings(profile.settings)
+            _info.value = _info.value?.copy(profile = profile)
+        } else {
+            preferences.setSettings(before)
+        }
     }
 
     /** Runs an action that may fail outside its screen: the failure is said in a notice, nothing thrown. */
@@ -176,7 +194,7 @@ class AppEnvironment(context: Context) {
      * the best). Its quality and language are the channel's badges, its guide the one shown.
      */
     fun liveVersion(channel: Channel): Version? =
-        if (player.channel?.id == channel.id) player.version else player.startChoice(channel.id, channel.versions)?.version
+        if (player.channel?.id == channel.id) player.version else player.startChoice(channel.id, channel.versions, channel.remembered)?.version
 
     /** A channel's guide as the app shows it, `liveVersion`'s: each quality may have its own (« M6 4K »). */
     fun guide(channel: Channel): Channel.Guide = LiveGuide.guide(channel, liveVersion(channel))

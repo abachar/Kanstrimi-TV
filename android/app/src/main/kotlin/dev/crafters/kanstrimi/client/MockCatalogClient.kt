@@ -16,6 +16,9 @@ import dev.crafters.kanstrimi.contract.PersonSheet
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Profile
+import dev.crafters.kanstrimi.contract.ProfileSettings
+import dev.crafters.kanstrimi.contract.ProfileSettingsPatch
+import dev.crafters.kanstrimi.contract.RememberedVersion
 import dev.crafters.kanstrimi.contract.Profiles
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
@@ -25,6 +28,7 @@ import dev.crafters.kanstrimi.contract.ServerInfo
 import dev.crafters.kanstrimi.contract.Studio
 import dev.crafters.kanstrimi.contract.Suggestions
 import dev.crafters.kanstrimi.contract.Wire
+import dev.crafters.kanstrimi.player.seriesIdOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -66,10 +70,28 @@ class MockCatalogClient(private val assets: AssetManager, private val latencyMil
     var profileId: Int? = null
 
     /** The recorded household (Hakim alone), and three more so the picker has something to choose among. */
-    override suspend fun profiles(): List<Profile> = read<Profiles>("profiles").profiles + DEMO_PROFILES
+    /** What the server keeps per profile, here for the demo: the settings changed, the versions chosen. */
+    private val settings = HashMap<Int, ProfileSettings>()
+    val remembered = HashMap<String, RememberedVersion>()
+    private fun withSettings(p: Profile) = settings[p.id]?.let { p.copy(settings = it) } ?: p
+    override suspend fun profiles(): List<Profile> = (read<Profiles>("profiles").profiles + DEMO_PROFILES).map(::withSettings)
     override suspend fun info(): ServerInfo = read<ServerInfo>("info").let { info ->
-        info.copy(profile = profiles().firstOrNull { it.id == profileId } ?: info.profile)
+        info.copy(profile = profiles().firstOrNull { it.id == profileId } ?: info.profile?.let(::withSettings))
     }
+    override suspend fun updateSettings(patch: ProfileSettingsPatch): Profile {
+        val current = info().profile ?: profiles().first()
+        val s = current.settings
+        settings[current.id] = ProfileSettings(
+            patch.maxQuality ?: s.maxQuality, patch.autoPlayNext ?: s.autoPlayNext,
+            patch.rememberVersions ?: s.rememberVersions, patch.switchSourceOnFailure ?: s.switchSourceOnFailure,
+        )
+        return withSettings(current)
+    }
+    override suspend fun rememberVersion(id: String, versionId: String) {
+        val v = playback(id).versions.firstOrNull { it.id == versionId } ?: return
+        remembered[seriesIdOf(id) ?: id] = RememberedVersion.of(v)
+    }
+    override suspend fun forgetVersion(id: String) { remembered.remove(seriesIdOf(id) ?: id) }
 
     override suspend fun home(): Home = read("home")
     override suspend fun rows(kind: ContentKind): List<CatalogRow> = read(if (kind == ContentKind.SERIES) "series" else "movies")

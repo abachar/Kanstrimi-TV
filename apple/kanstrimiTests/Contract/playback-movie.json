@@ -48,5 +48,12 @@
       "role": "Neo",
       "photo": "http://kanstrimi.test/img/w185/keanu.jpg?k=yT-g7HBFg_ssh54u"
     }
-  ]
+  ],
+  "remembered": {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "dynamic_range": "DV",
+    "label": "FR · 4K DV"
+  }
 }

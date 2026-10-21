@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, type ProfileVersion, schema } from "@/db";
 import { hasTmdbKey, isEpisodeKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
@@ -8,6 +8,8 @@ import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./con
 import { getProgress, isResumable, resumeKeys, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
+import { mostPlayedKeys } from "./plays";
+import { rememberedOf, rememberedWire } from "./remembered";
 import { badgesOf, contentItem, imageUrl, playLabel, resumeItem, runtimeText } from "./cards";
 import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
 import { recommendedRow } from "./related";
@@ -16,7 +18,7 @@ import type { ContentItem, Home, HomeHero, HomeRow } from "./types";
 
 /**
  * `/home`: the carousel (the Top Shelf without « Reprendre »), "Reprendre", "Chaînes les plus
- * regardées", recent movies and series, "Ma liste", "Recommandé pour vous".
+ * regardées", "Vos plus regardés", recent movies and series, "Ma liste", "Recommandé pour vous".
  */
 export const homeRoutes = new Hono<Env>();
 homeRoutes.get("/", async (c) => json(await home(c.get("ctx"))));
@@ -24,7 +26,7 @@ homeRoutes.get("/", async (c) => json(await home(c.get("ctx"))));
 const HOME_ROW = 24;
 
 export async function home(ctx: RestContext): Promise<Home> {
-  const [resume, recentMovies, recentSeries, favKeys, watchedKeys, picks, recommended] = await Promise.all([
+  const [resume, recentMovies, recentSeries, favKeys, watchedKeys, played, picks, recommended] = await Promise.all([
     resumeKeys(ctx.profile.id, 20),
     db
       .select()
@@ -40,6 +42,7 @@ export async function home(ctx: RestContext): Promise<Home> {
       .limit(HOME_ROW),
     favoriteKeys(ctx.profile.id),
     mostWatchedKeys(ctx.profile.id),
+    mostPlayedKeys(ctx.profile.id),
     shelfPicks(ctx, { resume: false }),
     recommendedRow(ctx),
   ]);
@@ -55,6 +58,12 @@ export async function home(ctx: RestContext): Promise<Home> {
       cards: watched.slice(0, MOST_WATCHED_LIMIT).map((c) => contentItem(ctx, c)),
     });
   }
+  const mostPlayed = await contentsInOrder(
+    ctx,
+    played.map((p) => p.key),
+  );
+  if (mostPlayed.length)
+    rows.push({ id: "most-watched", kind: "most_watched", title: "Vos plus regardés", cards: mostPlayed.map((c) => contentItem(ctx, c)) });
   // A lifeboat: no pick at all (no TMDB trend in the catalogue, nothing awaited) still leaves a carousel.
   const slides: Pick<ShelfPick, "content" | "playId" | "context" | "episode">[] = picks.length
     ? picks
@@ -86,7 +95,13 @@ export async function home(ctx: RestContext): Promise<Home> {
   if (favs.length) rows.push({ id: "favorites", kind: "favorites", title: "Ma liste", cards: favs.map((c) => contentItem(ctx, c)) });
   if (recommended.length) rows.push({ id: "recommended", kind: "recommended", title: "Recommandé pour vous", cards: recommended });
   const favSet = new Set(favKeys);
-  const heroes = await Promise.all(slides.map((p) => heroOf(ctx, p, progress.get(p.content.key), favSet.has(p.content.key))));
+  const remembered = await rememberedOf(
+    ctx.profile,
+    slides.map((p) => p.content.key),
+  );
+  const heroes = await Promise.all(
+    slides.map((p) => heroOf(ctx, p, progress.get(p.content.key), favSet.has(p.content.key), remembered.get(p.content.key))),
+  );
   return { heroes, rows, generated_at: new Date().toISOString() };
 }
 
@@ -96,6 +111,7 @@ async function heroOf(
   p: Pick<ShelfPick, "content" | "playId" | "context" | "episode">,
   progress: Progress | undefined,
   favorite: boolean,
+  remembered?: ProfileVersion,
 ): Promise<HomeHero> {
   const { content: c, episode: e } = p;
   const versions = versionsOf(ctx, e ? e.playables : (await variantsOf(ctx, c)).playables);
@@ -134,6 +150,7 @@ async function heroOf(
     play_label: playLabel(e ? undefined : progress, c.kind === "series" ? (e ?? null) : undefined),
     resume_at: resumes ? progress.position : null,
     duration: resumes ? progress.duration : runtime ? runtime * 60 : null,
+    remembered: remembered ? rememberedWire(remembered) : null,
   };
 }
 

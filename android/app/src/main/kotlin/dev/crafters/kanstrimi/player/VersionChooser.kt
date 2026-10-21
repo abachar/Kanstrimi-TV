@@ -3,6 +3,7 @@ package dev.crafters.kanstrimi.player
 import dev.crafters.kanstrimi.contract.DynamicRange
 import dev.crafters.kanstrimi.contract.Language
 import dev.crafters.kanstrimi.contract.Quality
+import dev.crafters.kanstrimi.contract.RememberedVersion
 import dev.crafters.kanstrimi.contract.Source
 import dev.crafters.kanstrimi.contract.Version
 
@@ -30,8 +31,8 @@ class VersionChooser(
     data class Choice(val version: Version, val source: Source, val reason: Reason)
 
     /**
-     * @param remembered the version id remembered for this exact title.
-     * @param seriesChoice the language × quality remembered for the series this episode belongs to.
+     * @param remembered the version id chosen for this title, played again as is when still listed.
+     * @param seriesChoice the language × quality chosen for the title (the series of an episode): the closest version.
      */
     fun choose(versions: List<Version>, remembered: String? = null, seriesChoice: VersionChoiceKey? = null): Choice? {
         val playable = versions.filter { it.sources.isNotEmpty() }
@@ -58,12 +59,12 @@ class VersionChooser(
         return Choice(candidate, source, Reason.FALLBACK_LANGUAGE)
     }
 
-    /** The version a title starts in: the one remembered for it when the preference says so, the series' choice, else the best. */
-    fun start(id: String, versions: List<Version>, seriesId: String?, preferences: PlaybackPreferences): Choice? {
-        val remembered = if (preferences.rememberVersionPerTitle) preferences.rememberedVersion(id) else null
-        val series = seriesId?.let { preferences.seriesChoice(it) }
-        return choose(versions, remembered, series)
-    }
+    /**
+     * The version a title starts in: the one the profile chose for it (the server keeps it, nothing when its setting is
+     * off), exactly when still listed, else the same language at the best quality (an episode without it), else the best.
+     */
+    fun start(versions: List<Version>, remembered: RememberedVersion?): Choice? =
+        choose(versions, remembered?.id, remembered?.let(::VersionChoiceKey))
 
     /** The versions to try after `current`, best first, for « Autre version ». */
     fun alternatives(current: Version, versions: List<Version>): List<Version> =

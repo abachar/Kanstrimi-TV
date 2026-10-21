@@ -17,6 +17,7 @@ import dev.crafters.kanstrimi.contract.PersonSheet
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Profile
+import dev.crafters.kanstrimi.contract.ProfileSettingsPatch
 import dev.crafters.kanstrimi.contract.Profiles
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
@@ -77,6 +78,7 @@ class HttpCatalogClient(
     override suspend fun deleteDevice(code: String) = sendNoContent("DELETE", "devices/$code")
     override suspend fun info(): ServerInfo = send("GET", "info")
     override suspend fun profiles(): List<Profile> = send<Profiles>("GET", "profiles").profiles
+    override suspend fun updateSettings(patch: ProfileSettingsPatch): Profile = send("PUT", "profiles/me/settings", body = patch)
 
     override suspend fun home(): Home = send("GET", "home")
     override suspend fun rows(kind: ContentKind): List<CatalogRow> = send("GET", collectionOf(kind))
@@ -116,7 +118,10 @@ class HttpCatalogClient(
     override suspend fun removeFromResume(id: String) = sendNoContent("DELETE", "playback/$id/progress")
     override suspend fun setWatched(id: String, watched: Boolean, season: Int?) = sendNoContent("PUT", "playback/$id/watched", body = WatchedBody(watched, season))
     override suspend fun setFavorite(id: String, favorite: Boolean) = sendNoContent(if (favorite) "PUT" else "DELETE", "favorites/$id")
+    override suspend fun rememberVersion(id: String, versionId: String) = sendNoContent("PUT", "playback/$id/version", body = VersionBody(versionId))
+    override suspend fun forgetVersion(id: String) = sendNoContent("DELETE", "playback/$id/version")
 
+    @Serializable private data class VersionBody(val version: String)
     @Serializable private data class ProgressBody(val position: Double, val duration: Double)
     @Serializable private data class WatchTimeBody(val seconds: Int)
     @Serializable private data class WatchedBody(val watched: Boolean, val season: Int? = null)

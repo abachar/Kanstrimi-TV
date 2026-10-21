@@ -3,8 +3,10 @@
 Système de streaming **personnel, pour un foyer**. Il se branche sur **un** fournisseur
 Xtream Codes, importe son catalogue, le nettoie, l'enrichit via **TMDB** et le sert à
 l'app Apple maison (Apple TV, iPhone et iPad) et à l'app Android (tablette, en construction).
-Chaque personne a son **profil**, créé dans l'admin : ses filtres (ce qu'elle voit, dans quelles langues), sa
-progression, sa liste et ses films attendus ; chaque appareil retient le dernier profil choisi (« Qui regarde ? »).
+Chaque personne a son **profil**, créé dans l'admin : ses filtres (ce qu'elle voit, dans quelles langues), ses
+réglages de lecture, les versions qu'elle a choisies, sa progression, ses lectures, ses chaînes récentes, sa liste et
+ses films attendus ; tout est au serveur, rien de personnel ne reste sur un appareil, qui ne retient que le dernier
+profil choisi (« Qui regarde ? »).
 
 Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées, et chaque source porte l'URL
 du fournisseur, que l'app lit directement (sans passer par le serveur, donc par le VPN de l'appareil s'il en a un).

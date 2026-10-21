@@ -28,6 +28,22 @@ export type Version = {
   next?: Programme | null;
 };
 
+/**
+ * The version the profile chose for a title (`PUT /playback/{id}/version`), served back wherever the title
+ * plays: a movie or a channel starts on `id` when it is still listed; a series' choice (written from any
+ * episode, read on every one) is the language × quality × dynamic range × edition the app applies to each
+ * episode, falling back to the same language. `label` « FR · 4K DV · Version longue ». Nothing when the
+ * profile's `remember_versions` is off.
+ */
+export type RememberedVersion = {
+  id: string;
+  language: string;
+  quality: Quality;
+  dynamic_range?: DynamicRange;
+  edition?: string;
+  label: string;
+};
+
 /** `resumable`: between 5 % and « Vu », decided here: the app offers « Reprendre » on it and compares no threshold. */
 export type ProgressWire = { position: number; duration: number; finished?: boolean; resumable: boolean };
 export type EpisodeRef = { season: number; number: number; title: string | null };
@@ -84,6 +100,8 @@ export type Card = {
   provider_category?: string | null;
   raw_title?: string | null;
   versions?: Version[];
+  /** Sheet: the version this profile chose for the title (a series: for every episode); null when none. */
+  remembered?: RememberedVersion | null;
   is_favorite?: boolean;
   seasons?: SeasonWire[];
   current_episode?: EpisodeRef | null;
@@ -160,6 +178,10 @@ export type ChannelWire = {
   next?: Programme | null;
   /** 1 = the most watched over the last 30 days (« Les plus regardées », 10 channels at most); absent otherwise. */
   watched_rank?: number;
+  /** 1 = the channel watched last by this profile (« Récentes », 20 at most); absent otherwise. */
+  recent_rank?: number;
+  /** The version this profile chose for the channel; absent when none. */
+  remembered?: RememberedVersion;
 };
 /**
  * A country (« Maroc », the market name) and a theme (« Sport »); `name` = « Maroc · Sport », kept
@@ -169,7 +191,15 @@ export type ChannelGroupWire = { id: string; name: string; section: string; them
 
 export type HomeRow = {
   id: string;
-  kind: "resume" | "most_watched_channels" | "recommended" | "recent_movies" | "recent_series" | "favorites" | "collection";
+  kind:
+    | "resume"
+    | "most_watched_channels"
+    | "most_watched"
+    | "recommended"
+    | "recent_movies"
+    | "recent_series"
+    | "favorites"
+    | "collection";
   title: string;
   cards: ContentItem[];
 };
@@ -193,6 +223,8 @@ export type HomeHero = {
   play_label: string;
   resume_at: number | null;
   duration: number | null;
+  /** The version this profile chose for the title (the series' for an episode); null when none. */
+  remembered: RememberedVersion | null;
 };
 /**
  * `heroes`: the Top Shelf without the title in progress (« Reprendre » is a row), at most six; the
@@ -249,12 +281,14 @@ export type NextEpisode = {
  * resolved and named in `episode`; the app reports progress on `episode.id`.
  */
 /** `cast`: the player's « Distribution » panel, the movie's or the series' (empty for a channel). */
+/** `remembered`: the version this profile chose for the title (the series' for an episode); null when none. */
 export type Playback = {
   versions: Version[];
   resume_at: number | null;
   duration: number | null;
   next: NextEpisode | null;
   cast: Person[];
+  remembered: RememberedVersion | null;
   episode?: EpisodeRef & { id: string };
 };
 
@@ -299,11 +333,23 @@ export type ServerInfo = {
 };
 
 /**
+ * The playback settings of a profile, the same on every device it watches on: the quality played by
+ * default (a device still caps it: a phone stops at FHD), the next episode starting by itself, the version
+ * chosen in the picker kept for the title, another source tried when one fails. `PUT /profiles/me/settings`
+ * changes any of them (each optional) and answers the profile.
+ */
+export type ProfileSettings = {
+  max_quality: Quality;
+  auto_play_next: boolean;
+  remember_versions: boolean;
+  switch_source_on_failure: boolean;
+};
+/**
  * A person of the household (`GET /profiles`). Every request names the one it is for with `X-Profile: <id>`
  * (none: `is_default`); a profile deleted since answers `unknown_profile`, the app then picks again. `avatar`
  * is a square image whose URL changes with the picture.
  */
-export type ProfileWire = { id: number; name: string; is_default: boolean; avatar: string };
+export type ProfileWire = { id: number; name: string; is_default: boolean; avatar: string; settings: ProfileSettings };
 export type Profiles = { profiles: ProfileWire[] };
 
 export type ApiError = {

@@ -159,6 +159,26 @@ data class Episode(
 @Serializable
 data class Season(val number: Int, val title: String? = null, val year: Int? = null, val episodes: List<Episode> = emptyList())
 
+/**
+ * The version the profile chose for a title, as the server keeps it (`PUT /playback/{id}/version`): a movie or a
+ * channel starts on `id` when it is still listed; a series' choice (made on any episode) is the language × quality ×
+ * dynamic range × edition applied to every episode, falling back to the same language. `label` « FR · 4K DV ».
+ */
+@Serializable
+data class RememberedVersion(
+    val id: String,
+    val language: String,
+    val quality: Quality,
+    @SerialName("dynamic_range") val dynamicRange: DynamicRange? = null,
+    val edition: String? = null,
+    val label: String,
+) {
+    companion object {
+        /** What the app remembers of a version it just chose, before the server says it back. */
+        fun of(v: Version): RememberedVersion = RememberedVersion(v.id, v.language, v.quality, v.dynamicRange, v.edition, v.label)
+    }
+}
+
 /** A film or a series sheet (`/movies/{id}`, `/series/{id}`); the lists send `ContentItem`. */
 @Serializable
 data class Card(
@@ -191,6 +211,8 @@ data class Card(
     @SerialName("provider_category") val providerCategory: String? = null,
     @SerialName("raw_title") val rawTitle: String? = null,
     val versions: List<Version> = emptyList(),
+    /** The version this profile chose for the title (a series: for every episode), as the server keeps it. */
+    val remembered: RememberedVersion? = null,
     @SerialName("is_favorite") val isFavorite: Boolean? = null,
     val seasons: List<Season>? = null,
     @SerialName("current_episode") val currentEpisode: EpisodeRef? = null,
@@ -297,6 +319,10 @@ data class Channel(
     val next: Programme? = null,
     /** 1 = the most watched over the last 30 days (« Les plus regardées », 10 channels at most); absent otherwise. */
     @SerialName("watched_rank") val watchedRank: Int? = null,
+    /** 1 = the channel this profile watched last (« Récentes », 20 at most); absent otherwise. */
+    @SerialName("recent_rank") val recentRank: Int? = null,
+    /** The version this profile chose for the channel, as the server keeps it. */
+    val remembered: RememberedVersion? = null,
 ) {
     /** What a channel shows now and next, and whether the guide knows it at all (`hasEpg` null: not said). */
     data class Guide(val now: Programme?, val next: Programme?, val hasEpg: Boolean?) {
@@ -319,6 +345,7 @@ data class ChannelGroup(val id: String, val name: String, val section: String, v
 enum class HomeRowKind {
     @SerialName("resume") RESUME,
     @SerialName("most_watched_channels") MOST_WATCHED_CHANNELS,
+    @SerialName("most_watched") MOST_WATCHED,
     @SerialName("recommended") RECOMMENDED,
     @SerialName("recent_movies") RECENT_MOVIES,
     @SerialName("recent_series") RECENT_SERIES,
@@ -348,6 +375,8 @@ data class HomeHero(
     @SerialName("play_label") val playLabel: String = "Lecture",
     @SerialName("resume_at") val resumeAt: Double? = null,
     val duration: Double? = null,
+    /** The version this profile chose for the title (the series' for an episode), as the server keeps it. */
+    val remembered: RememberedVersion? = null,
 )
 
 @Serializable
@@ -389,6 +418,8 @@ data class Playback(
     val next: NextEpisode? = null,
     val cast: List<Person> = emptyList(),
     val episode: PlaybackEpisode? = null,
+    /** The version this profile chose for the title (the series' for an episode); null when none. */
+    val remembered: RememberedVersion? = null,
 )
 
 @Serializable
@@ -448,9 +479,44 @@ data class ServerInfo(
  * default profile. The avatar is a square image whose URL changes with the picture.
  */
 @Serializable
-data class Profile(val id: Int, val name: String, @SerialName("is_default") val isDefault: Boolean = false, val avatar: String) {
+data class Profile(
+    val id: Int,
+    val name: String,
+    @SerialName("is_default") val isDefault: Boolean = false,
+    val avatar: String,
+    /** Its playback settings, the same on every device it watches on. */
+    val settings: ProfileSettings = ProfileSettings.standard,
+) {
     /** The letter drawn while the picture loads, or when it never comes. */
     val initial: String get() = name.trim().take(1).uppercase()
+}
+
+/**
+ * The playback settings of a profile, kept by the server (Réglages › Lecture, admin › Profils): the quality played by
+ * default (this device still caps it), the next episode starting by itself, the version chosen in the picker kept for
+ * the title, another source tried when one fails.
+ */
+@Serializable
+data class ProfileSettings(
+    @SerialName("max_quality") val maxQuality: Quality = Quality.UHD,
+    @SerialName("auto_play_next") val autoPlayNext: Boolean = true,
+    @SerialName("remember_versions") val rememberVersions: Boolean = true,
+    @SerialName("switch_source_on_failure") val switchSourceOnFailure: Boolean = true,
+) {
+    companion object {
+        val standard = ProfileSettings()
+    }
+}
+
+/** `PUT /profiles/me/settings`: the settings to change, each optional; the apps send them all. */
+@Serializable
+data class ProfileSettingsPatch(
+    @SerialName("max_quality") val maxQuality: Quality? = null,
+    @SerialName("auto_play_next") val autoPlayNext: Boolean? = null,
+    @SerialName("remember_versions") val rememberVersions: Boolean? = null,
+    @SerialName("switch_source_on_failure") val switchSourceOnFailure: Boolean? = null,
+) {
+    constructor(s: ProfileSettings) : this(s.maxQuality, s.autoPlayNext, s.rememberVersions, s.switchSourceOnFailure)
 }
 
 @Serializable

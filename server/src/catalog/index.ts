@@ -96,8 +96,11 @@ export {
   profileAvatar,
   profileById,
   ProfileError,
+  PROFILE_QUALITIES,
+  type ProfileSettingsInput,
   setDefaultProfile,
   updateProfile,
+  updateProfileSettings,
 } from "./profiles";
 export { applyFilters } from "./filters/apply";
 export {

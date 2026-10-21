@@ -320,8 +320,58 @@ export const appProfiles = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     /** The last time the `filters` step judged every version for it; null until the first time: it sees nothing yet. */
     judgedAt: timestamp("judged_at", { withTimezone: true }),
+    // Playback settings, the same on every device the profile watches on (Réglages › Lecture in the apps, admin › Profils).
+    /** The highest quality played by default (« SD », « HD », « FHD », « 4K »); a device still caps it (a phone stops at FHD). */
+    maxQuality: text("max_quality").default("4K").notNull(),
+    autoPlayNext: boolean("auto_play_next").default(true).notNull(),
+    /** The version chosen in the picker is kept for the title (`app_profile_versions`) and served back. */
+    rememberVersions: boolean("remember_versions").default(true).notNull(),
+    switchSourceOnFailure: boolean("switch_source_on_failure").default(true).notNull(),
   },
   (t) => [uniqueIndex("app_profiles_default_idx").on(t.isDefault).where(sql`is_default`)],
+);
+
+/**
+ * The version a profile chose for a title, in the picker or by changing quality in the player: a movie
+ * or a channel plays it again; a series' row (its key, written from any episode) is the language ×
+ * quality × dynamic range × edition applied to every episode. `version_id` is the contract's id
+ * (`vf-4k-dv`), the other columns what it is made of, for the apps' fallback on an episode without it.
+ */
+export const appProfileVersions = pgTable(
+  "app_profile_versions",
+  {
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
+    contentKey: text("content_key").notNull(),
+    versionId: text("version_id").notNull(),
+    language: text("language").notNull(),
+    quality: text("quality").notNull(),
+    dynamicRange: text("dynamic_range"),
+    edition: text("edition"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.contentKey] })],
+);
+
+/**
+ * How many times a profile played a movie or an episode: a play begins with the first progress report
+ * after 6 hours without one (`player/plays.ts`). Nothing deletes a row but the profile: « non vu »
+ * forgets the position, not that it was watched. « Vos plus regardés » on the home.
+ */
+export const appPlays = pgTable(
+  "app_plays",
+  {
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
+    contentKey: text("content_key").notNull(),
+    plays: integer("plays").default(0).notNull(),
+    firstAt: timestamp("first_at", { withTimezone: true }).defaultNow().notNull(),
+    /** The last progress report: a new play starts 6 hours after it. */
+    lastAt: timestamp("last_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.contentKey] })],
 );
 
 /**
@@ -590,7 +640,8 @@ export const appWatchProgress = pgTable(
 
 /**
  * Seconds of live watched, per profile, channel and day (the server's `TZ`): the app adds what it
- * played every 30 s and when it leaves a channel. « Chaînes les plus regardées » sums the last 30 days.
+ * played every 30 s and when it leaves a channel. « Chaînes les plus regardées » sums the last 30 days;
+ * the channels watched last (« Récentes ») are the rows touched last.
  */
 export const appLiveWatch = pgTable(
   "app_live_watch",
@@ -601,6 +652,8 @@ export const appLiveWatch = pgTable(
     contentKey: text("content_key").notNull(),
     day: date("day").notNull(),
     seconds: integer("seconds").default(0).notNull(),
+    /** The last report of the day: the profile's recent channels (`recent_rank`) read it across days. */
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.contentKey, t.day] })],
 );
@@ -834,6 +887,8 @@ export type Device = typeof appDevices.$inferSelect;
 export type Content = typeof catalogContents.$inferSelect;
 export type Category = typeof catalogCategories.$inferSelect;
 export type ProfileFilter = typeof appProfileFilters.$inferSelect;
+export type ProfileVersion = typeof appProfileVersions.$inferSelect;
+export type Plays = typeof appPlays.$inferSelect;
 /** A profile as the lists carry it: its avatar stays in its row (`profileAvatar`), `avatarVersion` changes with it (the image URL). */
 export type Profile = Omit<typeof appProfiles.$inferSelect, "avatar"> & { avatarVersion: string };
 export type TaskStep = typeof taskSteps.$inferSelect;

@@ -81,6 +81,13 @@
       ]
     }
   ],
+  "remembered": {
+    "id": "vf-4k-dv",
+    "language": "VF",
+    "quality": "4K",
+    "dynamic_range": "DV",
+    "label": "FR · 4K DV"
+  },
   "is_favorite": false,
   "saga": {
     "id": "saga:2344",
