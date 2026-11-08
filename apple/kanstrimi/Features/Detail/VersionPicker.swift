@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The sheet behind "Versions" and the long press on Lecture [8]: one button per source of every
-/// version, which plays it at once. No language tabs, no memory options, no play button: nothing is
-/// remembered, the best version stays the automatic choice.
+/// version, which plays it at once; a series' versions carry no sources (« Langue de la série »), one
+/// button per version then, which the sheet remembers for every episode.
 struct VersionPicker: View {
     let title: String
     let versions: [Version]
@@ -23,7 +23,7 @@ struct VersionPicker: View {
                 }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        ForEach(rows, id: \.source.id) { row in
+                        ForEach(rows, id: \.id) { row in
                             Button {
                                 dismiss()
                                 // Let the sheet finish dismissing before what the pick presents (the player cover).
@@ -62,7 +62,7 @@ struct VersionPicker: View {
         if !metrics.compact {
             HStack(spacing: 18) {
                 Text(row.title).font(.headline)
-                Text(row.source.label).foregroundStyle(Theme.secondary)
+                if let source = row.source { Text(source.label).foregroundStyle(Theme.secondary) }
                 Spacer()
                 if recommended { recommendedBadge }
             }
@@ -71,7 +71,7 @@ struct VersionPicker: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(row.title).font(.headline)
-                    Text(row.source.label).font(.footnote).foregroundStyle(Theme.secondary)
+                    if let source = row.source { Text(source.label).font(.footnote).foregroundStyle(Theme.secondary) }
                 }
                 Spacer(minLength: 0)
                 if recommended { recommendedBadge }
@@ -86,21 +86,24 @@ struct VersionPicker: View {
 
     private struct Row {
         let version: Version
-        let source: Source
+        /// Nil for a series: its versions name no source.
+        let source: Source?
         let index: Int
         let title: String
+        var id: String { "\(version.id)|\(source?.id ?? "")" }
     }
 
-    /// One row per source: the recommended version first, then by language, the usual cut before the
-    /// editions, and descending quality.
-    /// How many lines the picker shows for these versions (one per source): with one, there is nothing
-    /// to choose and the buttons that open it hide.
-    static func lineCount(_ versions: [Version]) -> Int { versions.reduce(0) { $0 + $1.sources.count } }
+    /// One row per source, or per version without sources (a series): the recommended version first,
+    /// then by language, the usual cut before the editions, and descending quality.
+    /// How many lines the picker shows for these versions: with one, there is nothing to choose and
+    /// the buttons that open it hide.
+    static func lineCount(_ versions: [Version]) -> Int { versions.reduce(0) { $0 + max(1, $1.sources.count) } }
 
     private var rows: [Row] {
         let sorted = VersionChooser.ordered(versions, recommended: recommendedID)
-        return sorted.flatMap { v in
-            v.sources.enumerated().map { i, src in
+        return sorted.flatMap { v -> [Row] in
+            if v.sources.isEmpty { return [Row(version: v, source: nil, index: 0, title: v.label)] }
+            return v.sources.enumerated().map { i, src in
                 Row(version: v, source: src, index: i,
                     title: v.sources.count > 1 ? "\(v.label) · \(v.sourceName(of: src))" : v.label)
             }

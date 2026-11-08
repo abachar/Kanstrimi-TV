@@ -25,11 +25,12 @@ import dev.crafters.kanstrimi.player.VersionChooser
 import dev.crafters.kanstrimi.ui.theme.Theme
 
 /** How many lines the picker shows for these versions (one per source): with one, there is nothing to choose. */
-fun versionLines(versions: List<Version>): Int = versions.sumOf { it.sources.size }
+fun versionLines(versions: List<Version>): Int = versions.sumOf { maxOf(1, it.sources.size) }
 
 /**
  * The sheet behind « Versions »: one row per source of every version, « 4K DV · FR » and where the provider files
- * it, which plays it at once. The engine's own choice stays the default: nothing is remembered.
+ * it, which plays it at once; a series' versions carry no sources, one row per version then. The engine's own
+ * choice stays the default: nothing is remembered.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,13 +45,14 @@ fun VersionSheet(card: Card, onDismiss: () -> Unit, onPick: (Version) -> Unit) {
             Text("Choisir une version", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(card.title, color = Theme.secondary, modifier = Modifier.padding(bottom = 8.dp))
             card.versions.forEach { v ->
-                v.sources.forEach { s ->
+                val lines = if (v.sources.isEmpty()) listOf(null) else v.sources
+                lines.forEach { s ->
                     Row(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(v) }.background(Theme.surface).padding(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(if (v.sources.size > 1) "${v.label} · ${VersionChooser.sourceName(v, s)}" else v.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        s.origin?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Theme.secondary) }
+                        Text(if (s != null && v.sources.size > 1) "${v.label} · ${VersionChooser.sourceName(v, s)}" else v.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        s?.let { src -> listOfNotNull(src.provider.name.takeIf { it.isNotBlank() }, src.origin).joinToString(" · ").takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Theme.secondary) } }
                     }
                 }
             }

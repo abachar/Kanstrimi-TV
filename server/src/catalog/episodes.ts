@@ -70,6 +70,9 @@ async function upstreamInfo(upstream: Upstream, accountId: number, xtreamId: str
       .onConflictDoUpdate({ target: [c.accountId, c.kind, c.xtreamId], set: { data, fetchedAt: new Date() } });
     return data as UpstreamInfo;
   } catch (e) {
+    console.warn(
+      `[episodes] fournisseur ${accountId}, série ${xtreamId} : ${describeError(e)}${cached ? " (réponse en cache gardée)" : ""}`,
+    );
     // Unreachable, timed out or a 5xx: the next variants would wait just as long for the same answer.
     if (isUnreachable(e) || (e instanceof XtreamError && (e.status ?? 0) >= 500)) upstream.down = true;
     if (cached) return cached.data as UpstreamInfo;
@@ -208,6 +211,13 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
       }
   }
   if (unavailable && !found.size) throw new UpstreamUnavailable();
+  const perAccount: Record<number, number> = {};
+  for (const v of variants)
+    perAccount[v.accountId] =
+      (perAccount[v.accountId] ?? 0) + [...found.values()].filter((f) => f.sources.some((s) => s.itemId === v.id)).length;
+  console.log(
+    `[episodes] ${content.title} : ${found.size} épisode(s) depuis ${variants.length} variante(s)${unavailable ? `, ${unavailable} sans réponse` : ""} · sources par fournisseur ${JSON.stringify(perAccount)}`,
+  );
   // Best metadata: TMDB season, then the provider's TMDB-like data, then the parsed title.
   if (content.tmdbId) {
     for (const season of new Set([...found.values()].map((f) => f.season))) {
