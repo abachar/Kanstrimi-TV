@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The sheet behind "Versions" and the long press on Lecture [8]: one button per source of every
-/// version, which plays it at once; a series' versions carry no sources (« Langue de la série »), one
+/// version, which plays it at once; a series' versions carry no sources (« Version de la série »), one
 /// button per version then, which the sheet remembers for every episode.
 struct VersionPicker: View {
     let title: String
@@ -18,7 +18,7 @@ struct VersionPicker: View {
             if Platform.isTV { Color.black.opacity(0.6).ignoresSafeArea() }
             VStack(alignment: .leading, spacing: 26) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(isSeries ? "Langue de la série" : "Choisir une version").font(.title2.weight(.bold))
+                    Text(isSeries ? "Version de la série" : "Choisir une version").font(.title2.weight(.bold))
                     Text(title).font(.callout).foregroundStyle(Theme.secondary)
                 }
                 ScrollView {

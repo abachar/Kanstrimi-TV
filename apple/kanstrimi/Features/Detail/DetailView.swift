@@ -273,7 +273,7 @@ private struct DetailContent: View {
                 .disabled(d.versions.isEmpty)
             }
             if d.kind == .series, hasChoice(d) {
-                IconAction(title: "Langue · \(model.seriesChoice?.label ?? "—")", systemImage: "waveform", focused: focused == .language) { showPicker = true }
+                IconAction(title: "Version · \(model.seriesChoice?.label ?? "—")", systemImage: "rectangle.stack.badge.play", focused: focused == .language) { showPicker = true }
                     .focused($focused, equals: .language)
                     .disabled(d.versions.isEmpty)
             } else if d.kind != .series {
