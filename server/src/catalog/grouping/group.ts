@@ -145,11 +145,10 @@ async function* chunksOf<T extends { id: number }>(select: (where: SQL) => Promi
 }
 
 async function categoryHints() {
-  const cats = await db
-    .select({ kind: schema.catalogCategories.kind, xtreamId: schema.catalogCategories.xtreamId, name: schema.catalogCategories.name })
-    .from(schema.catalogCategories);
+  const c = schema.catalogCategories;
+  const cats = await db.select({ accountId: c.accountId, kind: c.kind, xtreamId: c.xtreamId, name: c.name }).from(c);
   const map = new Map<string, CategoryHints & { adult: boolean }>();
-  for (const c of cats) map.set(`${c.kind}:${c.xtreamId}`, { ...parseCategory(c.name), adult: isAdultCategory(c.name) });
+  for (const k of cats) map.set(`${k.accountId}:${k.kind}:${k.xtreamId}`, { ...parseCategory(k.name), adult: isAdultCategory(k.name) });
   return map;
 }
 
@@ -166,7 +165,7 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
   const chunks = chunksOf(
     (where) =>
       db
-        .select({ id: v.id, kind: v.kind, name: v.name, cat: v.categoryXtreamId, section: v.section })
+        .select({ id: v.id, accountId: v.accountId, kind: v.kind, name: v.name, cat: v.categoryXtreamId, section: v.section })
         .from(v)
         .where(where)
         .orderBy(asc(v.id))
@@ -189,7 +188,7 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       themes: (string | null)[] = [];
     for (const r of rows) {
       const p = parseName(r.name, r.kind);
-      const h = hints.get(`${r.kind}:${r.cat}`);
+      const h = hints.get(`${r.accountId}:${r.kind}:${r.cat}`);
       const market = p.market ?? h?.market ?? null;
       const quality = p.quality ?? h?.quality ?? null;
       const dr = p.dynamicRange ?? h?.dynamicRange ?? null;

@@ -35,19 +35,43 @@ export const settings = pgTable("settings", {
  * the sanity checks. The `merge` step derives the catalogue from them. Created UNLOGGED by the
  * migration: a crash loses them, the next import rewrites them.
  */
+/**
+ * An Xtream account, one per provider: the catalogue imports every enabled one, and a title found at
+ * several providers lists one source per account (`position`: the preferred provider first, the one that
+ * plays by default). Disabled: its catalogue stays but is served no more; deleted: everything it brought goes.
+ */
+export const providerAccounts = pgTable("provider_accounts", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  username: text("username").notNull(),
+  password: text("password").notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  position: integer("position").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+/** The account a provider row came from; its rows go with it. */
+const accountId = () =>
+  integer("account_id")
+    .notNull()
+    .references(() => providerAccounts.id, { onDelete: "cascade" });
+
 export const xtreamCategories = pgTable(
   "xtream_categories",
   {
+    accountId: accountId(),
     kind: kindEnum("kind").notNull(),
     xtreamId: text("xtream_id").notNull(),
     position: integer("position").notNull(),
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
   },
-  (t) => [primaryKey({ columns: [t.kind, t.xtreamId] })],
+  (t) => [primaryKey({ columns: [t.accountId, t.kind, t.xtreamId] })],
 );
 export const xtreamStreams = pgTable(
   "xtream_streams",
   {
+    accountId: accountId(),
     kind: kindEnum("kind").notNull(),
     /** stream_id (live, vod) or series_id (series), trimmed: an opaque string. */
     xtreamId: text("xtream_id").notNull(),
@@ -55,7 +79,7 @@ export const xtreamStreams = pgTable(
     position: integer("position").notNull(),
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
   },
-  (t) => [primaryKey({ columns: [t.kind, t.xtreamId] })],
+  (t) => [primaryKey({ columns: [t.accountId, t.kind, t.xtreamId] })],
 );
 
 /** The provider's categories in the catalogue, where the admin hides them (by rule or by hand). */
@@ -63,6 +87,7 @@ export const catalogCategories = pgTable(
   "catalog_categories",
   {
     id: serial("id").primaryKey(),
+    accountId: accountId(),
     kind: kindEnum("kind").notNull(),
     xtreamId: text("xtream_id").notNull(),
     name: text("name").notNull(),
@@ -73,7 +98,7 @@ export const catalogCategories = pgTable(
     /** Last time the provider's copy of this row changed (`merge`). */
     changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("catalog_categories_kind_xtream_idx").on(t.kind, t.xtreamId)],
+  (t) => [uniqueIndex("catalog_categories_kind_xtream_idx").on(t.accountId, t.kind, t.xtreamId)],
 );
 
 /**
@@ -86,10 +111,12 @@ export const catalogVariants = pgTable(
   "catalog_variants",
   {
     id: serial("id").primaryKey(),
+    accountId: accountId(),
     kind: kindEnum("kind").notNull(),
     /**
-     * stream_id (live/vod) or series_id (series) as sent by the provider — an opaque string.
-     * Providers are careless: ids may be non-numeric, repeated across categories, or missing.
+     * stream_id (live/vod) or series_id (series) as sent by the provider — an opaque string, its own:
+     * two providers reuse the same numbers. Providers are careless: ids may be non-numeric, repeated
+     * across categories, or missing.
      */
     xtreamId: text("xtream_id").notNull(),
     name: text("name").notNull(),
@@ -156,8 +183,8 @@ export const catalogVariants = pgTable(
     country: text("country"),
   },
   (t) => [
-    uniqueIndex("catalog_variants_kind_xtream_idx").on(t.kind, t.xtreamId),
-    index("catalog_variants_kind_cat_idx").on(t.kind, t.categoryXtreamId),
+    uniqueIndex("catalog_variants_kind_xtream_idx").on(t.accountId, t.kind, t.xtreamId),
+    index("catalog_variants_kind_cat_idx").on(t.accountId, t.kind, t.categoryXtreamId),
     index("catalog_variants_match_idx").on(t.kind, t.matchStatus),
     index("catalog_variants_content_idx").on(t.contentId),
     index("catalog_variants_content_key_idx").on(t.contentKey),
@@ -294,12 +321,13 @@ export const xtreamInfoCache = pgTable(
   "xtream_info_cache",
   {
     id: serial("id").primaryKey(),
+    accountId: accountId(),
     kind: kindEnum("kind").notNull(),
     xtreamId: text("xtream_id").notNull(),
     data: jsonb("data").$type<Record<string, unknown>>().notNull(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("xtream_info_cache_idx").on(t.kind, t.xtreamId)],
+  (t) => [uniqueIndex("xtream_info_cache_idx").on(t.accountId, t.kind, t.xtreamId)],
 );
 
 const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
@@ -881,6 +909,7 @@ export const skipdbSegments = pgTable(
   (t) => [index("skipdb_segments_title_idx").on(t.imdbId, t.season, t.episode)],
 );
 
+export type ProviderAccount = typeof providerAccounts.$inferSelect;
 export type Variant = typeof catalogVariants.$inferSelect;
 export type Episode = typeof catalogEpisodes.$inferSelect;
 export type Device = typeof appDevices.$inferSelect;

@@ -1,7 +1,8 @@
-import type { Device, Profile } from "@/db";
-import type { Settings } from "@/config";
+import type { Device, Profile, ProviderAccount } from "@/db";
+import { accountsById, type Settings } from "@/config";
 import { upstreamStreamUrl } from "@/providers/xtream";
 import { languageOrderOf } from "@/catalog";
+import type { Provider } from "./types";
 
 /** What every authenticated request carries: who asks, and how to spell URLs and titles for them. */
 export type RestContext = {
@@ -14,10 +15,8 @@ export type RestContext = {
   /** The languages the profile's filters name, in their order: the versions it plays, the first one first. */
   languageOrder: Record<"vod" | "series", string[]>;
   tmdbLang: string;
-  /** Display name of the single Xtream account (its host). */
-  providerName: string;
-  /** The provider's URL of a stream, its account in the path; null until the account is configured. */
-  upstreamUrl: (kind: "live" | "movie" | "series", id: string, ext: string) => string | null;
+  /** The provider accounts by id (Fournisseurs), disabled ones included: a variant names its own. */
+  accounts: Map<number, ProviderAccount>;
   /** Paramètres › « Servir les contenus adultes » ; off by default. */
   serveAdult: boolean;
 };
@@ -34,20 +33,32 @@ export function publicBaseUrl(req: Request, settings: Settings) {
 }
 
 export async function contextFor(req: Request, device: Device | null, s: Settings, profile: Profile): Promise<RestContext> {
-  let providerName = "Fournisseur";
-  try {
-    providerName = new URL(s.xtream_url.startsWith("http") ? s.xtream_url : `http://${s.xtream_url}`).hostname;
-  } catch {
-    /* keep default */
-  }
   return {
     baseUrl: publicBaseUrl(req, s),
     device,
     profile,
     languageOrder: await languageOrderOf(profile.id),
     tmdbLang: s.tmdb_language,
-    providerName,
-    upstreamUrl: (kind, id, ext) => upstreamStreamUrl(s, kind, id, ext),
+    accounts: await accountsById(),
     serveAdult: s.serve_adult === "1",
   };
+}
+
+/** The provider of a source, as the app labels it: the account's name. */
+export function providerOf(ctx: RestContext, accountId: number): Provider {
+  return { id: `xtream-${accountId}`, name: ctx.accounts.get(accountId)?.name ?? "Fournisseur", kind: "xtream" };
+}
+
+/** The rank of an account among the providers: the preferred one first; an unknown account last. */
+export function accountRank(ctx: RestContext, accountId: number): number {
+  return ctx.accounts.get(accountId)?.position ?? Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * The provider's own URL of a stream, its account in the path, for a paired device only (the admin
+ * reads the catalogue without one and never plays). Empty when the account is gone.
+ */
+export function streamUrlOf(ctx: RestContext, accountId: number, kind: "live" | "movie" | "series", id: string, ext: string): string {
+  const account = ctx.device && ctx.accounts.get(accountId);
+  return account ? upstreamStreamUrl(account, kind, id, ext) : "";
 }

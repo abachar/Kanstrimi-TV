@@ -3,22 +3,23 @@
 Node 22 · Hono · TypeScript · Postgres + Drizzle · Biome · Vitest · esbuild. Admin rendue côté serveur (Hono JSX, HTMX,
 Tailwind CSS 4 et Basecoat, icônes Lucide ; **aucun CSS ni JS maison**, à une exception près : `assets/avatar.js`, la glu
 de Cropper.js pour recadrer la photo d'un profil).
-Le serveur importe le catalogue du fournisseur, le nettoie, l'enrichit et le sert à l'app Apple ; la vidéo ne le
+Le serveur importe le catalogue de chaque fournisseur, le nettoie, l'enrichit et le sert aux apps ; la vidéo ne le
 traverse jamais (l'app lit l'URL du fournisseur).
 
 ## Démarrage
 
 ```bash
-cp .env.example .env                       # DATABASE_URL, SESSION_SECRET (32+ car.), DATA_DIR, XTREAM_*, TMDB_API_KEY
+cp .env.example .env                       # DATABASE_URL, SESSION_SECRET (32+ car.), DATA_DIR, TMDB_API_KEY
 npm run hash-password -- <mot-de-passe>    # 12 car. min → ADMIN_PASSWORD_HASH dans .env
 npm install
 npm run db:migrate
 npm run dev                                # http://localhost:3000/admin
 ```
 
-Puis dans l'admin : **Paramètres** (URL publique, langue TMDB, planification), **Tâches → Traitement complet**,
-**Profils** (les personnes du foyer, chacune avec ses filtres) et **Appareils** pour appairer l'Apple TV ou l'iPhone. En local, `DEV_PASSWORD` dans `.env` saute la connexion (refusé en
-production).
+Puis dans l'admin : **Fournisseurs** (les comptes Xtream, dans l'ordre de préférence), **Paramètres** (URL publique,
+langue TMDB, planification), **Tâches → Traitement complet**, **Profils** (les personnes du foyer, chacune avec ses
+filtres) et **Appareils** pour appairer l'Apple TV ou l'iPhone. En local, `DEV_PASSWORD` dans `.env` saute la connexion
+(refusé en production).
 
 | Script | Rôle |
 |---|---|
@@ -43,14 +44,14 @@ Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres :
 
 | Étape | Rôle |
 |---|---|
-| `source` | copie brute des listes Xtream, refusée si vide ou si le catalogue fond de moitié (panne du fournisseur) ; puis copie brute → variantes du catalogue, par différence, et analyse des noms (titre, année, marché, langue, qualité, édition) |
+| `source` | copie brute des listes Xtream de chaque fournisseur actif, refusée pour lui si vide ou si son catalogue fond de moitié (panne) ; un fournisseur illisible garde sa copie, les autres passent, l'étape finit en échec sans arrêter le passage (`PartialFailure`) ; puis copie brute → variantes du catalogue, par différence, et analyse des noms (titre, année, marché, langue, qualité, édition) |
 | `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`), qui relit peu à peu les fiches anciennes ; puis rattachement des chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région. L'un en panne n'empêche pas l'autre |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
 | `filters` | les filtres de chaque profil (`catalog/filters/`) gardent ou écartent chaque version pour ce profil (`catalog_variant_profiles`) ; `hidden_by_rule` = écartée par tous ; puis les contenus touchés recomptent leurs agrégats, `visible` (vue par un profil au moins), ce que voit chaque profil (`catalog_content_profiles`) et les arrivées de la liste d'attente. Une version qu'aucun filtre n'a encore vue est écartée |
 
 | Tâche à part | Rôle |
 |---|---|
-| `epg` | guide des programmes des chaînes visibles, deux fois par jour (le fournisseur ne couvre qu'un jour et demi), l'EPG de chaque variante, complété par les sources de secours ; décalages horaires corrigés dans l'admin |
+| `epg` | guide des programmes des chaînes visibles, deux fois par jour (un fournisseur ne couvre qu'un jour et demi), l'EPG de chaque variante, complété par les sources de secours ; décalages horaires corrigés dans l'admin |
 | `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf), une fois par jour ; sans clé TMDB, le cron passe son tour |
 | `markers` | export quotidien de SkipDB (récaps, intros, génériques, aperçus du prochain épisode), remplacé en entier ; un export vide ou fondu de moitié garde le précédent |
 
@@ -66,10 +67,12 @@ partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque pa
 
 ## Tables
 
-Le préfixe dit d'où vient la donnée : `xtream_` (copie et cache du fournisseur), `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_` (caches des sources),
+Le préfixe dit d'où vient la donnée : `provider_accounts` (les comptes Xtream, un par fournisseur, dans l'ordre de préférence), `xtream_` (copie et cache de chaque fournisseur, `account_id` sur chaque ligne), `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_` (caches des sources),
 `catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes et les épisodes construits à l'ouverture d'une fiche ; `catalog_variant_profiles` et `catalog_content_profiles` = ce que chaque profil garde et voit), `curation_` (choix de l'admin), `app_` (les personnes du foyer, `app_profiles` avec leurs réglages de lecture, leurs filtres, et ce que l'app enregistre pour chacune : favoris,
 progression, lectures (`app_plays`), versions choisies (`app_profile_versions`), temps regardé du direct, liste d'attente ; les appareils), `task_` (journal), et `settings`.
-Deux niveaux : variantes (une entrée du fournisseur) et contenus (`catalog_contents.key`, la seule identité exposée à l'app).
+Deux niveaux : variantes (une entrée d'un fournisseur, unique par (`account_id`, `kind`, `xtream_id`) : deux fournisseurs
+réutilisent les mêmes numéros) et contenus (`catalog_contents.key`, la seule identité exposée à l'app). Un titre présent chez
+plusieurs fournisseurs est un contenu dont chaque version liste une source par fournisseur, le préféré en premier.
 Tout ce qui est personnel porte un `profile_id` ; un profil est par défaut (`is_default`, un seul) : celui des appareils tant que
 l'app n'en dit pas d'autre, du Top Shelf et de l'admin quand elle regarde « avec les yeux de l'app ». Il ne se supprime pas ;
 supprimer un autre profil emporte tout ce qu'il a enregistré.
@@ -163,6 +166,14 @@ par son index.
   les variantes (un contenu mixte reste servi, sans ses variantes adultes).
   Les genres de Films et Séries restent en mémoire jusqu'à ce que le groupement réécrive les contenus
   (`contentsGeneration`) : une écriture directe dans `catalog_contents` ne les rafraîchit pas.
+- **Fournisseurs** (`config/accounts.ts`, page Fournisseurs) : les comptes Xtream en base, en clair (l'app les reçoit de toute
+  façon dans chaque `stream_url`), dans l'ordre de préférence ; `position` ordonne les sources d'une version, la première
+  joue par défaut et l'app bascule sur la suivante en panne. Désactivé : son catalogue reste en base mais `visibleItem`
+  l'écarte (relancer à partir de `group`, l'admin le fait) ; supprimé : tout ce qu'il a apporté part en cascade. Au premier
+  démarrage, `XTREAM_URL`, `XTREAM_USERNAME`, `XTREAM_PASSWORD` de l'environnement remplissent le compte que la migration a
+  créé pour le catalogue en place, puis ces variables n'ont plus d'usage. Les guides EPG des fournisseurs partagent leurs
+  identifiants (« TF1.fr ») : le préféré donne ses programmes, le suivant ne remplit que les chaînes qu'il a laissées vides.
+  Un filtre de profil peut nommer un fournisseur : `xtream.fournisseur:backup`.
 - **Dates** : arrivée = date du fournisseur (`added`, `last_modified` pour une série) ; sortie = TMDB, tri par défaut.
 - **Données amont non fiables** : `xtream_id` n'est pas un identifiant, les champs manquent, l'identifiant TMDB fourni
   n'est jamais cru sur parole.
@@ -170,8 +181,8 @@ par son index.
   par `jsonb_to_recordset` d'un seul paramètre (les cartes, colonnes décrites une fois dans `group.ts`). Une carte
   n'est réécrite que si elle change.
   Le merge, les filtres et le groupement passent l'un après l'autre (`withCatalogLock`).
-- **Secrets** : le compte du fournisseur et la clé TMDB viennent de l'environnement (secrets podman en production), jamais
-  de la base ; l'admin les montre sans les modifier, un changement demande un redémarrage. Un seul mot de passe (bcrypt),
+- **Secrets** : la clé TMDB vient de l'environnement (secret podman en production), jamais de la base ; l'admin la montre
+  sans la modifier, un changement demande un redémarrage. Un seul mot de passe (bcrypt),
   celui de l'admin : `/admin/login` passe toujours par bcrypt et, par adresse, après cinq échecs, double l'attente à chaque nouvel échec (429).
   Le cookie de session porte sa génération, sa date et une empreinte du hash : « Déconnecter toutes les sessions »
   (Paramètres), un nouveau mot de passe ou 30 jours le rendent caduc. Une erreur inattendue s'affiche sans son détail,
@@ -197,7 +208,7 @@ par son index.
     `/channels` (1 = la dernière quittée, 20 au plus). L'app part de là et y ajoute ses zaps du moment.
 - **Appairage** : `POST /player/devices` rend le code et le jeton de l'appareil (seule son empreinte est en base) ; le jeton
   ne vaut qu'une fois le code approuvé dans l'admin, `GET /player/devices/{code}` ne donne que le statut.
-- **Liens de lecture** : `stream_url` est l'URL du fournisseur, compte compris, envoyée aux seuls appareils appairés ;
+- **Liens de lecture** : `stream_url` est l'URL du fournisseur de la variante, compte compris, envoyée aux seuls appareils appairés ;
   l'app la lit elle-même (le fournisseur répond encore un `302` vers son backend) et ne redemande `/playback` qu'au « Réessayer » d'une panne.
 - **Ne jamais journaliser une URL brute** : le mot de passe Xtream y circule. Passer par `requestLogger()`.
 - **Liste d'attente** (`catalog/waitlist.ts`, admin › Application) : des films cherchés sur TMDB avant que le fournisseur ne les ait,
@@ -251,10 +262,11 @@ Image `linux/amd64` construite par GitHub Actions et publiée sur `ghcr.io` ; Ha
 Quadlet, derrière Caddy) la récupère seul. esbuild produit `dist/main.js` et `dist/db/migrate.js`, dépendances incluses ;
 seul `sharp` (libvips natif) reste hors du bundle et forme l'unique `node_modules` de l'image.
 
-- Variables : `ADMIN_PASSWORD_HASH`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `DATA_DIR`, `PORT`, `TZ`, et le
-  compte du fournisseur `XTREAM_URL`, `XTREAM_USERNAME`, `XTREAM_PASSWORD` avec `TMDB_API_KEY` (secrets podman,
-  `Secret=…,type=env,target=…` dans le Quadlet) ; les alertes de l'iPhone avec `APNS_KEY` (le texte PEM de la clé
-  `.p8`, `\n` échappés ou non), `APNS_KEY_ID` et `APNS_TEAM_ID`, facultatives.
+- Variables : `ADMIN_PASSWORD_HASH`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `DATA_DIR`, `PORT`, `TZ`, et
+  `TMDB_API_KEY` (secret podman, `Secret=…,type=env,target=…` dans le Quadlet) ; les alertes de l'iPhone avec `APNS_KEY`
+  (le texte PEM de la clé `.p8`, `\n` échappés ou non), `APNS_KEY_ID` et `APNS_TEAM_ID`, facultatives. Les comptes des
+  fournisseurs sont en base (page Fournisseurs) ; les anciens secrets `XTREAM_*` ne servent plus qu'au premier démarrage
+  après la migration, puis se retirent.
 - `DATA_DIR` ne contient que des caches reconstructibles et les logs : seule la base se sauvegarde.
 - Le mot de passe circule en clair dans les URL Xtream : LAN ou HTTPS uniquement.
 

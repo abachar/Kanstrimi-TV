@@ -3,8 +3,6 @@ import { describeCron } from "../format";
 import { Title, Card, Busy } from "../ui";
 import { Icon } from "../icons";
 
-const ENV_HINT = "Variables d'environnement (secrets podman en production) : redémarrer le serveur après un changement.";
-
 export function SettingsView({ s }: { s: Settings }) {
   const F = ({
     name,
@@ -71,18 +69,14 @@ export function SettingsView({ s }: { s: Settings }) {
   );
   return (
     <>
-      <Title t="Paramètres" sub="Source Xtream, TMDB, clients, planification, sécurité" />
+      <Title t="Paramètres" sub="TMDB, clients, planification, sécurité — les comptes Xtream sont sur la page Fournisseurs" />
       <form method="post" action="/admin/settings" class="flex flex-col gap-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title="Serveur Xtream (source)" icon="server" hint={ENV_HINT}>
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Env name="xtream_url" label="URL" col="md:col-span-2" />
-              <Env name="xtream_username" label="Utilisateur" />
-              <Env name="xtream_password" label="Mot de passe" />
-            </div>
-            <Test url="/admin/settings/test-xtream" target="xt-result" label="Tester la connexion" />
-          </Card>
-          <Card title="TMDB" icon="database">
+          <Card
+            title="TMDB"
+            icon="database"
+            hint="Clé dans l'environnement (secret podman en production) : redémarrer le serveur après un changement."
+          >
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Env name="tmdb_api_key" label="Clé API (v3) ou token v4" col="md:col-span-2" />
               <F name="tmdb_language" label="Langue" hint="fr-FR, en-US…" />

@@ -1,12 +1,12 @@
 import { Cron } from "croner";
-import { getSettings, isXtreamConfigured, type Settings } from "@/config";
+import { hasActiveAccounts, type Settings } from "@/config";
 import { checkCancelled, describeError, isCancelled, withCancel } from "@/shared";
 import { runSync } from "@/providers/xtream";
 import { getTmdbClient, runTrending } from "@/providers/tmdb";
 import { runSkipdbImport } from "@/providers/skipdb";
 import { runEnrich } from "./matching";
 import { runEpgRebuild } from "./epg";
-import { variantCountsByKind } from "./queries";
+import { variantCountsByAccount } from "./queries";
 import { applyFilters } from "./filters/apply";
 import { runGrouping } from "./grouping/group";
 import { runMerge } from "./merge";
@@ -16,8 +16,8 @@ import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
 
 /**
  * The catalogue pipeline. Four steps, each a plain function of its own modules:
- *   source  — the provider's lists into their raw copy, checked against the catalogue (providers/xtream),
- *             then raw copy → catalogue by difference and the names parsed (merge.ts, no network)
+ *   source  — the lists of every enabled account into their raw copy, each checked against the catalogue
+ *             (providers/xtream), then raw copy → catalogue by difference and the names parsed (merge.ts, no network)
  *   enrich  — TMDB matching of every pending film and series, hidden ones included, and a share of the
  *             stale cache (matching.ts); live variants matched to iptv-org: logo, theme, country (channels.ts)
  *   group   — variants → contents in the served languages, aggregates over the visible variants (no network)
@@ -43,6 +43,11 @@ export const PIPELINE_STEPS: readonly Step[] = ["source", "enrich", "group", "fi
  * goes on without it and ends in error. The imported catalogue still gets filtered and grouped.
  */
 const SKIPPABLE: ReadonlySet<Step> = new Set(["enrich"]);
+/**
+ * A step that did part of its work (one provider of several unreadable, the others merged): the run
+ * goes on and ends in error, as after a `SKIPPABLE` step.
+ */
+export class PartialFailure extends Error {}
 /** Runs and their files are kept this long. */
 export const RETENTION_DAYS = 5;
 
@@ -51,10 +56,16 @@ export type RunOptions = { acceptShrink?: boolean };
 type StepContext = RunOptions & { steps: Step[] };
 
 const RUNNERS: Record<Step, (ctx: StepContext) => Promise<unknown>> = {
+  // Every account that could be read is merged before the failures of the others stop the step.
   source: async (ctx) => {
-    const read = await runSync({ acceptShrink: ctx.acceptShrink, currentCounts: await variantCountsByKind() });
+    const read = await runSync({ acceptShrink: ctx.acceptShrink, currentCounts: await variantCountsByAccount() });
     checkCancelled();
-    return { ...read, ...(await runMerge(ctx)) };
+    const merged = await runMerge(ctx);
+    if (read.failed.length) {
+      for (const f of read.failed) note(`fournisseur en échec : ${f}`);
+      throw new PartialFailure(read.failed.join(" ; "));
+    }
+    return { ...read.stats, ...merged };
   },
   enrich: runEnrichment,
   group: runGrouping,
@@ -106,9 +117,9 @@ export function onRunFinished(fn: (run: RunWithSteps) => void) {
   runListeners.push(fn);
 }
 
-/** One step under the journal. Null when it went well, else what went wrong. */
-async function runStep(step: Step, runId: number, ctx: StepContext): Promise<string | null> {
-  if (running.has(step)) return "déjà en cours";
+/** One step under the journal. Null when it went well, else what went wrong and whether the run may go on. */
+async function runStep(step: Step, runId: number, ctx: StepContext): Promise<{ error: string; goOn: boolean } | null> {
+  if (running.has(step)) return { error: "déjà en cours", goOn: false };
   running.set(step, new Date());
   const started = Date.now();
   note(`── ${step}`);
@@ -124,14 +135,14 @@ async function runStep(step: Step, runId: number, ctx: StepContext): Promise<str
     if (isCancelled(e)) {
       note(`── ${step} : arrêté après ${Math.round((Date.now() - started) / 1000)} s`);
       if (stepId !== null) await finishStep(stepId, "killed", KILLED).catch(unrecorded(step));
-      return KILLED;
+      return { error: KILLED, goOn: false };
     }
     const message = describeError(e);
     lastError = { step, message, at: new Date() };
     console.error(`[pipeline] ${step} :`, message);
-    if (e instanceof Error && e.stack) note(e.stack);
+    if (e instanceof Error && e.stack && !(e instanceof PartialFailure)) note(e.stack);
     if (stepId !== null) await finishStep(stepId, "error", message).catch(unrecorded(step));
-    return message;
+    return { error: message, goOn: SKIPPABLE.has(step) || e instanceof PartialFailure };
   } finally {
     running.delete(step);
   }
@@ -139,7 +150,7 @@ async function runStep(step: Step, runId: number, ctx: StepContext): Promise<str
 
 /**
  * One run of a task: its row, its file, its steps in order until the first failure (a failure
- * of an enrichment step, `SKIPPABLE`, is noted and skipped).
+ * of an enrichment step, `SKIPPABLE`, or a partial one, `PartialFailure`, is noted and passed).
  * False when it could not start (already running, database down) or failed.
  */
 async function runTask(task: string, trigger: Trigger, steps: Step[], opts: RunOptions = {}): Promise<boolean> {
@@ -166,9 +177,9 @@ async function runTask(task: string, trigger: Trigger, steps: Step[], opts: RunO
           const failed = await runStep(step, run.id, { ...opts, steps });
           if (!failed) continue;
           if (stop.signal.aborted) break;
-          error ??= failed;
-          if (!SKIPPABLE.has(step)) break;
-          note(`${step} en échec : le passage continue sans lui`);
+          error ??= failed.error;
+          if (!failed.goOn) break;
+          note(`${step} en échec : le passage continue`);
         }
         const killed = stop.signal.aborted;
         note(killed ? "Arrêté depuis l'admin" : error ? `Échec : ${error}` : "Terminé");
@@ -240,14 +251,14 @@ let jobs: Cron[] = [];
 
 /**
  * (Re)create the four cron jobs from the settings; called at boot and whenever the settings
- * change. `protect` skips a tick while the previous run is still going. An unconfigured
- * provider is checked at fire time.
+ * change. `protect` skips a tick while the previous run is still going. Without an enabled
+ * provider account, checked at fire time, the tick passes.
  */
 export function schedule(s: Settings) {
   for (const j of jobs) j.stop();
   jobs = [];
   const guarded = (name: string, fn: () => Promise<unknown>) => async () => {
-    if (!isXtreamConfigured(await getSettings())) return;
+    if (!(await hasActiveAccounts())) return;
     console.log(`[pipeline] ${name} planifié`);
     await fn();
   };

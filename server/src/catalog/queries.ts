@@ -28,13 +28,17 @@ export async function variantsOfContent(contentId: number): Promise<Variant[]> {
     .orderBy(desc(schema.catalogVariants.qualityRank), asc(schema.catalogVariants.id));
 }
 
-/** How many variants the catalogue holds per kind: what the provider's lists are checked against. */
-export async function variantCountsByKind(): Promise<Record<Kind, number>> {
-  const counts = { live: 0, vod: 0, series: 0 } as Record<Kind, number>;
+/** How many variants the catalogue holds per account and kind: what each provider's lists are checked against. */
+export async function variantCountsByAccount(): Promise<Map<number, Record<Kind, number>>> {
   const rows = await db
-    .select({ kind: schema.catalogVariants.kind, n: sql<number>`count(*)::int` })
+    .select({ accountId: schema.catalogVariants.accountId, kind: schema.catalogVariants.kind, n: sql<number>`count(*)::int` })
     .from(schema.catalogVariants)
-    .groupBy(schema.catalogVariants.kind);
-  for (const r of rows) counts[r.kind] = r.n;
-  return counts;
+    .groupBy(schema.catalogVariants.accountId, schema.catalogVariants.kind);
+  const out = new Map<number, Record<Kind, number>>();
+  for (const r of rows) {
+    const counts = out.get(r.accountId) ?? ({ live: 0, vod: 0, series: 0 } as Record<Kind, number>);
+    counts[r.kind] = r.n;
+    out.set(r.accountId, counts);
+  }
+  return out;
 }

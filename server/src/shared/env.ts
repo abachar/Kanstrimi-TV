@@ -26,11 +26,12 @@ const schema = z
     PORT: z.coerce.number().int().positive().default(3000),
     /** Local development only: logs the admin in without the login page. */
     DEV_PASSWORD: z.string().optional(),
-    /** The provider account and the TMDB key: podman secrets in production, never stored in the database. */
+    /** The TMDB key: a podman secret in production, never stored in the database. */
+    TMDB_API_KEY: z.string().trim().default(""),
+    /** The provider account of before the `provider_accounts` table: read once at boot to fill the first account, then unneeded. */
     XTREAM_URL: z.string().trim().default(""),
     XTREAM_USERNAME: z.string().trim().default(""),
     XTREAM_PASSWORD: z.string().default(""),
-    TMDB_API_KEY: z.string().trim().default(""),
     /** APNs, for the iPhone's alerts: the `.p8` key (its PEM text, `\n` escaped or not), its id, the team id. All three or none. */
     APNS_KEY: z.string().trim().default(""),
     APNS_KEY_ID: z.string().trim().default(""),
@@ -66,7 +67,7 @@ export const env = {
   port: parsed.data.PORT,
   /** Set (outside production) = no login page, and the admin pages reload themselves after every restart. */
   devPassword: isProd ? undefined : parsed.data.DEV_PASSWORD,
-  /** The provider account and the TMDB key, as `getSettings` hands them out. */
+  /** The TMDB key, as `getSettings` hands it out, and the provider account of before, for `seedAccountFromEnv`. */
   secrets: {
     xtream_url: parsed.data.XTREAM_URL,
     xtream_username: parsed.data.XTREAM_USERNAME,

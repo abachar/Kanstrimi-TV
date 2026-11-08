@@ -252,7 +252,7 @@ const VariantHeader = ({ live }: { live: boolean }) => (
  * what the provider sends and its match side by side.
  */
 function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: boolean; alone: boolean; tmdbLang: string }) {
-  const { item: it, category: cat } = v;
+  const { item: it, category: cat, account } = v;
   const hidden = isItemHidden(it, cat ?? undefined);
   const live = it.kind === "live";
   const raw = it.raw;
@@ -269,7 +269,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
     it.country ? `pays ${it.country}` : null,
     it.adult ? "adulte" : null,
     `clé ${it.keyOverride ?? it.contentKey}${it.keyOverride ? " (imposée)" : ""}`,
-    `amont ${it.xtreamId} · interne #${it.id}`,
+    `${account} · amont ${it.xtreamId} · interne #${it.id}`,
   ].filter((x) => x !== null && x !== "");
   return (
     <div class="relative" id={`variant-${it.id}`}>
@@ -307,6 +307,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
             <Panel title="Fournisseur" hint="Étape source : ce qu'envoie le serveur Xtream">
               <Facts
                 facts={[
+                  ["Compte", account],
                   ["Catégorie", cat ? `${cat.name}${isCategoryHidden(cat) ? " (masquée)" : ""}` : it.categoryXtreamId],
                   ["Position", it.position],
                   ["Conteneur", raw.container_extension],

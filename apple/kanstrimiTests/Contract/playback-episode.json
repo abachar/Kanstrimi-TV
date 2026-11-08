@@ -16,7 +16,7 @@
           "container": "MKV",
           "stream_url": "http://provider.test/series/u/p/e12.mkv",
           "provider": {
-            "id": "xtream",
+            "id": "xtream-1",
             "name": "provider.test",
             "kind": "xtream"
           },

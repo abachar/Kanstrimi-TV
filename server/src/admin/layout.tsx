@@ -46,6 +46,7 @@ export const NAV: readonly (readonly [group: string | null, items: readonly NavI
   [
     "Serveur",
     [
+      ["/admin/providers", "Fournisseurs", "server"],
       ["/admin/caches", "Caches", "caches"],
       ["/admin/tasks", "Tâches", "logs"],
       ["/admin/settings", "Paramètres", "settings"],

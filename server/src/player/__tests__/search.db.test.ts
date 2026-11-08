@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { searchText } from "@/shared";
-import { profileSeesVisible, resetDb, closeDb, testLanguageOrder, testProfile } from "@/test/db";
+import { profileSeesVisible, resetDb, closeDb, testAccounts, testLanguageOrder, testProfile } from "@/test/db";
 import { search } from "../search";
 import type { RestContext } from "../context";
 
@@ -12,8 +12,7 @@ const ctx: RestContext = {
   profile: testProfile,
   languageOrder: testLanguageOrder,
   tmdbLang: "fr-FR",
-  providerName: "p",
-  upstreamUrl: () => null,
+  accounts: testAccounts,
   serveAdult: false,
 };
 const titles = (r: { items: { title: string }[] }) => r.items.map((c) => c.title);

@@ -1,17 +1,56 @@
-import { db, schema, client, type Profile } from "@/db";
-import { invalidateSettings } from "@/config";
+import { db, schema, client, type Profile, type ProviderAccount } from "@/db";
+import { invalidateAccounts, invalidateSettings } from "@/config";
+import { eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import type { XStream } from "@/providers/xtream";
 import { applyFilters, runGrouping } from "@/catalog";
 
-/** Empty every catalogue table between test files, then seed the default profile. */
+/** Empty every catalogue table between test files, then seed the default profile and the provider account. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, app_profiles, app_profile_filters, catalog_variant_profiles, catalog_content_profiles, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_epg_sources, catalog_epg_source_channels, curation_epg_links, curation_studios, curation_waitlist, tmdb_trending, tmdb_recommendations, tmdb_extras, skipdb_segments, theintrodb_cache, introdb_cache restart identity cascade`,
+    sql`truncate table provider_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, app_profiles, app_profile_filters, catalog_variant_profiles, catalog_content_profiles, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_epg_sources, catalog_epg_source_channels, curation_epg_links, curation_studios, curation_waitlist, tmdb_trending, tmdb_recommendations, tmdb_extras, skipdb_segments, theintrodb_cache, introdb_cache restart identity cascade`,
   );
   await db.insert(schema.appProfiles).values({ name: "Hakim", isDefault: true, judgedAt: new Date() }); // the restarted identity gives it PROFILE
+  await db
+    .insert(schema.providerAccounts)
+    .values({ name: "provider.test", url: "http://provider.test", username: "u", password: "p", position: 1 }); // ACCOUNT
   invalidateSettings();
+  invalidateAccounts();
 }
+
+/** The provider account `resetDb` seeds (identities restart: it is always 1), the one every seeded row belongs to. */
+export const ACCOUNT = 1;
+/** Changes the seeded account (its URL, its state) for a test file. */
+export async function setAccountForTests(values: Partial<Pick<ProviderAccount, "name" | "url" | "username" | "password" | "enabled">>) {
+  await db.update(schema.providerAccounts).set(values).where(eq(schema.providerAccounts.id, ACCOUNT));
+  invalidateAccounts();
+}
+/** A second provider for the tests that need one: its rows carry its id. */
+export async function seedAccount(values: Partial<Pick<ProviderAccount, "name" | "url" | "username" | "password" | "enabled">> = {}) {
+  const [row] = await db
+    .insert(schema.providerAccounts)
+    .values({ name: "backup.test", url: "http://backup.test", username: "u2", password: "p2", position: 2, ...values })
+    .returning();
+  invalidateAccounts();
+  return row;
+}
+/** The accounts as a context carries them, after `resetDb`. */
+export const testAccounts = new Map<number, ProviderAccount>([
+  [
+    ACCOUNT,
+    {
+      id: ACCOUNT,
+      name: "provider.test",
+      url: "http://provider.test",
+      username: "u",
+      password: "p",
+      enabled: true,
+      position: 1,
+      createdAt: new Date("2026-09-01T00:00:00Z"),
+      updatedAt: new Date("2026-09-01T00:00:00Z"),
+    },
+  ],
+]);
 
 /** The default profile `resetDb` seeds (identities restart: it is always 1), the one every test records for. */
 export const PROFILE = 1;
@@ -46,6 +85,8 @@ export async function closeDb() {
 }
 
 export type ItemSeed = {
+  /** The provider account; the seeded one by default. */
+  accountId?: number;
   kind: "live" | "vod" | "series";
   xtreamId: string;
   name: string;
@@ -59,10 +100,13 @@ export type ItemSeed = {
   section?: string;
 };
 
-export async function seedCategories(rows: { kind: "live" | "vod" | "series"; xtreamId: string; name: string; hiddenManual?: boolean }[]) {
+export async function seedCategories(
+  rows: { accountId?: number; kind: "live" | "vod" | "series"; xtreamId: string; name: string; hiddenManual?: boolean }[],
+) {
   if (!rows.length) return;
   await db.insert(schema.catalogCategories).values(
     rows.map((c, i) => ({
+      accountId: c.accountId ?? ACCOUNT,
       kind: c.kind,
       xtreamId: c.xtreamId,
       name: c.name,
@@ -79,6 +123,7 @@ export async function seedItems(rows: ItemSeed[]) {
     .insert(schema.catalogVariants)
     .values(
       rows.map((r, i) => ({
+        accountId: r.accountId ?? ACCOUNT,
         kind: r.kind,
         xtreamId: r.xtreamId,
         name: r.name,

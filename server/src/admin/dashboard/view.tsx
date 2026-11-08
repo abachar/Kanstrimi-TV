@@ -11,6 +11,8 @@ import { JobsStatus, type JobsState } from "./jobs";
 export type GroupCount = { kind: string; visible: number; multi: number; fallback: number; adult: number; iptv: number; sagas: number };
 export type DashboardData = {
   s: Settings;
+  /** One provider account at least is enabled (Fournisseurs). */
+  configured: boolean;
   items: ItemCount[];
   cats: CategoryCount[];
   groups: GroupCount[];
@@ -25,11 +27,10 @@ const NO_ITEMS: Omit<ItemCount, "kind"> = { total: 0, hidden: 0, matched: 0, unm
 const NO_GROUPS: Omit<GroupCount, "kind"> = { visible: 0, multi: 0, fallback: 0, adult: 0, iptv: 0, sagas: 0 };
 
 export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }) {
-  const { s } = d;
+  const { s, configured } = d;
   const item = (k: Kind) => d.items.find((r) => r.kind === k) ?? NO_ITEMS;
   const cat = (k: Kind) => d.cats.find((r) => r.kind === k) ?? { total: 0, hidden: 0 };
   const group = (k: Kind) => d.groups.find((r) => r.kind === k) ?? NO_GROUPS;
-  const configured = Boolean(s.xtream_url && s.xtream_username && s.xtream_password);
   const base = s.public_base_url || "http://<ip-de-cette-machine>:3000";
   const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
   const Row = ({ label, children }: { label: string; children?: unknown }) => (
@@ -44,10 +45,9 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
       {!configured && (
         <div class="alert" role="alert">
           <Icon name="alert" />
-          <h2>Serveur Xtream non configuré</h2>
+          <h2>Aucun fournisseur actif</h2>
           <section>
-            <code class="font-mono">XTREAM_URL</code>, <code class="font-mono">XTREAM_USERNAME</code> et{" "}
-            <code class="font-mono">XTREAM_PASSWORD</code> manquent dans l'environnement.
+            Ajoutez un compte Xtream sur la page <a href="/admin/providers">Fournisseurs</a> : le traitement complet ne part pas sans lui.
           </section>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { Hono } from "hono";
-import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
+import { ACCOUNT, PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { itemById, launch, profileById } from "@/catalog";
 import { runAll, runNaming } from "@/catalog";
@@ -180,13 +180,18 @@ describe("admin", () => {
       expect(panel, bad).toContain('href="/admin/epg"');
       expect(panel, bad).not.toContain(bad.replace(/&/g, "&amp;"));
     }
-    expect(await html("/admin/settings")).toContain("Serveur Xtream");
-    // The environment's values, in clear; never a field the form sends back.
-    setSecretsForTests({ xtream_password: "s3cret", tmdb_api_key: "" });
+    // The environment's value, in clear; never a field the form sends back.
+    setSecretsForTests({ tmdb_api_key: "s3cret" });
     const settings = await html("/admin/settings");
     expect(settings).toContain('value="s3cret"');
-    expect(settings).toContain('value="non défini"');
-    expect(settings).not.toMatch(/name="(xtream_\w+|tmdb_api_key)"/);
+    expect(settings).not.toMatch(/name="tmdb_api_key"/);
+    setSecretsForTests({ tmdb_api_key: "" });
+    expect(await html("/admin/settings")).toContain('value="non défini"');
+    // The provider accounts: the seeded one is preferred, its password in clear in its form.
+    const providers = await html("/admin/providers");
+    expect(providers).toContain("provider.test");
+    expect(providers).toContain("préféré");
+    expect(providers).toContain('value="p"');
     expect(await html("/admin/favorites")).toContain("Aucun favori");
     expect(await html("/admin/history")).toContain("En cours");
     expect(await html("/admin/caches")).toContain("Fiches TMDB");
@@ -662,6 +667,7 @@ describe("admin", () => {
     await seedTmdb("tv", 1396, { name: "Vincenzo", first_air_date: "2021-02-20" });
     await seedItems([{ kind: "series", xtreamId: "200", name: "|FR| Vincenzo (MULTI)", cat: "30", tmdbId: 1396, matchStatus: "matched" }]);
     await db.insert(schema.xtreamInfoCache).values({
+      accountId: ACCOUNT,
       kind: "series",
       xtreamId: "200",
       data: {

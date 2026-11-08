@@ -2,8 +2,8 @@ import { db, schema } from "@/db";
 import { sql } from "drizzle-orm";
 import { env } from "@/shared";
 
-/** The provider account and the TMDB key: from the environment (podman secrets in production), never stored. */
-export const ENV_KEYS = ["xtream_url", "xtream_username", "xtream_password", "tmdb_api_key"] as const;
+/** The TMDB key: from the environment (a podman secret in production), never stored. The provider accounts are a table (`accounts.ts`). */
+export const ENV_KEYS = ["tmdb_api_key"] as const;
 export type EnvKey = (typeof ENV_KEYS)[number];
 
 /** What the database stores, editable in Paramètres. */
@@ -32,7 +32,7 @@ export const DEFAULTS = {
 
 export type Settings = Record<SettingKey | EnvKey, string>;
 
-let secrets: Record<EnvKey, string> = { ...env.secrets };
+let secrets: Record<EnvKey, string> = { tmdb_api_key: env.secrets.tmdb_api_key };
 /** Tests only: what the environment would hold. */
 export function setSecretsForTests(values: Partial<Record<EnvKey, string>>) {
   secrets = { ...secrets, ...values };
@@ -73,8 +73,4 @@ export async function setSettings(values: Partial<Record<SettingKey, string>>) {
   invalidateSettings();
   const fresh = await getSettings();
   for (const fn of listeners) fn(fresh);
-}
-
-export function isXtreamConfigured(s: Settings) {
-  return Boolean(s.xtream_url && s.xtream_username && s.xtream_password);
 }

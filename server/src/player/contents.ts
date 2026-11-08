@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { db, schema, type Content, type Variant, visibleCategory, visibleItem } from "@/db";
+import { type Category, db, schema, type Content, type Variant, visibleCategory, visibleItem } from "@/db";
 import { parseKey } from "@/catalog";
 import type { RestContext } from "./context";
 import { playableOfItem, type Playable } from "./versions";
@@ -93,10 +93,16 @@ export async function variantsOf(ctx: RestContext, content: Content): Promise<Va
         .from(schema.catalogCategories)
         .where(and(eq(schema.catalogCategories.kind, content.kind), inArray(schema.catalogCategories.xtreamId, catIds)))
     : [];
-  const names = new Map(cats.map((c) => [c.xtreamId, c.name]));
-  const categoryName = (it: Variant) => (it.categoryXtreamId ? (names.get(it.categoryXtreamId) ?? null) : null);
+  const names = categoryNames(cats);
+  const categoryName = (it: Variant) => categoryNameOf(names, it);
   return { items, playables: items.map((i) => playableOfItem(i, categoryName(i))), categoryName };
 }
+
+/** Category names by account and id: two providers number their categories alike. */
+export const categoryNames = (cats: Pick<Category, "accountId" | "xtreamId" | "name">[]) =>
+  new Map(cats.map((c) => [`${c.accountId}:${c.xtreamId}`, c.name]));
+export const categoryNameOf = (names: Map<string, string>, it: Pick<Variant, "accountId" | "categoryXtreamId">) =>
+  it.categoryXtreamId ? (names.get(`${it.accountId}:${it.categoryXtreamId}`) ?? null) : null;
 
 export async function liveCategories() {
   return db

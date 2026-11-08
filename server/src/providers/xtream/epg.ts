@@ -1,10 +1,8 @@
-import { getSettings } from "@/config";
+import type { ProviderAccount } from "@/db";
 import { fetchXmltv, type ProgrammeRow } from "@/providers/xmltv";
-import { xtreamFromSettings } from "./client";
+import { xtreamFor } from "./client";
 
-/** The XMLTV guide of the provider: 100 MB upstream, of which we keep the channels asked for. */
-export async function* fetchProgrammes(wanted: Set<string>): AsyncGenerator<ProgrammeRow[]> {
-  const client = xtreamFromSettings(await getSettings());
-  if (!client) throw new Error("Serveur Xtream non configuré");
-  yield* fetchXmltv(client.xmltvUrl(), wanted);
+/** The XMLTV guide of one account: 100 MB upstream, of which we keep the channels asked for. */
+export function fetchProgrammes(account: ProviderAccount, wanted: Set<string>): AsyncGenerator<ProgrammeRow[]> {
+  return fetchXmltv(xtreamFor(account).xmltvUrl(), wanted);
 }

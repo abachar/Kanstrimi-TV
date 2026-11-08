@@ -9,22 +9,28 @@ import type { Category, Variant } from "./schema";
  */
 export const inHiddenCategory: SQL = sql`exists (
   select 1 from ${schema.catalogCategories} c
-  where c.kind = ${schema.catalogVariants.kind} and c.xtream_id = ${schema.catalogVariants.categoryXtreamId}
-    and c.hidden_manual)`;
+  where c.account_id = ${schema.catalogVariants.accountId} and c.kind = ${schema.catalogVariants.kind}
+    and c.xtream_id = ${schema.catalogVariants.categoryXtreamId} and c.hidden_manual)`;
+
+/** The variant's provider account is disabled (Fournisseurs): its whole catalogue is kept but served no more. */
+export const inDisabledAccount: SQL = sql`exists (
+  select 1 from ${schema.providerAccounts} a where a.id = ${schema.catalogVariants.accountId} and not a.enabled)`;
 
 /**
  * Served to the players: kept by the filter of its kind (null = not judged yet: not served), hidden
- * neither by hand nor through its category. A content is visible when one of its versions is.
+ * neither by hand nor through its category, its provider enabled. A content is visible when one of its versions is.
  */
 export const visibleItem: SQL = and(
   sql`${schema.catalogVariants.hiddenByRule} is false`,
   eq(schema.catalogVariants.hiddenManual, false),
   sql`not ${inHiddenCategory}`,
+  sql`not ${inDisabledAccount}`,
 )!;
 export const hiddenItem: SQL = or(
   sql`${schema.catalogVariants.hiddenByRule} is not false`,
   eq(schema.catalogVariants.hiddenManual, true),
   inHiddenCategory,
+  inDisabledAccount,
 )!;
 export const visibleCategory: SQL = eq(schema.catalogCategories.hiddenManual, false);
 

@@ -365,6 +365,13 @@
       "when": 1792619946573,
       "tag": "0051_profile-preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1794168168558,
+      "tag": "0052_provider-accounts",
+      "breakpoints": true
     }
   ]
 }

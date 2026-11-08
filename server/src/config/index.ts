@@ -2,7 +2,6 @@ export {
   DEFAULTS,
   getSettings,
   invalidateSettings,
-  isXtreamConfigured,
   onSettingsChange,
   setSecretsForTests,
   setSettings,
@@ -11,3 +10,20 @@ export {
   type Settings,
 } from "./settings";
 export { verifyPassword } from "./password";
+export {
+  AccountError,
+  type AccountInput,
+  accountById,
+  accountsById,
+  activeAccounts,
+  createAccount,
+  deleteAccount,
+  hasActiveAccounts,
+  invalidateAccounts,
+  isAccountComplete,
+  listAccounts,
+  moveAccount,
+  seedAccountFromEnv,
+  setAccountEnabled,
+  updateAccount,
+} from "./accounts";

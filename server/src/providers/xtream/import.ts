@@ -1,8 +1,8 @@
-import { sql } from "drizzle-orm";
-import { db, schema, KINDS, type Kind } from "@/db";
-import { checkCancelled, stripOrnaments } from "@/shared";
-import { getSettings, setSettings } from "@/config";
-import { XtreamClient, xtreamFromSettings, type XCategory, type XStream } from "./client";
+import { eq } from "drizzle-orm";
+import { db, schema, KINDS, type Kind, type ProviderAccount } from "@/db";
+import { checkCancelled, describeError, isCancelled, stripOrnaments } from "@/shared";
+import { activeAccounts, setSettings } from "@/config";
+import { XtreamClient, xtreamFor, type XCategory, type XStream } from "./client";
 
 const CHUNK = 1000;
 
@@ -86,14 +86,53 @@ export function checkShrink(received: Record<Kind, number>, current: Record<Kind
   }
 }
 
+/** What the catalogue holds per account and kind: what each provider's lists are checked against. */
+export type AccountCounts = Map<number, Record<Kind, number>>;
+export type SyncResult = {
+  /** Totals over the accounts read, plus `accounts` read and `accounts_failed`. */
+  stats: Record<string, number>;
+  /** One line per account that could not be read, its copy kept. */
+  failed: string[];
+};
+
+const NO_COUNTS: Record<Kind, number> = { live: 0, vod: 0, series: 0 };
+
 /**
- * The `source` step: reads the provider's lists and, once they pass the checks, replaces the raw
- * copy (`xtream_categories`, `xtream_streams`) in one transaction. Never touches the catalogue:
- * `merge` derives it from the copy.
+ * The `source` step: reads the lists of every enabled account and, once they pass the checks,
+ * replaces its raw copy (`xtream_categories`, `xtream_streams`) in one transaction. An account that
+ * fails (down, refused, shrunk) keeps its copy and is reported; the step fails only when none could
+ * be read. Never touches the catalogue: `merge` derives it from the copy.
  */
-export async function runSync(opts: { currentCounts: Record<Kind, number>; acceptShrink?: boolean }): Promise<Record<string, number>> {
-  const client = xtreamFromSettings(await getSettings());
-  if (!client) throw new Error("Serveur Xtream non configuré");
+export async function runSync(opts: { currentCounts: AccountCounts; acceptShrink?: boolean }): Promise<SyncResult> {
+  const accounts = await activeAccounts();
+  if (!accounts.length) throw new Error("Aucun fournisseur actif (page Fournisseurs)");
+  const totals: Record<string, number> = { accounts: 0, accounts_failed: 0 };
+  const failed: string[] = [];
+  for (const a of accounts) {
+    checkCancelled();
+    try {
+      const stats = await syncAccount(a, opts.currentCounts.get(a.id) ?? NO_COUNTS, opts.acceptShrink ?? false);
+      for (const [k, v] of Object.entries(stats)) totals[k] = (totals[k] ?? 0) + v;
+      totals.accounts++;
+      console.log(`[source] ${a.name} : ${JSON.stringify(stats)}`);
+    } catch (e) {
+      if (isCancelled(e)) throw e;
+      totals.accounts_failed++;
+      failed.push(`${a.name} : ${describeError(e)}`);
+      console.error(`[source] ${a.name} en échec, copie conservée : ${describeError(e)}`);
+    }
+  }
+  if (!totals.accounts) throw new Error(failed.join(" ; "));
+  await setSettings({ last_sync_at: new Date().toISOString() });
+  return { stats: totals, failed };
+}
+
+async function syncAccount(
+  account: ProviderAccount,
+  currentCounts: Record<Kind, number>,
+  acceptShrink: boolean,
+): Promise<Record<string, number>> {
+  const client = xtreamFor(account);
   const acct = await client.account();
   if (!acct?.user_info || Number(acct.user_info.auth) !== 1) throw new Error("Authentification Xtream refusée");
 
@@ -102,7 +141,8 @@ export async function runSync(opts: { currentCounts: Record<Kind, number>; accep
     vod: [() => client.vodCategories(), () => client.vodStreams()],
     series: [() => client.seriesCategories(), () => client.series()],
   };
-  const cats: { kind: Kind; xtreamId: string; position: number; raw: Record<string, unknown> }[] = [];
+  const accountId = account.id;
+  const cats: { accountId: number; kind: Kind; xtreamId: string; position: number; raw: Record<string, unknown> }[] = [];
   const streams: typeof cats = [];
   const received = { live: 0, vod: 0, series: 0 } as Record<Kind, number>;
   const stats: Record<string, number> = {};
@@ -110,22 +150,23 @@ export async function runSync(opts: { currentCounts: Record<Kind, number>; accep
     const [getCats, getStreams] = fetchers[kind];
     const c = prepareCategories(asList(`${kind}_categories`, await getCats()));
     const s = prepareStreams(kind, asList(`${kind}_streams`, await getStreams()));
-    cats.push(...c.map((x, i) => ({ kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> })));
-    for (const [i, x] of s.entries()) streams.push({ kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> });
+    cats.push(...c.map((x, i) => ({ accountId, kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> })));
+    for (const [i, x] of s.entries())
+      streams.push({ accountId, kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> });
     received[kind] = s.length;
     stats[`${kind}_categories`] = c.length;
     stats[`${kind}_items`] = s.length;
   }
 
-  checkShrink(received, opts.currentCounts, opts.acceptShrink);
+  checkShrink(received, currentCounts, acceptShrink);
 
   checkCancelled();
   await db.transaction(async (tx) => {
-    await tx.execute(sql`truncate table ${schema.xtreamCategories}, ${schema.xtreamStreams}`);
+    await tx.delete(schema.xtreamCategories).where(eq(schema.xtreamCategories.accountId, accountId));
+    await tx.delete(schema.xtreamStreams).where(eq(schema.xtreamStreams.accountId, accountId));
     for (let i = 0; i < cats.length; i += CHUNK) await tx.insert(schema.xtreamCategories).values(cats.slice(i, i + CHUNK));
     for (let i = 0; i < streams.length; i += CHUNK) await tx.insert(schema.xtreamStreams).values(streams.slice(i, i + CHUNK));
   });
-  await setSettings({ last_sync_at: new Date().toISOString() });
   return stats;
 }
 

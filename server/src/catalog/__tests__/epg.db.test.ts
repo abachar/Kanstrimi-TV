@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { sql } from "drizzle-orm";
-import { resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, setAccountForTests } from "@/test/db";
 import { db, schema } from "@/db";
-import { setSecretsForTests } from "@/config";
 import { runAll } from "@/catalog";
 import { epgStat, runEpgRebuild } from "../epg";
 import { compile, offsetOf, setOffset } from "../epg-offsets";
@@ -47,7 +46,7 @@ const rows = async () =>
 
 beforeAll(async () => {
   await resetDb();
-  setSecretsForTests({ xtream_url: "http://x", xtream_username: "u", xtream_password: "p" });
+  await setAccountForTests({ url: "http://x" });
   await seedCategories([{ kind: "live", xtreamId: "20", name: "FRANCE | TV" }]);
   await seedItems([
     { kind: "live", xtreamId: "100", name: "|FR| TF1 HD", cat: "20", raw: { epg_channel_id: "TF1.fr" } },

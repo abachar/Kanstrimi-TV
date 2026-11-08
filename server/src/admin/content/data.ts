@@ -3,7 +3,7 @@ import { db, schema, tmdbMediaType } from "@/db";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getCachedDetails } from "@/providers/tmdb";
 import type { TmdbDetails } from "@/providers/tmdb";
-import { getSettings } from "@/config";
+import { accountsById, getSettings } from "@/config";
 import {
   contentById,
   defaultProfile,
@@ -22,6 +22,8 @@ import { epgIdsOf, favoriteSet, getProgress, type Progress } from "@/player";
 /** One provider entry of a content: the row, its category, the TMDB sheet it matched, its iptv-org channel (live). */
 export type VariantDetail = {
   item: Variant;
+  /** The name of its provider account (Fournisseurs). */
+  account: string;
   category: Category | null;
   tmdb: TmdbDetails | null;
   iptv: IptvorgChannel | null;
@@ -127,12 +129,16 @@ async function guideOf(c: Content, items: Variant[]): Promise<ChannelGuide | nul
 
 async function variantDetails(items: Variant[], tmdbLang: string): Promise<VariantDetail[]> {
   if (!items.length) return [];
-  const cats = await db.select().from(schema.catalogCategories).where(eq(schema.catalogCategories.kind, items[0].kind));
-  const catOf = new Map(cats.map((c) => [c.xtreamId, c]));
+  const [cats, accounts] = await Promise.all([
+    db.select().from(schema.catalogCategories).where(eq(schema.catalogCategories.kind, items[0].kind)),
+    accountsById(),
+  ]);
+  const catOf = new Map(cats.map((c) => [`${c.accountId}:${c.xtreamId}`, c]));
   return Promise.all(
     items.map(async (item) => ({
       item,
-      category: item.categoryXtreamId ? (catOf.get(item.categoryXtreamId) ?? null) : null,
+      account: accounts.get(item.accountId)?.name ?? `compte ${item.accountId}`,
+      category: item.categoryXtreamId ? (catOf.get(`${item.accountId}:${item.categoryXtreamId}`) ?? null) : null,
       tmdb: item.tmdbId && item.kind !== "live" ? await getCachedDetails(tmdbMediaType(item.kind), item.tmdbId, tmdbLang) : null,
       iptv: item.kind === "live" ? await iptvChannelById(item.iptvId) : null,
     })),

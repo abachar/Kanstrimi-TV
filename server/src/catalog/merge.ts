@@ -5,8 +5,9 @@ import { runNaming } from "./grouping/group";
 import { withCatalogLock } from "./lock";
 
 /**
- * The `merge` step: the provider's raw copy (`xtream_categories`, `xtream_streams`, written by
- * `source`) → the catalogue (`catalog_categories`, `catalog_variants`), by difference. A new entry is
+ * The `merge` step: the raw copy of every account (`xtream_categories`, `xtream_streams`, written by
+ * `source`) → the catalogue (`catalog_categories`, `catalog_variants`), by difference, each row under
+ * its account (two providers reuse the same ids). A new entry is
  * inserted, a changed one updated, a vanished one deleted; an unchanged one is not written at all.
  * Then the names are parsed again (`runNaming`, which writes only what changed).
  *
@@ -25,6 +26,7 @@ const RADIO_CATEGORY_NAME = "RADIOS";
 const CHUNK = 5000;
 
 export type RawEntry = {
+  accountId: number;
   kind: Kind;
   xtreamId: string;
   position: number;
@@ -35,6 +37,7 @@ export type RawEntry = {
   lastModified: string | null;
 };
 export type DerivedEntry = {
+  accountId: number;
   kind: Kind;
   xtreamId: string;
   position: number;
@@ -58,24 +61,27 @@ export function parseAddedDate(kind: Kind, e: Pick<RawEntry, "added" | "lastModi
 }
 
 /**
- * The entries as the catalogue stores them, from the raw copy in the provider's order. A separator
+ * The entries as the catalogue stores them, from the raw copy in each provider's order. A separator
  * line names the section of the entries that follow it in the same category (« ----|FR| SPORT |FR|---- »);
- * it is not an entry. Radios without a category go to ours.
+ * it is not an entry. Radios without a category go to ours (`radios`: the accounts that have some).
  */
-export function deriveEntries(raw: RawEntry[]): { entries: DerivedEntry[]; radios: number } {
+export function deriveEntries(raw: RawEntry[]): { entries: DerivedEntry[]; radios: Set<number> } {
   const entries: DerivedEntry[] = [];
-  let radios = 0;
+  const radios = new Set<number>();
   const sections = new Map<string, string>();
-  for (const e of [...raw].sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.position - b.position)) {
+  for (const e of [...raw].sort(
+    (a, b) => a.accountId - b.accountId || KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.position - b.position,
+  )) {
     const name = e.name ?? "";
-    const sectionKey = `${e.kind}:${e.category ?? ""}`;
+    const sectionKey = `${e.accountId}:${e.kind}:${e.category ?? ""}`;
     if (isSeparator(name)) {
       sections.set(sectionKey, separatorText(name));
       continue;
     }
     const radio = e.kind === "live" && !e.category && e.streamType === "radio_streams";
-    if (radio) radios++;
+    if (radio) radios.add(e.accountId);
     entries.push({
+      accountId: e.accountId,
       kind: e.kind,
       xtreamId: e.xtreamId,
       position: e.position,
@@ -108,63 +114,65 @@ export function runMerge(opts: { acceptShrink?: boolean } = {}): Promise<MergeSt
 
 async function mergeCopy(acceptShrink: boolean): Promise<Omit<MergeStats, "items_named">> {
   const raw = await pg<RawEntry[]>`
-    select kind, xtream_id as "xtreamId", position, raw->>'name' as name, raw->>'category_id' as category,
+    select account_id as "accountId", kind, xtream_id as "xtreamId", position, raw->>'name' as name, raw->>'category_id' as category,
            raw->>'stream_type' as "streamType", raw->>'added' as added, raw->>'last_modified' as "lastModified"
     from xtream_streams`;
   const { entries, radios } = deriveEntries(raw);
 
   return pg.begin(async (tx) => {
     await tx`create temp table merge_entries (
-      kind content_kind, xtream_id text, position int, name text, category text, section text, added_at timestamptz,
-      primary key (kind, xtream_id)) on commit drop`;
+      account_id int, kind content_kind, xtream_id text, position int, name text, category text, section text, added_at timestamptz,
+      primary key (account_id, kind, xtream_id)) on commit drop`;
     for (let i = 0; i < entries.length; i += CHUNK) {
       checkCancelled();
       const part = entries.slice(i, i + CHUNK);
       await tx`
         insert into merge_entries
-        select kind::content_kind, xtream_id, position, name, category, section, added_at::timestamptz
-        from unnest(${part.map((e) => e.kind)}::text[], ${part.map((e) => e.xtreamId)}::text[], ${part.map((e) => e.position)}::int[],
-                    ${part.map((e) => e.name)}::text[], ${part.map((e) => e.category)}::text[], ${part.map((e) => e.section)}::text[],
-                    ${part.map((e) => e.addedAt?.toISOString() ?? null)}::text[])
-          as u(kind, xtream_id, position, name, category, section, added_at)`;
+        select account_id, kind::content_kind, xtream_id, position, name, category, section, added_at::timestamptz
+        from unnest(${part.map((e) => e.accountId)}::int[], ${part.map((e) => e.kind)}::text[], ${part.map((e) => e.xtreamId)}::text[],
+                    ${part.map((e) => e.position)}::int[], ${part.map((e) => e.name)}::text[], ${part.map((e) => e.category)}::text[],
+                    ${part.map((e) => e.section)}::text[], ${part.map((e) => e.addedAt?.toISOString() ?? null)}::text[])
+          as u(account_id, kind, xtream_id, position, name, category, section, added_at)`;
     }
 
-    // The guard: what would go, kind by kind, against what the catalogue holds.
-    const gone = await tx<{ kind: Kind; total: number; removed: number }[]>`
-      select v.kind, count(*)::int as total,
-             count(*) filter (where not exists (select 1 from merge_entries m where m.kind = v.kind and m.xtream_id = v.xtream_id))::int as removed
-      from catalog_variants v group by v.kind`;
+    // The guard: what would go, account by account and kind by kind, against what the catalogue holds.
+    const gone = await tx<{ account: string; kind: Kind; total: number; removed: number }[]>`
+      select a.name as account, v.kind, count(*)::int as total,
+             count(*) filter (where not exists (select 1 from merge_entries m
+               where m.account_id = v.account_id and m.kind = v.kind and m.xtream_id = v.xtream_id))::int as removed
+      from catalog_variants v join provider_accounts a on a.id = v.account_id group by a.name, v.kind`;
     for (const g of gone)
       if (!acceptShrink && g.total >= SHRINK_FLOOR && g.total - g.removed < g.total * SHRINK_RATIO)
         throw new Error(
-          `La copie du fournisseur retirerait ${g.removed} des ${g.total} entrées ${g.kind} : fusion refusée, catalogue conservé (${SHRINK_HINT})`,
+          `La copie de ${g.account} retirerait ${g.removed} des ${g.total} entrées ${g.kind} : fusion refusée, catalogue conservé (${SHRINK_HINT})`,
         );
 
-    // Categories: the provider's, plus ours for the radios.
+    // Categories: each provider's, plus ours for the radios of the accounts that have some.
     const cats = await tx`
       with src as (
-        select kind, xtream_id, coalesce(raw->>'category_name', '') as name,
+        select account_id, kind, xtream_id, coalesce(raw->>'category_name', '') as name,
                case when raw->>'parent_id' ~ '^[0-9]+$' then (raw->>'parent_id')::int else 0 end as parent_id, position, raw
         from xtream_categories
         union all
-        select 'live', ${RADIO_CATEGORY_ID}, ${RADIO_CATEGORY_NAME}, 0, 1000000, '{}'::jsonb where ${radios > 0}
+        select r.account_id, 'live', ${RADIO_CATEGORY_ID}, ${RADIO_CATEGORY_NAME}, 0, 1000000, '{}'::jsonb
+        from unnest(${[...radios]}::int[]) as r(account_id)
       ),
       upd as (
         update catalog_categories c set name = s.name, parent_id = s.parent_id, position = s.position, raw = s.raw, changed_at = now()
         from src s
-        where c.kind = s.kind and c.xtream_id = s.xtream_id
+        where c.account_id = s.account_id and c.kind = s.kind and c.xtream_id = s.xtream_id
           and (c.name, c.parent_id, c.position, c.raw) is distinct from (s.name, s.parent_id, s.position, s.raw)
         returning 1
       ),
       ins as (
-        insert into catalog_categories (kind, xtream_id, name, parent_id, position, raw)
-        select s.kind, s.xtream_id, s.name, s.parent_id, s.position, s.raw from src s
-        where not exists (select 1 from catalog_categories c where c.kind = s.kind and c.xtream_id = s.xtream_id)
+        insert into catalog_categories (account_id, kind, xtream_id, name, parent_id, position, raw)
+        select s.account_id, s.kind, s.xtream_id, s.name, s.parent_id, s.position, s.raw from src s
+        where not exists (select 1 from catalog_categories c where c.account_id = s.account_id and c.kind = s.kind and c.xtream_id = s.xtream_id)
         returning 1
       ),
       del as (
         delete from catalog_categories c
-        where not exists (select 1 from src s where s.kind = c.kind and s.xtream_id = c.xtream_id)
+        where not exists (select 1 from src s where s.account_id = c.account_id and s.kind = c.kind and s.xtream_id = c.xtream_id)
         returning 1
       )
       select (select count(*) from ins)::int as added, (select count(*) from upd)::int as updated, (select count(*) from del)::int as removed`;
@@ -182,8 +190,8 @@ async function mergeCopy(acceptShrink: boolean): Promise<Omit<MergeStats, "items
           added_at = coalesce(m.added_at, v.added_at), changed_at = now(),
           match_status = case when v.name <> m.name and v.match_status in ('matched', 'unmatched', 'pending') then 'pending'::match_status else v.match_status end,
           match_attempts = case when v.name <> m.name then 0 else v.match_attempts end
-        from merge_entries m join xtream_streams s on s.kind = m.kind and s.xtream_id = m.xtream_id
-        where v.kind = m.kind and v.xtream_id = m.xtream_id
+        from merge_entries m join xtream_streams s on s.account_id = m.account_id and s.kind = m.kind and s.xtream_id = m.xtream_id
+        where v.account_id = m.account_id and v.kind = m.kind and v.xtream_id = m.xtream_id
           and (v.name, v.category_xtream_id, v.section, v.added_at,
                case when v.kind = 'live' then v.position end, case when v.kind = 'live' then v.raw else v.raw - 'num' end)
               is distinct from (m.name, m.category, m.section, coalesce(m.added_at, v.added_at),
@@ -193,18 +201,18 @@ async function mergeCopy(acceptShrink: boolean): Promise<Omit<MergeStats, "items
       select count(*)::int as n from u`;
     const [ins] = await tx`
       with i as (
-        insert into catalog_variants (kind, xtream_id, name, category_xtream_id, position, raw, section, added_at, match_status)
-        select m.kind, m.xtream_id, m.name, m.category, m.position, s.raw, m.section, coalesce(m.added_at, now()),
+        insert into catalog_variants (account_id, kind, xtream_id, name, category_xtream_id, position, raw, section, added_at, match_status)
+        select m.account_id, m.kind, m.xtream_id, m.name, m.category, m.position, s.raw, m.section, coalesce(m.added_at, now()),
                case when m.kind = 'live' then 'skipped'::match_status else 'pending'::match_status end
-        from merge_entries m join xtream_streams s on s.kind = m.kind and s.xtream_id = m.xtream_id
-        where not exists (select 1 from catalog_variants v where v.kind = m.kind and v.xtream_id = m.xtream_id)
+        from merge_entries m join xtream_streams s on s.account_id = m.account_id and s.kind = m.kind and s.xtream_id = m.xtream_id
+        where not exists (select 1 from catalog_variants v where v.account_id = m.account_id and v.kind = m.kind and v.xtream_id = m.xtream_id)
         returning 1
       )
       select count(*)::int as n from i`;
     const [del] = await tx`
       with d as (
         delete from catalog_variants v
-        where not exists (select 1 from merge_entries m where m.kind = v.kind and m.xtream_id = v.xtream_id)
+        where not exists (select 1 from merge_entries m where m.account_id = v.account_id and m.kind = v.kind and m.xtream_id = v.xtream_id)
         returning 1
       )
       select count(*)::int as n from d`;

@@ -1,7 +1,7 @@
 # Kanstrimi
 
-Système de streaming **personnel, pour un foyer**. Il se branche sur **un** fournisseur
-Xtream Codes, importe son catalogue, le nettoie, l'enrichit via **TMDB** et le sert à
+Système de streaming **personnel, pour un foyer**. Il se branche sur un ou plusieurs fournisseurs
+Xtream Codes (un préféré, les autres en secours), importe leurs catalogues, les nettoie, les enrichit via **TMDB** et les sert à
 l'app Apple maison (Apple TV, iPhone et iPad) et à l'app Android (tablette, en construction).
 Chaque personne a son **profil**, créé dans l'admin : ses filtres (ce qu'elle voit, dans quelles langues), ses
 réglages de lecture, les versions qu'elle a choisies, sa progression, ses lectures, ses chaînes récentes, sa liste et
@@ -10,10 +10,12 @@ profil choisi (« Qui regarde ? »).
 
 Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées, et chaque source porte l'URL
 du fournisseur, que l'app lit directement (sans passer par le serveur, donc par le VPN de l'appareil s'il en a un).
-Cette URL contient le compte du fournisseur : seuls les appareils appairés la reçoivent.
+Cette URL contient le compte du fournisseur : seuls les appareils appairés la reçoivent. Un titre présent chez plusieurs
+fournisseurs n'apparaît qu'une fois ; chaque version liste une source par fournisseur, le préféré d'abord, et le lecteur
+bascule sur la suivante en cas de panne.
 
 ```
-Fournisseur Xtream ──► server/ ──► Postgres (catalogue filtré, enrichi, groupé)
+Fournisseurs Xtream ─► server/ ──► Postgres (catalogue filtré, enrichi, groupé)
                           │
                           ├──► API REST /player + images ──► apple/, android/
                           └──► URL du fournisseur ─────────► le flux vidéo, lu par l'app

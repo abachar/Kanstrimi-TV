@@ -1,16 +1,18 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema, visibleItem } from "@/db";
 import { checkCancelled, describeError, isCancelled } from "@/shared";
-import { setSettings } from "@/config";
+import { activeAccounts, setSettings } from "@/config";
 import { fetchProgrammes } from "@/providers/xtream";
 import type { ProgrammeRow } from "@/providers/xmltv";
 import { offsetOf, offsetRules, type OffsetRules } from "./epg-offsets";
 import { importEpgSources } from "./epg-sources";
 
 /**
- * The XMLTV guide of the provider, completed by the fallback sources (epg-sources.ts), stored in
+ * The XMLTV guide of each provider account, completed by the fallback sources (epg-sources.ts), stored in
  * `catalog_epg_programmes` for the channels the app can see, and nothing else: a few tens of
  * thousands of rows. The providers download and parse; this file chooses the channels and keeps the rows.
+ * Guide ids are the providers' own and may meet (« TF1.fr » at both): the preferred account's programmes
+ * are kept for a channel id, the next account only fills the ids it left empty.
  */
 
 const BATCH = 1000;
@@ -83,38 +85,50 @@ async function prune(inUse: Set<string>) {
 }
 
 /**
- * Downloads the provider's guide, then the fallback sources, and stores both channel by channel. The
- * downloads (minutes) happen outside any transaction. The provider failing, midway or entirely, or
- * filing nothing for our channels, stores none of its programmes: the stored ones stay until they
- * are over, the sources still run, and the step ends in error. The provider's guide covers about a
- * day and a half: the cron runs twice a day.
+ * Downloads the guide of every enabled account, preferred first, then the fallback sources, and stores
+ * all of it channel by channel. The downloads (minutes) happen outside any transaction. An account
+ * failing, midway or entirely, or filing nothing for our channels, stores none of its programmes:
+ * the stored ones stay until they are over, the other accounts and the sources still run, and the
+ * step ends in error. A provider's guide covers about a day and a half: the cron runs twice a day.
  */
 export async function runEpgRebuild(): Promise<{ channels: number; programmes: number; fallbacks: number; sourceErrors: number }> {
   const wanted = await wantedChannelIds();
   const importedAt = new Date();
   const rules = await offsetRules();
-  let providerError: string | null = null;
+  const providerErrors: string[] = [];
   const provider: ProgrammeRow[] = [];
-  if (wanted.size)
+  const filled = new Set<string>();
+  const accounts = wanted.size ? await activeAccounts() : [];
+  if (wanted.size && !accounts.length) providerErrors.push("aucun fournisseur actif");
+  for (const account of accounts) {
+    const got: ProgrammeRow[] = [];
+    let received = 0;
     try {
-      for await (const batch of fetchProgrammes(wanted)) {
+      for await (const batch of fetchProgrammes(account, wanted)) {
         checkCancelled();
-        provider.push(...batch);
+        received += batch.length;
+        for (const r of batch) if (!filled.has(r.channelId)) got.push(r);
       }
-      if (!provider.length) providerError = "EPG amont sans aucun programme pour nos chaînes";
+      if (!received) {
+        providerErrors.push(`${account.name} : EPG sans aucun programme pour nos chaînes`);
+        continue;
+      }
     } catch (e) {
       if (isCancelled(e)) throw e;
-      providerError = describeError(e);
-      provider.length = 0;
+      providerErrors.push(`${account.name} : ${describeError(e)}`);
+      continue;
     }
-  const own = providerError ? [] : toRows(provider, rules, importedAt);
+    for (const r of got) filled.add(r.channelId);
+    provider.push(...got);
+  }
+  const own = toRows(provider, rules, importedAt);
   await mergeProgrammes(own);
   const sources = await importEpgSources();
   const fallback = toRows(sources.rows, rules, importedAt);
   await mergeProgrammes(fallback);
   await prune(new Set([...wanted, ...sources.inUse]));
   if (own.length) await setSettings({ last_epg_at: importedAt.toISOString() });
-  if (providerError) throw new Error(`${providerError} : guide précédent conservé`);
+  if (providerErrors.length) throw new Error(`${providerErrors.join(" ; ")} : guide précédent conservé`);
   const rows = [...own, ...fallback];
   return {
     channels: new Set(rows.map((r) => r.channelId)).size,

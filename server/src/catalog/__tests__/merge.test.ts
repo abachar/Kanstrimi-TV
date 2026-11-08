@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { deriveEntries, RADIO_CATEGORY_ID, type RawEntry } from "../merge";
 
 const e = (position: number, name: string, category: string | null, more: Partial<RawEntry> = {}): RawEntry => ({
+  accountId: 1,
   kind: "live",
   xtreamId: String(position),
   position,
@@ -39,7 +40,7 @@ describe("deriveEntries", () => {
       e(0, "•●★--|FR| FRANCE |FR|---★●•", null, { streamType: "radio_streams" }),
       e(1, "|FR| BEL RTL", null, { streamType: "radio_streams" }),
     ]);
-    expect(radios).toBe(1);
+    expect(radios).toEqual(new Set([1]));
     expect(entries).toMatchObject([{ name: "|FR| BEL RTL", category: RADIO_CATEGORY_ID, section: "|FR| FRANCE |FR|" }]);
   });
 

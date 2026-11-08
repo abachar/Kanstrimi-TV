@@ -7,7 +7,7 @@ import { nightEnd } from "../epg";
 import { remaining } from "../cards";
 import { encodeCursor } from "../lists";
 import { liveChip } from "../channels";
-import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
+import { ACCOUNT, PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
 
 import {
   addStudio,
@@ -25,7 +25,7 @@ import {
 } from "@/catalog";
 import { app } from "@/app";
 import { resetPairingState } from "@/devices";
-import { setSecretsForTests, setSettings } from "@/config";
+import { setSettings } from "@/config";
 
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400000);
 const monthsAgo = (m: number) => {
@@ -60,7 +60,6 @@ const get = async (path: string, auth = true): Promise<{ status: number; body: a
 beforeAll(async () => {
   await resetDb();
   resetPairingState();
-  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await setSettings({
     last_sync_at: "2026-09-26T02:10:00.000Z",
   });
@@ -272,8 +271,13 @@ beforeAll(async () => {
   const multi = items.find((i) => i.xtreamId === "200")!,
     vost = items.find((i) => i.xtreamId === "201")!;
   await db.insert(schema.xtreamInfoCache).values([
-    { kind: "series", xtreamId: multi.xtreamId, data: providerInfo({ "1": ["e11", "e12"], "2": ["e21"] }, { "2:1": "Marée haute" }) },
-    { kind: "series", xtreamId: vost.xtreamId, data: providerInfo({ "1": ["e11v", "e12v"] }, {}) },
+    {
+      accountId: ACCOUNT,
+      kind: "series",
+      xtreamId: multi.xtreamId,
+      data: providerInfo({ "1": ["e11", "e12"], "2": ["e21"] }, { "2:1": "Marée haute" }),
+    },
+    { accountId: ACCOUNT, kind: "series", xtreamId: vost.xtreamId, data: providerInfo({ "1": ["e11v", "e12v"] }, {}) },
   ]);
   await runNaming();
   await groupAndFilter();
@@ -591,7 +595,7 @@ describe("GET /movies/{id}", () => {
     const src = body.versions[0].sources[0];
     expect(src).toMatchObject({
       container: "MKV",
-      provider: { id: "xtream", name: "provider.test", kind: "xtream" },
+      provider: { id: "xtream-1", name: "provider.test", kind: "xtream" },
       origin: "|FR| FILMS 4K DV",
     });
     expect(src.id).toMatch(/^src-i[0-9a-z]+$/);

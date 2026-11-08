@@ -2,7 +2,7 @@ import { QUALITY_RANK, DYNAMIC_RANGE_RANK, DEFAULT_LANGUAGE_ORDER, qualityOfRank
 import type { Variant } from "@/db";
 import type { DynamicRange, Quality, Version } from "./types";
 import { slug } from "@/shared";
-import type { RestContext } from "./context";
+import { accountRank, providerOf, type RestContext, streamUrlOf } from "./context";
 
 /** `src-i…` = an item (movie or channel), `src-e…` = an episode source; base36 of our own ids. */
 export const sourceId = (kind: "item" | "episode", id: number) => `src-${kind === "item" ? "i" : "e"}${id.toString(36)}`;
@@ -30,8 +30,8 @@ export const drOf = (d: string | null | undefined): DynamicRange | undefined => 
 export type Playable = {
   sourceId: string;
   container: string;
-  /** Where the provider serves it: `/{kind}/{user}/{password}/{id}.{ext}`. */
-  upstream: { kind: "live" | "movie" | "series"; id: string; ext: string };
+  /** Where its provider serves it: the account, and `/{kind}/{user}/{password}/{id}.{ext}` on it. */
+  upstream: { accountId: number; kind: "live" | "movie" | "series"; id: string; ext: string };
   lang: string | null;
   quality: string | null;
   dynamicRange: string | null;
@@ -56,7 +56,7 @@ export function playableOfItem(it: Variant, categoryName: string | null): Playab
   return {
     sourceId: sourceId("item", it.id),
     container: ext.toUpperCase(),
-    upstream: { kind: it.kind === "live" ? "live" : "movie", id: it.xtreamId, ext },
+    upstream: { accountId: it.accountId, kind: it.kind === "live" ? "live" : "movie", id: it.xtreamId, ext },
     lang: it.lang,
     quality: it.quality,
     dynamicRange: it.dynamicRange,
@@ -70,16 +70,19 @@ export function playableOfItem(it: Variant, categoryName: string | null): Playab
 }
 
 /**
- * The provider's own URL, played as is: its account is in the path, so it goes to the paired devices only
- * (the admin reads the catalogue without one and never plays).
+ * Group playable rows by language × quality × dynamic range × edition; within a version, the sources
+ * of the preferred provider first (Fournisseurs: the first one plays by default), then server order.
  */
-const streamUrl = (ctx: RestContext, r: Playable) => (ctx.device && ctx.upstreamUrl(r.upstream.kind, r.upstream.id, r.upstream.ext)) || "";
-
-/** Group playable rows by language × quality × dynamic range × edition; sources in server order. */
 export function versionsOf(ctx: RestContext, rows: Playable[], withSources = true): Version[] {
   const order = ctx.languageOrder[rows[0]?.upstream.kind === "series" ? "series" : "vod"];
   const map = new Map<string, Version & { _q: number; _d: number; _e: string }>();
-  const sorted = [...rows].sort((a, b) => b.qualityRank - a.qualityRank || a.position - b.position || a.id - b.id);
+  const sorted = [...rows].sort(
+    (a, b) =>
+      b.qualityRank - a.qualityRank ||
+      accountRank(ctx, a.upstream.accountId) - accountRank(ctx, b.upstream.accountId) ||
+      a.position - b.position ||
+      a.id - b.id,
+  );
   for (const r of sorted) {
     const language = r.lang ?? "VO",
       quality = qualityOf(r.quality),
@@ -105,8 +108,8 @@ export function versionsOf(ctx: RestContext, rows: Playable[], withSources = tru
       v.sources.push({
         id: r.sourceId,
         container: r.container,
-        stream_url: streamUrl(ctx, r),
-        provider: { id: "xtream", name: ctx.providerName, kind: "xtream" },
+        stream_url: streamUrlOf(ctx, r.upstream.accountId, r.upstream.kind, r.upstream.id, r.upstream.ext),
+        provider: providerOf(ctx, r.upstream.accountId),
         origin: r.categoryName,
       });
   }

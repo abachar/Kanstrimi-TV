@@ -3,7 +3,6 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { getSettings, setSettings, DEFAULTS } from "@/config";
 import { isValidCron } from "../format";
-import { testXtream } from "@/providers/xtream";
 import { TmdbClient } from "@/providers/tmdb";
 import { retryUnmatched, resetMatches } from "@/catalog";
 import { page, back, form, checked, zerr } from "../http";
@@ -39,17 +38,6 @@ settingsRoutes.post(
     return back(c, "/admin/settings", { ok: "Paramètres enregistrés" });
   },
 );
-settingsRoutes.post("/test-xtream", async (c) => {
-  const s = await getSettings();
-  try {
-    const ui = (await testXtream(s.xtream_url, s.xtream_username, s.xtream_password)).user_info;
-    if (Number(ui.auth) !== 1) return c.html(ko(`Refusé : ${ui.message ?? ui.status}`));
-    const exp = ui.exp_date ? new Date(Number(ui.exp_date) * 1000).toLocaleDateString("fr-FR") : "∞";
-    return c.html(ok(`OK — statut ${ui.status}, expire ${exp}, connexions max ${ui.max_connections ?? "?"}`));
-  } catch (e) {
-    return c.html(ko((e as Error).message));
-  }
-});
 settingsRoutes.post("/test-tmdb", async (c) => {
   const f = await form(c);
   try {

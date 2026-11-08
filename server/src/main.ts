@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import { client } from "@/db";
-import { getSettings, onSettingsChange, verifyPassword } from "@/config";
+import { getSettings, onSettingsChange, seedAccountFromEnv, verifyPassword } from "@/config";
 import { schedule, closeOrphanLogs, onRunFinished, onWaitlistAvailable } from "@/catalog";
 import { isApnsConfigured, notifyArrivals, notifyRunFinished } from "@/notify";
 import { describeError, env } from "@/shared";
@@ -27,6 +27,15 @@ const server = serve({ fetch: app.fetch, port: env.port, hostname: "0.0.0.0" }, 
   if (!isApnsConfigured()) console.log("[boot] APNs non configuré (APNS_KEY, APNS_KEY_ID, APNS_TEAM_ID) : pas d'alertes sur l'iPhone");
   onWaitlistAvailable((arrivals) => void notifyArrivals(arrivals).catch((e) => console.error("[notify] arrivées :", describeError(e))));
   onRunFinished((run) => void notifyRunFinished(run).catch((e) => console.error("[notify] traitement :", describeError(e))));
+  // The provider account of the environment (the secrets of before) fills the first account once, then has nothing left to do.
+  void seedAccountFromEnv()
+    .then((did) => {
+      if (did !== "nothing")
+        console.log(
+          `[boot] compte XTREAM_* de l'environnement ${did === "filled" ? "posé sur le premier fournisseur" : "ajouté en premier fournisseur"}`,
+        );
+    })
+    .catch((e) => console.error("[boot] fournisseur de l'environnement non posé:", describeError(e)));
   // The schedule follows the settings: built now, rebuilt after every save.
   onSettingsChange(schedule);
   void getSettings()

@@ -21,6 +21,7 @@ import { devicesRoutes, pairRoutes } from "./devices/routes";
 import { tasksRoutes } from "./tasks/routes";
 import { epgRoutes } from "./epg/routes";
 import { settingsRoutes } from "./settings/routes";
+import { providersRoutes } from "./providers/routes";
 
 /**
  * The admin, one folder per page: `routes.tsx` parses the request and answers, `view.tsx`
@@ -105,4 +106,5 @@ admin.route("/pair", pairRoutes);
 admin.route("/devices", devicesRoutes);
 admin.route("/caches", cachesRoutes);
 admin.route("/tasks", tasksRoutes);
+admin.route("/providers", providersRoutes);
 admin.route("/settings", settingsRoutes);

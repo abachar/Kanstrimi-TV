@@ -5,7 +5,7 @@ import { slug } from "@/shared";
 import { LIVE_THEMES, parseKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
-import { contentByKey, liveCategories, servedVariant, variantsOf, visibleContent } from "./contents";
+import { categoryNameOf, categoryNames, contentByKey, liveCategories, servedVariant, variantsOf, visibleContent } from "./contents";
 import { favoriteSet } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys, RECENT_LIMIT, recentKeys } from "./watch-time";
 import { rememberedOf, rememberedWire } from "./remembered";
@@ -211,13 +211,10 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
     ctx,
     channels.map((c) => c.key),
   );
-  const catName = new Map((await liveCategories()).map((c) => [c.xtreamId, c.name]));
+  const catName = categoryNames(await liveCategories());
   const byContent = new Map<number, Playable[]>();
   for (const it of items)
-    byContent.set(it.contentId!, [
-      ...(byContent.get(it.contentId!) ?? []),
-      playableOfItem(it, it.categoryXtreamId ? (catName.get(it.categoryXtreamId) ?? null) : null),
-    ]);
+    byContent.set(it.contentId!, [...(byContent.get(it.contentId!) ?? []), playableOfItem(it, categoryNameOf(catName, it))]);
   const epg = await epgOf([
     ...[...byContent.values()].flat().flatMap((p) => p.epgIds),
     ...channels.flatMap((c) => (c.epgFallbackId ? [c.epgFallbackId] : [])),

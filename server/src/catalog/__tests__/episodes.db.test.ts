@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema, type Content, type Variant } from "@/db";
-import { resetDb, closeDb, seedItems, groupAndFilter } from "@/test/db";
-import { setSecretsForTests } from "@/config";
+import { ACCOUNT, resetDb, closeDb, seedItems, groupAndFilter } from "@/test/db";
 import { runNaming } from "../grouping/group";
 import { ensureEpisodes, UpstreamUnavailable } from "../episodes";
 
@@ -29,7 +28,6 @@ const episodes = async () =>
 
 beforeEach(async () => {
   await resetDb();
-  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await seedItems([{ kind: "series", xtreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
   await runNaming();
   await groupAndFilter();
@@ -57,7 +55,9 @@ describe("ensureEpisodes", () => {
       throw new TypeError("fetch failed");
     });
     await expect(ensureEpisodes(content, variants, "fr-FR")).rejects.toBeInstanceOf(UpstreamUnavailable);
-    await db.insert(schema.xtreamInfoCache).values({ kind: "series", xtreamId: "300", data: info(3), fetchedAt: new Date(0) });
+    await db
+      .insert(schema.xtreamInfoCache)
+      .values({ accountId: ACCOUNT, kind: "series", xtreamId: "300", data: info(3), fetchedAt: new Date(0) });
     await ensureEpisodes(content, variants, "fr-FR");
     expect(await episodes()).toHaveLength(3);
   });
@@ -72,9 +72,15 @@ describe("ensureEpisodes", () => {
     [content] = await db.select().from(schema.catalogContents);
     variants = await db.select().from(schema.catalogVariants);
     expect(variants).toHaveLength(3);
-    await db
-      .insert(schema.xtreamInfoCache)
-      .values(variants.map((v, i) => ({ kind: "series" as const, xtreamId: v.xtreamId, data: info(2, `v${i}-`), fetchedAt: new Date(0) })));
+    await db.insert(schema.xtreamInfoCache).values(
+      variants.map((v, i) => ({
+        accountId: ACCOUNT,
+        kind: "series" as const,
+        xtreamId: v.xtreamId,
+        data: info(2, `v${i}-`),
+        fetchedAt: new Date(0),
+      })),
+    );
     const fetch = vi.fn(async (_u: unknown): Promise<Response> => {
       throw Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } });
     });

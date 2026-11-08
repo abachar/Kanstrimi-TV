@@ -1,8 +1,8 @@
 import { and, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
 import { db, schema, type Content, type Variant } from "@/db";
-import { getSettings } from "@/config";
+import { accountsById } from "@/config";
 import { describeError, isUnreachable } from "@/shared";
-import { type XtreamClient, XtreamError, xtreamFromSettings } from "@/providers/xtream";
+import { type XtreamClient, XtreamError, xtreamFor } from "@/providers/xtream";
 import { getCachedDetails, getTmdbClient, readTmdbCache, writeTmdbCache } from "@/providers/tmdb";
 import { episodeKey } from "./keys";
 
@@ -39,23 +39,35 @@ type TmdbEpisode = {
 };
 type Meta = { title: string | null; overview: string | null; runtime: number | null; stillPath: string | null; airDate: string | null };
 
-/** The provider as one rebuild sees it: `down` once it failed to answer, so the other variants do not wait for it again. */
+/** A provider as one rebuild sees it: `down` once it failed to answer, so its other variants do not wait for it again. */
 type Upstream = { client: XtreamClient | null; down: boolean };
+/** The providers, by account: a variant's client is its account's, none for an account gone or disabled meanwhile. */
+type Upstreams = Map<number, Upstream>;
+async function upstreamsOf(variants: Variant[]): Promise<Upstreams> {
+  const accounts = await accountsById();
+  const out: Upstreams = new Map();
+  for (const v of variants) {
+    const a = accounts.get(v.accountId);
+    if (!out.has(v.accountId)) out.set(v.accountId, { client: a?.enabled ? xtreamFor(a) : null, down: false });
+  }
+  return out;
+}
 
 /** get_series_info through the 12 h cache; the cache is the fallback when the provider is down or not configured. */
-async function upstreamInfo(upstream: Upstream, xtreamId: string): Promise<UpstreamInfo> {
+async function upstreamInfo(upstream: Upstream, accountId: number, xtreamId: string): Promise<UpstreamInfo> {
+  const c = schema.xtreamInfoCache;
   const [cached] = await db
     .select()
-    .from(schema.xtreamInfoCache)
-    .where(and(eq(schema.xtreamInfoCache.kind, "series"), eq(schema.xtreamInfoCache.xtreamId, xtreamId)));
+    .from(c)
+    .where(and(eq(c.accountId, accountId), eq(c.kind, "series"), eq(c.xtreamId, xtreamId)));
   if (cached && Date.now() - cached.fetchedAt.getTime() < INFO_TTL_MS) return cached.data as UpstreamInfo;
   if (!upstream.client || upstream.down) return (cached?.data as UpstreamInfo) ?? {};
   try {
     const data = await upstream.client.seriesInfo(xtreamId);
     await db
-      .insert(schema.xtreamInfoCache)
-      .values({ kind: "series", xtreamId, data })
-      .onConflictDoUpdate({ target: [schema.xtreamInfoCache.kind, schema.xtreamInfoCache.xtreamId], set: { data, fetchedAt: new Date() } });
+      .insert(c)
+      .values({ accountId, kind: "series", xtreamId, data })
+      .onConflictDoUpdate({ target: [c.accountId, c.kind, c.xtreamId], set: { data, fetchedAt: new Date() } });
     return data as UpstreamInfo;
   } catch (e) {
     // Unreachable, timed out or a 5xx: the next variants would wait just as long for the same answer.
@@ -120,7 +132,7 @@ export function ensureEpisodes(content: Content, variants: Variant[], tmdbLang: 
 }
 
 async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: string) {
-  const upstream: Upstream = { client: xtreamFromSettings(await getSettings()), down: false };
+  const upstreams = await upstreamsOf(variants);
   const [fresh] = await db
     .select({ at: sql<Date | null>`max(${schema.catalogEpisodes.updatedAt})` })
     .from(schema.catalogEpisodes)
@@ -135,8 +147,18 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
   type Found = { season: number; number: number; sources: { itemId: number; xtreamId: string; container: string | null }[]; meta: Meta };
   const found = new Map<string, Found>();
   const providerMeta = new Map<string, Meta>();
+  // A provider down without a cached answer is skipped: the other providers' episodes still come.
+  // The sheet fails only when none answered (`UpstreamUnavailable`).
+  let unavailable = 0;
   for (const v of variants) {
-    const info = await upstreamInfo(upstream, v.xtreamId);
+    let info: UpstreamInfo;
+    try {
+      info = await upstreamInfo(upstreams.get(v.accountId)!, v.accountId, v.xtreamId);
+    } catch (e) {
+      if (!(e instanceof UpstreamUnavailable)) throw e;
+      unavailable++;
+      continue;
+    }
     for (const s of info.seasons ?? [])
       for (const e of s.episodes ?? []) {
         const season = e.season_number ?? s.season_number;
@@ -172,6 +194,7 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
         found.set(k, f);
       }
   }
+  if (unavailable && !found.size) throw new UpstreamUnavailable();
   // Best metadata: TMDB season, then the provider's TMDB-like data, then the parsed title.
   if (content.tmdbId) {
     for (const season of new Set([...found.values()].map((f) => f.season))) {

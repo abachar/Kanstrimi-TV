@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { db, schema } from "@/db";
-import { PROFILE, profileSeesVisible, resetDb, closeDb, testLanguageOrder, testProfile } from "@/test/db";
+import { PROFILE, profileSeesVisible, resetDb, closeDb, testAccounts, testLanguageOrder, testProfile } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { recommendedKeys } from "@/catalog";
 import { recommendationsSettled, resetRecommendations } from "@/providers/tmdb";
@@ -16,8 +16,7 @@ const ctx: RestContext = {
   profile: testProfile,
   languageOrder: testLanguageOrder,
   tmdbLang: "fr-FR",
-  providerName: "p",
-  upstreamUrl: () => null,
+  accounts: testAccounts,
   serveAdult: false,
 };
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400000);

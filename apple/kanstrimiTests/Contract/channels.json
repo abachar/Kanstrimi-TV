@@ -24,7 +24,7 @@
                 "container": "TS",
                 "stream_url": "http://provider.test/live/u/p/101.ts",
                 "provider": {
-                  "id": "xtream",
+                  "id": "xtream-1",
                   "name": "provider.test",
                   "kind": "xtream"
                 },
@@ -43,7 +43,7 @@
                 "container": "TS",
                 "stream_url": "http://provider.test/live/u/p/100.ts",
                 "provider": {
-                  "id": "xtream",
+                  "id": "xtream-1",
                   "name": "provider.test",
                   "kind": "xtream"
                 },
@@ -101,7 +101,7 @@
                 "container": "TS",
                 "stream_url": "http://provider.test/live/u/p/102.ts",
                 "provider": {
-                  "id": "xtream",
+                  "id": "xtream-1",
                   "name": "provider.test",
                   "kind": "xtream"
                 },

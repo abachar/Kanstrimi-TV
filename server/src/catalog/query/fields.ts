@@ -276,7 +276,16 @@ export const FIELDS: Field[] = [
     kinds: ALL,
     level: "variant",
     text: (_, p) =>
-      sql`exists (select 1 from catalog_categories k where k.kind = ${v.kind} and k.xtream_id = ${v.categoryXtreamId} and ${p(sql`k.name`)})`,
+      sql`exists (select 1 from catalog_categories k where k.account_id = ${v.accountId} and k.kind = ${v.kind} and k.xtream_id = ${v.categoryXtreamId} and ${p(sql`k.name`)})`,
+  },
+  {
+    names: ["xtream.fournisseur", "xtream.compte"],
+    type: "text",
+    doc: "Nom du fournisseur (page Fournisseurs)",
+    example: "xtream.fournisseur:backup",
+    kinds: ALL,
+    level: "variant",
+    text: (_, p) => sql`exists (select 1 from provider_accounts a where a.id = ${v.accountId} and ${p(sql`a.name`)})`,
   },
   {
     names: ["xtream.section"],

@@ -2,10 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, closeDb } from "@/test/db";
-import { setSecretsForTests } from "@/config";
 import { runSync as syncSource, type XStream } from "@/providers/xtream";
 import { runMerge, RADIO_CATEGORY_ID } from "../merge";
-import { variantCountsByKind } from "../queries";
+import { variantCountsByAccount } from "../queries";
 
 // What the provider lists; each test rewrites it before an import.
 let vod: unknown = [];
@@ -16,7 +15,7 @@ vi.mock("@/providers/xtream/client", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/providers/xtream/client")>();
   return {
     ...mod,
-    xtreamFromSettings: () => ({
+    xtreamFor: () => ({
       account: async () => ({ user_info: { auth: 1 } }),
       liveCategories: async () => [{ category_id: "10", category_name: "FRANCE" }],
       vodCategories: async () => [{ category_id: "20", category_name: "Films" }],
@@ -30,12 +29,11 @@ vi.mock("@/providers/xtream/client", async (importOriginal) => {
 
 beforeAll(async () => {
   await resetDb();
-  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
 });
 afterAll(closeDb);
 
 /** The `source` step as the pipeline runs it: the provider is handed the catalogue's current counts. */
-const runSync = async (opts: { acceptShrink?: boolean } = {}) => syncSource({ ...opts, currentCounts: await variantCountsByKind() });
+const runSync = async (opts: { acceptShrink?: boolean } = {}) => syncSource({ ...opts, currentCounts: await variantCountsByAccount() });
 const importAll = async (opts: { acceptShrink?: boolean } = {}) => {
   await runSync(opts);
   return runMerge(opts);

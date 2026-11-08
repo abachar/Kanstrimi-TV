@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { PROFILE, resetDb, closeDb, seedItems, groupAndFilter, testLanguageOrder, testProfile } from "@/test/db";
-import { setSecretsForTests } from "@/config";
+import { PROFILE, resetDb, closeDb, seedItems, groupAndFilter, testAccounts, testLanguageOrder, testProfile } from "@/test/db";
 import { runNaming } from "@/catalog";
 import { home } from "../home";
 import { shelfPicks } from "../top-shelf";
@@ -24,14 +23,12 @@ const ctx = {
   profile: testProfile,
   languageOrder: testLanguageOrder,
   tmdbLang: "fr-FR",
-  providerName: "provider.test",
-  upstreamUrl: () => null,
+  accounts: testAccounts,
   serveAdult: false,
 };
 
 beforeAll(async () => {
   await resetDb();
-  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await seedItems([{ kind: "series", xtreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
   await runNaming();
   await groupAndFilter();

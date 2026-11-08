@@ -54,7 +54,7 @@
           "container": "MKV",
           "stream_url": "http://provider.test/movie/u/p/1.mkv",
           "provider": {
-            "id": "xtream",
+            "id": "xtream-1",
             "name": "provider.test",
             "kind": "xtream"
           },
@@ -72,7 +72,7 @@
           "container": "MKV",
           "stream_url": "http://provider.test/movie/u/p/2.mkv",
           "provider": {
-            "id": "xtream",
+            "id": "xtream-1",
             "name": "provider.test",
             "kind": "xtream"
           },

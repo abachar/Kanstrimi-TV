@@ -4,8 +4,8 @@ import path from "node:path";
 import { sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { sha256 } from "@/shared";
-import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
-import { setSecretsForTests, setSettings } from "@/config";
+import { ACCOUNT, PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
+import { setSettings } from "@/config";
 import { addStudio, runNaming } from "@/catalog";
 import { player as api } from "..";
 
@@ -99,7 +99,6 @@ beforeAll(async () => {
   process.env.TZ = "Europe/Paris";
   vi.useFakeTimers({ toFake: ["Date"], now: NOW });
   await resetDb();
-  setSecretsForTests({ xtream_url: "http://provider.test", xtream_username: "u", xtream_password: "p" });
   await setSettings({
     last_sync_at: daysAgo(1).toISOString(),
     last_epg_at: daysAgo(1).toISOString(),
@@ -272,6 +271,7 @@ beforeAll(async () => {
     },
   });
   await db.insert(schema.xtreamInfoCache).values({
+    accountId: ACCOUNT,
     kind: "series",
     xtreamId: "200",
     data: {
