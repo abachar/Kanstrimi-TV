@@ -53,6 +53,8 @@ const LANG_WORDS: Record<string, Language> = {
   FRENCH: "VF",
   VOSTFR: "VOSTFR",
   VOST: "VOSTFR",
+  STFR: "VOSTFR",
+  ST: "VOSTFR",
   VOSTA: "VOSTFR",
   SUB: "VOSTFR",
   SUBBED: "VOSTFR",
@@ -178,8 +180,28 @@ const BRACKET_GROUP = new RegExp(`[\\[\\(\\{]\\s*(?:${WORDS_ALT})(?:[\\s/,+\\-|]
 const BARE_TAG = new RegExp(`(?:^|[\\s\\-|:])(${WORDS_ALT}|\\d{3,4}[pi]|4k|8k)(?=$|[\\s\\-|:,.)])`, "g");
 /** Language words opening a name without a separator: "VOSTFR Parasite - 2019". */
 const LEADING_LANG_WORDS = new RegExp(`^(?:(?:${Object.keys(LANG_WORDS).map(esc).join("|")})\\s*[-:|]?\\s+)+`);
-const MARKET_PREFIX = /^(?:[[|(]\s*([A-Za-z]{2,7}(?:-[A-Za-z]{2,3})?)\s*[\]|)]\s*[-:|]?\s*)/;
-const BARE_PREFIX = /^([A-Z]{2,7})\s*[-:|]\s+/;
+/**
+ * A bracketed prefix: « |FR| », « [FR] », « (FR) », « |FR-4K DV IMAX| », « |VO|STFR| », « |LEG.| », « |+AF| ».
+ * Its content is read token by token (`readPrefix`); a content that is not all tags is a title.
+ */
+const MARKET_PREFIX = /^(?:[[|(]\s*([A-Za-z0-9.+][A-Za-z0-9.+\-/ ]{0,23})\s*[\]|)]\s*[-:|]?\s*)/;
+/** A prefix without its opening bracket: « FR - Title », « LEG.| Title », « VO-LEG.|Title ». */
+const BARE_PREFIX = /^([A-Z]{2,7}(?:-[A-Z]{2,7})?)\.?\s*(?:\|\s*|[-:]\s+)/;
+/** Technical prefixes some providers stamp on scene releases ("AZ - Title.2013"): not a market. */
+const NOT_A_MARKET = new Set(["AZ", "VOD", "TV", "LIVE", "NEWS", "MAG", "PPV"]);
+/**
+ * Codes some providers write for a market or a language, as the catalogue spells them. « LEG »
+ * (legendado) is the Portuguese market's subtitled original version.
+ */
+const CODE_ALIASES: Record<string, { market?: string; language?: Language }> = {
+  ESP: { market: "es" },
+  POR: { market: "pt" },
+  IIT: { market: "it" },
+  QC: { market: "qc" },
+  LEG: { market: "pt", language: "VO" },
+};
+/** Short words that name a language even in a prefix, where « FR » or « IT » would be a market. */
+const PREFIX_LANG_ONLY = new Set(["VF", "VO", "SUB", "DUB", "ENG", "VFF", "VFQ", "ST"]);
 const TZ_DELAY = /\|?\s*[-+]?\d{1,2}H\s*\|?/gi;
 const SEASON_TAG = /(?:^|[\s\-([|])(?:S(\d{1,2})|(?:Saison|Season|Temporada|Stagione)\s*(\d{1,2}))(?=$|[\s\-)\]|])/i;
 
@@ -206,15 +228,21 @@ const EDITION_TAG = new RegExp(`(?:[[({]\\s*(?:${EDITION_ALT})\\s*[\\])}]|\\s*(?
 
 type Found = { language?: Language; quality?: Quality; dynamicRange?: DynamicRange; tags: Set<string> };
 
+/** The first language word wins, except that a subtitle word after « VO » makes it VOSTFR: « |VO|STFR| ». */
+function setLanguage(f: Found, l: Language) {
+  if (f.language === "VO" && l === "VOSTFR") f.language = l;
+  else f.language ??= l;
+}
+
 function classify(word: string, f: Found) {
   const w = word.toUpperCase().replace(/\s+/g, " ");
   if (LANG_WORDS[w]) {
-    f.language ??= LANG_WORDS[w];
+    setLanguage(f, LANG_WORDS[w]);
     if (w.startsWith("MULTI") || w === "DUB" || w === "DUBBED") f.tags.add("multi");
     return;
   }
   if (ISO_CODES.has(w)) {
-    f.language ??= w;
+    setLanguage(f, w);
     return;
   }
   if (QUALITY_WORDS[w]) {
@@ -299,21 +327,13 @@ export function parseName(raw: string, kind: Kind): ParsedName {
   let s = stripOrnaments(raw.normalize("NFC")).replace(/^[\s\-_=~]+|[\s\-_=~]+$/g, "");
   let market: string | undefined;
 
-  // Market prefixes, possibly stacked: "|FR| ", "[FR] ", "(FR) ", "FR - ", "VOD FR |".
+  // Prefixes, possibly stacked: "|FR| ", "[FR] ", "(FR) ", "FR - ", "VOD FR |", "|VO|STFR| ", "|FR-4K DV| ".
   for (;;) {
     const m = MARKET_PREFIX.exec(s) ?? BARE_PREFIX.exec(s);
     if (!m) break;
-    const code = m[1].toUpperCase();
-    // Technical prefixes some providers stamp on scene releases ("AZ - Title.2013"): not a market.
-    if (["AZ", "VOD", "TV", "LIVE", "NEWS", "MAG", "PPV"].includes(code)) {
-      s = s.slice(m[0].length);
-      continue;
-    }
-    // "|FR|" is a market, not a language: "|FR| Tenet (VOST)" is sold in France, in VOSTFR.
-    if (/^[A-Z]{2,3}(?:-[A-Z]{2,3})?$/.test(code) && !["VF", "VO", "SUB", "DUB", "ENG", "VFF", "VFQ"].includes(code))
-      market ??= code.toLowerCase();
-    else if (LANG_WORDS[code]) f.language ??= LANG_WORDS[code];
-    else break;
+    const read = readPrefix(m[1], f);
+    if (read === null) break;
+    if (read) market ??= read;
     s = s.slice(m[0].length);
   }
   // Leading language words without a separator: "VOSTFR Parasite - 2019".
@@ -344,6 +364,8 @@ export function parseName(raw: string, kind: Kind): ParsedName {
   const y = extractYear(s);
   s = y.s;
   s = extractTags(s, f);
+  // An IMAX copy is a cut of its own (another aspect ratio), when no other edition was named.
+  if (kind !== "live" && f.tags.has("imax")) edition ??= "IMAX";
   // Provider labels on live channels: "[P.TV]", "[TF1+]", "(Niger)" stay for the last, go for the first.
   if (kind === "live") s = s.replace(/\[[A-Z0-9.+ -]{1,8}\]/g, " ");
   // A trailing « TNT » is the terrestrial feed of the channel named before it: « ARRYADIA TNT » is
@@ -366,6 +388,37 @@ export function parseName(raw: string, kind: Kind): ParsedName {
     seasonHint,
     edition,
   };
+}
+
+/**
+ * The content of a prefix, token by token: a market code (« FR », « EX-YU », « +AF »), an alias
+ * (« ESP », « LEG. »), a language, quality, dynamic range or noise word. Returns the market it names
+ * (empty when none), or null when a token is none of these: the bracket then opens a title.
+ * "|FR|" is a market, not a language: "|FR| Tenet (VOST)" is sold in France, in VOSTFR.
+ */
+function readPrefix(content: string, f: Found): string | null {
+  const whole = content.toUpperCase().replace(/\./g, "").trim();
+  if (NOT_A_MARKET.has(whole)) return "";
+  // A hyphenated market (« EX-YU », « PT-BR ») stays whole when neither side is a tag.
+  if (/^[A-Z]{2,3}-[A-Z]{2,3}$/.test(whole) && !whole.split("-").some((t) => LANG_WORDS[t] || ISO_CODES.has(t))) return whole.toLowerCase();
+  let market = "";
+  const found: Found = { tags: new Set() };
+  for (const raw of whole.split(/[\s\-/]+/).filter(Boolean)) {
+    const t = raw.replace(/^\+/, "");
+    const alias = CODE_ALIASES[t];
+    if (alias) {
+      if (alias.market) market ||= alias.market;
+      if (alias.language) setLanguage(found, alias.language);
+    } else if (QUALITY_WORDS[t] || DR_WORDS[t] || NOISE_WORDS.includes(t) || /^\d{3,4}[PI]$/.test(t)) classify(t, found);
+    else if (/^[A-Z]{2,3}$/.test(t) && !PREFIX_LANG_ONLY.has(t)) market ||= t.toLowerCase();
+    else if (LANG_WORDS[t]) classify(t, found);
+    else return null;
+  }
+  if (found.language) setLanguage(f, found.language);
+  if (found.quality) classify(found.quality, f);
+  if (found.dynamicRange) classify(found.dynamicRange, f);
+  for (const t of found.tags) f.tags.add(t);
+  return market;
 }
 
 const ADULT_WORDS =
@@ -393,9 +446,9 @@ export const DEFAULT_LANGUAGE_ORDER = ["VF", "VOSTFR", "VO"];
 /** The language served to the app when neither the name nor the category said one. */
 export function defaultLanguage(market?: string): Language {
   if (!market) return "VO";
-  if (market === "fr" || market === "be" || market === "ch" || market === "ca" || market === "ma" || market === "dz" || market === "tn")
-    return "VF";
-  if (market === "en" || market === "us" || market === "uk" || market === "gb" || market === "au") return "VO";
+  if (["fr", "be", "ch", "ca", "qc", "ma", "dz", "tn"].includes(market)) return "VF";
+  if (["en", "us", "uk", "gb", "au"].includes(market)) return "VO";
+  if (["br", "pt-br"].includes(market)) return "PT";
   return market.toUpperCase();
 }
 

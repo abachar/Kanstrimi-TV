@@ -22,6 +22,27 @@ describe("parseName", () => {
     ["Blade Runner 2049 (2017)", "vod", { title: "Blade Runner 2049", year: 2017 }],
     // Market is not language: sold in France, subtitled.
     ["|FR| Spring Snow (VOST)", "vod", { title: "Spring Snow", market: "fr", language: "VOSTFR" }],
+    // Prefixes of several tags, stacked or composite; a subtitle word after « VO » makes VOSTFR.
+    ["|VO|STFR| Un film d'amour (1970)", "vod", { title: "Un film d'amour", year: 1970, market: undefined, language: "VOSTFR" }],
+    ["|VO|ST| Harlem (2021)", "series", { title: "Harlem", language: "VOSTFR" }],
+    ["|FR-4K DV| Dune (2021)", "vod", { title: "Dune", market: "fr", quality: "4K", dynamicRange: "DV", language: undefined }],
+    [
+      "|FR-4K DV IMAX| Oppenheimer (2023)",
+      "vod",
+      { title: "Oppenheimer", market: "fr", quality: "4K", dynamicRange: "DV", edition: "IMAX" },
+    ],
+    ["|FR IMAX| Oppenheimer (2023)", "vod", { title: "Oppenheimer", market: "fr", edition: "IMAX", tags: ["imax"] }],
+    ["|FR VFF| Film (2020)", "vod", { title: "Film", market: "fr", language: "VF" }],
+    ["|VO-4K HDR| Film (2020)", "vod", { title: "Film", market: undefined, language: "VO", quality: "4K", dynamicRange: "HDR" }],
+    // Codes some providers spell their own way: aliases, a dot, a plus sign; « LEG » is Portugal's subtitled VO.
+    ["|ESP| Más allá del muro (2025)", "vod", { title: "Más allá del muro", market: "es" }],
+    ["|POR| Filme (2020)", "vod", { title: "Filme", market: "pt" }],
+    ["|LEG.| The Radleys (2024)", "vod", { title: "The Radleys", market: "pt", language: "VO" }],
+    ["|VO-LEG.| House of Gucci (2021)", "vod", { title: "House of Gucci", market: "pt", language: "VO" }],
+    ["|+AF| MISHAPI VOICE TV", "live", { title: "MISHAPI VOICE TV", market: "af" }],
+    ["VO-LEG.|Game of Love (2022)", "vod", { title: "Game of Love", year: 2022, market: "pt", language: "VO" }],
+    // A bracket that is not all tags opens the title.
+    ["(Niger) TELE SAHEL", "live", { title: "(Niger) TELE SAHEL", market: undefined }],
     ["|IT| Spider-Man 2", "vod", { title: "Spider-Man 2", market: "it", language: undefined }],
     // Pipe-separated year and tags, foreign-script subtitle dropped.
     ["|FR| Ghosts | 2019 (MULTI)", "series", { title: "Ghosts", year: 2019, language: "VF" }],
