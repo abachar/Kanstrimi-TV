@@ -70,6 +70,8 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
 - **Direct** : décodé par le moteur (`preferredDecodePath: .software`), image en 0,6 s contre 6 s par le HLS local
   d'AVPlayer ; jamais de pause, comme une télé. Fenêtre de retour de 30 s (`dvrWindowSeconds`) : seule voie où le moteur
   décode le son à part, sinon une chaîne HE-AAC à 50 i/s (Canal+ Foot) saccade ; le son démarre ~0,8 s plus tard.
+- **Sources** : dans « Versions » et le lecteur, une source porte le nom de son fournisseur (`Version.sourceName(of:)`),
+  lettré quand le même fournisseur a plusieurs copies de la version ; « Source A » seulement sans fournisseur nommé.
 - **Pannes** : un seul chemin (`handleStreamFailure`) : source suivante, deux essais, puis le dialogue ; une reprise
   rouvre les liens du fournisseur tels quels (ils n'expirent pas), seul « Réessayer » les redemande au serveur
   (`/playback`, `/channels/{id}`). Seuils dans `PlayerService`.

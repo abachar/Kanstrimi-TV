@@ -665,8 +665,8 @@ class PlayerService(
     }
 
     fun sourceLabel(s: Source, v: Version): String {
-        val idx = v.sources.indexOfFirst { it.id == s.id }
-        return if (idx < 0) "Source" else VersionChooser.sourceName(idx)
+        val source = v.sources.firstOrNull { it.id == s.id } ?: return "Source"
+        return VersionChooser.sourceName(v, source)
     }
 
     private fun showToast(text: String, detail: String?) {

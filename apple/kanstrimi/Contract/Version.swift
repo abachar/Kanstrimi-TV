@@ -59,6 +59,15 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
     var label: String { ["\(qualityLabel) · \(language.short)", edition].compactMap(\.self).joined(separator: " · ") }
     /// "Source A", "Source B": the sources of a version by their place.
     static func sourceName(_ index: Int) -> String { "Source \(Character(UnicodeScalar(65 + index)!))" }
+    /// A source by its provider's name (« 4K », « Backup »), lettered when the provider has several copies of the
+    /// version; by its place when the server named no provider.
+    func sourceName(of source: Source) -> String {
+        let index = sources.firstIndex(of: source) ?? 0
+        guard let name = source.provider?.name, !name.isEmpty else { return Self.sourceName(index) }
+        let same = sources.filter { $0.provider?.name == name }
+        guard same.count > 1, let rank = same.firstIndex(of: source) else { return name }
+        return "\(name) \(Character(UnicodeScalar(65 + rank)!))"
+    }
 }
 
 /// The version the profile chose for a title, as the server keeps it (`PUT /playback/{id}/version`): a movie or a

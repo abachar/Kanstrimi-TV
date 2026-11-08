@@ -112,8 +112,18 @@ class VersionChooser(
     }
 
     companion object {
-        /** « Source A », « Source B »: how the copies of a version are named. */
+        /** « Source A », « Source B »: how the copies of a version are named when the server names no provider. */
         fun sourceName(index: Int): String = "Source ${'A' + index}"
+
+        /**
+         * A source by its provider's name (« 4K », « Backup »), lettered when the provider has several copies of the
+         * version; by its place when the server named no provider.
+         */
+        fun sourceName(version: Version, source: Source): String {
+            val name = source.provider.name.takeIf { it.isNotBlank() } ?: return sourceName(version.sources.indexOf(source).coerceAtLeast(0))
+            val same = version.sources.filter { it.provider.name == name }
+            return if (same.size > 1) "$name ${'A' + same.indexOf(source)}" else name
+        }
 
         /** The one warning for an episode missing in the language in use, as the Apple app words it. */
         fun languageWarning(episode: Int, alternative: String, current: String, returnsAt: Int? = null): String {

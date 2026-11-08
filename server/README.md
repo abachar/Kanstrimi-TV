@@ -173,7 +173,9 @@ par son index.
   démarrage, `XTREAM_URL`, `XTREAM_USERNAME`, `XTREAM_PASSWORD` de l'environnement remplissent le compte que la migration a
   créé pour le catalogue en place, puis ces variables n'ont plus d'usage. Les guides EPG des fournisseurs partagent leurs
   identifiants (« TF1.fr ») : le préféré donne ses programmes, le suivant ne remplit que les chaînes qu'il a laissées vides.
-  Un filtre de profil peut nommer un fournisseur : `xtream.fournisseur:backup`.
+  Un filtre de profil peut nommer un fournisseur : `xtream.fournisseur:backup`. L'arbre des épisodes d'une série
+  (`catalog/episodes.ts`, 12 h de fraîcheur) se reconstruit dès qu'une variante jamais interrogée rejoint le contenu :
+  la copie d'un second fournisseur se joue sans attendre.
 - **Dates** : arrivée = date du fournisseur (`added`, `last_modified` pour une série) ; sortie = TMDB, tri par défaut.
 - **Données amont non fiables** : `xtream_id` n'est pas un identifiant, les champs manquent, l'identifiant TMDB fourni
   n'est jamais cru sur parole.

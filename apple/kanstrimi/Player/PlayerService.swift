@@ -686,8 +686,8 @@ final class PlayerService {
     }
 
     func sourceLabel(_ s: Source, in v: Version) -> String {
-        guard let idx = v.sources.firstIndex(of: s) else { return "Source" }
-        return Version.sourceName(idx)
+        guard v.sources.contains(s) else { return "Source" }
+        return v.sourceName(of: s)
     }
 
     private func showToast(_ text: String, detail: String?) {

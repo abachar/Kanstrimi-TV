@@ -142,7 +142,20 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
     .from(schema.catalogEpisodeVariants)
     .innerJoin(schema.catalogEpisodes, eq(schema.catalogEpisodes.id, schema.catalogEpisodeVariants.episodeId))
     .where(eq(schema.catalogEpisodes.contentId, content.id));
-  if (fresh.at && sources > 0 && Date.now() - new Date(fresh.at).getTime() < INFO_TTL_MS) return;
+  // A fresh tree is kept, unless a variant joined the content since and was never asked (no cached answer
+  // for it): another provider's copy of the series, playable even while the first one is down.
+  const asked = await db
+    .select({ accountId: schema.xtreamInfoCache.accountId, xtreamId: schema.xtreamInfoCache.xtreamId })
+    .from(schema.xtreamInfoCache)
+    .where(
+      and(
+        eq(schema.xtreamInfoCache.kind, "series"),
+        inArray(schema.xtreamInfoCache.xtreamId, [...new Set(variants.map((v) => v.xtreamId))]),
+      ),
+    );
+  const askedKeys = new Set(asked.map((a) => `${a.accountId}:${a.xtreamId}`));
+  const unasked = variants.some((v) => !askedKeys.has(`${v.accountId}:${v.xtreamId}`));
+  if (fresh.at && sources > 0 && !unasked && Date.now() - new Date(fresh.at).getTime() < INFO_TTL_MS) return;
 
   type Found = { season: number; number: number; sources: { itemId: number; xtreamId: string; container: string | null }[]; meta: Meta };
   const found = new Map<string, Found>();

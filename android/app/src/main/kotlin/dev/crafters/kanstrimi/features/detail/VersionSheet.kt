@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.crafters.kanstrimi.contract.Card
 import dev.crafters.kanstrimi.contract.Version
+import dev.crafters.kanstrimi.player.VersionChooser
 import dev.crafters.kanstrimi.ui.theme.Theme
 
 /** How many lines the picker shows for these versions (one per source): with one, there is nothing to choose. */
@@ -43,12 +44,12 @@ fun VersionSheet(card: Card, onDismiss: () -> Unit, onPick: (Version) -> Unit) {
             Text("Choisir une version", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(card.title, color = Theme.secondary, modifier = Modifier.padding(bottom = 8.dp))
             card.versions.forEach { v ->
-                v.sources.forEachIndexed { i, s ->
+                v.sources.forEach { s ->
                     Row(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(v) }.background(Theme.surface).padding(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(if (v.sources.size > 1) "${v.label} · Source ${i + 1}" else v.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(if (v.sources.size > 1) "${v.label} · ${VersionChooser.sourceName(v, s)}" else v.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         s.origin?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Theme.secondary) }
                     }
                 }
