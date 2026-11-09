@@ -8,8 +8,23 @@ export type ContentKind = "movie" | "series" | "episode" | "live";
 export type Quality = "SD" | "HD" | "FHD" | "4K";
 export type DynamicRange = "HDR" | "DV";
 
-export type Provider = { id: string; name: string; kind: "xtream" | "local" | (string & {}) };
-export type Source = { id: string; container: string; stream_url: string; provider: Provider; origin: string | null };
+/** `rank`: the provider's place in the admin's order of preference (1 = preferred): the apps group the sources by it. */
+export type Provider = { id: string; name: string; kind: "xtream" | "local" | (string & {}); rank: number };
+/**
+ * A copy of a version at one provider. `label` is what the app shows for it (« iPTVisions », or
+ * « iPTVisions · LIGHT » when that provider has several copies of the version); `distinction` is the part
+ * after the provider's name, null for a lone copy: the word of its category the other copies lack, else its raw
+ * title, else a letter. `origin`: the provider's category, for the admin.
+ */
+export type Source = {
+  id: string;
+  container: string;
+  stream_url: string;
+  provider: Provider;
+  origin: string | null;
+  distinction: string | null;
+  label: string;
+};
 /**
  * `edition`: a cut other than the theatrical one (« Version longue », « Director's Cut »), absent for the usual cut.
  * Live: `has_epg`, `now`, `next` when this quality's guide is not the channel's (« M6 4K » has its own);

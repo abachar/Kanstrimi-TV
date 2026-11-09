@@ -109,7 +109,8 @@ private struct HomeOfflinePreview: View {
 
 private enum Fixtures {
     static func source(_ id: String, origin: String) -> Source {
-        Source(id: id, container: "MKV", streamURL: URL(string: "demo://movie")!, provider: Provider(id: "xtream-a", name: "Fournisseur A", kind: "xtream"), origin: origin)
+        Source(id: id, container: "MKV", streamURL: URL(string: "demo://movie")!, provider: Provider(id: "xtream-a", name: "Fournisseur A", kind: "xtream", rank: 1),
+               origin: origin, distinction: nil, label: "Fournisseur A")
     }
     static let sevenVersions: [Version] = [
         Version(id: "vf-4k-dv", language: .vf, quality: .uhd, dynamicRange: .dolbyVision, sources: [source("a", origin: "4K DV")]),

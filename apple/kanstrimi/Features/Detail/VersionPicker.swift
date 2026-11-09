@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The sheet behind "Versions" and the long press on Lecture [8]: one button per source of every
-/// version, which plays it at once; a series' versions carry no sources (« Version de la série »), one
-/// button per version then, which the sheet remembers for every episode.
+/// The sheet behind "Versions" and the long press on Lecture [8]: the copies grouped by provider in the order of
+/// preference (`SourceLine.grouped`), one button each (« FR · 4K · LIGHT »), which plays it at once; a series'
+/// versions carry no sources (« Version de la série »), one button per version then, remembered for every episode.
 struct VersionPicker: View {
     let title: String
     let versions: [Version]
@@ -23,16 +23,21 @@ struct VersionPicker: View {
                 }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        ForEach(rows, id: \.id) { row in
-                            Button {
-                                dismiss()
-                                // Let the sheet finish dismissing before what the pick presents (the player cover).
-                                Task {
-                                    try? await Task.sleep(for: .milliseconds(400))
-                                    onPick(row.version, row.source)
+                        ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
+                            if let provider = group.provider {
+                                Text(provider).font(.headline).foregroundStyle(Theme.secondary).padding(.top, 6)
+                            }
+                            ForEach(group.lines) { line in
+                                Button {
+                                    dismiss()
+                                    // Let the sheet finish dismissing before what the pick presents (the player cover).
+                                    Task {
+                                        try? await Task.sleep(for: .milliseconds(400))
+                                        onPick(line.version, line.source)
+                                    }
+                                } label: {
+                                    label(line).frame(maxWidth: .infinity, alignment: .leading)
                                 }
-                            } label: {
-                                label(row).frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
                     }
@@ -56,57 +61,25 @@ struct VersionPicker: View {
         .onBackCommand { dismiss() }
     }
 
-    /// The version and its source side by side on TV; stacked on a phone, where they do not fit.
-    @ViewBuilder private func label(_ row: Row) -> some View {
-        let recommended = row.version.id == recommendedID && row.index == 0
-        if !metrics.compact {
-            HStack(spacing: 18) {
-                Text(row.title).font(.headline)
-                if let source = row.source { Text(source.label).foregroundStyle(Theme.secondary) }
-                Spacer()
-                if recommended { recommendedBadge }
-            }
-            .padding(.horizontal, 10)
-        } else {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(row.title).font(.headline)
-                    if let source = row.source { Text(source.label).font(.footnote).foregroundStyle(Theme.secondary) }
-                }
-                Spacer(minLength: 0)
-                if recommended { recommendedBadge }
-            }
-            .multilineTextAlignment(.leading)
+    /// The line of a copy, the recommended version's first copy badged.
+    @ViewBuilder private func label(_ line: SourceLine) -> some View {
+        let recommended = line.version.id == recommendedID && line.source == (line.version.sources.first)
+        HStack(spacing: 18) {
+            Text(line.text).font(.headline)
+            Spacer(minLength: 0)
+            if recommended { recommendedBadge }
         }
+        .padding(.horizontal, metrics.compact ? 0 : 10)
+        .multilineTextAlignment(.leading)
     }
 
     private var recommendedBadge: some View {
         AccentTag("RECOMMANDÉ", style: .spaced)
     }
 
-    private struct Row {
-        let version: Version
-        /// Nil for a series: its versions name no source.
-        let source: Source?
-        let index: Int
-        let title: String
-        var id: String { "\(version.id)|\(source?.id ?? "")" }
-    }
-
-    /// One row per source, or per version without sources (a series): the recommended version first,
-    /// then by language, the usual cut before the editions, and descending quality.
-    /// How many lines the picker shows for these versions: with one, there is nothing to choose and
-    /// the buttons that open it hide.
+    /// How many lines the picker shows for these versions (one per copy, one per version without sources): with
+    /// one, there is nothing to choose and the buttons that open it hide.
     static func lineCount(_ versions: [Version]) -> Int { versions.reduce(0) { $0 + max(1, $1.sources.count) } }
 
-    private var rows: [Row] {
-        let sorted = VersionChooser.ordered(versions, recommended: recommendedID)
-        return sorted.flatMap { v -> [Row] in
-            if v.sources.isEmpty { return [Row(version: v, source: nil, index: 0, title: v.label)] }
-            return v.sources.enumerated().map { i, src in
-                Row(version: v, source: src, index: i,
-                    title: v.sources.count > 1 ? "\(v.label) · \(v.sourceName(of: src))" : v.label)
-            }
-        }
-    }
+    private var groups: [(provider: String?, lines: [SourceLine])] { SourceLine.grouped(versions) }
 }

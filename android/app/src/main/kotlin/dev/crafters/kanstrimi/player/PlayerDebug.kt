@@ -62,7 +62,7 @@ object PlayerDebug {
 
     /** `debug.playUrl <url>`: a public file played as a one-version, one-source title, through the whole pipeline. */
     fun playUrl(player: PlayerService, url: String) {
-        val source = Source(id = "debug", container = url.substringAfterLast('.').uppercase(), streamUrl = url, provider = Provider("debug", "Fichier public", "debug"))
+        val source = Source(id = "debug", container = url.substringAfterLast('.').uppercase(), streamUrl = url, provider = Provider("debug", "Fichier public", "debug", 1), label = "Fichier public")
         val version = Version(id = "debug-vo", language = "VO", quality = Quality.HD, sources = listOf(source))
         val item = ContentItem(id = "debug:url", kind = ContentKind.MOVIE, title = url.substringAfterLast('/'))
         player.play(PlaybackContext(PlaybackContent(item.id, ContentKind.MOVIE, item.title), listOf(version)))

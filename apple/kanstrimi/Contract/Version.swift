@@ -6,6 +6,8 @@ nonisolated struct Provider: Codable, Hashable, Sendable {
     let name: String
     /// "xtream", "local"…
     let kind: String
+    /// The provider's place in the admin's order of preference, 1 first: the menus group the sources by it.
+    let rank: Int
 }
 
 /// A playable stream. Opaque identifier, never a `stream_id`.
@@ -16,16 +18,17 @@ nonisolated struct Source: Codable, Hashable, Identifiable, Sendable {
     /// The provider's own URL, played as is (its account is in the path).
     let streamURL: URL
     let provider: Provider?
-    /// Provider category, what tells two sources of the same provider apart for a human.
+    /// Provider category, for the admin.
     let origin: String?
+    /// What tells this copy from the provider's other copies of the version ("LIGHT", "A"); nil for a lone copy.
+    let distinction: String?
+    /// What the app shows for the source, written by the server: "iPTVisions", "iPTVisions · LIGHT".
+    let label: String
 
     enum CodingKeys: String, CodingKey {
-        case id, container, origin, provider
+        case id, container, origin, provider, distinction, label
         case streamURL = "stream_url"
     }
-
-    /// "Fournisseur A · Films 4K UHD"
-    var label: String { [provider?.name, origin].compactMap { $0 }.joined(separator: " · ") }
 }
 
 /// One language × one quality. Sources are ordered by the server; the first is the default.
@@ -55,18 +58,46 @@ nonisolated struct Version: Codable, Hashable, Identifiable, Sendable {
         guard let dynamicRange, dynamicRange != .sdr else { return quality.label }
         return "\(quality.label) \(dynamicRange.label)"
     }
-    /// "4K Dolby Vision · FR", "HD · FR · Version longue".
-    var label: String { ["\(qualityLabel) · \(language.short)", edition].compactMap(\.self).joined(separator: " · ") }
-    /// "Source A", "Source B": the sources of a version by their place.
-    static func sourceName(_ index: Int) -> String { "Source \(Character(UnicodeScalar(65 + index)!))" }
-    /// A source by its provider's name (« 4K », « Backup »), lettered when the provider has several copies of the
-    /// version; by its place when the server named no provider.
-    func sourceName(of source: Source) -> String {
-        let index = sources.firstIndex(of: source) ?? 0
-        guard let name = source.provider?.name, !name.isEmpty else { return Self.sourceName(index) }
-        let same = sources.filter { $0.provider?.name == name }
-        guard same.count > 1, let rank = same.firstIndex(of: source) else { return name }
-        return "\(name) \(Character(UnicodeScalar(65 + rank)!))"
+    /// "FR · 4K Dolby Vision", "FR · HD · Version longue".
+    var label: String { ["\(language.short) · \(qualityLabel)", edition].compactMap(\.self).joined(separator: " · ") }
+    /// The line of one copy under its provider: the version, then what tells the copy from the provider's others
+    /// ("FR · 4K · LIGHT"); the version alone for a series, whose versions carry no sources.
+    func line(_ source: Source?) -> String { [label, source?.distinction].compactMap(\.self).joined(separator: " · ") }
+}
+
+/// A copy of a version at one provider, as the menus list them: by provider in the order of preference, then by
+/// the version (descending quality, the profile's languages, the usual cut first) and what tells the copies apart.
+nonisolated struct SourceLine: Identifiable, Hashable, Sendable {
+    let version: Version
+    /// Nil for a series: its versions name no source, one line per version then.
+    let source: Source?
+    var id: String { "\(version.id)|\(source?.id ?? "")" }
+    var providerName: String? { source?.provider?.name }
+    var text: String { version.line(source) }
+
+    /// The lines of these versions, grouped by provider: `[(provider name or nil, lines)]` in the order of preference.
+    static func grouped(_ versions: [Version]) -> [(provider: String?, lines: [SourceLine])] {
+        let order = versions.languages
+        let lines = versions.flatMap { v -> [SourceLine] in
+            v.sources.isEmpty ? [SourceLine(version: v, source: nil)] : v.sources.map { SourceLine(version: v, source: $0) }
+        }
+        .sorted { a, b in
+            let ra = a.source?.provider?.rank ?? .max, rb = b.source?.provider?.rank ?? .max
+            if ra != rb { return ra < rb }
+            if a.version.quality != b.version.quality { return a.version.quality > b.version.quality }
+            if (a.version.dynamicRange ?? .sdr) != (b.version.dynamicRange ?? .sdr) { return (a.version.dynamicRange ?? .sdr) > (b.version.dynamicRange ?? .sdr) }
+            let la = order.firstIndex(of: a.version.language) ?? 0, lb = order.firstIndex(of: b.version.language) ?? 0
+            if la != lb { return la < lb }
+            if (a.version.edition == nil) != (b.version.edition == nil) { return a.version.edition == nil }
+            return (a.source?.distinction ?? "") < (b.source?.distinction ?? "")
+        }
+        var groups: [(provider: String?, lines: [SourceLine])] = []
+        for line in lines {
+            if let last = groups.indices.last, groups[last].provider == line.providerName { groups[last].lines.append(line) } else {
+                groups.append((line.providerName, [line]))
+            }
+        }
+        return groups
     }
 }
 

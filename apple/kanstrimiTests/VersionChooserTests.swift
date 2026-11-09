@@ -164,7 +164,7 @@ struct VersionChooserTests {
         #expect(key.label == "FR · HD · Noir et blanc")
         let episode = [Fixtures.version("vf-4k", .vf, .uhd), Fixtures.version("vf-fhd-noir-et-blanc", .vf, .fhd, edition: "Noir et blanc")]
         #expect(chooser.choose(from: episode, seriesChoice: key)?.version.id == "vf-fhd-noir-et-blanc")
-        #expect(edition.label == "HD · FR · Noir et blanc")
+        #expect(edition.label == "FR · HD · Noir et blanc")
     }
 
     @Test("Sans versions ou sans sources : rien à jouer")

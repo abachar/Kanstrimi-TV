@@ -87,8 +87,14 @@ object Language {
 }
 
 @Serializable
-data class Provider(val id: String, val name: String, val kind: String)
+/** `rank`: the provider's place in the admin's order of preference, 1 first: the menus group the sources by it. */
+data class Provider(val id: String, val name: String, val kind: String, val rank: Int)
 
+/**
+ * A copy of a version at one provider. `label` is what the app shows for it, written by the server (« iPTVisions »,
+ * « iPTVisions · LIGHT »); `distinction` the part after the provider's name, null for a lone copy; `origin` the
+ * provider's category, for the admin.
+ */
 @Serializable
 data class Source(
     val id: String,
@@ -96,6 +102,8 @@ data class Source(
     @SerialName("stream_url") val streamUrl: String,
     val provider: Provider,
     val origin: String? = null,
+    val distinction: String? = null,
+    val label: String,
 )
 
 /**
@@ -115,11 +123,45 @@ data class Version(
     val now: Programme? = null,
     val next: Programme? = null,
 ) {
-    /** « 4K DV · FR », « FHD · VOSTF · Version longue ». */
+    /** « FR · 4K DV », « VOSTF · FHD · Version longue ». */
     val label: String
-        get() = listOfNotNull(qualityLabel, Language.short(language), edition).joinToString(" · ")
+        get() = listOfNotNull(Language.short(language), qualityLabel, edition).joinToString(" · ")
     val qualityLabel: String
         get() = dynamicRange?.let { "${quality.label} ${it.label}" } ?: quality.label
+
+    /** The line of one copy under its provider: the version, then what tells the copy from the provider's others. */
+    fun line(source: Source?): String = listOfNotNull(label, source?.distinction).joinToString(" · ")
+}
+
+/**
+ * A copy of a version at one provider, as the menus list them: by provider in the order of preference, then by the
+ * version (descending quality, the profile's languages, the usual cut first) and what tells the copies apart.
+ * `source` is null for a series, whose versions name no source: one line per version then.
+ */
+data class SourceLine(val version: Version, val source: Source?) {
+    val text: String get() = version.line(source)
+
+    companion object {
+        /** The lines of these versions grouped by provider (null for lines without a source), in the order of preference. */
+        fun grouped(versions: List<Version>): List<Pair<String?, List<SourceLine>>> {
+            val languages = versions.map { it.language }.distinct()
+            val lines = versions.flatMap { v -> if (v.sources.isEmpty()) listOf(SourceLine(v, null)) else v.sources.map { SourceLine(v, it) } }
+                .sortedWith(
+                    compareBy<SourceLine> { it.source?.provider?.rank ?: Int.MAX_VALUE }
+                        .thenByDescending { it.version.quality }
+                        .thenByDescending { it.version.dynamicRange?.ordinal ?: -1 }
+                        .thenBy { languages.indexOf(it.version.language) }
+                        .thenBy { if (it.version.edition == null) 0 else 1 }
+                        .thenBy { it.source?.distinction ?: "" },
+                )
+            val groups = mutableListOf<Pair<String?, MutableList<SourceLine>>>()
+            for (line in lines) {
+                val name = line.source?.provider?.name
+                if (groups.lastOrNull()?.first == name && groups.isNotEmpty()) groups.last().second.add(line) else groups.add(name to mutableListOf(line))
+            }
+            return groups
+        }
+    }
 }
 
 /** `resumable`: between 5 % and « Vu », decided by the server: the app offers « Reprendre » on it and compares no threshold. */

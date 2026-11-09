@@ -86,9 +86,9 @@ fun DetailScreen(id: String) {
         else -> LoadingPanel()
     }
     if (showVersions && card != null) {
-        VersionSheet(card, onDismiss = { showVersions = false }) { v ->
+        VersionSheet(card, onDismiss = { showVersions = false }) { v, s ->
             showVersions = false
-            env.player.play(card.id, versionId = v.id)
+            env.player.play(card.id, versionId = v.id, sourceId = s?.id)
         }
     }
 }

@@ -20,21 +20,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.crafters.kanstrimi.contract.Card
+import dev.crafters.kanstrimi.contract.Source
+import dev.crafters.kanstrimi.contract.SourceLine
 import dev.crafters.kanstrimi.contract.Version
-import dev.crafters.kanstrimi.player.VersionChooser
 import dev.crafters.kanstrimi.ui.theme.Theme
 
 /** How many lines the picker shows for these versions (one per source): with one, there is nothing to choose. */
 fun versionLines(versions: List<Version>): Int = versions.sumOf { maxOf(1, it.sources.size) }
 
 /**
- * The sheet behind « Versions »: one row per source of every version, « 4K DV · FR » and where the provider files
- * it, which plays it at once; a series' versions carry no sources, one row per version then. The engine's own
- * choice stays the default: nothing is remembered.
+ * The sheet behind « Versions »: the copies grouped by provider in the order of preference (`SourceLine.grouped`),
+ * one row each (« FR · 4K DV · LIGHT »), which plays it at once; a series' versions carry no sources, one row per
+ * version then. The engine's own choice stays the default: nothing is remembered.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VersionSheet(card: Card, onDismiss: () -> Unit, onPick: (Version) -> Unit) {
+fun VersionSheet(card: Card, onDismiss: () -> Unit, onPick: (Version, Source?) -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -44,15 +45,14 @@ fun VersionSheet(card: Card, onDismiss: () -> Unit, onPick: (Version) -> Unit) {
         Column(modifier = Modifier.padding(horizontal = 28.dp).padding(bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Choisir une version", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(card.title, color = Theme.secondary, modifier = Modifier.padding(bottom = 8.dp))
-            card.versions.forEach { v ->
-                val lines = if (v.sources.isEmpty()) listOf(null) else v.sources
-                lines.forEach { s ->
+            SourceLine.grouped(card.versions).forEach { (provider, lines) ->
+                provider?.let { Text(it, style = MaterialTheme.typography.titleSmall, color = Theme.secondary, modifier = Modifier.padding(top = 6.dp)) }
+                lines.forEach { line ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(v) }.background(Theme.surface).padding(16.dp),
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPick(line.version, line.source) }.background(Theme.surface).padding(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(if (s != null && v.sources.size > 1) "${v.label} · ${VersionChooser.sourceName(v, s)}" else v.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        s?.let { src -> listOfNotNull(src.provider.name.takeIf { it.isNotBlank() }, src.origin).joinToString(" · ").takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Theme.secondary) } }
+                        Text(line.text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

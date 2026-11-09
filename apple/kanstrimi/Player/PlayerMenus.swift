@@ -84,17 +84,20 @@ struct PlayerTimeLine: View {
 }
 
 /// The Versions menu: by language, the one playing checked.
+/// The Versions menu: one section per provider in the order of preference, one line per copy (« FR · 4K Dolby
+/// Vision · LIGHT »), the one playing checked. A channel's lines carry its chips.
 struct VersionMenuItems: View {
     @Environment(AppEnvironment.self) private var env
     var body: some View {
         let player = env.player
-        let versions = VersionChooser.ordered(player.context?.versions ?? [], recommended: nil)
-        let languages = versions.map(\.language).reduce(into: [Language]()) { if !$0.contains($1) { $0.append($1) } }
-        ForEach(languages, id: \.self) { language in
-            Section(language.label) {
-                ForEach(versions.filter { $0.language == language }) { v in
-                    Button { player.switchVersion(v) } label: {
-                        if v.id == player.version?.id { Label(v.qualityLabel, systemImage: "checkmark") } else { Text(v.qualityLabel) }
+        let groups = SourceLine.grouped(player.context?.versions ?? [])
+        ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
+            Section(group.provider ?? "Versions") {
+                ForEach(group.lines) { line in
+                    let current = line.version.id == player.version?.id && (line.source == nil || line.source?.id == player.source?.id)
+                    Button { player.switchVersion(line.version, source: line.source) } label: {
+                        let text = line.version.chip.map { [$0, line.source?.distinction].compactMap(\.self).joined(separator: " · ") } ?? line.text
+                        if current { Label(text, systemImage: "checkmark") } else { Text(text) }
                     }
                 }
             }

@@ -82,9 +82,9 @@ struct StreamFacts: View {
         }
     }
 
-    /// The copy of the version in use, named only when there are several to switch between.
+    /// The copy of the version in use, by its provider (« iPTVisions · LIGHT »), lone or not.
     @ViewBuilder private func sourceLabel(of version: Version) -> some View {
-        if version.sources.count > 1, let source = player.source {
+        if let source = player.source {
             Text(player.sourceLabel(source, in: version)).font(.caption).foregroundStyle(Theme.secondary)
         }
     }

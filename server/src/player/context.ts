@@ -44,9 +44,10 @@ export async function contextFor(req: Request, device: Device | null, s: Setting
   };
 }
 
-/** The provider of a source, as the app labels it: the account's name. */
+/** The provider of a source, as the app labels it: the account's name and its place in the order of preference. */
 export function providerOf(ctx: RestContext, accountId: number): Provider {
-  return { id: `xtream-${accountId}`, name: ctx.accounts.get(accountId)?.name ?? "Fournisseur", kind: "xtream" };
+  const a = ctx.accounts.get(accountId);
+  return { id: `xtream-${accountId}`, name: a?.name ?? "Fournisseur", kind: "xtream", rank: a?.position ?? Number.MAX_SAFE_INTEGER };
 }
 
 /** The rank of an account among the providers: the preferred one first; an unknown account last. */

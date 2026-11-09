@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import dev.crafters.kanstrimi.R
 import dev.crafters.kanstrimi.app.AppEnvironment
 import dev.crafters.kanstrimi.contract.Language
+import dev.crafters.kanstrimi.contract.SourceLine
 import dev.crafters.kanstrimi.ui.LiveTag
 import dev.crafters.kanstrimi.ui.ProgressBar
 import dev.crafters.kanstrimi.ui.formatHour
@@ -254,22 +255,25 @@ private fun Chip(title: String, selected: Boolean, onClick: () -> Unit) {
     )
 }
 
-/** The Versions menu: by language, the one playing checked; a channel's versions by their chip. */
+/**
+ * The Versions menu: one section per provider in the order of preference, one line per copy (« FR · 4K DV · LIGHT »),
+ * the one playing checked; a channel's lines carry its chips.
+ */
 @Composable
 private fun VersionsMenu(player: PlayerService, onActivity: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         RoundIcon(painterResource(R.drawable.ic_layers), "Versions") { open = true; onActivity() }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            val versions = VersionChooser.ordered(player.context?.versions.orEmpty())
-            versions.map { it.language }.distinct().forEach { language ->
-                Text(Language.label(language), style = MaterialTheme.typography.labelMedium, color = Theme.secondary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                versions.filter { it.language == language }.forEach { v ->
-                    val current = v.id == player.version?.id
+            SourceLine.grouped(player.context?.versions.orEmpty()).forEach { (provider, lines) ->
+                Text(provider ?: "Versions", style = MaterialTheme.typography.labelMedium, color = Theme.secondary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                lines.forEach { line ->
+                    val v = line.version
+                    val current = v.id == player.version?.id && (line.source == null || line.source.id == player.source?.id)
                     DropdownMenuItem(
-                        text = { Text(v.chip ?: listOfNotNull(v.qualityLabel, v.edition).joinToString(" · ")) },
+                        text = { Text(v.chip?.let { listOfNotNull(it, line.source?.distinction).joinToString(" · ") } ?: line.text) },
                         leadingIcon = { if (current) Icon(Icons.Filled.Check, contentDescription = null) else Spacer(modifier = Modifier.width(24.dp)) },
-                        onClick = { open = false; player.switchVersion(v); onActivity() },
+                        onClick = { open = false; player.switchVersion(v, line.source); onActivity() },
                     )
                 }
             }

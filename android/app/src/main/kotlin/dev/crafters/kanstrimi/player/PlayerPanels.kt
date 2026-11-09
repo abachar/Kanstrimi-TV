@@ -181,7 +181,7 @@ private fun StreamFactsRow(player: PlayerService) {
         if (sound.isNotEmpty()) FactGroup(R.drawable.ic_audiotrack, sound)
         facts?.engine?.let { if (it != "ExoPlayer") Badge(it, small = true) }
         val source = player.source
-        if (version.sources.size > 1 && source != null) Text(player.sourceLabel(source, version), style = MaterialTheme.typography.bodySmall, color = Theme.secondary)
+        if (source != null) Text(player.sourceLabel(source, version), style = MaterialTheme.typography.bodySmall, color = Theme.secondary)
     }
 }
 

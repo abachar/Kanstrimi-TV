@@ -210,6 +210,10 @@ par son index.
     `/channels` (1 = la dernière quittée, 20 au plus). L'app part de là et y ajoute ses zaps du moment.
 - **Appairage** : `POST /player/devices` rend le code et le jeton de l'appareil (seule son empreinte est en base) ; le jeton
   ne vaut qu'une fois le code approuvé dans l'admin, `GET /player/devices/{code}` ne donne que le statut.
+- **Sources d'une version** (`player/versions.ts`) : par fournisseur dans l'ordre de préférence (`Provider.rank`), la
+  première joue par défaut ; chaque source porte son texte prêt, `label` (« iPTVisions », « iPTVisions · LIGHT ») et
+  `distinction` quand le fournisseur a plusieurs copies de la version : les mots de sa catégorie que les autres n'ont pas,
+  sinon son titre brut, sinon une lettre (`distinguish`). Les apps affichent, elles ne nomment rien.
 - **Liens de lecture** : `stream_url` est l'URL du fournisseur de la variante, compte compris, envoyée aux seuls appareils appairés ;
   l'app la lit elle-même (le fournisseur répond encore un `302` vers son backend) et ne redemande `/playback` qu'au « Réessayer » d'une panne.
 - **Ne jamais journaliser une URL brute** : le mot de passe Xtream y circule. Passer par `requestLogger()`.

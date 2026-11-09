@@ -82,9 +82,12 @@
                   "provider": {
                     "id": "xtream-1",
                     "name": "provider.test",
-                    "kind": "xtream"
+                    "kind": "xtream",
+                    "rank": 1
                   },
-                  "origin": "|FR| SERIES"
+                  "origin": "|FR| SERIES",
+                  "distinction": null,
+                  "label": "provider.test"
                 }
               ]
             }
@@ -137,9 +140,12 @@
                   "provider": {
                     "id": "xtream-1",
                     "name": "provider.test",
-                    "kind": "xtream"
+                    "kind": "xtream",
+                    "rank": 1
                   },
-                  "origin": "|FR| SERIES"
+                  "origin": "|FR| SERIES",
+                  "distinction": null,
+                  "label": "provider.test"
                 }
               ]
             }

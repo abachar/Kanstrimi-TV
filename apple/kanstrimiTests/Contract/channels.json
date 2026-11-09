@@ -26,9 +26,12 @@
                 "provider": {
                   "id": "xtream-1",
                   "name": "provider.test",
-                  "kind": "xtream"
+                  "kind": "xtream",
+                  "rank": 1
                 },
-                "origin": "FRANCE FHD | TV"
+                "origin": "FRANCE FHD | TV",
+                "distinction": null,
+                "label": "provider.test"
               }
             ],
             "chip": "FHD"
@@ -45,9 +48,12 @@
                 "provider": {
                   "id": "xtream-1",
                   "name": "provider.test",
-                  "kind": "xtream"
+                  "kind": "xtream",
+                  "rank": 1
                 },
-                "origin": "FRANCE FHD | TV"
+                "origin": "FRANCE FHD | TV",
+                "distinction": null,
+                "label": "provider.test"
               }
             ],
             "chip": "HD"
@@ -103,9 +109,12 @@
                 "provider": {
                   "id": "xtream-1",
                   "name": "provider.test",
-                  "kind": "xtream"
+                  "kind": "xtream",
+                  "rank": 1
                 },
-                "origin": "SPORTS HD | TV"
+                "origin": "SPORTS HD | TV",
+                "distinction": null,
+                "label": "provider.test"
               }
             ],
             "chip": "HD"

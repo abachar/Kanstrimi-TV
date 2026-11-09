@@ -200,9 +200,9 @@ class PlayerService(
 
     /**
      * Plays a movie, an episode, or a series (the server resolves the episode to play), from its resume point
-     * (`fromStart`: from the beginning), in the version asked for, else the chooser's.
+     * (`fromStart`: from the beginning), in the version and copy asked for, else the chooser's.
      */
-    fun play(id: String, fromStart: Boolean = false, versionId: String? = null) {
+    fun play(id: String, fromStart: Boolean = false, versionId: String? = null, sourceId: String? = null) {
         scope.launch {
             val loaded = try {
                 loadContext(id)
@@ -212,7 +212,7 @@ class PlayerService(
             if (loaded == null) { notify("Lecture impossible · titre introuvable"); return@launch }
             val ctx = if (fromStart) loaded.resuming(null) else loaded
             val wanted = versionId?.let { v -> ctx.versions.firstOrNull { it.id == v } }
-            if (wanted != null) play(ctx, wanted) else play(ctx)
+            if (wanted != null) play(ctx, wanted, sourceId?.let { s -> wanted.sources.firstOrNull { it.id == s } }) else play(ctx)
         }
     }
 
@@ -413,10 +413,10 @@ class PlayerService(
     // MARK: - Versions while playing
 
     /** Switches version, same position, and keeps it for the title (the series for an episode) when the profile's setting says so. */
-    fun switchVersion(v: Version) {
+    fun switchVersion(v: Version, source: Source? = null) {
         val ctx = context ?: return
         remember(v, ctx.rememberId)
-        play(ctx, v)
+        play(ctx, v, source)
     }
 
     /** « Réessayer » from the failure dialog: links asked for again, same version, same position. */
@@ -664,10 +664,8 @@ class PlayerService(
         failure = Failure(startAttempts, reason)
     }
 
-    fun sourceLabel(s: Source, v: Version): String {
-        val source = v.sources.firstOrNull { it.id == s.id } ?: return "Source"
-        return VersionChooser.sourceName(v, source)
-    }
+    /** The server's label of the source (« iPTVisions · LIGHT »); « Source » for one the version no longer lists. */
+    fun sourceLabel(s: Source, v: Version): String = v.sources.firstOrNull { it.id == s.id }?.label ?: "Source"
 
     private fun showToast(text: String, detail: String?) {
         toast = Toast(text, detail)

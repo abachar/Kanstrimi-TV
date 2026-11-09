@@ -1,7 +1,7 @@
 import { QUALITY_RANK, DYNAMIC_RANGE_RANK, DEFAULT_LANGUAGE_ORDER, qualityOfRank as knownQualityOfRank } from "@/catalog";
 import type { Variant } from "@/db";
-import type { DynamicRange, Quality, Version } from "./types";
-import { slug } from "@/shared";
+import type { DynamicRange, Quality, Source, Version } from "./types";
+import { slug, stripOrnaments } from "@/shared";
 import { accountRank, providerOf, type RestContext, streamUrlOf } from "./context";
 
 /** `src-i…` = an item (movie or channel), `src-e…` = an episode source; base36 of our own ids. */
@@ -39,6 +39,8 @@ export type Playable = {
   /** Live: the EPG ids to try, in order (the provider's, then iptv-org's when they disagree). */
   epgIds: string[];
   categoryName: string | null;
+  /** The provider's own name of the entry, what tells two copies apart when their categories do not. */
+  name: string;
   qualityRank: number;
   position: number;
   id: number;
@@ -63,26 +65,73 @@ export function playableOfItem(it: Variant, categoryName: string | null): Playab
     edition: it.edition,
     epgIds: epgIdsOf(it),
     categoryName,
+    name: it.name,
     qualityRank: it.qualityRank,
     position: it.position,
     id: it.id,
   };
 }
 
+/** « |FR| », « [FR] », « FR - » and ornaments off a provider's text, upper-cased: what its words are. */
+const words = (s: string | null) =>
+  stripOrnaments(s ?? "")
+    .replace(/^\s*(?:[[|(][^\]|)]*[\]|)]|[A-Za-z]{2,3}\s*[-:|])\s*/, "")
+    .toUpperCase()
+    .split(/[^\p{L}\p{N}+]+/u)
+    .filter(Boolean);
+
 /**
- * Group playable rows by language × quality × dynamic range × edition; within a version, the sources
- * of the preferred provider first (Fournisseurs: the first one plays by default), then server order.
+ * What tells apart the copies one provider has of the same version, one text per copy: the words of
+ * its category the other copies lack (« UHD » / « LIGHT »), else its raw title when they differ, else a
+ * letter. Pure, exported for its tests.
+ */
+export function distinguish(copies: Pick<Playable, "categoryName" | "name">[]): string[] {
+  const unique = (xs: string[]) => xs.every(Boolean) && new Set(xs).size === xs.length;
+  const cats = copies.map((c) => words(c.categoryName));
+  const common = new Set(cats.length ? cats[0].filter((w) => cats.every((t) => t.includes(w))) : []);
+  const byCategory = cats.map((t) => [...new Set(t.filter((w) => !common.has(w)))].join(" "));
+  if (unique(byCategory)) return byCategory;
+  const byName = copies.map((c) => words(c.name).join(" "));
+  if (unique(byName)) return byName;
+  return copies.map((_, i) => String.fromCharCode(65 + i));
+}
+
+/**
+ * The sources of a version: by provider in the order of preference (the first plays by default), and
+ * within a provider by what tells its copies apart, then server order. Each carries its ready label.
+ */
+function sourcesOf(ctx: RestContext, rows: Playable[]): Source[] {
+  const byAccount = new Map<number, Playable[]>();
+  for (const r of rows) byAccount.set(r.upstream.accountId, [...(byAccount.get(r.upstream.accountId) ?? []), r]);
+  const out: Source[] = [];
+  for (const [accountId, copies] of [...byAccount].sort((a, b) => accountRank(ctx, a[0]) - accountRank(ctx, b[0]))) {
+    const provider = providerOf(ctx, accountId);
+    const distinctions = copies.length > 1 ? distinguish(copies) : [null];
+    const lines = copies
+      .map((r, i) => ({ r, d: distinctions[i] ?? null }))
+      .sort((a, b) => (a.d ?? "").localeCompare(b.d ?? "") || a.r.position - b.r.position || a.r.id - b.r.id);
+    for (const { r, d } of lines)
+      out.push({
+        id: r.sourceId,
+        container: r.container,
+        stream_url: streamUrlOf(ctx, r.upstream.accountId, r.upstream.kind, r.upstream.id, r.upstream.ext),
+        provider,
+        origin: r.categoryName,
+        distinction: d,
+        label: d ? `${provider.name} · ${d}` : provider.name,
+      });
+  }
+  return out;
+}
+
+/**
+ * Group playable rows by language × quality × dynamic range × edition; the sources of a version by
+ * provider in the order of preference (`sourcesOf`).
  */
 export function versionsOf(ctx: RestContext, rows: Playable[], withSources = true): Version[] {
   const order = ctx.languageOrder[rows[0]?.upstream.kind === "series" ? "series" : "vod"];
-  const map = new Map<string, Version & { _q: number; _d: number; _e: string }>();
-  const sorted = [...rows].sort(
-    (a, b) =>
-      b.qualityRank - a.qualityRank ||
-      accountRank(ctx, a.upstream.accountId) - accountRank(ctx, b.upstream.accountId) ||
-      a.position - b.position ||
-      a.id - b.id,
-  );
+  const map = new Map<string, Version & { _q: number; _d: number; _e: string; _rows: Playable[] }>();
+  const sorted = [...rows].sort((a, b) => b.qualityRank - a.qualityRank || a.position - b.position || a.id - b.id);
   for (const r of sorted) {
     const language = r.lang ?? "VO",
       quality = qualityOf(r.quality),
@@ -101,18 +150,13 @@ export function versionsOf(ctx: RestContext, rows: Playable[], withSources = tru
         _q: QUALITY_RANK[quality],
         _d: dr ? DYNAMIC_RANGE_RANK[dr] : 0,
         _e: edition ?? "",
+        _rows: [],
       };
       map.set(id, v);
     }
-    if (withSources)
-      v.sources.push({
-        id: r.sourceId,
-        container: r.container,
-        stream_url: streamUrlOf(ctx, r.upstream.accountId, r.upstream.kind, r.upstream.id, r.upstream.ext),
-        provider: providerOf(ctx, r.upstream.accountId),
-        origin: r.categoryName,
-      });
+    v._rows.push(r);
   }
+  if (withSources) for (const v of map.values()) v.sources = sourcesOf(ctx, v._rows);
   // The profile's languages in its order, then the usual cut first: an edition is a choice, never what plays by default.
   return [...map.values()]
     .sort(
@@ -124,7 +168,7 @@ export function versionsOf(ctx: RestContext, rows: Playable[], withSources = tru
         b._d - a._d ||
         a._e.localeCompare(b._e),
     )
-    .map(({ _q, _d, _e, ...v }) => v);
+    .map(({ _q, _d, _e, _rows, ...v }) => v);
 }
 
 /** « 4K DV », « HD »: a quality and its dynamic range; null without a known quality. */

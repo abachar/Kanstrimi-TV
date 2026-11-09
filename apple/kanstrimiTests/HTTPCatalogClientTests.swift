@@ -359,7 +359,7 @@ struct HTTPCatalogClientTests {
 
     @Test("Une qualité au guide propre le porte ; les autres prennent celui de la chaîne")
     func guidePerQuality() async throws {
-        let src = #"{"id":"s","container":"TS","stream_url":"demo://live","provider":null,"origin":null}"#
+        let src = #"{"id":"s","container":"TS","stream_url":"demo://live","provider":null,"origin":null,"distinction":null,"label":"Source"}"#
         answer(200, #"""
         {"id":"live:fr-m6","name":"M6","has_epg":true,
          "now":{"title":"Match en 4K","start":"2026-09-30T18:00:00.000Z","end":"2026-09-30T19:00:00.000Z","overview":null},"next":null,

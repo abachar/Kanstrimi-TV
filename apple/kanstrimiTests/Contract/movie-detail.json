@@ -56,9 +56,12 @@
           "provider": {
             "id": "xtream-1",
             "name": "provider.test",
-            "kind": "xtream"
+            "kind": "xtream",
+            "rank": 1
           },
-          "origin": "|FR| FILMS 4K DV"
+          "origin": "|FR| FILMS 4K DV",
+          "distinction": null,
+          "label": "provider.test"
         }
       ]
     },
@@ -74,9 +77,12 @@
           "provider": {
             "id": "xtream-1",
             "name": "provider.test",
-            "kind": "xtream"
+            "kind": "xtream",
+            "rank": 1
           },
-          "origin": "|FR| FILMS VOST"
+          "origin": "|FR| FILMS VOST",
+          "distinction": null,
+          "label": "provider.test"
         }
       ]
     }

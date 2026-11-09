@@ -411,10 +411,10 @@ final class PlayerService {
 
     /// Switches version, same position, and keeps it for the title (the series for an episode) when the profile's
     /// setting says so.
-    func switchVersion(_ v: Version) {
+    func switchVersion(_ v: Version, source: Source? = nil) {
         guard let context else { return }
         remember(v, for: context.rememberID)
-        play(context, version: v)
+        play(context, version: v, source: source)
     }
 
     /// "Réessayer" from the failure dialog: links asked for again, same version, same position.
@@ -685,10 +685,8 @@ final class PlayerService {
         handleStreamFailure()
     }
 
-    func sourceLabel(_ s: Source, in v: Version) -> String {
-        guard v.sources.contains(s) else { return "Source" }
-        return v.sourceName(of: s)
-    }
+    /// The server's label of the source (« iPTVisions · LIGHT »); « Source » for one the version no longer lists.
+    func sourceLabel(_ s: Source, in v: Version) -> String { v.sources.contains(s) ? s.label : "Source" }
 
     private func showToast(_ text: String, detail: String?) {
         toast = Toast(text: text, detail: detail)

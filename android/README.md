@@ -90,8 +90,9 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
   écran ». `abiFilters` arm64 seul : libmpv pèse 24 Mo par ABI (APK debug 72 Mo, release 32 Mo).
 - **Marqueurs** : Media3 ne lit pas les chapitres Matroska ; `POST /playback/{id}/markers` part avec la durée et une
   liste de chapitres vide. Le serveur ne peut donc donner que ce qu'IntroDB/SkipDB connaissent, pas le dernier chapitre.
-- **Sources** : la feuille « Versions » et le lecteur nomment une source par son fournisseur (`VersionChooser.sourceName(version, source)`),
-  lettrée quand le même fournisseur a plusieurs copies ; « Source A » seulement sans fournisseur nommé.
+- **Sources** : le serveur nomme chaque copie (`Source.label`, `distinction`) ; la feuille « Versions » et le menu
+  Versions du lecteur listent les copies par fournisseur dans l'ordre de préférence (`SourceLine.grouped`), une ligne
+  « FR · 4K DV · LIGHT » chacune ; Infos nomme toujours la source en cours.
 - **Pannes** : un seul chemin (`handleStreamFailure`) : source suivante, deux essais, puis le dialogue ; seuils dans
   `PlayerService` (10 s sans image, 15 s de rebuffering en VOD, une fin à plus de 60 s de la durée est une coupure).
 - **Vu** : passé le début du générique, le rapport de progression part à la durée (le serveur marque vu), comme l'app

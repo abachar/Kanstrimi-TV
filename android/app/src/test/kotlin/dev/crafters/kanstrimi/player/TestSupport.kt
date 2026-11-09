@@ -36,7 +36,7 @@ import dev.crafters.kanstrimi.contract.Version
 /** Versions and sources built by hand, like the Apple tests' `Fixtures`. */
 object Fixtures {
     fun source(id: String, url: String = "http://provider.test/movie/u/p/$id.mkv"): Source =
-        Source(id = id, container = "MKV", streamUrl = url, provider = Provider("xtream", "provider.test", "xtream"), origin = "Films 4K UHD")
+        Source(id = id, container = "MKV", streamUrl = url, provider = Provider("xtream", "provider.test", "xtream", 1), origin = "Films 4K UHD", label = "provider.test")
 
     fun version(id: String, language: String, quality: Quality, dr: DynamicRange? = null, sources: Int = 1, edition: String? = null): Version =
         Version(id = id, language = language, quality = quality, dynamicRange = dr, edition = edition, sources = (0 until sources).map { source("$id-s$it") })

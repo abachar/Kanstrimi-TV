@@ -47,6 +47,7 @@ export async function loadEpisodes(
       edition: it.edition,
       epgIds: [],
       categoryName: categoryName(it),
+      name: it.name,
       qualityRank: it.qualityRank,
       position: it.position,
       id: s.id,

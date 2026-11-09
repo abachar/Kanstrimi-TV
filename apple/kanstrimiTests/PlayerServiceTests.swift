@@ -77,7 +77,7 @@ struct PlayerServiceTests {
     /// A film in HD, its sources in that order.
     private static func film(_ id: String = "tmdb:movie:603", sources: [String], duration: TimeInterval = 6000) -> PlaybackContext {
         let version = Version(id: "vf-hd", language: .vf, quality: .hd, dynamicRange: nil,
-                              sources: sources.map { Source(id: $0, container: "MKV", streamURL: url($0), provider: nil, origin: nil) },
+                              sources: sources.map { Source(id: $0, container: "MKV", streamURL: url($0), provider: nil, origin: nil, distinction: nil, label: $0) },
                               edition: nil)
         return PlaybackContext(content: PlaybackContent(id: ContentID(id), kind: .movie, title: "Matrix", subtitle: nil,
                                                         episode: nil, backdrop: nil),
