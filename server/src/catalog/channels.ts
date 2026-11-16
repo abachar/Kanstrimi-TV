@@ -3,7 +3,8 @@ import { db, schema, variants as vr, client as pg, inDisabledAccount, visibleIte
 import { checkCancelled, similarity, similarityKey, stripAccents } from "@/shared";
 import { syncIptv } from "@/providers/iptv";
 import { type ChannelSuggestion, suggestChannels } from "@/providers/claude";
-import { regroupItems } from "./grouping/group";
+import { followLiveKeys, regroupItems } from "./grouping/group";
+import { contentKey } from "./keys";
 import { applyFilters } from "./filters/apply";
 import { EVENTS_THEME, LIVE_THEMES, REGIONS, themeOf, UNKNOWN_THEME, type LiveTheme } from "./naming";
 
@@ -224,6 +225,8 @@ export type Index = {
   own: Map<number, OwnChannel>;
   ownByKey: Map<string, Set<number>>;
   ownByIptv: Map<string, OwnChannel>;
+  /** What Claude read in the names the reference does not know, by the key of the channel each makes (`ai_*`). */
+  read: Map<string, { kind: string | null; name: string | null }>;
 };
 
 export async function loadIndex(): Promise<Index> {
@@ -244,6 +247,7 @@ export async function loadIndex(): Promise<Index> {
     own: new Map(),
     ownByKey: new Map(),
     ownByIptv: new Map(),
+    read: new Map(),
   };
   const add = <T>(m: Map<string, Set<T>>, k: string, id: T) => m.set(k, (m.get(k) ?? new Set<T>()).add(id));
   for (const r of rows) {
@@ -261,6 +265,9 @@ export async function loadIndex(): Promise<Index> {
     for (const k of own.keys) add(idx.ownByKey, `${r.market}|${k}`, r.id);
     if (r.iptvId) idx.ownByIptv.set(`${r.market}|${r.iptvId.toLowerCase()}`, own);
   }
+  const c = schema.catalogChannels;
+  for (const r of await db.select({ key: c.key, kind: c.aiKind, name: c.aiName }).from(c).where(sql`${c.aiAskedAt} is not null`))
+    idx.read.set(r.key, { kind: r.kind, name: r.name });
   return idx;
 }
 
@@ -382,6 +389,7 @@ function matchByName(
 
 const CHUNK = 5000;
 
+/** A live stream as the reference reads it, with the channel it is on for now. */
 type LiveRow = {
   id: number;
   raw: unknown;
@@ -390,26 +398,32 @@ type LiveRow = {
   market: string | null;
   nameTheme: string | null;
   nameCountry: string | null;
+  nameAdult: boolean;
   section: string | null;
   category: string | null;
-  iptvId: string | null;
-  iptvMatch: string | null;
-  aiKind: string | null;
-  aiTitle: string | null;
-  aiAskedAt: Date | null;
+  channelId: number | null;
+  channelKey: string | null;
+  how: string | null;
+  manual: boolean;
+  epgMismatch: boolean;
 };
+/** The channel a live stream is, and what it says of that channel. */
 type Resolved = {
   id: number;
-  iptv: string | null;
-  /** The reference name: ours, else iptv-org's. Null = not recognised. */
-  channelName: string | null;
+  /** The channel's key and name: the reference's (ours, else iptv-org's), or the stream's own when it knows none. */
+  key: string;
+  name: string;
+  market: string | null;
+  known: boolean;
+  event: boolean;
   how: string | null;
-  /** What the reference adds to the name's own theme: null when it only repeats it. */
-  theme: string | null;
+  iptv: string | null;
+  own: OwnChannel | undefined;
+  /** What this stream alone would make the channel: a theme, a country in a region, adult by iptv-org. */
+  theme: string;
+  country: string | null;
   adult: boolean;
   epgMismatch: boolean;
-  country: string | null;
-  event: boolean;
 };
 
 /** A pinned channel: the provider's EPG id is wrong when it names another channel. */
@@ -419,21 +433,22 @@ function pinnedMismatch(idx: Index, epgId: string | null, pinned: IndexedChannel
   return epgContradicts(epgId!, title, nameKeys(title), idx.byId.get(epg), { ...pinned, how: "name" });
 }
 
+const epgIdOf = (it: Pick<LiveRow, "raw">) => (it.raw as { epg_channel_id?: string }).epg_channel_id ?? null;
+/** The key a live name has while the reference knows no channel for it: what Claude's reading of it is kept under. */
+const unknownKey = (it: Pick<LiveRow, "title" | "name" | "market">) =>
+  contentKey({ kind: "live", title: it.title || it.name, market: it.market });
+
 /**
- * The reference channel of a live variant, in this order: the one pinned by hand; a channel of ours
- * one of whose names it bears in its market (what the admin attached wins over any guess); iptv-org's
- * (`matchChannel`); then the usual name Claude read in it, looked up the same two ways. An iptv-org
- * channel completed by a row of ours in that market takes it along (name, theme, country). A radio has none.
+ * The reference channel of a live stream, in this order: a channel of ours one of whose names it bears in
+ * its market (what the admin attached wins over any guess); iptv-org's (`matchChannel`); then the usual
+ * name Claude read in it, looked up the same two ways. An iptv-org channel completed by a row of ours in
+ * that market takes it along (name, theme, country). A radio has none.
  */
 function findChannel(idx: Index, it: LiveRow, epgId: string | null) {
   const title = it.title || it.name;
   const iptvOf = (id: string | null | undefined) => (id ? idx.byId.get(id.toLowerCase()) : undefined);
   const completed = (ch: IndexedChannel | undefined) =>
     ch && it.market ? idx.ownByIptv.get(`${it.market}|${ch.id.toLowerCase()}`) : undefined;
-  if (it.iptvMatch === "manual") {
-    const ch = iptvOf(it.iptvId);
-    return { ch, own: completed(ch), how: "manual" as ChannelMatch, epgMismatch: pinnedMismatch(idx, epgId, ch, title) };
-  }
   if (isRadio(it)) return { ch: undefined, own: undefined, how: null, epgMismatch: false };
   const named = ownByKeys(idx, it.market, nameKeys(title));
   if (named) {
@@ -443,8 +458,9 @@ function findChannel(idx: Index, it: LiveRow, epgId: string | null) {
   const r = matchChannel(idx, { epgId, title, market: it.market, country: it.nameCountry });
   const found = iptvOf(r.match?.id);
   if (found) return { ch: found, own: completed(found), how: r.match!.how as ChannelMatch, epgMismatch: r.epgMismatch };
-  if (it.aiKind === "channel" && it.aiTitle) {
-    const keys = nameKeys(it.aiTitle);
+  const ai = idx.read.get(unknownKey(it));
+  if (ai?.kind === "channel" && ai.name) {
+    const keys = nameKeys(ai.name);
     const own = ownByKeys(idx, it.market, keys);
     const ch = own ? iptvOf(own.iptvId) : (matchByName(idx, keys, it.market, it.nameCountry) ?? undefined);
     if (own || ch) return { ch, own: own ?? completed(ch), how: "ai" as ChannelMatch, epgMismatch: pinnedMismatch(idx, epgId, ch, title) };
@@ -453,36 +469,44 @@ function findChannel(idx: Index, it: LiveRow, epgId: string | null) {
 }
 
 /**
- * What a live variant becomes: its reference channel (kept when pinned by hand) and the name it goes
- * by, the theme and adult flag it gives (`iptv_theme`, `iptv_adult`: the name's own stay in `name_*`,
- * the final values are derived), whether its EPG id is to be ignored, and its country in a regional
- * market. Without a reference channel: « Événements » for an event feed, « Non reconnus » otherwise.
- * `theme` stays null when it would only repeat the name's.
+ * What a live stream becomes: the channel it is (the reference's, under its name in the reference; else
+ * one of its own name, « Événements » for an event feed, « Non reconnus » otherwise), how it was found,
+ * whether its EPG id is to be ignored, and what it alone says of that channel (`channelFacts` weighs
+ * all its streams).
  */
-function resolve(idx: Index, it: LiveRow): Resolved {
-  const epgId = (it.raw as { epg_channel_id?: string }).epg_channel_id ?? null;
-  const { ch, own, how, epgMismatch } = findChannel(idx, it, epgId);
-  const iptv = ch?.id ?? (how === "manual" ? it.iptvId : null);
-  const recognised = Boolean(ch || own);
-  const event = !recognised && isEventFeed(it);
-  const theme = recognised ? (own?.theme ?? referenceTheme(ch?.categories ?? [], it.nameTheme)) : event ? EVENTS_THEME : UNKNOWN_THEME;
+function resolve(idx: Index, it: LiveRow, pin?: { iptvId: string | null }): Resolved {
+  const epgId = epgIdOf(it);
+  const title = it.title || it.name;
+  let found = findChannel(idx, it, epgId);
+  if (pin) {
+    // Put there by hand: that iptv-org channel (with the row of ours that completes it in this market), or none.
+    const ch = pin.iptvId ? idx.byId.get(pin.iptvId.toLowerCase()) : undefined;
+    const own = ch && it.market ? idx.ownByIptv.get(`${it.market}|${ch.id.toLowerCase()}`) : undefined;
+    found = { ch, own, how: "manual", epgMismatch: pinnedMismatch(idx, epgId, ch, title) };
+  }
+  const { ch, own, how, epgMismatch } = found;
+  const known = Boolean(ch || own);
+  const event = !known && isEventFeed({ ...it, aiKind: idx.read.get(unknownKey(it))?.kind });
+  const channelName = own?.name ?? ch?.name ?? null;
   return {
     id: it.id,
-    iptv,
-    channelName: own?.name ?? ch?.name ?? null,
+    key: contentKey({ kind: "live", title, market: it.market, channelName }),
+    name: channelName ?? title,
+    market: it.market,
+    known,
+    event,
     how,
-    theme: nullIfSame(theme, it.nameTheme),
-    adult: Boolean(ch?.isNsfw || ch?.categories.includes("xxx")),
-    epgMismatch,
+    iptv: ch?.id ?? null,
+    own,
+    theme: known ? (own?.theme ?? referenceTheme(ch?.categories ?? [], it.nameTheme)) : event ? EVENTS_THEME : UNKNOWN_THEME,
     country:
       own && own.country !== null
         ? own.country || null
-        : regionCountry(it.market, iptv, [it.section], { nameCountry: it.nameCountry, category: it.category }),
-    event,
+        : regionCountry(it.market, ch?.id ?? null, [it.section], { nameCountry: it.nameCountry, category: it.category }),
+    adult: Boolean(ch?.isNsfw || ch?.categories.includes("xxx")),
+    epgMismatch,
   };
 }
-
-const nullIfSame = (v: string | null, same: string | null) => (v === same ? null : v);
 
 const live = eq(vr.kind, "live");
 const liveRows = (where: SQL = live): Promise<LiveRow[]> =>
@@ -495,13 +519,14 @@ const liveRows = (where: SQL = live): Promise<LiveRow[]> =>
       market: vr.market,
       nameTheme: vr.nameTheme,
       nameCountry: vr.nameCountry,
+      nameAdult: vr.nameAdult,
       section: vr.section,
       category: schema.xtreamCategories.name,
-      iptvId: vr.iptvId,
-      iptvMatch: vr.iptvMatch,
-      aiKind: vr.aiKind,
-      aiTitle: vr.aiTitle,
-      aiAskedAt: vr.aiAskedAt,
+      channelId: vr.channelId,
+      channelKey: vr.contentKey,
+      how: vr.how,
+      manual: vr.manual,
+      epgMismatch: vr.epgMismatch,
     })
     .from(vr)
     .leftJoin(
@@ -515,29 +540,123 @@ const liveRows = (where: SQL = live): Promise<LiveRow[]> =>
     .where(where)
     .orderBy(asc(vr.id));
 
-/** Only the variants whose channel, theme, flag, EPG verdict or country moved are written: those are returned. */
-async function write(rows: Resolved[]): Promise<number[]> {
-  const changed: number[] = [];
-  for (let i = 0; i < rows.length; i += CHUNK) {
+/** The most frequent of some values, the first met among equals; null without any. */
+function most<T>(values: (T | null)[]): T | null {
+  const n = new Map<T, number>();
+  for (const v of values) if (v !== null) n.set(v, (n.get(v) ?? 0) + 1);
+  let best: T | null = null;
+  for (const [v, c] of n) if (best === null || c > n.get(best)!) best = v;
+  return best;
+}
+
+/**
+ * Attaches each live stream to its channel, found by its key or created; one attached by hand stays
+ * where it is. Then every channel met says what its streams make it: recognised or not, its iptv-org
+ * channel, its theme and its country (unless set by hand), adult when iptv-org or every name says so.
+ * What the profiles recorded under a key no stream bears any more follows its streams (`followLiveKeys`).
+ * Only what moved is written; returns the streams that changed channel and the channels they left.
+ */
+async function attach(rows: LiveRow[], resolved: Resolved[]): Promise<{ moved: number[]; left: number[] }> {
+  const c = schema.catalogChannels;
+  // 1. The channels: those the streams name, and those the streams put there by hand already sit on.
+  const wanted = new Map<string, Resolved>();
+  rows.forEach((it, i) => {
+    if (!it.manual && !wanted.has(resolved[i].key)) wanted.set(resolved[i].key, resolved[i]);
+  });
+  const fresh = [...wanted.values()];
+  for (let i = 0; i < fresh.length; i += CHUNK) {
     checkCancelled();
-    const part = rows.slice(i, i + CHUNK);
-    const written = await pg<{ id: number }[]>`
-      update catalog_variants i set iptv_id = u.iptv, iptv_match = u.how, iptv_theme = u.theme, iptv_adult = u.adult, epg_mismatch = u.mismatch,
-        country = u.country, channel_name = u.channel_name
-      from (
-        select id, iptv, how, theme, adult::boolean as adult, mismatch::boolean as mismatch, country, channel_name
-        from unnest(${part.map((r) => r.id)}::int[], ${part.map((r) => r.iptv)}::text[], ${part.map((r) => r.how)}::text[],
-                    ${part.map((r) => r.theme)}::text[], ${part.map((r) => String(r.adult))}::text[], ${part.map((r) => String(r.epgMismatch))}::text[],
-                    ${part.map((r) => r.country)}::text[], ${part.map((r) => r.channelName)}::text[])
-          as x(id, iptv, how, theme, adult, mismatch, country, channel_name)
-      ) u
-      where i.id = u.id
-        and (i.iptv_id, i.iptv_match, i.iptv_theme, i.iptv_adult, i.epg_mismatch, i.country, i.channel_name)
-            is distinct from (u.iptv, u.how, u.theme, u.adult, u.mismatch, u.country, u.channel_name)
-      returning i.id`;
-    changed.push(...written.map((r) => r.id));
+    const part = fresh.slice(i, i + CHUNK);
+    await pg`
+      insert into catalog_channels (key, name, market, status, added_at)
+      select key, name, market, status, now()
+      from unnest(${part.map((r) => r.key)}::text[], ${part.map((r) => r.name)}::text[], ${part.map((r) => r.market)}::text[],
+                  ${part.map((r) => (r.known ? "known" : r.event ? "event" : "unknown"))}::text[]) as u(key, name, market, status)
+      on conflict (key) do nothing`;
   }
-  return changed;
+  const keys = [...new Set([...wanted.keys(), ...rows.map((it) => it.channelKey).filter((k): k is string => k !== null)])];
+  const channels = new Map<string, Channel>();
+  for (let i = 0; i < keys.length; i += CHUNK)
+    for (const ch of await db
+      .select()
+      .from(c)
+      .where(
+        sql`${c.key} = any(${`{${keys
+          .slice(i, i + CHUNK)
+          .map((k) => JSON.stringify(k))
+          .join(",")}}`}::text[])`,
+      ))
+      channels.set(ch.key, ch);
+
+  // 2. The streams that change channel, way of finding it or EPG verdict.
+  const moved: { id: number; channelId: number; how: string | null; mismatch: boolean }[] = [];
+  const left = new Set<number>();
+  const moves = new Map<string, Map<string, number>>();
+  const onChannel = new Map<string, number[]>(); // key → the rows on it once written, by their index
+  rows.forEach((it, i) => {
+    const r = resolved[i];
+    const key = it.manual ? it.channelKey : r.key;
+    if (key === null) return;
+    onChannel.set(key, [...(onChannel.get(key) ?? []), i]);
+    if (it.manual) return;
+    const to = channels.get(r.key)!;
+    if (it.channelId === to.id && it.how === r.how && it.epgMismatch === r.epgMismatch) return;
+    moved.push({ id: it.id, channelId: to.id, how: r.how, mismatch: r.epgMismatch });
+    if (it.channelId !== null && it.channelId !== to.id) {
+      left.add(it.channelId);
+      const went = moves.get(it.channelKey!) ?? new Map<string, number>();
+      moves.set(it.channelKey!, went.set(r.key, (went.get(r.key) ?? 0) + 1));
+    }
+  });
+  for (let i = 0; i < moved.length; i += CHUNK) {
+    checkCancelled();
+    const part = moved.slice(i, i + CHUNK);
+    await pg`
+      update catalog_variants v set channel_id = u.channel_id, how = u.how, epg_mismatch = u.mismatch::boolean
+      from unnest(${part.map((m) => m.id)}::int[], ${part.map((m) => m.channelId)}::int[], ${part.map((m) => m.how)}::text[],
+                  ${part.map((m) => String(m.mismatch))}::text[]) as u(id, channel_id, how, mismatch)
+      where v.id = u.id and (v.channel_id, v.how, v.epg_mismatch) is distinct from (u.channel_id, u.how, u.mismatch::boolean)`;
+  }
+  await followLiveKeys(moves);
+
+  // 3. What each channel is, from all the streams on it.
+  for (const [key, members] of onChannel) {
+    const ch = channels.get(key);
+    if (!ch) continue;
+    const facts = channelFacts(
+      ch,
+      members.map((i) => rows[i]),
+      members.map((i) => resolved[i]),
+    );
+    const changed = (Object.keys(facts) as (keyof typeof facts)[]).some((k) => facts[k] !== ch[k]);
+    if (changed)
+      await db
+        .update(c)
+        .set({ ...facts, updatedAt: new Date() })
+        .where(eq(c.id, ch.id));
+  }
+  return { moved: moved.map((m) => m.id), left: [...left] };
+}
+
+/**
+ * What its streams make a channel. Those found by the reference decide; streams put there by hand
+ * alone (a pin, a merge) leave it what it was, but for what their names say. A field set by hand
+ * (`edited`) is not touched.
+ */
+function channelFacts(ch: Channel, rows: LiveRow[], resolved: Resolved[]) {
+  const auto = resolved.filter((_, i) => !rows[i].manual);
+  const known = auto.length ? auto.some((r) => r.known) : ch.status === "known";
+  const event = auto.length ? auto.every((r) => r.event) : ch.status === "event";
+  const iptv = auto.length ? most(auto.map((r) => r.iptv)) : ch.iptvId;
+  const named = auto.find((r) => r.known);
+  return {
+    status: (known ? "known" : event ? "event" : "unknown") as Channel["status"],
+    name: ch.edited.includes("name") || !named ? ch.name : named.name,
+    iptvId: iptv,
+    theme: ch.edited.includes("theme") ? ch.theme : auto.length ? most(auto.map((r) => r.theme)) : ch.theme,
+    country: ch.edited.includes("country") ? ch.country : auto.length ? most(auto.map((r) => r.country)) : ch.country,
+    adult: (auto.length ? auto.some((r) => r.adult) : false) || rows.every((it) => it.nameAdult),
+  };
 }
 
 /** Names Claude reads per run; a run or two covers what a new provider brings. */
@@ -561,9 +680,9 @@ export const WATCHED_SHARE = 0.2;
 
 /**
  * Claude reads the names left without a reference channel, each once, in the markets the profiles
- * watch (`WATCHED_SHARE`) and for the providers in use: one question per name of a market, its answer
- * written on every variant that bears it (`rows` follow, for the second reading). Without a key,
- * nothing happens.
+ * watch (`WATCHED_SHARE`) and for the providers in use: one question per channel the reference does not
+ * know, its answer kept on that channel (`ai_*`), where the next reading finds it (`idx.read`). Without
+ * a key, nothing happens.
  */
 async function askClaude(
   idx: Index,
@@ -575,7 +694,7 @@ async function askClaude(
   const [visible, unused] = await Promise.all([idsWhere(visibleItem), idsWhere(inDisabledAccount)]);
   const seen = new Map<string, { recognised: number; visible: number }>();
   rows.forEach((it, i) => {
-    if (!it.market || !resolved[i].channelName) return;
+    if (!it.market || !resolved[i].known) return;
     const m = seen.get(it.market) ?? { recognised: 0, visible: 0 };
     m.recognised++;
     if (visible.has(it.id)) m.visible++;
@@ -584,50 +703,39 @@ async function askClaude(
   const watched = new Set(
     [...seen].filter(([, m]) => m.visible > 0 && m.visible >= WATCHED_SHARE * m.recognised).map(([market]) => market),
   );
-  const names = new Map<string, LiveRow[]>();
+  // One question per name: the first stream that bears it speaks for the others.
+  const names = new Map<string, LiveRow>();
   rows.forEach((it, i) => {
-    if (resolved[i].channelName || resolved[i].event || it.aiAskedAt || it.iptvMatch === "manual" || isRadio(it)) return;
+    if (resolved[i].known || resolved[i].event || it.manual || isRadio(it) || idx.read.has(unknownKey(it))) return;
     if (!it.market || !watched.has(it.market) || unused.has(it.id)) return;
-    const key = `${it.market}|${channelKey(it.title || it.name)}`;
-    const same = names.get(key);
-    if (same) same.push(it);
-    else names.set(key, [it]);
+    if (!names.has(resolved[i].key)) names.set(resolved[i].key, it);
   });
-  const asked = [...names.values()].slice(0, AI_PER_RUN);
+  const asked = [...names].slice(0, AI_PER_RUN);
   if (!asked.length) return stats;
   // One market at a time, with the names its reference holds: the model picks among them when it can.
   const byId = new Map<number, ChannelSuggestion>();
-  for (const market of new Set(asked.map(([it]) => it.market!))) {
+  for (const market of new Set(asked.map(([, it]) => it.market!))) {
     checkCancelled();
     const queries = asked
-      .filter(([it]) => it.market === market)
-      .map(([it]) => ({ id: it.id, name: it.name, category: it.category, market }));
+      .filter(([, it]) => it.market === market)
+      .map(([, it]) => ({ id: it.id, name: it.name, category: it.category, market }));
     const answers = await suggestChannels(queries, referenceNames(idx, market));
     if (!answers) return stats;
     for (const a of answers) byId.set(a.id, a);
   }
   const now = new Date();
-  const ids: number[] = [];
-  const kinds: (string | null)[] = [];
-  const titles: (string | null)[] = [];
-  for (const variants of asked) {
+  for (const [key, it] of asked) {
     // Asked and not answered: not asked again, there is nothing more to learn from the same name.
-    const a = byId.get(variants[0].id);
+    const a = byId.get(it.id);
     stats.ai_asked++;
     if (a?.kind === "channel" && a.name) stats.ai_channels++;
     if (a?.kind === "event") stats.ai_events++;
-    for (const it of variants) {
-      Object.assign(it, { aiKind: a?.kind ?? null, aiTitle: a?.name ?? null, aiAskedAt: now });
-      ids.push(it.id);
-      kinds.push(it.aiKind);
-      titles.push(it.aiTitle);
-    }
+    idx.read.set(key, { kind: a?.kind ?? null, name: a?.name ?? null });
+    await db
+      .update(schema.catalogChannels)
+      .set({ aiKind: a?.kind ?? null, aiName: a?.name ?? null, aiAskedAt: now })
+      .where(eq(schema.catalogChannels.key, key));
   }
-  for (let i = 0; i < ids.length; i += CHUNK)
-    await pg`
-      update catalog_variants v set ai_kind = u.kind, ai_title = u.title, ai_asked_at = ${now.toISOString()}::timestamptz
-      from unnest(${ids.slice(i, i + CHUNK)}::int[], ${kinds.slice(i, i + CHUNK)}::text[], ${titles.slice(i, i + CHUNK)}::text[]) as u(id, kind, title)
-      where v.id = u.id`;
   console.log(
     `[channels] ${stats.ai_asked} noms non reconnus lus par Claude : ${stats.ai_channels} chaînes nommées, ${stats.ai_events} événements`,
   );
@@ -635,68 +743,134 @@ async function askClaude(
 }
 
 export async function runChannels() {
-  const sync = await syncIptv();
-  const idx = await loadIndex();
-  const rows = await liveRows();
-  let resolved = rows.map((it) => resolve(idx, it));
-  // Claude down or refusing: the reference still applies, and the step says what failed afterwards.
+  // iptv-org out of reach, Claude down or refusing: the reference as it stands still applies (a new stream
+  // gets its channel all the same), and the step says what failed afterwards.
   let failure: unknown = null;
-  const ai = await askClaude(idx, rows, resolved).catch((e) => {
+  const sync = await syncIptv().catch((e) => {
     failure = e;
+    return {};
+  });
+  const idx = await loadIndex();
+  let rows = await liveRows();
+  let resolved = rows.map((it) => resolve(idx, it));
+  await attach(rows, resolved);
+  const ai = await askClaude(idx, rows, resolved).catch((e) => {
+    failure ??= e;
     return { ai_asked: 0, ai_channels: 0, ai_events: 0 };
   });
-  if (ai.ai_asked) resolved = rows.map((it) => resolve(idx, it));
-  await write(resolved);
-  const count = (how: ChannelMatch[]) => resolved.filter((r) => r.channelName && how.includes(r.how as ChannelMatch)).length;
+  if (ai.ai_asked) {
+    rows = await liveRows();
+    resolved = rows.map((it) => resolve(idx, it));
+    await attach(rows, resolved);
+  }
+  const auto = resolved.filter((_, i) => !rows[i].manual);
+  const count = (how: ChannelMatch[]) => auto.filter((r) => r.known && how.includes(r.how as ChannelMatch)).length;
   const stats = {
-    live_items: resolved.length,
-    live_recognised: resolved.filter((r) => r.channelName).length,
-    live_events: resolved.filter((r) => r.event).length,
-    iptv_matched: resolved.filter((r) => r.iptv).length,
+    live_items: rows.length,
+    live_recognised: auto.filter((r) => r.known).length,
+    live_events: auto.filter((r) => r.event).length,
+    iptv_matched: auto.filter((r) => r.iptv).length,
     iptv_by_epg: count(["epg"]),
     iptv_by_name: count(["name", "name-global"]),
     iptv_by_alias: count(["alias"]),
     iptv_by_ai: count(["ai"]),
-    iptv_manual: count(["manual"]),
-    epg_mismatch: resolved.filter((r) => r.epgMismatch).length,
+    iptv_manual: rows.filter((it) => it.manual).length,
+    epg_mismatch: auto.filter((r) => r.epgMismatch).length,
     ...ai,
   };
   console.log(
-    `[channels] ${stats.live_recognised} / ${stats.live_items} variantes du direct reconnues (${stats.iptv_by_epg} par l'identifiant EPG, ${stats.iptv_by_name} par le nom, ${stats.iptv_by_alias} par un nom de la référence, ${stats.iptv_by_ai} par Claude, ${stats.iptv_manual} à la main), ${stats.live_events} événements, ${stats.epg_mismatch} identifiants EPG du fournisseur écartés`,
+    `[channels] ${stats.live_recognised} / ${stats.live_items} variantes du direct reconnues (${stats.iptv_by_epg} par l'identifiant EPG, ${stats.iptv_by_name} par le nom, ${stats.iptv_by_alias} par un nom de la référence, ${stats.iptv_by_ai} par Claude), ${stats.iptv_manual} posées à la main, ${stats.live_events} événements, ${stats.epg_mismatch} identifiants EPG du fournisseur écartés`,
   );
   if (failure) throw failure;
   return { ...sync, ...stats };
+}
+
+/** The streams of a market (all of them without one) on the channels the reference now gives them: what moved is regrouped and judged by the filters at once. */
+async function reattach(market: string | null | undefined, change?: (rows: LiveRow[], idx: Index) => Promise<Resolved[]> | Resolved[]) {
+  const idx = await loadIndex();
+  const rows = await liveRows(market ? and(live, eq(vr.market, market))! : live);
+  const resolved = change ? await change(rows, idx) : rows.map((it) => resolve(idx, it));
+  const { moved, left } = await attach(rows, resolved);
+  if (moved.length) await applyFilters({ contentIds: await regroupItems(moved, left) });
+  return moved.length;
 }
 
 /**
  * The live variants of a market (all of them without one) read again against the reference, after it
  * changed in the admin: what moved is regrouped and judged by the filters at once. Returns how many moved.
  */
-export async function rematchChannels(market?: string): Promise<number> {
-  const idx = await loadIndex();
-  const rows = await liveRows(market ? and(live, eq(vr.market, market))! : live);
-  const changed = await write(rows.map((it) => resolve(idx, it)));
-  if (changed.length) await applyFilters({ contentIds: await regroupItems(changed) });
-  return changed.length;
+export const rematchChannels = (market?: string): Promise<number> => reattach(market);
+
+/** Puts a live stream on a channel by hand (it stays there), or gives it back to the reference (`null`). */
+async function putByHand(
+  itemId: number,
+  to: ((it: LiveRow, idx: Index) => Promise<Channel> | Channel) | null,
+  epg?: (it: LiveRow, idx: Index) => boolean,
+) {
+  const [it] = await liveRows(and(live, eq(vr.id, itemId))!);
+  if (!it) throw new Error("Chaîne introuvable");
+  const v = schema.catalogVariants;
+  if (to === null) await db.update(v).set({ manual: false }).where(eq(v.id, itemId));
+  else {
+    const idx = await loadIndex();
+    const ch = await to(it, idx);
+    await db
+      .update(v)
+      .set({ channelId: ch.id, how: "manual", manual: true, epgMismatch: epg ? epg(it, idx) : false })
+      .where(eq(v.id, itemId));
+    if (it.channelKey && it.channelKey !== ch.key) await followLiveKeys(new Map([[it.channelKey, new Map([[ch.key, 1]])]]));
+  }
+  // Its market read again: the channel it left and the one it joined say what their streams now make them.
+  await reattach(it.market);
+  await applyFilters({ contentIds: await regroupItems([itemId], it.channelId ? [it.channelId] : []) });
+}
+
+/** The channel under a key, created when the catalogue has none. */
+async function channelFor(values: { key: string; name: string; market: string | null; status: Channel["status"]; iptvId?: string | null }) {
+  const c = schema.catalogChannels;
+  await db
+    .insert(c)
+    .values({ ...values, addedAt: new Date() })
+    .onConflictDoNothing({ target: c.key });
+  const [ch] = await db.select().from(c).where(eq(c.key, values.key));
+  return ch;
 }
 
 /**
- * Admin: pins a live variant to an iptv-org channel (null = to none), or gives it back to the
- * matching (`auto`); applied at once, its content regrouped for the logo.
+ * Admin: pins a live variant to an iptv-org channel (null = to none: a channel of its own name the
+ * reference does not know), or gives it back to the matching (`auto`); applied at once.
  */
 export async function setIptvMatch(itemId: number, iptvId: string | null | "auto") {
-  if (iptvId && iptvId !== "auto") {
+  if (iptvId === "auto") return putByHand(itemId, null);
+  if (iptvId) {
     const [known] = await db
       .select({ id: schema.cacheIptvorgChannels.id })
       .from(schema.cacheIptvorgChannels)
       .where(eq(schema.cacheIptvorgChannels.id, iptvId));
     if (!known) throw new Error(`Chaîne iptv-org inconnue : ${iptvId}`);
   }
-  const [it] = await liveRows(and(live, eq(vr.id, itemId))!);
-  if (!it) throw new Error("Chaîne introuvable");
-  const pinned = iptvId === "auto" ? { ...it, iptvMatch: null } : { ...it, iptvId, iptvMatch: "manual" };
-  await write([resolve(await loadIndex(), pinned)]);
-  await applyFilters({ contentIds: await regroupItems([itemId]) });
+  await putByHand(
+    itemId,
+    (it, idx) => {
+      const r = resolve(idx, it, { iptvId });
+      return channelFor({ key: r.key, name: r.name, market: r.market, status: r.known ? "known" : "unknown", iptvId: r.iptv });
+    },
+    (it, idx) => resolve(idx, it, { iptvId }).epgMismatch,
+  );
+}
+
+/** Admin: a live variant alone on a channel of its own (`manual:<id>`), on another channel (its key), or back to the reference (null). */
+export async function setLiveChannel(
+  item: { id: number; name: string; cleanTitle: string | null; market: string | null },
+  key: string | null,
+) {
+  if (key === null) return putByHand(item.id, null);
+  await putByHand(item.id, async () => {
+    if (key === `manual:${item.id}`) return channelFor({ key, name: item.cleanTitle || item.name, market: item.market, status: "unknown" });
+    const [ch] = await db.select().from(schema.catalogChannels).where(eq(schema.catalogChannels.key, key));
+    if (!ch) throw new Error("Chaîne introuvable");
+    return ch;
+  });
 }
 
 /** The iptv-org channel of a variant, for the admin. */

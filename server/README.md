@@ -45,8 +45,8 @@ Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres :
 | Étape | Rôle |
 |---|---|
 | `source` | les listes Xtream de chaque fournisseur actif, écrites par différence dans `xtream_streams` et `xtream_categories` (un flux qui change est mis à jour, un nouveau inséré, un disparu supprimé : son `id` ne bouge pas), refusées pour lui si vides ou si son catalogue fond de moitié (panne) ; un fournisseur illisible garde ce qu'il avait, les autres passent, l'étape finit en échec sans arrêter le passage (`PartialFailure`) ; puis chaque flux nouveau reçoit sa variante, un flux renommé repart vers TMDB, et les noms sont lus (titre, année, marché, langue, qualité, édition) |
-| `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`), qui relit peu à peu les fiches anciennes ; avant lui, Claude (`providers/claude`, Sonnet) lit une fois les noms visibles que TMDB a abandonnés et suggère le titre à chercher, ou dit « hors TMDB » (concert, karaoké, combat) : la suggestion est un titre de plus à chercher, jugé par les mêmes scores avec l'année exigée, jamais un verdict ; puis chaque entrée du direct est rattachée à sa chaîne de référence (`catalog/channels.ts`), qui lui donne son identité, son thème, son logo, son drapeau adulte et son pays dans une région. L'un en panne n'empêche pas l'autre |
-| `group` | variantes → contenus (`catalog_titles` pour les films et les séries, `catalog_channels` pour le direct), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
+| `enrich` | les titres sans fiche redemandés à TMDB (`catalog/matching.ts`) : ceux jamais demandés, ceux demandés il y a plus d'une semaine, et ceux que Claude (`providers/claude`, Sonnet) vient de lire, une fois, parmi les visibles : il suggère le titre à chercher, ou dit « hors TMDB » (concert, karaoké, combat) ; la suggestion est un titre de plus à chercher, jugé par les mêmes scores avec l'année exigée, jamais un verdict. Un titre sans fiche que TMDB connaît enfin devient ce titre, ou donne ses flux à celui que le catalogue a déjà. Puis une part des fiches anciennes est relue ; puis chaque flux du direct est attaché à sa chaîne (`catalog/channels.ts`) : celle de la référence, trouvée ou créée, sinon une chaîne à son propre nom (« Événements » ou « Non reconnus ») ; la chaîne dit, d'après tous ses flux, si elle est reconnue, son thème, son pays dans une région et son drapeau adulte. L'un en panne n'empêche pas l'autre, et iptv-org injoignable n'empêche pas d'attacher les flux à la référence telle qu'elle est |
+| `group` | chaque flux nouveau de film ou de série est identifié et attaché à son titre (`attachTitles`), et un titre n'est créé qu'en dernier : l'identifiant TMDB fourni quand la fiche porte bien ce nom (fiche en cache si le catalogue a déjà ce titre), sinon le même titre et la même année qu'un flux déjà attaché, sans réseau, sinon une recherche TMDB par lecture, sinon un titre sans fiche. Puis les fiches tirées du cache TMDB, les agrégats sur les variantes visibles, et les titres ou chaînes restés sans flux sont retirés |
 | `filters` | les filtres de chaque profil (`catalog/filters/`) gardent ou écartent chaque version pour ce profil (`app_profile_streams`) ; `hidden_by_rule` = écartée par tous ; puis les contenus touchés recomptent leurs agrégats, `visible` (vue par un profil au moins), ce que voit chaque profil (`app_profile_titles`, `app_profile_channels`) et les arrivées de la liste d'attente. Une version qu'aucun filtre n'a encore vue est écartée |
 
 | Tâche à part | Rôle |
@@ -55,13 +55,17 @@ Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres :
 | `trending` | tendances TMDB de la semaine (rangées « Top 10 », Top Shelf), une fois par jour ; sans clé TMDB, le cron passe son tour |
 | `markers` | export quotidien de SkipDB (récaps, intros, génériques, aperçus du prochain épisode), remplacé en entier ; un export vide ou fondu de moitié garde le précédent |
 
-TMDB passe en premier : tout est matché une fois, et un titre affiché n'attend jamais sa fiche. Les filtres passent en
-dernier : ils lisent le contenu tel que l'app le montre. L'étape peut ne juger qu'un profil (`applyFilters({ profileId })`,
+Un film ou une série est identifié une fois, sur son titre (`catalog_titles` : ce qui a été cherché, le verdict, la lecture de
+Claude) : ses flux s'y attachent, aucun n'est recherché de nouveau, et chacun dit comment il est venu (`how` : `provided`, `title`,
+`search`, `none`, `manual`). Un flux sans titre attend : TMDB injoignable (réseau, 429 qui dure, clé refusée), il n'est pas servi tant
+que TMDB n'a pas répondu, l'étape `group` finit alors en échec en disant combien attendent (le passage continue, l'alerte de fin de
+traitement et le tableau de bord le disent). Sans clé TMDB, chaque lecture reçoit tout de suite son titre sans fiche. Les filtres
+passent en dernier : ils lisent le contenu tel que l'app le montre. L'étape peut ne juger qu'un profil (`applyFilters({ profileId })`,
 « Appliquer maintenant », un profil créé) : l'union se recalcule quand même.
-Le matching est un seul algorithme, `explainMatch` : `enrich` applique son verdict, l'admin l'affiche sous « Pourquoi ? ».
-Une panne de TMDB (réseau, 429 qui dure) laisse l'élément en attente, jamais `unmatched` ; le client TMDB ne dépasse
-pas 35 requêtes par seconde. Un nom dont la grammaire change la lecture (titre ou année) repasse en attente s'il était
-`unmatched`. Sans `ANTHROPIC_API_KEY`, Claude n'est pas consulté et tout le reste marche.
+Le matching est un seul algorithme, `explainMatch` : `group` et `enrich` appliquent son verdict, l'admin l'affiche sous « Pourquoi ? ».
+Le client TMDB ne dépasse pas 35 requêtes par seconde. Un flux renommé par le fournisseur quitte son titre et est identifié de
+nouveau (sauf attaché à la main) ; un flux posé sur un titre sans fiche, dont la grammaire change la lecture (titre ou année), aussi.
+Sans `ANTHROPIC_API_KEY`, Claude n'est pas consulté et tout le reste marche.
 Un passage s'arrête à la première étape en échec, sauf `enrich` (réseau externe). Chaque passage laisse une ligne dans
 `task_runs`, une par étape dans `task_steps`, et un fichier de log dans `DATA_DIR/logs/` avec le détail de chaque
 partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque passage purge lignes et fichiers de plus de 5 jours.
@@ -74,7 +78,7 @@ progression, lectures (`app_plays`), versions choisies (`app_profile_versions`),
 Un flux (`xtream_streams`) est une entrée d'un fournisseur, unique par (`account_id`, `kind`, `upstream_id`) : deux fournisseurs
 réutilisent les mêmes numéros. Il porte ce que le fournisseur envoie et ce qu'on lit dans son nom, relisible à tout moment sans réseau ;
 les lignes séparatrices y restent (`separator`), elles nomment les sections. Sa variante (`catalog_variants`, même `id`) porte ce que le
-catalogue en décide : masquage, fiche TMDB, chaîne de référence, contenu. Le code lit les deux ensemble par `variants` (`db/variants.ts`)
+catalogue en décide : masquage, le titre ou la chaîne auquel il est attaché, comment (`how`) et si c'est à la main (`manual`). Le code lit les deux ensemble par `variants` (`db/variants.ts`)
 et écrit dans la table qui possède la colonne. Au-dessus, les contenus : un titre (`catalog_titles`, un film ou une série) ou une chaîne (`catalog_channels`), chacun avec sa `key`, la seule identité exposée à l'app ; leurs identifiants sortent de la même séquence, un id de contenu désigne une seule ligne. Une variante nomme le sien par `title_id` ou `channel_id`. Le code les lit sous une même forme (`titleContent`, `channelContent`, `db/contents.ts`). Un titre présent chez
 plusieurs fournisseurs est un contenu dont chaque version liste une source par fournisseur, le préféré en premier.
 Une chaîne est sa chaîne de référence dans son marché (`live:<marché>-<nom de référence>`), quel que soit le nom que
@@ -243,7 +247,8 @@ par son index.
   trouver la chaîne et à lire la qualité (« LQ », « ᵁᴴᴰ », « 720 », « FHD+ »). Dans l'ordre : épinglage à la main, un
   nom de nos chaînes dans le marché, iptv-org (identifiant EPG puis nom : dans le pays du préfixe, dans le marché,
   unique au monde), enfin le nom que Claude y lit (une fois par nom, dans les marchés qu'un profil regarde, avec la
-  liste des chaînes du marché : seul un nom que la référence porte compte). Une radio n'est jamais une chaîne. Sans
+  liste des chaînes du marché : seul un nom que la référence porte compte ; sa lecture reste sur la chaîne « non
+  reconnue » de ce nom, gardée même sans flux pour ne pas le redemander). Une radio n'est jamais une chaîne. Sans
   chaîne de référence, l'entrée va sous « Événements » (catégorie ou section PPV, EVENT, LIVE ; nom qui porte une date,
   une heure, deux équipes, un flux numéroté) ou « Non reconnus » : un filtre de profil les écarte. L'écran Live est
   le seul écran des chaînes : ses chiffres sont son filtre (affichées dans l'app, toutes les chaînes, non rattachées,

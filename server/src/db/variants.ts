@@ -8,15 +8,23 @@ import { client, db, schema } from "./client";
  *
  * The fields keep the names the readers know (`xtreamId` is the stream's `upstream_id`, `cleanTitle`
  * its `title`, `nameAdult`, `nameTheme` and `nameCountry` what its name says). `adult` and `theme`
- * are derived: adult by its name or by iptv-org, the reference's theme before the name's.
+ * are derived: adult by its name or by its channel, its channel's theme before the name's.
  *
  * In SQL the columns bear their table's names, but for the three a stream and its variant both have
  * (`name_adult`, `name_theme`, `name_country` are the stream's) and the two derived ones
- * (`variant_adult`, `variant_theme`) and `content_id` (its title or its channel, whichever it has):
- * names no other table has, since Drizzle writes a computed field without its table.
+ * (`variant_adult`, `variant_theme`), `content_id` (its title or its channel, whichever it has), and what
+ * is read through its title (`variant_match_status`, `variant_key`, `variant_ai_*`): names no other table
+ * has, since Drizzle writes a computed field without its table.
+ *
+ * A movie's or a series' identification is its title's (`catalog_titles`): `tmdbId`, `matchStatus`,
+ * `matchScore` and Claude's reading are read through it; a stream without a title yet is `pending`.
+ * A channel's (`catalog_channels`) likewise: its name in the reference, its iptv-org channel, its theme,
+ * its country, what Claude read in its name.
  */
 const v = schema.catalogVariants;
 const s = schema.xtreamStreams;
+const t = schema.catalogTitles;
+const c = schema.catalogChannels;
 
 const variantQuery = db
   .select({
@@ -46,34 +54,42 @@ const variantQuery = db
     nameCountry: sql<string | null>`${s.country}`.as("name_country"),
     hiddenManual: v.hiddenManual,
     hiddenByRule: v.hiddenByRule,
-    tmdbId: v.tmdbId,
-    matchStatus: v.matchStatus,
-    matchScore: v.matchScore,
-    matchedAt: v.matchedAt,
-    matchAttempts: v.matchAttempts,
-    aiKind: v.aiKind,
-    aiTitle: v.aiTitle,
-    aiOriginalTitle: v.aiOriginalTitle,
-    aiYear: v.aiYear,
-    aiAskedAt: v.aiAskedAt,
-    contentKey: v.contentKey,
+    // What its title (a movie, a series) or its channel (live) says of it: the identification is theirs, read here for each stream.
+    tmdbId: t.tmdbId,
+    /** `pending` while it has no title, then its title's: `matched`, `unmatched` (no card), `manual` when attached by hand. */
+    matchStatus: sql<"pending" | "matched" | "unmatched" | "manual" | "skipped">`case
+      when ${s.kind} = 'live' then 'skipped'
+      when ${v.titleId} is null then 'pending'
+      when ${v.manual} then 'manual'
+      when ${t.tmdbId} is not null then 'matched'
+      else 'unmatched' end`.as("variant_match_status"),
+    matchScore: t.matchScore,
+    matchedAt: t.matchedAt,
+    aiKind: sql<string | null>`coalesce(${t.aiKind}, ${c.aiKind})`.as("variant_ai_kind"),
+    aiTitle: sql<string | null>`coalesce(${t.aiTitle}, ${c.aiName})`.as("variant_ai_title"),
+    aiOriginalTitle: t.aiOriginalTitle,
+    aiYear: t.aiYear,
+    aiAskedAt: sql<Date | null>`coalesce(${t.aiAskedAt}, ${c.aiAskedAt})`.mapWith(t.aiAskedAt).as("variant_ai_asked_at"),
+    how: v.how,
+    manual: v.manual,
+    /** Its title's key, or its channel's. */
+    contentKey: sql<string | null>`coalesce(${t.key}, ${c.key})`.as("variant_key"),
     /** The title or the channel it belongs to, whichever it is: their ids come from one sequence. The expression of `catalog_variants_content_idx`. */
     contentId: sql<number | null>`coalesce(${v.titleId}, ${v.channelId})`.as("content_id"),
     titleId: v.titleId,
     channelId: v.channelId,
-    keyOverride: v.keyOverride,
-    iptvAdult: v.iptvAdult,
-    iptvTheme: v.iptvTheme,
-    adult: sql<boolean>`(${s.adult} or ${v.iptvAdult})`.as("variant_adult"),
-    theme: sql<string | null>`coalesce(${v.iptvTheme}, ${s.theme})`.as("variant_theme"),
-    iptvId: v.iptvId,
-    iptvMatch: v.iptvMatch,
+    adult: sql<boolean>`(${s.adult} or coalesce(${c.adult}, false))`.as("variant_adult"),
+    theme: sql<string | null>`coalesce(${c.theme}, ${s.theme})`.as("variant_theme"),
+    /** Live: its channel's iptv-org channel, country in a regional market, and name in the reference (null: a name it does not know). */
+    iptvId: c.iptvId,
+    country: c.country,
+    channelName: sql<string | null>`case when ${c.status} = 'known' then ${c.name} end`.as("channel_name"),
     epgMismatch: v.epgMismatch,
-    country: v.country,
-    channelName: v.channelName,
   })
   .from(v)
-  .innerJoin(s, eq(s.id, v.id));
+  .innerJoin(s, eq(s.id, v.id))
+  .leftJoin(t, eq(t.id, v.titleId))
+  .leftJoin(c, eq(c.id, v.channelId));
 
 export type Variant = Awaited<typeof variantQuery>[number];
 

@@ -60,7 +60,6 @@ const tmdbAny = (ctx: FieldContext, elements: SQL, pred: Pred) =>
     and t.media_type = ${sqlTmdbMediaType(c.kind)} and ${pred(sql`e.value`)})`;
 /** Any element of an array column matching. */
 const arrayAny = (col: Column, pred: Pred) => sql`exists (select 1 from unnest(${col}) e(value) where ${pred(sql`e.value`)})`;
-const pending = sql`exists (select 1 from catalog_variants vv where vv.title_id = ${c.id} and vv.match_status = 'pending')`;
 const yesNo = (cond: SQL) => ({ oui: cond, non: sql`not coalesce(${cond}, false)` });
 const any = (...conds: SQL[]) =>
   sql`(${sql.join(
@@ -209,8 +208,9 @@ export const FIELDS: Field[] = [
     level: "content",
     choices: () => ({
       oui: sql`${c.tmdbId} is not null`,
-      non: sql`(${c.tmdbId} is null and not ${pending})`,
-      attente: sql`(${c.tmdbId} is null and ${pending})`,
+      non: sql`(${c.tmdbId} is null and ${c.matchedAt} is not null)`,
+      // Never asked: there was no TMDB key when its stream came.
+      attente: sql`(${c.tmdbId} is null and ${c.matchedAt} is null)`,
     }),
   },
   {

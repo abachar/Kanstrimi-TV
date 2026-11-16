@@ -193,7 +193,11 @@ export function DashboardView({ d, jobs }: { d: DashboardData; jobs: JobsState }
                 <Row label="Non trouvés">
                   <span class="text-amber-400">{fmt(item("vod").unmatched + item("series").unmatched)}</span>
                 </Row>
-                <Row label="En attente">{fmt(item("vod").pending + item("series").pending)}</Row>
+                <Row label="En attente de TMDB, pas encore servis">
+                  <span class={item("vod").pending + item("series").pending > 0 ? "text-amber-400" : ""}>
+                    {fmt(item("vod").pending + item("series").pending)}
+                  </span>
+                </Row>
                 <Row label="Cache images">
                   {fmt(d.img.files)} fichiers, {megabytes(d.img.bytes)}
                 </Row>

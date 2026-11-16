@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { sql } from "drizzle-orm";
-import { resetDb, closeDb, seedCategories, seedItems, setAccountForTests } from "@/test/db";
+import { resetDb, closeDb, knowChannels, seedCategories, seedItems, setAccountForTests } from "@/test/db";
 import { db, schema } from "@/db";
 import { runAll } from "@/catalog";
 import { epgStat, runEpgRebuild } from "../epg";
@@ -56,6 +56,7 @@ beforeAll(async () => {
     { kind: "live", xtreamId: "103", name: "BEIN SPORTS 1", cat: "20", raw: { epg_channel_id: "beINSports1Fr.qa" } },
     { kind: "live", xtreamId: "104", name: "AL AOULA", cat: "20" },
   ]);
+  await knowChannels(); // what the enrich step does with a reference that knows them
   expect(await runAll("manual", "group")).toBe(true); // group → filters
   // Rows the pruning must drop: a programme long over, from an older import.
   await db.execute(sql`insert into cache_epg_programmes (channel_id, start_at, end_at, title, imported_at)

@@ -1,6 +1,18 @@
 import { and, asc, eq, gte, inArray, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import pLimit from "p-limit";
-import { db, schema, sqlTmdbMediaType, tmdbHasLogos, tmdbMediaType, variants, type Kind, type Variant, visibleItem } from "@/db";
+import { getSettings } from "@/config";
+import {
+  client as pg,
+  db,
+  schema,
+  sqlTmdbMediaType,
+  tmdbHasLogos,
+  tmdbMediaType,
+  variants,
+  type Kind,
+  type Variant,
+  visibleItem,
+} from "@/db";
 import { suggestTitles, type TitleQuery } from "@/providers/claude";
 import { cancelGuard, describeError, isUnreachable, progress } from "@/shared";
 import {
@@ -8,6 +20,7 @@ import {
   detailsWithNames,
   type Evidence,
   fetchDetails,
+  getCachedDetails,
   getDetails,
   getTmdbClient,
   ID_THRESHOLD,
@@ -20,19 +33,19 @@ import {
   type TmdbDetails,
 } from "@/providers/tmdb";
 import { regroupItems } from "./grouping/group";
+import { contentKey } from "./keys";
 import { applyFilters } from "./filters/apply";
 
 /**
- * The TMDB matching of the variants: the `enrich` step, the admin's « Pourquoi ? » and its manual
- * corrections. The match is catalogue data; TMDB only supplies the documents, the candidates and the score.
+ * The identification of movies and series: `attachTitles` (the `group` step) gives each new stream its
+ * title, `runEnrich` asks TMDB again about the titles without a card; and the admin's « Pourquoi ? » and
+ * its manual corrections. The match is catalogue data; TMDB only supplies the documents, the candidates and the score.
  * Claude (providers/claude) reads once the names TMDB gave up on and suggests what to search; its
  * suggestion is one more title to try, judged by the same scores, never a verdict.
  */
 
 /** This many outages in a row (DNS, network, database) and the step stops: the rest stays pending. */
 const MAX_UNREACHABLE = 20;
-/** An entry that fails this many times in a row for another reason (a title TMDB rejects) is given up: `unmatched`. */
-const MAX_ATTEMPTS = 3;
 /** Unmatched entries are tried again after this long: TMDB may have the title by then. */
 const RETRY_UNMATCHED_MS = 7 * 24 * 3600 * 1000;
 /** Names given up on that Claude reads per run, the visible ones only, each once; a run or two covers a provider's leftovers. */
@@ -196,71 +209,101 @@ export async function explainMatch(
   return out;
 }
 
-/** Writes a verdict. A match found by search caches its document now: the card is built from it. */
-async function applyVerdict(client: TmdbClient, it: PendingItem, v: MatchExplanation["verdict"]) {
-  if ((v.via === "search" || v.via === "suggestion") && v.tmdbId) await getDetails(client, tmdbMediaType(it.kind), v.tmdbId);
-  await setMatch(it.id, v.tmdbId, v.score, v.status);
-}
+// ---------------------------------------------------------------- titles
 
-export async function setMatch(
-  itemId: number,
-  tmdbId: number | null,
-  score: number | null,
-  status: "matched" | "unmatched" | "manual" | "pending",
-) {
-  await db
-    .update(schema.catalogVariants)
-    .set({ tmdbId, matchScore: score, matchStatus: status, matchAttempts: 0, matchedAt: new Date() })
-    .where(eq(schema.catalogVariants.id, itemId));
-}
-
-/** The variants of these kinds, for a write on `catalog_variants`: the kind is its stream's. */
-const ofKinds = (kinds: Kind[]) =>
-  inArray(
-    schema.catalogVariants.id,
-    db.select({ id: schema.xtreamStreams.id }).from(schema.xtreamStreams).where(inArray(schema.xtreamStreams.kind, kinds)),
-  );
-
-// ---------------------------------------------------------------- the `enrich` step
+type TitleKind = "vod" | "series";
+/** What a title is asked for: the stream that brings it, read. */
+type Reading = Pick<Variant, "kind" | "name" | "cleanTitle" | "year">;
 
 /**
- * Match every pending vod/series entry against TMDB, hidden ones included, and cache its
- * details. Reads the title and the year the naming wrote after the import; the pipeline
- * filters and regroups afterwards. Before: the week-old failures go back to pending (those Claude
- * judged outside TMDB excepted), and Claude reads the visible names given up on that it has not seen
- * yet: what it identifies goes back to pending with its suggestion, judged right after. After: a
- * share of the stale cache is fetched again, which `group` then copies into the cards.
+ * The title of a TMDB id (`tmdb:movie:603`), or the one without a card a reading gives
+ * (`fallback:movie:<title>:<year>`): found, or created with what was searched. Returns its id.
  */
-export async function runEnrich(opts: { limit?: number } = {}) {
-  const client = await getTmdbClient();
-  if (!client) throw new Error("Clé API TMDB non configurée");
-  const stats = {
-    processed: 0,
-    matched: 0,
-    unmatched: 0,
-    errors: 0,
-    ids_rejected: 0,
-    retried: 0,
-    refreshed: 0,
-    ai_asked: 0,
-    ai_titled: 0,
-    ai_other: 0,
+async function titleFor(it: Reading, tmdbId: number | null, more: { score?: number | null; asked?: boolean; manual?: boolean } = {}) {
+  const t = schema.catalogTitles;
+  const title = it.cleanTitle || it.name;
+  const key = contentKey({ kind: it.kind, title, year: it.year, tmdbId, matchStatus: tmdbId ? "matched" : "unmatched" });
+  const [made] = await db
+    .insert(t)
+    .values({
+      key,
+      kind: it.kind,
+      tmdbId,
+      title,
+      year: it.year,
+      searchTitle: title,
+      searchYear: it.year,
+      matchStatus: tmdbId ? "matched" : more.manual ? "manual" : "unmatched",
+      matchScore: more.score ?? null,
+      matchedAt: more.asked === false ? null : new Date(),
+      addedAt: new Date(),
+    })
+    .onConflictDoNothing({ target: t.key })
+    .returning({ id: t.id });
+  if (made) return made.id;
+  const [known] = await db.select({ id: t.id }).from(t).where(eq(t.key, key));
+  // Left without a card by hand: the weekly retry leaves it alone.
+  if (more.manual && !tmdbId) await db.update(t).set({ matchStatus: "manual" }).where(eq(t.id, known.id));
+  return known.id;
+}
+
+/** A title made for one stream alone, under a key of its own (`manual:<id>`): split out by hand. */
+export async function titleApart(it: Reading & { id: number }): Promise<number> {
+  const t = schema.catalogTitles;
+  const title = it.cleanTitle || it.name;
+  const values = {
+    key: `manual:${it.id}`,
+    kind: it.kind,
+    title,
+    year: it.year,
+    searchTitle: title,
+    searchYear: it.year,
+    matchStatus: "manual" as const,
   };
-  const retried = await db
-    .update(schema.catalogVariants)
-    .set({ matchStatus: "pending", matchAttempts: 0 })
-    .where(
-      and(
-        ofKinds(["vod", "series"]),
-        eq(schema.catalogVariants.matchStatus, "unmatched"),
-        or(isNull(schema.catalogVariants.aiKind), ne(schema.catalogVariants.aiKind, "other")),
-        or(isNull(schema.catalogVariants.matchedAt), lt(schema.catalogVariants.matchedAt, new Date(Date.now() - RETRY_UNMATCHED_MS))),
-      ),
-    )
-    .returning({ id: schema.catalogVariants.id });
-  stats.retried = retried.length;
-  Object.assign(stats, await askClaude());
-  const pending = await db
+  const [made] = await db
+    .insert(t)
+    .values({ ...values, addedAt: new Date() })
+    .onConflictDoUpdate({ target: t.key, set: { matchStatus: "manual" } })
+    .returning({ id: t.id });
+  return made.id;
+}
+
+/** Hangs streams on a title; `manual`: the identification leaves them there. */
+export async function attachTo(ids: number[], titleId: number, how: string, manual = false) {
+  if (ids.length) await db.update(schema.catalogVariants).set({ titleId, how, manual }).where(inArray(schema.catalogVariants.id, ids));
+}
+
+export type AttachStats = {
+  /** Streams of movies and series that had no title. */
+  to_attach: number;
+  by_id: number;
+  by_title: number;
+  by_search: number;
+  without_card: number;
+  ids_rejected: number;
+  errors: number;
+  /** Left without a title: TMDB could not be reached. They are not served until it answers. */
+  waiting: number;
+};
+
+type PendingStream = PendingItem & { kind: TitleKind };
+
+/**
+ * Identifies the streams of movies and series that have no title yet, and attaches each to its title;
+ * a title is created only when the catalogue has none for it. In this order, the network last:
+ *
+ *  1. the TMDB id the provider gives, when the document bears the stream's name (`idEvidence`): from
+ *     the cache when the catalogue already has that title, else TMDB confirms it;
+ *  2. the same title and year as a stream already attached (not by hand): its title, without a call;
+ *  3. a TMDB search, once per reading (`explainMatch`);
+ *  4. nothing found: a title without a card, tried again every week and read by Claude once visible (`runEnrich`).
+ *
+ * Without a TMDB key every reading gets its title without a card. TMDB unreachable: the streams wait
+ * without a title, unseen, for the next run (`waiting`).
+ */
+export async function attachTitles(onlyIds?: number[]): Promise<AttachStats> {
+  const stats: AttachStats = { to_attach: 0, by_id: 0, by_title: 0, by_search: 0, without_card: 0, ids_rejected: 0, errors: 0, waiting: 0 };
+  let pending: PendingStream[] = (await db
     .select({
       id: variants.id,
       kind: variants.kind,
@@ -268,31 +311,237 @@ export async function runEnrich(opts: { limit?: number } = {}) {
       cleanTitle: variants.cleanTitle,
       year: variants.year,
       raw: variants.raw,
-      aiKind: variants.aiKind,
-      aiTitle: variants.aiTitle,
-      aiOriginalTitle: variants.aiOriginalTitle,
-      aiYear: variants.aiYear,
     })
     .from(variants)
-    .where(and(inArray(variants.kind, ["vod", "series"]), eq(variants.matchStatus, "pending")))
-    .limit(opts.limit ?? 100_000);
-  // One details call per distinct provider id: 70 000 items carry ~45 000 ids.
-  const byProvidedId = new Map<string, PendingItem[]>();
-  const noId: PendingItem[] = [];
-  for (const it of pending) {
-    const pid = providedTmdbId(it);
-    if (pid) {
-      const k = `${it.kind}:${pid}`;
-      byProvidedId.set(k, [...(byProvidedId.get(k) ?? []), it]);
-    } else noId.push(it);
-  }
+    .where(
+      and(inArray(variants.kind, ["vod", "series"]), isNull(variants.titleId), onlyIds ? inArray(variants.id, onlyIds) : undefined),
+    )) as PendingStream[];
+  stats.to_attach = pending.length;
+  if (!pending.length) return stats;
+  const client = await getTmdbClient();
+  const lang = (await getSettings()).tmdb_language;
   const n = (x: number) => x.toLocaleString("fr-FR");
-  console.log(
-    `[enrich] ${n(pending.length)} en attente : ${n(byProvidedId.size)} identifiants TMDB fournis par la source, ${n(noId.length)} sans`,
+  const beat = progress(
+    "group",
+    pending.length,
+    () =>
+      `${n(stats.by_id + stats.by_title + stats.by_search)} attachés · ${n(stats.without_card)} sans fiche · ${n(stats.errors)} erreurs`,
   );
+  const limit = pLimit(CONCURRENCY);
+  // p-limit may run a queued call outside this context: the stop check is bound here.
+  const checkCancelled = cancelGuard();
+  let unreachable = 0;
+  let halted: string | null = null;
+  const out = (e: unknown, what: string) => {
+    stats.errors++;
+    console.error(`[group] ${what} : ${describeError(e)}`);
+    if (!isUnreachable(e)) return false;
+    if (++unreachable >= MAX_UNREACHABLE && !halted) {
+      halted = describeError(e);
+      console.error(`[group] ${MAX_UNREACHABLE} échecs d'accès à TMDB d'affilée : arrêt, le reste attend le prochain passage`);
+    }
+    return true;
+  };
+  const done = (ids: number[]) => {
+    const gone = new Set(ids);
+    pending = pending.filter((p) => !gone.has(p.id));
+    for (const _ of ids) beat.tick();
+  };
+  try {
+    // 1. The id the provider gives: one document per id, each stream judged against it.
+    const byId = new Map<string, PendingStream[]>();
+    for (const it of pending) {
+      const pid = providedTmdbId(it);
+      if (pid) byId.set(`${it.kind}:${pid}`, [...(byId.get(`${it.kind}:${pid}`) ?? []), it]);
+    }
+    await Promise.all(
+      [...byId.values()].map((group) =>
+        limit(async () => {
+          if (halted) return;
+          checkCancelled();
+          const pid = providedTmdbId(group[0])!;
+          const mediaType = tmdbMediaType(group[0].kind);
+          let d: TmdbDetails | null;
+          try {
+            // Cached: no call. One cached before every name was kept is read again when a stream's name does not fit yet.
+            d = client
+              ? await detailsWithNames(client, mediaType, pid, (doc) => !group.every((it) => idEvidence(doc, it).accepted))
+              : await getCachedDetails(mediaType, pid, lang);
+          } catch (e) {
+            out(e, `${group[0].kind} TMDB fourni ${pid} « ${group[0].name} »`);
+            return;
+          }
+          unreachable = 0;
+          const fits = d ? group.filter((it) => idEvidence(d, it).accepted) : [];
+          stats.ids_rejected += d ? group.length - fits.length : 0;
+          if (!fits.length) return;
+          await attachTo(
+            fits.map((it) => it.id),
+            await titleFor(fits[0], pid, { score: 1 }),
+            "provided",
+          );
+          stats.by_id += fits.length;
+          done(fits.map((it) => it.id));
+        }),
+      ),
+    );
+    checkCancelled();
+    // 2. The same reading as a stream that has its title: that title, most of them agreeing.
+    for (let i = 0; i < pending.length; i += 5000) {
+      const part = pending.slice(i, i + 5000).filter((it) => it.cleanTitle);
+      if (!part.length) continue;
+      const known = await pg<{ id: number; title_id: number }[]>`
+        select p.id, k.title_id
+        from unnest(${part.map((it) => it.id)}::int[], ${part.map((it) => it.kind)}::text[], ${part.map((it) => it.cleanTitle)}::text[],
+                    ${part.map((it) => it.year)}::int[]) as p(id, kind, title, year)
+        cross join lateral (
+          select v.title_id from xtream_streams s join catalog_variants v on v.id = s.id
+          where s.kind = p.kind::content_kind and s.title = p.title and s.year is not distinct from p.year
+            and v.title_id is not null and not v.manual
+          group by v.title_id order by count(*) desc, v.title_id limit 1
+        ) k`;
+      const byTitle = new Map<number, number[]>();
+      for (const r of known) byTitle.set(r.title_id, [...(byTitle.get(r.title_id) ?? []), r.id]);
+      for (const [titleId, ids] of byTitle) await attachTo(ids, titleId, "title");
+      stats.by_title += known.length;
+      const found = new Set(known.map((r) => r.id));
+      pending = pending.filter((p) => !found.has(p.id));
+      for (const _ of known) beat.tick();
+    }
+    checkCancelled();
+    // 3. and 4. One search per reading; what TMDB does not know gets a title without a card.
+    const byReading = new Map<string, PendingStream[]>();
+    for (const it of pending) {
+      const k = `${it.kind}|${it.cleanTitle || it.name}|${it.year ?? ""}`;
+      byReading.set(k, [...(byReading.get(k) ?? []), it]);
+    }
+    await Promise.all(
+      [...byReading.values()].map((group) =>
+        limit(async () => {
+          if (halted) return;
+          checkCancelled();
+          const it = group[0];
+          const ids = group.map((g) => g.id);
+          let verdict: MatchExplanation["verdict"] | null = null;
+          if (client)
+            try {
+              // The provider's id, if it gave one, was judged above: only the searches are left.
+              verdict = (await explainMatch(client, it, { provided: null })).verdict;
+              if ((verdict.via === "search" || verdict.via === "suggestion") && verdict.tmdbId)
+                await getDetails(client, tmdbMediaType(it.kind), verdict.tmdbId);
+              unreachable = 0;
+            } catch (e) {
+              // No way to TMDB: they wait. A title TMDB itself rejects gets none of its cards.
+              if (out(e, `${it.kind} « ${it.name} »`)) return;
+            }
+          if (verdict?.status === "matched" && verdict.tmdbId) {
+            await attachTo(ids, await titleFor(it, verdict.tmdbId, { score: verdict.score }), "search");
+            stats.by_search += ids.length;
+          } else {
+            await attachTo(ids, await titleFor(it, null, { score: verdict?.score ?? null, asked: Boolean(client) }), "none");
+            stats.without_card += ids.length;
+          }
+          done(ids);
+        }),
+      ),
+    );
+  } finally {
+    beat.stop();
+  }
+  stats.waiting = pending.length;
+  console.log(
+    `[group] ${n(stats.to_attach)} flux sans titre : ${n(stats.by_id)} par l'identifiant TMDB fourni, ${n(stats.by_title)} par un titre déjà au catalogue, ${n(stats.by_search)} par une recherche TMDB, ${n(stats.without_card)} sans fiche, ${n(stats.ids_rejected)} identifiants fournis rejetés, ${n(stats.errors)} erreurs, ${n(stats.waiting)} en attente`,
+  );
+  return stats;
+}
+
+/** How many streams of movies and series wait for their title (TMDB did not answer): the catalogue does not serve them. */
+export async function waitingStreams(): Promise<number> {
+  const [r] = await db.execute<{ n: number }>(sql`
+    select count(*)::int as n from catalog_variants v join xtream_streams s on s.id = v.id
+    where v.title_id is null and s.kind <> 'live'`);
+  return r.n;
+}
+
+// ---------------------------------------------------------------- the `enrich` step
+
+type CardlessTitle = { id: number; kind: TitleKind; key: string } & PendingItem;
+
+/**
+ * A title without a card that TMDB now knows becomes that title: the same row under its TMDB key, or,
+ * when the catalogue already has it, its streams join the one that is there.
+ */
+async function adopt(title: CardlessTitle, tmdbId: number, score: number) {
+  const t = schema.catalogTitles;
+  const key = contentKey({ kind: title.kind, title: "", tmdbId, matchStatus: "matched" });
+  const [there] = await db.select({ id: t.id }).from(t).where(eq(t.key, key));
+  if (there) {
+    await db.update(schema.catalogVariants).set({ titleId: there.id }).where(eq(schema.catalogVariants.titleId, title.id));
+    await db.delete(t).where(eq(t.id, title.id));
+    return;
+  }
+  // Its episodes were listed under the old key: they are built again when the sheet opens.
+  await db.delete(schema.catalogEpisodes).where(eq(schema.catalogEpisodes.titleId, title.id));
+  await db
+    .update(t)
+    .set({
+      key,
+      tmdbId,
+      matchStatus: "matched",
+      matchScore: score,
+      matchedAt: new Date(),
+      matchAttempts: 0,
+      cardsAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(t.id, title.id));
+}
+
+/**
+ * The titles without a card, asked again: those never asked, those asked more than a week ago (TMDB
+ * may have the title by now), and those Claude just read (visible ones, each once: what it suggests is
+ * one more title to search, judged by the same scores). Then a share of the stale cache is fetched
+ * again, which `group` copies into the cards. New streams are not this step's: `group` identifies them
+ * as it attaches them (`attachTitles`).
+ */
+export async function runEnrich(opts: { limit?: number } = {}) {
+  const client = await getTmdbClient();
+  if (!client) throw new Error("Clé API TMDB non configurée");
+  const stats = { processed: 0, matched: 0, unmatched: 0, errors: 0, retried: 0, refreshed: 0, ai_asked: 0, ai_titled: 0, ai_other: 0 };
+  Object.assign(stats, await askClaude());
+  const t = schema.catalogTitles;
+  const due = await db
+    .selectDistinctOn([t.id], {
+      id: t.id,
+      kind: sql<TitleKind>`${t.kind}`,
+      key: t.key,
+      name: variants.name,
+      cleanTitle: t.searchTitle,
+      year: t.searchYear,
+      raw: variants.raw,
+      aiKind: t.aiKind,
+      aiTitle: t.aiTitle,
+      aiOriginalTitle: t.aiOriginalTitle,
+      aiYear: t.aiYear,
+    })
+    .from(t)
+    .innerJoin(variants, eq(variants.titleId, t.id))
+    .where(
+      and(
+        isNull(t.tmdbId),
+        eq(t.matchStatus, "unmatched"),
+        or(isNull(t.aiKind), ne(t.aiKind, "other")),
+        or(isNull(t.matchedAt), lt(t.matchedAt, new Date(Date.now() - RETRY_UNMATCHED_MS))),
+      ),
+    )
+    .orderBy(t.id, asc(variants.id))
+    .limit(opts.limit ?? 100_000);
+  stats.retried = due.length;
+  const n = (x: number) => x.toLocaleString("fr-FR");
+  console.log(`[enrich] ${n(due.length)} titres sans fiche à redemander à TMDB`);
   const beat = progress(
     "enrich",
-    pending.length,
+    due.length,
     () => `${n(stats.matched)} associés · ${n(stats.unmatched)} non trouvés · ${n(stats.errors)} erreurs`,
   );
   const limit = pLimit(CONCURRENCY);
@@ -300,122 +549,104 @@ export async function runEnrich(opts: { limit?: number } = {}) {
   const checkCancelled = cancelGuard();
   let unreachable = 0;
   let halted: string | null = null;
-  const fail = async (it: PendingItem, e: unknown) => {
-    beat.tick();
-    stats.errors++;
-    const pid = providedTmdbId(it);
-    console.error(`[enrich] ${it.kind} élément ${it.id}${pid ? ` (TMDB fourni ${pid})` : ""} « ${it.name} » : ${describeError(e)}`);
-    if (isUnreachable(e)) {
-      if (++unreachable >= MAX_UNREACHABLE && !halted) {
-        halted = describeError(e);
-        console.error(`[enrich] ${MAX_UNREACHABLE} échecs d'accès d'affilée : arrêt, le reste reste en attente`);
-      }
-      return;
-    }
-    unreachable = 0;
-    // The entry itself fails (not the way to TMDB): after MAX_ATTEMPTS runs it is given up until the weekly retry.
-    await db
-      .update(schema.catalogVariants)
-      .set({
-        matchAttempts: sql`${schema.catalogVariants.matchAttempts} + 1`,
-        matchStatus: sql`case when ${schema.catalogVariants.matchAttempts} + 1 >= ${MAX_ATTEMPTS} then 'unmatched'::match_status else ${schema.catalogVariants.matchStatus} end`,
-        matchedAt: new Date(),
-      })
-      .where(eq(schema.catalogVariants.id, it.id))
-      .catch((e2) => console.error(`[enrich] élément ${it.id} : échec non compté (${describeError(e2)})`));
-  };
-  const judge = async (it: PendingItem, known?: { provided: TmdbDetails | null }) => {
-    if (halted) return;
-    checkCancelled();
-    try {
-      const e = await explainMatch(client, it, known);
-      if (e.provided?.found && !e.provided.accepted) stats.ids_rejected++;
-      await applyVerdict(client, it, e.verdict);
-      unreachable = 0;
-      beat.tick();
-      stats.processed++;
-      if (e.verdict.status === "matched") stats.matched++;
-      else stats.unmatched++;
-    } catch (e) {
-      await fail(it, e);
-    }
-  };
   try {
-    await Promise.all([
-      ...[...byProvidedId.values()].map((group) =>
+    await Promise.all(
+      due.map((title) =>
         limit(async () => {
           if (halted) return;
           checkCancelled();
-          const pid = providedTmdbId(group[0])!;
-          // Cached before alternative and translated titles were requested: one refresh before judging.
-          let provided: TmdbDetails | null;
           try {
-            provided = await detailsWithNames(
-              client,
-              tmdbMediaType(group[0].kind),
-              pid,
-              (d) => !group.every((it) => idEvidence(d, it).accepted),
-            );
+            const { verdict } = await explainMatch(client, title);
+            if ((verdict.via === "search" || verdict.via === "suggestion") && verdict.tmdbId)
+              await getDetails(client, tmdbMediaType(title.kind), verdict.tmdbId);
+            if (verdict.status === "matched" && verdict.tmdbId) {
+              await adopt(title, verdict.tmdbId, verdict.score);
+              stats.matched++;
+            } else {
+              await db
+                .update(t)
+                .set({ matchScore: verdict.score, matchedAt: new Date(), matchAttempts: sql`${t.matchAttempts} + 1` })
+                .where(eq(t.id, title.id));
+              stats.unmatched++;
+            }
+            unreachable = 0;
+            stats.processed++;
           } catch (e) {
-            for (const it of group) await fail(it, e);
-            return;
+            stats.errors++;
+            console.error(`[enrich] ${title.kind} titre ${title.id} « ${title.cleanTitle ?? title.name} » : ${describeError(e)}`);
+            if (isUnreachable(e)) {
+              if (++unreachable >= MAX_UNREACHABLE && !halted) {
+                halted = describeError(e);
+                console.error(`[enrich] ${MAX_UNREACHABLE} échecs d'accès d'affilée : arrêt, le reste sera redemandé au prochain passage`);
+              }
+              return;
+            }
+            unreachable = 0;
+            // The title itself fails (not the way to TMDB): not asked again before a week.
+            await db
+              .update(t)
+              .set({ matchedAt: new Date(), matchAttempts: sql`${t.matchAttempts} + 1` })
+              .where(eq(t.id, title.id))
+              .catch((e2) => console.error(`[enrich] titre ${title.id} : échec non compté (${describeError(e2)})`));
+          } finally {
+            beat.tick();
           }
-          for (const it of group) await judge(it, { provided });
         }),
       ),
-      ...noId.map((it) => limit(() => judge(it))),
-    ]);
+    );
   } finally {
     beat.stop();
   }
   checkCancelled();
   if (!halted) stats.refreshed = await refreshStale(client, limit, checkCancelled);
   console.log(
-    `[enrich] ${n(stats.processed)} traités : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ids_rejected)} identifiants fournis rejetés, ${n(stats.retried)} non trouvés retentés, ${n(stats.ai_asked)} noms lus par Claude (${n(stats.ai_titled)} titres suggérés, ${n(stats.ai_other)} hors TMDB), ${n(stats.refreshed)} fiches rafraîchies`,
+    `[enrich] ${n(stats.retried)} titres sans fiche redemandés : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ai_asked)} noms lus par Claude (${n(stats.ai_titled)} titres suggérés, ${n(stats.ai_other)} hors TMDB), ${n(stats.refreshed)} fiches rafraîchies`,
   );
   if (halted)
     throw new Error(
-      `TMDB injoignable (${halted}) : arrêt après ${n(stats.processed)} traités, ${n(pending.length - stats.processed)} restent en attente`,
+      `TMDB injoignable (${halted}) : arrêt après ${n(stats.processed)} titres, ${n(due.length - stats.processed)} restent à redemander`,
     );
   return stats;
 }
 
 /**
- * Claude reads the visible names TMDB gave up on and that it has not read yet, AI_PER_RUN at most:
- * the ones it identifies go back to pending with its suggestion, the others keep their verdict with
- * what it said (`other`, or nothing). Each name is asked once; a request that fails leaves its names
- * for the next run. Without a key, nothing happens.
+ * Claude reads the visible titles TMDB gave up on and that it has not read yet, AI_PER_RUN at most:
+ * the ones it identifies are asked again right after with its suggestion, the others keep what it said
+ * (`other`, or nothing). Each title is asked once; a request that fails leaves its titles for the next
+ * run. Without a key, nothing happens.
  */
 async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_other: number }> {
   const stats = { ai_asked: 0, ai_titled: 0, ai_other: 0 };
-  const v = variants;
+  const t = schema.catalogTitles;
   const c = schema.xtreamCategories;
   const rows: TitleQuery[] = await db
-    .select({ id: v.id, kind: sql<"vod" | "series">`${v.kind}`, name: v.name, year: v.year, category: c.name })
-    .from(v)
-    .leftJoin(c, and(eq(c.accountId, v.accountId), eq(c.kind, v.kind), eq(c.xtreamId, v.categoryXtreamId)))
-    .where(and(inArray(v.kind, ["vod", "series"]), eq(v.matchStatus, "unmatched"), isNull(v.aiAskedAt), visibleItem))
-    .orderBy(asc(v.id))
+    .selectDistinctOn([t.id], { id: t.id, kind: sql<TitleKind>`${t.kind}`, name: variants.name, year: t.searchYear, category: c.name })
+    .from(t)
+    .innerJoin(variants, eq(variants.titleId, t.id))
+    .leftJoin(c, and(eq(c.accountId, variants.accountId), eq(c.kind, variants.kind), eq(c.xtreamId, variants.categoryXtreamId)))
+    .where(and(isNull(t.tmdbId), eq(t.matchStatus, "unmatched"), isNull(t.aiAskedAt), eq(t.visible, true), visibleItem))
+    .orderBy(t.id, asc(variants.id))
     .limit(AI_PER_RUN);
   if (!rows.length) return stats;
   const n = (x: number) => x.toLocaleString("fr-FR");
   const suggestions = await suggestTitles(rows);
   if (!suggestions) return stats;
-  console.log(`[enrich] ${n(rows.length)} noms non reconnus lus par Claude : ${n(suggestions.length)} réponses`);
+  console.log(`[enrich] ${n(rows.length)} titres sans fiche lus par Claude : ${n(suggestions.length)} réponses`);
   const now = new Date();
   for (const s of suggestions) {
     const titled = s.kind !== "other" && Boolean(s.title || s.originalTitle);
     await db
-      .update(schema.catalogVariants)
+      .update(t)
       .set({
         aiKind: s.kind,
         aiTitle: s.title,
         aiOriginalTitle: s.originalTitle,
         aiYear: s.year,
         aiAskedAt: now,
-        ...(titled ? { matchStatus: "pending" as const, matchAttempts: 0 } : {}),
+        // Asked again in this run, with what Claude read.
+        ...(titled ? { matchedAt: null, matchAttempts: 0 } : {}),
       })
-      .where(eq(schema.catalogVariants.id, s.id));
+      .where(eq(t.id, s.id));
     stats.ai_asked++;
     if (titled) stats.ai_titled++;
     if (s.kind === "other") stats.ai_other++;
@@ -424,7 +655,7 @@ async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_ot
   const answered = new Set(suggestions.map((s) => s.id));
   const silent = rows.filter((r) => !answered.has(r.id)).map((r) => r.id);
   if (silent.length) {
-    await db.update(schema.catalogVariants).set({ aiAskedAt: now }).where(inArray(schema.catalogVariants.id, silent));
+    await db.update(t).set({ aiAskedAt: now }).where(inArray(t.id, silent));
     stats.ai_asked += silent.length;
   }
   return stats;
@@ -499,38 +730,51 @@ export async function searchCandidates(item: Variant, query: string, limit = 10)
     .map((r) => ({ id: r.id, label: `${r.title ?? r.name} (${(r.release_date ?? r.first_air_date ?? "").slice(0, 4) || "?"})` }));
 }
 
-/** Assign a TMDB id by hand (null removes the association); the item is regrouped at once. */
+/**
+ * Says by hand which TMDB title a stream is (null: none, it gets a title without a card that is not
+ * asked again); it stays there whatever the identification finds, and what it touches is regrouped at once.
+ */
 export async function assignManual(itemId: number, tmdbId: number | null) {
   const [it] = await db.select().from(variants).where(eq(variants.id, itemId));
   if (!it) throw new Error("Variante introuvable");
+  if (it.kind === "live") throw new Error("Une chaîne n'a pas de fiche TMDB");
   if (tmdbId) {
     const client = await getTmdbClient();
     if (!client) throw new Error("Clé API TMDB non configurée");
     await getDetails(client, tmdbMediaType(it.kind), tmdbId, true);
   }
-  await setMatch(itemId, tmdbId, null, tmdbId ? "manual" : "unmatched");
-  await applyFilters({ contentIds: await regroupItems([itemId]) });
+  await attachTo([itemId], await titleFor(it, tmdbId, { manual: true }), "manual", true);
+  await applyFilters({ contentIds: await regroupItems([itemId], it.contentId ? [it.contentId] : []) });
 }
 
-/** Only the failures go back to pending: what a better rule or a fresh TMDB may now find. */
+/** The titles without a card are all asked again at the next `enrich`: what a better rule or a fresh TMDB may now find. */
 export async function retryUnmatched(): Promise<number> {
+  const t = schema.catalogTitles;
   const rows = await db
-    .update(schema.catalogVariants)
-    .set({ matchStatus: "pending", matchAttempts: 0 })
-    .where(and(ofKinds(["vod", "series"]), eq(schema.catalogVariants.matchStatus, "unmatched")))
-    .returning({ id: schema.catalogVariants.id });
+    .update(t)
+    .set({ matchedAt: null, matchAttempts: 0 })
+    .where(and(isNull(t.tmdbId), eq(t.matchStatus, "unmatched")))
+    .returning({ id: t.id });
   return rows.length;
 }
 
-/** Back to pending for automatic matches; manual ones and grouping overrides stay unless asked. */
-export async function resetMatches(kind?: "vod" | "series", clearOverrides = false) {
+/**
+ * Every stream of movies and series (of one kind) leaves its title, to be identified again at the next
+ * `group`; those attached by hand stay unless asked. Until then the catalogue does not serve them.
+ */
+export async function resetMatches(kind?: TitleKind, clearOverrides = false) {
+  const kinds: Kind[] = kind ? [kind] : ["vod", "series"];
+  const v = schema.catalogVariants;
   await db
-    .update(schema.catalogVariants)
-    .set({ matchStatus: "pending", tmdbId: null, matchScore: null, matchAttempts: 0 })
-    .where(and(ofKinds(kind ? [kind] : ["vod", "series"]), sql`${schema.catalogVariants.matchStatus} <> 'manual'`));
-  if (clearOverrides)
-    await db
-      .update(schema.catalogVariants)
-      .set({ keyOverride: null })
-      .where(ofKinds(kind ? [kind] : ["vod", "series"]));
+    .update(v)
+    .set({ titleId: null, how: null, manual: false })
+    .where(
+      and(
+        inArray(
+          v.id,
+          db.select({ id: schema.xtreamStreams.id }).from(schema.xtreamStreams).where(inArray(schema.xtreamStreams.kind, kinds)),
+        ),
+        clearOverrides ? undefined : eq(v.manual, false),
+      ),
+    );
 }

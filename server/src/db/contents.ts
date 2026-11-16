@@ -10,7 +10,20 @@ import type { Title } from "./schema";
  * conditions and sorts are written on the table's own columns. What a table does not have comes out
  * empty (a channel has no TMDB card, a title no logo nor guide).
  */
-export type Content = Omit<Title, "sourceCount"> & {
+/** What identifies a title (`catalog_titles`): the catalogue's business, not the app's. */
+type Identification =
+  | "searchTitle"
+  | "searchYear"
+  | "matchStatus"
+  | "matchScore"
+  | "matchedAt"
+  | "matchAttempts"
+  | "aiKind"
+  | "aiTitle"
+  | "aiOriginalTitle"
+  | "aiYear"
+  | "aiAskedAt";
+export type Content = Omit<Title, "sourceCount" | Identification> & {
   variantCount: number;
   market: string | null;
   country: string | null;
@@ -24,7 +37,21 @@ export type Content = Omit<Title, "sourceCount"> & {
 
 const t = schema.catalogTitles;
 const c = schema.catalogChannels;
-const { sourceCount, ...titleColumns } = getTableColumns(t);
+const {
+  sourceCount,
+  searchTitle: _searchTitle,
+  searchYear: _searchYear,
+  matchStatus: _matchStatus,
+  matchScore: _matchScore,
+  matchedAt: _matchedAt,
+  matchAttempts: _matchAttempts,
+  aiKind: _aiKind,
+  aiTitle: _aiTitle,
+  aiOriginalTitle: _aiOriginalTitle,
+  aiYear: _aiYear,
+  aiAskedAt: _aiAskedAt,
+  ...titleColumns
+} = getTableColumns(t);
 const none = {
   text: (name: string) => sql<string | null>`null::text`.as(name),
   int: (name: string) => sql<number | null>`null::int`.as(name),

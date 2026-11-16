@@ -1,8 +1,8 @@
-import { db, schema, client, type Profile, type ProviderAccount } from "@/db";
+import { db, schema, client, variants, type Profile, type ProviderAccount } from "@/db";
 import { invalidateAccounts, invalidateSettings } from "@/config";
-import { eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import type { XStream } from "@/providers/xtream";
-import { applyFilters, contentsByKey, runGrouping } from "@/catalog";
+import { applyFilters, attachTitles, contentKey, contentsByKey, parseName, runGrouping } from "@/catalog";
 
 /** A title or a channel by its key, hidden or not, in the shape the app reads. */
 export const contentOfKey = async (key: string) => (await contentsByKey([key]))[0];
@@ -101,7 +101,6 @@ export type ItemSeed = {
   hiddenManual?: boolean;
   raw?: Partial<XStream>;
   addedAt?: Date;
-  keyOverride?: string;
   section?: string;
 };
 
@@ -149,12 +148,41 @@ export async function seedItems(rows: ItemSeed[]) {
   await db.insert(schema.catalogVariants).values(
     rows.map((r, i) => ({
       id: streams[i].id,
-      tmdbId: r.tmdbId ?? null,
-      matchStatus: r.matchStatus ?? (r.kind === "live" ? ("skipped" as const) : ("pending" as const)),
       hiddenManual: r.hiddenManual ?? false,
-      keyOverride: r.keyOverride ?? null,
     })),
   );
+  // A movie or a series seeded as matched has its TMDB title already, and one seeded as unmatched its
+  // title without a card, as a past identification left them (TMDB asked). The others (pending) get
+  // theirs when the test groups (`groupAndFilter`: without a TMDB key, a title without a card, never asked).
+  for (const [i, r] of rows.entries()) {
+    if (r.kind === "live") continue;
+    const matched = Boolean(r.tmdbId) && (r.matchStatus === "matched" || r.matchStatus === "manual");
+    if (!matched && r.matchStatus !== "unmatched") continue;
+    const read = parseName(r.name, r.kind);
+    const tmdbId = matched ? r.tmdbId! : null;
+    const key = contentKey({ kind: r.kind, title: read.title, year: read.year, tmdbId, matchStatus: matched ? "matched" : "unmatched" });
+    await db
+      .insert(schema.catalogTitles)
+      .values({
+        key,
+        kind: r.kind,
+        tmdbId,
+        title: read.title,
+        year: read.year ?? null,
+        searchTitle: read.title,
+        searchYear: read.year ?? null,
+        matchStatus: matched ? "matched" : "unmatched",
+        matchedAt: new Date(),
+        addedAt: new Date(),
+      })
+      .onConflictDoNothing();
+    const [title] = await db.select({ id: schema.catalogTitles.id }).from(schema.catalogTitles).where(eq(schema.catalogTitles.key, key));
+    const manual = r.matchStatus === "manual";
+    await db
+      .update(schema.catalogVariants)
+      .set({ titleId: title.id, how: manual ? "manual" : matched ? "search" : "none", manual })
+      .where(eq(schema.catalogVariants.id, streams[i].id));
+  }
   return streams;
 }
 
@@ -182,15 +210,55 @@ export async function seedProgrammes(rows: { channelId: string; start: number; e
 }
 
 /**
- * A test that never runs `channels` gets a reference that knows every channel by its own name: the
- * grouping keys it as a recognised channel. A variant `channels` has judged (a reference theme, even
- * « Non reconnus ») is left alone.
+ * A test that never runs `channels` gets a reference that knows every channel by its own name: each
+ * live stream without a channel is put on a recognised one of that name, with the theme its names give.
+ * A stream `channels` has attached (even to a name the reference does not know) is left alone.
  */
 export async function knowChannels() {
-  await db.execute(sql`
-    update catalog_variants v set channel_name = s.title
-    from xtream_streams s
-    where s.id = v.id and s.kind = 'live' and v.channel_name is null and v.iptv_theme is null and v.iptv_match is null and nullif(s.title, '') is not null`);
+  const rows = await db
+    .select({
+      id: variants.id,
+      title: sql<string>`coalesce(nullif(${variants.cleanTitle}, ''), ${variants.name})`,
+      market: variants.market,
+      theme: variants.nameTheme,
+      adult: variants.nameAdult,
+    })
+    .from(variants)
+    .where(and(eq(variants.kind, "live"), isNull(variants.channelId)));
+  const byKey = new Map<string, typeof rows>();
+  for (const r of rows) {
+    const key = contentKey({ kind: "live", title: r.title, market: r.market, channelName: r.title });
+    byKey.set(key, [...(byKey.get(key) ?? []), r]);
+  }
+  for (const [key, streams] of byKey) {
+    const themes = streams.map((r) => r.theme).filter((t): t is string => t !== null);
+    const theme = themes.sort((a, b) => themes.filter((t) => t === b).length - themes.filter((t) => t === a).length)[0] ?? null;
+    await db
+      .insert(schema.catalogChannels)
+      .values({
+        key,
+        name: streams[0].title,
+        market: streams[0].market,
+        status: "known",
+        theme,
+        adult: streams.every((r) => r.adult),
+        addedAt: new Date(),
+      })
+      .onConflictDoNothing();
+    const [channel] = await db
+      .select({ id: schema.catalogChannels.id })
+      .from(schema.catalogChannels)
+      .where(eq(schema.catalogChannels.key, key));
+    await db
+      .update(schema.catalogVariants)
+      .set({ channelId: channel.id, how: "name" })
+      .where(
+        inArray(
+          schema.catalogVariants.id,
+          streams.map((r) => r.id),
+        ),
+      );
+  }
 }
 
 /**
@@ -199,6 +267,7 @@ export async function knowChannels() {
  */
 export async function groupAndFilter() {
   await knowChannels();
+  await attachTitles();
   const stats = await runGrouping();
   const judged = await applyFilters();
   return { ...stats, variants_hidden: judged.variants_hidden, waitlist_available: stats.waitlist_available + judged.waitlist_available };
@@ -207,3 +276,27 @@ export async function groupAndFilter() {
 /** The variants of the streams matching `where` (a condition on `xtream_streams`), for a test that writes `catalog_variants`. */
 export const ofStreams = (where: SQL) =>
   inArray(schema.catalogVariants.id, db.select({ id: schema.xtreamStreams.id }).from(schema.xtreamStreams).where(where));
+
+/** What `channels` does with a live name the reference does not know: each of these streams on a channel of its own name, « Non reconnus ». */
+export async function leaveUnknown(names: string[]) {
+  const rows = await db
+    .select({
+      id: variants.id,
+      title: sql<string>`coalesce(nullif(${variants.cleanTitle}, ''), ${variants.name})`,
+      market: variants.market,
+    })
+    .from(variants)
+    .where(and(eq(variants.kind, "live"), inArray(variants.name, names)));
+  for (const r of rows) {
+    const key = contentKey({ kind: "live", title: r.title, market: r.market });
+    await db
+      .insert(schema.catalogChannels)
+      .values({ key, name: r.title, market: r.market, status: "unknown", theme: "Non reconnus", addedAt: new Date() })
+      .onConflictDoNothing();
+    const [channel] = await db
+      .select({ id: schema.catalogChannels.id })
+      .from(schema.catalogChannels)
+      .where(eq(schema.catalogChannels.key, key));
+    await db.update(schema.catalogVariants).set({ channelId: channel.id, how: null }).where(eq(schema.catalogVariants.id, r.id));
+  }
+}

@@ -183,7 +183,7 @@ describe("names left to attach", () => {
     ]);
     expect(await by("3")).toMatchObject({
       channelName: "beIN Sports 1",
-      iptvMatch: "alias",
+      how: "alias",
       contentKey: "live:ar-bein-sports-1",
       theme: "Sport",
     });
@@ -201,7 +201,7 @@ describe("names left to attach", () => {
     // The next run keeps it, and nothing of the market is left to attach.
     serve();
     await runChannels();
-    expect((await by("3")).iptvMatch).toBe("alias");
+    expect((await by("3")).how).toBe("alias");
     expect((await unmatchedNames({ market: "ar", events: false, q: "BEIN", page: 1, size: 10 })).total).toBe(0);
   });
 
@@ -210,7 +210,7 @@ describe("names left to attach", () => {
     expect(await by("11")).toMatchObject({
       channelName: "Automoto",
       channelId: id,
-      iptvMatch: "alias",
+      how: "alias",
       theme: "Sport",
       contentKey: "live:fr-automoto",
     });
@@ -258,10 +258,15 @@ describe("Claude reads what is left", () => {
     expect(await by("7")).toMatchObject({
       channelName: "Al Aoula",
       iptvId: "AlAoula.ma",
-      iptvMatch: "ai",
+      how: "ai",
       country: "MA",
-      aiKind: "channel",
     });
+    // What Claude read stays on the name it read it in: the same name is not asked again.
+    const [read] = await db
+      .select()
+      .from(schema.catalogChannels)
+      .where(inArray(schema.catalogChannels.aiName, ["Al Aoula"]));
+    expect(read).toMatchObject({ aiKind: "channel", status: "unknown", key: "live:x:ar-tnt-al-oula" });
     expect(await by("8")).toMatchObject({ channelName: null, aiTitle: "Chef Omar TV", theme: "Non reconnus" }); // named, but not in the reference
     expect(await by("11")).toMatchObject({ channelName: null, aiKind: "event", theme: "Événements" });
     // Each name is asked once.
@@ -269,7 +274,7 @@ describe("Claude reads what is left", () => {
     serve();
     await runChannels();
     expect(suggestChannels).not.toHaveBeenCalled();
-    expect((await by("7")).iptvMatch).toBe("ai");
+    expect((await by("7")).how).toBe("ai");
   });
 });
 
@@ -285,13 +290,15 @@ describe("a channel of ours is a channel", () => {
 
   it("stays when no provider lists it any more, with nothing to play; a channel nobody said anything of goes", async () => {
     const bein = (await ourChannels()).find((c) => c.market === "ar")!;
-    const chef = (await by("8")).contentKey!;
-    expect(await contentOfKey(chef)).toBeDefined();
-    await db.delete(schema.xtreamStreams).where(inArray(schema.xtreamStreams.upstreamId, ["1", "2", "3", "8"]));
+    const chef = (await by("8")).contentKey!; // a name Claude has read
+    const radio = (await by("9")).contentKey!; // a name nobody said or read anything of
+    expect(await contentOfKey(radio)).toBeDefined();
+    await db.delete(schema.xtreamStreams).where(inArray(schema.xtreamStreams.upstreamId, ["1", "2", "3", "8", "9"]));
     await groupAndFilter();
     expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: bein.id, variantCount: 0, visible: false });
     expect((await ourChannels()).find((c) => c.id === bein.id)?.aliases).toEqual(["BEIN SPORTS 1 G"]);
-    expect(await contentOfKey(chef)).toBeUndefined();
+    expect(await contentOfKey(radio)).toBeUndefined();
+    expect(await contentOfKey(chef)).toMatchObject({ variantCount: 0, visible: false }); // kept: its name is not asked again
     // Its streams back: the same channel plays again.
     await seedItems([{ kind: "live", xtreamId: "3", name: "BEIN SPORTS 1 Gᵁᴴᴰ", cat: "30" }]);
     await runNaming();

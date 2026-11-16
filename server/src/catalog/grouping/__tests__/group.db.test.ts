@@ -2,8 +2,9 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema, variants as vr } from "@/db";
 import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter, ofStreams, contentOfKey } from "@/test/db";
-import { runNaming, regroupItems, refreshVisibility, groupingCounts } from "../group";
+import { runNaming, refreshVisibility, groupingCounts } from "../group";
 import { inArray } from "drizzle-orm";
+import { mergeVariantInto, splitVariant } from "../manual";
 
 const content = async (key: string) => await contentOfKey(key);
 const variants = (contentId: number) => db.select().from(vr).where(eq(vr.contentId, contentId)).orderBy(vr.id);
@@ -268,22 +269,21 @@ describe("runGrouping", () => {
     expect((await content("tmdb:movie:557")).title).toBe("Spider-Man");
   });
 
-  it("keeps iptv-org's adult flag and theme when the names are parsed again", async () => {
+  it("keeps its channel's adult flag and theme when the names are parsed again", async () => {
     const tf1 = eq(vr.xtreamId, "100");
-    await db
-      .update(schema.catalogVariants)
-      .set({ iptvAdult: true, iptvTheme: "Sport" })
-      .where(ofStreams(eq(schema.xtreamStreams.upstreamId, "100")));
+    const [{ channelId }] = await db.select().from(vr).where(tf1);
+    const channel = eq(schema.catalogChannels.id, channelId!);
+    const [was] = await db.select().from(schema.catalogChannels).where(channel);
+    // What `channels` writes for a channel iptv-org says adult and files under sport.
+    await db.update(schema.catalogChannels).set({ adult: true, theme: "Sport" }).where(channel);
     await runNaming(); // what `merge` does at every import, `channels` failing afterwards
     const [v] = await db.select().from(vr).where(tf1);
     expect(v).toMatchObject({ nameAdult: false, adult: true, theme: "Sport" });
-    await db
-      .update(schema.catalogVariants)
-      .set({ iptvAdult: false, iptvTheme: null })
-      .where(ofStreams(eq(schema.xtreamStreams.upstreamId, "100")));
+    await db.update(schema.catalogChannels).set({ adult: false, theme: null }).where(channel);
     const [back] = await db.select().from(vr).where(tf1);
     expect(back.adult).toBe(false);
     expect(back.theme).toBe(back.nameTheme);
+    await db.update(schema.catalogChannels).set({ adult: was.adult, theme: was.theme }).where(channel);
   });
 
   it("counts for the dashboard what the app sees: hidden variants neither make a content nor several variants", async () => {
@@ -297,23 +297,19 @@ describe("runGrouping", () => {
     expect(await vod()).toEqual(before);
   });
 
-  it("moves a variant to its TMDB group after a manual match, and drops the emptied fallback", async () => {
+  it("moves a variant to its TMDB title when attached by hand, and drops the emptied title without a card", async () => {
     const [it] = await db.select().from(vr).where(eq(vr.xtreamId, "5"));
-    await db.update(schema.catalogVariants).set({ tmdbId: 557, matchStatus: "manual" }).where(eq(schema.catalogVariants.id, it.id));
-    await regroupItems([it.id]);
+    await mergeVariantInto(it, "tmdb:movie:557");
+    expect((await db.select().from(vr).where(eq(vr.id, it.id)))[0]).toMatchObject({ manual: true, matchStatus: "manual", tmdbId: 557 });
     expect(await content("fallback:movie:spider-man:2002")).toBeUndefined();
     const sm = await content("tmdb:movie:557");
     expect(sm.variantCount).toBe(5);
     expect((await variants(sm.id)).map((x) => x.xtreamId)).toContain("5");
   });
 
-  it("honours a manual split through key_override", async () => {
+  it("gives a variant split out by hand a title of its own", async () => {
     const [it] = await db.select().from(vr).where(eq(vr.xtreamId, "4"));
-    await db
-      .update(schema.catalogVariants)
-      .set({ keyOverride: `manual:${it.id}` })
-      .where(eq(schema.catalogVariants.id, it.id));
-    await regroupItems([it.id]);
+    await splitVariant(it);
     expect((await content("tmdb:movie:557")).variantCount).toBe(4);
     const split = await content(`manual:${it.id}`);
     expect(split.variantCount).toBe(1);

@@ -64,7 +64,7 @@ function IptvPanel({ v }: { v: VariantDetail }) {
   return (
     <Panel
       title="Chaîne iptv-org"
-      hint={`Étape channels · ${it.channelName ? `${it.channelName}, reconnue ${IPTV_MATCH[it.iptvMatch ?? ""] ?? it.iptvMatch ?? ""}` : it.iptvMatch === "manual" ? "aucune, à la main" : "non reconnue"}`}
+      hint={`Étape channels · ${it.channelName ? `${it.channelName}, reconnue ${IPTV_MATCH[it.how ?? ""] ?? it.how ?? ""}` : it.how === "manual" ? "aucune, à la main" : "non reconnue"}`}
     >
       {ch && (
         <div class="flex items-start gap-3">
@@ -102,7 +102,7 @@ function IptvPanel({ v }: { v: VariantDetail }) {
           <Icon name="none" />
           Aucune
         </button>
-        {it.iptvMatch === "manual" && (
+        {it.how === "manual" && (
           <button class="btn" data-variant="ghost" data-size="sm" name="action" value="auto">
             <Icon name="auto" />
             Automatique
@@ -175,7 +175,7 @@ function GroupMenu({ v, alone }: { v: VariantDetail; alone: boolean }) {
         <Icon name="more" cls="size-4" />
       </summary>
       <div class="absolute end-0 top-full z-20 mt-1 flex w-60 flex-col rounded-lg border bg-background p-1 shadow-lg">
-        {it.keyOverride ? (
+        {it.manual ? (
           <button class={ITEM} hx-post={`/admin/item/${it.id}/reset`}>
             <Icon name="auto" cls="size-4 shrink-0" />
             Revenir au groupement automatique
@@ -278,7 +278,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
     it.theme,
     it.country ? `pays ${it.country}` : null,
     it.adult ? "adulte" : null,
-    `clé ${it.keyOverride ?? it.contentKey}${it.keyOverride ? " (imposée)" : ""}`,
+    `clé ${it.contentKey ?? "en attente de TMDB"}${it.manual ? " (imposée)" : ""}`,
     `${account} · amont ${it.xtreamId} · interne #${it.id}`,
   ].filter((x) => x !== null && x !== "");
   return (

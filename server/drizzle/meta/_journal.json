@@ -421,6 +421,20 @@
       "when": 1794798946845,
       "tag": "0059_streams-sources-guides",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794816313668,
+      "tag": "0060_titles-identified",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794817313798,
+      "tag": "0061_channels-identified",
+      "breakpoints": true
     }
   ]
 }

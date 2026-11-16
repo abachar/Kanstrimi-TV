@@ -41,6 +41,24 @@ const variants = async (kind: "live" | "vod" | "series") => {
   const rows = await db.select().from(vr).where(eq(vr.kind, kind));
   return new Map(rows.map((r) => [r.xtreamId, r]));
 };
+/** A title as a past identification left it, and a stream hung on it. */
+const title = async (key: string, tmdbId: number | null) =>
+  (
+    await db
+      .insert(schema.catalogTitles)
+      .values({
+        key,
+        kind: "vod",
+        tmdbId,
+        title: key,
+        matchStatus: tmdbId ? "matched" : "unmatched",
+        matchedAt: new Date(),
+        addedAt: new Date(),
+      })
+      .returning({ id: schema.catalogTitles.id })
+  )[0].id;
+const attach = (id: number, titleId: number, how: string, manual = false) =>
+  db.update(schema.catalogVariants).set({ titleId, how, manual }).where(eq(schema.catalogVariants.id, id));
 const films = (n: number, name = (i: number) => `Film ${i}`) =>
   Array.from({ length: n }, (_, i) => ({ stream_id: i + 1, name: name(i + 1), category_id: "20", added: "1720000000" }));
 
@@ -99,45 +117,38 @@ describe("source → merge", () => {
     expect(after.get("2")?.addedAt).toEqual(before.get("2")?.addedAt);
   });
 
-  it("sends a renamed entry back to TMDB matching, a manual match excepted, and removes the vanished", async () => {
+  it("takes a renamed entry off its title to identify it again, one attached by hand excepted, and removes the vanished", async () => {
     const v = await variants("vod");
-    await db
-      .update(schema.catalogVariants)
-      .set({ matchStatus: "matched", tmdbId: 1 })
-      .where(eq(schema.catalogVariants.id, v.get("1")!.id));
-    await db
-      .update(schema.catalogVariants)
-      .set({ matchStatus: "manual", tmdbId: 2 })
-      .where(eq(schema.catalogVariants.id, v.get("2")!.id));
+    await attach(v.get("1")!.id, await title("tmdb:movie:1", 1), "search");
+    await attach(v.get("2")!.id, await title("tmdb:movie:2", 2), "manual", true);
     vod = films(59, (i) => (i <= 2 ? `Film ${i} (2020)` : `Film ${i}`));
     const stats = await importAll();
     expect(stats).toMatchObject({ items_updated: 2, items_removed: 1 });
     const after = await variants("vod");
-    expect(after.get("1")).toMatchObject({ matchStatus: "pending", name: "Film 1 (2020)", year: 2020 });
-    expect(after.get("2")).toMatchObject({ matchStatus: "manual", tmdbId: 2 });
+    expect(after.get("1")).toMatchObject({ matchStatus: "pending", titleId: null, how: null, name: "Film 1 (2020)", year: 2020 });
+    expect(after.get("2")).toMatchObject({ matchStatus: "manual", tmdbId: 2, manual: true });
     expect(after.has("60")).toBe(false);
   });
 
-  it("sends an unmatched entry back to TMDB when the grammar reads its title otherwise, and forgets Claude's reading on a rename", async () => {
+  it("identifies again a stream on a title without a card when the grammar reads its title otherwise, never one TMDB knows", async () => {
     const v = await variants("vod");
     const id = v.get("3")!.id;
     // As if an older grammar had read the title wrong: the new one differs, TMDB had given up.
-    await db
-      .update(schema.catalogVariants)
-      .set({ matchStatus: "unmatched", matchAttempts: 3, aiKind: "movie", aiTitle: "Film Three", aiAskedAt: new Date() })
-      .where(eq(schema.catalogVariants.id, id));
+    await attach(id, await title("fallback:movie:stfr:-", null), "none");
     await db.update(schema.xtreamStreams).set({ title: "STFR" }).where(eq(schema.xtreamStreams.id, id));
     expect(await runNaming()).toEqual({ items_named: 1 });
-    let after = await variants("vod");
-    expect(after.get("3")).toMatchObject({ matchStatus: "pending", matchAttempts: 0, cleanTitle: "Film 3", aiTitle: "Film Three" });
-    // Same reading again: nothing written, a matched entry is never touched.
-    await db.update(schema.catalogVariants).set({ matchStatus: "matched", tmdbId: 3 }).where(eq(schema.catalogVariants.id, id));
+    expect((await variants("vod")).get("3")).toMatchObject({ matchStatus: "pending", titleId: null, cleanTitle: "Film 3" });
+    // The same on a title TMDB knows: the reading follows the grammar, the stream stays where it is.
+    const known = await title("tmdb:movie:3", 3);
+    await attach(id, known, "search");
+    await db.update(schema.xtreamStreams).set({ title: "STFR" }).where(eq(schema.xtreamStreams.id, id));
+    expect(await runNaming()).toEqual({ items_named: 1 });
+    expect((await variants("vod")).get("3")).toMatchObject({ matchStatus: "matched", titleId: known, cleanTitle: "Film 3" });
     expect(await runNaming()).toEqual({ items_named: 0 });
-    // Renamed by the provider: what Claude read in the old name goes with it.
+    // Renamed by the provider: it leaves even that title, to be identified under its new name.
     vod = films(59, (i) => (i <= 2 ? `Film ${i} (2020)` : i === 3 ? "Film 3 (2021)" : `Film ${i}`));
     await importAll();
-    after = await variants("vod");
-    expect(after.get("3")).toMatchObject({ matchStatus: "pending", aiKind: null, aiTitle: null, aiAskedAt: null });
+    expect((await variants("vod")).get("3")).toMatchObject({ matchStatus: "pending", titleId: null, year: 2021 });
   });
 
   it("refuses a list that is not one, and a list that lost more than half, keeping the catalogue", async () => {

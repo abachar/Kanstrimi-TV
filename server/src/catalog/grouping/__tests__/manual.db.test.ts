@@ -27,10 +27,13 @@ describe("manual grouping", () => {
     const left = await splitVariant(vost);
     expect(left).toMatchObject({ key: "tmdb:movie:603", variantCount: 1 });
     const alone = await itemById(ids[1]);
-    expect(alone?.keyOverride).toBe(`manual:${ids[1]}`);
+    expect(alone).toMatchObject({ manual: true, how: "manual", contentKey: `manual:${ids[1]}`, matchStatus: "manual" });
     expect((await contentById(alone!.contentId!))?.key).toBe(`manual:${ids[1]}`);
     const back = await resetVariant(alone!);
     expect(back).toMatchObject({ key: "tmdb:movie:603", variantCount: 2 });
+    // Automatic again: found by the title its twin already has, and the title made for it alone is gone.
+    expect(await itemById(ids[1])).toMatchObject({ manual: false, how: "title", matchStatus: "matched" });
+    expect(await contentById(alone!.contentId!)).toBeNull();
   });
 
   it("merges a variant into another content found by title", async () => {
@@ -42,5 +45,6 @@ describe("manual grouping", () => {
     const into = (await itemById(ids[2]))!.contentId!;
     expect((await contentById(into))?.key).toBe("tmdb:movie:603");
     expect((await variantsOfContent(into)).map((i) => i.xtreamId).sort()).toEqual(["1", "2", "3"]);
+    expect(await itemById(ids[2])).toMatchObject({ manual: true, how: "manual" });
   });
 });

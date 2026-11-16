@@ -3,6 +3,7 @@ import { db, schema, inDisabledAccount, variantRows, variants, visibleItem, type
 import { similarity, similarityKey, slug } from "@/shared";
 import { countriesOf, type Index, isOurs, loadIndex, nameKeys, referenceOf, rematchChannels, WATCHED_SHARE } from "./channels";
 import { contentKey } from "./keys";
+import { followLiveKeys } from "./grouping/group";
 import { EVENTS_THEME, LIVE_THEMES, REGIONS, UNKNOWN_THEME, type LiveTheme } from "./naming";
 
 /**
@@ -124,6 +125,8 @@ export async function updateChannel(id: number, input: ChannelInput): Promise<vo
       .set({ ...values, ...(values.name !== before.name ? { search: null } : {}) })
       .where(eq(c.id, id));
   });
+  // The same channel under a new key: what the profiles recorded under the old one follows.
+  if (values.key !== before.key) await followLiveKeys(new Map([[before.key, new Map([[values.key, 1]])]]));
   await rematchChannels(values.market);
   if (before.market && before.market !== values.market) await rematchChannels(before.market);
 }
@@ -364,7 +367,7 @@ export async function unmatchedNames(opts: {
   const rows = await db.execute<Omit<UnmatchedName, "suggestions"> & { total: number }>(sql`
     select v.market, coalesce(nullif(v.title, ''), v.name) as title, count(*)::int as variants,
            count(distinct v.account_id)::int as providers, min(c.name) as category, min(v.name) as sample,
-           max(v.ai_kind) as "aiKind", max(v.ai_title) as "aiTitle", (count(*) over ())::int as total
+           max(v.variant_ai_kind) as "aiKind", max(v.variant_ai_title) as "aiTitle", (count(*) over ())::int as total
     from ${variantRows} v
     left join ${schema.xtreamCategories} c on c.account_id = v.account_id and c.kind = v.kind and c.xtream_id = v.category_xtream_id
     where v.kind = 'live' and v.channel_name is null and v.market = ${opts.market}

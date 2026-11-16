@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { channelContent, db, schema, variants, type Content } from "@/db";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
 import { slug } from "@/shared";
 import { LIVE_THEMES, parseKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
@@ -205,7 +205,8 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
     db
       .select()
       .from(variants)
-      .where(and(eq(variants.kind, "live"), servedVariant(ctx), sql`${variants.contentId} is not null`)),
+      // On a channel: what the index of `channel_id` finds at once, before the stream says it is live.
+      .where(and(isNotNull(variants.channelId), eq(variants.kind, "live"), servedVariant(ctx))),
   ]);
   const marks = await profileMarks(
     ctx,

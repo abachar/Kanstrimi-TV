@@ -1,6 +1,6 @@
 import { getSettings } from "@/config";
-import { db, schema, client as pg, pgVariantRows, sqlTmdbMediaType, tmdbMediaType, variants, visibleItem, type Kind } from "@/db";
-import { and, asc, eq, gt, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { db, schema, client as pg, sqlTmdbMediaType, tmdbMediaType, variants, visibleItem, type Kind } from "@/db";
+import { and, asc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import {
   liveMarket,
   liveTheme,
@@ -11,25 +11,24 @@ import {
   isAdultEntryName,
   QUALITY_RANK,
   DEFAULT_LANGUAGE_ORDER,
-  EVENTS_THEME,
   type CategoryHints,
   type Quality,
   type DynamicRange,
 } from "../naming";
 import { cardFields, type TmdbDetails } from "@/providers/tmdb";
-import { contentKey, hasFallbackKey } from "../keys";
+import { hasFallbackKey } from "../keys";
 import { checkCancelled, searchText } from "@/shared";
 import { withCatalogLock } from "../lock";
 import { markWaitlistAvailable } from "../waitlist";
 
 /**
- * The `group` step: no network, idempotent, all set-based SQL.
+ * The `group` step, once every stream is on its title (`attachTitles`) or its channel (`channels`):
+ * idempotent, all set-based SQL, no network.
  *
- *  1. items → content_key, from the columns `runNaming` wrote (run after each import)
- *  2. contents upserted from the keys, items linked by id
- *  3. card fields copied from cache_tmdb (or just the title for fallbacks)
- *  4. aggregates (variant count, languages, quality, visibility)
- *  5. contents left without a variant are removed
+ *  1. card fields copied from cache_tmdb (or just the title, for a title without a card); a channel's
+ *     name indexed for the search
+ *  2. aggregates (source count, languages, quality, visibility)
+ *  3. titles and channels left without a stream are removed (a channel the admin said something of stays)
  *
  * Bulk updates go through `unnest()` on array parameters, with the postgres-js template
  * directly: Drizzle's `sql` spreads a JS array into `($1, $2, …)`, one placeholder per value.
@@ -65,18 +64,16 @@ async function rewritingContents<T>(fn: () => Promise<T>): Promise<T> {
 export async function runGrouping(): Promise<GroupStats> {
   return withCatalogLock(() =>
     rewritingContents(async () => {
-      const { total: n, moves } = await assignKeys();
-      await upsertContents();
-      await followLiveKeys(moves);
       await fillCardFields();
       await fillChannelSearch();
       const available = await refreshAggregates();
       const orphans = await deleteOrphans();
-      const [c] = await db.execute<{ n: number; multi: number }>(sql`
-        select count(*)::int as n, (count(*) filter (where source_count > 1))::int as multi
+      const [c] = await db.execute<{ n: number; multi: number; grouped: number }>(sql`
+        select count(*)::int as n, (count(*) filter (where source_count > 1))::int as multi,
+          (select count(*)::int from catalog_variants where title_id is not null or channel_id is not null) as grouped
         from (select source_count from catalog_titles union all select source_count from catalog_channels) x`);
       return {
-        items_grouped: n,
+        items_grouped: c.grouped,
         contents: c.n,
         multi_variant: c.multi,
         orphans_removed: orphans,
@@ -87,19 +84,17 @@ export async function runGrouping(): Promise<GroupStats> {
 }
 
 /**
- * Regroup a handful of items (manual TMDB assignment, merge, split) without a full run. Returns the
- * contents touched: a new version is not judged by the filters yet, its caller has them judge it (`applyFilters`).
+ * The contents a handful of variants are on, and those they left (`also`), brought up to date without a
+ * full run once their caller moved them (a title or a channel changed by hand, a channel's reference).
+ * Returns them: a new version is not judged by the filters yet, its caller has them judge it (`applyFilters`).
  */
-export async function regroupItems(ids: number[]): Promise<number[]> {
+export async function regroupItems(ids: number[], also: number[] = []): Promise<number[]> {
   if (!ids.length) return [];
   return withCatalogLock(() =>
     rewritingContents(async () => {
-      const before = await db.select({ id: variants.contentId }).from(variants).where(inArray(variants.id, ids));
-      const { moves } = await assignKeys(ids);
-      await upsertContents(ids);
-      await followLiveKeys(moves);
-      const after = await db.select({ id: variants.contentId }).from(variants).where(inArray(variants.id, ids));
-      const touched = [...new Set([...before, ...after].map((r) => r.id).filter((x): x is number => x !== null))];
+      const now = await db.select({ id: variants.contentId }).from(variants).where(inArray(variants.id, ids));
+      // `also`: the contents the caller took these variants from.
+      const touched = [...new Set([...also, ...now.map((r) => r.id).filter((x): x is number => x !== null)])];
       await fillCardFields(touched);
       await fillChannelSearch();
       await refreshAggregates(touched);
@@ -126,23 +121,7 @@ export function refreshVisibility(contentIds?: number[]): Promise<number> {
   return rewritingContents(() => refreshAggregates(contentIds));
 }
 
-// ---------------------------------------------------------------- 1. keys
-
-/**
- * The variants by id, CHUNK at a time: all of them, or `onlyIds`. `select` runs one page from its
- * condition, ordered by id, CHUNK at most; a stop request is checked before each page.
- */
-async function* chunksOf<T extends { id: number }>(select: (where: SQL) => Promise<T[]>, onlyIds?: number[]): AsyncGenerator<T[]> {
-  let last = 0;
-  for (;;) {
-    checkCancelled();
-    const rows = await select(and(gt(variants.id, last), onlyIds ? inArray(variants.id, onlyIds) : undefined)!);
-    if (!rows.length) return;
-    last = rows[rows.length - 1].id;
-    yield rows;
-    if (rows.length < CHUNK) return;
-  }
-}
+// ---------------------------------------------------------------- names
 
 async function categoryHints() {
   const c = schema.xtreamCategories;
@@ -158,8 +137,8 @@ async function categoryHints() {
  * matching reads the title and the year, the grouping reads them all. Every name is parsed, only
  * the rows whose result changed are written: a new grammar applies everywhere at the next run.
  *
- * An entry TMDB had given up on, whose title or year the grammar now reads otherwise than it had (a
- * first reading is not a change), goes back to pending: what was searched was the old reading.
+ * A stream on a title without a card, whose title or year the grammar now reads otherwise than it had (a
+ * first reading is not a change), leaves it and is identified again: what was searched was the old reading.
  */
 export async function runNaming(onlyIds?: number[]): Promise<{ items_named: number }> {
   const hints = await categoryHints();
@@ -213,12 +192,13 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       countries.push(live?.country ?? null);
     }
     const changed = await pg.begin(async (tx) => {
-      // Before the new reading replaces the old one: the entries it sends back to TMDB.
+      // Before the new reading replaces the old one: a stream on a title without a card leaves it, to be identified again.
       await tx`
-        update catalog_variants v set match_status = 'pending', match_attempts = 0
+        update catalog_variants v set title_id = null, how = null
         from unnest(${ids}::int[], ${titles}::text[], ${years}::int[]) as u(id, title, year)
-        join xtream_streams s on s.id = u.id
-        where v.id = u.id and v.match_status = 'unmatched' and s.title is not null and (s.title, s.year) is distinct from (u.title, u.year)`;
+        join xtream_streams s on s.id = u.id, catalog_titles t
+        where v.id = u.id and t.id = v.title_id and t.tmdb_id is null and not v.manual
+          and s.title is not null and (s.title, s.year) is distinct from (u.title, u.year)`;
       return tx`
         update xtream_streams i set
           title = u.title, year = u.year,
@@ -244,65 +224,6 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
 }
 
 /**
- * content_key from the columns `runNaming` wrote, the TMDB match and, for a channel, its reference
- * channel (`channels`). A channel whose key moves with all its versions (a name the reference now
- * knows, a reference renamed) takes along what was recorded under the old one (`followLiveKeys`).
- */
-async function assignKeys(onlyIds?: number[]): Promise<{ total: number; moves: Map<string, Map<string, number>> }> {
-  let total = 0;
-  const moves = new Map<string, Map<string, number>>();
-  const v = variants;
-  const chunks = chunksOf(
-    (where) =>
-      db
-        .select({
-          id: v.id,
-          kind: v.kind,
-          name: v.name,
-          cleanTitle: v.cleanTitle,
-          year: v.year,
-          market: v.market,
-          channelName: v.channelName,
-          tmdbId: v.tmdbId,
-          matchStatus: v.matchStatus,
-          keyOverride: v.keyOverride,
-          contentKey: v.contentKey,
-        })
-        .from(v)
-        .where(where)
-        .orderBy(asc(v.id))
-        .limit(CHUNK),
-    onlyIds,
-  );
-  for await (const rows of chunks) {
-    total += rows.length;
-    const ids = rows.map((r) => r.id);
-    const keys = rows.map((r) =>
-      contentKey({
-        kind: r.kind,
-        title: r.cleanTitle ?? r.name,
-        year: r.year,
-        market: r.market,
-        channelName: r.channelName,
-        tmdbId: r.tmdbId,
-        matchStatus: r.matchStatus,
-        keyOverride: r.keyOverride,
-      }),
-    );
-    rows.forEach((r, i) => {
-      if (r.kind !== "live" || !r.contentKey || r.contentKey === keys[i]) return;
-      const to = moves.get(r.contentKey) ?? new Map<string, number>();
-      moves.set(r.contentKey, to.set(keys[i], (to.get(keys[i]) ?? 0) + 1));
-    });
-    await pg`
-      update catalog_variants i set content_key = u.key
-      from unnest(${ids}::int[], ${keys}::text[]) as u(id, key)
-      where i.id = u.id and i.content_key is distinct from u.key`;
-  }
-  return { total, moves };
-}
-
-/**
  * What is recorded under a channel's key, each with what makes a row its own besides the key: a
  * profile's list, its time watched day by day, the version it chose; the guide linked by hand in a
  * fallback source.
@@ -318,12 +239,12 @@ const LIVE_MARKS = [
  * was recorded under the old key follows, one old key at a time (two may land on the same new one).
  * A mark already there under the new key stays; the time watched the same day adds up.
  */
-async function followLiveKeys(moves: Map<string, Map<string, number>>) {
+export async function followLiveKeys(moves: Map<string, Map<string, number>>) {
   if (!moves.size) return;
   const olds = [...moves.keys()];
   const marked = await pg<{ key: string }[]>`
     select key from unnest(${olds}::text[]) as o(key)
-    where not exists (select 1 from catalog_variants v where v.content_key = o.key)
+    where not exists (select 1 from catalog_variants v join catalog_channels c on c.id = v.channel_id where c.key = o.key)
       and (exists (select 1 from app_favorites f where f.content_key = o.key)
         or exists (select 1 from app_live_watch w where w.content_key = o.key)
         or exists (select 1 from app_profile_versions p where p.content_key = o.key)
@@ -351,55 +272,7 @@ async function followLiveKeys(moves: Map<string, Map<string, number>>) {
   }
 }
 
-// ---------------------------------------------------------------- 2. contents
-
-async function upsertContents(onlyIds?: number[]) {
-  const scope = onlyIds ? pg`and i.id = any(${onlyIds}::int[])` : pg``;
-  // Title and year come from the best variant, for a new title and for one without TMDB (fallback);
-  // a TMDB title keeps the card's (step 3), so the app never sees a raw title in between.
-  // A row is written only when something changed; a new TMDB id or a new fallback title calls
-  // for the card again (`cards_at` cleared).
-  await pg`
-    insert into catalog_titles as c (key, kind, tmdb_id, title, year, added_at)
-    select distinct on (i.content_key) i.content_key, i.kind,
-      case when i.match_status in ('matched', 'manual') and i.content_key like 'tmdb:%' then i.tmdb_id end,
-      coalesce(nullif(i.title, ''), i.name), i.year, i.added_at
-    from ${pgVariantRows()} i
-    where i.content_key is not null and i.kind <> 'live' ${scope}
-    order by i.content_key, i.quality_rank desc, i.id
-    on conflict (key) do update set
-      kind = excluded.kind, tmdb_id = excluded.tmdb_id,
-      title = case when excluded.tmdb_id is null then excluded.title else c.title end,
-      year = case when excluded.tmdb_id is null then excluded.year else c.year end,
-      cards_at = case
-        when excluded.tmdb_id is distinct from c.tmdb_id or (excluded.tmdb_id is null and excluded.title is distinct from c.title) then null
-        else c.cards_at end,
-      updated_at = now()
-    where (c.kind, c.tmdb_id) is distinct from (excluded.kind, excluded.tmdb_id)
-       or (excluded.tmdb_id is null and (c.title, c.year) is distinct from (excluded.title, excluded.year))`;
-  // A channel bears its reference channel's name when it has one, else its best variant's; a new name
-  // is indexed again for the search (`search` cleared, `fillChannelSearch`).
-  await pg`
-    insert into catalog_channels as c (key, name, market, added_at)
-    select distinct on (i.content_key) i.content_key,
-      coalesce(nullif(i.channel_name, ''), nullif(i.title, ''), i.name), i.market, i.added_at
-    from ${pgVariantRows()} i
-    where i.content_key is not null and i.kind = 'live' ${scope}
-    order by i.content_key, i.quality_rank desc, i.id
-    on conflict (key) do update set
-      name = excluded.name, market = coalesce(excluded.market, c.market),
-      search = case when excluded.name is distinct from c.name then null else c.search end,
-      updated_at = now()
-    where c.name is distinct from excluded.name or (excluded.market is not null and excluded.market is distinct from c.market)`;
-  await pg`
-    update catalog_variants i set title_id = c.id
-    from catalog_titles c
-    where c.key = i.content_key and i.title_id is distinct from c.id ${scope}`;
-  await pg`
-    update catalog_variants i set channel_id = c.id
-    from catalog_channels c
-    where c.key = i.content_key and i.channel_id is distinct from c.id ${scope}`;
-}
+// ---------------------------------------------------------------- 1. card fields
 
 /** The names of the channels the search has not indexed yet: new ones, renamed ones. */
 async function fillChannelSearch() {
@@ -413,8 +286,6 @@ async function fillChannelSearch() {
       where c.id = u.id`;
   }
 }
-
-// ---------------------------------------------------------------- 3. card fields
 
 /** One card as `fillCardFields` writes it, keyed by the columns of `catalog_titles`. */
 type Card = {
@@ -601,7 +472,7 @@ async function fillCardFields(onlyIds?: number[]) {
   }
 }
 
-// ---------------------------------------------------------------- 4. aggregates
+// ---------------------------------------------------------------- 2. aggregates
 
 /**
  * A variant's EPG id. A provider id naming another channel gives way to the iptv-org id of the channel
@@ -654,29 +525,19 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
   await db.execute(sql`
     update catalog_channels c set
       source_count = a.n, added_at = a.added_at, visible = a.visible,
-      max_quality_rank = a.max_q, languages = a.langs, status = a.status,
-      theme = case when 'theme' = any(c.edited) then c.theme else a.theme end,
-      market = coalesce(c.market, a.market), country = case when 'country' = any(c.edited) then c.country else a.country end,
-      iptv_id = a.iptv, logo_url = a.logo_url, number = a.num, epg_id = a.epg, adult = a.all_adult, updated_at = now()
+      max_quality_rank = a.max_q, languages = a.langs,
+      market = coalesce(c.market, a.market), logo_url = a.logo_url, number = a.num, epg_id = a.epg, updated_at = now()
     from (
-      select g.*, coalesce(ic.logo_path, g.logo) as logo_url,
-        case when g.known then 'known' when g.theme = ${EVENTS_THEME} then 'event' else 'unknown' end as status
+      select g.*, coalesce(ic.logo_path, g.logo) as logo_url
       from (
         select content_id,
           count(*) filter (where counted)::int as n,
           max(added_at) filter (where counted) as added_at,
           bool_or(vis) as visible,
-          -- Every variant flagged adult (by its name or by iptv-org): the channel is.
-          bool_and(adult) as all_adult,
           max(quality_rank) filter (where counted)::int as max_q,
           coalesce(array_agg(distinct lang) filter (where lang is not null and counted), '{}') as langs,
-          -- One theme: the one most of its variants bear. Recognised: one of them is a channel of the reference.
-          mode() within group (order by theme) filter (where theme is not null and counted) as theme,
-          bool_or(channel_name is not null) as known,
           (array_agg(market order by vis desc, quality_rank desc, position, id))[1] as market,
-          (array_agg(country order by vis desc, quality_rank desc, position, id) filter (where country is not null))[1] as country,
           (array_agg(nullif(raw->>'stream_icon', '') order by vis desc, quality_rank desc, position, id))[1] as logo,
-          (array_agg(iptv_id order by vis desc, quality_rank desc, position, id) filter (where iptv_id is not null))[1] as iptv,
           (array_agg(nullif(regexp_replace(coalesce(raw->>'num', ''), '\\D', '', 'g'), '')::int order by vis desc, quality_rank desc, position, id))[1] as num,
           -- The app's guide is the first version's (best language, then best quality; player/versions.ts).
           -- Same order here, among the variants that have a guide with programmes (« TF1 4K » files none,
@@ -686,15 +547,12 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
         from (${counted(true)}) i
         group by content_id
       ) g
-      left join ${schema.cacheIptvorgChannels} ic on ic.id = g.iptv
+      join catalog_channels gc on gc.id = g.content_id
+      left join ${schema.cacheIptvorgChannels} ic on ic.id = gc.iptv_id
     ) a
     where a.content_id = c.id
-      and (c.source_count, c.added_at, c.visible, c.max_quality_rank, c.languages, c.status, c.theme, c.market, c.country,
-           c.iptv_id, c.logo_url, c.number, c.epg_id, c.adult)
-          is distinct from
-          (a.n, a.added_at, a.visible, a.max_q, a.langs, a.status, case when 'theme' = any(c.edited) then c.theme else a.theme end,
-           coalesce(c.market, a.market), case when 'country' = any(c.edited) then c.country else a.country end,
-           a.iptv, a.logo_url, a.num, a.epg, a.all_adult)`);
+      and (c.source_count, c.added_at, c.visible, c.max_quality_rank, c.languages, c.market, c.logo_url, c.number, c.epg_id)
+          is distinct from (a.n, a.added_at, a.visible, a.max_q, a.langs, coalesce(c.market, a.market), a.logo_url, a.num, a.epg)`);
   // A channel of ours no provider lists any more stays, with nothing to play.
   await db.execute(sql`
     update catalog_channels c set source_count = 0, visible = false, updated_at = now()
@@ -731,7 +589,7 @@ async function refreshProfileVisibility(onlyIds?: number[]) {
   }
 }
 
-// ---------------------------------------------------------------- 5. orphans
+// ---------------------------------------------------------------- 3. orphans
 
 async function deleteOrphans(): Promise<number> {
   const titles = await db
@@ -740,10 +598,12 @@ async function deleteOrphans(): Promise<number> {
     .returning({ id: schema.catalogTitles.id });
   const channels = await db
     .delete(schema.catalogChannels)
-    // A channel of ours (aliases, fields set by hand, a guide linked by hand) stays when its variants are gone: what was said of it is not lost.
+    // A channel the admin said something of (aliases, fields set by hand, a guide linked by hand), or whose name Claude has
+    // read, stays when its variants are gone: what was said of it is not lost, the name is not asked again.
     .where(
       sql`not exists (select 1 from ${schema.catalogVariants} i where i.channel_id = ${schema.catalogChannels.id})
         and cardinality(${schema.catalogChannels.aliases}) = 0 and cardinality(${schema.catalogChannels.edited}) = 0
+        and ${schema.catalogChannels.aiAskedAt} is null
         and not exists (select 1 from ${schema.catalogChannelGuides} g where g.channel_id = ${schema.catalogChannels.id})`,
     )
     .returning({ id: schema.catalogChannels.id });

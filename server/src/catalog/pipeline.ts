@@ -4,7 +4,7 @@ import { checkCancelled, describeError, isCancelled, withCancel } from "@/shared
 import { runSync } from "@/providers/xtream";
 import { getTmdbClient, runTrending } from "@/providers/tmdb";
 import { runSkipdbImport } from "@/providers/skipdb";
-import { runEnrich } from "./matching";
+import { attachTitles, runEnrich } from "./matching";
 import { runEpgRebuild } from "./epg";
 import { applyFilters } from "./filters/apply";
 import { runGrouping } from "./grouping/group";
@@ -17,9 +17,11 @@ import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
  * The catalogue pipeline. Four steps, each a plain function of its own modules:
  *   source  — the lists of every enabled account written by difference to `xtream_streams`, each checked against what
  *             it held (providers/xtream), then a variant for each new stream and the names read (merge.ts, no network)
- *   enrich  — TMDB matching of every pending film and series, hidden ones included, and a share of the
+ *   enrich  — the titles without a card asked again to TMDB (weekly, and those Claude just read) and a share of the
  *             stale cache (matching.ts); live variants matched to iptv-org: logo, theme, country (channels.ts)
- *   group   — variants → contents in the served languages, aggregates over the visible variants (no network)
+ *   group   — each new stream of a movie or a series identified and attached to its title (TMDB only when the
+ *             catalogue does not know it, matching.ts), live variants → channels, cards, aggregates over the
+ *             visible variants
  *   filters — the filter of each kind keeps or leaves out each version (`hidden_by_rule`), then the
  *             aggregates, `visible` and the waitlist (no network)
  * Matching comes first so that a title shown never waits for its TMDB sheet. The filters come last: they
@@ -67,7 +69,18 @@ const RUNNERS: Record<Step, (ctx: StepContext) => Promise<unknown>> = {
     return { ...read.stats, ...merged };
   },
   enrich: runEnrichment,
-  group: runGrouping,
+  // Each new stream of a movie or a series finds its title first (TMDB, when the catalogue does not know it).
+  // TMDB out of reach: those streams wait unseen; the rest is grouped, and the run ends in error to say so.
+  group: async () => {
+    const attached = await attachTitles();
+    checkCancelled();
+    const grouped = await runGrouping();
+    if (attached.waiting)
+      throw new PartialFailure(
+        `TMDB injoignable : ${attached.waiting.toLocaleString("fr-FR")} flux attendent leur titre et ne sont pas servis d'ici là`,
+      );
+    return { ...attached, ...grouped };
+  },
   filters: () => applyFilters(),
   trending: runTrending,
   epg: runEpgRebuild,

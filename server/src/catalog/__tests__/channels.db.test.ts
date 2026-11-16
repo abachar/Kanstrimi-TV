@@ -141,16 +141,16 @@ describe("runChannels", () => {
     });
     const items = await db.select().from(vr).orderBy(vr.xtreamId);
     const by = (x: string) => items.find((i) => i.xtreamId === x)!;
-    expect(by("1")).toMatchObject({ iptvId: "TF1.fr", iptvMatch: "epg", channelName: "TF1" });
-    expect(by("2")).toMatchObject({ iptvId: "BFMTV.fr", iptvMatch: "name", channelName: "BFM TV", theme: "Infos" }); // iptv-org first
-    expect(by("4")).toMatchObject({ iptvId: "MBC3.ae", iptvMatch: "name", theme: "Jeunesse" }); // « ar » = the Arab world
+    expect(by("1")).toMatchObject({ iptvId: "TF1.fr", how: "epg", channelName: "TF1" });
+    expect(by("2")).toMatchObject({ iptvId: "BFMTV.fr", how: "name", channelName: "BFM TV", theme: "Infos" }); // iptv-org first
+    expect(by("4")).toMatchObject({ iptvId: "MBC3.ae", how: "name", theme: "Jeunesse" }); // « ar » = the Arab world
     // A regional feed: no channel of its own name. Without a reference channel, no theme of the provider's either.
     expect(by("3")).toMatchObject({ iptvId: null, channelName: null, theme: "Non reconnus" });
     expect(by("5")).toMatchObject({ iptvId: null, channelName: null, theme: "Événements" }); // a numbered feed of a platform
     expect(by("6")).toMatchObject({ iptvId: null, theme: "Non reconnus" }); // « Canal Un » is two channels, none in Italy
-    expect(by("7")).toMatchObject({ iptvId: "ERTU1.eg", iptvMatch: "name", channelName: "ERTU 1", epgMismatch: true });
+    expect(by("7")).toMatchObject({ iptvId: "ERTU1.eg", how: "name", channelName: "ERTU 1", epgMismatch: true });
     expect(by("8")).toMatchObject({ iptvId: null, epgMismatch: false });
-    expect(by("9")).toMatchObject({ iptvId: "AlResalah.sa", iptvMatch: "epg", theme: "Religion" });
+    expect(by("9")).toMatchObject({ iptvId: "AlResalah.sa", how: "epg", theme: "Religion" });
     // In the Arab world, iptv-org's country; outside a region, none.
     expect([by("4").country, by("7").country, by("9").country, by("1").country]).toEqual(["AE", "EG", "SA", null]);
   });
@@ -183,12 +183,12 @@ describe("runChannels", () => {
     await runChannels();
     expect((await db.select().from(vr).where(eq(vr.id, ligue.id)))[0]).toMatchObject({
       iptvId: "Canal1.fr",
-      iptvMatch: "manual",
+      how: "manual",
     });
     await setIptvMatch(ligue.id, "auto");
     expect((await db.select().from(vr).where(eq(vr.id, ligue.id)))[0]).toMatchObject({
       iptvId: null,
-      iptvMatch: null,
+      how: null,
     });
     await expect(setIptvMatch(ligue.id, "Nope.xx")).rejects.toThrow(/inconnue/);
   });

@@ -11,8 +11,9 @@ import {
   listProfiles,
   setDefaultProfile,
 } from "@/catalog";
-import { PROFILE, resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
+import { PROFILE, resetDb, closeDb, knowChannels, seedCategories, seedItems } from "@/test/db";
 import { runGrouping, runNaming } from "../../grouping/group";
+import { attachTitles } from "../../matching";
 import { filtersPending, listFilters, previewFilter, saveFilter } from "../filters";
 import { applyFilters } from "../apply";
 import { searchContents } from "@/admin/catalog/app-data";
@@ -32,6 +33,8 @@ beforeAll(async () => {
     { kind: "live", xtreamId: "101", name: "|FR| TF1" },
   ]);
   await runNaming();
+  await knowChannels();
+  await attachTitles();
   await runGrouping();
   await applyFilters();
 });
@@ -111,6 +114,7 @@ describe("filters", () => {
   it("a version the filter has not seen is left out until it judges it", async () => {
     await seedItems([{ kind: "vod", xtreamId: "4", name: "|FR| Heat 2" }]);
     await runNaming();
+    await attachTitles();
     await runGrouping();
     const [fresh] = await db.select().from(vr).where(eq(vr.xtreamId, "4"));
     expect(fresh.hiddenByRule).toBeNull();

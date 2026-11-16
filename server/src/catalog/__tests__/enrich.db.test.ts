@@ -1,16 +1,29 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, schema, variants as vr } from "@/db";
-import { resetDb, closeDb, seedItems } from "@/test/db";
+import { resetDb, closeDb, seedItems, contentOfKey } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { setTmdbPace } from "@/providers/tmdb";
 import { runEnrich } from "../matching";
+
+const t = schema.catalogTitles;
+/** Titles without a card as a past identification left them: TMDB asked, nothing found. */
+const cardless = (n: number, prefix: string) =>
+  seedItems(
+    Array.from({ length: n }, (_, i) => ({
+      kind: "vod" as const,
+      xtreamId: `${prefix}${i}`,
+      name: `|FR| ${prefix} ${i}`,
+      matchStatus: "unmatched" as const,
+    })),
+  );
+const aWeekAgo = () => new Date(Date.now() - 8 * 86400000);
+const titleOf = async (variantId: number) => (await db.select().from(vr).where(eq(vr.id, variantId)))[0].titleId!;
 
 beforeAll(async () => {
   await resetDb();
   setSecretsForTests({ tmdb_api_key: "k" });
   setTmdbPace(100_000); // a fake TMDB: no need to spare it
-  await seedItems(Array.from({ length: 60 }, (_, i) => ({ kind: "vod" as const, xtreamId: String(i), name: `|FR| Film ${i}` })));
 });
 afterEach(() => vi.unstubAllGlobals());
 afterAll(async () => {
@@ -19,33 +32,83 @@ afterAll(async () => {
 });
 
 describe("runEnrich", () => {
-  it("stops after a streak of outages, leaves the rest pending and says so", async () => {
+  it("asks TMDB again about a title without a card a week later, not before; a title it now knows becomes that title", async () => {
+    const [film, twin] = await seedItems([
+      { kind: "vod", xtreamId: "f", name: "|FR| Film Tardif (2024)", matchStatus: "unmatched" },
+      { kind: "vod", xtreamId: "g", name: "|FR| Film Tardif (2024) (4K)", matchStatus: "unmatched" },
+    ]);
+    const id = await titleOf(film.id);
+    expect(await titleOf(twin.id)).toBe(id);
+    const tmdb: string[] = [];
+    vi.stubGlobal("fetch", async (u: URL | string) => {
+      const url = new URL(String(u));
+      tmdb.push(url.pathname);
+      if (url.pathname.endsWith("/search/movie"))
+        return Response.json({ results: [{ id: 4242, title: "Film Tardif", release_date: "2024-03-01" }] });
+      if (url.pathname.endsWith("/movie/4242")) return Response.json({ id: 4242, title: "Film Tardif", release_date: "2024-03-01" });
+      return Response.json({ results: [] });
+    });
+    // Asked today: left alone.
+    expect(await runEnrich()).toMatchObject({ retried: 0, processed: 0 });
+    expect(tmdb).toEqual([]);
+    await db.update(t).set({ matchedAt: aWeekAgo() }).where(eq(t.id, id));
+    expect(await runEnrich()).toMatchObject({ retried: 1, processed: 1, matched: 1, unmatched: 0 });
+    // The same title under its TMDB key: its streams did not move, its card will be copied by `group`.
+    const [now] = await db.select().from(t).where(eq(t.id, id));
+    expect(now).toMatchObject({ key: "tmdb:movie:4242", tmdbId: 4242, matchStatus: "matched", cardsAt: null });
+    expect(await contentOfKey("fallback:movie:film-tardif:2024")).toBeUndefined();
+    expect((await db.select().from(vr).where(eq(vr.titleId, id))).map((v) => v.matchStatus)).toEqual(["matched", "matched"]);
+  });
+
+  it("gives the streams of a title without a card to the title the catalogue already has, when TMDB says they are the same", async () => {
+    const [other] = await seedItems([{ kind: "vod", xtreamId: "o", name: "|FR| Le Film Tardif", matchStatus: "unmatched" }]);
+    const id = await titleOf(other.id);
+    await db.update(t).set({ matchedAt: aWeekAgo() }).where(eq(t.id, id));
+    vi.stubGlobal("fetch", async (u: URL | string) => {
+      const url = new URL(String(u));
+      if (url.pathname.endsWith("/search/movie")) return Response.json({ results: [{ id: 4242, title: "Le Film Tardif" }] });
+      return Response.json({ id: 4242, title: "Le Film Tardif" });
+    });
+    expect(await runEnrich()).toMatchObject({ retried: 1, matched: 1 });
+    const there = await contentOfKey("tmdb:movie:4242");
+    expect(await titleOf(other.id)).toBe(there.id);
+    expect(await db.select().from(t).where(eq(t.id, id))).toEqual([]);
+  });
+
+  it("does not ask before a week about a title TMDB still does not know, nor about one whose search it rejects", async () => {
+    const [unknown, refused] = await cardless(2, "Inconnu");
+    const ids = [await titleOf(unknown.id), await titleOf(refused.id)];
+    await db.update(t).set({ matchedAt: aWeekAgo() }).where(inArray(t.id, ids));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("fetch", async (u: URL | string) =>
+      new URL(String(u)).searchParams.get("query") === "Inconnu 1" ? new Response("{}", { status: 400 }) : Response.json({ results: [] }),
+    );
+    expect(await runEnrich()).toMatchObject({ retried: 2, processed: 1, unmatched: 1, errors: 1 });
+    logged.mockRestore();
+    const rows = await db.select().from(t).where(inArray(t.id, ids));
+    expect(rows.map((r) => r.matchAttempts)).toEqual([1, 1]);
+    expect(rows.every((r) => r.matchedAt!.getTime() > Date.now() - 60_000)).toBe(true);
+    expect(await runEnrich()).toMatchObject({ retried: 0 });
+  });
+
+  it("stops after a streak of outages, leaves the rest to be asked again and says so", async () => {
+    const rows = await cardless(40, "Panne");
+    const ids = await Promise.all(rows.map((r) => titleOf(r.id)));
+    await db.update(t).set({ matchedAt: aWeekAgo() }).where(inArray(t.id, ids));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const fetch = vi.fn(async () => {
       throw Object.assign(new TypeError("fetch failed"), {
         cause: Object.assign(new Error("getaddrinfo ENOTFOUND api.themoviedb.org"), { code: "ENOTFOUND" }),
       });
     });
     vi.stubGlobal("fetch", fetch);
-    await expect(runEnrich()).rejects.toThrow(/TMDB injoignable .*restent en attente/);
-    expect(fetch.mock.calls.length).toBeLessThan(60);
-    const pending = await db.select().from(vr).where(eq(vr.matchStatus, "pending"));
-    expect(pending).toHaveLength(60);
-  });
-
-  it("gives an entry up after three failures of its own, and tries it again a week later", async () => {
-    vi.stubGlobal("fetch", async () => new Response("{}", { status: 400 })); // TMDB rejects the query itself
-    const status = async () => (await db.select({ s: vr.matchStatus }).from(vr)).map((r) => r.s);
-    await runEnrich();
-    await runEnrich();
-    expect(new Set(await status())).toEqual(new Set(["pending"]));
-    await runEnrich();
-    expect(new Set(await status())).toEqual(new Set(["unmatched"]));
-
-    await db.execute(
-      sql`update catalog_variants set matched_at = now() - interval '8 days' where id in (select id from xtream_streams where upstream_id = '0')`,
-    );
-    const stats = await runEnrich();
-    expect(stats).toMatchObject({ retried: 1, processed: 0, errors: 1 });
+    await expect(runEnrich()).rejects.toThrow(/TMDB injoignable .*restent à redemander/);
+    expect(fetch.mock.calls.length).toBeLessThan(40);
+    logged.mockRestore();
+    // Nothing was decided: they are due again at the next run.
+    const after = await db.select().from(t).where(inArray(t.id, ids));
+    expect(after.every((r) => r.matchedAt!.getTime() < Date.now() - 7 * 86400000 && r.matchAttempts === 0)).toBe(true);
+    await db.update(t).set({ matchedAt: new Date() }).where(inArray(t.id, ids));
   });
 
   it("fetches again the cache entries that predate the logos, asking for every useful image language", async () => {
@@ -64,47 +127,24 @@ describe("runEnrich", () => {
     expect(await runEnrich()).toMatchObject({ refreshed: 0 });
   });
 
-  it("leaves an entry pending when TMDB only answers 429: a question of rate, not of the title", async () => {
-    await db.update(schema.catalogVariants).set({ matchStatus: "pending", matchAttempts: 0, matchedAt: null });
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.stubGlobal("fetch", async () => new Response("", { status: 429, headers: { "retry-after": "0" } }));
-    await expect(runEnrich()).rejects.toThrow(/TMDB injoignable/);
-    const rows = await db.select({ s: vr.matchStatus, a: vr.matchAttempts }).from(vr);
-    expect(new Set(rows.map((r) => r.s))).toEqual(new Set(["pending"]));
-    expect(new Set(rows.map((r) => r.a))).toEqual(new Set([0]));
-    logged.mockRestore();
-  });
-
-  it("leaves an entry pending when TMDB answers 503 or refuses the key: the way is down, not the title", async () => {
-    for (const status of [503, 401]) {
-      await db.update(schema.catalogVariants).set({ matchStatus: "pending", matchAttempts: 0, matchedAt: null });
-      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-      vi.stubGlobal("fetch", async () => new Response("", { status }));
-      await expect(runEnrich(), String(status)).rejects.toThrow(/TMDB injoignable/);
-      const rows = await db.select({ s: vr.matchStatus, a: vr.matchAttempts }).from(vr);
-      expect(new Set(rows.map((r) => r.s)), String(status)).toEqual(new Set(["pending"]));
-      expect(new Set(rows.map((r) => r.a)), String(status)).toEqual(new Set([0]));
-      logged.mockRestore();
-      vi.unstubAllGlobals();
-    }
-  });
-
-  it("has Claude read once the visible names TMDB gave up on, searches its titles, and leaves what it saw outside TMDB alone", async () => {
-    await db.update(schema.catalogVariants).set({ matchStatus: "matched", matchAttempts: 0, matchedAt: new Date() });
+  it("has Claude read once the visible titles TMDB gave up on, searches its titles, and leaves what it saw outside TMDB alone", async () => {
     const [a, b, c, hidden] = await seedItems([
       { kind: "vod", xtreamId: "a", name: "|AR| Al Jamra | 2017 | الجمرة", matchStatus: "unmatched" },
       { kind: "vod", xtreamId: "b", name: "|FR| Hellfest - Jour 2 (2025)", matchStatus: "unmatched" },
       { kind: "vod", xtreamId: "c", name: "|AR| Inconnu", matchStatus: "unmatched" },
       { kind: "vod", xtreamId: "h", name: "|AR| Caché", matchStatus: "unmatched" },
     ]);
+    const [ta, tb, tc, th] = await Promise.all([a, b, c, hidden].map((r) => titleOf(r.id)));
+    // What the filters would have written: three of them are seen by the app.
     await db
       .update(schema.catalogVariants)
-      .set({ hiddenByRule: false, matchedAt: new Date() })
+      .set({ hiddenByRule: false })
       .where(inArray(schema.catalogVariants.id, [a.id, b.id, c.id]));
+    await db.update(schema.catalogVariants).set({ hiddenByRule: true }).where(eq(schema.catalogVariants.id, hidden.id));
     await db
-      .update(schema.catalogVariants)
-      .set({ hiddenByRule: true, matchedAt: new Date() })
-      .where(eq(schema.catalogVariants.id, hidden.id));
+      .update(t)
+      .set({ visible: true })
+      .where(inArray(t.id, [ta, tb, tc]));
     const asked: string[] = [];
     const tmdb: string[] = [];
     vi.stubGlobal("fetch", async (u: URL | string, init?: RequestInit) => {
@@ -121,8 +161,8 @@ describe("runEnrich", () => {
               type: "text",
               text: JSON.stringify({
                 entries: [
-                  { id: a.id, kind: "movie", title: "The Ember", original_title: "الجمرة", year: 2017 },
-                  { id: b.id, kind: "other", title: null, original_title: null, year: null },
+                  { id: ta, kind: "movie", title: "The Ember", original_title: "الجمرة", year: 2017 },
+                  { id: tb, kind: "other", title: null, original_title: null, year: null },
                 ],
               }),
             },
@@ -139,7 +179,7 @@ describe("runEnrich", () => {
       return Response.json({ results: [] });
     });
 
-    // Without a key: Claude is not asked, TMDB alone.
+    // Without a key: Claude is not asked, and TMDB was asked today.
     expect(await runEnrich()).toMatchObject({ ai_asked: 0, processed: 0 });
     expect(asked).toHaveLength(0);
 
@@ -148,13 +188,14 @@ describe("runEnrich", () => {
     expect(stats).toMatchObject({ ai_asked: 3, ai_titled: 1, ai_other: 1, processed: 1, matched: 1 });
     expect(asked).toHaveLength(1);
     const sent = asked[0];
-    expect(sent).toContain(`#${a.id} ·`);
-    expect(sent).toContain(`#${c.id} ·`);
-    expect(sent).not.toContain(`#${hidden.id} ·`); // hidden: not worth a question
+    expect(sent).toContain(`#${ta} ·`);
+    expect(sent).toContain(`#${tc} ·`);
+    expect(sent).not.toContain(`#${th} ·`); // hidden: not worth a question
     const row = async (id: number) => (await db.select().from(vr).where(eq(vr.id, id)))[0];
     expect(await row(a.id)).toMatchObject({
       matchStatus: "matched",
       tmdbId: 900,
+      contentKey: "tmdb:movie:900",
       aiKind: "movie",
       aiTitle: "The Ember",
       aiOriginalTitle: "الجمرة",
@@ -166,9 +207,9 @@ describe("runEnrich", () => {
 
     // Asked once: the next run asks nothing more; and the concert is not retried weekly, the unknown one is.
     await db
-      .update(schema.catalogVariants)
-      .set({ matchedAt: new Date(Date.now() - 8 * 86400000) })
-      .where(inArray(schema.catalogVariants.id, [b.id, c.id]));
+      .update(t)
+      .set({ matchedAt: aWeekAgo() })
+      .where(inArray(t.id, [tb, tc]));
     expect(await runEnrich()).toMatchObject({ ai_asked: 0, retried: 1 });
     expect(asked).toHaveLength(1);
     expect((await row(b.id)).matchStatus).toBe("unmatched");

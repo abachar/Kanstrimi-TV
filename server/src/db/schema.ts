@@ -135,15 +135,17 @@ export const xtreamStreams = pgTable(
   },
   (t) => [
     uniqueIndex("xtream_streams_account_kind_upstream_idx").on(t.accountId, t.kind, t.upstreamId),
+    // A new stream finds the title of the streams that read the same (`attachTitles`).
+    index("xtream_streams_reading_idx").on(t.kind, t.title, t.year),
     index("xtream_streams_kind_cat_idx").on(t.accountId, t.kind, t.categoryXtreamId),
   ],
 );
 
 /**
  * What the catalogue decides about a stream, one row per entry that is not a separator, under the
- * stream's own id: written by `merge` (created with its stream), `channels` (`iptv_*`, `channel_*`),
- * `enrich` (`match_*`, `tmdb_id`, `ai_*`), `filters` (`hidden_by_rule`) and `group` (`content_key`,
- * `content_id`). Read with its stream through `variants` (`db/variants.ts`).
+ * stream's own id: created with its stream (`merge`), attached to its title by `group` (`attachTitles`) or
+ * to its channel by `channels`, judged by `filters` (`hidden_by_rule`). What identifies a title or a
+ * channel is on the title or the channel. Read with its stream through `variants` (`db/variants.ts`).
  */
 export const catalogVariants = pgTable(
   "catalog_variants",
@@ -157,58 +159,28 @@ export const catalogVariants = pgTable(
      * judged yet, a new version: left out until the filter has seen it.
      */
     hiddenByRule: boolean("hidden_by_rule"),
-    // TMDB matching (vod + series only)
-    tmdbId: integer("tmdb_id"),
-    matchStatus: matchStatusEnum("match_status").default("pending").notNull(),
-    matchScore: real("match_score"),
-    matchedAt: timestamp("matched_at", { withTimezone: true }),
-    /** Failed matching attempts in a row (errors other than an outage): three and it is `unmatched`. */
-    matchAttempts: integer("match_attempts").default(0).notNull(),
     /**
-     * What Claude read in the name once TMDB had given the entry up (`enrich`, visible entries only, asked
-     * once): `movie` or `series` with the title TMDB would know, its original title and year, or `other`
-     * for what is neither (a concert, a fight night, a karaoke track). Null `ai_asked_at` = never asked.
+     * How it came to its title or its channel. A movie, a series: `provided` (the TMDB id the provider gave,
+     * checked), `title` (the same title and year as a stream already there), `search` (TMDB found it),
+     * `none` (a title without a card). A channel: `epg`, `name`, `name-global` (iptv-org), `alias` (a name
+     * of ours), `ai` (the name Claude read), null for a name the reference does not know. `manual`: the
+     * admin said so.
      */
-    aiKind: text("ai_kind"),
-    aiTitle: text("ai_title"),
-    aiOriginalTitle: text("ai_original_title"),
-    aiYear: integer("ai_year"),
-    aiAskedAt: timestamp("ai_asked_at", { withTimezone: true }),
-    // Grouping (block 1): one item is one playable variant of a content.
+    how: text("how"),
+    /** Attached by hand: the identification leaves it where it is. */
+    manual: boolean("manual").default(false).notNull(),
     /**
-     * Computed key, the `key` of the title or the channel it belongs to; the row itself is `title_id` (a movie,
-     * a series) or `channel_id` (live), one of the two at most. Read as one `content_id` through `variants`.
+     * Its title (a movie, a series) or its channel (live), one of the two at most, read as one `content_id`
+     * through `variants`. Without either: a stream waiting to be identified.
      */
-    contentKey: text("content_key"),
     titleId: integer("title_id").references(() => catalogTitles.id, { onDelete: "set null" }),
     channelId: integer("channel_id").references(() => catalogChannels.id, { onDelete: "set null" }),
-    /** Manual merge / split from the admin: wins over the computed key. */
-    keyOverride: text("key_override"),
-    /**
-     * Live: iptv-org's channel says so (`is_nsfw`, `xxx`), and the theme the reference gives (« Événements » or
-     * « Non reconnus » without one), null when it only repeats the name's; written by `channels`, kept when it fails.
-     * A variant is adult when its name or iptv-org says so, its theme is the reference's, else the name's (`variants`).
-     */
-    iptvAdult: boolean("iptv_adult").default(false).notNull(),
-    iptvTheme: text("iptv_theme"),
-    /** Live: the iptv-org channel this variant is (`TF1.fr`), and how its reference channel was found: epg · name · name-global · alias · ai · manual. */
-    iptvId: text("iptv_id"),
-    iptvMatch: text("iptv_match"),
     /** Live: the provider's EPG id names another channel (iptv-org says so): its guide is not this channel's. */
     epgMismatch: boolean("epg_mismatch").default(false).notNull(),
-    /** Live, regional market only (« ar »): the country it is shown under (`MA`), written by `channels`; null = the whole region. */
-    country: text("country"),
-    /**
-     * Live: the name of the reference channel this variant is, written by `channels` (ours, else iptv-org's): it
-     * gives the channel its identity and its name. Null = not recognised.
-     */
-    channelName: text("channel_name"),
   },
   (t) => [
-    index("catalog_variants_match_idx").on(t.matchStatus),
     // The expression `variants` reads as `content_id` (`db/variants.ts`): keep the two in step.
     index("catalog_variants_content_idx").on(sql`coalesce(${t.titleId}, ${t.channelId})`),
-    index("catalog_variants_content_key_idx").on(t.contentKey),
     // What a deleted title or channel looks its variants up by.
     index("catalog_variants_title_idx").on(t.titleId),
     index("catalog_variants_channel_idx").on(t.channelId),
@@ -229,7 +201,27 @@ export const catalogTitles = pgTable(
     id: serial("id").primaryKey(),
     key: text("key").notNull().unique(),
     kind: kindEnum("kind").notNull(),
+    // Identification, once per title: its streams are attached to it, none is searched again.
+    /** What was searched on TMDB: the title and the year read in the name of the stream that brought it. */
+    searchTitle: text("search_title"),
+    searchYear: integer("search_year"),
     tmdbId: integer("tmdb_id"),
+    /** `matched`: a TMDB title; `unmatched`: no card (tried again every week); `manual`: left without a card by hand. */
+    matchStatus: matchStatusEnum("match_status").default("unmatched").notNull(),
+    matchScore: real("match_score"),
+    /** The last time TMDB was asked; null: never (no key at the time). */
+    matchedAt: timestamp("matched_at", { withTimezone: true }),
+    matchAttempts: integer("match_attempts").default(0).notNull(),
+    /**
+     * What Claude read in the name once TMDB had given the title up (`enrich`, visible titles only, asked
+     * once): `movie` or `series` with the title TMDB would know, its original title and year, or `other`
+     * for what is neither (a concert, a fight night, a karaoke track). Null `ai_asked_at` = never asked.
+     */
+    aiKind: text("ai_kind"),
+    aiTitle: text("ai_title"),
+    aiOriginalTitle: text("ai_original_title"),
+    aiYear: integer("ai_year"),
+    aiAskedAt: timestamp("ai_asked_at", { withTimezone: true }),
     // Card fields, denormalised so lists sort and filter without touching the TMDB JSON
     title: text("title").notNull(),
     originalTitle: text("original_title"),
@@ -330,8 +322,16 @@ export const catalogChannels = pgTable(
     edited: text("edited").array().default([]).notNull(),
     /** Regional market only: its variants' country (`MA`), the app's group « Maroc · … »; null = the whole region, or the market's. */
     country: text("country"),
-    /** The theme the app groups it under (« Sport », « Cinéma »…): ours when set by hand, else its variants' most frequent one. */
+    /** The theme the app groups it under (« Sport », « Cinéma »…): ours when set by hand, else the reference's, « Événements » or « Non reconnus » without one. */
     theme: text("theme"),
+    /**
+     * What Claude read in the name of a channel the reference does not know (`channels`, asked once per
+     * name of a watched market): `channel` with its usual name, `event`, or `other`. Kept when its streams
+     * are gone: the same name is not asked again.
+     */
+    aiKind: text("ai_kind"),
+    aiName: text("ai_name"),
+    aiAskedAt: timestamp("ai_asked_at", { withTimezone: true }),
     /** iptv-org's logo through `/img/logos` when the channel is known there, else the provider's URL. */
     logoUrl: text("logo_url"),
     iptvId: text("iptv_id"),
@@ -348,7 +348,7 @@ export const catalogChannels = pgTable(
     languages: text("languages").array().default([]).notNull(),
     /** Visible for the app: one of its variants is (`visibleItem`). */
     visible: boolean("visible").default(false).notNull(),
-    /** Every variant flagged adult. Served to the app only when `serve_adult` is on. */
+    /** iptv-org says so, or every one of its streams' names does. Served to the app only when `serve_adult` is on. */
     adult: boolean("adult").default(false).notNull(),
     addedAt: timestamp("added_at", { withTimezone: true }).notNull(),
     search: tsvector("search"),

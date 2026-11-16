@@ -45,9 +45,10 @@ export {
   unmatchedVariants,
   updateChannel,
 } from "./reference";
-export { hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
+export { contentKey, hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
 export {
   assignManual,
+  attachTitles,
   explainMatch,
   type MatchExplanation,
   resetMatches,

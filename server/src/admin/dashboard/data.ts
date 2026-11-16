@@ -13,7 +13,8 @@ export async function counts(): Promise<{ items: ItemCount[]; categories: Catego
       hidden: sql<number>`count(*) filter (where ${hiddenItem})::int`,
       matched: sql<number>`count(*) filter (where ${visibleItem} and ${variants.matchStatus} in ('matched','manual'))::int`,
       unmatched: sql<number>`count(*) filter (where ${visibleItem} and ${variants.matchStatus} = 'unmatched')::int`,
-      pending: sql<number>`count(*) filter (where ${visibleItem} and ${variants.matchStatus} = 'pending')::int`,
+      // Streams waiting for their title (TMDB did not answer): not served, whatever the filters say.
+      pending: sql<number>`count(*) filter (where ${variants.matchStatus} = 'pending')::int`,
     })
     .from(variants)
     .groupBy(variants.kind);

@@ -42,7 +42,7 @@ export function runAlert(run: RunSummary): ApnsAlert {
   if (added || removed)
     parts.push([added ? plural(added, "ajouté") : "", removed ? plural(removed, "supprimé") : ""].filter(Boolean).join(", "));
   else if (run.steps.some((s) => s.step === "source")) parts.push("rien de nouveau");
-  const matched = stat("enrich", "matched");
+  const matched = stat("group", "by_search") + stat("enrich", "matched");
   if (matched) parts.push(`${plural(matched, "fiche TMDB associée", "fiches TMDB associées")}`);
   const arrived = stat("group", "waitlist_available") + stat("filters", "waitlist_available");
   if (arrived) parts.push(plural(arrived, "attendu arrivé", "attendus arrivés"));

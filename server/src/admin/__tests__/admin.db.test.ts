@@ -11,7 +11,7 @@ import {
   seedProgrammes,
   groupAndFilter,
   knowChannels,
-  ofStreams,
+  leaveUnknown,
   contentOfKey,
 } from "@/test/db";
 import { setSecretsForTests } from "@/config";
@@ -733,12 +733,8 @@ describe("admin", () => {
     ]);
     await runNaming();
     await db.insert(schema.cacheIptvorgChannels).values({ id: "TF1.fr", name: "TF1", country: "FR", categories: ["general"] });
-    // What `channels` writes for a name no known channel bears.
-    for (const name of ["|FR| ZED TV HD", "|FR| ZED TV BIS"])
-      await db
-        .update(schema.catalogVariants)
-        .set({ iptvTheme: "Non reconnus" })
-        .where(ofStreams(eq(schema.xtreamStreams.name, name)));
+    // What `channels` does with a name no known channel bears.
+    await leaveUnknown(["|FR| ZED TV HD", "|FR| ZED TV BIS"]);
     await groupAndFilter();
     const variant = async (n: string) => (await db.select().from(vr).where(eq(vr.name, n)))[0];
     const live = "/admin/catalog?kind=live";
