@@ -68,9 +68,9 @@ describe("ensureEpisodes", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(String(fetch.mock.calls[1][0])).toContain("backup.test");
     const sources = await db
-      .select({ item: schema.catalogEpisodeVariants.itemId })
-      .from(schema.catalogEpisodeVariants)
-      .innerJoin(schema.catalogEpisodes, eq(schema.catalogEpisodes.id, schema.catalogEpisodeVariants.episodeId))
+      .select({ item: schema.catalogEpisodeSources.xtreamId })
+      .from(schema.catalogEpisodeSources)
+      .innerJoin(schema.catalogEpisodes, eq(schema.catalogEpisodes.id, schema.catalogEpisodeSources.episodeId))
       .where(eq(schema.catalogEpisodes.titleId, content.id));
     expect(new Set(sources.map((s) => s.item)).size).toBe(2);
     // Everyone asked, the tree fresh: no more calls.
@@ -115,7 +115,7 @@ describe("ensureEpisodes", () => {
     vi.stubGlobal("fetch", fetch);
     await ensureEpisodes(content, variants, "fr-FR");
     expect(fetch).toHaveBeenCalledTimes(1);
-    const sources = await db.select().from(schema.catalogEpisodeVariants);
+    const sources = await db.select().from(schema.catalogEpisodeSources);
     expect(sources).toHaveLength(6); // two episodes from the cache of each of the three variants
   });
 
@@ -138,7 +138,7 @@ describe("ensureEpisodes", () => {
     await both;
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(await episodes()).toHaveLength(2);
-    const sources = await db.select().from(schema.catalogEpisodeVariants);
+    const sources = await db.select().from(schema.catalogEpisodeSources);
     expect(sources).toHaveLength(2);
   });
 });

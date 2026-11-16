@@ -95,15 +95,15 @@ async function guideStats(ids: string[]): Promise<Map<string, { programmes: numb
 async function fallbackOf(c: Content): Promise<ChannelGuide["fallback"]> {
   const ref = c.epgFallbackId ? parseSourceGuideId(c.epgFallbackId) : null;
   if (!ref) return null;
-  const l = schema.curationEpgLinks;
+  const l = schema.catalogChannelGuides;
   const [source, [link]] = await Promise.all([
     epgSourceById(ref.sourceId),
     db
       .select()
       .from(l)
-      .where(and(eq(l.sourceId, ref.sourceId), eq(l.contentKey, c.key))),
+      .where(and(eq(l.sourceId, ref.sourceId), eq(l.channelId, c.id))),
   ]);
-  return { ...ref, sourceName: source?.name ?? `source ${ref.sourceId}`, manual: link?.channelId === ref.channelId };
+  return { ...ref, sourceName: source?.name ?? `source ${ref.sourceId}`, manual: link?.guideId === ref.channelId };
 }
 
 async function guideOf(c: Content, items: Variant[]): Promise<ChannelGuide | null> {

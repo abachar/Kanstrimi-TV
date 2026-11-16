@@ -8,7 +8,7 @@ import { isOffsetMinutes, reapplyOffsets } from "./epg-offsets";
 /**
  * Fallback guides: XMLTV files (open-epg…) that complete the provider's for the visible channels it
  * leaves without programmes. Each source lists its channels (`cache_epg_source_channels`); a
- * channel of ours is linked to one of them by name, or by hand in the admin (`curation_epg_links`).
+ * channel of ours is linked to one of them by name, or by hand in the admin (`catalog_channel_guides`).
  * The first enabled source, in their order, whose linked channel has programmes gives the channel its
  * `epg_fallback_id`; the app tries it after the provider's guide ids.
  */
@@ -105,8 +105,13 @@ export async function deleteEpgSource(id: number) {
  * next import.
  */
 export async function setEpgLink(sourceId: number, contentKey: string, choice: string | null | "auto") {
-  const t = schema.curationEpgLinks;
-  if (choice === "auto") await db.delete(t).where(and(eq(t.sourceId, sourceId), eq(t.contentKey, contentKey)));
+  const t = schema.catalogChannelGuides;
+  const [channel] = await db
+    .select({ id: schema.catalogChannels.id })
+    .from(schema.catalogChannels)
+    .where(eq(schema.catalogChannels.key, contentKey));
+  if (!channel) throw new Error("Chaîne introuvable");
+  if (choice === "auto") await db.delete(t).where(and(eq(t.sourceId, sourceId), eq(t.channelId, channel.id)));
   else {
     if (choice !== null) {
       const [known] = await db
@@ -117,8 +122,8 @@ export async function setEpgLink(sourceId: number, contentKey: string, choice: s
     }
     await db
       .insert(t)
-      .values({ sourceId, contentKey, channelId: choice })
-      .onConflictDoUpdate({ target: [t.sourceId, t.contentKey], set: { channelId: choice, updatedAt: new Date() } });
+      .values({ sourceId, channelId: channel.id, guideId: choice })
+      .onConflictDoUpdate({ target: [t.channelId, t.sourceId], set: { guideId: choice, updatedAt: new Date() } });
   }
   await refreshEpgFallbacks();
 }
@@ -158,7 +163,14 @@ export async function resolveEpgLinks(): Promise<EpgResolution> {
       where cc.visible
       order by cc.name, cc.id`),
     db.select().from(schema.cacheEpgSourceChannels),
-    db.select().from(schema.curationEpgLinks),
+    db
+      .select({
+        sourceId: schema.catalogChannelGuides.sourceId,
+        contentKey: schema.catalogChannels.key,
+        guideId: schema.catalogChannelGuides.guideId,
+      })
+      .from(schema.catalogChannelGuides)
+      .innerJoin(schema.catalogChannels, eq(schema.catalogChannels.id, schema.catalogChannelGuides.channelId)),
   ]);
   const programmes = new Map(channels.map((c) => [sourceGuideId(c.sourceId, c.channelId), c.programmes]));
   const byName = new Map<number, Map<string, { channelId: string; programmes: number }[]>>();
@@ -169,7 +181,7 @@ export async function resolveEpgLinks(): Promise<EpgResolution> {
     for (const key of new Set([c.channelId, ...c.names].map(guideNameKey).filter(Boolean)))
       names.set(key, [...(names.get(key) ?? []), { channelId: c.channelId, programmes: c.programmes }]);
   }
-  const chosen = new Map<string, string | null>(manual.map((m) => [`${m.sourceId}|${m.contentKey}`, m.channelId]));
+  const chosen = new Map<string, string | null>(manual.map((m) => [`${m.sourceId}|${m.contentKey}`, m.guideId]));
   const links = new Map<number, Map<string, EpgLinkState>>();
   const refused = new Map<number, Set<string>>();
   for (const s of sources) {

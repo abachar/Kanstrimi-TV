@@ -43,7 +43,7 @@ export const visibleChannel = (ctx: RestContext): SQL =>
 export const servedVariant = (ctx: RestContext): SQL =>
   and(
     visibleItem,
-    sql`exists (select 1 from ${schema.catalogVariantProfiles} vp where vp.variant_id = ${variants.id} and vp.profile_id = ${ctx.profile.id})`,
+    sql`exists (select 1 from ${schema.appProfileStreams} vp where vp.xtream_id = ${variants.id} and vp.profile_id = ${ctx.profile.id})`,
     ctx.serveAdult ? undefined : eq(variants.adult, false),
   )!;
 

@@ -65,8 +65,9 @@ async function rewritingContents<T>(fn: () => Promise<T>): Promise<T> {
 export async function runGrouping(): Promise<GroupStats> {
   return withCatalogLock(() =>
     rewritingContents(async () => {
-      const n = await assignKeys();
+      const { total: n, moves } = await assignKeys();
       await upsertContents();
+      await followLiveKeys(moves);
       await fillCardFields();
       await fillChannelSearch();
       const available = await refreshAggregates();
@@ -94,8 +95,9 @@ export async function regroupItems(ids: number[]): Promise<number[]> {
   return withCatalogLock(() =>
     rewritingContents(async () => {
       const before = await db.select({ id: variants.contentId }).from(variants).where(inArray(variants.id, ids));
-      await assignKeys(ids);
+      const { moves } = await assignKeys(ids);
       await upsertContents(ids);
+      await followLiveKeys(moves);
       const after = await db.select({ id: variants.contentId }).from(variants).where(inArray(variants.id, ids));
       const touched = [...new Set([...before, ...after].map((r) => r.id).filter((x): x is number => x !== null))];
       await fillCardFields(touched);
@@ -246,7 +248,7 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
  * channel (`channels`). A channel whose key moves with all its versions (a name the reference now
  * knows, a reference renamed) takes along what was recorded under the old one (`followLiveKeys`).
  */
-async function assignKeys(onlyIds?: number[]): Promise<number> {
+async function assignKeys(onlyIds?: number[]): Promise<{ total: number; moves: Map<string, Map<string, number>> }> {
   let total = 0;
   const moves = new Map<string, Map<string, number>>();
   const v = variants;
@@ -297,8 +299,7 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
       from unnest(${ids}::int[], ${keys}::text[]) as u(id, key)
       where i.id = u.id and i.content_key is distinct from u.key`;
   }
-  await followLiveKeys(moves);
-  return total;
+  return { total, moves };
 }
 
 /**
@@ -310,7 +311,6 @@ const LIVE_MARKS = [
   { table: "app_favorites", same: () => pg`x.profile_id = m.profile_id` },
   { table: "app_live_watch", same: () => pg`x.profile_id = m.profile_id and x.day = m.day` },
   { table: "app_profile_versions", same: () => pg`x.profile_id = m.profile_id` },
-  { table: "curation_epg_links", same: () => pg`x.source_id = m.source_id` },
 ] as const;
 
 /**
@@ -327,7 +327,7 @@ async function followLiveKeys(moves: Map<string, Map<string, number>>) {
       and (exists (select 1 from app_favorites f where f.content_key = o.key)
         or exists (select 1 from app_live_watch w where w.content_key = o.key)
         or exists (select 1 from app_profile_versions p where p.content_key = o.key)
-        or exists (select 1 from curation_epg_links l where l.content_key = o.key))`;
+        or exists (select 1 from catalog_channel_guides g join catalog_channels c on c.id = g.channel_id where c.key = o.key))`;
   for (const { key } of marked) {
     const [to] = [...moves.get(key)!].sort((a, b) => b[1] - a[1])[0];
     await pg`
@@ -341,6 +341,13 @@ async function followLiveKeys(moves: Map<string, Map<string, number>>) {
         where m.content_key = ${key} and not exists (select 1 from ${t} x where x.content_key = ${to} and ${same()})`;
       await pg`delete from ${t} where content_key = ${key}`;
     }
+    // The guides linked by hand are the channel's own: they go to the channel its variants now make.
+    await pg`
+      update catalog_channel_guides g set channel_id = n.id
+      from catalog_channels o, catalog_channels n
+      where o.key = ${key} and n.key = ${to} and g.channel_id = o.id
+        and not exists (select 1 from catalog_channel_guides x where x.channel_id = n.id and x.source_id = g.source_id)`;
+    await pg`delete from catalog_channel_guides g using catalog_channels o where o.key = ${key} and g.channel_id = o.id`;
   }
 }
 
@@ -699,7 +706,7 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
 
 /**
  * What each profile sees, from the same predicate: a title or a channel is visible to a profile when one
- * of its versions is kept by the profile's filter (`catalog_variant_profiles`) and hidden neither by hand
+ * of its versions is kept by the profile's filter (`app_profile_streams`) and hidden neither by hand
  * nor through its category. Rows removed then added, only where it changed.
  */
 async function refreshProfileVisibility(onlyIds?: number[]) {
@@ -709,7 +716,7 @@ async function refreshProfileVisibility(onlyIds?: number[]) {
     { table: sql`app_profile_channels`, id: sql`channel_id` },
   ]) {
     const seen = sql`exists (
-      select 1 from ${variants} join catalog_variant_profiles vp on vp.variant_id = variants.id
+      select 1 from ${variants} join app_profile_streams vp on vp.xtream_id = variants.id
       where variants.${side.id} = ${side.table}.${side.id} and vp.profile_id = ${side.table}.profile_id
         and ${visibleItem})`;
     await db.execute(sql`
@@ -718,7 +725,7 @@ async function refreshProfileVisibility(onlyIds?: number[]) {
     await db.execute(sql`
       insert into ${side.table} (${side.id}, profile_id)
       select distinct variants.${side.id}, vp.profile_id
-      from ${variants} join catalog_variant_profiles vp on vp.variant_id = variants.id
+      from ${variants} join app_profile_streams vp on vp.xtream_id = variants.id
       where variants.${side.id} is not null ${ids ? sql`and variants.${side.id} = any(${ids})` : sql``} and ${visibleItem}
       on conflict do nothing`);
   }
@@ -733,10 +740,11 @@ async function deleteOrphans(): Promise<number> {
     .returning({ id: schema.catalogTitles.id });
   const channels = await db
     .delete(schema.catalogChannels)
-    // A channel of ours (aliases, fields set by hand) stays when its variants are gone: what was said of it is not lost.
+    // A channel of ours (aliases, fields set by hand, a guide linked by hand) stays when its variants are gone: what was said of it is not lost.
     .where(
       sql`not exists (select 1 from ${schema.catalogVariants} i where i.channel_id = ${schema.catalogChannels.id})
-        and cardinality(${schema.catalogChannels.aliases}) = 0 and cardinality(${schema.catalogChannels.edited}) = 0`,
+        and cardinality(${schema.catalogChannels.aliases}) = 0 and cardinality(${schema.catalogChannels.edited}) = 0
+        and not exists (select 1 from ${schema.catalogChannelGuides} g where g.channel_id = ${schema.catalogChannels.id})`,
     )
     .returning({ id: schema.catalogChannels.id });
   return titles.length + channels.length;

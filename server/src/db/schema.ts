@@ -76,7 +76,7 @@ export const xtreamCategories = pgTable(
 
 /**
  * One entry of a provider's lists: a live channel or a movie (a playable stream), a series (its episodes
- * are `catalog_episode_variants`), or a separator line. The `source` step writes it by difference (a
+ * are `catalog_episode_sources`), or a separator line. The `source` step writes it by difference (a
  * changed entry updated, a new one inserted, a vanished one deleted), so `id` is stable: the catalogue
  * hangs its own decisions on it (`catalog_variants`).
  *
@@ -489,18 +489,18 @@ export const appProfileFilters = pgTable(
   (t) => [primaryKey({ columns: [t.profileId, t.kind] })],
 );
 
-/** The versions a profile's filter keeps (a row = kept); `catalog_variants.hidden_by_rule` is « kept by no profile ». */
-export const catalogVariantProfiles = pgTable(
-  "catalog_variant_profiles",
+/** The streams a profile's filter keeps (a row = kept), by the stream's id; `catalog_variants.hidden_by_rule` is « kept by no profile ». */
+export const appProfileStreams = pgTable(
+  "app_profile_streams",
   {
-    variantId: integer("variant_id")
+    xtreamId: integer("xtream_id")
       .notNull()
-      .references(() => catalogVariants.id, { onDelete: "cascade" }),
+      .references(() => xtreamStreams.id, { onDelete: "cascade" }),
     profileId: integer("profile_id")
       .notNull()
       .references(() => appProfiles.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.variantId, t.profileId] }), index("catalog_variant_profiles_profile_idx").on(t.profileId, t.variantId)],
+  (t) => [primaryKey({ columns: [t.xtreamId, t.profileId] }), index("app_profile_streams_profile_idx").on(t.profileId, t.xtreamId)],
 );
 
 /**
@@ -615,25 +615,26 @@ export const catalogEpisodes = pgTable(
   (t) => [uniqueIndex("catalog_episodes_title_season_number_idx").on(t.titleId, t.season, t.number)],
 );
 
-/** One playable stream of an episode: the provider's episode id under one series variant (item). */
-export const catalogEpisodeVariants = pgTable(
-  "catalog_episode_variants",
+/** One playable stream of an episode: the provider's episode id (`upstream_id`) under one stream of the series (`xtream_id`). */
+export const catalogEpisodeSources = pgTable(
+  "catalog_episode_sources",
   {
     id: serial("id").primaryKey(),
     episodeId: integer("episode_id")
       .notNull()
       .references(() => catalogEpisodes.id, { onDelete: "cascade" }),
-    itemId: integer("item_id")
+    /** The series' stream this episode was listed under (`xtream_streams.id`). */
+    xtreamId: integer("xtream_id")
       .notNull()
-      .references(() => catalogVariants.id, { onDelete: "cascade" }),
+      .references(() => xtreamStreams.id, { onDelete: "cascade" }),
     /** Provider episode id, an opaque string, never exposed. */
-    xtreamId: text("xtream_id").notNull(),
+    upstreamId: text("upstream_id").notNull(),
     container: text("container"),
     seenAt: timestamp("seen_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("catalog_episode_variants_episode_item_idx").on(t.episodeId, t.itemId),
-    index("catalog_episode_variants_item_idx").on(t.itemId),
+    uniqueIndex("catalog_episode_sources_episode_stream_idx").on(t.episodeId, t.xtreamId),
+    index("catalog_episode_sources_stream_idx").on(t.xtreamId),
   ],
 );
 
@@ -708,22 +709,25 @@ export const cacheEpgSourceChannels = pgTable(
 export type EpgSourceChannel = typeof cacheEpgSourceChannels.$inferSelect;
 
 /**
- * The admin's links between a channel (content key) and a fallback source: `channel_id` forces one of
- * its channels, null forbids the source for this channel. Without a row the link is found by name.
+ * The guide the admin linked by hand to a channel in a fallback source: `guide_id` forces one of the
+ * source's channels, null forbids the source for this channel. Without a row the link is found by name.
+ * A channel that has one stays when no provider lists it any more.
  */
-export const curationEpgLinks = pgTable(
-  "curation_epg_links",
+export const catalogChannelGuides = pgTable(
+  "catalog_channel_guides",
   {
+    channelId: integer("channel_id")
+      .notNull()
+      .references(() => catalogChannels.id, { onDelete: "cascade" }),
     sourceId: integer("source_id")
       .notNull()
       .references(() => settingsEpgSources.id, { onDelete: "cascade" }),
-    contentKey: text("content_key").notNull(),
-    channelId: text("channel_id"),
+    guideId: text("guide_id"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [primaryKey({ columns: [t.sourceId, t.contentKey] })],
+  (t) => [primaryKey({ columns: [t.channelId, t.sourceId] })],
 );
-export type EpgLink = typeof curationEpgLinks.$inferSelect;
+export type ChannelGuide = typeof catalogChannelGuides.$inferSelect;
 
 /** Playback position per profile and content key (movie or episode). */
 export const appWatchProgress = pgTable(

@@ -25,22 +25,22 @@ export async function loadEpisodes(
   const byItem = new Map(variants.map((v) => [v.id, v]));
   const srcs = await db
     .select()
-    .from(schema.catalogEpisodeVariants)
+    .from(schema.catalogEpisodeSources)
     .where(
       inArray(
-        schema.catalogEpisodeVariants.episodeId,
+        schema.catalogEpisodeSources.episodeId,
         eps.map((e) => e.id),
       ),
     );
   const byEp = new Map<number, Playable[]>();
   for (const s of srcs) {
-    const it = byItem.get(s.itemId);
+    const it = byItem.get(s.xtreamId);
     if (!it) continue; // hidden or gone
     const list = byEp.get(s.episodeId) ?? [];
     list.push({
       sourceId: sourceId("episode", s.id),
       container: (s.container ?? "mp4").toUpperCase(),
-      upstream: { accountId: it.accountId, kind: "series", id: s.xtreamId, ext: s.container ?? "mp4" },
+      upstream: { accountId: it.accountId, kind: "series", id: s.upstreamId, ext: s.container ?? "mp4" },
       lang: it.lang,
       quality: it.quality,
       dynamicRange: it.dynamicRange,

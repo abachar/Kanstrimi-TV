@@ -200,7 +200,7 @@ describe("profiles", () => {
     expect(await deleteProfile(teen.id)).toBe("unknown");
     expect(await db.select().from(schema.appProfileTitles).where(eq(schema.appProfileTitles.profileId, teen.id))).toEqual([]);
     expect(await db.select().from(schema.appProfileChannels).where(eq(schema.appProfileChannels.profileId, teen.id))).toEqual([]);
-    expect(await db.select().from(schema.catalogVariantProfiles).where(eq(schema.catalogVariantProfiles.profileId, teen.id))).toEqual([]);
+    expect(await db.select().from(schema.appProfileStreams).where(eq(schema.appProfileStreams.profileId, teen.id))).toEqual([]);
     // The verdicts of a gone profile leave the union at the next step.
     await filter("vod", "");
     expect(await visible("vod")).toEqual(["Clan of Violence", "Heat", "Heat 2", "Matrix"]);

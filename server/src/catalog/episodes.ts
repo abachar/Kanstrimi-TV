@@ -142,8 +142,8 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
     .where(eq(schema.catalogEpisodes.titleId, content.id));
   const [{ n: sources }] = await db
     .select({ n: sql<number>`count(*)::int` })
-    .from(schema.catalogEpisodeVariants)
-    .innerJoin(schema.catalogEpisodes, eq(schema.catalogEpisodes.id, schema.catalogEpisodeVariants.episodeId))
+    .from(schema.catalogEpisodeSources)
+    .innerJoin(schema.catalogEpisodes, eq(schema.catalogEpisodes.id, schema.catalogEpisodeSources.episodeId))
     .where(eq(schema.catalogEpisodes.titleId, content.id));
   // A fresh tree is kept, unless a variant joined the content since and was never asked (no cached answer
   // for it): another provider's copy of the series, playable even while the first one is down.
@@ -284,8 +284,8 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
     const srcRows = [...found.values()].flatMap((f) =>
       f.sources.map((s) => ({
         episodeId: ids.get(`${f.season}:${f.number}`)!,
-        itemId: s.itemId,
-        xtreamId: s.xtreamId,
+        xtreamId: s.itemId,
+        upstreamId: s.xtreamId,
         container: s.container,
         seenAt: now,
       })),
@@ -293,19 +293,19 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
     for (let i = 0; i < srcRows.length; i += 500) {
       if (!srcRows.length) break;
       await tx
-        .insert(schema.catalogEpisodeVariants)
+        .insert(schema.catalogEpisodeSources)
         .values(srcRows.slice(i, i + 500))
         .onConflictDoUpdate({
-          target: [schema.catalogEpisodeVariants.episodeId, schema.catalogEpisodeVariants.itemId],
-          set: { xtreamId: sql`excluded.xtream_id`, container: sql`excluded.container`, seenAt: now },
+          target: [schema.catalogEpisodeSources.episodeId, schema.catalogEpisodeSources.xtreamId],
+          set: { upstreamId: sql`excluded.upstream_id`, container: sql`excluded.container`, seenAt: now },
         });
     }
     // Sources the variants no longer list, then episodes left without any source.
     const epIds = [...ids.values()];
     if (epIds.length)
       await tx
-        .delete(schema.catalogEpisodeVariants)
-        .where(and(inArray(schema.catalogEpisodeVariants.episodeId, epIds), lt(schema.catalogEpisodeVariants.seenAt, now)));
+        .delete(schema.catalogEpisodeSources)
+        .where(and(inArray(schema.catalogEpisodeSources.episodeId, epIds), lt(schema.catalogEpisodeSources.seenAt, now)));
     await tx
       .delete(schema.catalogEpisodes)
       .where(and(eq(schema.catalogEpisodes.titleId, content.id), epIds.length ? notInArray(schema.catalogEpisodes.id, epIds) : sql`true`));
@@ -314,7 +314,7 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
       .where(
         and(
           eq(schema.catalogEpisodes.titleId, content.id),
-          sql`not exists (select 1 from ${schema.catalogEpisodeVariants} s where s.episode_id = ${schema.catalogEpisodes.id})`,
+          sql`not exists (select 1 from ${schema.catalogEpisodeSources} s where s.episode_id = ${schema.catalogEpisodes.id})`,
         ),
       );
   });

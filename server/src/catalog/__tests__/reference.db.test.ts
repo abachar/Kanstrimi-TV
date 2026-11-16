@@ -170,7 +170,7 @@ describe("names left to attach", () => {
       { profileId: PROFILE, contentKey: old, day: "2026-11-11", seconds: 40 },
     ]);
     const [source] = await db.insert(schema.settingsEpgSources).values({ name: "s", url: "https://epg.test/s.xml" }).returning();
-    await db.insert(schema.curationEpgLinks).values({ sourceId: source.id, contentKey: old, channelId: "bein1" });
+    await db.insert(schema.catalogChannelGuides).values({ sourceId: source.id, channelId: (await contentOfKey(old)).id, guideId: "bein1" });
     expect(await attachName("ar", "BEIN SPORTS 1 G", "iptv:beINSports1.qa")).toBe("beIN Sports 1");
     expect(
       (await db.select().from(schema.appLiveWatch).orderBy(schema.appLiveWatch.day)).map((w) => [w.contentKey, w.day, w.seconds]),
@@ -178,7 +178,9 @@ describe("names left to attach", () => {
       ["live:ar-bein-sports-1", "2026-11-10", 90],
       ["live:ar-bein-sports-1", "2026-11-11", 40],
     ]);
-    expect((await db.select().from(schema.curationEpgLinks)).map((l) => l.contentKey)).toEqual(["live:ar-bein-sports-1"]);
+    expect((await db.select().from(schema.catalogChannelGuides)).map((l) => [l.channelId, l.guideId])).toEqual([
+      [(await contentOfKey("live:ar-bein-sports-1")).id, "bein1"],
+    ]);
     expect(await by("3")).toMatchObject({
       channelName: "beIN Sports 1",
       iptvMatch: "alias",

@@ -8,7 +8,7 @@ import { withCatalogLock } from "../lock";
 
 /**
  * The `filters` step, after the grouping: each version judged by the filter of each profile, kept
- * (a `catalog_variant_profiles` row) or left out; a profile without a filter keeps everything. Then
+ * (an `app_profile_streams` row) or left out; a profile without a filter keeps everything. Then
  * `catalog_variants.hidden_by_rule` says « kept by no profile », and the contents whose versions moved
  * count again only what is left: their aggregates, `visible` (seen by one profile), what each profile
  * sees (`app_profile_titles`, `app_profile_channels`) and the waitlist's arrivals. A filter that no longer compiles leaves
@@ -45,18 +45,18 @@ async function apply(contentIds?: number[], profileId?: number) {
       }
       collect(
         await db.execute<{ content_id: number | null }>(sql`
-          delete from catalog_variant_profiles using ${variants}
-          where catalog_variant_profiles.variant_id = variants.id and catalog_variant_profiles.profile_id = ${profile.id}
+          delete from app_profile_streams using ${variants}
+          where app_profile_streams.xtream_id = variants.id and app_profile_streams.profile_id = ${profile.id}
             and variants.kind = ${kind} ${scope} and not (${keep})
           returning variants.content_id`),
       );
       collect(
         await db.execute<{ content_id: number | null }>(sql`
-          insert into catalog_variant_profiles (variant_id, profile_id)
+          insert into app_profile_streams (xtream_id, profile_id)
           select variants.id, ${profile.id} from ${variants}
           where variants.kind = ${kind} ${scope} and (${keep})
           on conflict do nothing
-          returning (select coalesce(title_id, channel_id) from catalog_variants where id = variant_id) as content_id`),
+          returning (select coalesce(title_id, channel_id) from catalog_variants where id = xtream_id) as content_id`),
       );
       if (filter) judged.push(kind);
     }
@@ -67,7 +67,7 @@ async function apply(contentIds?: number[], profileId?: number) {
   }
   checkCancelled();
   // Left out by every profile: the union the rest of the catalogue (aggregates, EPG, search) reads.
-  const hidden = sql`not exists (select 1 from catalog_variant_profiles vp where vp.variant_id = catalog_variants.id)`;
+  const hidden = sql`not exists (select 1 from app_profile_streams vp where vp.xtream_id = catalog_variants.id)`;
   collect(
     await db.execute<{ content_id: number | null }>(sql`
       update catalog_variants set hidden_by_rule = ${hidden}
@@ -77,7 +77,7 @@ async function apply(contentIds?: number[], profileId?: number) {
   checkCancelled();
   const waitlist_available = touched.size ? await refreshVisibility([...touched]) : 0;
   // The verdict tables move by tens of thousands of rows at once: fresh statistics, or the planner guesses for a day.
-  await db.execute(sql`analyze catalog_variant_profiles, app_profile_titles, app_profile_channels`);
+  await db.execute(sql`analyze app_profile_streams, app_profile_titles, app_profile_channels`);
   const [r] = await db.execute<{ n: number }>(sql`select count(*)::int as n from catalog_variants where hidden_by_rule`);
   return { variants_hidden: r.n, waitlist_available };
 }
