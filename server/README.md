@@ -257,7 +257,7 @@ par son index.
   plus aucun fournisseur ne la liste, sans rien à lire, et se renomme en place. Le nom du fournisseur ne sert qu'à
   trouver la chaîne et à lire la qualité (« LQ », « ᵁᴴᴰ », « 720 », « FHD+ »). Dans l'ordre : épinglage à la main, un
   nom de nos chaînes dans le marché, iptv-org (identifiant EPG puis nom : dans le pays du préfixe, dans le marché,
-  unique au monde), enfin le nom que Claude y lit (une fois par nom, dans les marchés qu'un profil regarde, avec la
+  unique au monde, sauf un nombre ou deux lettres : « 06 » est un flux numéroté, pas « 0-6 TV »), enfin le nom que Claude y lit (une fois par nom, dans les marchés qu'un profil regarde, avec la
   liste des chaînes du marché : seul un nom que la référence porte compte ; sa lecture reste sur la chaîne « non
   reconnue » de ce nom, gardée même sans flux pour ne pas le redemander). Une radio n'est jamais une chaîne. Sans
   chaîne de référence, l'entrée va sous « Événements » (catégorie ou section PPV, EVENT, LIVE ; nom qui porte une date,

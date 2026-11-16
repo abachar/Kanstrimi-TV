@@ -102,6 +102,10 @@ describe("parseName", () => {
     ["|FR| Director's Cut", "vod", { title: "Director's Cut", edition: undefined }],
     ["|FR| Uncut Gems (4K)", "vod", { title: "Uncut Gems", edition: undefined }],
     ["|FR| FILM EXTENDED HD", "live", { edition: undefined }],
+    // A competition opening a name is no market: the category says where the feed is filed.
+    ["NFL  | 06 -", "live", { title: "06", market: undefined }],
+    ["EPL -  PREMIERE LEAGUE 7", "live", { title: "PREMIERE LEAGUE 7", market: undefined }],
+    ["USA - NFL NETWORK HD", "live", { title: "NFL NETWORK", market: "usa" }],
     // Scene-style names behind a technical prefix.
     ["AZ - Silver.Book.of.Dreams.2013", "vod", { title: "Silver Book of Dreams", year: 2013, market: undefined }],
     ["FR - Karate.Kid.Legends.2025.MULTI", "vod", { title: "Karate Kid Legends", year: 2025, market: "fr", language: "VF" }],

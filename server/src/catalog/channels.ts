@@ -381,6 +381,8 @@ function matchByName(
       if (local.size === 1) return { ...idx.byId.get([...local][0].toLowerCase())!, how: "name" };
     }
   for (const k of keys) {
+    // A number or a couple of letters is no name to look for across the world: « 06 » is a numbered feed, not Smile TV's « 0-6 TV ».
+    if (k.length <= 2 || /^\d+$/.test(k)) continue;
     const world = idx.byName.get(k);
     if (world?.size === 1) return { ...idx.byId.get([...world][0].toLowerCase())!, how: "name-global" };
   }
@@ -747,8 +749,14 @@ function referenceNames(idx: Index, market: string): string[] {
 /**
  * A market is watched when the profiles see this share of its recognised versions at least: a filter
  * that keeps one theme everywhere (« jeunesse ») does not make every market one of the household's.
+ * And this many of them, unless they see them all: one children's channel out of the five a small list
+ * holds is no household's market, a small list they get whole is.
  */
 export const WATCHED_SHARE = 0.2;
+export const WATCHED_STREAMS = 5;
+/** The same rule as `watchedMarkets` writes in SQL (`reference.ts`). */
+export const isWatched = (m: { recognised: number; visible: number }) =>
+  m.visible > 0 && (m.visible >= WATCHED_STREAMS || m.visible === m.recognised) && m.visible >= WATCHED_SHARE * m.recognised;
 
 /**
  * Claude reads the names left without a reference channel, each once, in the markets the profiles
@@ -772,9 +780,7 @@ async function askClaude(
     if (visible.has(it.id)) m.visible++;
     seen.set(it.market, m);
   });
-  const watched = new Set(
-    [...seen].filter(([, m]) => m.visible > 0 && m.visible >= WATCHED_SHARE * m.recognised).map(([market]) => market),
-  );
+  const watched = new Set([...seen].filter(([, m]) => isWatched(m)).map(([market]) => market));
   // One question per name: the first stream that bears it speaks for the others.
   const names = new Map<string, LiveRow>();
   rows.forEach((it, i) => {

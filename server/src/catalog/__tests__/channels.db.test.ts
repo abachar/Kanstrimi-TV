@@ -13,7 +13,10 @@ import {
   HOME_SHARE,
   homeCountries,
   iptvTheme,
+  loadIndex,
+  matchChannel,
   isEventFeed,
+  isWatched,
   mergedTheme,
   nameKeys,
   regionCountry,
@@ -32,6 +35,8 @@ const CHANNELS = [
   { id: "ERTU1.eg", name: "ERTU 1", alt_names: ["Al Oula"], country: "EG", categories: ["general"], is_nsfw: false },
   { id: "BBCParliament.uk", name: "BBC Parliament", alt_names: [], country: "UK", categories: ["legislative"], is_nsfw: false },
   { id: "AlResalah.sa", name: "Al Resalah", alt_names: [], country: "SA", categories: ["religious"], is_nsfw: false },
+  { id: "SmileTV.gr", name: "Smile TV", alt_names: ["0-6 TV"], country: "GR", categories: ["kids"], is_nsfw: false },
+  { id: "A2.ru", name: "A2", alt_names: [], country: "RU", categories: ["series"], is_nsfw: false },
 ];
 const LOGOS = [
   { channel: "TF1.fr", feed: null, in_use: true, tags: [], width: 512, height: 512, format: "PNG", url: "https://logos.test/tf1.png" },
@@ -112,6 +117,13 @@ describe("iptv-org helpers", () => {
     expect(Object.fromEntries(homes)).toEqual({ fr: "FR", uk: "GB", alb: "AL", sp: "US", is: "IL" });
     expect(HOME_SHARE * HOME_CHANNELS).toBe(6);
   });
+  it("calls a market the household's when the profiles see a fair share of it, and more than a channel or two", () => {
+    expect(isWatched({ recognised: 2000, visible: 1300 })).toBe(true); // France
+    expect(isWatched({ recognised: 3400, visible: 34 })).toBe(false); // the children's channels of the United States
+    expect(isWatched({ recognised: 5, visible: 1 })).toBe(false); // one children's channel of a small list: a fifth of it, but one
+    expect(isWatched({ recognised: 3, visible: 3 })).toBe(true); // a small list they get whole
+    expect(isWatched({ recognised: 0, visible: 0 })).toBe(false);
+  });
   it("reads the other providers' ways of naming a country: the name's own prefix, a bare section, a category", () => {
     expect(regionCountry("ar", "MBC5.ae", [null], { nameCountry: "MA" })).toBe("MA"); // « MA - MBC 5 »
     expect(regionCountry("ar", null, ["| LIBAN |"])).toBe("LB");
@@ -150,7 +162,7 @@ describe("runChannels", () => {
     serve();
     const stats = await runChannels();
     expect(stats).toMatchObject({
-      iptv_channels: 9,
+      iptv_channels: 11,
       iptv_logos: 2,
       live_items: 9,
       live_recognised: 5,
@@ -175,6 +187,16 @@ describe("runChannels", () => {
     expect(by("9")).toMatchObject({ iptvId: "AlResalah.sa", how: "epg", theme: "Religion" });
     // In the Arab world, iptv-org's country; « fr » is France, where its recognised channels come from, the names left too.
     expect([by("4").country, by("7").country, by("9").country, by("1").country, by("3").country]).toEqual(["AE", "EG", "SA", "FR", "FR"]);
+  });
+
+  it("looks a name up across the world only when it is one: not a number, not two letters", async () => {
+    const idx = await loadIndex();
+    const found = (title: string, market: string) => matchChannel(idx, { epgId: null, title, market }).match;
+    expect(found("BBC PARLIAMENT", "fr")).toEqual({ id: "BBCParliament.uk", how: "name-global" });
+    expect(found("06", "na")).toBeNull(); // « NFL | 06 - » is a numbered feed, not Smile TV's « 0-6 TV »
+    expect(found("A2", "tr")).toBeNull(); // Turkey's A2 is not Russia's
+    expect(found("A2", "ru")).toEqual({ id: "A2.ru", how: "name" }); // in its own country, a short name is a name
+    expect(found("0-6 TV", "gr")).toEqual({ id: "SmileTV.gr", how: "name" });
   });
 
   it("gives the content iptv-org's logo through this server, the provider's otherwise", async () => {
@@ -227,7 +249,7 @@ describe("syncIptv", () => {
     serve();
     await expect(syncIptv()).resolves.toMatchObject({ iptv_updated: 0 }); // fresh copy, nothing asked
     await age();
-    await expect(syncIptv()).resolves.toMatchObject({ iptv_channels: 9, iptv_updated: 1 });
+    await expect(syncIptv()).resolves.toMatchObject({ iptv_channels: 11, iptv_updated: 1 });
   });
 
   it("keeps the previous copy when iptv-org is unreachable: no error, nothing rebuilt", async () => {
@@ -238,21 +260,21 @@ describe("syncIptv", () => {
     vi.stubGlobal("fetch", down);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      await expect(syncIptv()).resolves.toMatchObject({ iptv_channels: 9, iptv_updated: 0 });
+      await expect(syncIptv()).resolves.toMatchObject({ iptv_channels: 11, iptv_updated: 0 });
     } finally {
       warn.mockRestore();
     }
     expect(down).toHaveBeenCalled();
-    expect(await count()).toBe(9);
+    expect(await count()).toBe(11);
   });
 
   it("a 304 renews the copy without rebuilding the table", async () => {
     await age();
     const notModified = vi.fn(async () => new Response(null, { status: 304 }));
     vi.stubGlobal("fetch", notModified);
-    await expect(syncIptv()).resolves.toMatchObject({ iptv_channels: 9, iptv_updated: 0 });
+    await expect(syncIptv()).resolves.toMatchObject({ iptv_channels: 11, iptv_updated: 0 });
     expect(notModified).toHaveBeenCalledTimes(2); // one conditional request per file
-    expect(await count()).toBe(9);
+    expect(await count()).toBe(11);
     // The copy is fresh again: the next run does not even ask.
     notModified.mockClear();
     await syncIptv();

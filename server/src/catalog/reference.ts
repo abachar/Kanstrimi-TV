@@ -1,7 +1,17 @@
 import { and, asc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db, schema, inDisabledAccount, variants, visibleItem, type Channel, type ReferenceChannel } from "@/db";
 import { similarity, similarityKey, slug } from "@/shared";
-import { countriesOf, type Index, isOurs, loadIndex, nameKeys, referenceOf, rematchChannels, WATCHED_SHARE } from "./channels";
+import {
+  countriesOf,
+  type Index,
+  isOurs,
+  loadIndex,
+  nameKeys,
+  referenceOf,
+  rematchChannels,
+  WATCHED_SHARE,
+  WATCHED_STREAMS,
+} from "./channels";
 import { contentKey } from "./keys";
 import { followLiveKeys } from "./grouping/group";
 import { EVENTS_THEME, LIVE_THEMES, REGIONS, UNKNOWN_THEME, type LiveTheme } from "./naming";
@@ -152,7 +162,7 @@ export async function referenceChannelById(id: number): Promise<ReferenceChannel
 
 /**
  * The markets the household watches, for the providers in use: those whose recognised channels the
- * profiles see a fair share of (`WATCHED_SHARE`), the largest first.
+ * profiles see a fair share of (`WATCHED_SHARE`, `WATCHED_STREAMS`), the largest first.
  */
 export async function watchedMarkets(): Promise<string[]> {
   const v = variants;
@@ -164,6 +174,8 @@ export async function watchedMarkets(): Promise<string[]> {
     .groupBy(v.market)
     .having(
       sql`count(*) filter (where ${recognised} and ${visibleItem}) > 0
+        and (count(*) filter (where ${recognised} and ${visibleItem}) >= ${WATCHED_STREAMS}
+          or count(*) filter (where ${recognised} and ${visibleItem}) = count(*) filter (where ${recognised}))
         and count(*) filter (where ${recognised} and ${visibleItem}) >= ${WATCHED_SHARE}::float8 * count(*) filter (where ${recognised})`,
     )
     .orderBy(sql`count(distinct ${v.contentKey}) filter (where ${recognised}) desc`, asc(v.market));

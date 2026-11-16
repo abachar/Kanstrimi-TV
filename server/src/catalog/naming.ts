@@ -195,6 +195,11 @@ const BARE_PREFIX = /^([A-Z]{2,7}(?:-[A-Z]{2,7})?)\.?\s*(?:\|\s*|[-:]\s+)/;
 /** Technical prefixes some providers stamp on scene releases ("AZ - Title.2013"): not a market. */
 const NOT_A_MARKET = new Set(["AZ", "VOD", "TV", "LIVE", "NEWS", "MAG", "PPV"]);
 /**
+ * Nor is a competition opening a name (« NFL | 06 - », « EPL - PREMIERE LEAGUE 7 »): the category says
+ * where its feeds are filed (« |NA| USA NFL »).
+ */
+const COMPETITIONS = new Set(["NFL", "NHL", "NBA", "MLB", "MLS", "EPL"]);
+/**
  * Codes some providers write for a market or a language, as the catalogue spells them. « LEG »
  * (legendado) is the Portuguese market's subtitled original version.
  */
@@ -416,12 +421,13 @@ export function parseName(raw: string, kind: Kind): ParsedName {
 /**
  * The content of a prefix, token by token: a market code (« FR », « EX-YU », « +AF »), an alias
  * (« ESP », « LEG. »), a language, quality, dynamic range or noise word. Returns the market it names
- * (empty when none), or null when a token is none of these: the bracket then opens a title.
+ * (empty when none: a technical word, a competition), or null when a token is none of these: the
+ * bracket then opens a title.
  * "|FR|" is a market, not a language: "|FR| Tenet (VOST)" is sold in France, in VOSTFR.
  */
 function readPrefix(content: string, f: Found): string | null {
   const whole = content.toUpperCase().replace(/\./g, "").trim();
-  if (NOT_A_MARKET.has(whole)) return "";
+  if (NOT_A_MARKET.has(whole) || COMPETITIONS.has(whole)) return "";
   // A hyphenated market (« EX-YU », « PT-BR ») stays whole when neither side is a tag.
   if (/^[A-Z]{2,3}-[A-Z]{2,3}$/.test(whole) && !whole.split("-").some((t) => LANG_WORDS[t] || ISO_CODES.has(t))) return whole.toLowerCase();
   let market = "";
