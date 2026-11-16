@@ -1,7 +1,8 @@
-import { and, desc, sql, type SQL } from "drizzle-orm";
-import type { Content } from "@/db";
+import { and, desc, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
+import { schema, type Content } from "@/db";
 import { contentsByKey, contentSource } from "@/catalog";
 import type { Exec } from "./search";
+import { claudeReading } from "../format";
 import { catalogRows, listContents, listSagaWires, sagaSheet, studiosOf, type RestContext, type SagaWire, type StudioWire } from "@/player";
 
 /**
@@ -71,13 +72,34 @@ export async function shelfPage(ctx: RestContext, kind: "vod" | "series", shelf:
   return null;
 }
 
-/** The search of a kind's screen: the contents meeting the query, latest first. */
-export async function searchContents(ex: Exec, kind: "live" | "vod" | "series", where: SQL, offset: number) {
+/** The search of the Films and Séries screens: the titles meeting the query, latest first, with what Claude read of each. */
+export async function searchContents(ex: Exec, kind: "vod" | "series", where: SQL, offset: number) {
   const src = contentSource(kind);
   const cond = and(src.ofKind, where);
   const [[{ n }], rows] = await Promise.all([
     ex.select({ n: sql<number>`count(*)::int` }).from(src.table).where(cond),
     ex.select(src.fields).from(src.table).where(cond).orderBy(desc(src.addedAt), desc(src.id)).limit(PAGE).offset(offset),
   ]);
-  return { rows, total: n };
+  return {
+    rows,
+    total: n,
+    read: await readByClaude(
+      ex,
+      rows.map((r) => r.id),
+    ),
+  };
+}
+
+/** What Claude read, by content id. */
+export type ClaudeNotes = Record<number, string>;
+
+/** What Claude read in the names of these titles, for those he was asked about (TMDB did not find them). */
+async function readByClaude(ex: Exec, ids: number[]): Promise<ClaudeNotes> {
+  if (!ids.length) return {};
+  const t = schema.catalogTitles;
+  const rows = await ex
+    .select({ id: t.id, aiKind: t.aiKind, aiTitle: t.aiTitle, aiOriginalTitle: t.aiOriginalTitle, aiYear: t.aiYear })
+    .from(t)
+    .where(and(inArray(t.id, ids), isNotNull(t.aiAskedAt)));
+  return Object.fromEntries(rows.map((r) => [r.id, claudeReading(r)]));
 }

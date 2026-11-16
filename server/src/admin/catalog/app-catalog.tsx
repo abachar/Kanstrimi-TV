@@ -1,7 +1,7 @@
 import type { Content } from "@/db";
 import { qualityOfRank } from "@/catalog";
 import type { SagaWire, StudioWire } from "@/player";
-import { PAGE, type Shelf, type ShelfPage } from "./app-data";
+import { PAGE, type ClaudeNotes, type Shelf, type ShelfPage } from "./app-data";
 import { fmt } from "../format";
 import { Badge, Empty } from "../ui";
 import { contentKeyLink } from "../content/links";
@@ -77,7 +77,8 @@ const TitleHeader = () => (
   </div>
 );
 
-function TitleRow({ c, rank }: { c: Content; rank: number }) {
+/** `note`: what Claude read of it, under its title. */
+function TitleRow({ c, rank, note }: { c: Content; rank: number; note?: string }) {
   const quality = [qualityOfRank(c.maxQualityRank), c.dynamicRange].filter(Boolean).join(" · ");
   return (
     <div class={ROW}>
@@ -89,6 +90,7 @@ function TitleRow({ c, rank }: { c: Content; rank: number }) {
         >
           {c.title}
         </a>
+        {note && <div class="truncate text-xs text-muted-foreground">{note}</div>}
       </div>
       <div class={`${CELL} text-muted-foreground tabular-nums md:col-span-1`}>
         {c.endYear ? `${c.year ?? "?"}–${c.endYear}` : (c.year ?? "")}
@@ -145,12 +147,26 @@ export function ShelfRows({ kind, shelf, page, n }: { kind: string; shelf: strin
 export const foundLink = (kind: string, q: string, n: number) => `/admin/catalog/found?${new URLSearchParams({ kind, q, n: String(n) })}`;
 
 /** One page of the contents a « Catalogue » search found, from rank `n + 1`. */
-export function FoundRows({ kind, q, rows, total, n }: { kind: string; q: string; rows: Content[]; total: number; n: number }) {
+export function FoundRows({
+  kind,
+  q,
+  rows,
+  total,
+  n,
+  read = {},
+}: {
+  kind: string;
+  q: string;
+  rows: Content[];
+  total: number;
+  n: number;
+  read?: ClaudeNotes;
+}) {
   return (
     <>
       {n === 0 && <TitleHeader />}
       {rows.map((c, i) => (
-        <TitleRow c={c} rank={n + i + 1} />
+        <TitleRow c={c} rank={n + i + 1} note={read[c.id]} />
       ))}
       {n + rows.length < total && rows.length === PAGE && <More link={foundLink(kind, q, n + rows.length)} />}
     </>
@@ -158,7 +174,19 @@ export function FoundRows({ kind, q, rows, total, n }: { kind: string; q: string
 }
 
 /** The results of a « Catalogue » search: the contents, latest first, hidden ones struck through. */
-export const FoundView = ({ kind, q, rows, total }: { kind: string; q: string; rows: Content[]; total: number }) => (
+export const FoundView = ({
+  kind,
+  q,
+  rows,
+  total,
+  read,
+}: {
+  kind: string;
+  q: string;
+  rows: Content[];
+  total: number;
+  read?: ClaudeNotes;
+}) => (
   <>
     <p class="text-sm text-muted-foreground">
       {fmt(total)} contenu{total > 1 ? "s" : ""} pour « {q} », du plus récent au plus ancien ·{" "}
@@ -168,7 +196,7 @@ export const FoundView = ({ kind, q, rows, total }: { kind: string; q: string; r
     </p>
     {total > 0 ? (
       <div class="flex flex-col divide-y overflow-hidden rounded-xl border">
-        <FoundRows kind={kind} q={q} rows={rows} total={total} n={0} />
+        <FoundRows kind={kind} q={q} rows={rows} total={total} n={0} read={read} />
       </div>
     ) : (
       <Empty title="Aucun contenu" sub="Aucune variante ne correspond à la recherche." />

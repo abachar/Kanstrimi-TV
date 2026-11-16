@@ -27,6 +27,19 @@ export function duration(a: Date, b: Date) {
   return m < 60 ? `${m} min ${s % 60} s` : `${Math.floor(m / 60)} h ${m % 60} min`;
 }
 
+/** What Claude read in a movie's or a series' name, as the admin says it: « Claude : « Titre » (Original) 2019 ». */
+export function claudeReading(r: {
+  aiKind: string | null;
+  aiTitle: string | null;
+  aiOriginalTitle: string | null;
+  aiYear: number | null;
+}): string {
+  if (r.aiKind === "other") return "Claude : hors TMDB";
+  const title = r.aiTitle ?? r.aiOriginalTitle;
+  if (!title) return "Claude : non identifié";
+  return `Claude : « ${title} »${r.aiOriginalTitle && r.aiTitle ? ` (${r.aiOriginalTitle})` : ""}${r.aiYear ? ` ${r.aiYear}` : ""}`;
+}
+
 // ---------------------------------------------------------------- cron
 
 /**

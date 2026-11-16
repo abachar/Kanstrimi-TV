@@ -1,22 +1,14 @@
 import { Hono } from "hono";
-import {
-  assignManual,
-  defaultProfile,
-  itemById,
-  listChannels,
-  liveSummary,
-  searchCandidates,
-  setItemHiddenManual,
-  unmatchedNames,
-} from "@/catalog";
+import { assignManual, defaultProfile, itemById, liveChannels, searchCandidates, setItemHiddenManual } from "@/catalog";
 import { page, form, checked, intField, intParam } from "../http";
 import { InlineResult } from "../ui";
 import { describeError } from "@/shared";
 import { KIND_TITLES } from "../labels";
 import { getSettings } from "@/config";
-import { channelGroups, contextFor } from "@/player";
+import { contextFor } from "@/player";
 import { CatalogShell } from "./view";
-import { AllChannelsView, AppLiveView, LIVE_PAGE_SIZE, LiveTabs, NamesView } from "./app-live";
+import { BranchRows, LiveShortcuts, LiveTree } from "./app-live";
+import { LIVE_PAGE, liveShortcuts, liveView } from "./live-data";
 import { searchContents, shelfPage, shelvesOf } from "./app-data";
 import { AppCatalogView, FoundRows, FoundView, ShelfRows } from "./app-catalog";
 import { SearchBar } from "./search-bar";
@@ -24,7 +16,6 @@ import { compileSearch, runSearch } from "./search";
 import { kindParam, offsetParam } from "../query";
 import { TmdbCell } from "./tmdb-cell";
 import { type CatalogQuery, parseCatalogQuery } from "./query";
-import type { RestContext } from "@/player";
 
 export const catalogRoutes = new Hono();
 
@@ -32,10 +23,12 @@ export const catalogRoutes = new Hono();
 catalogRoutes.get("/", async (c) => {
   const qy = parseCatalogQuery(c.req.query());
   const title = KIND_TITLES[qy.kind];
-  const search = await compileSearch(qy.kind, qy.q);
+  if (qy.kind === "live") return page(c, title, <CatalogShell qy={qy}>{await liveBody(qy)}</CatalogShell>);
+  const kind = qy.kind;
+  const search = await compileSearch(kind, qy.q);
   if (search.where) {
     const where = search.where;
-    const found = await runSearch((ex) => searchContents(ex, qy.kind, where, 0));
+    const found = await runSearch((ex) => searchContents(ex, kind, where, 0));
     return page(
       c,
       title,
@@ -45,7 +38,7 @@ catalogRoutes.get("/", async (c) => {
         ) : (
           <>
             <SearchBar kind={qy.kind} q={qy.q} />
-            <FoundView kind={qy.kind} q={qy.q} rows={found.value.rows} total={found.value.total} />
+            <FoundView kind={qy.kind} q={qy.q} rows={found.value.rows} total={found.value.total} read={found.value.read} />
           </>
         )}
       </CatalogShell>,
@@ -58,58 +51,53 @@ catalogRoutes.get("/", async (c) => {
     title,
     <CatalogShell qy={qy}>
       <SearchBar kind={qy.kind} q={qy.q} error={search.error} />
-      {qy.kind === "live" ? await liveBody(ctx, qy) : <AppCatalogView kind={qy.kind} shelves={await shelvesOf(ctx, qy.kind)} />}
+      <AppCatalogView kind={qy.kind} shelves={await shelvesOf(ctx, qy.kind)} />
     </CatalogShell>,
   );
 });
 
 /**
- * The Live screen under its search box: the figures that are also its filter, then the list they
- * choose: the app's groups, a market's channels, or its names left without a channel.
+ * The Live screen: its shortcuts, the search box they write in, and the tree the search leaves. A query
+ * that cannot run says why where the tree would be.
  */
-async function liveBody(ctx: RestContext, qy: CatalogQuery) {
-  const summary = await liveSummary(ctx.profile.id);
-  const tabs = <LiveTabs summary={summary} show={qy.show} />;
-  if (qy.show === "shown")
-    return (
-      <>
-        {tabs}
-        <AppLiveView groups={await channelGroups(ctx)} />
-      </>
-    );
-  const { markets } = summary;
-  const market = markets.find((m) => m.market === qy.market)?.market ?? markets[0]?.market ?? "fr";
-  const paging = { market, page: qy.page, size: LIVE_PAGE_SIZE };
+async function liveBody(qy: CatalogQuery) {
+  const search = await compileSearch("live", qy.q);
+  const shortcuts = <LiveShortcuts shortcuts={await liveShortcuts()} q={qy.q} />;
+  const found = search.error ? { error: search.error } : await runSearch((ex) => liveView(ex, search.where, qy.open));
   return (
     <>
-      {tabs}
-      {qy.show === "all" ? (
-        <AllChannelsView markets={markets} market={market} page={qy.page} channels={await listChannels(paging)} />
-      ) : (
-        <NamesView
-          markets={markets}
-          market={market}
-          show={qy.show}
-          name={qy.name}
-          page={qy.page}
-          names={await unmatchedNames({ ...paging, events: qy.show === "events", q: qy.name })}
-        />
-      )}
+      {shortcuts}
+      <SearchBar kind="live" q={qy.q} error={"error" in found ? found.error : null} />
+      {"value" in found && <LiveTree q={qy.q} view={found.value} />}
     </>
   );
 }
+
+/** One page of a branch of the Live tree, at its first opening and as it scrolls. */
+catalogRoutes.get("/branch", async (c) => {
+  const q = c.req.query("q")?.trim() ?? "";
+  const market = c.req.query("market") || null;
+  const theme = c.req.query("theme") || null;
+  const n = offsetParam(c.req.query("n"));
+  const search = await compileSearch("live", q);
+  if (search.error) return c.body(null, 204);
+  const found = await runSearch((ex) => liveChannels(search.where, { market, theme, offset: n, limit: LIVE_PAGE + 1 }, ex));
+  if ("error" in found) return c.body(null, 204);
+  return c.html(<BranchRows q={q} market={market} theme={theme} rows={found.value} n={n} />);
+});
 
 /** One more page of a « Catalogue » search, as it scrolls. */
 catalogRoutes.get("/found", async (c) => {
   const kind = kindParam(c.req.query("kind"));
   const q = c.req.query("q") ?? "";
   const n = offsetParam(c.req.query("n"));
+  if (kind === "live") return c.notFound();
   const search = await compileSearch(kind, q);
   if (!search.where) return c.body(null, 204);
   const where = search.where;
   const found = await runSearch((ex) => searchContents(ex, kind, where, n));
   if ("error" in found) return c.body(null, 204);
-  return c.html(<FoundRows kind={kind} q={q} rows={found.value.rows} total={found.value.total} n={n} />);
+  return c.html(<FoundRows kind={kind} q={q} rows={found.value.rows} total={found.value.total} n={n} read={found.value.read} />);
 });
 
 /** One page of a shelf of the « Catalogue » view, at its first opening and as it scrolls. */

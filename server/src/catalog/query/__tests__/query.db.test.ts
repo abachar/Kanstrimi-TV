@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { and, sql } from "drizzle-orm";
-import { db, variants as vr, type Kind } from "@/db";
+import { and, eq, sql } from "drizzle-orm";
+import { db, schema, variants as vr, type Kind } from "@/db";
 import { contentSource } from "../../queries";
-import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
+import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter, ofStreams } from "@/test/db";
 import { runNaming } from "../../grouping/group";
 import { compileQuery, QueryError } from "..";
 
@@ -156,6 +156,26 @@ describe("filter language: conditions on a content", () => {
   it("knows the live fields", async () => {
     expect(await find("xtream.section:generalistes", "live")).toEqual(["TF1"]);
     expect(await find("tf1 && -adulte:oui", "live")).toEqual(["TF1"]);
+  });
+
+  it("finds what Claude read: a title he was asked about, a channel a stream is on through the name he read in it", async () => {
+    expect(await find("ia:oui")).toEqual([]);
+    expect(await find("ia:oui", "live")).toEqual([]);
+    const unknown = eq(schema.catalogTitles.title, UNKNOWN);
+    const tf1 = ofStreams(eq(schema.xtreamStreams.upstreamId, "100"));
+    const [{ how }] = await db.select({ how: schema.catalogStreams.how }).from(schema.catalogStreams).where(tf1);
+    await db.update(schema.catalogTitles).set({ aiKind: "other", aiAskedAt: new Date() }).where(unknown); // asked, nothing found
+    await db.update(schema.catalogStreams).set({ how: "ai" }).where(tf1);
+    try {
+      expect(await find("ia:oui")).toEqual([UNKNOWN]);
+      expect(await find("claude:non")).toEqual([DILWALE, MATRIX]);
+      expect(await find("ia:oui", "live")).toEqual(["TF1"]);
+      expect(await find("ia:non", "live")).toEqual([]);
+    } finally {
+      await db.update(schema.catalogTitles).set({ aiKind: null, aiAskedAt: null }).where(unknown);
+      await db.update(schema.catalogStreams).set({ how }).where(tf1);
+    }
+    expect(fails("ia:oui", { filter: true })).toContain("ia");
   });
 
   it("reads || and groups, a version field anywhere judging version by version", async () => {

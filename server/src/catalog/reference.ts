@@ -1,5 +1,5 @@
 import { and, asc, eq, ne, sql } from "drizzle-orm";
-import { db, schema, inDisabledAccount, variantRows, variants, visibleItem, type Channel, type ReferenceChannel } from "@/db";
+import { db, schema, inDisabledAccount, variants, visibleItem, type Channel, type ReferenceChannel } from "@/db";
 import { similarity, similarityKey, slug } from "@/shared";
 import { countriesOf, type Index, isOurs, loadIndex, nameKeys, referenceOf, rematchChannels, WATCHED_SHARE } from "./channels";
 import { contentKey } from "./keys";
@@ -150,69 +150,24 @@ export async function referenceChannelById(id: number): Promise<ReferenceChannel
   return row ? referenceOf(row) : null;
 }
 
-export type LiveMarketStat = {
-  market: string;
-  /** Recognised channels: one per reference channel a provider in use carries. */
-  channels: number;
-  /** Names left without a reference channel, and names of event feeds. */
-  unknown: number;
-  events: number;
-  watched: boolean;
-};
-export type LiveSummary = { markets: LiveMarketStat[] /** The channels the profile gets in the app. */; shown: number };
-
 /**
- * The live catalogue at a glance, for the providers in use: per market, the channels of the reference,
- * the names left to attach and the event feeds; `watched` when the profiles see a fair share of its
- * channels (`WATCHED_SHARE`). And how many channels this profile is shown.
+ * The markets the household watches, for the providers in use: those whose recognised channels the
+ * profiles see a fair share of (`WATCHED_SHARE`), the largest first.
  */
-export async function liveSummary(profileId: number): Promise<LiveSummary> {
+export async function watchedMarkets(): Promise<string[]> {
   const v = variants;
-  const title = sql`coalesce(nullif(${v.title}, ''), ${v.name})`;
+  const recognised = sql`${v.channelName} is not null`;
   const rows = await db
-    .select({
-      market: v.market,
-      channels: sql<number>`count(distinct ${v.contentKey}) filter (where ${v.channelName} is not null)::int`,
-      unknown: sql<number>`count(distinct ${title}) filter (where ${v.channelName} is null and ${v.theme} is distinct from ${EVENTS_THEME})::int`,
-      events: sql<number>`count(distinct ${title}) filter (where ${v.channelName} is null and ${v.theme} = ${EVENTS_THEME})::int`,
-      watched: sql<boolean>`count(*) filter (where ${v.channelName} is not null and ${visibleItem}) > 0
-        and count(*) filter (where ${v.channelName} is not null and ${visibleItem}) >= ${WATCHED_SHARE}::float8 * count(*) filter (where ${v.channelName} is not null)`,
-    })
+    .select({ market: v.market })
     .from(v)
     .where(and(eq(v.kind, "live"), sql`${v.market} is not null`, sql`not ${inDisabledAccount}`))
-    .groupBy(v.market);
-  const [seen] = await db.execute<{ n: number }>(sql`
-    select count(*)::int as n from app_profile_channels p where p.profile_id = ${profileId}`);
-  return {
-    markets: rows
-      .map((r) => ({ ...r, market: r.market! }))
-      .sort((a, b) => Number(b.watched) - Number(a.watched) || b.channels + b.unknown - (a.channels + a.unknown)),
-    shown: seen.n,
-  };
-}
-
-export type ChannelRow = {
-  id: number;
-  title: string;
-  country: string | null;
-  themes: string[];
-  logoUrl: string | null;
-  versions: number;
-  /** A profile at least gets it in the app. */
-  visible: boolean;
-};
-/** The channels of the reference a market holds among the providers in use, by name. */
-export async function listChannels(opts: { market: string; page: number; size: number }): Promise<{ rows: ChannelRow[]; total: number }> {
-  const rows = await db.execute<ChannelRow & { total: number }>(sql`
-    select c.id, c.name as title, c.country, case when c.theme is null then '{}'::text[] else array[c.theme] end as themes,
-           c.logo_url as "logoUrl", c.visible,
-           (select count(*)::int from catalog_streams v where v.channel_id = c.id) as versions, (count(*) over ())::int as total
-    from catalog_channels c
-    where c.market = ${opts.market} and c.status = 'known'
-      and exists (select 1 from ${variantRows} v join xtream_accounts a on a.id = v.account_id and a.enabled where v.channel_id = c.id)
-    order by c.name, c.id
-    limit ${opts.size} offset ${(opts.page - 1) * opts.size}`);
-  return { total: rows[0]?.total ?? 0, rows: rows.map(({ total: _, ...r }) => r) };
+    .groupBy(v.market)
+    .having(
+      sql`count(*) filter (where ${recognised} and ${visibleItem}) > 0
+        and count(*) filter (where ${recognised} and ${visibleItem}) >= ${WATCHED_SHARE}::float8 * count(*) filter (where ${recognised})`,
+    )
+    .orderBy(sql`count(distinct ${v.contentKey}) filter (where ${recognised}) desc`, asc(v.market));
+  return rows.map((r) => r.market!);
 }
 
 /**
@@ -338,50 +293,13 @@ export async function nameCandidates(market: string, title: string, q = ""): Pro
     .map(({ names: _, local: __, ...c }) => ({ ...c, score: 0 }));
 }
 
-export type UnmatchedName = {
-  market: string;
-  title: string;
-  variants: number;
-  providers: number;
-  category: string | null;
-  /** One of the names as the provider writes it. */
-  sample: string;
-  /** What Claude read in it, when asked. */
-  aiKind: string | null;
-  aiTitle: string | null;
-  suggestions: Candidate[];
-};
-
-/**
- * The names of a market left without a reference channel, the most frequent first: the unknown ones or
- * the event feeds, each with the closest channels of the reference.
- */
-export async function unmatchedNames(opts: {
-  market: string;
-  events: boolean;
-  q?: string;
-  page: number;
-  size: number;
-}): Promise<{ rows: UnmatchedName[]; total: number }> {
-  const like = opts.q?.trim() ? `%${opts.q.trim().replace(/[\\%_]/g, "\\$&")}%` : null;
-  const rows = await db.execute<Omit<UnmatchedName, "suggestions"> & { total: number }>(sql`
-    select v.market, coalesce(nullif(v.title, ''), v.name) as title, count(*)::int as variants,
-           count(distinct v.account_id)::int as providers, min(c.name) as category, min(v.name) as sample,
-           max(v.variant_ai_kind) as "aiKind", max(v.variant_ai_title) as "aiTitle", (count(*) over ())::int as total
-    from ${variantRows} v
-    left join ${schema.xtreamCategories} c on c.account_id = v.account_id and c.kind = v.kind and c.xtream_id = v.category_xtream_id
-    where v.kind = 'live' and v.channel_name is null and v.market = ${opts.market}
-      and exists (select 1 from xtream_accounts a where a.id = v.account_id and a.enabled)
-      and ${opts.events ? sql`v.variant_theme = ${EVENTS_THEME}` : sql`v.variant_theme is distinct from ${EVENTS_THEME}`}
-      ${like ? sql`and (v.title ilike ${like} or v.name ilike ${like})` : sql``}
-    group by v.market, coalesce(nullif(v.title, ''), v.name)
-    order by count(*) desc, 2
-    limit ${opts.size} offset ${(opts.page - 1) * opts.size}`);
-  const pool = rows.length ? marketChannels(await loadIndex(), opts.market) : [];
-  return {
-    total: rows[0]?.total ?? 0,
-    rows: rows.map(({ total: _, ...r }) => ({ ...r, suggestions: ranked(pool, r.title, SUGGEST_THRESHOLD, 2) })),
-  };
+/** For each name left without a channel, the closest channels of its market's reference: few, and close enough for one click. */
+export async function suggestionsFor(names: { market: string; title: string }[]): Promise<Candidate[][]> {
+  if (!names.length) return [];
+  const idx = await loadIndex();
+  const pools = new Map<string, Pooled[]>();
+  const poolOf = (market: string) => pools.get(market) ?? pools.set(market, marketChannels(idx, market)).get(market)!;
+  return names.map((n) => ranked(poolOf(n.market), n.title, SUGGEST_THRESHOLD, 2));
 }
 
 export type UnmatchedVariant = { id: number; name: string; provider: string; category: string | null; contentId: number | null };

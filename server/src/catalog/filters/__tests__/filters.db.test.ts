@@ -16,7 +16,7 @@ import { runGrouping, runNaming } from "../../grouping/group";
 import { attachTitles } from "../../matching";
 import { filtersPending, listFilters, previewFilter, saveFilter } from "../filters";
 import { applyFilters } from "../apply";
-import { searchContents } from "@/admin/catalog/app-data";
+import { liveChannels } from "../../live-tree";
 
 beforeAll(async () => {
   await resetDb();
@@ -126,7 +126,7 @@ describe("filters", () => {
   it("the admin's searches see the filters' verdict", async () => {
     await filter("live", 'marché:"fr"');
     const where = compileQuery("visible:oui", { kind: "live", lang: "fr-FR" })!;
-    expect((await searchContents(db, "live", where, 0)).rows.map((c) => c.title)).toEqual(["TF1"]);
+    expect((await liveChannels(where, { offset: 0, limit: 10 })).map((c) => c.name)).toEqual(["TF1"]);
     await filter("live", "");
   });
 

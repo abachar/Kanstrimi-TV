@@ -7,7 +7,7 @@ import { signedImagePath } from "@/shared";
 import type { ContentDetail, VariantDetail } from "./data";
 import { EpisodesCard } from "./episodes";
 import { GuideCard } from "./guide";
-import { fmt } from "../format";
+import { claudeReading, fmt } from "../format";
 import { KEY_KIND_LABELS, MATCH_LABELS, MATCH_TONES } from "../labels";
 import { TmdbCell } from "../catalog/tmdb-cell";
 import { VisibilityToggle } from "../catalog/visibility";
@@ -264,13 +264,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
   const read = [
     it.title && it.title !== it.name ? `« ${it.title} »` : null,
     it.year,
-    it.aiAskedAt
-      ? it.aiKind === "other"
-        ? "Claude : hors TMDB"
-        : it.aiTitle || it.aiOriginalTitle
-          ? `Claude : « ${it.aiTitle ?? it.aiOriginalTitle} »${it.aiOriginalTitle && it.aiTitle ? ` (${it.aiOriginalTitle})` : ""}${it.aiYear ? ` ${it.aiYear}` : ""}`
-          : "Claude : non identifié"
-      : null,
+    it.aiAskedAt ? claudeReading(it) : null,
     it.seasonHint != null ? `saison ${it.seasonHint}` : null,
     it.tags.length ? it.tags.join(", ") : null,
     it.market ? `marché ${it.market}` : null,

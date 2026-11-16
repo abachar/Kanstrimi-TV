@@ -65,7 +65,7 @@ passent en dernier : ils lisent le contenu tel que l'app le montre. L'étape peu
 Le matching est un seul algorithme, `explainMatch` : `group` et `enrich` appliquent son verdict, l'admin l'affiche sous « Pourquoi ? ».
 Le client TMDB ne dépasse pas 35 requêtes par seconde. Un flux renommé par le fournisseur quitte son titre et est identifié de
 nouveau (sauf attaché à la main) ; un flux posé sur un titre sans fiche, dont la grammaire change la lecture (titre ou année), aussi.
-Sans `ANTHROPIC_API_KEY`, Claude n'est pas consulté et tout le reste marche.
+Sans `ANTHROPIC_API_KEY`, Claude n'est pas consulté et tout le reste marche. Dans l'admin, la recherche `ia:oui` des écrans Films, Séries et Live montre ce qu'il a lu : les titres qu'on lui a demandés, les chaînes dont un flux est reconnu par le nom qu'il y lit et les noms restés sans chaîne qu'il a lus, sa lecture sous chaque ligne.
 Un passage s'arrête à la première étape en échec, sauf `enrich` (réseau externe). Chaque passage laisse une ligne dans
 `task_runs`, une par étape dans `task_steps`, et un fichier de log dans `DATA_DIR/logs/` avec le détail de chaque
 partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque passage purge lignes et fichiers de plus de 5 jours.
@@ -251,8 +251,12 @@ par son index.
   reconnue » de ce nom, gardée même sans flux pour ne pas le redemander). Une radio n'est jamais une chaîne. Sans
   chaîne de référence, l'entrée va sous « Événements » (catégorie ou section PPV, EVENT, LIVE ; nom qui porte une date,
   une heure, deux équipes, un flux numéroté) ou « Non reconnus » : un filtre de profil les écarte. L'écran Live est
-  le seul écran des chaînes : ses chiffres sont son filtre (affichées dans l'app, toutes les chaînes, non rattachées,
-  événements) ; un nom se rattache sur sa ligne (suggestions à un clic, ou « Autre… » : recherche dans toute la
+  le seul écran des chaînes : un seul arbre, marché → thème → chaînes (`catalog/live-tree.ts`), pour tout ce que porte un
+  fournisseur en service, les noms restés sans chaîne y étant des chaînes à leur nom sous « Non reconnus » et
+  « Événements ». La recherche l'élague (`marché:be`, `thème:sport`, `profil:inès`, `ia:oui`) ; ses raccourcis (dans
+  l'app de chaque profil, toutes les chaînes, non rattachées, événements) sont des recherches écrites d'avance, avec
+  ce qu'elles trouvent. L'arbre vient replié, une branche chargée à son ouverture, et déplié quand il reste peu de
+  chaînes ; un nom se rattache sur sa ligne (suggestions à un clic, ou « Autre… » : recherche dans toute la
   référence et création), pour tous les fournisseurs, et le marché est relu aussitôt ; le nom, le thème, le pays et
   les noms d'une chaîne se changent sur sa fiche. Une chaîne dont la clé change emmène ce que les profils y avaient
   enregistré (liste, temps regardé, version choisie).

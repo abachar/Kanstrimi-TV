@@ -250,6 +250,36 @@ export const FIELDS: Field[] = [
     searchOnly: true,
     choices: (ctx) => yesNo(sql`${ctx.kind === "live" ? ch.visible : c.visible}`),
   },
+  {
+    names: ["profil", "profile"],
+    type: "text",
+    doc: "Vu par ce profil dans l'app : son filtre en garde une version (aucun : vu par personne)",
+    example: "profil:inès",
+    kinds: ALL,
+    level: "content",
+    searchOnly: true,
+    text: (ctx, p) =>
+      ctx.kind === "live"
+        ? sql`exists (select 1 from app_profile_channels pc join app_profiles pr on pr.id = pc.profile_id
+            where pc.channel_id = ${ch.id} and ${p(sql`pr.name`)})`
+        : sql`exists (select 1 from app_profile_titles pt join app_profiles pr on pr.id = pt.profile_id
+            where pt.title_id = ${c.id} and ${p(sql`pr.name`)})`,
+  },
+  {
+    names: ["ia", "claude"],
+    type: "enum",
+    doc: "Lu par Claude : un titre dont TMDB ne trouvait pas la fiche ; une chaîne dont un flux est reconnu par le nom que Claude y lit, ou un nom resté sans chaîne qu'il a lu",
+    example: "ia:oui",
+    kinds: ALL,
+    level: "content",
+    searchOnly: true,
+    choices: (ctx) =>
+      yesNo(
+        ctx.kind === "live"
+          ? sql`(${ch.aiAskedAt} is not null or exists (select 1 from catalog_streams cs where cs.channel_id = ${ch.id} and cs.how = 'ai'))`
+          : sql`${c.aiAskedAt} is not null`,
+      ),
+  },
   // ------------------------------------------------------------------ one version
   {
     names: ["xtream.nom", "xtream.name"],

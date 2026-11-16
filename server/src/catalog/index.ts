@@ -27,24 +27,19 @@ export {
   type Candidate,
   ChannelError,
   type ChannelInput,
-  type ChannelRow,
   type ContentChannel,
   contentChannel,
   createChannel,
   deleteChannel,
-  listChannels,
-  type LiveMarketStat,
-  type LiveSummary,
-  liveSummary,
   nameCandidates,
   referenceChannelById,
   REFERENCE_THEMES,
-  type UnmatchedName,
-  unmatchedNames,
   type UnmatchedVariant,
   unmatchedVariants,
   updateChannel,
+  watchedMarkets,
 } from "./reference";
+export { countLiveChannels, type LiveBranch, type LiveChannel, liveChannels, type LiveMarket, liveTree } from "./live-tree";
 export { contentKey, hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
 export {
   assignManual,
@@ -66,6 +61,8 @@ export {
   parseName,
   QUALITY_RANK,
   qualityOfRank,
+  EVENTS_THEME,
+  UNKNOWN_THEME,
   REGIONS,
 } from "./naming";
 export {

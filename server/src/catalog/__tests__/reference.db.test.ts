@@ -14,12 +14,15 @@ import {
   contentChannel,
   createChannel,
   deleteChannel,
-  listChannels,
-  liveSummary,
   nameCandidates,
-  unmatchedNames,
   updateChannel,
+  watchedMarkets,
 } from "../reference";
+import { countLiveChannels, liveChannels, liveTree } from "../live-tree";
+import { compileQuery } from "../query";
+
+/** A search of the Live screen, as the tree takes it. */
+const search = (q: string) => compileQuery(q, { kind: "live", lang: "fr-FR" });
 
 /** The channels the admin said something of, as it edits them. */
 const ourChannels = async () => (await db.select().from(schema.catalogChannels).where(isOurs)).map(referenceOf);
@@ -118,25 +121,56 @@ describe("the reference gives a channel its identity", () => {
   });
 });
 
-describe("the live catalogue at a glance", () => {
-  it("counts per market the channels, the names left and the event feeds, and what the profile is shown", async () => {
-    const { markets, shown } = await liveSummary(PROFILE);
-    expect(markets.map((m) => [m.market, m.channels, m.unknown, m.events, m.watched])).toEqual([
-      ["ar", 3, 4, 0, true], // beIN Sports 1, 2M, Tamazight TV; four names wait, the radio of 2M among them
-      ["fr", 1, 1, 1, true],
+describe("the live catalogue is one tree", () => {
+  it("market, then theme, with what each branch counts; and the markets the household watches", async () => {
+    const tree = await liveTree(null);
+    expect(tree.map((m) => [m.market, m.channels, m.visible, m.themes.map((t) => [t.theme, t.channels])])).toEqual([
+      // beIN Sports 1, 2M, Tamazight TV; four names wait, the radio of 2M among them.
+      [
+        "ar",
+        7,
+        7,
+        [
+          ["Généralistes", 2],
+          ["Sport", 1],
+          ["Non reconnus", 4],
+        ],
+      ], // a filter-less profile gets everything
+      [
+        "fr",
+        3,
+        3,
+        [
+          ["Sport", 1],
+          ["Événements", 1],
+          ["Non reconnus", 1],
+        ],
+      ],
     ]);
-    expect(shown).toBe(10); // a filter-less profile gets everything, the unknown ones included
+    expect(await watchedMarkets()).toEqual(["ar", "fr"]);
+    // A search prunes it: the branches that hold nothing of it are gone.
+    const sport = await liveTree(search("thème:sport"));
+    expect(sport.map((m) => [m.market, m.themes.map((t) => t.theme)])).toEqual([
+      ["ar", ["Sport"]],
+      ["fr", ["Sport"]],
+    ]);
+    expect(await countLiveChannels(search("thème:sport"))).toBe(2);
+    expect(await countLiveChannels(search("profil:hakim"))).toBe(10);
+    expect(await countLiveChannels(search("profil:aucun"))).toBe(0);
   });
 
-  it("lists a market's channels, and says of a content what it is in the reference", async () => {
-    const { rows, total } = await listChannels({ market: "ar", page: 1, size: 10 });
-    expect(total).toBe(3);
-    expect(rows.map((c) => [c.title, c.country, c.themes, c.versions, c.visible])).toEqual([
-      ["2M", "MA", ["Généralistes"], 1, true],
-      ["beIN Sports 1", null, ["Sport"], 2, true],
-      ["Tamazight TV", "MA", ["Généralistes"], 1, true],
+  it("lists a branch's channels, and says of a content what it is in the reference", async () => {
+    const rows = await liveChannels(search('marché:"ar" && -thème:"non reconnus"'), { offset: 0, limit: 10 });
+    expect(rows.map((c) => [c.name, c.country, c.theme, c.streams, c.visible, c.status])).toEqual([
+      ["2M", "MA", "Généralistes", 1, true, "known"],
+      ["beIN Sports 1", null, "Sport", 2, true, "known"],
+      ["Tamazight TV", "MA", "Généralistes", 1, true, "known"],
     ]);
-    const bein = rows.find((c) => c.title === "beIN Sports 1")!;
+    expect((await liveChannels(null, { market: "ar", theme: "Sport", offset: 0, limit: 10 })).map((c) => c.name)).toEqual([
+      "beIN Sports 1",
+    ]);
+    expect(await liveChannels(null, { market: "ar", theme: "Sport", offset: 1, limit: 10 })).toEqual([]);
+    const bein = rows.find((c) => c.name === "beIN Sports 1")!;
     expect(await contentChannel(bein.id)).toMatchObject({ market: "ar", name: "beIN Sports 1", iptv: { id: "beINSports1.qa" }, own: null });
     const unknown = (await by("3")).contentId!;
     expect(await contentChannel(unknown)).toMatchObject({
@@ -150,12 +184,20 @@ describe("the live catalogue at a glance", () => {
 });
 
 describe("names left to attach", () => {
-  it("lists them by market with the closest channels of the reference", async () => {
-    const { rows, total } = await unmatchedNames({ market: "fr", events: false, page: 1, size: 10 });
-    expect(total).toBe(1);
-    expect(rows[0]).toMatchObject({ title: "AUTOMOTO", variants: 1, category: "|EU| FRANCE SPORTS" });
-    expect(rows[0].suggestions.map((c) => c.ref)).toEqual(["iptv:Automotolachaine.fr"]);
-    expect((await unmatchedNames({ market: "fr", events: true, page: 1, size: 10 })).rows.map((r) => r.title)).toEqual(["CANAL+ LIVE 3"]);
+  it("are channels of the tree under « Non reconnus » and « Événements », with the closest channels of the reference", async () => {
+    const left = await liveChannels(null, { market: "fr", theme: "Non reconnus", offset: 0, limit: 10 });
+    expect(left).toHaveLength(1);
+    expect(left[0]).toMatchObject({
+      name: "AUTOMOTO",
+      status: "unknown",
+      streams: 1,
+      sample: "FR - AUTOMOTO FHD",
+      category: "|EU| FRANCE SPORTS",
+    });
+    expect(left[0].suggestions.map((c) => c.ref)).toEqual(["iptv:Automotolachaine.fr"]);
+    expect((await liveChannels(null, { market: "fr", theme: "Événements", offset: 0, limit: 10 })).map((r) => r.name)).toEqual([
+      "CANAL+ LIVE 3",
+    ]);
     // A search reaches the whole reference, whatever the country.
     expect((await nameCandidates("fr", "AUTOMOTO", "bein")).map((c) => c.ref)).toEqual(["iptv:beINSports1.qa"]);
   });
@@ -202,7 +244,7 @@ describe("names left to attach", () => {
     serve();
     await runChannels();
     expect((await by("3")).how).toBe("alias");
-    expect((await unmatchedNames({ market: "ar", events: false, q: "BEIN", page: 1, size: 10 })).total).toBe(0);
+    expect(await countLiveChannels(search('bein && thème:"non reconnus" && marché:"ar"'))).toBe(0);
   });
 
   it("takes a channel of ours for what iptv-org does not know, and what we say of it", async () => {
