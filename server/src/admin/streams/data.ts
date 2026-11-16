@@ -66,7 +66,8 @@ export async function searchStreams(
       })
       .from(v)
       .where(cond)
-      .orderBy(asc(v.name), asc(v.id))
+      // The same order on every database, whatever its collation: without case nor accents, byte by byte.
+      .orderBy(sql`unaccent(lower(${v.name})) collate "C"`, asc(v.id))
       .limit(STREAMS_PAGE)
       .offset(offset),
   ]);

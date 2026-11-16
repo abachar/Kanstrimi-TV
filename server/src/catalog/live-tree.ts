@@ -21,6 +21,11 @@ const carried = sql`exists (
   join xtream_accounts a on a.id = s.account_id and a.enabled
   where cs.channel_id = ${c.id})`;
 const also = (where: SQL | null) => (where ? sql`and ${where}` : sql``);
+/**
+ * A name to sort by, the same on every database: without case nor accents, compared byte by byte. A
+ * database's own collation decides otherwise where « beIN » goes (after « Z » on one that compares bytes).
+ */
+export const byName = (name: SQL | typeof c.name) => sql`unaccent(lower(${name})) collate "C"`;
 
 /** A place's key: its country's code (« FR »), else « ~ » and its market (« ~ar », « ~ » without one). */
 export const placeKey = (country: string | null, market: string | null) => country ?? `~${market ?? ""}`;
@@ -106,7 +111,7 @@ export type LiveChannel = {
 
 /**
  * The channels of the tree a search keeps, of one branch (`place`, a key; `theme`, null: the channels
- * without one) or of all of them: a channel of the reference by name, the names left by the number
+ * without one) or of all of them: a channel of the reference by name (`byName`), the names left by the number
  * of their streams (the most frequent first: attaching it settles the most).
  */
 export async function liveChannels(
@@ -130,7 +135,7 @@ export async function liveChannels(
       left join xtream_categories k on k.account_id = s.account_id and k.kind = s.kind and k.xtream_id = s.category_xtream_id
       where cs.channel_id = ${c.id}) x
     where x.streams > 0 ${inPlace} ${inTheme} ${also(where)}
-    order by (case when ${c.status} = 'known' then 0 else x.streams end) desc, ${c.name}, ${c.id}
+    order by (case when ${c.status} = 'known' then 0 else x.streams end) desc, ${byName(c.name)}, ${c.id}
     limit ${opts.limit} offset ${opts.offset}`);
   const loose = rows.filter((r) => r.status !== "known" && r.market);
   const suggested = await suggestionsFor(loose.map((r) => ({ market: r.market!, title: r.name })));
