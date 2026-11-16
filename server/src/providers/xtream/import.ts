@@ -40,12 +40,13 @@ function dedupe<T>(list: T[], key: (x: T) => string | null): T[] {
  * catalogue's business (`liveTheme`).
  */
 // Two dashes are enough: « •●★--|TR| BELGESELLER |TR|---★●• » exists, no channel starts with "--".
-const SEPARATOR = /^[\s\-_=~]*[-_=~]{2,}/;
+// Another provider frames them with hashes: « ##### MA - MOROCCO ##### » (three at least: « #1 HITS » is a channel).
+const SEPARATOR = /^[\s\-_=~#]*(?:[-_=~]{2,}|#{3,})/;
 export const isSeparator = (name: string) => SEPARATOR.test(stripOrnaments(name.normalize("NFC")).trim());
 /** The text between the dashes, ornaments gone, otherwise untouched: « |FR| SPORT |FR| ». */
 export const separatorText = (name: string) =>
   stripOrnaments(name.normalize("NFC"))
-    .replace(/^[\s\-_=~]+|[\s\-_=~]+$/g, "")
+    .replace(/^[\s\-_=~#]+|[\s\-_=~#]+$/g, "")
     .trim();
 
 /** The provider's id for an entry, as an opaque trimmed string. Null when unusable. */

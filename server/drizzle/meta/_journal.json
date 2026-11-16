@@ -372,6 +372,20 @@
       "when": 1794168168558,
       "tag": "0052_provider-accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794258639363,
+      "tag": "0053_claude-titles",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794782327227,
+      "tag": "0054_live-channels",
+      "breakpoints": true
     }
   ]
 }

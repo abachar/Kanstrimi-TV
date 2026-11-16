@@ -30,6 +30,14 @@ describe("deriveEntries", () => {
     ]);
   });
 
+  it("knows the separators another provider frames with hashes", () => {
+    const { entries } = deriveEntries([e(0, "##### MA - MOROCCO #####", "10"), e(1, "MA - 2M", "10"), e(2, "#1 HITS", "10")]);
+    expect(entries.map((x) => [x.name, x.section])).toEqual([
+      ["MA - 2M", "MA - MOROCCO"],
+      ["#1 HITS", "MA - MOROCCO"],
+    ]);
+  });
+
   it("follows the provider's order, whatever the order it is given in", () => {
     const { entries } = deriveEntries([e(1, "A", "10"), e(0, "•●★--|FR| SPORT |FR|---★●•", "10")]);
     expect(entries.map((x) => x.section)).toEqual(["|FR| SPORT |FR|"]);

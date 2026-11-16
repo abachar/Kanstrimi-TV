@@ -1,5 +1,14 @@
 import { Hono } from "hono";
-import { assignManual, defaultProfile, itemById, searchCandidates, setItemHiddenManual } from "@/catalog";
+import {
+  assignManual,
+  defaultProfile,
+  itemById,
+  listChannels,
+  liveSummary,
+  searchCandidates,
+  setItemHiddenManual,
+  unmatchedNames,
+} from "@/catalog";
 import { page, form, checked, intField, intParam } from "../http";
 import { InlineResult } from "../ui";
 import { describeError } from "@/shared";
@@ -7,14 +16,15 @@ import { KIND_TITLES } from "../labels";
 import { getSettings } from "@/config";
 import { channelGroups, contextFor } from "@/player";
 import { CatalogShell } from "./view";
-import { AppLiveView } from "./app-live";
+import { AllChannelsView, AppLiveView, LIVE_PAGE_SIZE, LiveTabs, NamesView } from "./app-live";
 import { searchContents, shelfPage, shelvesOf } from "./app-data";
 import { AppCatalogView, FoundRows, FoundView, ShelfRows } from "./app-catalog";
 import { SearchBar } from "./search-bar";
 import { compileSearch, runSearch } from "./search";
 import { kindParam, offsetParam } from "../query";
 import { TmdbCell } from "./tmdb-cell";
-import { parseCatalogQuery } from "./query";
+import { type CatalogQuery, parseCatalogQuery } from "./query";
+import type { RestContext } from "@/player";
 
 export const catalogRoutes = new Hono();
 
@@ -48,14 +58,46 @@ catalogRoutes.get("/", async (c) => {
     title,
     <CatalogShell qy={qy}>
       <SearchBar kind={qy.kind} q={qy.q} error={search.error} />
-      {qy.kind === "live" ? (
-        <AppLiveView groups={await channelGroups(ctx)} />
-      ) : (
-        <AppCatalogView kind={qy.kind} shelves={await shelvesOf(ctx, qy.kind)} />
-      )}
+      {qy.kind === "live" ? await liveBody(ctx, qy) : <AppCatalogView kind={qy.kind} shelves={await shelvesOf(ctx, qy.kind)} />}
     </CatalogShell>,
   );
 });
+
+/**
+ * The Live screen under its search box: the figures that are also its filter, then the list they
+ * choose: the app's groups, a market's channels, or its names left without a channel.
+ */
+async function liveBody(ctx: RestContext, qy: CatalogQuery) {
+  const summary = await liveSummary(ctx.profile.id);
+  const tabs = <LiveTabs summary={summary} show={qy.show} />;
+  if (qy.show === "shown")
+    return (
+      <>
+        {tabs}
+        <AppLiveView groups={await channelGroups(ctx)} />
+      </>
+    );
+  const { markets } = summary;
+  const market = markets.find((m) => m.market === qy.market)?.market ?? markets[0]?.market ?? "fr";
+  const paging = { market, page: qy.page, size: LIVE_PAGE_SIZE };
+  return (
+    <>
+      {tabs}
+      {qy.show === "all" ? (
+        <AllChannelsView markets={markets} market={market} page={qy.page} channels={await listChannels(paging)} />
+      ) : (
+        <NamesView
+          markets={markets}
+          market={market}
+          show={qy.show}
+          name={qy.name}
+          page={qy.page}
+          names={await unmatchedNames({ ...paging, events: qy.show === "events", q: qy.name })}
+        />
+      )}
+    </>
+  );
+}
 
 /** One more page of a « Catalogue » search, as it scrolls. */
 catalogRoutes.get("/found", async (c) => {

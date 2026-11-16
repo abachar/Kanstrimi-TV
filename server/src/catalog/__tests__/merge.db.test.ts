@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import { resetDb, closeDb } from "@/test/db";
 import { runSync as syncSource, type XStream } from "@/providers/xtream";
 import { runMerge, RADIO_CATEGORY_ID } from "../merge";
+import { runNaming } from "../grouping/group";
 import { variantCountsByAccount } from "../queries";
 
 // What the provider lists; each test rewrites it before an import.
@@ -113,6 +114,34 @@ describe("source → merge", () => {
     expect(after.get("1")).toMatchObject({ matchStatus: "pending", name: "Film 1 (2020)", year: 2020 });
     expect(after.get("2")).toMatchObject({ matchStatus: "manual", tmdbId: 2 });
     expect(after.has("60")).toBe(false);
+  });
+
+  it("sends an unmatched entry back to TMDB when the grammar reads its title otherwise, and forgets Claude's reading on a rename", async () => {
+    const v = await variants("vod");
+    const id = v.get("3")!.id;
+    // As if an older grammar had read the title wrong: the new one differs, TMDB had given up.
+    await db
+      .update(schema.catalogVariants)
+      .set({
+        matchStatus: "unmatched",
+        matchAttempts: 3,
+        cleanTitle: "STFR",
+        aiKind: "movie",
+        aiTitle: "Film Three",
+        aiAskedAt: new Date(),
+      })
+      .where(eq(schema.catalogVariants.id, id));
+    expect(await runNaming()).toEqual({ items_named: 1 });
+    let after = await variants("vod");
+    expect(after.get("3")).toMatchObject({ matchStatus: "pending", matchAttempts: 0, cleanTitle: "Film 3", aiTitle: "Film Three" });
+    // Same reading again: nothing written, a matched entry is never touched.
+    await db.update(schema.catalogVariants).set({ matchStatus: "matched", tmdbId: 3 }).where(eq(schema.catalogVariants.id, id));
+    expect(await runNaming()).toEqual({ items_named: 0 });
+    // Renamed by the provider: what Claude read in the old name goes with it.
+    vod = films(59, (i) => (i <= 2 ? `Film ${i} (2020)` : i === 3 ? "Film 3 (2021)" : `Film ${i}`));
+    await importAll();
+    after = await variants("vod");
+    expect(after.get("3")).toMatchObject({ matchStatus: "pending", aiKind: null, aiTitle: null, aiAskedAt: null });
   });
 
   it("refuses a list that is not one, and a list that lost more than half, keeping the catalogue", async () => {

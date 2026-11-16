@@ -93,6 +93,92 @@ describe("runEnrich", () => {
     }
   });
 
+  it("has Claude read once the visible names TMDB gave up on, searches its titles, and leaves what it saw outside TMDB alone", async () => {
+    await db.update(schema.catalogVariants).set({ matchStatus: "matched", matchAttempts: 0, matchedAt: new Date() });
+    const [a, b, c, hidden] = await seedItems([
+      { kind: "vod", xtreamId: "a", name: "|AR| Al Jamra | 2017 | الجمرة", matchStatus: "unmatched" },
+      { kind: "vod", xtreamId: "b", name: "|FR| Hellfest - Jour 2 (2025)", matchStatus: "unmatched" },
+      { kind: "vod", xtreamId: "c", name: "|AR| Inconnu", matchStatus: "unmatched" },
+      { kind: "vod", xtreamId: "h", name: "|AR| Caché", matchStatus: "unmatched" },
+    ]);
+    await db
+      .update(schema.catalogVariants)
+      .set({ hiddenByRule: false, matchedAt: new Date() })
+      .where(inArray(schema.catalogVariants.id, [a.id, b.id, c.id]));
+    await db
+      .update(schema.catalogVariants)
+      .set({ hiddenByRule: true, matchedAt: new Date() })
+      .where(eq(schema.catalogVariants.id, hidden.id));
+    const asked: string[] = [];
+    const tmdb: string[] = [];
+    vi.stubGlobal("fetch", async (u: URL | string, init?: RequestInit) => {
+      const url = new URL(String(u));
+      if (url.hostname === "api.anthropic.com") {
+        asked.push(String(init?.body));
+        return Response.json({
+          id: "msg_1",
+          type: "message",
+          role: "assistant",
+          model: "claude-sonnet-5-5",
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                entries: [
+                  { id: a.id, kind: "movie", title: "The Ember", original_title: "الجمرة", year: 2017 },
+                  { id: b.id, kind: "other", title: null, original_title: null, year: null },
+                ],
+              }),
+            },
+          ],
+          stop_reason: "end_turn",
+          stop_sequence: null,
+          usage: { input_tokens: 1, output_tokens: 1 },
+        });
+      }
+      tmdb.push(url.pathname + url.search);
+      if (url.pathname.endsWith("/search/movie") && url.searchParams.get("query") === "The Ember")
+        return Response.json({ results: [{ id: 900, title: "The Ember", release_date: "2017-05-01" }] });
+      if (url.pathname.endsWith("/movie/900")) return Response.json({ id: 900, title: "The Ember", release_date: "2017-05-01" });
+      return Response.json({ results: [] });
+    });
+
+    // Without a key: Claude is not asked, TMDB alone.
+    expect(await runEnrich()).toMatchObject({ ai_asked: 0, processed: 0 });
+    expect(asked).toHaveLength(0);
+
+    setSecretsForTests({ anthropic_api_key: "a" });
+    const stats = await runEnrich();
+    expect(stats).toMatchObject({ ai_asked: 3, ai_titled: 1, ai_other: 1, processed: 1, matched: 1 });
+    expect(asked).toHaveLength(1);
+    const sent = asked[0];
+    expect(sent).toContain(`#${a.id} ·`);
+    expect(sent).toContain(`#${c.id} ·`);
+    expect(sent).not.toContain(`#${hidden.id} ·`); // hidden: not worth a question
+    const row = async (id: number) => (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, id)))[0];
+    expect(await row(a.id)).toMatchObject({
+      matchStatus: "matched",
+      tmdbId: 900,
+      aiKind: "movie",
+      aiTitle: "The Ember",
+      aiOriginalTitle: "الجمرة",
+      aiYear: 2017,
+    });
+    expect(await row(b.id)).toMatchObject({ matchStatus: "unmatched", aiKind: "other", aiTitle: null });
+    expect((await row(c.id)).aiAskedAt).not.toBeNull(); // unanswered: asked all the same, not again
+    expect((await row(hidden.id)).aiAskedAt).toBeNull();
+
+    // Asked once: the next run asks nothing more; and the concert is not retried weekly, the unknown one is.
+    await db
+      .update(schema.catalogVariants)
+      .set({ matchedAt: new Date(Date.now() - 8 * 86400000) })
+      .where(inArray(schema.catalogVariants.id, [b.id, c.id]));
+    expect(await runEnrich()).toMatchObject({ ai_asked: 0, retried: 1 });
+    expect(asked).toHaveLength(1);
+    expect((await row(b.id)).matchStatus).toBe("unmatched");
+    setSecretsForTests({ anthropic_api_key: "" });
+  });
+
   it("fetches again an entry older than 30 days that a content still uses, and leaves an orphan one alone", async () => {
     const withLogos = (id: number) => ({
       id,

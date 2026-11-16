@@ -69,7 +69,7 @@ export function SettingsView({ s }: { s: Settings }) {
   );
   return (
     <>
-      <Title t="Paramètres" sub="TMDB, clients, planification, sécurité — les comptes Xtream sont sur la page Fournisseurs" />
+      <Title t="Paramètres" sub="TMDB, Claude, clients, planification, sécurité — les comptes Xtream sont sur la page Fournisseurs" />
       <form method="post" action="/admin/settings" class="flex flex-col gap-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card
@@ -82,6 +82,15 @@ export function SettingsView({ s }: { s: Settings }) {
               <F name="tmdb_language" label="Langue" hint="fr-FR, en-US…" />
             </div>
             <Test url="/admin/settings/test-tmdb" target="tm-result" label="Tester TMDB" />
+          </Card>
+          <Card
+            title="Claude"
+            icon="database"
+            hint="Lit à l'étape enrich les noms que TMDB ne reconnaît pas (titres arabes translittérés, documentaires) et suggère le titre à chercher, une fois par nom, pour les versions visibles seulement. Clé dans l'environnement : redémarrer après un changement ; sans clé, l'étape passe."
+          >
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Env name="anthropic_api_key" label="Clé API Anthropic" col="md:col-span-2" />
+            </div>
           </Card>
           <Card
             title="Clients"

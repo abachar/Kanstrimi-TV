@@ -2,6 +2,7 @@ import { getSettings } from "@/config";
 import { db, schema, client as pg, sqlTmdbMediaType, tmdbMediaType, visibleItem, type Kind } from "@/db";
 import { and, asc, gt, inArray, sql, type SQL } from "drizzle-orm";
 import {
+  liveMarket,
   liveTheme,
   parseName,
   parseCategory,
@@ -153,10 +154,12 @@ async function categoryHints() {
 }
 
 /**
- * Names → variant columns (clean_title, year, market, language, quality, tags, edition, name_adult, name_theme).
+ * Names → variant columns (clean_title, year, market, language, quality, tags, edition, name_adult, name_theme, name_country).
  * Depends on the name, the section and the category only, so it runs right after `merge`: TMDB
  * matching reads `clean_title` and `year`, the grouping reads them all. Every name is parsed, only
- * the rows whose result changed are written: a new grammar applies everywhere at the next run.
+ * the rows whose result changed are written: a new grammar applies everywhere at the next run. An
+ * entry TMDB had given up on, whose title or year the grammar now reads otherwise than it had (a
+ * first reading is not a change), goes back to pending: what was searched was the old reading.
  */
 export async function runNaming(onlyIds?: number[]): Promise<{ items_named: number }> {
   const hints = await categoryHints();
@@ -185,11 +188,13 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       seasons: (number | null)[] = [],
       editions: (string | null)[] = [],
       adults: boolean[] = [],
-      themes: (string | null)[] = [];
+      themes: (string | null)[] = [],
+      countries: (string | null)[] = [];
     for (const r of rows) {
       const p = parseName(r.name, r.kind);
       const h = hints.get(`${r.accountId}:${r.kind}:${r.cat}`);
-      const market = p.market ?? h?.market ?? null;
+      const live = r.kind === "live" ? liveMarket(p.market, h?.market) : null;
+      const market = live ? live.market : (p.market ?? h?.market ?? null);
       const quality = p.quality ?? h?.quality ?? null;
       const dr = p.dynamicRange ?? h?.dynamicRange ?? null;
       ids.push(r.id);
@@ -205,31 +210,42 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       editions.push(p.edition ?? null);
       adults.push(Boolean(h?.adult) || isAdultEntryName(r.name));
       themes.push(r.kind === "live" ? liveTheme(r.section, h?.title ?? null, p.title) : null);
+      countries.push(live?.country ?? null);
     }
     const changed = await pg`
       update catalog_variants i set
         clean_title = u.title, year = u.year,
         market = u.market, lang = u.lang, quality = u.quality, quality_rank = u.qrank, dynamic_range = u.dr,
-        tags = u.tags, season_hint = u.season, edition = u.edition, name_adult = u.adult, name_theme = u.theme
+        tags = u.tags, season_hint = u.season, edition = u.edition, name_adult = u.adult, name_theme = u.theme, name_country = u.country,
+        match_status = case when i.match_status = 'unmatched' and i.clean_title is not null and (i.clean_title, i.year) is distinct from (u.title, u.year)
+                            then 'pending'::match_status else i.match_status end,
+        match_attempts = case when i.match_status = 'unmatched' and i.clean_title is not null and (i.clean_title, i.year) is distinct from (u.title, u.year)
+                              then 0 else i.match_attempts end
       from (
         select id, title, year, market, lang, quality, qrank, dr, coalesce(string_to_array(nullif(tags, ''), ','), '{}') as tags, season, edition,
-               adult::boolean as adult, theme
+               adult::boolean as adult, theme, country
         from unnest(${ids}::int[], ${titles}::text[], ${years}::int[], ${markets}::text[], ${langs}::text[],
-                    ${qualities}::text[], ${qranks}::int[], ${drs}::text[], ${tags}::text[], ${seasons}::int[], ${editions}::text[], ${adults.map(String)}::text[], ${themes}::text[])
-          as x(id, title, year, market, lang, quality, qrank, dr, tags, season, edition, adult, theme)
+                    ${qualities}::text[], ${qranks}::int[], ${drs}::text[], ${tags}::text[], ${seasons}::int[], ${editions}::text[], ${adults.map(String)}::text[], ${themes}::text[],
+                    ${countries}::text[])
+          as x(id, title, year, market, lang, quality, qrank, dr, tags, season, edition, adult, theme, country)
       ) u
       where i.id = u.id
-        and (i.clean_title, i.year, i.market, i.lang, i.quality, i.quality_rank, i.dynamic_range, i.tags, i.season_hint, i.edition, i.name_adult, i.name_theme)
-            is distinct from (u.title, u.year, u.market, u.lang, u.quality, u.qrank, u.dr, u.tags, u.season, u.edition, u.adult, u.theme)
+        and (i.clean_title, i.year, i.market, i.lang, i.quality, i.quality_rank, i.dynamic_range, i.tags, i.season_hint, i.edition, i.name_adult, i.name_theme, i.name_country)
+            is distinct from (u.title, u.year, u.market, u.lang, u.quality, u.qrank, u.dr, u.tags, u.season, u.edition, u.adult, u.theme, u.country)
       returning 1`;
     written += changed.length;
   }
   return { items_named: written };
 }
 
-/** content_key from the columns `runNaming` wrote and the TMDB match. */
+/**
+ * content_key from the columns `runNaming` wrote, the TMDB match and, for a channel, its reference
+ * channel (`channels`). A channel whose key moves with all its versions (a name the reference now
+ * knows, a reference renamed) takes along what was recorded under the old one (`followLiveKeys`).
+ */
 async function assignKeys(onlyIds?: number[]): Promise<number> {
   let total = 0;
+  const moves = new Map<string, Map<string, number>>();
   const v = schema.catalogVariants;
   const chunks = chunksOf(
     (where) =>
@@ -241,9 +257,11 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
           cleanTitle: v.cleanTitle,
           year: v.year,
           market: v.market,
+          channelName: v.channelName,
           tmdbId: v.tmdbId,
           matchStatus: v.matchStatus,
           keyOverride: v.keyOverride,
+          contentKey: v.contentKey,
         })
         .from(v)
         .where(where)
@@ -260,17 +278,67 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
         title: r.cleanTitle ?? r.name,
         year: r.year,
         market: r.market,
+        channelName: r.channelName,
         tmdbId: r.tmdbId,
         matchStatus: r.matchStatus,
         keyOverride: r.keyOverride,
       }),
     );
+    rows.forEach((r, i) => {
+      if (r.kind !== "live" || !r.contentKey || r.contentKey === keys[i]) return;
+      const to = moves.get(r.contentKey) ?? new Map<string, number>();
+      moves.set(r.contentKey, to.set(keys[i], (to.get(keys[i]) ?? 0) + 1));
+    });
     await pg`
       update catalog_variants i set content_key = u.key
       from unnest(${ids}::int[], ${keys}::text[]) as u(id, key)
       where i.id = u.id and i.content_key is distinct from u.key`;
   }
+  await followLiveKeys(moves);
   return total;
+}
+
+/**
+ * What is recorded under a channel's key, each with what makes a row its own besides the key: a
+ * profile's list, its time watched day by day, the version it chose; the guide linked by hand in a
+ * fallback source.
+ */
+const LIVE_MARKS = [
+  { table: "app_favorites", same: () => pg`x.profile_id = m.profile_id` },
+  { table: "app_live_watch", same: () => pg`x.profile_id = m.profile_id and x.day = m.day` },
+  { table: "app_profile_versions", same: () => pg`x.profile_id = m.profile_id` },
+  { table: "curation_epg_links", same: () => pg`x.source_id = m.source_id` },
+] as const;
+
+/**
+ * The channel keys no variant bears any more, each with the key most of its variants went to: what
+ * was recorded under the old key follows, one old key at a time (two may land on the same new one).
+ * A mark already there under the new key stays; the time watched the same day adds up.
+ */
+async function followLiveKeys(moves: Map<string, Map<string, number>>) {
+  if (!moves.size) return;
+  const olds = [...moves.keys()];
+  const marked = await pg<{ key: string }[]>`
+    select key from unnest(${olds}::text[]) as o(key)
+    where not exists (select 1 from catalog_variants v where v.content_key = o.key)
+      and (exists (select 1 from app_favorites f where f.content_key = o.key)
+        or exists (select 1 from app_live_watch w where w.content_key = o.key)
+        or exists (select 1 from app_profile_versions p where p.content_key = o.key)
+        or exists (select 1 from curation_epg_links l where l.content_key = o.key))`;
+  for (const { key } of marked) {
+    const [to] = [...moves.get(key)!].sort((a, b) => b[1] - a[1])[0];
+    await pg`
+      update app_live_watch t set seconds = t.seconds + m.seconds, updated_at = greatest(t.updated_at, m.updated_at)
+      from app_live_watch m
+      where m.content_key = ${key} and t.content_key = ${to} and t.profile_id = m.profile_id and t.day = m.day`;
+    for (const { table, same } of LIVE_MARKS) {
+      const t = pg(table);
+      await pg`
+        update ${t} m set content_key = ${to}
+        where m.content_key = ${key} and not exists (select 1 from ${t} x where x.content_key = ${to} and ${same()})`;
+      await pg`delete from ${t} where content_key = ${key}`;
+    }
+  }
 }
 
 // ---------------------------------------------------------------- 2. contents
@@ -278,14 +346,15 @@ async function assignKeys(onlyIds?: number[]): Promise<number> {
 async function upsertContents(onlyIds?: number[]) {
   const scope = onlyIds ? pg`and i.id = any(${onlyIds}::int[])` : pg``;
   // Title and year come from the best variant, for a new content and for one without TMDB (fallback,
-  // live); a TMDB content keeps the card's (step 3), so the app never sees a raw title in between.
+  // live: the reference channel's name when it has one); a TMDB content keeps the card's (step 3), so
+  // the app never sees a raw title in between.
   // A row is written only when something changed; a new TMDB id or a new fallback title calls
   // for the card again (`cards_at` cleared).
   await pg`
     insert into catalog_contents as c (key, kind, tmdb_id, title, year, market, added_at)
     select distinct on (i.content_key) i.content_key, i.kind,
       case when i.match_status in ('matched', 'manual') and i.content_key like 'tmdb:%' then i.tmdb_id end,
-      coalesce(nullif(i.clean_title, ''), i.name), i.year, i.market, i.added_at
+      coalesce(nullif(i.channel_name, ''), nullif(i.clean_title, ''), i.name), i.year, i.market, i.added_at
     from catalog_variants i
     where i.content_key is not null ${scope}
     order by i.content_key, i.quality_rank desc, i.id

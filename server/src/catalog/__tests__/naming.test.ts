@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import type { Kind } from "@/db";
-import { parseName, parseCategory, defaultLanguage, cleanTitle, sectionLabel, themeOf, liveTheme } from "../naming";
+import { parseName, parseCategory, defaultLanguage, cleanTitle, sectionLabel, themeOf, liveTheme, liveMarket, regionOf } from "../naming";
 import { contentKey, parseKey, episodeKey } from "../keys";
 import { slug } from "@/shared";
 
@@ -217,15 +217,22 @@ describe("contentKey", () => {
     expect(contentKey({ kind: "vod", title: "Pinocchio" })).toBe("fallback:movie:pinocchio:-");
     expect(contentKey({ kind: "series", title: "Vincenzo", year: 2021 })).toBe("fallback:series:vincenzo:2021");
   });
-  it("keys channels by market and name", () => {
-    expect(contentKey({ kind: "live", title: "TF1", market: "fr" })).toBe("live:fr-tf1");
-    expect(contentKey({ kind: "live", title: "TF1", market: "be" })).toBe("live:be-tf1");
-    expect(contentKey({ kind: "live", title: "TF1" })).toBe("live:tf1");
+  it("keys a channel by its market and its reference name, whatever the provider calls it", () => {
+    expect(contentKey({ kind: "live", title: "BEIN SPORTS 1 G", market: "ar", channelName: "beIN Sports 1" })).toBe(
+      "live:ar-bein-sports-1",
+    );
+    expect(contentKey({ kind: "live", title: "BEIN SPORT 1", market: "fr", channelName: "beIN Sports 1" })).toBe("live:fr-bein-sports-1");
+    expect(contentKey({ kind: "live", title: "TF1", channelName: "TF1" })).toBe("live:tf1");
+  });
+  it("keeps a live entry without a reference channel to itself", () => {
+    expect(contentKey({ kind: "live", title: "TF1", market: "fr" })).toBe("live:x:fr-tf1");
+    expect(contentKey({ kind: "live", title: "LIGUE1+ 9", market: "fr" })).toBe("live:x:fr-ligue1-9");
+    expect(contentKey({ kind: "live", title: "TF1" })).toBe("live:x:tf1");
   });
   it("isolates names without a letter instead of merging them", () => {
     const a = contentKey({ kind: "live", title: "•", market: "fr" }),
       b = contentKey({ kind: "live", title: "★★", market: "fr" });
-    expect(a).toMatch(/^live:fr-x[0-9a-f]{10}$/);
+    expect(a).toMatch(/^live:x:fr-x[0-9a-f]{10}$/);
     expect(a).not.toBe(b);
   });
 });
@@ -251,6 +258,40 @@ describe("parseKey / episodeKey", () => {
     expect(parseKey("12345")).toBeNull();
     expect(parseKey("manual:12")).toBeNull();
     expect(episodeKey("tmdb:tv:1396", 1, 5)).toBe("tmdb:tv:1396:s01e05");
+  });
+});
+
+describe("live names of other providers", () => {
+  const live = (name: string) => {
+    const p = parseName(name, "live");
+    return [p.title, p.quality ?? null, p.tags.join(",")];
+  };
+  it("takes the raised letters for what they are: a technical label, never a part of the name", () => {
+    expect(live("AR - BEIN SPORTS 1 ᵁᴴᴰ")).toEqual(["BEIN SPORTS 1", "4K", ""]);
+    expect(live("8K - BEIN SPORTS 1 ʰᵉᵛᶜ")).toEqual(["BEIN SPORTS 1", "4K", "hevc"]);
+    expect(live("|AR| BEIN SPORTS 1 FHD ᴴ²⁶⁵ (LQ)")).toEqual(["BEIN SPORTS 1", "FHD", "h265"]);
+    expect(live("8K - BEIN SPORTS 1 ᴿᴬᵂ")).toEqual(["BEIN SPORTS 1", "4K", ""]);
+    expect(live("BEIN SPORTS1 ᵁᴴᴰ8K")).toEqual(["BEIN SPORTS1", "4K", ""]);
+    expect(live("BEIN SPORTS 1 Gᵁᴴᴰ")).toEqual(["BEIN SPORTS 1 G", "4K", ""]); // the provider's own letter stays: the reference settles it
+  });
+  it("reads the low and high copies, a bare resolution and « FHD+ » as qualities", () => {
+    expect(live("AR - BEIN SPORTS 1 LQ")).toEqual(["BEIN SPORTS 1", null, ""]);
+    expect(live("|AR| BEIN SPORTS 1 HD (HQ)")).toEqual(["BEIN SPORTS 1", "HD", ""]);
+    expect(live("BEIN SPORTS 1 720")).toEqual(["BEIN SPORTS 1", "HD", ""]);
+    expect(live("BEIN SPORTS 1 480")).toEqual(["BEIN SPORTS 1", "SD", ""]);
+    expect(live("|FR| BEIN SPORTS 1 FHD+")).toEqual(["BEIN SPORTS 1", "FHD", ""]);
+    expect(parseName("Fahrenheit 451", "vod").title).toBe("Fahrenheit 451"); // a film keeps its number
+  });
+  it("lists a channel under its region, with the country its prefix names", () => {
+    expect(regionOf("ma")).toBe("ar");
+    expect(regionOf("fr")).toBeNull();
+    expect(liveMarket("ar", undefined)).toEqual({ market: "ar", country: null }); // « |AR| 2M »
+    expect(liveMarket("ma", undefined)).toEqual({ market: "ar", country: "MA" }); // « |MA| 2M » under « MAGHREB »
+    expect(liveMarket("ma", "ar")).toEqual({ market: "ar", country: "MA" }); // « MA - 2M » under « |AR| MOROCCO »
+    expect(liveMarket("ch", "ar")).toEqual({ market: "ar", country: null }); // « CH - CHEF OMAR » is no Swiss channel
+    expect(liveMarket(undefined, "ar")).toEqual({ market: "ar", country: null });
+    expect(liveMarket("fr", "eu")).toEqual({ market: "fr", country: null });
+    expect(liveMarket(undefined, undefined)).toEqual({ market: null, country: null });
   });
 });
 

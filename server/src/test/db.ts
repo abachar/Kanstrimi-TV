@@ -8,7 +8,7 @@ import { applyFilters, runGrouping } from "@/catalog";
 /** Empty every catalogue table between test files, then seed the default profile and the provider account. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table provider_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, app_profiles, app_profile_filters, catalog_variant_profiles, catalog_content_profiles, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_epg_sources, catalog_epg_source_channels, curation_epg_links, curation_studios, curation_waitlist, tmdb_trending, tmdb_recommendations, tmdb_extras, skipdb_segments, theintrodb_cache, introdb_cache restart identity cascade`,
+    sql`truncate table provider_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, app_profiles, app_profile_filters, catalog_variant_profiles, catalog_content_profiles, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_epg_sources, catalog_epg_source_channels, curation_epg_links, curation_studios, curation_waitlist, curation_channels, tmdb_trending, tmdb_recommendations, tmdb_extras, skipdb_segments, theintrodb_cache, introdb_cache restart identity cascade`,
   );
   await db.insert(schema.appProfiles).values({ name: "Hakim", isDefault: true, judgedAt: new Date() }); // the restarted identity gives it PROFILE
   await db
@@ -170,10 +170,22 @@ export async function seedProgrammes(rows: { channelId: string; start: number; e
 }
 
 /**
+ * A test that never runs `channels` gets a reference that knows every channel by its own name: the
+ * grouping keys it as a recognised channel. A variant `channels` has judged (a reference theme, even
+ * « Non reconnus ») is left alone.
+ */
+export async function knowChannels() {
+  await db.execute(sql`
+    update catalog_variants set channel_name = clean_title
+    where kind = 'live' and channel_name is null and iptv_theme is null and iptv_match is null and nullif(clean_title, '') is not null`);
+}
+
+/**
  * The end of a pipeline run: the grouping, then the filters that judge what it made. A version the
  * filters have not seen is left out.
  */
 export async function groupAndFilter() {
+  await knowChannels();
   const stats = await runGrouping();
   const judged = await applyFilters();
   return { ...stats, variants_hidden: judged.variants_hidden, waitlist_available: stats.waitlist_available + judged.waitlist_available };

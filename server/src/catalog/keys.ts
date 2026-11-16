@@ -6,8 +6,9 @@ import { slug } from "@/shared";
 /**
  * The identity of a content as the app sees it (`catalog_contents.key`), and the only place that
  * knows how it is spelled: `tmdb:movie:603`, `tmdb:tv:1396`, `fallback:movie:<slug>:<year>`,
- * `live:<market>-<slug>`, `manual:<item id>` for a variant split out by hand, and
- * `<series key>:s01e05` for an episode.
+ * `live:<market>-<slug>` for a channel of the reference (the slug of its reference name),
+ * `live:x:<market>-<slug>` for a live entry no reference channel was found for (the slug of its own
+ * name), `manual:<item id>` for a variant split out by hand, and `<series key>:s01e05` for an episode.
  */
 
 export type KeyInput = {
@@ -15,6 +16,8 @@ export type KeyInput = {
   title: string;
   year?: number | null;
   market?: string | null;
+  /** Live: the name of the reference channel the variant was matched to; none = not recognised. */
+  channelName?: string | null;
   tmdbId?: number | null;
   matchStatus?: string | null;
   keyOverride?: string | null;
@@ -22,7 +25,9 @@ export type KeyInput = {
 
 /**
  * The stable identity of a content, in priority order: manual override, verified TMDB id,
- * then a fallback on the cleaned title. Never a provider id.
+ * then a fallback on the cleaned title. Never a provider id. A channel is its reference channel in
+ * its market, whatever the providers call it; an entry without one keeps to itself (`live:x:`), so
+ * that it never slips into a channel of the reference by its name alone.
  */
 export function contentKey(i: KeyInput): string {
   if (i.keyOverride) return i.keyOverride;
@@ -30,7 +35,10 @@ export function contentKey(i: KeyInput): string {
   // key of its own instead of joining every other junk entry in one 400-variant group.
   const s = slug(i.title);
   const id = s === "-" ? `x${createHash("sha1").update(i.title).digest("hex").slice(0, 10)}` : s;
-  if (i.kind === "live") return `live:${i.market ? `${i.market}-` : ""}${id}`;
+  if (i.kind === "live") {
+    const market = i.market ? `${i.market}-` : "";
+    return i.channelName ? `live:${market}${slug(i.channelName)}` : `live:x:${market}${id}`;
+  }
   if (i.tmdbId && (i.matchStatus === "matched" || i.matchStatus === "manual")) return tmdbKey(i.kind, i.tmdbId);
   return `fallback:${i.kind === "vod" ? "movie" : "series"}:${id}:${i.year ?? "-"}`;
 }

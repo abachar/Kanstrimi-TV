@@ -64,8 +64,16 @@ export const MATCH_THRESHOLD = 0.72;
  */
 export const ID_THRESHOLD = 0.55;
 
-/** What the provider says of an entry: its cleaned name and the raw fields it sent. */
-export type EntryClues = { name: string; cleanTitle: string | null; year: number | null; raw: Record<string, unknown> };
+/** What the provider says of an entry: its cleaned name and the raw fields it sent; and the titles Claude read in it, if any. */
+export type EntryClues = {
+  name: string;
+  cleanTitle: string | null;
+  year: number | null;
+  raw: Record<string, unknown>;
+  aiKind?: string | null;
+  aiTitle?: string | null;
+  aiOriginalTitle?: string | null;
+};
 
 export type Evidence = {
   similarity: number;
@@ -95,8 +103,10 @@ const imageHash = (u: unknown) => {
  * the director, the year, the TMDB image hashes it copied, the trailer key.
  */
 export function idEvidence(d: TmdbDetails, it: EntryClues): Evidence {
-  const title = it.cleanTitle || it.name;
-  const similarity = bestSimilarity(d, title);
+  const titles = [it.cleanTitle || it.name];
+  if (it.aiKind === "movie" || it.aiKind === "series")
+    titles.push(...[it.aiTitle, it.aiOriginalTitle].filter((t): t is string => Boolean(t)));
+  const similarity = Math.max(...titles.map((t) => bestSimilarity(d, t)));
   const raw = it.raw ?? {};
   const ry = Number((d.release_date ?? d.first_air_date ?? "").slice(0, 4)) || null;
   const py = it.year ?? (Number(String(raw.year ?? raw.releaseDate ?? raw.release_date ?? "").slice(0, 4)) || null);

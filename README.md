@@ -1,7 +1,7 @@
 # Kanstrimi
 
 Système de streaming **personnel, pour un foyer**. Il se branche sur un ou plusieurs fournisseurs
-Xtream Codes (un préféré, les autres en secours), importe leurs catalogues, les nettoie, les enrichit via **TMDB** et les sert à
+Xtream Codes (un préféré, les autres en secours), importe leurs catalogues, les nettoie, les enrichit via **TMDB** pour les films et les séries et via une référence de chaînes pour le direct (Claude lit les noms que ni l'une ni l'autre ne reconnaît) et les sert à
 l'app Apple maison (Apple TV, iPhone et iPad) et à l'app Android (tablette, en construction).
 Chaque personne a son **profil**, créé dans l'admin : ses filtres (ce qu'elle voit, dans quelles langues), ses
 réglages de lecture, les versions qu'elle a choisies, sa progression, ses lectures, ses chaînes récentes, sa liste et

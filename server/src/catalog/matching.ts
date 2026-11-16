@@ -1,6 +1,7 @@
-import { and, asc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import pLimit from "p-limit";
-import { db, schema, sqlTmdbMediaType, tmdbHasLogos, tmdbMediaType, type Variant } from "@/db";
+import { db, schema, sqlTmdbMediaType, tmdbHasLogos, tmdbMediaType, type Variant, visibleItem } from "@/db";
+import { suggestTitles, type TitleQuery } from "@/providers/claude";
 import { cancelGuard, describeError, isUnreachable, progress } from "@/shared";
 import {
   DETAILS_TTL_MS,
@@ -24,6 +25,8 @@ import { applyFilters } from "./filters/apply";
 /**
  * The TMDB matching of the variants: the `enrich` step, the admin's « Pourquoi ? » and its manual
  * corrections. The match is catalogue data; TMDB only supplies the documents, the candidates and the score.
+ * Claude (providers/claude) reads once the names TMDB gave up on and suggests what to search; its
+ * suggestion is one more title to try, judged by the same scores, never a verdict.
  */
 
 /** This many outages in a row (DNS, network, database) and the step stops: the rest stays pending. */
@@ -32,6 +35,13 @@ const MAX_UNREACHABLE = 20;
 const MAX_ATTEMPTS = 3;
 /** Unmatched entries are tried again after this long: TMDB may have the title by then. */
 const RETRY_UNMATCHED_MS = 7 * 24 * 3600 * 1000;
+/** Names given up on that Claude reads per run, the visible ones only, each once; a run or two covers a provider's leftovers. */
+const AI_PER_RUN = 2000;
+/**
+ * A suggested title is a guess, not the provider's word: a candidate found through it must carry the
+ * year we know (the provider's, else Claude's), or, with no year to check, bear the title almost exactly.
+ */
+const SUGGESTED_NO_YEAR_THRESHOLD = 0.9;
 /** Entries judged at once; the client keeps the pace TMDB allows (`TMDB_PER_SECOND`) whatever this is. */
 const CONCURRENCY = 20;
 /**
@@ -46,7 +56,15 @@ const REFRESH_PER_RUN = 500;
  */
 const BACKFILL_PER_RUN = 5000;
 
-export type PendingItem = Pick<Variant, "id" | "kind" | "name" | "cleanTitle" | "year" | "raw">;
+export type PendingItem = Pick<Variant, "id" | "kind" | "name" | "cleanTitle" | "year" | "raw"> &
+  Partial<Pick<Variant, "aiKind" | "aiTitle" | "aiOriginalTitle" | "aiYear">>;
+
+/** The titles Claude suggested for an entry, when it saw a movie or a series in it and they add to the cleaned title. */
+export function suggestedTitles(it: PendingItem): string[] {
+  if (it.aiKind !== "movie" && it.aiKind !== "series") return [];
+  const own = (it.cleanTitle || it.name).toLowerCase();
+  return [...new Set([it.aiTitle, it.aiOriginalTitle].filter((t): t is string => Boolean(t) && t!.toLowerCase() !== own))];
+}
 
 function providedTmdbId(it: PendingItem): number | null {
   const n = Number(it.raw.tmdb ?? it.raw.tmdb_id ?? 0);
@@ -68,18 +86,25 @@ export type MatchExplanation = {
     accepted: boolean;
     evidence?: Evidence;
   } | null;
-  searches: { withYear: number | undefined; adult?: boolean; candidates: ScoredDetail[] }[];
+  /** `title` is set when the search used another title than the cleaned one: one Claude suggested. */
+  searches: { title?: string; withYear: number | undefined; adult?: boolean; candidates: ScoredDetail[] }[];
   /** Best candidate re-judged against all its names (alternative titles included). */
   alternative?: { id: number; names: string[]; similarity: number; evidence?: Evidence };
-  verdict: { status: "matched" | "unmatched"; tmdbId: number | null; score: number; via: "id" | "search" | "alternative" | "none" };
+  verdict: {
+    status: "matched" | "unmatched";
+    tmdbId: number | null;
+    score: number;
+    via: "id" | "search" | "alternative" | "suggestion" | "none";
+  };
 };
 
 /**
  * The matching of one entry, step by step, without writing anything but the TMDB cache: the verdict
  * `runEnrich` applies, and what the admin shows under « Pourquoi ? ». The provider's id first, then
  * the searches (with the year, without, among adult titles) until one candidate passes the threshold,
- * last the best candidate judged against every name it carries. `known.provided`: the document of the
- * provider's id, already fetched once for every entry that carries it.
+ * last the best candidate judged against every name it carries; when Claude suggested other titles,
+ * each is searched in turn under the stricter rule of `SUGGESTED_NO_YEAR_THRESHOLD`. `known.provided`:
+ * the document of the provider's id, already fetched once for every entry that carries it.
  */
 export async function explainMatch(
   client: TmdbClient,
@@ -116,8 +141,8 @@ export async function explainMatch(
       }
     } else out.provided = { id: pid, found: false, similarity: 0, accepted: false };
   }
-  const search = async (year?: number, adult = false) =>
-    mediaType === "movie" ? client.searchMovie(ct.title, year, adult) : client.searchTv(ct.title, year, adult);
+  const search = async (title: string, year?: number, adult = false) =>
+    mediaType === "movie" ? client.searchMovie(title, year, adult) : client.searchTv(title, year, adult);
   // Adult-flagged titles never appear in a default search: last resort.
   const rounds: [number | undefined, boolean][] = ct.year
     ? [
@@ -131,7 +156,7 @@ export async function explainMatch(
       ];
   let best: ScoredDetail | undefined;
   for (const [year, adult] of rounds) {
-    const candidates = scoreAll((await search(year, adult)).results ?? [], ct.title, ct.year).slice(0, 8);
+    const candidates = scoreAll((await search(ct.title, year, adult)).results ?? [], ct.title, ct.year).slice(0, 8);
     out.searches.push({ withYear: year, adult, candidates });
     if (candidates[0] && (!best || candidates[0].score > best.score)) best = candidates[0];
     if (best && best.score >= MATCH_THRESHOLD) break;
@@ -151,13 +176,29 @@ export async function explainMatch(
       return out;
     }
   }
+  // Claude's reading of the name: another title to search, with the year the provider gave, else the one it gave.
+  const year = ct.year ?? it.aiYear ?? undefined;
+  for (const title of suggestedTitles(it)) {
+    const candidates = scoreAll((await search(title, year)).results ?? [], title, year).slice(0, 8);
+    out.searches.push({ title, withYear: year, candidates });
+    const hit = candidates.find((c) =>
+      year
+        ? c.similarity >= MATCH_THRESHOLD && c.year !== undefined && Math.abs(c.year - year) <= 1
+        : c.similarity >= SUGGESTED_NO_YEAR_THRESHOLD,
+    );
+    if (hit) {
+      out.verdict = { status: "matched", tmdbId: hit.result.id, score: hit.score, via: "suggestion" };
+      return out;
+    }
+    if (candidates[0] && (!best || candidates[0].score > best.score)) best = candidates[0];
+  }
   out.verdict = { status: "unmatched", tmdbId: null, score: best?.score ?? 0, via: "none" };
   return out;
 }
 
 /** Writes a verdict. A match found by search caches its document now: the card is built from it. */
 async function applyVerdict(client: TmdbClient, it: PendingItem, v: MatchExplanation["verdict"]) {
-  if (v.via === "search" && v.tmdbId) await getDetails(client, tmdbMediaType(it.kind), v.tmdbId);
+  if ((v.via === "search" || v.via === "suggestion") && v.tmdbId) await getDetails(client, tmdbMediaType(it.kind), v.tmdbId);
   await setMatch(it.id, v.tmdbId, v.score, v.status);
 }
 
@@ -178,13 +219,26 @@ export async function setMatch(
 /**
  * Match every pending vod/series entry against TMDB, hidden ones included, and cache its
  * details. Reads the `clean_title` and `year` the naming wrote after the import; the pipeline
- * filters and regroups afterwards. Before: the week-old failures go back to pending. After: a
+ * filters and regroups afterwards. Before: the week-old failures go back to pending (those Claude
+ * judged outside TMDB excepted), and Claude reads the visible names given up on that it has not seen
+ * yet: what it identifies goes back to pending with its suggestion, judged right after. After: a
  * share of the stale cache is fetched again, which `group` then copies into the cards.
  */
 export async function runEnrich(opts: { limit?: number } = {}) {
   const client = await getTmdbClient();
   if (!client) throw new Error("Clé API TMDB non configurée");
-  const stats = { processed: 0, matched: 0, unmatched: 0, errors: 0, ids_rejected: 0, retried: 0, refreshed: 0 };
+  const stats = {
+    processed: 0,
+    matched: 0,
+    unmatched: 0,
+    errors: 0,
+    ids_rejected: 0,
+    retried: 0,
+    refreshed: 0,
+    ai_asked: 0,
+    ai_titled: 0,
+    ai_other: 0,
+  };
   const retried = await db
     .update(schema.catalogVariants)
     .set({ matchStatus: "pending", matchAttempts: 0 })
@@ -192,11 +246,13 @@ export async function runEnrich(opts: { limit?: number } = {}) {
       and(
         inArray(schema.catalogVariants.kind, ["vod", "series"]),
         eq(schema.catalogVariants.matchStatus, "unmatched"),
+        or(isNull(schema.catalogVariants.aiKind), ne(schema.catalogVariants.aiKind, "other")),
         or(isNull(schema.catalogVariants.matchedAt), lt(schema.catalogVariants.matchedAt, new Date(Date.now() - RETRY_UNMATCHED_MS))),
       ),
     )
     .returning({ id: schema.catalogVariants.id });
   stats.retried = retried.length;
+  Object.assign(stats, await askClaude());
   const pending = await db
     .select({
       id: schema.catalogVariants.id,
@@ -205,6 +261,10 @@ export async function runEnrich(opts: { limit?: number } = {}) {
       cleanTitle: schema.catalogVariants.cleanTitle,
       year: schema.catalogVariants.year,
       raw: schema.catalogVariants.raw,
+      aiKind: schema.catalogVariants.aiKind,
+      aiTitle: schema.catalogVariants.aiTitle,
+      aiOriginalTitle: schema.catalogVariants.aiOriginalTitle,
+      aiYear: schema.catalogVariants.aiYear,
     })
     .from(schema.catalogVariants)
     .where(and(inArray(schema.catalogVariants.kind, ["vod", "series"]), eq(schema.catalogVariants.matchStatus, "pending")))
@@ -304,12 +364,62 @@ export async function runEnrich(opts: { limit?: number } = {}) {
   checkCancelled();
   if (!halted) stats.refreshed = await refreshStale(client, limit, checkCancelled);
   console.log(
-    `[enrich] ${n(stats.processed)} traités : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ids_rejected)} identifiants fournis rejetés, ${n(stats.retried)} non trouvés retentés, ${n(stats.refreshed)} fiches rafraîchies`,
+    `[enrich] ${n(stats.processed)} traités : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ids_rejected)} identifiants fournis rejetés, ${n(stats.retried)} non trouvés retentés, ${n(stats.ai_asked)} noms lus par Claude (${n(stats.ai_titled)} titres suggérés, ${n(stats.ai_other)} hors TMDB), ${n(stats.refreshed)} fiches rafraîchies`,
   );
   if (halted)
     throw new Error(
       `TMDB injoignable (${halted}) : arrêt après ${n(stats.processed)} traités, ${n(pending.length - stats.processed)} restent en attente`,
     );
+  return stats;
+}
+
+/**
+ * Claude reads the visible names TMDB gave up on and that it has not read yet, AI_PER_RUN at most:
+ * the ones it identifies go back to pending with its suggestion, the others keep their verdict with
+ * what it said (`other`, or nothing). Each name is asked once; a request that fails leaves its names
+ * for the next run. Without a key, nothing happens.
+ */
+async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_other: number }> {
+  const stats = { ai_asked: 0, ai_titled: 0, ai_other: 0 };
+  const v = schema.catalogVariants;
+  const c = schema.catalogCategories;
+  const rows: TitleQuery[] = await db
+    .select({ id: v.id, kind: sql<"vod" | "series">`${v.kind}`, name: v.name, year: v.year, category: c.name })
+    .from(v)
+    .leftJoin(c, and(eq(c.accountId, v.accountId), eq(c.kind, v.kind), eq(c.xtreamId, v.categoryXtreamId)))
+    .where(and(inArray(v.kind, ["vod", "series"]), eq(v.matchStatus, "unmatched"), isNull(v.aiAskedAt), visibleItem))
+    .orderBy(asc(v.id))
+    .limit(AI_PER_RUN);
+  if (!rows.length) return stats;
+  const n = (x: number) => x.toLocaleString("fr-FR");
+  const suggestions = await suggestTitles(rows);
+  if (!suggestions) return stats;
+  console.log(`[enrich] ${n(rows.length)} noms non reconnus lus par Claude : ${n(suggestions.length)} réponses`);
+  const now = new Date();
+  for (const s of suggestions) {
+    const titled = s.kind !== "other" && Boolean(s.title || s.originalTitle);
+    await db
+      .update(v)
+      .set({
+        aiKind: s.kind,
+        aiTitle: s.title,
+        aiOriginalTitle: s.originalTitle,
+        aiYear: s.year,
+        aiAskedAt: now,
+        ...(titled ? { matchStatus: "pending" as const, matchAttempts: 0 } : {}),
+      })
+      .where(eq(v.id, s.id));
+    stats.ai_asked++;
+    if (titled) stats.ai_titled++;
+    if (s.kind === "other") stats.ai_other++;
+  }
+  // Asked and not answered: not asked again, there is nothing more to learn from the same name.
+  const answered = new Set(suggestions.map((s) => s.id));
+  const silent = rows.filter((r) => !answered.has(r.id)).map((r) => r.id);
+  if (silent.length) {
+    await db.update(v).set({ aiAskedAt: now }).where(inArray(v.id, silent));
+    stats.ai_asked += silent.length;
+  }
   return stats;
 }
 

@@ -177,7 +177,8 @@ async function mergeCopy(acceptShrink: boolean): Promise<Omit<MergeStats, "items
       )
       select (select count(*) from ins)::int as added, (select count(*) from upd)::int as updated, (select count(*) from del)::int as removed`;
 
-    // Variants. A changed name sends a TMDB match back to pending (a manual one stays); a date the
+    // Variants. A changed name sends a TMDB match back to pending (a manual one stays) and forgets what
+    // Claude read in the old name; a date the
     // provider no longer gives cleanly keeps the stored one. What counts as a change beyond the name,
     // category, section and date: for live, the rank and the raw entry whole (`num` is the channel
     // number); for movies and series not `num` nor the rank, which only say where the entry sits in the
@@ -189,7 +190,12 @@ async function mergeCopy(acceptShrink: boolean): Promise<Omit<MergeStats, "items
           name = m.name, category_xtream_id = m.category, position = m.position, raw = s.raw, section = m.section,
           added_at = coalesce(m.added_at, v.added_at), changed_at = now(),
           match_status = case when v.name <> m.name and v.match_status in ('matched', 'unmatched', 'pending') then 'pending'::match_status else v.match_status end,
-          match_attempts = case when v.name <> m.name then 0 else v.match_attempts end
+          match_attempts = case when v.name <> m.name then 0 else v.match_attempts end,
+          ai_kind = case when v.name <> m.name then null else v.ai_kind end,
+          ai_title = case when v.name <> m.name then null else v.ai_title end,
+          ai_original_title = case when v.name <> m.name then null else v.ai_original_title end,
+          ai_year = case when v.name <> m.name then null else v.ai_year end,
+          ai_asked_at = case when v.name <> m.name then null else v.ai_asked_at end
         from merge_entries m join xtream_streams s on s.account_id = m.account_id and s.kind = m.kind and s.xtream_id = m.xtream_id
         where v.account_id = m.account_id and v.kind = m.kind and v.xtream_id = m.xtream_id
           and (v.name, v.category_xtream_id, v.section, v.added_at,

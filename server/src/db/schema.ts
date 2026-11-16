@@ -139,6 +139,16 @@ export const catalogVariants = pgTable(
     matchedAt: timestamp("matched_at", { withTimezone: true }),
     /** Failed matching attempts in a row (errors other than an outage): three and it is `unmatched`. */
     matchAttempts: integer("match_attempts").default(0).notNull(),
+    /**
+     * What Claude read in the name once TMDB had given the entry up (`enrich`, visible entries only, asked
+     * once): `movie` or `series` with the title TMDB would know, its original title and year, or `other`
+     * for what is neither (a concert, a fight night, a karaoke track). Null `ai_asked_at` = never asked.
+     */
+    aiKind: text("ai_kind"),
+    aiTitle: text("ai_title"),
+    aiOriginalTitle: text("ai_original_title"),
+    aiYear: integer("ai_year"),
+    aiAskedAt: timestamp("ai_asked_at", { withTimezone: true }),
     addedAt: timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
     /** Last time the provider's copy of this row changed (`merge`). */
     changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
@@ -167,20 +177,31 @@ export const catalogVariants = pgTable(
     section: text("section"),
     /** Live: the theme the name gives (section, category, name), written by the naming. */
     nameTheme: text("name_theme"),
-    /** Live: iptv-org's channel says so (`is_nsfw`, `xxx`), and the theme it gives merged with the name's; written by `channels`, kept when it fails. */
+    /**
+     * Live: iptv-org's channel says so (`is_nsfw`, `xxx`), and the theme the reference gives (« Événements » or
+     * « Non reconnus » without one), null when it only repeats the name's; written by `channels`, kept when it fails.
+     */
     iptvAdult: boolean("iptv_adult").default(false).notNull(),
     iptvTheme: text("iptv_theme"),
     /** Derived, never written: each source keeps its own column, so one step failing cannot undo another's. */
     adult: boolean("adult").generatedAlwaysAs(sql`name_adult or iptv_adult`).notNull(),
-    /** Live: the theme the app groups by (« Sport », « Cinéma »…): iptv-org's, else the name's. */
+    /** Live: the theme the app groups by (« Sport », « Cinéma »…): the reference's, else the name's. */
     theme: text("theme").generatedAlwaysAs(sql`coalesce(iptv_theme, name_theme)`),
-    /** Live: the iptv-org channel this variant is (`TF1.fr`), and how it was found: epg · name · name-global · manual. */
+    /** Live: the iptv-org channel this variant is (`TF1.fr`), and how its reference channel was found: epg · name · name-global · alias · ai · manual. */
     iptvId: text("iptv_id"),
     iptvMatch: text("iptv_match"),
     /** Live: the provider's EPG id names another channel (iptv-org says so): its guide is not this channel's. */
     epgMismatch: boolean("epg_mismatch").default(false).notNull(),
     /** Live, regional market only (« ar »): the country it is shown under (`MA`), written by `channels`; null = the whole region. */
     country: text("country"),
+    /** Live: the country the name's own prefix says inside a region (« MA - 2M » → `MA`), written by the naming. */
+    nameCountry: text("name_country"),
+    /**
+     * Live: the reference channel this variant is, written by `channels`: its name (ours, else iptv-org's), which
+     * gives the content its identity and title, and our own row when there is one. Null name = not recognised.
+     */
+    channelName: text("channel_name"),
+    channelId: integer("channel_id").references(() => curationChannels.id, { onDelete: "set null" }),
   },
   (t) => [
     uniqueIndex("catalog_variants_kind_xtream_idx").on(t.accountId, t.kind, t.xtreamId),
@@ -478,6 +499,30 @@ export const iptvorgChannels = pgTable(
   },
   (t) => [index("iptvorg_channels_country_idx").on(t.country)],
 );
+
+/**
+ * The reference channels of ours, set in the admin (the Live screen, a channel's page): what the live variants are matched against
+ * besides iptv-org. A row either stands alone (a channel iptv-org does not know: « beIN Sports 1 » of
+ * France) or completes an iptv-org channel in a market (`iptv_id`: its logo, guide id and names), with
+ * the names the providers use for it (`aliases`). `theme` null = iptv-org's; `country`, in a regional
+ * market: null = the usual rule (iptv-org, the provider's hints), "" = the whole region, else a code.
+ */
+export const curationChannels = pgTable(
+  "curation_channels",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    market: text("market").notNull(),
+    country: text("country"),
+    theme: text("theme"),
+    aliases: text("aliases").array().default([]).notNull(),
+    iptvId: text("iptv_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("curation_channels_market_iptv_idx").on(t.market, t.iptvId)],
+);
+export type ReferenceChannel = typeof curationChannels.$inferSelect;
 
 /**
  * One run of a task: the full pipeline, the EPG, or a lone step. Its steps are `task_steps`

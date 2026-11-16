@@ -110,6 +110,7 @@ const QUALITY_WORDS: Record<string, Quality> = {
   ᴴᴰ: "HD",
   HDTV: "HD",
   FHD: "FHD",
+  "FHD+": "FHD",
   "1080P": "FHD",
   "1080I": "FHD",
   BLURAY: "FHD",
@@ -117,6 +118,8 @@ const QUALITY_WORDS: Record<string, Quality> = {
   REMUX: "FHD",
   "4K": "4K",
   UHD: "4K",
+  "UHD+": "4K",
+  "4K+": "4K",
   "2160P": "4K",
   ᵁᴴᴰ: "4K",
   "3840P": "4K",
@@ -167,6 +170,8 @@ const NOISE_WORDS = [
   "REPLAY",
   "NO EVENT",
   "OFF AIR",
+  "LQ",
+  "HQ",
 ];
 /** Anything tag-like, longest first so "DOLBY VISION" wins over "DV". */
 const ALL_WORDS = [...Object.keys(LANG_WORDS), ...ISO_CODES, ...Object.keys(QUALITY_WORDS), ...Object.keys(DR_WORDS), ...NOISE_WORDS].sort(
@@ -203,6 +208,13 @@ const CODE_ALIASES: Record<string, { market?: string; language?: Language }> = {
 /** Short words that name a language even in a prefix, where « FR » or « IT » would be a market. */
 const PREFIX_LANG_ONLY = new Set(["VF", "VO", "SUB", "DUB", "ENG", "VFF", "VFQ", "ST"]);
 const TZ_DELAY = /\|?\s*[-+]?\d{1,2}H\s*\|?/gi;
+/**
+ * Small raised letters and digits: on a live channel, always a technical label the provider glued on
+ * (« ᵁᴴᴰ », « ʰᵉᵛᶜ », « ᴴ²⁶⁵ », « ᴿᴬᵂ », « ⁵⁰ᶠᵖˢ »), never a part of its name.
+ */
+const RAISED = /[\u00B2\u00B3\u00B9\u02B0-\u02B8\u02E0-\u02E4\u1D2C-\u1D6A\u1D9B-\u1DBF\u2070-\u207F]+/g;
+/** A bare resolution closing a live name: « BEIN SPORTS 1 720 ». */
+const TRAILING_RESOLUTION = /\s(480|576|720|1080|2160)\s*$/;
 const SEASON_TAG = /(?:^|[\s\-([|])(?:S(\d{1,2})|(?:Saison|Season|Temporada|Stagione)\s*(\d{1,2}))(?=$|[\s\-)\]|])/i;
 
 /** Edition words → the label the app shows. Case ignored, accents optional. */
@@ -341,7 +353,13 @@ export function parseName(raw: string, kind: Kind): ParsedName {
     for (const w of m.split(/[\s\-:|]+/).filter(Boolean)) classify(w, f);
     return "";
   });
-  if (kind === "live") s = s.replace(TZ_DELAY, " ");
+  if (kind === "live")
+    s = s
+      .replace(RAISED, (m) => {
+        classify(m.normalize("NFKC"), f);
+        return " ";
+      })
+      .replace(TZ_DELAY, " ");
 
   let seasonHint: number | undefined;
   if (kind === "series") {
@@ -366,6 +384,11 @@ export function parseName(raw: string, kind: Kind): ParsedName {
   s = extractTags(s, f);
   // An IMAX copy is a cut of its own (another aspect ratio), when no other edition was named.
   if (kind !== "live" && f.tags.has("imax")) edition ??= "IMAX";
+  if (kind === "live")
+    s = s.replace(TRAILING_RESOLUTION, (_, n: string) => {
+      classify(`${n}P`, f);
+      return " ";
+    });
   // Provider labels on live channels: "[P.TV]", "[TF1+]", "(Niger)" stay for the last, go for the first.
   if (kind === "live") s = s.replace(/\[[A-Z0-9.+ -]{1,8}\]/g, " ");
   // A trailing « TNT » is the terrestrial feed of the channel named before it: « ARRYADIA TNT » is
@@ -452,7 +475,33 @@ export function defaultLanguage(market?: string): Language {
   return market.toUpperCase();
 }
 
-// ---------------------------------------------------------------- live sections and themes
+// ---------------------------------------------------------------- live markets, sections and themes
+
+/** Our markets are mostly countries; « ar » is a region, the Arabic-speaking world, shown country by country. */
+export const REGIONS: Record<string, string[]> = {
+  ar: ["SA", "EG", "AE", "QA", "LB", "KW", "BH", "OM", "JO", "IQ", "SY", "MA", "DZ", "TN", "LY", "YE", "PS", "SD", "MR"],
+};
+/** The region a country code belongs to (« ma » → « ar »), null outside any. */
+export function regionOf(code: string | null | undefined): string | null {
+  const c = code?.toUpperCase();
+  return (c && Object.keys(REGIONS).find((r) => REGIONS[r].includes(c))) || null;
+}
+
+/**
+ * The market a live channel is listed under, and the country its own prefix names inside a region. One
+ * provider writes « |AR| 2M » under a section « MAROC », another « |MA| 2M » or « MA - 2M » under a
+ * category « |AR| MOROCCO »: all three are the Arab world's, in Morocco. Inside a region's category the
+ * prefix only says a country when it is one of the region's (« CH - CHEF OMAR » is no Swiss channel).
+ */
+export function liveMarket(prefix: string | undefined, category: string | undefined): { market: string | null; country: string | null } {
+  if (category && REGIONS[category]) {
+    const code = prefix?.toUpperCase();
+    return { market: category, country: code && REGIONS[category].includes(code) ? code : null };
+  }
+  const own = prefix ?? category ?? null;
+  const region = regionOf(own);
+  return region ? { market: region, country: own!.toUpperCase() } : { market: own, country: null };
+}
 
 /** « |FR| CINEMA FHD |FR| » (the text of a separator line, as the import stored it) → "CINEMA". */
 export function sectionLabel(section: string): string {
@@ -471,9 +520,14 @@ export const LIVE_THEMES = [
   "Musique",
   "Régionales",
   "Religion",
+  "Événements",
+  "Non reconnus",
 ] as const;
 export type LiveTheme = (typeof LIVE_THEMES)[number];
 const GENERAL: LiveTheme = "Généralistes";
+/** What matches no reference channel: the event feeds (a match, a pay-per-view, a numbered « live » channel), and the rest. */
+export const EVENTS_THEME: LiveTheme = "Événements";
+export const UNKNOWN_THEME: LiveTheme = "Non reconnus";
 
 /** Whole words in any script: `\b` only knows ASCII, Cyrillic and accented labels need this. */
 const words = (list: string) => new RegExp(`(?<![\\p{L}])(?:${list})(?![\\p{L}])`, "u");

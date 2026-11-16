@@ -22,6 +22,29 @@ export {
   updateEpgSource,
 } from "./epg-sources";
 export { iptvChannelById, setIptvMatch } from "./channels";
+export {
+  attachName,
+  type Candidate,
+  ChannelError,
+  type ChannelInput,
+  type ChannelRow,
+  type ContentChannel,
+  contentChannel,
+  createChannel,
+  deleteChannel,
+  listChannels,
+  type LiveMarketStat,
+  type LiveSummary,
+  liveSummary,
+  nameCandidates,
+  referenceChannelById,
+  REFERENCE_THEMES,
+  type UnmatchedName,
+  unmatchedNames,
+  type UnmatchedVariant,
+  unmatchedVariants,
+  updateChannel,
+} from "./reference";
 export { hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
 export {
   assignManual,
@@ -42,6 +65,7 @@ export {
   parseName,
   QUALITY_RANK,
   qualityOfRank,
+  REGIONS,
 } from "./naming";
 export {
   getLastError,

@@ -13,6 +13,7 @@ import { TmdbCell } from "../catalog/tmdb-cell";
 import { VisibilityToggle } from "../catalog/visibility";
 import { Badge, BUSY } from "../ui";
 import { Icon } from "../icons";
+import { ChannelCard } from "../channels/view";
 
 const empty = (v: unknown) => v === null || v === undefined || v === "" || (Array.isArray(v) && !v.length);
 const shown = (v: unknown) => (Array.isArray(v) ? v.join(", ") : String(v instanceof Date ? v.toLocaleString("fr-FR") : v));
@@ -52,6 +53,8 @@ const IPTV_MATCH: Record<string, string> = {
   epg: "par l'identifiant EPG du fournisseur",
   name: "par le nom, dans le pays",
   "name-global": "par le nom, unique au monde",
+  alias: "par un nom que nous lui connaissons",
+  ai: "par le nom que Claude y lit",
   manual: "à la main",
 };
 
@@ -61,7 +64,7 @@ function IptvPanel({ v }: { v: VariantDetail }) {
   return (
     <Panel
       title="Chaîne iptv-org"
-      hint={`Étape channels · ${it.iptvMatch ? `rattachée ${IPTV_MATCH[it.iptvMatch] ?? it.iptvMatch}` : "non rattachée"}`}
+      hint={`Étape channels · ${it.channelName ? `${it.channelName}, reconnue ${IPTV_MATCH[it.iptvMatch ?? ""] ?? it.iptvMatch ?? ""}` : it.iptvMatch === "manual" ? "aucune, à la main" : "non reconnue"}`}
     >
       {ch && (
         <div class="flex items-start gap-3">
@@ -261,6 +264,13 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
   const read = [
     it.cleanTitle && it.cleanTitle !== it.name ? `« ${it.cleanTitle} »` : null,
     it.year,
+    it.aiAskedAt
+      ? it.aiKind === "other"
+        ? "Claude : hors TMDB"
+        : it.aiTitle || it.aiOriginalTitle
+          ? `Claude : « ${it.aiTitle ?? it.aiOriginalTitle} »${it.aiOriginalTitle && it.aiTitle ? ` (${it.aiOriginalTitle})` : ""}${it.aiYear ? ` ${it.aiYear}` : ""}`
+          : "Claude : non identifié"
+      : null,
     it.seasonHint != null ? `saison ${it.seasonHint}` : null,
     it.tags.length ? it.tags.join(", ") : null,
     it.market ? `marché ${it.market}` : null,
@@ -522,6 +532,7 @@ export function ContentView({
   variants,
   tmdbLang,
   guide,
+  channel,
   favorite,
   watched,
   episodes,
@@ -554,6 +565,7 @@ export function ContentView({
           Sans association TMDB : corriger le matching d'une variante règle le groupement dans la plupart des cas.
         </p>
       )}
+      {channel && <ChannelCard ch={channel} />}
       <section class="flex flex-col gap-3">
         <h2 class="text-lg font-semibold">
           Variantes du fournisseur <span class="font-normal text-muted-foreground">{fmt(variants.length)}</span>

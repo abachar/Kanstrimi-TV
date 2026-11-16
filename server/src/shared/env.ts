@@ -28,6 +28,8 @@ const schema = z
     DEV_PASSWORD: z.string().optional(),
     /** The TMDB key: a podman secret in production, never stored in the database. */
     TMDB_API_KEY: z.string().trim().default(""),
+    /** The Anthropic key, for Claude's reading of the titles TMDB does not know; same handling. Empty = the step is skipped. */
+    ANTHROPIC_API_KEY: z.string().trim().default(""),
     /** The provider account of before the `provider_accounts` table: read once at boot to fill the first account, then unneeded. */
     XTREAM_URL: z.string().trim().default(""),
     XTREAM_USERNAME: z.string().trim().default(""),
@@ -67,12 +69,13 @@ export const env = {
   port: parsed.data.PORT,
   /** Set (outside production) = no login page, and the admin pages reload themselves after every restart. */
   devPassword: isProd ? undefined : parsed.data.DEV_PASSWORD,
-  /** The TMDB key, as `getSettings` hands it out, and the provider account of before, for `seedAccountFromEnv`. */
+  /** The TMDB and Anthropic keys, as `getSettings` hands them out, and the provider account of before, for `seedAccountFromEnv`. */
   secrets: {
     xtream_url: parsed.data.XTREAM_URL,
     xtream_username: parsed.data.XTREAM_USERNAME,
     xtream_password: parsed.data.XTREAM_PASSWORD,
     tmdb_api_key: parsed.data.TMDB_API_KEY,
+    anthropic_api_key: parsed.data.ANTHROPIC_API_KEY,
   },
   /** APNs, when the three variables are there; `key` is the PEM text of the `.p8`. */
   apns:

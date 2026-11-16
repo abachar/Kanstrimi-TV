@@ -6,7 +6,14 @@ import { KIND_TITLES } from "../labels";
 export function CatalogShell({ qy, children }: { qy: CatalogQuery; children?: unknown }) {
   return (
     <>
-      <Title t={KIND_TITLES[qy.kind]} sub="Ce que l'app affiche, organisé selon nos règles" />
+      <Title
+        t={KIND_TITLES[qy.kind]}
+        sub={
+          qy.kind === "live"
+            ? "Les chaînes : celles que l'app affiche, toutes celles que nous connaissons, et les noms qui n'en sont pas encore"
+            : "Ce que l'app affiche, organisé selon nos règles"
+        }
+      />
       {children}
     </>
   );

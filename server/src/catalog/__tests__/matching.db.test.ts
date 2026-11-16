@@ -5,7 +5,7 @@ import { resetDb, closeDb, seedItems } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { setTmdbPace } from "@/providers/tmdb";
 import { TmdbClient } from "@/providers/tmdb";
-import { assignManual, explainMatch, resetMatches, retryUnmatched, runEnrich } from "../matching";
+import { assignManual, explainMatch, type PendingItem, resetMatches, retryUnmatched, runEnrich } from "../matching";
 
 /**
  * A fake TMDB: searches answer by title (and by year, adult flag), details by id. Every case of
@@ -28,6 +28,9 @@ const DOCS: Record<number, Doc> = {
     translations: {},
   },
   31: { id: 31, title: "Film Adulte Rare", release_date: "2010-01-01", alternative_titles: {}, translations: {} },
+  900: { id: 900, title: "The Ember", original_title: "الجمرة", release_date: "2017-05-01", alternative_titles: {}, translations: {} },
+  901: { id: 901, title: "The Ember", release_date: "2009-01-01", alternative_titles: {}, translations: {} },
+  902: { id: 902, title: "Sekket El Salama", release_date: "1986-01-01", alternative_titles: {}, translations: {} },
 };
 const SEARCH: { query: string; year?: string; adult?: boolean; ids: number[] }[] = [
   { query: "Le Patriarche", ids: [500] },
@@ -35,6 +38,9 @@ const SEARCH: { query: string; year?: string; adult?: boolean; ids: number[] }[]
   { query: "Dune", ids: [841, 438631] },
   { query: "General Mayhem: The Killing of Brigadier J", ids: [77] },
   { query: "Film Adulte Rare", adult: true, ids: [31] },
+  { query: "The Ember", year: "2017", ids: [900, 901] },
+  { query: "The Ember", year: "2009", ids: [901] },
+  { query: "Sekket El Salama", ids: [902] },
 ];
 const ok = (body: unknown) => Response.json(body);
 async function fakeTmdb(u: URL | string) {
@@ -96,6 +102,48 @@ describe("matching", () => {
     // A match found by search leaves its document in the cache, as the card needs it.
     const cached = await db.select({ id: schema.tmdbCache.tmdbId }).from(schema.tmdbCache).where(eq(schema.tmdbCache.tmdbId, 438631));
     expect(cached).toHaveLength(1);
+  });
+
+  it("searches the titles Claude suggested after its own, with the year it knows, and ignores what Claude saw outside TMDB", async () => {
+    vi.stubGlobal("fetch", fakeTmdb);
+    const client = new TmdbClient("k", "fr-FR");
+    const entry = (name: string, ai: Partial<PendingItem>, year: number | null = null): PendingItem => ({
+      id: 0,
+      kind: "vod",
+      name,
+      cleanTitle: name.replace(/^\|AR\| /, ""),
+      year,
+      raw: {},
+      aiKind: "movie",
+      aiTitle: null,
+      aiOriginalTitle: null,
+      aiYear: null,
+      ...ai,
+    });
+    // The provider's year decides between the two films of that title.
+    const hit = await explainMatch(client, entry("|AR| Al Jamra", { aiTitle: "The Ember", aiYear: 2017 }, 2017));
+    expect(hit.verdict).toMatchObject({ status: "matched", tmdbId: 900, via: "suggestion" });
+    expect(hit.searches.map((s) => [s.title, s.withYear])).toEqual([
+      [undefined, 2017],
+      [undefined, undefined],
+      [undefined, undefined],
+      ["The Ember", 2017],
+    ]);
+    // Without a year from the provider, Claude's year serves, and the film of another year is refused.
+    expect((await explainMatch(client, entry("|AR| Al Jamra", { aiTitle: "The Ember", aiYear: 2009 }))).verdict.tmdbId).toBe(901);
+    // No year at all: the title has to be almost exact; the original title is tried too.
+    expect((await explainMatch(client, entry("|AR| Sekat Al Salama", { aiTitle: "Sekket El Salama" }))).verdict).toMatchObject({
+      tmdbId: 902,
+      via: "suggestion",
+    });
+    expect(
+      (await explainMatch(client, entry("|AR| Sekat Al Salama", { aiTitle: "Nothing", aiOriginalTitle: "Sekket El Salama" }))).verdict
+        .tmdbId,
+    ).toBe(902);
+    // What Claude saw outside TMDB (a concert) is not searched.
+    const other = await explainMatch(client, entry("|AR| Al Jamra", { aiKind: "other", aiTitle: "The Ember", aiYear: 2017 }, 2017));
+    expect(other.verdict.status).toBe("unmatched");
+    expect(other.searches.some((s) => s.title)).toBe(false);
   });
 
   it("gives a fresh start to what goes back to pending by hand: the attempts start again from zero", async () => {

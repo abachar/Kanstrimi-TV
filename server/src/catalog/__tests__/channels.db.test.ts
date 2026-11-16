@@ -6,7 +6,17 @@ import { db, schema } from "@/db";
 import { env } from "@/shared";
 import { resetDb, closeDb, seedItems, groupAndFilter } from "@/test/db";
 import { pickLogo, syncIptv } from "@/providers/iptv";
-import { channelKey, countriesOf, iptvTheme, mergedTheme, nameKeys, regionCountry, runChannels, setIptvMatch } from "../channels";
+import {
+  channelKey,
+  countriesOf,
+  iptvTheme,
+  isEventFeed,
+  mergedTheme,
+  nameKeys,
+  regionCountry,
+  runChannels,
+  setIptvMatch,
+} from "../channels";
 import { runNaming } from "../grouping/group";
 
 const CHANNELS = [
@@ -64,6 +74,8 @@ describe("iptv-org helpers", () => {
     expect(channelKey("ARRYADIA 1 HD")).toBe(channelKey("Arryadia HD1"));
     expect(channelKey("HD1")).toBe("1");
     expect(nameKeys("AL OULA (ERTU 1) EGY")).toEqual(expect.arrayContaining([channelKey("AL OULA"), channelKey("ERTU 1")]));
+    expect(nameKeys("2M MAROC")).toContain(channelKey("2M")); // a country closing the name is a tag
+    expect(nameKeys("TLC FRANCE")).toContain(channelKey("TLC"));
     expect(countriesOf("ar")).toContain("AE");
     expect(countriesOf("uk")).toContain("GB");
   });
@@ -77,6 +89,25 @@ describe("iptv-org helpers", () => {
     expect(regionCountry("ar", "beINSports1.qa", ["|AR| SPORTS AR. |AR|"])).toBeNull(); // pan-Arab
     expect(regionCountry("ar", "OSNMovies.ae", ["|AR| OSN MOVIES |AR|", "|AR| QATAR |AR|"])).toBe("AE");
     expect(regionCountry("fr", "TF1.fr", ["|FR| FRANCE FHD |FR|"])).toBeNull(); // not a region
+  });
+  it("reads the other providers' ways of naming a country: the name's own prefix, a bare section, a category", () => {
+    expect(regionCountry("ar", "MBC5.ae", [null], { nameCountry: "MA" })).toBe("MA"); // « MA - MBC 5 »
+    expect(regionCountry("ar", null, ["| LIBAN |"])).toBe("LB");
+    expect(regionCountry("ar", null, ["|AR| SAUDI ARABIA |AR|"])).toBe("SA");
+    expect(regionCountry("ar", null, [null], { category: "|AR| MOROCCO" })).toBe("MA");
+    expect(regionCountry("ar", "beINSports1.qa", [null], { category: "|AR| BEIN SPORTS 4K" })).toBeNull(); // a theme: pan-Arab
+    expect(regionCountry("ar", "AlAoula.ma", [null], { category: "|AR| ARABIC FULL SD" })).toBe("MA"); // tells nothing: iptv-org's
+    expect(regionCountry("ar", "AlAoula.ma", ["|AR| SPORTS AR. |AR|"], { category: "|AR| MOROCCO" })).toBeNull(); // a section wins over the category
+  });
+  it("tells an event feed by its category, its section or its own name", () => {
+    const feed = (name: string, category: string | null = null, section: string | null = null) => isEventFeed({ name, category, section });
+    expect(feed("FR - DAZN 3", "|EU| FRANCE DAZN PPV")).toBe(true);
+    expect(feed("|FR| RMC SPORT 1", null, "|FR| SPORT EVENT |FR|")).toBe(true);
+    expect(feed("|FR| CANAL+ LIVE 7 FHD")).toBe(true);
+    expect(feed("LIGUE1+ FHD ( Dimanche 2eme Match )")).toBe(true);
+    expect(feed("AU (STAN 03) | West Ham United v Charlton Athletic (2026-11-16 00:50:50)")).toBe(true);
+    expect(feed("|FR| MTV LIVE", "FRANCE MUSIQUE")).toBe(false);
+    expect(feed("|FR| AUTOMOTO FHD", "SPORTS FR")).toBe(false);
   });
   it("takes the most telling category, and keeps a specific provider theme over « general »", () => {
     expect(iptvTheme(["general", "news"])).toBe("Infos");
@@ -100,20 +131,24 @@ describe("runChannels", () => {
       iptv_channels: 9,
       iptv_logos: 2,
       live_items: 9,
+      live_recognised: 5,
+      live_events: 1,
       iptv_matched: 5,
       iptv_by_epg: 2,
       iptv_by_name: 3,
       epg_mismatch: 1,
+      ai_asked: 0, // no key: Claude is not asked
     });
     const items = await db.select().from(schema.catalogVariants).orderBy(schema.catalogVariants.xtreamId);
     const by = (x: string) => items.find((i) => i.xtreamId === x)!;
-    expect(by("1")).toMatchObject({ iptvId: "TF1.fr", iptvMatch: "epg" });
-    expect(by("2")).toMatchObject({ iptvId: "BFMTV.fr", iptvMatch: "name", theme: "Infos" }); // iptv-org first
+    expect(by("1")).toMatchObject({ iptvId: "TF1.fr", iptvMatch: "epg", channelName: "TF1" });
+    expect(by("2")).toMatchObject({ iptvId: "BFMTV.fr", iptvMatch: "name", channelName: "BFM TV", theme: "Infos" }); // iptv-org first
     expect(by("4")).toMatchObject({ iptvId: "MBC3.ae", iptvMatch: "name", theme: "Jeunesse" }); // « ar » = the Arab world
-    expect(by("3")).toMatchObject({ iptvId: null, theme: "Régionales" }); // a regional feed: no channel of its own name
-    expect(by("5").iptvId).toBeNull(); // an event channel iptv-org does not know
-    expect(by("6").iptvId).toBeNull(); // « Canal Un » is two channels, none in Italy
-    expect(by("7")).toMatchObject({ iptvId: "ERTU1.eg", iptvMatch: "name", epgMismatch: true });
+    // A regional feed: no channel of its own name. Without a reference channel, no theme of the provider's either.
+    expect(by("3")).toMatchObject({ iptvId: null, channelName: null, theme: "Non reconnus" });
+    expect(by("5")).toMatchObject({ iptvId: null, channelName: null, theme: "Événements" }); // a numbered feed of a platform
+    expect(by("6")).toMatchObject({ iptvId: null, theme: "Non reconnus" }); // « Canal Un » is two channels, none in Italy
+    expect(by("7")).toMatchObject({ iptvId: "ERTU1.eg", iptvMatch: "name", channelName: "ERTU 1", epgMismatch: true });
     expect(by("8")).toMatchObject({ iptvId: null, epgMismatch: false });
     expect(by("9")).toMatchObject({ iptvId: "AlResalah.sa", iptvMatch: "epg", theme: "Religion" });
     // In the Arab world, iptv-org's country; outside a region, none.

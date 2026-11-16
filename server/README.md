@@ -9,7 +9,7 @@ traverse jamais (l'app lit l'URL du fournisseur).
 ## Démarrage
 
 ```bash
-cp .env.example .env                       # DATABASE_URL, SESSION_SECRET (32+ car.), DATA_DIR, TMDB_API_KEY
+cp .env.example .env                       # DATABASE_URL, SESSION_SECRET (32+ car.), DATA_DIR, TMDB_API_KEY, ANTHROPIC_API_KEY
 npm run hash-password -- <mot-de-passe>    # 12 car. min → ADMIN_PASSWORD_HASH dans .env
 npm install
 npm run db:migrate
@@ -45,7 +45,7 @@ Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres :
 | Étape | Rôle |
 |---|---|
 | `source` | copie brute des listes Xtream de chaque fournisseur actif, refusée pour lui si vide ou si son catalogue fond de moitié (panne) ; un fournisseur illisible garde sa copie, les autres passent, l'étape finit en échec sans arrêter le passage (`PartialFailure`) ; puis copie brute → variantes du catalogue, par différence, et analyse des noms (titre, année, marché, langue, qualité, édition) |
-| `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`), qui relit peu à peu les fiches anciennes ; puis rattachement des chaînes du direct à iptv-org : thème, logo, drapeau adulte, pays dans une région. L'un en panne n'empêche pas l'autre |
+| `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`), qui relit peu à peu les fiches anciennes ; avant lui, Claude (`providers/claude`, Sonnet) lit une fois les noms visibles que TMDB a abandonnés et suggère le titre à chercher, ou dit « hors TMDB » (concert, karaoké, combat) : la suggestion est un titre de plus à chercher, jugé par les mêmes scores avec l'année exigée, jamais un verdict ; puis chaque entrée du direct est rattachée à sa chaîne de référence (`catalog/channels.ts`), qui lui donne son identité, son thème, son logo, son drapeau adulte et son pays dans une région. L'un en panne n'empêche pas l'autre |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
 | `filters` | les filtres de chaque profil (`catalog/filters/`) gardent ou écartent chaque version pour ce profil (`catalog_variant_profiles`) ; `hidden_by_rule` = écartée par tous ; puis les contenus touchés recomptent leurs agrégats, `visible` (vue par un profil au moins), ce que voit chaque profil (`catalog_content_profiles`) et les arrivées de la liste d'attente. Une version qu'aucun filtre n'a encore vue est écartée |
 
@@ -60,7 +60,8 @@ dernier : ils lisent le contenu tel que l'app le montre. L'étape peut ne juger 
 « Appliquer maintenant », un profil créé) : l'union se recalcule quand même.
 Le matching est un seul algorithme, `explainMatch` : `enrich` applique son verdict, l'admin l'affiche sous « Pourquoi ? ».
 Une panne de TMDB (réseau, 429 qui dure) laisse l'élément en attente, jamais `unmatched` ; le client TMDB ne dépasse
-pas 35 requêtes par seconde.
+pas 35 requêtes par seconde. Un nom dont la grammaire change la lecture (titre ou année) repasse en attente s'il était
+`unmatched`. Sans `ANTHROPIC_API_KEY`, Claude n'est pas consulté et tout le reste marche.
 Un passage s'arrête à la première étape en échec, sauf `enrich` (réseau externe). Chaque passage laisse une ligne dans
 `task_runs`, une par étape dans `task_steps`, et un fichier de log dans `DATA_DIR/logs/` avec le détail de chaque
 partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque passage purge lignes et fichiers de plus de 5 jours.
@@ -73,6 +74,8 @@ progression, lectures (`app_plays`), versions choisies (`app_profile_versions`),
 Deux niveaux : variantes (une entrée d'un fournisseur, unique par (`account_id`, `kind`, `xtream_id`) : deux fournisseurs
 réutilisent les mêmes numéros) et contenus (`catalog_contents.key`, la seule identité exposée à l'app). Un titre présent chez
 plusieurs fournisseurs est un contenu dont chaque version liste une source par fournisseur, le préféré en premier.
+Une chaîne est sa chaîne de référence dans son marché (`live:<marché>-<nom de référence>`), quel que soit le nom que
+chaque fournisseur lui donne ; une entrée du direct sans chaîne de référence reste seule (`live:x:…`).
 Tout ce qui est personnel porte un `profile_id` ; un profil est par défaut (`is_default`, un seul) : celui des appareils tant que
 l'app n'en dit pas d'autre, du Top Shelf et de l'admin quand elle regarde « avec les yeux de l'app ». Il ne se supprime pas ;
 supprimer un autre profil emporte tout ce qu'il a enregistré.
@@ -100,7 +103,7 @@ player/     /player, un fichier par ressource ; types.ts = le contrat
 catalog/    le domaine : grammaire des noms, clés, profils et leurs filtres, groupement, épisodes, pipeline
 devices/    appairage, jetons, enregistrement push des téléphones
 notify/     les alertes de l'app (APNs) : textes, envoi, journal ; branché sur les événements du catalogue par main.ts
-providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), iptv/, skipdb/, theintrodb/, introdb/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_`), vérifié par `architecture.test.ts`
+providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), claude/ (lecture des noms inconnus de TMDB et de la référence des chaînes, sans table), iptv/, skipdb/, theintrodb/, introdb/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_`), vérifié par `architecture.test.ts`
 config/     réglages (base et environnement), mot de passe
 db/         client, schéma, migrations, prédicats de visibilité
 shared/     utilitaires ; n'importe jamais `@/`
@@ -142,7 +145,7 @@ par son index.
   recherche dit ce qu'elle affiche ; sans filtre (ou vide), le profil voit tout. Il se juge version par version, ses champs de
   fiche lus sur la fiche de la version (`catalog_variant_profiles` : gardée pour ce profil ; `catalog_variants.hidden_by_rule` :
   true écartée par tous, null pas encore jugée) ; une fiche sans version gardée disparaît pour ce profil. Par exemple
-  `marché:"fr" || (marché:"ar" && (pays:maroc || (thème:"sport" && pays:aucun)))` pour le direct,
+  `(marché:"fr" || (marché:"ar" && (pays:maroc || (thème:"sport" && pays:aucun)))) && -thème:"non reconnus"` pour le direct,
   `variant.langue:"vf","vo","ar" && xtream.marché:"fr","ar","en"` pour les films. Ils s'appliquent à l'étape `filters` ;
   enregistrer un filtre ne l'applique pas (`applied_at` null : bandeau) ; un profil créé ne voit rien tant que l'étape ne l'a pas
   jugé. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
@@ -183,8 +186,8 @@ par son index.
   par `jsonb_to_recordset` d'un seul paramètre (les cartes, colonnes décrites une fois dans `group.ts`). Une carte
   n'est réécrite que si elle change.
   Le merge, les filtres et le groupement passent l'un après l'autre (`withCatalogLock`).
-- **Secrets** : la clé TMDB vient de l'environnement (secret podman en production), jamais de la base ; l'admin la montre
-  sans la modifier, un changement demande un redémarrage. Un seul mot de passe (bcrypt),
+- **Secrets** : les clés TMDB et Anthropic viennent de l'environnement (secrets podman en production), jamais de la base ; l'admin les montre
+  sans les modifier, un changement demande un redémarrage. Un seul mot de passe (bcrypt),
   celui de l'admin : `/admin/login` passe toujours par bcrypt et, par adresse, après cinq échecs, double l'attente à chaque nouvel échec (429).
   Le cookie de session porte sa génération, sa date et une empreinte du hash : « Déconnecter toutes les sessions »
   (Paramètres), un nouveau mot de passe ou 30 jours le rendent caduc. Une erreur inattendue s'affiche sans son détail,
@@ -229,10 +232,25 @@ par son index.
   d'appareil mort (`BadDeviceToken`, `Unregistered`) efface l'enregistrement. Sans `APNS_*`, tout reste au journal en échec.
 - **Carrousel de l'accueil** : le Top Shelf sans « Reprendre » (`shelfPicks`), six au plus ; sans rien à y mettre, les
   dernières nouveautés. `trending` refuse une liste vide et garde celle de la semaine précédente. Un film mal reconnu (clé `fallback:`) ne se détecte qu'une fois son match TMDB corrigé.
-- **Groupes du direct** : pays × thème (« France · Sport », `section` et `theme` dans `/channels`). Un marché
-  régional (`ar`) se découpe par pays : l'étape `enrich` (partie iptv-org) écrit `country` (`regionCountry`) : pays iptv-org s'il est
-  dans la région, sinon la section du fournisseur ; une chaîne rangée sous un thème ou un bouquet seulement (beIN,
-  OSN) reste sous « Monde arabe ».
+- **Référence des chaînes** (`catalog/channels.ts`, `catalog/reference.ts`, écran Live de l'admin) : les films ont TMDB, les
+  chaînes ont iptv-org, complété par nos chaînes (`curation_channels` : une chaîne qu'iptv-org ne connaît pas, ou les
+  noms que les fournisseurs donnent à l'une des siennes, son thème, son pays). Le nom du fournisseur ne sert qu'à
+  trouver la chaîne et à lire la qualité (« LQ », « ᵁᴴᴰ », « 720 », « FHD+ »). Dans l'ordre : épinglage à la main, un
+  nom de nos chaînes dans le marché, iptv-org (identifiant EPG puis nom : dans le pays du préfixe, dans le marché,
+  unique au monde), enfin le nom que Claude y lit (une fois par nom, dans les marchés qu'un profil regarde, avec la
+  liste des chaînes du marché : seul un nom que la référence porte compte). Une radio n'est jamais une chaîne. Sans
+  chaîne de référence, l'entrée va sous « Événements » (catégorie ou section PPV, EVENT, LIVE ; nom qui porte une date,
+  une heure, deux équipes, un flux numéroté) ou « Non reconnus » : un filtre de profil les écarte. L'écran Live est
+  le seul écran des chaînes : ses chiffres sont son filtre (affichées dans l'app, toutes les chaînes, non rattachées,
+  événements) ; un nom se rattache sur sa ligne (suggestions à un clic, ou « Autre… » : recherche dans toute la
+  référence et création), pour tous les fournisseurs, et le marché est relu aussitôt ; le nom, le thème, le pays et
+  les noms d'une chaîne se changent sur sa fiche. Une chaîne dont la clé change emmène ce que les profils y avaient
+  enregistré (liste, temps regardé, version choisie).
+- **Groupes du direct** : pays × thème (« France · Sport », `section` et `theme` dans `/channels`), le thème venant de
+  la référence. Un préfixe de pays d'une région (« |MA| », « MA - ») range la chaîne dans la région (`ar`), qui se
+  découpe par pays (`regionCountry`) : celui du préfixe, sinon celui d'iptv-org s'il est dans la région, sinon celui
+  de la section du fournisseur, ou de sa catégorie quand il ne trace pas de sections ; une chaîne rangée sous un
+  thème ou un bouquet seulement (beIN, OSN) reste sous « Monde arabe ».
 - **« Si vous avez aimé… »** (`catalog/recommendations.ts`, `player/related.ts`) : recommandations TMDB (`/recommendations`,
   une page) demandées à la volée (ouverture d'une fiche, lecture, graines de l'accueil en fond), gardées 7 jours dans
   `tmdb_recommendations` (ids seuls), croisées avec le catalogue visible à chaque lecture. Jamais un titre vu ; la suite
@@ -269,7 +287,7 @@ Quadlet, derrière Caddy) la récupère seul. esbuild produit `dist/main.js` et 
 seul `sharp` (libvips natif) reste hors du bundle et forme l'unique `node_modules` de l'image.
 
 - Variables : `ADMIN_PASSWORD_HASH`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAIL`, `DATA_DIR`, `PORT`, `TZ`, et
-  `TMDB_API_KEY` (secret podman, `Secret=…,type=env,target=…` dans le Quadlet) ; les alertes de l'iPhone avec `APNS_KEY`
+  `TMDB_API_KEY` et `ANTHROPIC_API_KEY` (secrets podman, `Secret=…,type=env,target=…` dans le Quadlet ; la seconde facultative) ; les alertes de l'iPhone avec `APNS_KEY`
   (le texte PEM de la clé `.p8`, `\n` échappés ou non), `APNS_KEY_ID` et `APNS_TEAM_ID`, facultatives. Les comptes des
   fournisseurs sont en base (page Fournisseurs) ; les anciens secrets `XTREAM_*` ne servent plus qu'au premier démarrage
   après la migration, puis se retirent.

@@ -5,7 +5,9 @@ import { getCachedDetails } from "@/providers/tmdb";
 import type { TmdbDetails } from "@/providers/tmdb";
 import { accountsById, getSettings } from "@/config";
 import {
+  type ContentChannel,
   contentById,
+  contentChannel,
   defaultProfile,
   epgSourceById,
   iptvChannelById,
@@ -65,6 +67,8 @@ export type ContentDetail = {
   variants: VariantDetail[];
   tmdbLang: string;
   guide: ChannelGuide | null;
+  /** A channel: what it is in the reference of the channels. */
+  channel: ContentChannel | null;
   /** The profile whose list and positions the page shows and edits (`?profile=`, else the default one), among all of them. */
   profile: Profile;
   profiles: Profile[];
@@ -183,14 +187,15 @@ export async function contentDetail(id: number, profile: Profile): Promise<Conte
   if (!content) return null;
   const tmdbLang = (await getSettings()).tmdb_language;
   const items = await variantsOfContent(content.id);
-  const [variants, guide, favorites, watched, profiles] = await Promise.all([
+  const [variants, guide, favorites, watched, profiles, channel] = await Promise.all([
     variantDetails(items, tmdbLang),
     guideOf(content, items),
     favoriteSet(profile.id),
     watchedOf(profile.id, content),
     listProfiles(),
+    content.kind === "live" ? contentChannel(content.id) : null,
   ]);
-  return { content, variants, tmdbLang, guide, profile, profiles, favorite: favorites.has(content.key), ...watched };
+  return { content, variants, tmdbLang, guide, profile, profiles, favorite: favorites.has(content.key), channel, ...watched };
 }
 
 /** An entry the grouping has not placed yet: the page shows it alone. */
@@ -203,6 +208,7 @@ export async function orphanDetail(itemId: number, profile: Profile): Promise<Co
     variants: await variantDetails([item], tmdbLang),
     tmdbLang,
     guide: null,
+    channel: null,
     profile,
     profiles: await listProfiles(),
     favorite: false,

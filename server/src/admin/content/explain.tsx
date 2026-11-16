@@ -44,7 +44,8 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
       )}
       {e.searches.map((s) => (
         <div class="flex flex-col gap-1">
-          Recherche {s.withYear ? `avec l'année ${s.withYear}` : "sans année"}
+          Recherche {s.title ? `du titre suggéré par Claude « ${s.title} » ` : ""}
+          {s.withYear ? `avec l'année ${s.withYear}` : "sans année"}
           {s.adult ? ", contenus adultes inclus" : ""} :{" "}
           {s.candidates.length ? "" : <span class="text-muted-foreground">aucun résultat</span>}
           {s.candidates.length > 0 && (
@@ -105,11 +106,13 @@ export function ExplainView({ e, kind }: { e: MatchExplanation; kind: "vod" | "s
           ? ` par recherche, score ${pct(e.verdict.score)}`
           : e.verdict.via === "alternative"
             ? ` par un titre alternatif, similarité ${pct(e.verdict.score)}`
-            : e.verdict.via === "id"
-              ? " par l'identifiant amont"
-              : e.verdict.score
-                ? ` (meilleur score ${pct(e.verdict.score)})`
-                : ""}
+            : e.verdict.via === "suggestion"
+              ? ` par le titre suggéré par Claude, score ${pct(e.verdict.score)}`
+              : e.verdict.via === "id"
+                ? " par l'identifiant amont"
+                : e.verdict.score
+                  ? ` (meilleur score ${pct(e.verdict.score)})`
+                  : ""}
       </p>
     </div>
   );

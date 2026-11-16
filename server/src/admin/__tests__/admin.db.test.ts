@@ -1,6 +1,17 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { Hono } from "hono";
-import { ACCOUNT, PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
+import {
+  ACCOUNT,
+  PROFILE,
+  resetDb,
+  closeDb,
+  seedCategories,
+  seedItems,
+  seedTmdb,
+  seedProgrammes,
+  groupAndFilter,
+  knowChannels,
+} from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { itemById, launch, profileById } from "@/catalog";
 import { runAll, runNaming } from "@/catalog";
@@ -58,6 +69,7 @@ beforeAll(async () => {
   ]);
   matrixId = items[0].id;
   await runNaming(); // what the source step does after the import
+  await knowChannels(); // what the enrich step does with a reference that knows them
   expect(await runAll("manual", "group")).toBe(true); // group → filters, journalled: /admin/tasks has a row
 });
 afterAll(closeDb);
@@ -492,12 +504,16 @@ describe("admin", () => {
   });
 
   it("the EPG preview shows the day the page shows, not today", async () => {
+    // Another day at noon: run a few minutes from midnight, neither programme reaches into the other's day.
+    const later = new Date(Date.now() + 48 * 3600_000);
+    later.setHours(12, 0, 0, 0);
+    const minutes = Math.round((later.getTime() - Date.now()) / 60_000);
     await seedProgrammes([
       { channelId: "TF1.fr", start: -5, end: 5, title: "Maintenant unique" },
-      { channelId: "TF1.fr", start: 24 * 60 + 5, end: 24 * 60 + 15, title: "Demain unique" },
+      { channelId: "TF1.fr", start: minutes, end: minutes + 10, title: "Demain unique" },
     ]);
     try {
-      const tomorrow = new Date(Date.now() + 24 * 3600_000).toISOString();
+      const tomorrow = new Date(later.getTime() + 5 * 60_000).toISOString();
       const page = await html(`/admin/epg?channel=TF1.fr&at=${encodeURIComponent(tomorrow)}`);
       expect(page).toContain("Demain unique");
       expect(page).not.toContain("Maintenant unique");
@@ -704,6 +720,90 @@ describe("admin", () => {
     const tf1 = await sheetOf("live:fr-tf1");
     expect(await html(tf1)).not.toContain("Marquer comme vu");
     expect((await post(`${tf1}/watched`, { on: "1" })).status).toBe(404);
+  });
+
+  it("Live: the figures that filter it, every channel, the names left attached in place, a channel edited on its page", async () => {
+    await seedItems([
+      { kind: "live", xtreamId: "150", name: "|FR| ZED TV HD", cat: "20" },
+      { kind: "live", xtreamId: "151", name: "|FR| ZED TV BIS", cat: "20" },
+    ]);
+    await runNaming();
+    await db.insert(schema.iptvorgChannels).values({ id: "TF1.fr", name: "TF1", country: "FR", categories: ["general"] });
+    // What `channels` writes for a name no known channel bears.
+    for (const name of ["|FR| ZED TV HD", "|FR| ZED TV BIS"])
+      await db.update(schema.catalogVariants).set({ iptvTheme: "Non reconnus" }).where(eq(schema.catalogVariants.name, name));
+    await groupAndFilter();
+    const variant = async (n: string) => (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.name, n)))[0];
+    const live = "/admin/catalog?kind=live";
+
+    // One screen: no menu entry, no page of its own for the channels.
+    const shown = await html(live);
+    expect(shown).not.toContain('href="/admin/channels"');
+    for (const tab of ["Affichées dans l&#39;app", "Toutes les chaînes", "Non rattachées", "Événements"]) expect(shown).toContain(tab);
+    expect((await call("/admin/channels")).status).toBe(404);
+    const all = await html(`${live}&show=all&market=fr`);
+    expect(all).toContain("TF1");
+    expect(all).not.toContain("ZED TV"); // not a channel yet
+    expect(await html(`${live}&show=events&market=fr`)).toContain("Rien à rattacher");
+    const names = `${live}&show=unmatched&market=fr`;
+    const list = await html(names);
+    expect(list).toContain("ZED TV BIS");
+    expect(list).toContain('hx-target="#name-0"');
+
+    // « Autre… » unfolds a panel under the line: a search in the whole reference, a new channel.
+    const panel = (q = "") =>
+      `/admin/channels/panel?market=fr&title=${encodeURIComponent("ZED TV")}&slot=name-0&back=${encodeURIComponent(names)}${q}`;
+    const unfolded = await html(panel());
+    expect(unfolded).toContain("Ou une nouvelle chaîne, sous ce nom");
+    expect(unfolded).toContain("|FR| ZED TV HD");
+    expect(await html(panel("&q=zzz"))).toContain("Aucune chaîne ne s&#39;appelle « zzz »");
+    expect((await call(panel().replace("slot=name-0", "slot=%22x"))).status).toBe(404);
+    expect(await (await call("/admin/channels/panel/close")).text()).toBe("");
+
+    const created = { name: "Zed", market: "fr", theme: "Cinéma", aliases: "ZED TV", back: names };
+    expect(flash(await post("/admin/channels", created))).toBe(`${names}&ok=Zed enregistrée`);
+    const [zed] = await db.select().from(schema.curationChannels);
+    expect(await variant("|FR| ZED TV HD")).toMatchObject({
+      channelName: "Zed",
+      channelId: zed.id,
+      theme: "Cinéma",
+      contentKey: "live:fr-zed",
+    });
+    expect(flash(await post("/admin/channels", created))).toContain("err=« Zed » existe déjà dans ce marché");
+    expect(flash(await post("/admin/channels/attach", { market: "fr", title: "ZED TV BIS", ref: `own:${zed.id}`, back: names }))).toBe(
+      `${names}&ok=« ZED TV BIS » rattaché à Zed`,
+    );
+    expect((await variant("|FR| ZED TV BIS")).contentKey).toBe("live:fr-zed");
+    // A form never leads out of the screen.
+    expect(flash(await post("/admin/channels/attach", { market: "fr", title: "X", ref: "nope", back: "https://elsewhere.test/" }))).toMatch(
+      /^\/admin\/catalog\?kind=live&err=/,
+    );
+
+    // The channel's page carries what we say of it; renamed, it is another content and the page follows.
+    const hd = await variant("|FR| ZED TV HD");
+    const sheet = await html(`/admin/content/${hd.contentId}`);
+    expect(sheet).toContain(`action="/admin/channels/${zed.id}"`);
+    expect(sheet).toContain("ZED TV\nZED TV BIS");
+    const fields = { name: "Zed TV", market: "fr", theme: "", aliases: "ZED TV\nZED TV BIS", iptv_id: "", item: String(hd.id) };
+    const moved = flash(await post(`/admin/channels/${zed.id}`, fields));
+    const renamed = await variant("|FR| ZED TV HD");
+    expect(renamed).toMatchObject({ channelName: "Zed TV", contentKey: "live:fr-zed-tv" });
+    expect(moved).toBe(`/admin/content/${renamed.contentId}?v=${hd.id}&ok=Chaîne enregistrée#variant-${hd.id}`);
+    expect(flash(await post(`/admin/channels/${zed.id}`, { ...fields, market: "!" }))).toContain("err=Le marché est un code court");
+
+    // A channel iptv-org knows has no row of ours until we say something of it: its form creates one.
+    const tf1 = await variant("|FR| TF1 HD");
+    const known = await html(`/admin/content/${tf1.contentId}`);
+    expect(known).toContain('action="/admin/channels"');
+    expect(known).toContain("iptv-org la connaît sous TF1.fr");
+    expect(known).toContain("Dépliez pour préciser");
+
+    expect(flash(await post(`/admin/channels/${zed.id}/delete`, { item: String(hd.id) }))).toContain("ok=Précisions retirées");
+    const back = await variant("|FR| ZED TV HD");
+    expect(back).toMatchObject({ channelName: null, channelId: null, theme: "Non reconnus" });
+    // Not a channel any more: its page offers to attach its name.
+    expect(await html(`/admin/content/${back.contentId}`)).toContain('hx-trigger="load"');
+    expect((await post(`/admin/channels/${zed.id}/delete`, {})).status).toBe(404);
   });
 
   it("ends every session, this one included; a new login opens one again", async () => {
