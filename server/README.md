@@ -65,7 +65,7 @@ passent en dernier : ils lisent le contenu tel que l'app le montre. L'étape peu
 Le matching est un seul algorithme, `explainMatch` : `group` et `enrich` appliquent son verdict, l'admin l'affiche sous « Pourquoi ? ».
 Le client TMDB ne dépasse pas 35 requêtes par seconde. Un flux renommé par le fournisseur quitte son titre et est identifié de
 nouveau (sauf attaché à la main) ; un flux posé sur un titre sans fiche, dont la grammaire change la lecture (titre ou année), aussi.
-Sans `ANTHROPIC_API_KEY`, Claude n'est pas consulté et tout le reste marche. Dans l'admin, la recherche `ia:oui` de l'écran Flux montre ce qu'il a lu : les flux des titres qu'on lui a demandés, ceux reconnus par le nom qu'il y lit et ceux des noms restés sans chaîne qu'il a lus (`xtream.ia:oui` sur les écrans du catalogue, sa lecture sous chaque titre).
+Sans `ANTHROPIC_API_KEY`, Claude n'est pas consulté et tout le reste marche. Dans l'admin, la recherche `ia:oui` de l'écran Flux montre ce qu'il a lu : les flux des titres qu'on lui a demandés, ceux reconnus par le nom qu'il y lit et ceux des noms restés sans chaîne qu'il a lus ; sur les écrans Films et Séries, sa lecture se lit sous chaque titre trouvé.
 Un passage s'arrête à la première étape en échec, sauf `enrich` (réseau externe). Chaque passage laisse une ligne dans
 `task_runs`, une par étape dans `task_steps`, et un fichier de log dans `DATA_DIR/logs/` avec le détail de chaque
 partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque passage purge lignes et fichiers de plus de 5 jours.
@@ -147,9 +147,11 @@ par son index.
   (Direct, Films, Séries) a ses mots, dans un seul registre (`catalog/query/fields.ts`) qui sert aux recherches, aux
   filtres et à l'aide, chacun sous son préfixe : `catalogue.` pour notre fiche (ses colonnes, sa fiche TMDB en cache),
   `xtream.` pour un flux d'un fournisseur (ce qu'il en dit, ce qu'on lit dans son nom : marché, langue, qualité). Les
-  écrans du catalogue écrivent les mots de la fiche sans préfixe (`pays:maroc`) ; un filtre de profil, qui juge les
-  deux, écrit toujours le préfixe. Avec un mot de flux, l'expression se juge flux par flux, ses mots de fiche lus sur
-  la fiche du flux : une recherche trouve les fiches dont un flux passe. Vérifiée mot par mot avant tout SQL, ses valeurs toujours en paramètres.
+  écrans du catalogue (Live, Films, Séries, EPG) cherchent nos fiches par leurs seuls mots, sans préfixe
+  (`pays:maroc`, `région:"ar"` pour ce qu'un fournisseur range sous une région) : un mot de flux y est refusé, il se
+  cherche dans l'écran Flux, où ce sont les mots du flux qui s'écrivent sans préfixe. Un filtre de profil, qui juge
+  les deux, écrit toujours le préfixe. Un filtre et une recherche de flux se jugent flux par flux, leurs mots de
+  fiche lus sur la fiche du flux. Vérifiée mot par mot avant tout SQL, ses valeurs toujours en paramètres.
 - **Filtres** (`app_profile_filters`) : par profil, un au plus par type, une requête qui dit ce que ce profil voit, comme une
   recherche dit ce qu'elle affiche ; sans filtre (ou vide), le profil voit tout. Il se juge version par version, ses champs de
   fiche lus sur la fiche de la version (`app_profile_streams` : gardée pour ce profil ; `catalog_streams.filtered` :
@@ -260,11 +262,12 @@ par son index.
   reconnue » de ce nom, gardée même sans flux pour ne pas le redemander). Une radio n'est jamais une chaîne. Sans
   chaîne de référence, l'entrée va sous « Événements » (catégorie ou section PPV, EVENT, LIVE ; nom qui porte une date,
   une heure, deux équipes, un flux numéroté) ou « Non reconnus » : un filtre de profil les écarte. L'écran Live est
-  le seul écran des chaînes : un seul arbre, marché → thème → chaînes (`catalog/live-tree.ts`), pour tout ce que porte un
+  le seul écran des chaînes : un seul arbre, pays → thème → chaînes (`catalog/live-tree.ts` ; une chaîne sans pays va
+  sous sa région, « Monde arabe »), pour tout ce que porte un
   fournisseur en service, les noms restés sans chaîne y étant des chaînes à leur nom sous « Non reconnus » et
   « Événements ». La recherche l'élague (`pays:maroc`, `thème:sport`, `profil:inès`) ; ses raccourcis (dans
-  l'app de chaque profil, toutes les chaînes, non rattachées, événements) sont des recherches écrites d'avance, avec
-  ce qu'elles trouvent. L'arbre vient replié, une branche chargée à son ouverture, et déplié quand il reste peu de
+  l'app de chaque profil, toutes les chaînes, non rattachées et événements des pays et régions regardés) sont des
+  recherches écrites d'avance, avec ce qu'elles trouvent. L'arbre vient replié, une branche chargée à son ouverture, et déplié quand il reste peu de
   chaînes ; un nom se rattache sur sa ligne (suggestions à un clic, ou « Autre… » : recherche dans toute la
   référence et création), pour tous les fournisseurs, et le marché est relu aussitôt ; le nom, le thème, le pays et
   les noms d'une chaîne se changent sur sa fiche. Une chaîne dont la clé change emmène ce que les profils y avaient

@@ -38,8 +38,9 @@ export {
   unmatchedVariants,
   updateChannel,
   watchedMarkets,
+  watchedPlaces,
 } from "./reference";
-export { countLiveChannels, type LiveBranch, type LiveChannel, liveChannels, type LiveMarket, liveTree } from "./live-tree";
+export { countLiveChannels, type LiveBranch, type LiveChannel, liveChannels, type LivePlace, liveTree, placeKey } from "./live-tree";
 export { contentKey, hasTmdbKey, isEpisodeKey, isFallbackKey, isTmdbKey, keyKind, type KeyKind, parseKey } from "./keys";
 export {
   assignManual,

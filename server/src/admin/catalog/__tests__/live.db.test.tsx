@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { db } from "@/db";
+import { db, schema } from "@/db";
 import { compileQuery, runNaming } from "@/catalog";
 import { resetDb, closeDb, seedItems, groupAndFilter, knowChannels, leaveUnknown } from "@/test/db";
 import { branchOf, LIVE_PAGE, liveShortcuts, liveView } from "../live-data";
@@ -16,20 +16,21 @@ beforeAll(async () => {
   await runNaming();
   await knowChannels();
   await leaveUnknown(NAMES);
+  await db.update(schema.catalogChannels).set({ country: "FR" }); // what the channels step makes of a French list
   await groupAndFilter();
 });
 afterAll(closeDb);
 
 const search = (q: string) => compileQuery(q, { kind: "live", lang: "fr-FR" });
-const LEFT = "fr|Non reconnus";
+const LEFT = "FR|Non reconnus";
 
 describe("the Live screen's tree", () => {
   it("stays folded while it is large: counts only, but for the branch a link opens", async () => {
     const folded = await liveView(db, null, "");
     expect(folded.total).toBe(71);
-    expect(folded.markets.map((m) => [m.market, m.themes.map((t) => [t.theme, t.channels])])).toEqual([
+    expect(folded.places.map((m) => [m.place, m.themes.map((t) => [t.theme, t.channels])])).toEqual([
       [
-        "fr",
+        "FR",
         [
           ["Généralistes", 1],
           ["Non reconnus", 70],
@@ -44,15 +45,17 @@ describe("the Live screen's tree", () => {
     // Folded, a branch asks for its channels when it opens; open, it holds a page of them and the way to the next.
     const closed = String(await LiveTree({ q: "", view: folded }));
     expect(closed).toContain('hx-trigger="toggle once"');
-    expect(closed).toContain("/admin/catalog/branch?q=&amp;market=fr&amp;theme=Non+reconnus&amp;n=0");
+    expect(closed).toContain("/admin/catalog/branch?q=&amp;place=FR&amp;theme=Non+reconnus&amp;n=0");
     expect(closed).not.toContain("CHAINE 00");
     const opened = String(await LiveTree({ q: "", view: open }));
     expect(opened).toContain("CHAINE 49");
     expect(opened).not.toContain("CHAINE 50");
-    expect(opened).toContain("/admin/catalog/branch?q=&amp;market=fr&amp;theme=Non+reconnus&amp;n=50");
+    expect(opened).toContain("/admin/catalog/branch?q=&amp;place=FR&amp;theme=Non+reconnus&amp;n=50");
     // A branch the search does not leave is not opened.
-    expect((await liveView(db, search("tf1 || chaine"), "fr|Sport")).loaded.size).toBe(0);
-    expect(branchOf("fr|")).toEqual({ market: "fr", theme: null });
+    expect((await liveView(db, search("tf1 || chaine"), "FR|Sport")).loaded.size).toBe(0);
+    expect(branchOf("FR|")).toEqual({ place: "FR", theme: null });
+    expect(branchOf("~ar|Sport")).toEqual({ place: "~ar", theme: "Sport" }); // a region, by its market
+    expect(closed).toContain("France"); // the place's name
     expect(branchOf("nothing")).toBeNull();
   });
 
@@ -68,8 +71,8 @@ describe("the Live screen's tree", () => {
     expect((await liveShortcuts()).map((s) => [s.label, s.q, s.count])).toEqual([
       ["Dans l'app de Hakim", 'profil:"Hakim"', 71],
       ["Toutes les chaînes", '-thème:"événements","non reconnus"', 1],
-      ["Non rattachées", 'thème:"non reconnus" && xtream.marché:"fr"', 70],
-      ["Événements", 'thème:"événements" && xtream.marché:"fr"', 0],
+      ["Non rattachées", 'thème:"non reconnus" && pays:fr', 70],
+      ["Événements", 'thème:"événements" && pays:fr', 0],
     ]);
   });
 });

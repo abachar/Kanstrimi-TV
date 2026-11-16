@@ -10,7 +10,7 @@ export function CatalogShell({ qy, children }: { qy: CatalogQuery; children?: un
         t={KIND_TITLES[qy.kind]}
         sub={
           qy.kind === "live"
-            ? "Toutes les chaînes par marché et par thème ; la recherche et ses raccourcis choisissent ce que l'arbre montre"
+            ? "Toutes les chaînes par pays et par thème ; la recherche et ses raccourcis choisissent ce que l'arbre montre"
             : "Ce que l'app affiche, organisé selon nos règles"
         }
       />

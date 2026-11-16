@@ -1,4 +1,4 @@
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db, schema, inDisabledAccount, variants, visibleItem, type Channel, type ReferenceChannel } from "@/db";
 import { similarity, similarityKey, slug } from "@/shared";
 import { countriesOf, type Index, isOurs, loadIndex, nameKeys, referenceOf, rematchChannels, WATCHED_SHARE } from "./channels";
@@ -168,6 +168,26 @@ export async function watchedMarkets(): Promise<string[]> {
     )
     .orderBy(sql`count(distinct ${v.contentKey}) filter (where ${recognised}) desc`, asc(v.market));
   return rows.map((r) => r.market!);
+}
+
+/**
+ * The same markets as the catalogue names them: a market that is a country by that country's code (the
+ * one its channels bear), the others, regions, by their own.
+ */
+export async function watchedPlaces(): Promise<{ countries: string[]; regions: string[] }> {
+  const markets = await watchedMarkets();
+  if (!markets.length) return { countries: [], regions: [] };
+  const c = schema.catalogChannels;
+  const rows = await db
+    .select({ market: c.market, country: sql<string>`mode() within group (order by ${c.country})` })
+    .from(c)
+    .where(and(inArray(c.market, markets), isNotNull(c.country)))
+    .groupBy(c.market);
+  const home = new Map(rows.filter((r) => !REGIONS[r.market!]).map((r) => [r.market!, r.country]));
+  return {
+    countries: [...new Set(markets.flatMap((m) => home.get(m) ?? []))],
+    regions: markets.filter((m) => !home.has(m)),
+  };
 }
 
 /**

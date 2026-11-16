@@ -132,31 +132,33 @@ describe("admin", () => {
     expect((await call("/admin/catalog/items?kind=vod&cat=10")).status).toBe(404);
     // The search reads the contents; a wrong query says why instead of failing.
     expect(await html("/admin/catalog?kind=vod&q=visible%3Anon")).toContain("Aucun contenu"); // nothing hidden
-    expect(await html("/admin/catalog?kind=vod&q=matrix%20%26%26%20xtream.nom%3Avost")).toContain(
-      `/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`,
-    ); // one of its versions' names
-    expect(await html("/admin/catalog?kind=vod&q=xtream.cat%C3%A9gorie%3Afilms")).toContain("1 contenu pour"); // one of its versions' category
+    // What the providers say of a stream is searched on the streams' screen, not here.
+    const stream = await html("/admin/catalog?kind=vod&q=matrix%20%26%26%20xtream.nom%3Avost");
+    expect(stream).toContain("xtream.nom est un mot de flux");
+    expect(stream).not.toContain("Mots d&#39;un flux"); // nor does the help list them
+    expect(stream).toContain('href="/admin/streams"');
     expect(await html("/admin/catalog?kind=vod&q=tmdb%3Apeut-etre")).toContain("tmdb vaut oui, non ou attente");
     expect(await html("/admin/catalog?kind=vod")).not.toContain('name="view"');
     expect(await html("/admin/catalog?kind=live")).toContain("Rechercher : tf1, thème:sport"); // examples of the kind
     expect(await html("/admin/catalog?kind=vod&q=genr%3Ascience")).toContain("voulais-tu genre");
-    const found = await html("/admin/catalog?kind=vod&q=xtream.qualit%C3%A9%3A%3E%3Dfhd");
+    const found = await html("/admin/catalog?kind=vod&q=tmdb%3Aoui%20%26%26%20matrix");
     expect(found).toContain(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`);
     expect(found).toContain("1 contenu pour");
     expect(await html("/admin/catalog?kind=vod&q=genre%3A%3E5")).toContain("pas un nombre");
     expect(await html("/admin/catalog?kind=vod&q=zzz")).toContain("Aucun contenu");
     expect(await html("/admin/catalog/found?kind=vod&q=matrix&n=0")).toContain("Matrix");
-    // « xtream.ia:oui » lists the titles Claude read, what he read under each.
+    // What Claude read of a title stands under it; « ia:oui » finds its streams on the streams' screen.
     const matrixTitle = eq(schema.catalogTitles.key, "tmdb:movie:603");
-    expect(await html("/admin/catalog?kind=vod&q=xtream.ia%3Aoui")).toContain("Aucun contenu");
+    expect(await html("/admin/streams?kind=vod&q=ia%3Aoui")).toContain("Aucun flux");
     await db
       .update(schema.catalogTitles)
       .set({ aiKind: "movie", aiTitle: "The Matrix", aiYear: 1999, aiAskedAt: new Date() })
       .where(matrixTitle);
-    const read = await html("/admin/catalog?kind=vod&q=xtream.ia%3Aoui");
+    const read = await html("/admin/catalog?kind=vod&q=matrix");
     expect(read).toContain("1 contenu pour");
     expect(read).toContain("Claude : « The Matrix » 1999");
-    expect(await html("/admin/catalog/found?kind=vod&q=xtream.ia%3Aoui&n=0")).toContain("Claude : « The Matrix » 1999");
+    expect(await html("/admin/catalog/found?kind=vod&q=matrix&n=0")).toContain("Claude : « The Matrix » 1999");
+    expect(await html("/admin/streams?kind=vod&q=ia%3Aoui")).toContain("2 flux pour");
     await db.update(schema.catalogTitles).set({ aiKind: null, aiTitle: null, aiYear: null, aiAskedAt: null }).where(matrixTitle);
     // An entry opens on its content's page, itself unfolded among the others.
     const toContent = (await call(`/admin/item/${matrixId}`)).headers.get("location")!;
@@ -604,7 +606,7 @@ describe("admin", () => {
       expect(grid).toContain("qatar1 · TF1.qa");
       // The grid's search is the filter language, on the channels' variants.
       expect(await html("/admin/epg?q=tf1")).toContain("Journal du Golfe");
-      expect(await html(`/admin/epg?q=${encodeURIComponent('xtream.marché:"fr"')}`)).toContain("Journal du Golfe");
+      expect(await html(`/admin/epg?q=${encodeURIComponent('région:"fr"')}`)).toContain("Journal du Golfe");
       const neg = await html("/admin/epg?q=-tf1");
       expect(neg).not.toContain("Journal du Golfe");
       expect(await html(`/admin/epg?q=${encodeURIComponent("champ:x")}`)).toContain('role="alert"');
@@ -776,6 +778,8 @@ describe("admin", () => {
     await db.insert(schema.cacheIptvorgChannels).values({ id: "TF1.fr", name: "TF1", country: "FR", categories: ["general"] });
     // What `channels` does with a name no known channel bears.
     await leaveUnknown(["|FR| ZED TV HD", "|FR| ZED TV BIS"]);
+    // And with a list that is a country's: its channels are shown under it.
+    await db.update(schema.catalogChannels).set({ country: "FR" }).where(eq(schema.catalogChannels.market, "fr"));
     await groupAndFilter();
     const variant = async (n: string) => (await db.select().from(vr).where(eq(vr.name, n)))[0];
     const live = "/admin/catalog?kind=live";
@@ -786,14 +790,14 @@ describe("admin", () => {
     expect(shown).not.toContain('href="/admin/channels"');
     expect((await call("/admin/channels")).status).toBe(404);
     expect(shown).toContain('id="live-tree"');
-    // Few channels: the tree comes unfolded, every channel under its market and its theme.
-    for (const name of ["France", "Généralistes", "Non reconnus", "TF1", "ZED TV BIS"]) expect(shown).toContain(name);
+    // Few channels: the tree comes unfolded, every channel under its country (a region, without one) and its theme.
+    for (const name of ["France", "Région IT", "Généralistes", "Non reconnus", "TF1", "ZED TV BIS"]) expect(shown).toContain(name);
     // The shortcuts are searches written in advance: a click writes one in the box.
     const shortcuts = {
       "Dans l&#39;app de Hakim": 'profil:"Hakim"',
       "Toutes les chaînes": '-thème:"événements","non reconnus"',
-      "Non rattachées": 'thème:"non reconnus" && xtream.marché:"fr","it"', // the markets the profiles watch
-      Événements: 'thème:"événements" && xtream.marché:"fr","it"',
+      "Non rattachées": 'thème:"non reconnus" && (pays:fr || région:"it")', // what the profiles watch: a country, a region
+      Événements: 'thème:"événements" && (pays:fr || région:"it")',
     };
     for (const [label, text] of Object.entries(shortcuts)) {
       expect(shown).toContain(label);
@@ -811,11 +815,11 @@ describe("admin", () => {
     expect(list).not.toContain("TF1");
     expect(list).toMatch(/hx-target="#name-\d+"/);
     // A branch loads its channels page by page, and a form of its lines comes back to it open.
-    const branch = await html(`/admin/catalog/branch?${new URLSearchParams({ q: "", market: "fr", theme: "Non reconnus", n: "0" })}`);
+    const branch = await html(`/admin/catalog/branch?${new URLSearchParams({ q: "", place: "FR", theme: "Non reconnus", n: "0" })}`);
     expect(branch).toContain("ZED TV BIS");
-    expect(branch).toContain(String(new URLSearchParams({ back: `${live}&open=fr%7CNon+reconnus` })));
-    expect((await call("/admin/catalog/branch?q=genr%3Ax&market=fr&theme=Sport")).status).toBe(204);
-    expect(await html(`${live}&open=fr%7CNon+reconnus`)).toContain("ZED TV BIS");
+    expect(branch).toContain(String(new URLSearchParams({ back: `${live}&open=FR%7CNon+reconnus` })));
+    expect((await call("/admin/catalog/branch?q=genr%3Ax&place=FR&theme=Sport")).status).toBe(204);
+    expect(await html(`${live}&open=FR%7CNon+reconnus`)).toContain("ZED TV BIS");
 
     // « Autre… » unfolds a panel under the line: a search in the whole reference, a new channel.
     const panel = (q = "") =>

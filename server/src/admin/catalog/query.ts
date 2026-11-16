@@ -3,7 +3,7 @@ import { kindParam } from "../query";
 
 /**
  * The Live, Films and Séries screens: the kind, and the search in the filter language. Live also says
- * which branch of its tree is open (`open`: « market|theme », where a form comes back to).
+ * which branch of its tree is open (`open`: « place|theme », where a form comes back to).
  */
 export type CatalogQuery = { kind: Kind; q: string; open: string };
 

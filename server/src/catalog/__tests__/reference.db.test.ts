@@ -17,6 +17,7 @@ import {
   nameCandidates,
   updateChannel,
   watchedMarkets,
+  watchedPlaces,
 } from "../reference";
 import { countLiveChannels, liveChannels, liveTree } from "../live-tree";
 import { compileQuery } from "../query";
@@ -122,22 +123,32 @@ describe("the reference gives a channel its identity", () => {
 });
 
 describe("the live catalogue is one tree", () => {
-  it("market, then theme, with what each branch counts; and the markets the household watches", async () => {
+  it("country or region, then theme, with what each branch counts; and what the household watches", async () => {
     const tree = await liveTree(null);
-    expect(tree.map((m) => [m.market, m.channels, m.visible, m.themes.map((t) => [t.theme, t.channels])])).toEqual([
-      // beIN Sports 1, 2M, Tamazight TV; four names wait, the radio of 2M among them.
+    expect(tree.map((m) => [m.place, m.channels, m.visible, m.themes.map((t) => [t.theme, t.channels])])).toEqual([
+      // Morocco: 2M, Tamazight TV; two names wait there, the radio of 2M among them.
       [
-        "ar",
-        7,
-        7,
+        "MA",
+        4,
+        4,
         [
           ["Généralistes", 2],
-          ["Sport", 1],
-          ["Non reconnus", 4],
+          ["Non reconnus", 2],
         ],
       ], // a filter-less profile gets everything
+      // The region's own: beIN Sports 1 is pan-Arab, two names wait.
       [
-        "fr",
+        "~ar",
+        3,
+        3,
+        [
+          ["Sport", 1],
+          ["Non reconnus", 2],
+        ],
+      ],
+      // A French list whose only known channel is Qatar's: the reference cannot call it France.
+      [
+        "~fr",
         3,
         3,
         [
@@ -148,11 +159,15 @@ describe("the live catalogue is one tree", () => {
       ],
     ]);
     expect(await watchedMarkets()).toEqual(["ar", "fr"]);
+    expect(await watchedPlaces()).toEqual({ countries: [], regions: ["ar", "fr"] }); // « ar » is a region whatever its channels' countries
+    expect(await countLiveChannels(search('région:"ar"'))).toBe(7); // Morocco is in it
+    expect(await countLiveChannels(search('région:"ar" && pays:aucun'))).toBe(3);
+    expect(await countLiveChannels(search("pays:maroc"))).toBe(4);
     // A search prunes it: the branches that hold nothing of it are gone.
     const sport = await liveTree(search("thème:sport"));
-    expect(sport.map((m) => [m.market, m.themes.map((t) => t.theme)])).toEqual([
-      ["ar", ["Sport"]],
-      ["fr", ["Sport"]],
+    expect(sport.map((m) => [m.place, m.themes.map((t) => t.theme)])).toEqual([
+      ["~ar", ["Sport"]],
+      ["~fr", ["Sport"]],
     ]);
     expect(await countLiveChannels(search("thème:sport"))).toBe(2);
     expect(await countLiveChannels(search("profil:hakim"))).toBe(10);
@@ -160,16 +175,16 @@ describe("the live catalogue is one tree", () => {
   });
 
   it("lists a branch's channels, and says of a content what it is in the reference", async () => {
-    const rows = await liveChannels(search('xtream.marché:"ar" && -thème:"non reconnus"'), { offset: 0, limit: 10 });
+    const rows = await liveChannels(search('région:"ar" && -thème:"non reconnus"'), { offset: 0, limit: 10 });
     expect(rows.map((c) => [c.name, c.country, c.theme, c.streams, c.visible, c.status])).toEqual([
       ["2M", "MA", "Généralistes", 1, true, "known"],
       ["beIN Sports 1", null, "Sport", 2, true, "known"],
       ["Tamazight TV", "MA", "Généralistes", 1, true, "known"],
     ]);
-    expect((await liveChannels(null, { market: "ar", theme: "Sport", offset: 0, limit: 10 })).map((c) => c.name)).toEqual([
+    expect((await liveChannels(null, { place: "~ar", theme: "Sport", offset: 0, limit: 10 })).map((c) => c.name)).toEqual([
       "beIN Sports 1",
     ]);
-    expect(await liveChannels(null, { market: "ar", theme: "Sport", offset: 1, limit: 10 })).toEqual([]);
+    expect(await liveChannels(null, { place: "~ar", theme: "Sport", offset: 1, limit: 10 })).toEqual([]);
     const bein = rows.find((c) => c.name === "beIN Sports 1")!;
     expect(await contentChannel(bein.id)).toMatchObject({ market: "ar", name: "beIN Sports 1", iptv: { id: "beINSports1.qa" }, own: null });
     const unknown = (await by("3")).contentId!;
@@ -185,7 +200,7 @@ describe("the live catalogue is one tree", () => {
 
 describe("names left to attach", () => {
   it("are channels of the tree under « Non reconnus » and « Événements », with the closest channels of the reference", async () => {
-    const left = await liveChannels(null, { market: "fr", theme: "Non reconnus", offset: 0, limit: 10 });
+    const left = await liveChannels(null, { place: "~fr", theme: "Non reconnus", offset: 0, limit: 10 });
     expect(left).toHaveLength(1);
     expect(left[0]).toMatchObject({
       name: "AUTOMOTO",
@@ -195,7 +210,7 @@ describe("names left to attach", () => {
       category: "|EU| FRANCE SPORTS",
     });
     expect(left[0].suggestions.map((c) => c.ref)).toEqual(["iptv:Automotolachaine.fr"]);
-    expect((await liveChannels(null, { market: "fr", theme: "Événements", offset: 0, limit: 10 })).map((r) => r.name)).toEqual([
+    expect((await liveChannels(null, { place: "~fr", theme: "Événements", offset: 0, limit: 10 })).map((r) => r.name)).toEqual([
       "CANAL+ LIVE 3",
     ]);
     // A search reaches the whole reference, whatever the country.
@@ -244,7 +259,7 @@ describe("names left to attach", () => {
     serve();
     await runChannels();
     expect((await by("3")).how).toBe("alias");
-    expect(await countLiveChannels(search('bein && thème:"non reconnus" && xtream.marché:"ar"'))).toBe(0);
+    expect(await countLiveChannels(search('bein && thème:"non reconnus" && région:"ar"'))).toBe(0);
   });
 
   it("takes a channel of ours for what iptv-org does not know, and what we say of it", async () => {

@@ -76,14 +76,14 @@ async function liveBody(qy: CatalogQuery) {
 /** One page of a branch of the Live tree, at its first opening and as it scrolls. */
 catalogRoutes.get("/branch", async (c) => {
   const q = c.req.query("q")?.trim() ?? "";
-  const market = c.req.query("market") || null;
+  const place = c.req.query("place") ?? "";
   const theme = c.req.query("theme") || null;
   const n = offsetParam(c.req.query("n"));
   const search = await compileSearch("live", q);
   if (search.error) return c.body(null, 204);
-  const found = await runSearch((ex) => liveChannels(search.where, { market, theme, offset: n, limit: LIVE_PAGE + 1 }, ex));
+  const found = await runSearch((ex) => liveChannels(search.where, { place, theme, offset: n, limit: LIVE_PAGE + 1 }, ex));
   if ("error" in found) return c.body(null, 204);
-  return c.html(<BranchRows q={q} market={market} theme={theme} rows={found.value} n={n} />);
+  return c.html(<BranchRows q={q} place={place} theme={theme} rows={found.value} n={n} />);
 });
 
 /** One more page of a « Catalogue » search, as it scrolls. */

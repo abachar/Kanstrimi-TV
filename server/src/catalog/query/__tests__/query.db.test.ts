@@ -82,6 +82,12 @@ const fails = (q: string, o: { kind?: Kind; filter?: boolean; streams?: boolean 
   throw new Error(`« ${q} » should fail`);
 };
 
+const [S_4K, S_VOST, S_DILWALE, S_UNKNOWN] = [
+  "|FR| Matrix (4K)",
+  "|FR| Matrix (VOSTFR)",
+  "|FR| Dilwale Dulhania",
+  "|FR| Inconnu 100% (2010)",
+];
 const MATRIX = "Matrix",
   DILWALE = "Dilwale",
   UNKNOWN = "Inconnu 100%";
@@ -93,9 +99,9 @@ describe("filter language: conditions on a content", () => {
     expect(await find("100 inconnu")).toEqual([]);
     expect(await find('titre:"matrix"')).toEqual([MATRIX]); // the title, exactly
     expect(await find("dulhania")).toEqual([]); // only in the provider's name
-    expect(await find("xtream.nom:dulhania")).toEqual([DILWALE]);
-    expect(await find("xtream.catégorie:comedies")).toEqual([DILWALE, UNKNOWN, MATRIX]); // one of its versions is there
-    expect(await find("xtream.categorie:COMÉDIES")).toEqual([DILWALE, UNKNOWN, MATRIX]);
+    expect(await streams("nom:dulhania")).toEqual([S_DILWALE]);
+    expect(await streams("catégorie:comedies")).toEqual([S_DILWALE, S_UNKNOWN, S_VOST]);
+    expect(await streams("categorie:COMÉDIES")).toEqual([S_DILWALE, S_UNKNOWN, S_VOST]);
   });
 
   it("reads its TMDB sheet", async () => {
@@ -123,8 +129,8 @@ describe("filter language: conditions on a content", () => {
   });
 
   it("knows the dynamic range, SDR being neither", async () => {
-    expect(await find("xtream.dynamique:sdr")).toEqual([DILWALE, UNKNOWN, MATRIX]);
-    expect(await find("xtream.dynamique:hdr,dv")).toEqual([]);
+    expect(await streams("dynamique:sdr")).toEqual([S_DILWALE, S_UNKNOWN, S_4K, S_VOST]);
+    expect(await streams("dynamique:hdr,dv")).toEqual([]);
   });
 
   it("negates, with a missing value counting as no match", async () => {
@@ -135,23 +141,23 @@ describe("filter language: conditions on a content", () => {
   });
 
   it("compares qualities by rank and reads regexes", async () => {
-    expect(await find("xtream.qualité:>=fhd")).toEqual([MATRIX]); // one of its streams
-    expect(await find("xtream.qualité:4k")).toEqual([MATRIX]);
-    expect(await find("xtream.nom:/\\(4K\\)$/")).toEqual([MATRIX]);
-    expect(await find("xtream.nom:/\\bmatrix\\b/")).toEqual([MATRIX]); // JavaScript's \b
+    expect(await streams("qualité:>=fhd")).toEqual([S_4K]);
+    expect(await streams("qualité:4k")).toEqual([S_4K]);
+    expect(await streams("nom:/\\(4K\\)$/")).toEqual([S_4K]);
+    expect(await streams("nom:/\\bmatrix\\b/")).toEqual([S_4K, S_VOST]); // JavaScript's \b
     expect(await find("titre:/MATRIX/")).toEqual([MATRIX]); // case-insensitive
   });
 
   it("the version terms of a search describe one of its versions, the same one", async () => {
-    expect(await find('xtream.langue:"vostfr"')).toEqual([MATRIX]);
-    expect(await find('xtream.langue:"vf" && xtream.qualité:4k')).toEqual([MATRIX]); // its VF is the 4K one
-    expect(await find('xtream.langue:"vostfr" && xtream.qualité:4k')).toEqual([]); // no version is both
-    expect(await find('-xtream.langue:"vf"')).toEqual([MATRIX]); // a version that is not VF
+    expect(await streams('langue:"vostfr"')).toEqual([S_VOST]);
+    expect(await streams('langue:"vf" && qualité:4k')).toEqual([S_4K]); // its VF is the 4K one
+    expect(await streams('langue:"vostfr" && qualité:4k')).toEqual([]); // no stream is both
+    expect(await streams('-langue:"vf"')).toEqual([S_VOST]); // the one that is not VF
   });
 
   it("takes « % » and « _ » literally, and values as parameters only", async () => {
-    expect(await find("xtream.nom:100%")).toEqual([UNKNOWN]);
-    expect(await find("xtream.nom:10_%")).toEqual([]);
+    expect(await streams("nom:100%")).toEqual([S_UNKNOWN]);
+    expect(await streams("nom:10_%")).toEqual([]);
     expect(await find('titre:"\'; drop table catalog_contents; --"')).toEqual([]);
     expect(await find('genre:"\' or 1=1 --"')).toEqual([]);
     expect(await find("titre:/x'; delete from catalog_contents; --/")).toEqual([]);
@@ -160,24 +166,24 @@ describe("filter language: conditions on a content", () => {
   });
 
   it("knows the live fields", async () => {
-    expect(await find("xtream.section:generalistes", "live")).toEqual(["TF1"]);
+    expect(await streams("section:generalistes", "live")).toEqual(["|FR| TF1 HD"]);
     expect(await find("tf1 && -adulte:oui", "live")).toEqual(["TF1"]);
   });
 
   it("finds what Claude read: a title he was asked about, a channel a stream is on through the name he read in it", async () => {
-    expect(await find("xtream.ia:oui")).toEqual([]);
-    expect(await find("xtream.ia:oui", "live")).toEqual([]);
+    expect(await streams("ia:oui")).toEqual([]);
+    expect(await streams("ia:oui", "live")).toEqual([]);
     const unknown = eq(schema.catalogTitles.title, UNKNOWN);
     const tf1 = ofStreams(eq(schema.xtreamStreams.upstreamId, "100"));
     const [{ how }] = await db.select({ how: schema.catalogStreams.how }).from(schema.catalogStreams).where(tf1);
     await db.update(schema.catalogTitles).set({ aiKind: "other", aiAskedAt: new Date() }).where(unknown); // asked, nothing found
     await db.update(schema.catalogStreams).set({ how: "ai" }).where(tf1);
     try {
-      expect(await find("xtream.ia:oui")).toEqual([UNKNOWN]);
-      expect(await find("xtream.claude:non")).toEqual([DILWALE, MATRIX]);
-      expect(await find("xtream.ia:oui", "live")).toEqual(["TF1"]);
-      expect(await find("xtream.ia:non", "live")).toEqual([]);
-      expect(await streams("ia:oui")).toEqual(["|FR| Inconnu 100% (2010)"]); // the streams' own screen: no prefix
+      expect(await streams("ia:oui")).toEqual([S_UNKNOWN]);
+      expect(await streams("claude:non")).toEqual([S_DILWALE, S_4K, S_VOST]);
+      expect(await streams("ia:oui", "live")).toEqual(["|FR| TF1 HD"]);
+      expect(await streams("ia:non", "live")).toEqual([]);
+      expect(fails("xtream.ia:oui")).toContain("mot de flux"); // not on a screen of the catalogue
     } finally {
       await db.update(schema.catalogTitles).set({ aiKind: null, aiAskedAt: null }).where(unknown);
       await db.update(schema.catalogStreams).set({ how }).where(tf1);
@@ -189,8 +195,8 @@ describe("filter language: conditions on a content", () => {
     expect(await find("genre:comedie || saga:matrix")).toEqual([DILWALE, MATRIX]);
     expect(await find("(genre:comedie || genre:science) && note:>8.5")).toEqual([DILWALE]);
     expect(await find("-(genre:comedie || tmdb:non)")).toEqual([MATRIX]);
-    expect(await find('dilwale || xtream.langue:"vostfr"')).toEqual([DILWALE, MATRIX]);
-    expect(await find('matrix && (xtream.langue:"vostfr" || xtream.qualité:4k)')).toEqual([MATRIX]);
+    expect(await streams('dilwale || langue:"vostfr"')).toEqual([S_DILWALE, S_VOST]);
+    expect(await streams('matrix && (langue:"vostfr" || qualité:4k)')).toEqual([S_4K, S_VOST]);
 
     const [MATRIX_4K, MATRIX_VOST, DILWALE_V, UNKNOWN_V] = [
       "|FR| Matrix (4K)",
@@ -226,13 +232,14 @@ describe("filter language: conditions on a content", () => {
   it("reads a word under its prefix; the catalogue's goes without on a search, a filter wants both written", async () => {
     expect(await find("catalogue.genre:comedie")).toEqual([DILWALE]);
     expect(await find("catalog.genre:comedie && Catalogue.Annee:<1997")).toEqual([DILWALE]);
-    expect(await find('xtream.langue:"vostfr" && langue:anglais')).toEqual([MATRIX]); // the stream's language, then the film's
+    expect(await streams('langue:"vostfr" && catalogue.langue:anglais')).toEqual([S_VOST]); // the stream's language, then the film's
+    expect(fails('xtream.langue:"vostfr" && langue:anglais')).toContain("xtream.langue est un mot de flux"); // a screen of the catalogue searches our entries
     expect(await kept('catalogue.langue:anglais && xtream.langue:"vostfr"')).toEqual(["|FR| Matrix (VOSTFR)"]);
     expect(fails("genre:comedie", { filter: true })).toContain("écrire catalogue.genre");
     expect(fails("langue:hindi", { filter: true })).toContain("écrire catalogue.langue ou xtream.langue");
     expect(fails("nom:matrix", { filter: true })).toContain("écrire xtream.nom");
     expect(fails("catalogue.année:abc", { filter: true })).toContain("(catalogue.année)");
-    expect(fails("catalogue.nom:matrix")).toContain("voulais-tu xtream.nom");
+    expect(fails("catalogue.nom:matrix")).toContain("mot de flux");
     expect(fails("xtream.genre:anim")).toContain("voulais-tu genre");
     expect(fails("catalogue.thème:sport", { filter: true })).toContain("qu'au direct");
   });
@@ -257,7 +264,7 @@ describe("filter language: conditions on a content", () => {
     expect(fails("année:abc")).toContain("« abc » n'est pas un nombre");
     expect(fails("année:/19/")).toContain("pas d'expression régulière");
     expect(fails("note:8..6")).toContain("à l'envers");
-    expect(fails("xtream.qualité:>=uhd")).toContain("n'est pas une qualité");
+    expect(fails("qualité:>=uhd", { streams: true })).toContain("n'est pas une qualité");
     expect(fails("tmdb:peut-être")).toContain("tmdb vaut oui, non ou attente");
     expect(fails("tmdb:<1")).toContain("tmdb vaut oui, non ou attente");
     expect(fails("adulte:peut-être")).toContain("adulte vaut oui ou non");
@@ -266,13 +273,13 @@ describe("filter language: conditions on a content", () => {
     expect(fails("langue:japonai")).toContain("voulais-tu japonais");
     expect(fails("langue:xx")).toContain("n'est pas une langue connue");
     expect(fails("pays:/in/")).toContain("ni comparaison ni expression régulière");
-    expect(fails("xtream.dynamique:hdr10")).toContain("xtream.dynamique vaut hdr, dv ou sdr");
+    expect(fails("dynamique:hdr10", { streams: true })).toContain("dynamique vaut hdr, dv ou sdr");
     expect(fails("thème:sport")).toContain("qu'au direct");
     expect(fails("genre:anim", { kind: "live" })).toContain("qu'aux films et aux séries");
     expect(fails("saga:marvel", { kind: "series" })).toContain("qu'aux films");
     expect(fails("catalogue.visible:oui", { filter: true })).toContain("recherches");
-    expect(fails("nom:matrix")).toContain("voulais-tu xtream.nom"); // a stream's word
-    expect(fails("qualité:4k")).toContain("voulais-tu xtream.qualité"); // the quality is a stream's
+    expect(fails("nom:matrix")).toContain("nom est un mot de flux : il se cherche dans l'écran Flux");
+    expect(fails("qualité:4k")).toContain("mot de flux"); // the quality is a stream's
     expect(fails('variant.langue:"vf"')).toContain("Champ inconnu"); // now xtream.langue
     expect(fails("langue-vo:hindi")).toContain("Champ inconnu"); // now langue
     expect(fails("matrix || genr:anim")).toContain("voulais-tu genre");

@@ -1,6 +1,7 @@
 import { sql, type Column, type SQL } from "drizzle-orm";
 import { schema, sqlTmdbMediaType, variants, type Kind } from "@/db";
 import { stripAccents } from "@/shared";
+import { REGIONS } from "../naming";
 import type { CodeList } from "./codes";
 
 /**
@@ -107,6 +108,22 @@ export const FIELDS: Field[] = [
     example: "inde",
     kinds: VOD_SERIES,
     text: (ctx, p) => tmdbAny(ctx, sql`jsonb_array_elements_text(coalesce(t.data->'origin_country', '[]')) e(value)`, p),
+  },
+  {
+    names: ["région", "region"],
+    scope: "catalogue",
+    type: "text",
+    doc: "Région où le fournisseur range la chaîne, par son code, quand ce n'est pas un pays : ar (Monde arabe, Maroc compris), af (Afrique)… ; aucun : une chaîne d'un pays",
+    example: '"ar"',
+    kinds: LIVE,
+    // A market that is no country (its channels have none), or one of the regions we cut by country.
+    text: (_, p) =>
+      p(
+        sql`(case when ${ch.country} is null or ${ch.market} in (${sql.join(
+          Object.keys(REGIONS).map((r) => sql`${r}`),
+          sql`, `,
+        )}) then ${ch.market} end)`,
+      ),
   },
   {
     names: ["thème", "theme"],
@@ -393,6 +410,9 @@ function read(name: string, home: Home): { scope: Scope | null; bare: string } {
   return prefix ? { scope: PREFIXES[prefix], bare: k.slice(prefix.length) } : { scope: home, bare: k };
 }
 const called = (f: Field, bare: string) => f.names.some((n) => fieldKey(n) === bare);
+
+/** The field of `kind` bearing a name, prefix aside, in whatever scope. */
+export const fieldNamed = (name: string, kind: Kind, home: Home) => fieldsOf(kind).find((f) => called(f, read(name, home).bare));
 
 /** The field of `kind` a name designates: under its prefix, else in `home`. */
 export function fieldByName(name: string, kind: Kind, home: Home): Field | undefined {

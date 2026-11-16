@@ -7,6 +7,7 @@ import {
   closestField,
   distance,
   fieldByName,
+  fieldNamed,
   fieldKey,
   nameIn,
   otherKindsOf,
@@ -30,8 +31,8 @@ export type CompileOptions = FieldContext & {
   /**
    * A filter: it judges streams, the condition is about `variants` (`db/variants.ts`, never aliased); every
    * name carries its prefix, and the fields only searches may use are refused. Otherwise a search of the
-   * catalogue: about the kind's table, `catalog_titles` or `catalog_channels` (never aliased), the
-   * catalogue's names written without prefix.
+   * catalogue: about the kind's table, `catalog_titles` or `catalog_channels` (never aliased), by the
+   * catalogue's names alone, written without prefix.
    */
   filter?: boolean;
   /**
@@ -154,11 +155,16 @@ function fieldOf(t: QueryTerm, o: CompileOptions): Named {
   const named = (f: Field) => ({ ...f, label: nameIn(f, home) });
   if (t.field === null) return named(freeText(home));
   const f = fieldByName(t.field, o.kind, home);
+  // The screens of the catalogue search our entries: a stream's word belongs to the streams' screen.
+  const streams = () => new QueryError(`${t.field} est un mot de flux : il se cherche dans l'écran Flux`, t.fieldAt);
+  if (f && home === "catalogue" && f.scope === "xtream") throw streams();
   if (f) return named(f);
   const prefixed = prefixedNames(t.field, o.kind, home);
   if (prefixed.length) throw new QueryError(`Un filtre juge la fiche et le flux : écrire ${prefixed.join(" ou ")}`, t.fieldAt);
   const elsewhere = [...new Set(otherKindsOf(t.field, home))];
   if (elsewhere.length) throw new QueryError(`${t.field} ne s'applique qu'${elsewhere.map((k) => KIND_NAMES[k]).join(" et ")}`, t.fieldAt);
+  const same = home === "catalogue" ? fieldNamed(t.field, o.kind, home) : undefined;
+  if (same?.scope === "xtream") throw streams();
   const near = closestField(t.field, o.kind, home);
   throw new QueryError(
     `Champ inconnu : ${t.field}${near ? ` — voulais-tu ${near} ?` : ""} (un texte avec deux-points s'écrit entre guillemets)`,
@@ -217,13 +223,11 @@ export async function checkRegexes(text: string): Promise<void> {
 }
 
 /**
- * What a query stands for; null for an empty one. Throws `QueryError`. The expression is judged stream
- * by stream, its catalogue words read on the stream's entry:
- * - a filter keeps the streams that pass: `xtream.marché:"fr" || xtream.langue:"vf"` keeps every stream of
- *   the French lists and the VF ones of the others;
- * - a search finds the entries one of whose streams passes, so `xtream.langue:"vf" && xtream.qualité:4k`
- *   is a film with a stream in VF and 4K. Without a stream word, the entry alone answers;
- * - a search of the streams finds the streams that pass, like a filter.
+ * What a query stands for; null for an empty one. Throws `QueryError`.
+ * - A search of the catalogue finds entries, by their own words alone: a stream's word is refused there.
+ * - A filter and a search of the streams are judged stream by stream, their catalogue words read on the
+ *   stream's entry: `xtream.marché:"fr" || xtream.langue:"vf"` keeps every stream of the French lists and
+ *   the VF ones of the others.
  */
 export function compileQuery(text: string, o: CompileOptions): SQL | null {
   const root = parseQuery(text);
@@ -253,12 +257,6 @@ export function compileQuery(text: string, o: CompileOptions): SQL | null {
     return n.neg ? sql`not ${cond}` : cond;
   };
 
-  if (o.filter || o.streams) return onVersion(root);
-  if (!ofVersion(root)) return plain(root);
-  // A search: what the query says of the content alone stays out of the version test.
-  const parts = root.kind === "and" && !root.neg ? root.nodes : [root];
-  const where = parts.filter((x) => !ofVersion(x)).map(plain);
-  const version = parts.filter(ofVersion).map(plain);
-  where.push(sql`exists (select 1 from ${variants} where ${home.ofVariant} = ${home.id} and ${and(version)})`);
-  return and(where);
+  // A search of the catalogue has no stream word: the entry alone answers.
+  return o.filter || o.streams ? onVersion(root) : plain(root);
 }

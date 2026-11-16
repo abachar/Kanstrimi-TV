@@ -4,10 +4,10 @@ import { Icon } from "../icons";
 
 /**
  * The filter language at a glance, under a search box or a filter's query: the syntax with examples of
- * this kind, then its words, those of our entry then those of a provider's stream. Folded: it is there
- * for the day one forgets. The words come from the registry (`catalog/query/fields.ts`): the searches
- * and the filters show the same ones, a filter under their prefixes and without those only searches
- * may use.
+ * this kind, then its words. Folded: it is there for the day one forgets. The words come from the
+ * registry (`catalog/query/fields.ts`): a screen of the catalogue shows those of our entry alone, the
+ * streams' screen theirs first, a filter both under their prefixes and without those only searches may
+ * use.
  */
 /** How a word is written here: `c` one of the catalogue's, `x` one of a stream's. */
 type Names = { c: (name: string) => string; x: (name: string) => string };
@@ -21,12 +21,12 @@ const SYNTAX: Record<Kind, (n: Names) => [string, string][]> = {
     [`${c("saga")}:aucun`, "aucun : le champ n'a pas de valeur"],
     [`${c("année")}:<1980`, "comparaison : < <= > >= ="],
     [`${c("note")}:6..8`, "intervalle"],
-    [`${x("nom")}:/\\(4K\\)$/`, "expression régulière"],
+    [`${c("titre")}:/^the /`, "expression régulière"],
     [`-${c("tmdb")}:oui`, "le « - » nie un terme"],
     [`${c("genre")}:anim && ${c("langue")}:ja`, "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
     [`${c("genre")}:horreur || ${c("genre")}:thriller`, "|| veut dire « ou », plus faible que « et »"],
     [`(${c("genre")}:anim || ${c("langue")}:ja) && ${c("note")}:>7`, "les parenthèses groupent ; -( … ) nie un groupe"],
-    [`${x("langue")}:"vf"`, "mot d'un flux : recherche, l'un de ses flux ; filtre, garde ces flux"],
+    [`${x("langue")}:"vf"`, "mot d'un flux"],
   ],
   series: ({ c, x }) => [
     ["casa de papel", "texte libre : le titre contient « casa de papel »"],
@@ -37,12 +37,12 @@ const SYNTAX: Record<Kind, (n: Names) => [string, string][]> = {
     [`${c("note")}:aucun`, "aucun : le champ n'a pas de valeur"],
     [`${c("année")}:<1990`, "comparaison : < <= > >= ="],
     [`${c("note")}:7..9`, "intervalle"],
-    [`${x("nom")}:/\\(VOST\\)/`, "expression régulière"],
+    [`${c("titre")}:/ \\d$/`, "expression régulière"],
     [`-${c("tmdb")}:oui`, "le « - » nie un terme"],
     [`${c("genre")}:animation && ${c("langue")}:japonais`, "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
     [`${c("genre")}:drame || ${c("genre")}:crime`, "|| veut dire « ou », plus faible que « et »"],
     [`(${c("langue")}:coréen || ${c("langue")}:ja) && ${c("note")}:>8`, "les parenthèses groupent ; -( … ) nie un groupe"],
-    [`${x("langue")}:"vf"`, "mot d'un flux : recherche, l'un de ses flux ; filtre, garde ces flux"],
+    [`${x("langue")}:"vf"`, "mot d'un flux"],
   ],
   live: ({ c, x }) => [
     ["tf1", "texte libre : le nom contient « tf1 »"],
@@ -53,12 +53,12 @@ const SYNTAX: Record<Kind, (n: Names) => [string, string][]> = {
     [`${c("pays")}:aucun`, "aucun : le champ n'a pas de valeur"],
     [`${x("qualité")}:>=fhd`, "comparaison : < <= > >= ="],
     [`${x("qualité")}:hd..fhd`, "intervalle"],
-    [`${x("nom")}:/\\bHD$/`, "expression régulière"],
+    [`${c("titre")}:/\\bsport \\d$/`, "expression régulière"],
     [`-${c("adulte")}:oui`, "le « - » nie un terme"],
     [`${c("thème")}:sport && ${c("pays")}:maroc`, "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
     [`${c("pays")}:france || ${c("pays")}:maroc`, "|| veut dire « ou », plus faible que « et »"],
     [`(${c("thème")}:sport || ${c("thème")}:infos) && ${c("pays")}:france`, "les parenthèses groupent ; -( … ) nie un groupe"],
-    [`${x("catégorie")}:radios`, "mot d'un flux : recherche, l'un de ses flux ; filtre, garde ces flux"],
+    [`${x("catégorie")}:radios`, "mot d'un flux"],
   ],
 };
 const PLACEHOLDER: Record<Kind, string> = {
@@ -105,7 +105,8 @@ export function QueryHelp({ kind, place = "catalogue" }: { kind: Kind; place?: Q
     c: (name) => (home === "catalogue" ? name : `catalogue.${name}`),
     x: (name) => (home === "xtream" ? name : `xtream.${name}`),
   };
-  const syntax = SYNTAX[kind](names);
+  // The screens of the catalogue know no stream word: their examples go too.
+  const syntax = SYNTAX[kind](names).filter(([ex]) => place !== "catalogue" || !ex.includes("xtream."));
   // Free text reads the provider's name there, not the entry's title.
   if (place === "streams") syntax[0] = ["canal+ sport", "texte libre : le nom chez le fournisseur contient « canal+ sport »"];
   return (
@@ -130,7 +131,19 @@ export function QueryHelp({ kind, place = "catalogue" }: { kind: Kind; place?: Q
           </dl>
         </section>
         <section class="flex flex-col gap-2">
-          {place === "streams" ? (
+          {place === "catalogue" ? (
+            <>
+              <h3 class="font-semibold">Mots de la fiche</h3>
+              <FieldList fields={fields.filter((f) => f.scope === "catalogue")} home={home} />
+              <p class="text-muted-foreground">
+                Ce que disent les fournisseurs (nom, catégorie, langue, qualité) se cherche dans l'écran{" "}
+                <a class="underline underline-offset-4 hover:text-foreground" href="/admin/streams">
+                  Flux
+                </a>
+                .
+              </p>
+            </>
+          ) : place === "streams" ? (
             <>
               <h3 class="font-semibold">Mots du flux</h3>
               <FieldList fields={fields.filter((f) => f.scope === "xtream")} home={home} />
@@ -140,13 +153,11 @@ export function QueryHelp({ kind, place = "catalogue" }: { kind: Kind; place?: Q
             </>
           ) : (
             <>
-              <h3 class="font-semibold">Mots de la fiche{filter ? " : catalogue." : ""}</h3>
+              <h3 class="font-semibold">Mots de la fiche : catalogue.</h3>
               <FieldList fields={fields.filter((f) => f.scope === "catalogue")} home={home} />
               <h3 class="mt-2 font-semibold">Mots d'un flux : xtream.</h3>
               <p class="text-muted-foreground">
-                {filter
-                  ? "Un filtre se juge flux par flux, ses mots de fiche lus sur la fiche du flux : il garde les flux qui correspondent."
-                  : "La requête se juge flux par flux : une fiche sort si l'un de ses flux correspond, les mots de flux décrivant le même."}
+                Un filtre se juge flux par flux, ses mots de fiche lus sur la fiche du flux : il garde les flux qui correspondent.
               </p>
               <FieldList fields={fields.filter((f) => f.scope === "xtream")} home={home} />
             </>
