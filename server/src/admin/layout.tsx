@@ -29,6 +29,7 @@ export const NAV: readonly (readonly [group: string | null, items: readonly NavI
       ["/admin/catalog?kind=live", "Live", "live"],
       ["/admin/catalog?kind=vod", "Films", "film"],
       ["/admin/catalog?kind=series", "Séries", "series"],
+      ["/admin/streams", "Flux", "source"],
       ["/admin/studios", "Studios", "studios"],
       ["/admin/epg", "EPG", "epg"],
     ],

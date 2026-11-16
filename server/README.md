@@ -65,7 +65,7 @@ passent en dernier : ils lisent le contenu tel que l'app le montre. L'étape peu
 Le matching est un seul algorithme, `explainMatch` : `group` et `enrich` appliquent son verdict, l'admin l'affiche sous « Pourquoi ? ».
 Le client TMDB ne dépasse pas 35 requêtes par seconde. Un flux renommé par le fournisseur quitte son titre et est identifié de
 nouveau (sauf attaché à la main) ; un flux posé sur un titre sans fiche, dont la grammaire change la lecture (titre ou année), aussi.
-Sans `ANTHROPIC_API_KEY`, Claude n'est pas consulté et tout le reste marche. Dans l'admin, la recherche `ia:oui` des écrans Films, Séries et Live montre ce qu'il a lu : les titres qu'on lui a demandés, les chaînes dont un flux est reconnu par le nom qu'il y lit et les noms restés sans chaîne qu'il a lus, sa lecture sous chaque ligne.
+Sans `ANTHROPIC_API_KEY`, Claude n'est pas consulté et tout le reste marche. Dans l'admin, la recherche `ia:oui` de l'écran Flux montre ce qu'il a lu : les flux des titres qu'on lui a demandés, ceux reconnus par le nom qu'il y lit et ceux des noms restés sans chaîne qu'il a lus (`xtream.ia:oui` sur les écrans du catalogue, sa lecture sous chaque titre).
 Un passage s'arrête à la première étape en échec, sauf `enrich` (réseau externe). Chaque passage laisse une ligne dans
 `task_runs`, une par étape dans `task_steps`, et un fichier de log dans `DATA_DIR/logs/` avec le détail de chaque
 partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque passage purge lignes et fichiers de plus de 5 jours.
@@ -162,6 +162,13 @@ par son index.
   (la classification TMDB manque sur la moitié des films : `|| catalogue.classification:aucun` les garde), `catalogue.thème:"jeunesse"` au Direct.
   Les langues que le filtre Films ou Séries nomme (`xtream.langue:"vf","vo"`), dans l'ordre écrit, sont l'ordre des versions
   servies au profil et donc son ordre de lecture (`filterLanguages`, `ctx.languageOrder`) ; sans langue nommée, VF, VOSTFR, VO.
+- **Écran Flux de l'admin** (`admin/streams/`) : ce que les fournisseurs envoient, en liste plate par type (Direct,
+  Films, Séries), chaque flux avec son fournisseur, sa catégorie, ce qu'on lit dans son nom, la fiche où il est rangé,
+  comment il y est venu et ce que l'app en fait (gardé, écarté, masqué). Sa recherche est le langage de filtre vu du
+  flux : ses mots sans préfixe (`langue:"vostfr"`, `catégorie:nfl`, `fournisseur:backup`, `ia:oui`, `manuel:oui`), le
+  texte libre lu dans le nom du fournisseur, ceux de la fiche sous `catalogue.` (`catalogue.tmdb:non`,
+  `catalogue.thème:"non reconnus"`). Sur la ligne : ranger le flux sous une autre fiche (recherche, puis un clic), le
+  détacher en une fiche à part, ou le rendre au rangement automatique ; son nom ouvre le flux sur sa fiche.
 - **Écrans Live, Films, Séries de l'admin** : ce que l'app affiche, par les fonctions mêmes de `/player` : ses rangées
   repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; la recherche porte sur les
   contenus. Tout mène à la fiche d'un contenu (`/admin/content/:id`), ses variantes dépliables avec leurs données Xtream,
@@ -255,7 +262,7 @@ par son index.
   une heure, deux équipes, un flux numéroté) ou « Non reconnus » : un filtre de profil les écarte. L'écran Live est
   le seul écran des chaînes : un seul arbre, marché → thème → chaînes (`catalog/live-tree.ts`), pour tout ce que porte un
   fournisseur en service, les noms restés sans chaîne y étant des chaînes à leur nom sous « Non reconnus » et
-  « Événements ». La recherche l'élague (`pays:maroc`, `thème:sport`, `profil:inès`, `ia:oui`) ; ses raccourcis (dans
+  « Événements ». La recherche l'élague (`pays:maroc`, `thème:sport`, `profil:inès`) ; ses raccourcis (dans
   l'app de chaque profil, toutes les chaînes, non rattachées, événements) sont des recherches écrites d'avance, avec
   ce qu'elles trouvent. L'arbre vient replié, une branche chargée à son ouverture, et déplié quand il reste peu de
   chaînes ; un nom se rattache sur sa ligne (suggestions à un clic, ou « Autre… » : recherche dans toute la

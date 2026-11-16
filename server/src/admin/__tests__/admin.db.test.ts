@@ -146,17 +146,17 @@ describe("admin", () => {
     expect(await html("/admin/catalog?kind=vod&q=genre%3A%3E5")).toContain("pas un nombre");
     expect(await html("/admin/catalog?kind=vod&q=zzz")).toContain("Aucun contenu");
     expect(await html("/admin/catalog/found?kind=vod&q=matrix&n=0")).toContain("Matrix");
-    // « ia:oui » lists the titles Claude read, what he read under each.
+    // « xtream.ia:oui » lists the titles Claude read, what he read under each.
     const matrixTitle = eq(schema.catalogTitles.key, "tmdb:movie:603");
-    expect(await html("/admin/catalog?kind=vod&q=ia%3Aoui")).toContain("Aucun contenu");
+    expect(await html("/admin/catalog?kind=vod&q=xtream.ia%3Aoui")).toContain("Aucun contenu");
     await db
       .update(schema.catalogTitles)
       .set({ aiKind: "movie", aiTitle: "The Matrix", aiYear: 1999, aiAskedAt: new Date() })
       .where(matrixTitle);
-    const read = await html("/admin/catalog?kind=vod&q=ia%3Aoui");
+    const read = await html("/admin/catalog?kind=vod&q=xtream.ia%3Aoui");
     expect(read).toContain("1 contenu pour");
     expect(read).toContain("Claude : « The Matrix » 1999");
-    expect(await html("/admin/catalog/found?kind=vod&q=ia%3Aoui&n=0")).toContain("Claude : « The Matrix » 1999");
+    expect(await html("/admin/catalog/found?kind=vod&q=xtream.ia%3Aoui&n=0")).toContain("Claude : « The Matrix » 1999");
     await db.update(schema.catalogTitles).set({ aiKind: null, aiTitle: null, aiYear: null, aiAskedAt: null }).where(matrixTitle);
     // An entry opens on its content's page, itself unfolded among the others.
     const toContent = (await call(`/admin/item/${matrixId}`)).headers.get("location")!;
@@ -241,6 +241,32 @@ describe("admin", () => {
     expect(fold.headers.get("set-cookie")).toContain("kanstrimi_menu=collapsed");
     expect(fold.headers.get("location")).toBe("/admin/catalog?kind=vod");
     expect((await post("/admin/menu", { next: "https://evil.test/" })).headers.get("location")).toBe("/admin");
+  });
+
+  it("Flux: the providers' streams in a flat list by kind, searched with their own words, each filed elsewhere from its line", async () => {
+    expect(await html("/admin")).toContain('href="/admin/streams"'); // in the menu
+    const live = await html("/admin/streams");
+    expect(live).toContain("2 flux, par nom");
+    expect(live).toContain("|FR| TF1 HD");
+    expect(live).toContain("|IT| BELLA RADIO");
+    expect(live).toContain("Mots du flux"); // the help of this screen: the streams' words first, without prefix
+    expect(live).toContain("catalogue.thème:sport");
+    const q = (query: string, kind = "vod") => `/admin/streams?kind=${kind}&q=${encodeURIComponent(query)}`;
+    const vost = await html(q("matrix && nom:vost"));
+    expect(vost).toContain("1 flux pour");
+    expect(vost).toContain("|FR| Matrix (VOST)");
+    expect(vost).not.toContain("|FR| Matrix (4K)");
+    expect(vost).toContain("Matrix (1999)"); // the film it is filed under
+    expect(vost).toContain("recherche TMDB"); // and how it came there
+    expect(vost).toMatch(/hx-get="\/admin\/item\/\d+\/merge-form"/); // « Ranger ailleurs »
+    expect(vost).toMatch(/hx-post="\/admin\/item\/\d+\/split"/); // « Détacher »
+    expect(await html(q("catalogue.tmdb:oui && qualité:4k"))).toContain("|FR| Matrix (4K)");
+    expect(await html(q("zzz"))).toContain("Aucun flux");
+    expect(await html(q("genre:x"))).toContain("voulais-tu catalogue.genre"); // an entry's word wants its prefix here
+    expect(await html(q("catalogue.pays:aucun", "live"))).toContain("|IT| BELLA RADIO");
+    const more = await call(`/admin/streams/rows?kind=vod&q=${encodeURIComponent("matrix")}&n=1`);
+    expect(await more.text()).toContain("|FR| Matrix (VOST)");
+    expect((await call("/admin/streams/rows?kind=vod&q=genr%3Ax&n=0")).status).toBe(204);
   });
 
   it("serves htmx from its own assets and asks for confirmation through htmx, without inline script", async () => {

@@ -12,7 +12,7 @@ import type { CodeList } from "./codes";
  * - `xtream.`: one stream of a provider (`variants`, the stream with its link, never aliased), what the
  *   provider says of it and what we read in its name.
  * Where a query is written says which prefix may be left out (`Home`): the catalogue's on the screens
- * of the catalogue, none in a profile's filter, which judges both. A filter judges streams, its
+ * of the catalogue, the streams' on theirs, none in a profile's filter, which judges both. A filter judges streams, its
  * catalogue words read on the stream's entry; a search lists entries, a stream word there meaning « one
  * of its streams » (`sql.ts`).
  *
@@ -243,21 +243,6 @@ export const FIELDS: Field[] = [
         : sql`exists (select 1 from app_profile_titles pt join app_profiles pr on pr.id = pt.profile_id
             where pt.title_id = ${c.id} and ${p(sql`pr.name`)})`,
   },
-  {
-    names: ["ia", "claude"],
-    scope: "catalogue",
-    type: "enum",
-    doc: "Lu par Claude : un titre dont TMDB ne trouvait pas la fiche ; une chaîne dont un flux est reconnu par le nom que Claude y lit, ou un nom resté sans chaîne qu'il a lu",
-    example: "oui",
-    kinds: ALL,
-    searchOnly: true,
-    choices: (ctx) =>
-      yesNo(
-        ctx.kind === "live"
-          ? sql`(${ch.aiAskedAt} is not null or exists (select 1 from catalog_streams cs where cs.channel_id = ${ch.id} and cs.how = 'ai'))`
-          : sql`${c.aiAskedAt} is not null`,
-      ),
-  },
   // ------------------------------------------------------------------ one stream
   {
     names: ["nom", "name"],
@@ -313,7 +298,7 @@ export const FIELDS: Field[] = [
     doc: "Pays que le nom du flux dit dans une région (Monde arabe)",
     example: "maroc",
     kinds: LIVE,
-    text: (_, p) => p(v.country),
+    text: (_, p) => p(sql`${v.nameCountry}`),
   },
   {
     names: ["thème", "theme"],
@@ -322,7 +307,7 @@ export const FIELDS: Field[] = [
     doc: "Thème que le fournisseur donne au flux",
     example: "sport",
     kinds: LIVE,
-    text: (_, p) => p(sql`${v.theme}`),
+    text: (_, p) => p(sql`${v.nameTheme}`),
   },
   {
     names: ["langue", "lang"],
@@ -369,6 +354,26 @@ export const FIELDS: Field[] = [
     kinds: ALL,
     choices: () => yesNo(sql`${v.adult}`),
   },
+  {
+    names: ["ia", "claude"],
+    scope: "xtream",
+    type: "enum",
+    doc: "Lu par Claude : un flux reconnu par le nom que Claude y lit, ou celui d'un titre ou d'un nom resté sans chaîne qu'il a lu",
+    example: "oui",
+    kinds: ALL,
+    searchOnly: true,
+    choices: () => yesNo(sql`(${v.how} = 'ai' or ${v.aiAskedAt} is not null)`),
+  },
+  {
+    names: ["manuel", "manual"],
+    scope: "xtream",
+    type: "enum",
+    doc: "Flux rattaché à la main : oui ou non",
+    example: "oui",
+    kinds: ALL,
+    searchOnly: true,
+    choices: () => yesNo(sql`${v.manual}`),
+  },
 ];
 
 /** Field names compare without case nor accents: `annee` is `année`. */
@@ -394,8 +399,9 @@ export function fieldByName(name: string, kind: Kind, home: Home): Field | undef
   const { scope, bare } = read(name, home);
   return scope ? fieldsOf(kind).find((f) => f.scope === scope && called(f, bare)) : undefined;
 }
-/** Free text searches here. */
-export const TITLE = FIELDS[0];
+/** Free text searches here: the entry's title, or the stream's name where the streams are at home. */
+export const freeText = (home: Home) =>
+  FIELDS.find((f) => f.scope === (home ?? "catalogue") && f.names[0] === (home === "xtream" ? "nom" : "titre"))!;
 /** Written without prefix where one is needed: the fields of `kind` it could be, under their full names. */
 export function prefixedNames(name: string, kind: Kind, home: Home): string[] {
   const { scope, bare } = read(name, home);

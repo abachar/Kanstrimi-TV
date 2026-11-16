@@ -11,7 +11,7 @@ import {
   nameIn,
   otherKindsOf,
   prefixedNames,
-  TITLE,
+  freeText,
   type Field,
   type FieldContext,
   type Home,
@@ -34,11 +34,16 @@ export type CompileOptions = FieldContext & {
    * catalogue's names written without prefix.
    */
   filter?: boolean;
+  /**
+   * A search of the streams themselves: about `variants` like a filter, the streams' names written
+   * without prefix and free text read in the provider's name.
+   */
+  streams?: boolean;
 };
 
 /** A field under the name the query may write it by: what its errors say. */
 type Named = Field & { label: string };
-const homeOf = (o: CompileOptions): Home => (o.filter ? null : "catalogue");
+const homeOf = (o: CompileOptions): Home => (o.filter ? null : o.streams ? "xtream" : "catalogue");
 
 /** Case and accents never matter: both sides go through `unaccent(lower(…))`. */
 const norm = (e: SQL | Column) => sql`unaccent(lower(${e}))`;
@@ -147,7 +152,7 @@ const KIND_NAMES: Record<Kind, string> = { live: "au direct", vod: "aux films", 
 function fieldOf(t: QueryTerm, o: CompileOptions): Named {
   const home = homeOf(o);
   const named = (f: Field) => ({ ...f, label: nameIn(f, home) });
-  if (t.field === null) return named(TITLE);
+  if (t.field === null) return named(freeText(home));
   const f = fieldByName(t.field, o.kind, home);
   if (f) return named(f);
   const prefixed = prefixedNames(t.field, o.kind, home);
@@ -217,7 +222,8 @@ export async function checkRegexes(text: string): Promise<void> {
  * - a filter keeps the streams that pass: `xtream.marché:"fr" || xtream.langue:"vf"` keeps every stream of
  *   the French lists and the VF ones of the others;
  * - a search finds the entries one of whose streams passes, so `xtream.langue:"vf" && xtream.qualité:4k`
- *   is a film with a stream in VF and 4K. Without a stream word, the entry alone answers.
+ *   is a film with a stream in VF and 4K. Without a stream word, the entry alone answers;
+ * - a search of the streams finds the streams that pass, like a filter.
  */
 export function compileQuery(text: string, o: CompileOptions): SQL | null {
   const root = parseQuery(text);
@@ -247,7 +253,7 @@ export function compileQuery(text: string, o: CompileOptions): SQL | null {
     return n.neg ? sql`not ${cond}` : cond;
   };
 
-  if (o.filter) return onVersion(root);
+  if (o.filter || o.streams) return onVersion(root);
   if (!ofVersion(root)) return plain(root);
   // A search: what the query says of the content alone stays out of the version test.
   const parts = root.kind === "and" && !root.neg ? root.nodes : [root];

@@ -14,11 +14,11 @@ export type Exec = Pick<typeof db, "select" | "execute">;
 
 const col = (at: number) => `colonne ${at + 1}`;
 
-/** An empty query searches nothing: `where` null, no error. */
-export async function compileSearch(kind: Kind, q: string): Promise<Search> {
+/** An empty query searches nothing: `where` null, no error. `streams`: the search lists streams, not entries. */
+export async function compileSearch(kind: Kind, q: string, { streams = false }: { streams?: boolean } = {}): Promise<Search> {
   if (!q.trim()) return { where: null, error: null };
   try {
-    const where = compileQuery(q, { kind, lang: (await getSettings()).tmdb_language });
+    const where = compileQuery(q, { kind, lang: (await getSettings()).tmdb_language, streams });
     await checkRegexes(q);
     return { where, error: null };
   } catch (e) {

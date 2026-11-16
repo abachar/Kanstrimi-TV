@@ -67,6 +67,12 @@ const PLACEHOLDER: Record<Kind, string> = {
   live: "Rechercher : tf1, thème:sport, pays:maroc…",
 };
 
+const STREAMS_PLACEHOLDER: Record<Kind, string> = {
+  vod: 'Rechercher : matrix, langue:"vostfr", qualité:4k, catalogue.tmdb:non…',
+  series: "Rechercher : friends, fournisseur:backup, catalogue.tmdb:non…",
+  live: 'Rechercher : bein, catégorie:sport, catalogue.thème:"non reconnus"…',
+};
+
 const FieldList = ({ fields, home }: { fields: QueryField[]; home: QueryHome }) => (
   <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">
     {fields.map((f) => (
@@ -86,11 +92,22 @@ const FieldList = ({ fields, home }: { fields: QueryField[]; home: QueryHome }) 
   </dl>
 );
 
-/** `filter`: every word under its prefix, and those only searches may use left out. */
-export function QueryHelp({ kind, filter = false }: { kind: Kind; filter?: boolean }) {
+/** Where a query is written: a screen of the catalogue, the streams' one, or a profile's filter. */
+export type QueryPlace = "catalogue" | "streams" | "filter";
+const HOMES: Record<QueryPlace, QueryHome> = { catalogue: "catalogue", streams: "xtream", filter: null };
+
+/** A filter: every word under its prefix, and those only searches may use left out. The streams: their words without prefix. */
+export function QueryHelp({ kind, place = "catalogue" }: { kind: Kind; place?: QueryPlace }) {
+  const filter = place === "filter";
   const fields = queryFieldsOf(kind).filter((f) => !filter || !f.searchOnly);
-  const home: QueryHome = filter ? null : "catalogue";
-  const names: Names = { c: (name) => (filter ? `catalogue.${name}` : name), x: (name) => `xtream.${name}` };
+  const home = HOMES[place];
+  const names: Names = {
+    c: (name) => (home === "catalogue" ? name : `catalogue.${name}`),
+    x: (name) => (home === "xtream" ? name : `xtream.${name}`),
+  };
+  const syntax = SYNTAX[kind](names);
+  // Free text reads the provider's name there, not the entry's title.
+  if (place === "streams") syntax[0] = ["canal+ sport", "texte libre : le nom chez le fournisseur contient « canal+ sport »"];
   return (
     <details class="group text-sm">
       <summary class="w-fit cursor-pointer text-muted-foreground hover:text-foreground">
@@ -102,7 +119,7 @@ export function QueryHelp({ kind, filter = false }: { kind: Kind; filter?: boole
           <h3 class="font-semibold">Syntaxe</h3>
           <p class="text-muted-foreground">La casse et les accents ne comptent jamais.</p>
           <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">
-            {SYNTAX[kind](names).map(([ex, what]) => (
+            {syntax.map(([ex, what]) => (
               <>
                 <dt>
                   <code class="font-mono text-xs">{ex}</code>
@@ -113,15 +130,27 @@ export function QueryHelp({ kind, filter = false }: { kind: Kind; filter?: boole
           </dl>
         </section>
         <section class="flex flex-col gap-2">
-          <h3 class="font-semibold">Mots de la fiche{filter ? " : catalogue." : ""}</h3>
-          <FieldList fields={fields.filter((f) => f.scope === "catalogue")} home={home} />
-          <h3 class="mt-2 font-semibold">Mots d'un flux : xtream.</h3>
-          <p class="text-muted-foreground">
-            {filter
-              ? "Un filtre se juge flux par flux, ses mots de fiche lus sur la fiche du flux : il garde les flux qui correspondent."
-              : "La requête se juge flux par flux : une fiche sort si l'un de ses flux correspond, les mots de flux décrivant le même."}
-          </p>
-          <FieldList fields={fields.filter((f) => f.scope === "xtream")} home={home} />
+          {place === "streams" ? (
+            <>
+              <h3 class="font-semibold">Mots du flux</h3>
+              <FieldList fields={fields.filter((f) => f.scope === "xtream")} home={home} />
+              <h3 class="mt-2 font-semibold">Mots de sa fiche : catalogue.</h3>
+              <p class="text-muted-foreground">La fiche est le film, la série ou la chaîne où le flux est rangé.</p>
+              <FieldList fields={fields.filter((f) => f.scope === "catalogue")} home={home} />
+            </>
+          ) : (
+            <>
+              <h3 class="font-semibold">Mots de la fiche{filter ? " : catalogue." : ""}</h3>
+              <FieldList fields={fields.filter((f) => f.scope === "catalogue")} home={home} />
+              <h3 class="mt-2 font-semibold">Mots d'un flux : xtream.</h3>
+              <p class="text-muted-foreground">
+                {filter
+                  ? "Un filtre se juge flux par flux, ses mots de fiche lus sur la fiche du flux : il garde les flux qui correspondent."
+                  : "La requête se juge flux par flux : une fiche sort si l'un de ses flux correspond, les mots de flux décrivant le même."}
+              </p>
+              <FieldList fields={fields.filter((f) => f.scope === "xtream")} home={home} />
+            </>
+          )}
         </section>
       </div>
     </details>
@@ -145,12 +174,14 @@ export function QuerySearchBar({
   hidden = {},
   q,
   error,
+  place = "catalogue",
 }: {
   kind: Kind;
   action: string;
   hidden?: Record<string, string>;
   q: string;
   error?: string | null;
+  place?: QueryPlace;
 }) {
   return (
     <div class="flex flex-col gap-2">
@@ -163,7 +194,7 @@ export function QuerySearchBar({
           type="search"
           name="q"
           value={q}
-          placeholder={PLACEHOLDER[kind]}
+          placeholder={place === "streams" ? STREAMS_PLACEHOLDER[kind] : PLACEHOLDER[kind]}
           aria-label="Rechercher"
           enterkeyhint="search"
         />
@@ -172,7 +203,7 @@ export function QuerySearchBar({
           Rechercher
         </button>
       </form>
-      <QueryHelp kind={kind} />
+      <QueryHelp kind={kind} place={place} />
       {error && <QueryErrorLine error={error} />}
     </div>
   );

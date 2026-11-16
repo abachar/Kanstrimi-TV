@@ -66,9 +66,15 @@ async function kept(q: string): Promise<string[]> {
   const rows = await db.select({ name: vr.name }).from(vr).where(sql`${vr.kind} = 'vod' and ${where}`).orderBy(vr.name);
   return rows.map((r) => r.name);
 }
-const fails = (q: string, o: { kind?: Kind; filter?: boolean } = {}) => {
+/** The provider's names of the streams a search of the streams finds. */
+async function streams(q: string, kind: Kind = "vod"): Promise<string[]> {
+  const where = compileQuery(q, { kind, lang: "fr-FR", streams: true })!;
+  const rows = await db.select({ name: vr.name }).from(vr).where(sql`${vr.kind} = ${kind} and ${where}`).orderBy(vr.name);
+  return rows.map((r) => r.name);
+}
+const fails = (q: string, o: { kind?: Kind; filter?: boolean; streams?: boolean } = {}) => {
   try {
-    compileQuery(q, { kind: o.kind ?? "vod", lang: "fr-FR", filter: o.filter });
+    compileQuery(q, { kind: o.kind ?? "vod", lang: "fr-FR", filter: o.filter, streams: o.streams });
   } catch (e) {
     if (e instanceof QueryError) return e.message;
     throw e;
@@ -159,23 +165,24 @@ describe("filter language: conditions on a content", () => {
   });
 
   it("finds what Claude read: a title he was asked about, a channel a stream is on through the name he read in it", async () => {
-    expect(await find("ia:oui")).toEqual([]);
-    expect(await find("ia:oui", "live")).toEqual([]);
+    expect(await find("xtream.ia:oui")).toEqual([]);
+    expect(await find("xtream.ia:oui", "live")).toEqual([]);
     const unknown = eq(schema.catalogTitles.title, UNKNOWN);
     const tf1 = ofStreams(eq(schema.xtreamStreams.upstreamId, "100"));
     const [{ how }] = await db.select({ how: schema.catalogStreams.how }).from(schema.catalogStreams).where(tf1);
     await db.update(schema.catalogTitles).set({ aiKind: "other", aiAskedAt: new Date() }).where(unknown); // asked, nothing found
     await db.update(schema.catalogStreams).set({ how: "ai" }).where(tf1);
     try {
-      expect(await find("ia:oui")).toEqual([UNKNOWN]);
-      expect(await find("claude:non")).toEqual([DILWALE, MATRIX]);
-      expect(await find("ia:oui", "live")).toEqual(["TF1"]);
-      expect(await find("ia:non", "live")).toEqual([]);
+      expect(await find("xtream.ia:oui")).toEqual([UNKNOWN]);
+      expect(await find("xtream.claude:non")).toEqual([DILWALE, MATRIX]);
+      expect(await find("xtream.ia:oui", "live")).toEqual(["TF1"]);
+      expect(await find("xtream.ia:non", "live")).toEqual([]);
+      expect(await streams("ia:oui")).toEqual(["|FR| Inconnu 100% (2010)"]); // the streams' own screen: no prefix
     } finally {
       await db.update(schema.catalogTitles).set({ aiKind: null, aiAskedAt: null }).where(unknown);
       await db.update(schema.catalogStreams).set({ how }).where(tf1);
     }
-    expect(fails("catalogue.ia:oui", { filter: true })).toContain("recherches");
+    expect(fails("xtream.ia:oui", { filter: true })).toContain("recherches");
   });
 
   it("reads || and groups, a version field anywhere judging version by version", async () => {
@@ -228,6 +235,20 @@ describe("filter language: conditions on a content", () => {
     expect(fails("catalogue.nom:matrix")).toContain("voulais-tu xtream.nom");
     expect(fails("xtream.genre:anim")).toContain("voulais-tu genre");
     expect(fails("catalogue.thème:sport", { filter: true })).toContain("qu'au direct");
+  });
+
+  it("searches the streams themselves: their words without prefix, free text in the provider's name, the entry's under catalogue.", async () => {
+    expect(await streams("matrix")).toEqual(["|FR| Matrix (4K)", "|FR| Matrix (VOSTFR)"]);
+    expect(await streams("dulhania")).toEqual(["|FR| Dilwale Dulhania"]); // the provider's name, not our title
+    expect(await streams('langue:"vostfr"')).toEqual(["|FR| Matrix (VOSTFR)"]);
+    expect(await streams("qualité:4k && nom:matrix")).toEqual(["|FR| Matrix (4K)"]);
+    expect(await streams("catalogue.tmdb:non")).toEqual(["|FR| Inconnu 100% (2010)"]);
+    expect(await streams('catalogue.genre:comedie || xtream.langue:"vostfr"')).toEqual(["|FR| Dilwale Dulhania", "|FR| Matrix (VOSTFR)"]);
+    expect(await streams("catalogue.visible:oui && manuel:non")).toHaveLength(4); // a search may use every word
+    expect(await streams("tf1", "live")).toEqual(["|FR| TF1 HD"]);
+    expect(await streams("section:generalistes && catalogue.pays:aucun", "live")).toEqual(["|FR| TF1 HD"]);
+    expect(fails("genre:comedie", { streams: true })).toContain("voulais-tu catalogue.genre");
+    expect(fails("langue:xx && titre:matrix", { streams: true })).toContain("voulais-tu catalogue.titre");
   });
 
   it("refuses before any SQL what does not make sense", () => {

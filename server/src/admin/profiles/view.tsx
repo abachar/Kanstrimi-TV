@@ -191,7 +191,7 @@ function FilterForm({ p, kind, filter, draft }: { p: Profile; kind: Kind; filter
           <Busy id={`${pid}-busy`} label="Calcul en cours" />
         </div>
         <div id={pid} aria-live="polite"></div>
-        <QueryHelp kind={kind} filter />
+        <QueryHelp kind={kind} place="filter" />
       </form>
     </Card>
   );
