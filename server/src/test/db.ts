@@ -2,12 +2,15 @@ import { db, schema, client, type Profile, type ProviderAccount } from "@/db";
 import { invalidateAccounts, invalidateSettings } from "@/config";
 import { eq, inArray, sql, type SQL } from "drizzle-orm";
 import type { XStream } from "@/providers/xtream";
-import { applyFilters, runGrouping } from "@/catalog";
+import { applyFilters, contentsByKey, runGrouping } from "@/catalog";
+
+/** A title or a channel by its key, hidden or not, in the shape the app reads. */
+export const contentOfKey = async (key: string) => (await contentsByKey([key]))[0];
 
 /** Empty every catalogue table between test files, then seed the default profile and the provider account. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table xtream_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, cache_tmdb, cache_xtream_info, app_profiles, app_profile_filters, catalog_variant_profiles, catalog_content_profiles, task_steps, task_runs, cache_iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, cache_epg_programmes, settings_epg_offsets, settings_epg_sources, cache_epg_source_channels, curation_epg_links, catalog_studios, app_waitlist, curation_channels, cache_tmdb_trending, cache_tmdb_recommendations, cache_tmdb_extras, cache_skipdb_segments, cache_theintrodb, cache_introdb restart identity cascade`,
+    sql`truncate table xtream_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_titles, catalog_channels, catalog_episodes, catalog_episode_variants, cache_tmdb, cache_xtream_info, app_profiles, app_profile_filters, catalog_variant_profiles, app_profile_titles, app_profile_channels, task_steps, task_runs, cache_iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, cache_epg_programmes, settings_epg_offsets, settings_epg_sources, cache_epg_source_channels, curation_epg_links, catalog_studios, app_waitlist, cache_tmdb_trending, cache_tmdb_recommendations, cache_tmdb_extras, cache_skipdb_segments, cache_theintrodb, cache_introdb restart identity cascade`,
   );
   await db.insert(schema.appProfiles).values({ name: "Hakim", isDefault: true, judgedAt: new Date() }); // the restarted identity gives it PROFILE
   await db
@@ -59,7 +62,10 @@ export const PROFILE = 1;
  */
 export async function profileSeesVisible() {
   await db.execute(
-    sql`insert into catalog_content_profiles (content_id, profile_id) select id, ${PROFILE} from catalog_contents where visible on conflict do nothing`,
+    sql`insert into app_profile_titles (title_id, profile_id) select id, ${PROFILE} from catalog_titles where visible on conflict do nothing`,
+  );
+  await db.execute(
+    sql`insert into app_profile_channels (channel_id, profile_id) select id, ${PROFILE} from catalog_channels where visible on conflict do nothing`,
   );
 }
 

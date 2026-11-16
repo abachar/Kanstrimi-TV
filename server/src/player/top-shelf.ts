@@ -5,7 +5,7 @@ import { describeError, within } from "@/shared";
 import { availableWaitlistKeys, ensureEpisodes, isEpisodeKey, parseKey, trendingContents, UpstreamUnavailable } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
-import { contentByKey, contentsInOrder, variantsOf, visibleContent } from "./contents";
+import { contentByKey, contentsInOrder, variantsOf, visibleTitle } from "./contents";
 import { getProgress, resumeKeys } from "./progress";
 import { type EpisodeRow, loadEpisodes } from "./episodes";
 import { drOf, qualityOfRank } from "./versions";
@@ -154,7 +154,7 @@ async function newEpisodePick(ctx: RestContext, skip: Set<string>): Promise<Shel
 async function topMoviePicks(ctx: RestContext): Promise<ShelfPick[]> {
   const contents = await trendingContents(
     "vod",
-    and(visibleContent(ctx, "vod"), isNotNull(schema.catalogContents.backdropPath), isNotNull(schema.catalogContents.titleLogoPath)),
+    and(visibleTitle(ctx, "vod"), isNotNull(schema.catalogTitles.backdropPath), isNotNull(schema.catalogTitles.titleLogoPath)),
     TOP_SHELF_SIZE,
   );
   return contents.map((content, i) => moviePick(content, "top", `N° ${i + 1} cette semaine`));
@@ -189,13 +189,13 @@ const hasShelfArt = (c: Content | null): c is Content => Boolean(c?.backdropPath
  */
 export async function isShelfPair(backdrop: string, logo: string): Promise<boolean> {
   const [row] = await db
-    .select({ id: schema.catalogContents.id })
-    .from(schema.catalogContents)
+    .select({ id: schema.catalogTitles.id })
+    .from(schema.catalogTitles)
     .where(
       and(
-        eq(schema.catalogContents.visible, true),
-        eq(schema.catalogContents.backdropPath, `/${backdrop}`),
-        eq(schema.catalogContents.titleLogoPath, `/${logo}`),
+        eq(schema.catalogTitles.visible, true),
+        eq(schema.catalogTitles.backdropPath, `/${backdrop}`),
+        eq(schema.catalogTitles.titleLogoPath, `/${logo}`),
       ),
     )
     .limit(1);

@@ -157,7 +157,7 @@ async function watchedOf(profileId: number, c: Content): Promise<Pick<ContentDet
   const rows = await db
     .select({ key: e.key, season: e.season, number: e.number, title: e.title })
     .from(e)
-    .where(eq(e.contentId, c.id))
+    .where(eq(e.titleId, c.id))
     .orderBy(asc(e.season), asc(e.number));
   const progress = await getProgress(
     profileId,
@@ -173,7 +173,7 @@ export async function episodeOf(contentId: number, key: string) {
   const [row] = await db
     .select({ key: e.key, season: e.season, number: e.number })
     .from(e)
-    .where(and(eq(e.contentId, contentId), eq(e.key, key)));
+    .where(and(eq(e.titleId, contentId), eq(e.key, key)));
   return row ?? null;
 }
 

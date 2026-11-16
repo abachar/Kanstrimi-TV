@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { db, schema, variants as vr, type Content, type Variant } from "@/db";
+import { db, schema, variants as vr, type Content, type Variant, titleContent } from "@/db";
 import { ACCOUNT, resetDb, closeDb, seedAccount, seedItems, groupAndFilter } from "@/test/db";
 import { runNaming } from "../grouping/group";
 import { ensureEpisodes, UpstreamUnavailable } from "../episodes";
@@ -24,14 +24,14 @@ const info = (n: number, prefix = "e") => ({
 let content: Content;
 let variants: Variant[];
 const episodes = async () =>
-  (await db.select().from(schema.catalogEpisodes).where(eq(schema.catalogEpisodes.contentId, content.id))).map((e) => e.key).sort();
+  (await db.select().from(schema.catalogEpisodes).where(eq(schema.catalogEpisodes.titleId, content.id))).map((e) => e.key).sort();
 
 beforeEach(async () => {
   await resetDb();
   await seedItems([{ kind: "series", xtreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
   await runNaming();
   await groupAndFilter();
-  [content] = await db.select().from(schema.catalogContents);
+  [content] = await db.select(titleContent).from(schema.catalogTitles);
   variants = await db.select().from(vr);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -71,7 +71,7 @@ describe("ensureEpisodes", () => {
       .select({ item: schema.catalogEpisodeVariants.itemId })
       .from(schema.catalogEpisodeVariants)
       .innerJoin(schema.catalogEpisodes, eq(schema.catalogEpisodes.id, schema.catalogEpisodeVariants.episodeId))
-      .where(eq(schema.catalogEpisodes.contentId, content.id));
+      .where(eq(schema.catalogEpisodes.titleId, content.id));
     expect(new Set(sources.map((s) => s.item)).size).toBe(2);
     // Everyone asked, the tree fresh: no more calls.
     await ensureEpisodes(content, all, "fr-FR");
@@ -97,7 +97,7 @@ describe("ensureEpisodes", () => {
     ]);
     await runNaming();
     await groupAndFilter();
-    [content] = await db.select().from(schema.catalogContents);
+    [content] = await db.select(titleContent).from(schema.catalogTitles);
     variants = await db.select().from(vr);
     expect(variants).toHaveLength(3);
     await db.insert(schema.cacheXtreamInfo).values(

@@ -7,7 +7,7 @@ import type { CodeList } from "./codes";
  * The fields of the filter language, one registry for the filters and the admin's searches. Each field
  * belongs to kinds (Direct, Films, Séries: a name may mean something else per kind, `pays` is where a
  * channel is shown and where a film comes from) and to a level:
- * - `content`, no prefix: the content as the app shows it (`catalog_contents`, never aliased), its TMDB
+ * - `content`, no prefix: the content as the app shows it (`catalog_titles` or `catalog_channels` by kind, never aliased), its TMDB
  *   sheet read in the cache;
  * - `variant`, prefixed `variant.` (what we read of a version) or `xtream.` (what the provider says of it):
  *   one version (`variants`, the variant with its stream, never aliased).
@@ -22,8 +22,8 @@ export type FieldType = "text" | "number" | "enum" | "quality" | "code";
 export type Level = "content" | "variant";
 /** A condition on one text value: a column or an expression. */
 export type Pred = (value: SQL | Column) => SQL;
-/** What `sql.ts` needs of the request: the language of the TMDB cache. */
-export type FieldContext = { lang: string };
+/** What `sql.ts` needs of the request: the kind (a title's fields are on `catalog_titles`, a channel's on `catalog_channels`) and the language of the TMDB cache. */
+export type FieldContext = { kind: Kind; lang: string };
 
 export type Field = {
   /** The name shown in the help, then its other spellings (case and accents never matter). */
@@ -47,7 +47,8 @@ export type Field = {
   codes?: CodeList;
 };
 
-const c = schema.catalogContents;
+const c = schema.catalogTitles;
+const ch = schema.catalogChannels;
 const v = variants;
 const ALL: Kind[] = ["live", "vod", "series"];
 const LIVE: Kind[] = ["live"];
@@ -59,7 +60,7 @@ const tmdbAny = (ctx: FieldContext, elements: SQL, pred: Pred) =>
     and t.media_type = ${sqlTmdbMediaType(c.kind)} and ${pred(sql`e.value`)})`;
 /** Any element of an array column matching. */
 const arrayAny = (col: Column, pred: Pred) => sql`exists (select 1 from unnest(${col}) e(value) where ${pred(sql`e.value`)})`;
-const pending = sql`exists (select 1 from catalog_variants vv where vv.content_id = ${c.id} and vv.match_status = 'pending')`;
+const pending = sql`exists (select 1 from catalog_variants vv where vv.title_id = ${c.id} and vv.match_status = 'pending')`;
 const yesNo = (cond: SQL) => ({ oui: cond, non: sql`not coalesce(${cond}, false)` });
 const any = (...conds: SQL[]) =>
   sql`(${sql.join(
@@ -81,7 +82,7 @@ export const FIELDS: Field[] = [
     example: "titre:matrix",
     kinds: ALL,
     level: "content",
-    text: (_, p) => any(p(c.title), p(c.originalTitle), p(c.titleEn)),
+    text: (ctx, p) => (ctx.kind === "live" ? any(p(ch.name)) : any(p(c.title), p(c.originalTitle), p(c.titleEn))),
   },
   {
     names: ["marché", "market"],
@@ -90,7 +91,7 @@ export const FIELDS: Field[] = [
     example: 'marché:"fr"',
     kinds: LIVE,
     level: "content",
-    text: (_, p) => p(c.market),
+    text: (_, p) => p(ch.market),
   },
   {
     names: ["pays", "country"],
@@ -100,7 +101,7 @@ export const FIELDS: Field[] = [
     example: "pays:maroc",
     kinds: LIVE,
     level: "content",
-    text: (_, p) => p(c.country),
+    text: (_, p) => p(ch.country),
   },
   {
     names: ["pays", "country"],
@@ -115,11 +116,11 @@ export const FIELDS: Field[] = [
   {
     names: ["thème", "theme"],
     type: "text",
-    doc: "Thèmes de la chaîne : Sport, Infos, Cinéma…",
+    doc: "Thème de la chaîne : Sport, Infos, Cinéma…",
     example: "thème:sport",
     kinds: LIVE,
     level: "content",
-    text: (_, p) => arrayAny(c.themes, p),
+    text: (_, p) => p(ch.theme),
   },
   {
     names: ["genre"],
@@ -219,7 +220,7 @@ export const FIELDS: Field[] = [
     example: "qualité:>=fhd",
     kinds: ALL,
     level: "content",
-    value: () => sql`${c.maxQualityRank}`,
+    value: (ctx) => sql`${ctx.kind === "live" ? ch.maxQualityRank : c.maxQualityRank}`,
   },
   {
     names: ["dynamique", "hdr"],
@@ -237,7 +238,7 @@ export const FIELDS: Field[] = [
     example: "adulte:oui",
     kinds: ALL,
     level: "content",
-    choices: () => yesNo(sql`${c.adult}`),
+    choices: (ctx) => yesNo(sql`${ctx.kind === "live" ? ch.adult : c.adult}`),
   },
   {
     names: ["visible"],
@@ -247,7 +248,7 @@ export const FIELDS: Field[] = [
     kinds: ALL,
     level: "content",
     searchOnly: true,
-    choices: () => yesNo(sql`${c.visible}`),
+    choices: (ctx) => yesNo(sql`${ctx.kind === "live" ? ch.visible : c.visible}`),
   },
   // ------------------------------------------------------------------ one version
   {

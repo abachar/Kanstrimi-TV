@@ -11,7 +11,7 @@ import { withCatalogLock } from "../lock";
  * (a `catalog_variant_profiles` row) or left out; a profile without a filter keeps everything. Then
  * `catalog_variants.hidden_by_rule` says « kept by no profile », and the contents whose versions moved
  * count again only what is left: their aggregates, `visible` (seen by one profile), what each profile
- * sees (`catalog_content_profiles`) and the waitlist's arrivals. A filter that no longer compiles leaves
+ * sees (`app_profile_titles`, `app_profile_channels`) and the waitlist's arrivals. A filter that no longer compiles leaves
  * its kind as it was for that profile, said in the log. `contentIds`: only the versions of those (a
  * manual regroup); `profileId`: only that profile (« Appliquer maintenant », a profile just created).
  */
@@ -56,7 +56,7 @@ async function apply(contentIds?: number[], profileId?: number) {
           select variants.id, ${profile.id} from ${variants}
           where variants.kind = ${kind} ${scope} and (${keep})
           on conflict do nothing
-          returning (select content_id from catalog_variants where id = variant_id) as content_id`),
+          returning (select coalesce(title_id, channel_id) from catalog_variants where id = variant_id) as content_id`),
       );
       if (filter) judged.push(kind);
     }
@@ -71,13 +71,13 @@ async function apply(contentIds?: number[], profileId?: number) {
   collect(
     await db.execute<{ content_id: number | null }>(sql`
       update catalog_variants set hidden_by_rule = ${hidden}
-      where ${ids ? sql`catalog_variants.content_id = any(${ids}) and` : sql``} catalog_variants.hidden_by_rule is distinct from (${hidden})
-      returning content_id`),
+      where ${ids ? sql`coalesce(catalog_variants.title_id, catalog_variants.channel_id) = any(${ids}) and` : sql``} catalog_variants.hidden_by_rule is distinct from (${hidden})
+      returning coalesce(title_id, channel_id) as content_id`),
   );
   checkCancelled();
   const waitlist_available = touched.size ? await refreshVisibility([...touched]) : 0;
   // The verdict tables move by tens of thousands of rows at once: fresh statistics, or the planner guesses for a day.
-  await db.execute(sql`analyze catalog_variant_profiles, catalog_content_profiles`);
+  await db.execute(sql`analyze catalog_variant_profiles, app_profile_titles, app_profile_channels`);
   const [r] = await db.execute<{ n: number }>(sql`select count(*)::int as n from catalog_variants where hidden_by_rule`);
   return { variants_hidden: r.n, waitlist_available };
 }

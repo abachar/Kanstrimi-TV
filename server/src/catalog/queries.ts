@@ -1,5 +1,5 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
-import { db, schema, variants, type Content, type Variant } from "@/db";
+import { asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { channelContent, db, schema, titleContent, variants, type Content, type Variant } from "@/db";
 import type { Kind } from "@/db";
 
 /** Single-row lookups shared by the admin pages, the grouping actions and the TMDB correction. */
@@ -9,13 +9,18 @@ export async function itemById(id: number): Promise<Variant | null> {
   return it ?? null;
 }
 
+/** A title or a channel by its id: the two draw their ids from one sequence. */
 export async function contentById(id: number): Promise<Content | null> {
-  const [c] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.id, id));
+  const [t] = await db.select(titleContent).from(schema.catalogTitles).where(eq(schema.catalogTitles.id, id));
+  if (t) return t;
+  const [c] = await db.select(channelContent).from(schema.catalogChannels).where(eq(schema.catalogChannels.id, id));
   return c ?? null;
 }
 
 export async function contentIdByKey(key: string): Promise<number | null> {
-  const [c] = await db.select({ id: schema.catalogContents.id }).from(schema.catalogContents).where(eq(schema.catalogContents.key, key));
+  const [t] = await db.select({ id: schema.catalogTitles.id }).from(schema.catalogTitles).where(eq(schema.catalogTitles.key, key));
+  if (t) return t.id;
+  const [c] = await db.select({ id: schema.catalogChannels.id }).from(schema.catalogChannels).where(eq(schema.catalogChannels.key, key));
   return c?.id ?? null;
 }
 
@@ -38,3 +43,36 @@ export async function variantCountsByAccount(): Promise<Map<number, Record<Kind,
   }
   return out;
 }
+
+/** Titles and channels alike under these keys, hidden ones included: what the admin's lists show. */
+export async function contentsByKey(keys: string[]): Promise<Content[]> {
+  if (!keys.length) return [];
+  const [titles, channels] = await Promise.all([
+    db.select(titleContent).from(schema.catalogTitles).where(inArray(schema.catalogTitles.key, keys)),
+    db.select(channelContent).from(schema.catalogChannels).where(inArray(schema.catalogChannels.key, keys)),
+  ]);
+  return [...titles, ...channels];
+}
+
+/**
+ * The table a kind's contents are in, for a list that takes any kind: its rows as contents, what it
+ * sorts by, and the condition that keeps the kind (a channel's table holds nothing else).
+ */
+export const contentSource = (kind: Kind) =>
+  kind === "live"
+    ? {
+        table: schema.catalogChannels as unknown as typeof schema.catalogTitles,
+        fields: channelContent as unknown as typeof titleContent,
+        id: schema.catalogChannels.id,
+        title: schema.catalogChannels.name,
+        addedAt: schema.catalogChannels.addedAt,
+        ofKind: undefined as SQL | undefined,
+      }
+    : {
+        table: schema.catalogTitles,
+        fields: titleContent,
+        id: schema.catalogTitles.id,
+        title: schema.catalogTitles.title,
+        addedAt: schema.catalogTitles.addedAt,
+        ofKind: eq(schema.catalogTitles.kind, kind) as SQL | undefined,
+      };

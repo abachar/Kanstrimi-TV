@@ -2,10 +2,10 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, titleContent } from "@/db";
 import type { Env, RestContext } from "./context";
 import { BadRequest, badQuery, fail, json } from "./http";
-import { byRelease, visibleContent } from "./contents";
+import { byRelease, visibleTitle } from "./contents";
 import { getProgress } from "./progress";
 import { contentItem, filmCount, imageUrl } from "./cards";
 import { decodeCursor, encodeCursor } from "./lists";
@@ -29,8 +29,8 @@ type SagaRow = { id: number; name: string; poster: string | null; backdrop: stri
 const sagasOf = (ctx: RestContext, only?: number) => sql`
   select saga_id as id, min(saga_name) as name, min(saga_poster_path) as poster, min(saga_backdrop_path) as backdrop,
     count(*)::int as n, max(${byRelease})::text as latest
-  from ${schema.catalogContents}
-  where ${visibleContent(ctx, "vod")} and saga_id is not null ${only === undefined ? sql`` : sql`and saga_id = ${only}`}
+  from ${schema.catalogTitles}
+  where ${visibleTitle(ctx, "vod")} and saga_id is not null ${only === undefined ? sql`` : sql`and saga_id = ${only}`}
   group by saga_id having count(*) >= ${MIN_MOVIES}`;
 
 const sagaWire = (ctx: RestContext, r: SagaRow): SagaWire => ({
@@ -114,10 +114,10 @@ export async function sagaSheet(ctx: RestContext, key: string): Promise<SagaShee
   const [saga] = await db.execute<SagaRow>(sagasOf(ctx, id));
   if (!saga) return null;
   const movies = await db
-    .select()
-    .from(schema.catalogContents)
-    .where(and(visibleContent(ctx, "vod"), eq(schema.catalogContents.sagaId, id)))
-    .orderBy(desc(byRelease), desc(schema.catalogContents.id));
+    .select(titleContent)
+    .from(schema.catalogTitles)
+    .where(and(visibleTitle(ctx, "vod"), eq(schema.catalogTitles.sagaId, id)))
+    .orderBy(desc(byRelease), desc(schema.catalogTitles.id));
   const progress = await getProgress(
     ctx.profile.id,
     movies.map((m) => m.key),

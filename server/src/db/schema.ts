@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   pgTable,
   serial,
   text,
@@ -174,9 +175,13 @@ export const catalogVariants = pgTable(
     aiYear: integer("ai_year"),
     aiAskedAt: timestamp("ai_asked_at", { withTimezone: true }),
     // Grouping (block 1): one item is one playable variant of a content.
-    /** Computed key, joins `catalog_contents.key`; the row it currently belongs to is `content_id`. */
+    /**
+     * Computed key, the `key` of the title or the channel it belongs to; the row itself is `title_id` (a movie,
+     * a series) or `channel_id` (live), one of the two at most. Read as one `content_id` through `variants`.
+     */
     contentKey: text("content_key"),
-    contentId: integer("content_id").references(() => catalogContents.id, { onDelete: "set null" }),
+    titleId: integer("title_id").references(() => catalogTitles.id, { onDelete: "set null" }),
+    channelId: integer("channel_id").references(() => catalogChannels.id, { onDelete: "set null" }),
     /** Manual merge / split from the admin: wins over the computed key. */
     keyOverride: text("key_override"),
     /**
@@ -194,27 +199,32 @@ export const catalogVariants = pgTable(
     /** Live, regional market only (« ar »): the country it is shown under (`MA`), written by `channels`; null = the whole region. */
     country: text("country"),
     /**
-     * Live: the reference channel this variant is, written by `channels`: its name (ours, else iptv-org's), which
-     * gives the content its identity and title, and our own row when there is one. Null name = not recognised.
+     * Live: the name of the reference channel this variant is, written by `channels` (ours, else iptv-org's): it
+     * gives the channel its identity and its name. Null = not recognised.
      */
     channelName: text("channel_name"),
-    channelId: integer("channel_id").references(() => curationChannels.id, { onDelete: "set null" }),
   },
   (t) => [
     index("catalog_variants_match_idx").on(t.matchStatus),
-    index("catalog_variants_content_idx").on(t.contentId),
+    // The expression `variants` reads as `content_id` (`db/variants.ts`): keep the two in step.
+    index("catalog_variants_content_idx").on(sql`coalesce(${t.titleId}, ${t.channelId})`),
     index("catalog_variants_content_key_idx").on(t.contentKey),
+    // What a deleted title or channel looks its variants up by.
+    index("catalog_variants_title_idx").on(t.titleId),
+    index("catalog_variants_channel_idx").on(t.channelId),
+    check("catalog_variants_one_content", sql`num_nonnulls(${t.titleId}, ${t.channelId}) <= 1`),
   ],
 );
 
 /**
- * One content = one work (a movie, a series, a channel), the thing the app lists, plays,
- * favourites and resumes. Filled by the `group` job from `items` and `cache_tmdb`; every
- * column is derived and rewritten in place at each run. External references (favourites,
- * progress) use `key`, never `id`: a row may vanish and come back with a new id.
+ * One title = one work, a movie or a series: what the app lists, plays, favourites and resumes.
+ * Filled by the `group` step from its variants and `cache_tmdb`; every column is derived and
+ * rewritten in place at each run. External references (favourites, progress) use `key`, never
+ * `id`: a row may vanish and come back with a new id. Its `id` and a channel's come from the same
+ * sequence: a content id names one row, whichever table it is in.
  */
-export const catalogContents = pgTable(
-  "catalog_contents",
+export const catalogTitles = pgTable(
+  "catalog_titles",
   {
     id: serial("id").primaryKey(),
     key: text("key").notNull().unique(),
@@ -242,28 +252,11 @@ export const catalogContents = pgTable(
     director: text("director"),
     trailerKey: text("trailer_key"),
     status: text("status"),
-    // Live
-    market: text("market"),
-    /** Regional market only: its variants' country (`MA`), the app's group « Maroc · … »; null = the market's. */
-    country: text("country"),
-    /** iptv-org's logo through `/img/logos` when the channel is known there, else the provider's URL. */
-    logoUrl: text("logo_url"),
-    iptvId: text("iptv_id"),
-    categoryXtreamId: text("category_xtream_id"),
-    channelNumber: integer("channel_number"),
-    epgChannelId: text("epg_channel_id"),
-    /**
-     * The guide of a fallback source (`@<source>/<channel>`, `catalog/epg-sources.ts`) when the provider files no
-     * programme for the channel: written by the EPG import and by the admin's links, never by the grouping.
-     */
-    epgFallbackId: text("epg_fallback_id"),
     // Aggregates over the variants
-    variantCount: integer("variant_count").default(0).notNull(),
+    sourceCount: integer("source_count").default(0).notNull(),
     maxQualityRank: integer("max_quality_rank").default(0).notNull(),
     languages: text("languages").array().default([]).notNull(),
     dynamicRange: text("dynamic_range"),
-    /** Live: every theme of its variants; a channel sits in each of its groups. */
-    themes: text("themes").array().default([]).notNull(),
     /** Visible for the app: one of its variants is (`visibleItem`). */
     visible: boolean("visible").default(false).notNull(),
     /** TMDB's adult flag, or every variant flagged adult. Served to the app only when `serve_adult` is on. */
@@ -289,24 +282,83 @@ export const catalogContents = pgTable(
   (t) => [
     // « Nouveautés », « Derniers épisodes »: `order by added_at desc, id desc`, as Postgres sorts it (nulls
     // first), or the planner cannot read the index in order and sorts the whole kind instead.
-    index("catalog_contents_list_idx").on(t.kind, t.visible, t.addedAt.desc().nullsFirst(), t.id.desc().nullsFirst()),
+    index("catalog_titles_list_idx").on(t.kind, t.visible, t.addedAt.desc().nullsFirst(), t.id.desc().nullsFirst()),
     // The sort keys of `player/lists.ts`, expression for expression, or the planner cannot use them.
-    index("catalog_contents_release_idx").on(t.kind, t.visible, sql`coalesce(${t.releaseDate}, '0001-01-01'::date) desc`, t.id),
-    index("catalog_contents_saga_idx").on(t.sagaId),
+    index("catalog_titles_release_idx").on(t.kind, t.visible, sql`coalesce(${t.releaseDate}, '0001-01-01'::date) desc`, t.id),
+    index("catalog_titles_saga_idx").on(t.sagaId),
     // Every join from a TMDB document to its contents: the cache refresh of `enrich`, the trending rows, the studios.
-    index("catalog_contents_tmdb_idx").on(t.tmdbId),
-    index("catalog_contents_companies_idx").using("gin", t.companyIds),
-    index("catalog_contents_networks_idx").using("gin", t.networkIds),
-    index("catalog_contents_title_idx").on(t.kind, t.visible, t.title, t.id),
-    index("catalog_contents_rating_idx").on(t.kind, t.visible, sql`coalesce(${t.rating}, 0) desc`, t.id),
-    index("catalog_contents_year_idx").on(t.kind, t.visible, sql`coalesce(${t.year}, 0) desc`, t.id),
-    index("catalog_contents_genres_idx").using("gin", t.genreIds),
-    index("catalog_contents_search_idx").using("gin", t.search),
+    index("catalog_titles_tmdb_idx").on(t.tmdbId),
+    index("catalog_titles_companies_idx").using("gin", t.companyIds),
+    index("catalog_titles_networks_idx").using("gin", t.networkIds),
+    index("catalog_titles_title_idx").on(t.kind, t.visible, t.title, t.id),
+    index("catalog_titles_rating_idx").on(t.kind, t.visible, sql`coalesce(${t.rating}, 0) desc`, t.id),
+    index("catalog_titles_year_idx").on(t.kind, t.visible, sql`coalesce(${t.year}, 0) desc`, t.id),
+    index("catalog_titles_genres_idx").using("gin", t.genreIds),
+    index("catalog_titles_search_idx").using("gin", t.search),
     // Serves `"cast" @> '[{"id": …}]'`, the titles of an actor's screen.
-    index("catalog_contents_cast_idx").using("gin", sql`${t.cast} jsonb_path_ops`),
+    index("catalog_titles_cast_idx").using("gin", sql`${t.cast} jsonb_path_ops`),
     // Typo-tolerant fallback of the search: trigrams of the accent-free titles. `search_titles()`
     // (unaccent, lower) is created by migration 0021; the query must repeat this expression.
-    index("catalog_contents_titles_trgm_idx").using("gin", sql`search_titles(${t.title}, ${t.originalTitle}, ${t.titleEn}) gin_trgm_ops`),
+    index("catalog_titles_titles_trgm_idx").using("gin", sql`search_titles(${t.title}, ${t.originalTitle}, ${t.titleEn}) gin_trgm_ops`),
+  ],
+);
+
+/**
+ * One channel in a market: what the Direct lists and plays, and the reference the live variants are
+ * matched against besides iptv-org. Filled by the `group` step from its live variants, as a title is
+ * from its own; `key` is its identity for the app (`live:fr-tf1`, or `live:x:…` for a name the
+ * reference does not know).
+ *
+ * A channel is ours once the admin said something of it (the Live screen, its page): the names the
+ * providers give it (`aliases`), or a field set by hand (`edited`). It then stays when no provider
+ * lists it any more, and its variants are found by its names before any guess. A channel may stand
+ * alone (one iptv-org does not know: « beIN Sports 1 » of France) or be an iptv-org channel (`iptv_id`).
+ */
+export const catalogChannels = pgTable(
+  "catalog_channels",
+  {
+    /** Drawn from the titles' sequence: a content id names one row, whichever table it is in. */
+    id: integer("id").primaryKey().default(sql`nextval('catalog_titles_id_seq')`),
+    key: text("key").notNull().unique(),
+    name: text("name").notNull(),
+    market: text("market"),
+    /** `known`: a channel of the reference; `event`: an event feed; `unknown`: a name left to attach. Written with the aggregates. */
+    status: text("status").$type<"known" | "unknown" | "event">().default("unknown").notNull(),
+    /** The names the providers give it, set in the admin: a variant bearing one in this market is this channel. */
+    aliases: text("aliases").array().default([]).notNull(),
+    /** The fields set by hand (`name`, `theme`, `country`): iptv-org and the variants no longer decide them. */
+    edited: text("edited").array().default([]).notNull(),
+    /** Regional market only: its variants' country (`MA`), the app's group « Maroc · … »; null = the whole region, or the market's. */
+    country: text("country"),
+    /** The theme the app groups it under (« Sport », « Cinéma »…): ours when set by hand, else its variants' most frequent one. */
+    theme: text("theme"),
+    /** iptv-org's logo through `/img/logos` when the channel is known there, else the provider's URL. */
+    logoUrl: text("logo_url"),
+    iptvId: text("iptv_id"),
+    number: integer("number"),
+    epgId: text("epg_id"),
+    /**
+     * The guide of a fallback source (`@<source>/<channel>`, `catalog/epg-sources.ts`) when the provider files no
+     * programme for the channel: written by the EPG import and by the admin's links, never by the grouping.
+     */
+    epgFallbackId: text("epg_fallback_id"),
+    // Aggregates over the variants
+    sourceCount: integer("source_count").default(0).notNull(),
+    maxQualityRank: integer("max_quality_rank").default(0).notNull(),
+    languages: text("languages").array().default([]).notNull(),
+    /** Visible for the app: one of its variants is (`visibleItem`). */
+    visible: boolean("visible").default(false).notNull(),
+    /** Every variant flagged adult. Served to the app only when `serve_adult` is on. */
+    adult: boolean("adult").default(false).notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull(),
+    search: tsvector("search"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("catalog_channels_list_idx").on(t.visible, t.number, t.name, t.id),
+    index("catalog_channels_search_idx").using("gin", t.search),
+    // The same expression as the titles' trigram index, for a search that reads both (`player/search.ts`).
+    index("catalog_channels_names_trgm_idx").using("gin", sql`search_titles(${t.name}, null, null) gin_trgm_ops`),
   ],
 );
 
@@ -452,21 +504,33 @@ export const catalogVariantProfiles = pgTable(
 );
 
 /**
- * The contents a profile sees (a row = visible): one of its versions kept by the profile's filter and
- * hidden neither by hand nor through its category. Rewritten with the aggregates (`refreshAggregates`);
- * `catalog_contents.visible` is « seen by one profile at least ».
+ * The titles and the channels a profile sees (a row = visible): one of its versions kept by the
+ * profile's filter and hidden neither by hand nor through its category. Rewritten with the aggregates
+ * (`refreshAggregates`); `visible` on the title or the channel is « seen by one profile at least ».
  */
-export const catalogContentProfiles = pgTable(
-  "catalog_content_profiles",
+export const appProfileTitles = pgTable(
+  "app_profile_titles",
   {
-    contentId: integer("content_id")
+    titleId: integer("title_id")
       .notNull()
-      .references(() => catalogContents.id, { onDelete: "cascade" }),
+      .references(() => catalogTitles.id, { onDelete: "cascade" }),
     profileId: integer("profile_id")
       .notNull()
       .references(() => appProfiles.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.contentId, t.profileId] }), index("catalog_content_profiles_profile_idx").on(t.profileId, t.contentId)],
+  (t) => [primaryKey({ columns: [t.titleId, t.profileId] }), index("app_profile_titles_profile_idx").on(t.profileId, t.titleId)],
+);
+export const appProfileChannels = pgTable(
+  "app_profile_channels",
+  {
+    channelId: integer("channel_id")
+      .notNull()
+      .references(() => catalogChannels.id, { onDelete: "cascade" }),
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => appProfiles.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.channelId, t.profileId] }), index("app_profile_channels_profile_idx").on(t.profileId, t.channelId)],
 );
 
 /**
@@ -494,30 +558,6 @@ export const cacheIptvorgChannels = pgTable(
   },
   (t) => [index("cache_iptvorg_channels_country_idx").on(t.country)],
 );
-
-/**
- * The reference channels of ours, set in the admin (the Live screen, a channel's page): what the live variants are matched against
- * besides iptv-org. A row either stands alone (a channel iptv-org does not know: « beIN Sports 1 » of
- * France) or completes an iptv-org channel in a market (`iptv_id`: its logo, guide id and names), with
- * the names the providers use for it (`aliases`). `theme` null = iptv-org's; `country`, in a regional
- * market: null = the usual rule (iptv-org, the provider's hints), "" = the whole region, else a code.
- */
-export const curationChannels = pgTable(
-  "curation_channels",
-  {
-    id: serial("id").primaryKey(),
-    name: text("name").notNull(),
-    market: text("market").notNull(),
-    country: text("country"),
-    theme: text("theme"),
-    aliases: text("aliases").array().default([]).notNull(),
-    iptvId: text("iptv_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [uniqueIndex("curation_channels_market_iptv_idx").on(t.market, t.iptvId)],
-);
-export type ReferenceChannel = typeof curationChannels.$inferSelect;
 
 /**
  * One run of a task: the full pipeline, the EPG, or a lone step. Its steps are `task_steps`
@@ -551,7 +591,7 @@ export const taskSteps = pgTable("task_steps", {
 });
 
 /**
- * Episodes of a series content, merged across its variants by (season, number). Refreshed
+ * Episodes of a series, merged across its variants by (season, number). Refreshed
  * from the provider's get_series_info (one call per variant, cached) and TMDB season data
  * when a series sheet is opened. `key` is the REST id: `tmdb:tv:1396:s01e05`.
  */
@@ -559,9 +599,9 @@ export const catalogEpisodes = pgTable(
   "catalog_episodes",
   {
     id: serial("id").primaryKey(),
-    contentId: integer("content_id")
+    titleId: integer("title_id")
       .notNull()
-      .references(() => catalogContents.id, { onDelete: "cascade" }),
+      .references(() => catalogTitles.id, { onDelete: "cascade" }),
     key: text("key").notNull().unique(),
     season: integer("season").notNull(),
     number: integer("number").notNull(),
@@ -572,7 +612,7 @@ export const catalogEpisodes = pgTable(
     airDate: date("air_date"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("catalog_episodes_content_season_number_idx").on(t.contentId, t.season, t.number)],
+  (t) => [uniqueIndex("catalog_episodes_title_season_number_idx").on(t.titleId, t.season, t.number)],
 );
 
 /** One playable stream of an episode: the provider's episode id under one series variant (item). */
@@ -599,7 +639,7 @@ export const catalogEpisodeVariants = pgTable(
 
 /**
  * The programme guide of the channels the app can see, from the provider's XMLTV and the fallback
- * sources. `channel_id` is the provider's EPG id (`catalog_contents.epg_channel_id`) or a fallback
+ * sources. `channel_id` is the provider's EPG id (`catalog_channels.epg_id`) or a fallback
  * source's, `@<source>/<channel>` (`epg_fallback_id`). Each import replaces, channel by channel, what
  * it brings: a channel missing from a file keeps its programmes until they are over.
  */
@@ -950,7 +990,8 @@ export type ProviderAccount = typeof xtreamAccounts.$inferSelect;
 export type Stream = typeof xtreamStreams.$inferSelect;
 export type Episode = typeof catalogEpisodes.$inferSelect;
 export type Device = typeof appDevices.$inferSelect;
-export type Content = typeof catalogContents.$inferSelect;
+export type Title = typeof catalogTitles.$inferSelect;
+export type Channel = typeof catalogChannels.$inferSelect;
 export type Category = typeof xtreamCategories.$inferSelect;
 export type ProfileFilter = typeof appProfileFilters.$inferSelect;
 export type ProfileVersion = typeof appProfileVersions.$inferSelect;

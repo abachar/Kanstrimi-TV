@@ -12,8 +12,8 @@ import { client, db, schema } from "./client";
  *
  * In SQL the columns bear their table's names, but for the three a stream and its variant both have
  * (`name_adult`, `name_theme`, `name_country` are the stream's) and the two derived ones
- * (`variant_adult`, `variant_theme`): names no other table has, since Drizzle writes a computed field
- * without its table.
+ * (`variant_adult`, `variant_theme`) and `content_id` (its title or its channel, whichever it has):
+ * names no other table has, since Drizzle writes a computed field without its table.
  */
 const v = schema.catalogVariants;
 const s = schema.xtreamStreams;
@@ -57,7 +57,10 @@ const variantQuery = db
     aiYear: v.aiYear,
     aiAskedAt: v.aiAskedAt,
     contentKey: v.contentKey,
-    contentId: v.contentId,
+    /** The title or the channel it belongs to, whichever it is: their ids come from one sequence. The expression of `catalog_variants_content_idx`. */
+    contentId: sql<number | null>`coalesce(${v.titleId}, ${v.channelId})`.as("content_id"),
+    titleId: v.titleId,
+    channelId: v.channelId,
     keyOverride: v.keyOverride,
     iptvAdult: v.iptvAdult,
     iptvTheme: v.iptvTheme,
@@ -68,7 +71,6 @@ const variantQuery = db
     epgMismatch: v.epgMismatch,
     country: v.country,
     channelName: v.channelName,
-    channelId: v.channelId,
   })
   .from(v)
   .innerJoin(s, eq(s.id, v.id));

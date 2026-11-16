@@ -1,7 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, schema, variants as vr, type Kind } from "@/db";
-import { compileQuery, createProfile, defaultProfile, deleteProfile, filterLanguages, listProfiles, setDefaultProfile } from "@/catalog";
+import {
+  compileQuery,
+  contentSource,
+  createProfile,
+  defaultProfile,
+  deleteProfile,
+  filterLanguages,
+  listProfiles,
+  setDefaultProfile,
+} from "@/catalog";
 import { PROFILE, resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
 import { runGrouping, runNaming } from "../../grouping/group";
 import { filtersPending, listFilters, previewFilter, saveFilter } from "../filters";
@@ -30,7 +39,7 @@ afterAll(closeDb);
 
 /** The titles of the visible contents of `kind`. */
 const visible = async (kind: Kind) =>
-  (await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.kind, kind)))
+  (await db.select(contentSource(kind).fields).from(contentSource(kind).table).where(contentSource(kind).ofKind))
     .filter((c) => c.visible)
     .map((c) => c.title)
     .sort();
@@ -130,12 +139,17 @@ describe("filters", () => {
 
 /** The titles of `kind` a profile sees. */
 const seenBy = async (profileId: number, kind: Kind) =>
-  (
-    await db
-      .select({ title: schema.catalogContents.title })
-      .from(schema.catalogContents)
-      .innerJoin(schema.catalogContentProfiles, eq(schema.catalogContentProfiles.contentId, schema.catalogContents.id))
-      .where(and(eq(schema.catalogContentProfiles.profileId, profileId), eq(schema.catalogContents.kind, kind)))
+  (kind === "live"
+    ? await db
+        .select({ title: schema.catalogChannels.name })
+        .from(schema.catalogChannels)
+        .innerJoin(schema.appProfileChannels, eq(schema.appProfileChannels.channelId, schema.catalogChannels.id))
+        .where(eq(schema.appProfileChannels.profileId, profileId))
+    : await db
+        .select({ title: schema.catalogTitles.title })
+        .from(schema.catalogTitles)
+        .innerJoin(schema.appProfileTitles, eq(schema.appProfileTitles.titleId, schema.catalogTitles.id))
+        .where(and(eq(schema.appProfileTitles.profileId, profileId), eq(schema.catalogTitles.kind, kind)))
   )
     .map((r) => r.title)
     .sort();
@@ -184,7 +198,8 @@ describe("profiles", () => {
     expect(await setDefaultProfile(PROFILE)).toBe(true);
     expect(await deleteProfile(teen.id)).toBe("deleted");
     expect(await deleteProfile(teen.id)).toBe("unknown");
-    expect(await db.select().from(schema.catalogContentProfiles).where(eq(schema.catalogContentProfiles.profileId, teen.id))).toEqual([]);
+    expect(await db.select().from(schema.appProfileTitles).where(eq(schema.appProfileTitles.profileId, teen.id))).toEqual([]);
+    expect(await db.select().from(schema.appProfileChannels).where(eq(schema.appProfileChannels.profileId, teen.id))).toEqual([]);
     expect(await db.select().from(schema.catalogVariantProfiles).where(eq(schema.catalogVariantProfiles.profileId, teen.id))).toEqual([]);
     // The verdicts of a gone profile leave the union at the next step.
     await filter("vod", "");

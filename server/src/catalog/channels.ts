@@ -1,5 +1,5 @@
-import { and, asc, eq, type SQL } from "drizzle-orm";
-import { db, schema, variants as vr, client as pg, inDisabledAccount, visibleItem, type ReferenceChannel } from "@/db";
+import { and, asc, eq, sql, type SQL } from "drizzle-orm";
+import { db, schema, variants as vr, client as pg, inDisabledAccount, visibleItem, type Channel, type ReferenceChannel } from "@/db";
 import { checkCancelled, similarity, similarityKey, stripAccents } from "@/shared";
 import { syncIptv } from "@/providers/iptv";
 import { type ChannelSuggestion, suggestChannels } from "@/providers/claude";
@@ -254,13 +254,33 @@ export async function loadIndex(): Promise<Index> {
       add(idx.byName, k, r.id);
     }
   }
-  for (const r of await db.select().from(schema.curationChannels)) {
+  for (const row of await db.select().from(schema.catalogChannels).where(isOurs)) {
+    const r = referenceOf(row);
     const own = { ...r, keys: [...new Set([r.name, ...r.aliases].flatMap(nameKeys))] };
     idx.own.set(r.id, own);
     for (const k of own.keys) add(idx.ownByKey, `${r.market}|${k}`, r.id);
     if (r.iptvId) idx.ownByIptv.set(`${r.market}|${r.iptvId.toLowerCase()}`, own);
   }
   return idx;
+}
+
+/** A channel is ours once the admin gave it a name of the providers' or set one of its fields by hand. */
+export const isOurs = sql`(cardinality(${schema.catalogChannels.aliases}) > 0 or cardinality(${schema.catalogChannels.edited}) > 0)`;
+
+/**
+ * A channel of ours as the matching and the admin read it: what was said of it by hand, null where
+ * iptv-org or the usual rule decides.
+ */
+export function referenceOf(r: Channel): ReferenceChannel {
+  return {
+    id: r.id,
+    name: r.name,
+    market: r.market ?? "",
+    country: r.edited.includes("country") ? (r.country ?? "") : null,
+    theme: r.edited.includes("theme") ? r.theme : null,
+    aliases: r.aliases,
+    iptvId: r.iptvId,
+  };
 }
 
 /** The channel of ours a name designates in its market: one of its names or aliases, and no other channel's. */
@@ -381,7 +401,6 @@ type LiveRow = {
 type Resolved = {
   id: number;
   iptv: string | null;
-  channelId: number | null;
   /** The reference name: ours, else iptv-org's. Null = not recognised. */
   channelName: string | null;
   how: string | null;
@@ -450,7 +469,6 @@ function resolve(idx: Index, it: LiveRow): Resolved {
   return {
     id: it.id,
     iptv,
-    channelId: own?.id ?? null,
     channelName: own?.name ?? ch?.name ?? null,
     how,
     theme: nullIfSame(theme, it.nameTheme),
@@ -505,17 +523,17 @@ async function write(rows: Resolved[]): Promise<number[]> {
     const part = rows.slice(i, i + CHUNK);
     const written = await pg<{ id: number }[]>`
       update catalog_variants i set iptv_id = u.iptv, iptv_match = u.how, iptv_theme = u.theme, iptv_adult = u.adult, epg_mismatch = u.mismatch,
-        country = u.country, channel_name = u.channel_name, channel_id = u.channel_id
+        country = u.country, channel_name = u.channel_name
       from (
-        select id, iptv, how, theme, adult::boolean as adult, mismatch::boolean as mismatch, country, channel_name, channel_id
+        select id, iptv, how, theme, adult::boolean as adult, mismatch::boolean as mismatch, country, channel_name
         from unnest(${part.map((r) => r.id)}::int[], ${part.map((r) => r.iptv)}::text[], ${part.map((r) => r.how)}::text[],
                     ${part.map((r) => r.theme)}::text[], ${part.map((r) => String(r.adult))}::text[], ${part.map((r) => String(r.epgMismatch))}::text[],
-                    ${part.map((r) => r.country)}::text[], ${part.map((r) => r.channelName)}::text[], ${part.map((r) => r.channelId)}::int[])
-          as x(id, iptv, how, theme, adult, mismatch, country, channel_name, channel_id)
+                    ${part.map((r) => r.country)}::text[], ${part.map((r) => r.channelName)}::text[])
+          as x(id, iptv, how, theme, adult, mismatch, country, channel_name)
       ) u
       where i.id = u.id
-        and (i.iptv_id, i.iptv_match, i.iptv_theme, i.iptv_adult, i.epg_mismatch, i.country, i.channel_name, i.channel_id)
-            is distinct from (u.iptv, u.how, u.theme, u.adult, u.mismatch, u.country, u.channel_name, u.channel_id)
+        and (i.iptv_id, i.iptv_match, i.iptv_theme, i.iptv_adult, i.epg_mismatch, i.country, i.channel_name)
+            is distinct from (u.iptv, u.how, u.theme, u.adult, u.mismatch, u.country, u.channel_name)
       returning i.id`;
     changed.push(...written.map((r) => r.id));
   }

@@ -19,11 +19,10 @@ export type StudioSuggestion = {
 };
 
 /** The column a studio filters on. */
-export const studioColumn = (kind: StudioKind) =>
-  kind === "company" ? schema.catalogContents.companyIds : schema.catalogContents.networkIds;
+export const studioColumn = (kind: StudioKind) => (kind === "company" ? schema.catalogTitles.companyIds : schema.catalogTitles.networkIds);
 
 /**
- * `studio` (a row of `catalog_studios`, by its alias) owns `content` (a row of `catalog_contents`, by its
+ * `studio` (a row of `catalog_studios`, by its alias) owns `content` (a row of `catalog_titles`, by its
  * alias, or none). A disjunction rather than a `case`: only that form lets the planner use the GIN indexes.
  */
 export const ofStudio = (studio: string, content = "") => {
@@ -40,7 +39,7 @@ export async function listStudios(): Promise<StudioRow[]> {
     from ${schema.catalogStudios} s
     left join (select kind, "tmdbId", min(country) as country from (${cachedStudios(await tmdbLanguage())}) x group by 1, 2) k
       on k.kind = s.kind and k."tmdbId" = s.tmdb_id
-    left join ${schema.catalogContents} c on c.visible and ${ofStudio("s", "c")}
+    left join ${schema.catalogTitles} c on c.visible and ${ofStudio("s", "c")}
     group by s.id order by s.position, s.id`);
 }
 
@@ -114,14 +113,14 @@ export async function studioDetail(kind: StudioKind, tmdbId: number): Promise<St
     .from(schema.catalogStudios)
     .where(and(eq(schema.catalogStudios.kind, kind), eq(schema.catalogStudios.tmdbId, tmdbId)));
   const titles = await db.execute<StudioTitle>(sql`
-    select ${schema.catalogContents.id}, ${schema.catalogContents.kind}, ${schema.catalogContents.title}, ${schema.catalogContents.year},
-      ${schema.catalogContents.posterPath} as "posterPath",
+    select ${schema.catalogTitles.id}, ${schema.catalogTitles.kind}, ${schema.catalogTitles.title}, ${schema.catalogTitles.year},
+      ${schema.catalogTitles.posterPath} as "posterPath",
       (select ${variants.id} from ${variants}
-        where ${variants.contentId} = ${schema.catalogContents.id}
+        where ${variants.contentId} = ${schema.catalogTitles.id}
         order by (${visibleItem}) desc, ${variants.qualityRank} desc nulls last, ${variants.id} limit 1) as "itemId"
-    from ${schema.catalogContents}
-    where ${schema.catalogContents.visible} and ${studioColumn(kind)} @> array[${tmdbId}]::int[]
-    order by ${schema.catalogContents.year} desc nulls last, ${schema.catalogContents.title}`);
+    from ${schema.catalogTitles}
+    where ${schema.catalogTitles.visible} and ${studioColumn(kind)} @> array[${tmdbId}]::int[]
+    order by ${schema.catalogTitles.year} desc nulls last, ${schema.catalogTitles.title}`);
   return { kind, tmdbId, name: found.name, logoPath: found.logoPath, country: found.country, chosenId: chosen?.id ?? null, titles };
 }
 
@@ -159,13 +158,13 @@ const cachedStudios = (lang: string, only?: { kind: StudioKind; tmdbId: number }
   return sql`
   select 'company' as kind, (x->>'id')::int as "tmdbId", x->>'name' as name, x->>'logo_path' as "logoPath",
     nullif(x->>'origin_country', '') as country
-  from ${schema.catalogContents} c
+  from ${schema.catalogTitles} c
   join ${schema.cacheTmdb} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = ${sqlTmdbMediaType(sql`c.kind`)}
   cross join jsonb_array_elements(coalesce(t.data->'production_companies', '[]'::jsonb)) x
   where c.visible ${narrow("company", "c.company_ids")}
   union all
   select 'network', (x->>'id')::int, x->>'name', x->>'logo_path', nullif(x->>'origin_country', '')
-  from ${schema.catalogContents} c
+  from ${schema.catalogTitles} c
   join ${schema.cacheTmdb} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = 'tv'
   cross join jsonb_array_elements(coalesce(t.data->'networks', '[]'::jsonb)) x
   where c.visible and c.kind = 'series' ${narrow("network", "c.network_ids")}`;

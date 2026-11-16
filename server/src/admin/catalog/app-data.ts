@@ -1,5 +1,6 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { db, schema, type Content } from "@/db";
+import { and, desc, sql, type SQL } from "drizzle-orm";
+import type { Content } from "@/db";
+import { contentsByKey, contentSource } from "@/catalog";
 import type { Exec } from "./search";
 import { catalogRows, listContents, listSagaWires, sagaSheet, studiosOf, type RestContext, type SagaWire, type StudioWire } from "@/player";
 
@@ -31,8 +32,7 @@ export async function shelvesOf(ctx: RestContext, kind: "vod" | "series"): Promi
 
 /** The contents behind cards, in the cards' order. */
 async function contentsOf(keys: string[]): Promise<Content[]> {
-  if (!keys.length) return [];
-  const rows = await db.select().from(schema.catalogContents).where(inArray(schema.catalogContents.key, keys));
+  const rows = await contentsByKey(keys);
   const byKey = new Map(rows.map((c) => [c.key, c]));
   return keys.flatMap((k) => byKey.get(k) ?? []);
 }
@@ -73,16 +73,11 @@ export async function shelfPage(ctx: RestContext, kind: "vod" | "series", shelf:
 
 /** The search of a kind's screen: the contents meeting the query, latest first. */
 export async function searchContents(ex: Exec, kind: "live" | "vod" | "series", where: SQL, offset: number) {
-  const cond = and(eq(schema.catalogContents.kind, kind), where);
+  const src = contentSource(kind);
+  const cond = and(src.ofKind, where);
   const [[{ n }], rows] = await Promise.all([
-    ex.select({ n: sql<number>`count(*)::int` }).from(schema.catalogContents).where(cond),
-    ex
-      .select()
-      .from(schema.catalogContents)
-      .where(cond)
-      .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
-      .limit(PAGE)
-      .offset(offset),
+    ex.select({ n: sql<number>`count(*)::int` }).from(src.table).where(cond),
+    ex.select(src.fields).from(src.table).where(cond).orderBy(desc(src.addedAt), desc(src.id)).limit(PAGE).offset(offset),
   ]);
   return { rows, total: n };
 }

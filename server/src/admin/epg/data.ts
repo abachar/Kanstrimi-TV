@@ -25,33 +25,35 @@ export type GridChannel = {
 export type GridQuery = { from: Date; to: Date; q: string; page: number };
 export const CHANNELS_PER_PAGE = 40;
 
-const providerGuided = sql`exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${schema.catalogContents.epgChannelId})`;
+const providerGuided = sql`exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${schema.catalogChannels.epgId})`;
 const guideId = sql<
   string | null
->`case when ${providerGuided} then ${schema.catalogContents.epgChannelId} else ${schema.catalogContents.epgFallbackId} end`;
+>`case when ${providerGuided} then ${schema.catalogChannels.epgId} else ${schema.catalogChannels.epgFallbackId} end`;
 const withGuide = sql`exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${guideId})`;
 
 /** One page of the grid: the channels with a guide that meet `match` (the compiled `q`), with their programmes. */
 export async function epgGrid(ex: Exec, g: GridQuery, match: SQL | null): Promise<{ channels: GridChannel[]; total: number }> {
-  const where: SQL[] = [eq(schema.catalogContents.kind, "live"), eq(schema.catalogContents.visible, true), withGuide];
+  const where: SQL[] = [eq(schema.catalogChannels.visible, true), withGuide];
   if (match) where.push(match);
   const cond = and(...where);
   const [rows, [{ n }]] = await Promise.all([
     ex
       .select({
-        contentId: schema.catalogContents.id,
-        title: schema.catalogContents.title,
-        logo: schema.catalogContents.logoUrl,
-        market: schema.catalogContents.market,
-        themes: schema.catalogContents.themes,
+        contentId: schema.catalogChannels.id,
+        title: schema.catalogChannels.name,
+        logo: schema.catalogChannels.logoUrl,
+        market: schema.catalogChannels.market,
+        themes: sql<
+          string[]
+        >`case when ${schema.catalogChannels.theme} is null then '{}'::text[] else array[${schema.catalogChannels.theme}] end`,
         epgId: guideId,
       })
-      .from(schema.catalogContents)
+      .from(schema.catalogChannels)
       .where(cond)
-      .orderBy(asc(schema.catalogContents.market), asc(schema.catalogContents.title))
+      .orderBy(asc(schema.catalogChannels.market), asc(schema.catalogChannels.name))
       .limit(CHANNELS_PER_PAGE)
       .offset((g.page - 1) * CHANNELS_PER_PAGE),
-    ex.select({ n: sql<number>`count(*)::int` }).from(schema.catalogContents).where(cond),
+    ex.select({ n: sql<number>`count(*)::int` }).from(schema.catalogChannels).where(cond),
   ]);
   const ids = [...new Set(rows.map((r) => r.epgId!))];
   const progs = ids.length ? await programmesOf(ids, g.from, g.to) : [];
@@ -99,14 +101,13 @@ export async function programmesOf(channelIds: string[], from: Date, to: Date) {
 /** One guide id: the channels showing it (name, logo), for the correction panel. */
 export async function channelsOfGuide(epgId: string) {
   return db
-    .select({ title: schema.catalogContents.title, logo: schema.catalogContents.logoUrl, market: schema.catalogContents.market })
-    .from(schema.catalogContents)
+    .select({ title: schema.catalogChannels.name, logo: schema.catalogChannels.logoUrl, market: schema.catalogChannels.market })
+    .from(schema.catalogChannels)
     .where(
       and(
-        eq(schema.catalogContents.kind, "live"),
-        eq(schema.catalogContents.visible, true),
-        or(eq(schema.catalogContents.epgChannelId, epgId), eq(schema.catalogContents.epgFallbackId, epgId)),
+        eq(schema.catalogChannels.visible, true),
+        or(eq(schema.catalogChannels.epgId, epgId), eq(schema.catalogChannels.epgFallbackId, epgId)),
       ),
     )
-    .orderBy(asc(schema.catalogContents.title));
+    .orderBy(asc(schema.catalogChannels.name));
 }

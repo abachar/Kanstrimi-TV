@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, titleContent } from "@/db";
 import { PROFILE, resetDb, closeDb, seedItems, groupAndFilter, testAccounts, testLanguageOrder, testProfile } from "@/test/db";
 import { runNaming } from "@/catalog";
 import { home } from "../home";
@@ -33,11 +33,11 @@ beforeAll(async () => {
   await runNaming();
   await groupAndFilter();
   // A series in progress that received something since: the carousel looks for its next episode.
-  const [content] = await db.select().from(schema.catalogContents);
+  const [content] = await db.select(titleContent).from(schema.catalogTitles);
   await db
-    .update(schema.catalogContents)
+    .update(schema.catalogTitles)
     .set({ backdropPath: "/b.jpg", titleLogoPath: "/l.png" })
-    .where(eq(schema.catalogContents.id, content.id));
+    .where(eq(schema.catalogTitles.id, content.id));
   await db.insert(schema.appWatchProgress).values({
     profileId: PROFILE,
     contentKey: `${content.key}:s01e01`,

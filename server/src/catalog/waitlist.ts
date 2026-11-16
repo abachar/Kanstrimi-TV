@@ -61,7 +61,7 @@ export async function listWaitlist(): Promise<WaitlistRow[]> {
 
 /** A content the profile sees carries `key`. */
 const seenBy = (profileId: SQL | number, key: SQL | string) => sql`exists (
-  select 1 from ${schema.catalogContents} c join ${schema.catalogContentProfiles} cp on cp.content_id = c.id
+  select 1 from ${schema.catalogTitles} c join ${schema.appProfileTitles} cp on cp.title_id = c.id
   where c.key = ${key} and cp.profile_id = ${profileId})`;
 
 /** The cached TMDB documents of these movies, in the cards' language, read as a sheet. No network. */
@@ -100,10 +100,10 @@ export async function searchWaitlistCandidates(profileId: number, query: string,
   const keys = hits.map((h) => tmdbKey("vod", h.id));
   const [visible, waiting] = await Promise.all([
     db
-      .select({ key: schema.catalogContents.key })
-      .from(schema.catalogContents)
-      .innerJoin(schema.catalogContentProfiles, eq(schema.catalogContentProfiles.contentId, schema.catalogContents.id))
-      .where(and(inArray(schema.catalogContents.key, keys), eq(schema.catalogContentProfiles.profileId, profileId))),
+      .select({ key: schema.catalogTitles.key })
+      .from(schema.catalogTitles)
+      .innerJoin(schema.appProfileTitles, eq(schema.appProfileTitles.titleId, schema.catalogTitles.id))
+      .where(and(inArray(schema.catalogTitles.key, keys), eq(schema.appProfileTitles.profileId, profileId))),
     db
       .select({ key: schema.appWaitlist.contentKey })
       .from(schema.appWaitlist)

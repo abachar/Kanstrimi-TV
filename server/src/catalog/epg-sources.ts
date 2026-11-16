@@ -147,16 +147,16 @@ export async function resolveEpgLinks(): Promise<EpgResolution> {
   const [sources, contents, channels, manual] = await Promise.all([
     listEpgSources(),
     db.execute<{ id: number; key: string; title: string; epg: string | null; guided: boolean }>(sql`
-      select cc.id, cc.key, cc.title, cc.epg_channel_id as epg,
+      select cc.id, cc.key, cc.name as title, cc.epg_id as epg,
         exists (
           select 1 from ${v}
-          where ${v.contentId} = cc.id and ${visibleItem} and (
+          where ${v.channelId} = cc.id and ${visibleItem} and (
             exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = nullif(${v.raw}->>'epg_channel_id', ''))
             or (${v.epgMismatch} and exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${v.iptvId})))
         ) as guided
-      from ${schema.catalogContents} cc
-      where cc.kind = 'live' and cc.visible
-      order by cc.title, cc.id`),
+      from ${schema.catalogChannels} cc
+      where cc.visible
+      order by cc.name, cc.id`),
     db.select().from(schema.cacheEpgSourceChannels),
     db.select().from(schema.curationEpgLinks),
   ]);
@@ -207,11 +207,10 @@ export async function resolveEpgLinks(): Promise<EpgResolution> {
 async function writeFallbacks(fallback: Map<number, string>): Promise<number> {
   const rows = JSON.stringify([...fallback].map(([id, f]) => ({ id, f })));
   await db.execute(sql`
-    update ${schema.catalogContents} c set epg_fallback_id = u.f
+    update ${schema.catalogChannels} c set epg_fallback_id = u.f
     from (
-      select c2.id, r.f from ${schema.catalogContents} c2
+      select c2.id, r.f from ${schema.catalogChannels} c2
       left join jsonb_to_recordset(${rows}::jsonb) as r(id int, f text) on r.id = c2.id
-      where c2.kind = 'live'
     ) u
     where c.id = u.id and c.epg_fallback_id is distinct from u.f`);
   return fallback.size;

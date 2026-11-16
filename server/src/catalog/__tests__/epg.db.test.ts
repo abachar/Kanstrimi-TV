@@ -191,9 +191,9 @@ describe("EPG fallback sources", () => {
     Object.fromEntries(
       (
         await db
-          .select({ title: schema.catalogContents.title, f: schema.catalogContents.epgFallbackId })
-          .from(schema.catalogContents)
-          .where(sql`${schema.catalogContents.epgFallbackId} is not null`)
+          .select({ title: schema.catalogChannels.name, f: schema.catalogChannels.epgFallbackId })
+          .from(schema.catalogChannels)
+          .where(sql`${schema.catalogChannels.epgFallbackId} is not null`)
       ).map((r) => [r.title, r.f]),
     );
   const sourceRows = async () => (await rows()).filter((r) => r.startsWith("@"));

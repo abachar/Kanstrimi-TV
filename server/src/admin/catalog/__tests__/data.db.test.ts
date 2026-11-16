@@ -50,7 +50,7 @@ describe("admin catalogue", () => {
 
   it("the manual switch writes hidden_manual, and the content follows", async () => {
     const heat = (await searchContents(db, "vod", compileQuery("heat", { kind: "vod", lang: "fr-FR" })!, 0)).rows[0];
-    const [variant] = await db.query.catalogVariants.findMany({ where: (v, { eq }) => eq(v.contentId, heat.id) });
+    const [variant] = await db.query.catalogVariants.findMany({ where: (v, { eq }) => eq(v.titleId, heat.id) });
     await setItemHiddenManual(variant.id, true);
     await settled();
     expect(await found("visible:oui")).toBe(2);

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import fs from "node:fs";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { db, schema, variants as vr } from "@/db";
+import { db, schema, variants as vr, channelContent } from "@/db";
 import { env } from "@/shared";
 import { resetDb, closeDb, seedItems, groupAndFilter } from "@/test/db";
 import { pickLogo, syncIptv } from "@/providers/iptv";
@@ -157,10 +157,10 @@ describe("runChannels", () => {
 
   it("gives the content iptv-org's logo through this server, the provider's otherwise", async () => {
     await groupAndFilter();
-    const [tf1] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.iptvId, "TF1.fr"));
+    const [tf1] = await db.select(channelContent).from(schema.catalogChannels).where(eq(schema.catalogChannels.iptvId, "TF1.fr"));
     expect(tf1.logoUrl).toMatch(/^\/img\/logos\/TF1\.fr-[0-9a-f]{10}\.png$/);
     // A contradicted EPG id gives way to the iptv-org id for the guide.
-    const [ertu] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.iptvId, "ERTU1.eg"));
+    const [ertu] = await db.select(channelContent).from(schema.catalogChannels).where(eq(schema.catalogChannels.iptvId, "ERTU1.eg"));
     expect(ertu.epgChannelId).toBe("ERTU1.eg");
     expect(ertu.country).toBe("EG"); // the app's « Égypte · … »
     // …unless the provider files programmes under its own id: then its guide stays.
@@ -172,7 +172,7 @@ describe("runChannels", () => {
       importedAt: new Date(),
     });
     await groupAndFilter();
-    const [again] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.id, ertu.id));
+    const [again] = await db.select(channelContent).from(schema.catalogChannels).where(eq(schema.catalogChannels.id, ertu.id));
     expect(again.epgChannelId).toBe("DubaiAlOula.ae");
   });
 

@@ -12,13 +12,14 @@ import {
   groupAndFilter,
   knowChannels,
   ofStreams,
+  contentOfKey,
 } from "@/test/db";
 import { setSecretsForTests } from "@/config";
-import { itemById, launch, profileById } from "@/catalog";
+import { isOurs, itemById, launch, profileById } from "@/catalog";
 import { runAll, runNaming } from "@/catalog";
 import { startRun } from "@/catalog/journal";
 import { withCatalogLock } from "@/catalog/lock";
-import { db, schema, variants as vr } from "@/db";
+import { db, schema, variants as vr, titleContent } from "@/db";
 import { eq } from "drizzle-orm";
 import { getSettings } from "@/config";
 import { setFavorite, setProgress, listProgress } from "@/player";
@@ -306,7 +307,7 @@ describe("admin", () => {
     const contentOf = async () => {
       await withCatalogLock(async () => {}); // the background refresh queued before this one is done
       const it = await itemById(matrixId);
-      const [c] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.id, it!.contentId!));
+      const [c] = await db.select(titleContent).from(schema.catalogTitles).where(eq(schema.catalogTitles.id, it!.contentId!));
       return c;
     };
     expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
@@ -541,7 +542,7 @@ describe("admin", () => {
     const [src] = await db.select().from(schema.settingsEpgSources);
     const base = `/admin/epg/sources/${src.id}`;
     await db.insert(schema.cacheEpgSourceChannels).values({ sourceId: src.id, channelId: "TF1.qa", names: ["TF1 Qatar"], programmes: 3 });
-    const [tf1] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "live:fr-tf1"));
+    const tf1 = await contentOfKey("live:fr-tf1");
     expect(tf1).toBeDefined();
     try {
       const page = await html(base);
@@ -558,7 +559,7 @@ describe("admin", () => {
       await link({ action: "link", channel: "TF1.qa" });
       expect(await html(`${base}?show=linked`)).toContain("manuel");
       const guide = `@${src.id}/TF1.qa`;
-      expect((await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.id, tf1.id)))[0].epgFallbackId).toBe(guide);
+      expect((await contentOfKey("live:fr-tf1")).epgFallbackId).toBe(guide);
       await seedProgrammes([{ channelId: guide, start: -5, end: 30, title: "Journal du Golfe" }]);
       const grid = await html("/admin/epg");
       expect(grid).toContain("Journal du Golfe");
@@ -768,7 +769,7 @@ describe("admin", () => {
 
     const created = { name: "Zed", market: "fr", theme: "Cinéma", aliases: "ZED TV", back: names };
     expect(flash(await post("/admin/channels", created))).toBe(`${names}&ok=Zed enregistrée`);
-    const [zed] = await db.select().from(schema.curationChannels);
+    const [zed] = await db.select().from(schema.catalogChannels).where(isOurs);
     expect(await variant("|FR| ZED TV HD")).toMatchObject({
       channelName: "Zed",
       channelId: zed.id,
@@ -806,7 +807,7 @@ describe("admin", () => {
 
     expect(flash(await post(`/admin/channels/${zed.id}/delete`, { item: String(hd.id) }))).toContain("ok=Précisions retirées");
     const back = await variant("|FR| ZED TV HD");
-    expect(back).toMatchObject({ channelName: null, channelId: null, theme: "Non reconnus" });
+    expect(back).toMatchObject({ channelName: null, theme: "Non reconnus" });
     // Not a channel any more: its page offers to attach its name.
     expect(await html(`/admin/content/${back.contentId}`)).toContain('hx-trigger="load"');
     expect((await post(`/admin/channels/${zed.id}/delete`, {})).status).toBe(404);

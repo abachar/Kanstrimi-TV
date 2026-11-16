@@ -109,7 +109,7 @@ beforeAll(async () => {
   });
   const content = (key: string, kind: "vod" | "series", tmdbId: number | null, visible = true) =>
     db
-      .insert(schema.catalogContents)
+      .insert(schema.catalogTitles)
       .values({ key, kind, tmdbId, title: key, visible, addedAt: daysAgo(5) })
       .returning();
   await content("tmdb:movie:19995", "vod", 19995);
@@ -117,7 +117,7 @@ beforeAll(async () => {
   await content("fallback:movie:silver-book-2026", "vod", null);
   await content("tmdb:movie:4", "vod", 4, false);
   const [series] = await content("tmdb:tv:88516", "series", 88516);
-  await db.insert(schema.catalogEpisodes).values({ contentId: series.id, key: "tmdb:tv:88516:s02e02", season: 2, number: 2 });
+  await db.insert(schema.catalogEpisodes).values({ titleId: series.id, key: "tmdb:tv:88516:s02e02", season: 2, number: 2 });
   await profileSeesVisible();
 });
 beforeEach(async () => {

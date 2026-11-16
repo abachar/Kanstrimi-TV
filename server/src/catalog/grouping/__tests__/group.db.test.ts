@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema, variants as vr } from "@/db";
-import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter, ofStreams } from "@/test/db";
+import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter, ofStreams, contentOfKey } from "@/test/db";
 import { runNaming, regroupItems, refreshVisibility, groupingCounts } from "../group";
 import { inArray } from "drizzle-orm";
 
-const content = async (key: string) => (await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, key)))[0];
+const content = async (key: string) => await contentOfKey(key);
 const variants = (contentId: number) => db.select().from(vr).where(eq(vr.contentId, contentId)).orderBy(vr.id);
 
 afterAll(closeDb);
@@ -152,8 +152,11 @@ describe("runGrouping", () => {
       select key, title, original_title, title_en, tmdb_adult, year, end_year, poster_path, backdrop_path, title_logo_path,
         overview, rating, vote_count, genre_ids, genres, runtime, certification, "cast", director, trailer_key, status,
         search::text as search, release_date, saga_id, saga_name, saga_poster_path, saga_backdrop_path, company_ids, network_ids, cards_lang
-      from catalog_contents order by key`);
+      from catalog_titles order by key`);
     expect(cards).toMatchSnapshot();
+    // A channel has no card: its name, indexed for the search.
+    const channels = await db.execute(sql`select key, name, search::text as search from catalog_channels order by key`);
+    expect(channels).toMatchSnapshot();
   });
 
   it("keeps unmatched variants in a fallback content, invisible when its variants are hidden", async () => {
@@ -193,10 +196,9 @@ describe("runGrouping", () => {
   it("indexes the title, the original title, the cast and the director without accents", async () => {
     const hit = async (q: string) =>
       (
-        await db
-          .select({ key: schema.catalogContents.key })
-          .from(schema.catalogContents)
-          .where(sql`search @@ plainto_tsquery('simple', ${q})`)
+        await db.execute<{ key: string }>(sql`
+          select key from (select key, search from catalog_titles union all select key, search from catalog_channels) c
+          where search @@ plainto_tsquery('simple', ${q})`)
       ).map((r) => r.key);
     expect(await hit("tobey maguire")).toEqual(["tmdb:movie:557"]);
     expect(await hit("homme araignee")).toEqual(["tmdb:movie:557"]);
@@ -208,15 +210,15 @@ describe("runGrouping", () => {
 
   it("is idempotent", async () => {
     const before = await db
-      .select({ id: schema.catalogContents.id, key: schema.catalogContents.key })
-      .from(schema.catalogContents)
-      .orderBy(schema.catalogContents.id);
+      .select({ id: schema.catalogTitles.id, key: schema.catalogTitles.key })
+      .from(schema.catalogTitles)
+      .orderBy(schema.catalogTitles.id);
     await runNaming();
     await groupAndFilter();
     const after = await db
-      .select({ id: schema.catalogContents.id, key: schema.catalogContents.key })
-      .from(schema.catalogContents)
-      .orderBy(schema.catalogContents.id);
+      .select({ id: schema.catalogTitles.id, key: schema.catalogTitles.key })
+      .from(schema.catalogTitles)
+      .orderBy(schema.catalogTitles.id);
     expect(after).toEqual(before);
   });
 
@@ -224,7 +226,7 @@ describe("runGrouping", () => {
     const stamp = async () =>
       (
         await db.execute<{ updated_at: string; cards_at: string }>(
-          sql`select updated_at::text, cards_at::text from catalog_contents where key = 'tmdb:movie:557'`,
+          sql`select updated_at::text, cards_at::text from catalog_titles where key = 'tmdb:movie:557'`,
         )
       )[0];
     const before = await stamp();
@@ -374,7 +376,7 @@ describe("rules on versions", () => {
     expect(dune).toMatchObject({ visible: true, variantCount: 1, languages: ["VF"] });
     expect((await content("tmdb:movie:1001")).visible).toBe(false); // Italian only
     expect((await content("tmdb:movie:1002")).visible).toBe(false); // VOSTFR only
-    const [rai] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.kind, "live"));
+    const [rai] = await db.select().from(schema.catalogChannels);
     expect(rai.visible).toBe(true); // a film filter
   });
 

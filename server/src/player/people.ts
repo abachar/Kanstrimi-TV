@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { and, desc, inArray, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, titleContent } from "@/db";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
-import { byRelease, visibleContent } from "./contents";
+import { byRelease, visibleTitle } from "./contents";
 import { getProgress } from "./progress";
 import { contentItem, imageUrl } from "./cards";
 import type { PersonSheet } from "./types";
@@ -25,16 +25,16 @@ export async function personSheet(ctx: RestContext, key: string): Promise<Person
   const id = parsePersonKey(key);
   if (id === null) return null;
   const rows = await db
-    .select()
-    .from(schema.catalogContents)
+    .select(titleContent)
+    .from(schema.catalogTitles)
     .where(
       and(
-        visibleContent(ctx),
-        inArray(schema.catalogContents.kind, ["vod", "series"]),
-        sql`${schema.catalogContents.cast} @> ${JSON.stringify([{ id }])}::jsonb`,
+        visibleTitle(ctx),
+        inArray(schema.catalogTitles.kind, ["vod", "series"]),
+        sql`${schema.catalogTitles.cast} @> ${JSON.stringify([{ id }])}::jsonb`,
       ),
     )
-    .orderBy(desc(byRelease), desc(schema.catalogContents.id));
+    .orderBy(desc(byRelease), desc(schema.catalogTitles.id));
   if (rows.length === 0) return null;
   const me = rows[0].cast?.find((p) => p.id === id);
   const progress = await getProgress(

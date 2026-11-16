@@ -436,7 +436,7 @@ async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_ot
  * keeps the old entry (tried again next run). Returns how many landed.
  */
 async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>, checkCancelled: () => void): Promise<number> {
-  const users = sql`from ${schema.catalogContents} c where c.tmdb_id = ${schema.cacheTmdb.tmdbId}
+  const users = sql`from ${schema.catalogTitles} c where c.tmdb_id = ${schema.cacheTmdb.tmdbId}
     and ${sqlTmdbMediaType(sql`c.kind`)} = ${schema.cacheTmdb.mediaType}`;
   const pick = (cond: SQL, max: number, order: SQL[]) =>
     db

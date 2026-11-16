@@ -35,10 +35,10 @@ function stubTmdb(gate?: Promise<void>, status = 200) {
   });
 }
 
-async function content(key: string, title: string, extra: Partial<typeof schema.catalogContents.$inferInsert> = {}) {
+async function content(key: string, title: string, extra: Partial<typeof schema.catalogTitles.$inferInsert> = {}) {
   const [kind, id] = key.startsWith("tmdb:tv:") ? (["series", key.slice(8)] as const) : (["vod", key.slice(11)] as const);
   const [row] = await db
-    .insert(schema.catalogContents)
+    .insert(schema.catalogTitles)
     .values({ key, kind, tmdbId: Number(id), title, visible: true, addedAt: daysAgo(5), ...extra })
     .returning();
   return row;
@@ -59,8 +59,8 @@ beforeAll(async () => {
   await content("tmdb:tv:1399", "Game of Thrones");
   await content("tmdb:tv:66732", "Stranger Things");
   await db.insert(schema.catalogEpisodes).values([
-    { contentId: lost.id, key: "tmdb:tv:4607:s01e01", season: 1, number: 1 },
-    { contentId: lost.id, key: "tmdb:tv:4607:s06e18", season: 6, number: 18 },
+    { titleId: lost.id, key: "tmdb:tv:4607:s01e01", season: 1, number: 1 },
+    { titleId: lost.id, key: "tmdb:tv:4607:s06e18", season: 6, number: 18 },
   ]);
   await profileSeesVisible();
 });

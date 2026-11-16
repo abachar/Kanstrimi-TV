@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import { ofStudio, parseStudioRef, studioColumn, type StudioKind } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
-import { byRelease, visibleContent } from "./contents";
+import { byRelease, visibleTitle } from "./contents";
 import { imageUrl } from "./cards";
 import type { StudioWire } from "./types";
 
@@ -27,12 +27,12 @@ export async function studiosOf(ctx: RestContext, kind: "vod" | "series"): Promi
     select s.kind, s.tmdb_id, s.name, s.logo_path, n.n, b.backdrop_path
     from ${schema.catalogStudios} s
     cross join lateral (
-      select count(*)::int as n from ${schema.catalogContents}
-      where ${visibleContent(ctx, kind)} and ${ofStudio("s")}
+      select count(*)::int as n from ${schema.catalogTitles}
+      where ${visibleTitle(ctx, kind)} and ${ofStudio("s")}
     ) n
     left join lateral (
-      select backdrop_path from ${schema.catalogContents}
-      where ${visibleContent(ctx, kind)} and ${ofStudio("s")} and backdrop_path is not null
+      select backdrop_path from ${schema.catalogTitles}
+      where ${visibleTitle(ctx, kind)} and ${ofStudio("s")} and backdrop_path is not null
       order by ${byRelease} desc, id desc limit 1
     ) b on true
     where n.n > 0 order by s.position, s.id`);

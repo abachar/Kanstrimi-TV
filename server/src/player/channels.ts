@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import { db, schema, variants, type Content } from "@/db";
+import { channelContent, db, schema, variants, type Content } from "@/db";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { slug } from "@/shared";
 import { LIVE_THEMES, parseKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
-import { categoryNameOf, categoryNames, contentByKey, liveCategories, servedVariant, variantsOf, visibleContent } from "./contents";
+import { categoryNameOf, categoryNames, contentByKey, liveCategories, servedVariant, variantsOf, visibleChannel } from "./contents";
 import { favoriteSet } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys, RECENT_LIMIT, recentKeys } from "./watch-time";
 import { rememberedOf, rememberedWire } from "./remembered";
@@ -190,7 +190,7 @@ const themeRank = (t: string) => {
 
 /**
  * One group per market × theme (« France · Sport »), the themes coming from the provider's own
- * separator lines and thematic categories. A channel with several themes sits in each of them.
+ * separator lines and thematic categories. A channel has one theme, so it sits in one group.
  * A region's channels go under their country (« Maroc · Sport »), the pan-Arab ones stay under
  * « Monde arabe ». Markets with the most channels first; within a market, the known themes in
  * their order, then the provider's own labels alphabetically.
@@ -198,10 +198,10 @@ const themeRank = (t: string) => {
 export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[]> {
   const [channels, items] = await Promise.all([
     db
-      .select()
-      .from(schema.catalogContents)
-      .where(visibleContent(ctx, "live"))
-      .orderBy(asc(schema.catalogContents.channelNumber), asc(schema.catalogContents.title), asc(schema.catalogContents.id)),
+      .select(channelContent)
+      .from(schema.catalogChannels)
+      .where(visibleChannel(ctx))
+      .orderBy(asc(schema.catalogChannels.number), asc(schema.catalogChannels.name), asc(schema.catalogChannels.id)),
     db
       .select()
       .from(variants)

@@ -139,12 +139,12 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
   const [fresh] = await db
     .select({ at: sql<Date | null>`max(${schema.catalogEpisodes.updatedAt})` })
     .from(schema.catalogEpisodes)
-    .where(eq(schema.catalogEpisodes.contentId, content.id));
+    .where(eq(schema.catalogEpisodes.titleId, content.id));
   const [{ n: sources }] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(schema.catalogEpisodeVariants)
     .innerJoin(schema.catalogEpisodes, eq(schema.catalogEpisodes.id, schema.catalogEpisodeVariants.episodeId))
-    .where(eq(schema.catalogEpisodes.contentId, content.id));
+    .where(eq(schema.catalogEpisodes.titleId, content.id));
   // A fresh tree is kept, unless a variant joined the content since and was never asked (no cached answer
   // for it): another provider's copy of the series, playable even while the first one is down.
   const asked = await db
@@ -249,7 +249,7 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
 
   const now = new Date();
   const rows = [...found.values()].map((f) => ({
-    contentId: content.id,
+    titleId: content.id,
     key: episodeKey(content.key, f.season, f.number),
     season: f.season,
     number: f.number,
@@ -267,7 +267,7 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
         .insert(schema.catalogEpisodes)
         .values(rows.slice(i, i + 500))
         .onConflictDoUpdate({
-          target: [schema.catalogEpisodes.contentId, schema.catalogEpisodes.season, schema.catalogEpisodes.number],
+          target: [schema.catalogEpisodes.titleId, schema.catalogEpisodes.season, schema.catalogEpisodes.number],
           set: {
             key: sql`excluded.key`,
             title: sql`excluded.title`,
@@ -308,14 +308,12 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
         .where(and(inArray(schema.catalogEpisodeVariants.episodeId, epIds), lt(schema.catalogEpisodeVariants.seenAt, now)));
     await tx
       .delete(schema.catalogEpisodes)
-      .where(
-        and(eq(schema.catalogEpisodes.contentId, content.id), epIds.length ? notInArray(schema.catalogEpisodes.id, epIds) : sql`true`),
-      );
+      .where(and(eq(schema.catalogEpisodes.titleId, content.id), epIds.length ? notInArray(schema.catalogEpisodes.id, epIds) : sql`true`));
     await tx
       .delete(schema.catalogEpisodes)
       .where(
         and(
-          eq(schema.catalogEpisodes.contentId, content.id),
+          eq(schema.catalogEpisodes.titleId, content.id),
           sql`not exists (select 1 from ${schema.catalogEpisodeVariants} s where s.episode_id = ${schema.catalogEpisodes.id})`,
         ),
       );

@@ -1,20 +1,39 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { type Category, db, schema, variants, type Content, type Variant, visibleCategory, visibleItem } from "@/db";
+import {
+  type Category,
+  channelContent,
+  db,
+  schema,
+  titleContent,
+  variants,
+  type Content,
+  type Variant,
+  visibleCategory,
+  visibleItem,
+} from "@/db";
 import { parseKey } from "@/catalog";
 import type { RestContext } from "./context";
 import { playableOfItem, type Playable } from "./versions";
 
 /**
- * What the profile may see: a content its filter keeps (`catalog_content_profiles`, written with the
- * aggregates), and adult contents only when the setting allows them.
+ * What the profile may see: a title or a channel its filter keeps (`app_profile_titles`,
+ * `app_profile_channels`, written with the aggregates), adult ones only when the setting allows them.
  */
-export const visibleContent = (ctx: RestContext, kind?: "live" | "vod" | "series"): SQL =>
+const t = schema.catalogTitles;
+const ch = schema.catalogChannels;
+export const visibleTitle = (ctx: RestContext, kind?: "vod" | "series"): SQL =>
   and(
-    kind ? eq(schema.catalogContents.kind, kind) : undefined,
+    kind ? eq(t.kind, kind) : undefined,
     // `visible` (seen by one profile at least) is implied by the profile's row; kept for the indexes, which start with it.
-    eq(schema.catalogContents.visible, true),
-    sql`exists (select 1 from ${schema.catalogContentProfiles} cp where cp.content_id = ${schema.catalogContents.id} and cp.profile_id = ${ctx.profile.id})`,
-    ctx.serveAdult ? undefined : eq(schema.catalogContents.adult, false),
+    eq(t.visible, true),
+    sql`exists (select 1 from ${schema.appProfileTitles} cp where cp.title_id = ${t.id} and cp.profile_id = ${ctx.profile.id})`,
+    ctx.serveAdult ? undefined : eq(t.adult, false),
+  )!;
+export const visibleChannel = (ctx: RestContext): SQL =>
+  and(
+    eq(ch.visible, true),
+    sql`exists (select 1 from ${schema.appProfileChannels} cp where cp.channel_id = ${ch.id} and cp.profile_id = ${ctx.profile.id})`,
+    ctx.serveAdult ? undefined : eq(ch.adult, false),
   )!;
 
 /**
@@ -35,33 +54,52 @@ export const NEW_RELEASE_MONTHS = 12;
 export const NO_RELEASE = "0001-01-01";
 
 /**
- * The release date as the lists sort it: the expression of `catalog_contents_release_idx`, literal
+ * The release date as the lists sort it: the expression of `catalog_titles_release_idx`, literal
  * included (a parameter would not match the index).
  */
-export const byRelease: SQL = sql`coalesce(${schema.catalogContents.releaseDate}, ${sql.raw(`'${NO_RELEASE}'`)}::date)`;
+export const byRelease: SQL = sql`coalesce(${schema.catalogTitles.releaseDate}, ${sql.raw(`'${NO_RELEASE}'`)}::date)`;
 
 /**
  * Released within `NEW_RELEASE_MONTHS` of today. Written with the
- * expression of `catalog_contents_release_idx` (undated = year 1, never new): a range of the index, not a scan.
+ * expression of `catalog_titles_release_idx` (undated = year 1, never new): a range of the index, not a scan.
  */
 export const isNewRelease = (): SQL =>
   sql`${byRelease} >= ${new Date().toISOString().slice(0, 10)}::date - make_interval(months => ${NEW_RELEASE_MONTHS})`;
 
+/**
+ * The visible contents under these keys, titles and channels alike, of one kind when it is given. A key
+ * says which table it is in (`live:…` a channel, `tmdb:…` and `fallback:…` a title), but for one
+ * set by hand (`manual:…`, a merge): both are asked then.
+ */
+async function contentsByKeys(ctx: RestContext, keys: string[], kind?: "live" | "vod" | "series"): Promise<Content[]> {
+  const prefix = (k: string) => k.slice(0, k.indexOf(":"));
+  const titleKeys = kind === "live" ? [] : keys.filter((k) => prefix(k) !== "live");
+  const channelKeys = kind === undefined || kind === "live" ? keys.filter((k) => !["tmdb", "fallback"].includes(prefix(k))) : [];
+  const [titles, channels] = await Promise.all([
+    titleKeys.length
+      ? db
+          .select(titleContent)
+          .from(t)
+          .where(and(visibleTitle(ctx, kind === "live" ? undefined : kind), inArray(t.key, titleKeys)))
+      : [],
+    channelKeys.length
+      ? db
+          .select(channelContent)
+          .from(ch)
+          .where(and(visibleChannel(ctx), inArray(ch.key, channelKeys)))
+      : [],
+  ]);
+  return [...titles, ...channels];
+}
+
 export async function contentByKey(ctx: RestContext, key: string): Promise<Content | null> {
-  const [c] = await db
-    .select()
-    .from(schema.catalogContents)
-    .where(and(eq(schema.catalogContents.key, key), visibleContent(ctx)));
-  return c ?? null;
+  return (await contentsByKeys(ctx, [key]))[0] ?? null;
 }
 
 /** The visible contents among `keys`, in the order of `keys` (« Ma liste », « Chaînes les plus regardées »). */
 export async function contentsInOrder(ctx: RestContext, keys: string[], kind?: "live" | "vod" | "series"): Promise<Content[]> {
   if (!keys.length) return [];
-  const rows = await db
-    .select()
-    .from(schema.catalogContents)
-    .where(and(visibleContent(ctx, kind), inArray(schema.catalogContents.key, keys)));
+  const rows = await contentsByKeys(ctx, keys, kind);
   const order = new Map(keys.map((k, i) => [k, i]));
   return rows.sort((a, b) => order.get(a.key)! - order.get(b.key)!);
 }

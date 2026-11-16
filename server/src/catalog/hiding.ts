@@ -14,8 +14,9 @@ export async function setItemHiddenManual(id: number, hiddenManual: boolean) {
     .update(schema.catalogVariants)
     .set({ hiddenManual })
     .where(eq(schema.catalogVariants.id, id))
-    .returning({ contentId: schema.catalogVariants.contentId });
-  if (row?.contentId != null) refreshInBackground([row.contentId]);
+    .returning({ titleId: schema.catalogVariants.titleId, channelId: schema.catalogVariants.channelId });
+  const contentId = row?.titleId ?? row?.channelId;
+  if (contentId != null) refreshInBackground([contentId]);
 }
 function refreshInBackground(contentIds: number[]) {
   void withCatalogLock(() => refreshVisibility(contentIds)).catch((e) =>

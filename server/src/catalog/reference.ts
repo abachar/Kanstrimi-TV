@@ -1,11 +1,12 @@
 import { and, asc, eq, ne, sql } from "drizzle-orm";
-import { db, schema, inDisabledAccount, variantRows, variants, visibleItem, type ReferenceChannel } from "@/db";
+import { db, schema, inDisabledAccount, variantRows, variants, visibleItem, type Channel, type ReferenceChannel } from "@/db";
 import { similarity, similarityKey, slug } from "@/shared";
-import { countriesOf, type Index, loadIndex, nameKeys, rematchChannels, WATCHED_SHARE } from "./channels";
+import { countriesOf, type Index, isOurs, loadIndex, nameKeys, referenceOf, rematchChannels, WATCHED_SHARE } from "./channels";
+import { contentKey } from "./keys";
 import { EVENTS_THEME, LIVE_THEMES, REGIONS, UNKNOWN_THEME, type LiveTheme } from "./naming";
 
 /**
- * The reference channels of ours (`curation_channels`, the admin's Live screen) and what is left to attach
+ * The reference channels of ours (`catalog_channels` with aliases or fields set by hand, the admin's Live screen) and what is left to attach
  * to the reference: the live names no channel was found for. A name is attached once, for every
  * provider: it becomes an alias of a channel of ours, created from the iptv-org channel when that one
  * had no row of ours in the market yet. Every change reads the market's variants again at once.
@@ -51,11 +52,11 @@ async function checked(input: ChannelInput, id?: number): Promise<ChannelInput> 
     if (!known) throw new ChannelError(`Chaîne iptv-org inconnue : ${iptvId}`);
     iptvId = known.id;
   }
-  const c = schema.curationChannels;
+  const c = schema.catalogChannels;
   const others = await db
     .select()
     .from(c)
-    .where(and(eq(c.market, market), id ? ne(c.id, id) : undefined));
+    .where(and(eq(c.market, market), isOurs, id ? ne(c.id, id) : undefined));
   const mine = new Set([name, ...aliases].flatMap(nameKeys));
   for (const o of others) {
     if (slug(o.name) === slug(name)) throw new ChannelError(`« ${o.name} » existe déjà dans ce marché`);
@@ -66,32 +67,85 @@ async function checked(input: ChannelInput, id?: number): Promise<ChannelInput> 
   return { name, market, country, theme, aliases, iptvId };
 }
 
+/** The key of a channel of the reference in its market: what its variants are grouped under (`contentKey`). */
+const keyOf = (v: Pick<ChannelInput, "name" | "market">) =>
+  contentKey({ kind: "live", title: v.name, market: v.market, channelName: v.name });
+
+/**
+ * What the form says, as the columns of the channel: the fields it sets by hand are named in `edited`
+ * (a theme, a country, a name that is not iptv-org's), the others stay what the variants give.
+ */
+async function columnsOf(v: ChannelInput) {
+  const [iptv] = v.iptvId
+    ? await db
+        .select({ name: schema.cacheIptvorgChannels.name })
+        .from(schema.cacheIptvorgChannels)
+        .where(eq(schema.cacheIptvorgChannels.id, v.iptvId))
+    : [];
+  const edited = [v.name !== iptv?.name ? "name" : null, v.theme !== null ? "theme" : null, v.country !== null ? "country" : null];
+  return {
+    key: keyOf(v),
+    name: v.name,
+    market: v.market,
+    status: "known" as const,
+    aliases: v.aliases,
+    iptvId: v.iptvId,
+    edited: edited.filter((x): x is string => x !== null),
+    ...(v.theme !== null ? { theme: v.theme } : {}),
+    ...(v.country !== null ? { country: v.country || null } : {}),
+    updatedAt: new Date(),
+  };
+}
+
+/** A channel the reference did not have under this name in this market, or the one it had: it becomes ours. */
 export async function createChannel(input: ChannelInput): Promise<number> {
-  const values = await checked(input);
-  const [row] = await db.insert(schema.curationChannels).values(values).returning({ id: schema.curationChannels.id });
+  const values = await columnsOf(await checked(input));
+  const c = schema.catalogChannels;
+  const [row] = await db
+    .insert(c)
+    .values({ ...values, addedAt: new Date() })
+    .onConflictDoUpdate({ target: c.key, set: values })
+    .returning({ id: c.id });
   await rematchChannels(values.market);
   return row.id;
 }
 
 export async function updateChannel(id: number, input: ChannelInput): Promise<void> {
-  const [before] = await db.select().from(schema.curationChannels).where(eq(schema.curationChannels.id, id));
+  const c = schema.catalogChannels;
+  const [before] = await db.select().from(c).where(eq(c.id, id));
   if (!before) throw new ChannelError("Chaîne introuvable");
-  const values = await checked(input, id);
-  await db
-    .update(schema.curationChannels)
-    .set({ ...values, updatedAt: new Date() })
-    .where(eq(schema.curationChannels.id, id));
+  const values = await columnsOf(await checked(input, id));
+  await db.transaction(async (tx) => {
+    // Renamed onto a channel the admin never touched (`checked` refuses one of ours): that one gives way, its variants come here.
+    if (values.key !== before.key) await tx.delete(c).where(eq(c.key, values.key));
+    // A new name is indexed again for the search (`fillChannelSearch`).
+    await tx
+      .update(c)
+      .set({ ...values, ...(values.name !== before.name ? { search: null } : {}) })
+      .where(eq(c.id, id));
+  });
   await rematchChannels(values.market);
-  if (before.market !== values.market) await rematchChannels(before.market);
+  if (before.market && before.market !== values.market) await rematchChannels(before.market);
 }
 
+/** Forgets what the admin said of a channel: it is the providers' and iptv-org's again, and goes when no variant is left on it. */
 export async function deleteChannel(id: number): Promise<void> {
-  const [row] = await db.delete(schema.curationChannels).where(eq(schema.curationChannels.id, id)).returning();
-  if (row) await rematchChannels(row.market);
+  const c = schema.catalogChannels;
+  const [row] = await db.update(c).set({ aliases: [], edited: [], updatedAt: new Date() }).where(eq(c.id, id)).returning();
+  if (!row) return;
+  if (row.market) await rematchChannels(row.market);
+  await db.delete(c).where(and(eq(c.id, id), sql`not exists (select 1 from catalog_variants v where v.channel_id = ${c.id})`));
 }
 
-export const referenceChannelById = async (id: number): Promise<ReferenceChannel | null> =>
-  (await db.select().from(schema.curationChannels).where(eq(schema.curationChannels.id, id)))[0] ?? null;
+/** A channel of ours by its id; null when the admin said nothing of it. */
+export async function referenceChannelById(id: number): Promise<ReferenceChannel | null> {
+  const c = schema.catalogChannels;
+  const [row] = await db
+    .select()
+    .from(c)
+    .where(and(eq(c.id, id), isOurs));
+  return row ? referenceOf(row) : null;
+}
 
 export type LiveMarketStat = {
   market: string;
@@ -125,8 +179,7 @@ export async function liveSummary(profileId: number): Promise<LiveSummary> {
     .where(and(eq(v.kind, "live"), sql`${v.market} is not null`, sql`not ${inDisabledAccount}`))
     .groupBy(v.market);
   const [seen] = await db.execute<{ n: number }>(sql`
-    select count(*)::int as n from catalog_content_profiles p join catalog_contents c on c.id = p.content_id
-    where p.profile_id = ${profileId} and c.kind = 'live'`);
+    select count(*)::int as n from app_profile_channels p where p.profile_id = ${profileId}`);
   return {
     markets: rows
       .map((r) => ({ ...r, market: r.market! }))
@@ -148,12 +201,13 @@ export type ChannelRow = {
 /** The channels of the reference a market holds among the providers in use, by name. */
 export async function listChannels(opts: { market: string; page: number; size: number }): Promise<{ rows: ChannelRow[]; total: number }> {
   const rows = await db.execute<ChannelRow & { total: number }>(sql`
-    select c.id, c.title, c.country, c.themes, c.logo_url as "logoUrl", c.visible,
-           (select count(*)::int from catalog_variants v where v.content_id = c.id) as versions, (count(*) over ())::int as total
-    from catalog_contents c
-    where c.kind = 'live' and c.market = ${opts.market} and c.key not like 'live:x:%'
-      and exists (select 1 from ${variantRows} v join xtream_accounts a on a.id = v.account_id and a.enabled where v.content_id = c.id)
-    order by c.title, c.id
+    select c.id, c.name as title, c.country, case when c.theme is null then '{}'::text[] else array[c.theme] end as themes,
+           c.logo_url as "logoUrl", c.visible,
+           (select count(*)::int from catalog_variants v where v.channel_id = c.id) as versions, (count(*) over ())::int as total
+    from catalog_channels c
+    where c.market = ${opts.market} and c.status = 'known'
+      and exists (select 1 from ${variantRows} v join xtream_accounts a on a.id = v.account_id and a.enabled where v.channel_id = c.id)
+    order by c.name, c.id
     limit ${opts.size} offset ${(opts.page - 1) * opts.size}`);
   return { total: rows[0]?.total ?? 0, rows: rows.map(({ total: _, ...r }) => r) };
 }
@@ -173,12 +227,9 @@ export type ContentChannel = {
 };
 export async function contentChannel(contentId: number): Promise<ContentChannel | null> {
   const v = variants;
-  const [row] = await db
-    .select()
-    .from(v)
-    .where(and(eq(v.kind, "live"), eq(v.contentId, contentId)))
-    .orderBy(sql`${v.channelId} is null`, sql`${v.channelName} is null`, asc(v.id))
-    .limit(1);
+  const [channel] = await db.select().from(schema.catalogChannels).where(eq(schema.catalogChannels.id, contentId));
+  if (!channel) return null;
+  const [row] = await db.select().from(v).where(eq(v.channelId, contentId)).orderBy(sql`${v.channelName} is null`, asc(v.id)).limit(1);
   if (!row) return null;
   const [iptv] = row.iptvId
     ? await db
@@ -186,11 +237,12 @@ export async function contentChannel(contentId: number): Promise<ContentChannel 
         .from(schema.cacheIptvorgChannels)
         .where(eq(schema.cacheIptvorgChannels.id, row.iptvId))
     : [];
+  const ours = channel.aliases.length > 0 || channel.edited.length > 0;
   return {
     market: row.market,
     name: row.channelName,
     iptv: iptv ?? null,
-    own: row.channelId ? await referenceChannelById(row.channelId) : null,
+    own: ours ? referenceOf(channel) : null,
     title: row.cleanTitle || row.name,
     variantId: row.id,
   };
@@ -357,22 +409,26 @@ export async function unmatchedVariants(market: string, title: string): Promise<
  * market, under its iptv-org name and its usual theme and country. Returns the channel's name.
  */
 export async function attachName(market: string, title: string, ref: string): Promise<string> {
-  const c = schema.curationChannels;
+  const c = schema.catalogChannels;
   const [kind, id] = [ref.slice(0, ref.indexOf(":")), ref.slice(ref.indexOf(":") + 1)];
-  let target: ReferenceChannel | undefined;
+  let target: Channel | undefined;
   if (kind === "own" && /^\d+$/.test(id))
     [target] = await db
       .select()
       .from(c)
       .where(eq(c.id, Number(id)));
   else if (kind === "iptv")
+    // The channel this market already has for it: ours first, else the one its variants made.
     [target] = await db
       .select()
       .from(c)
-      .where(and(eq(c.market, market), eq(c.iptvId, id)));
+      .where(and(eq(c.market, market), eq(c.iptvId, id), eq(c.status, "known")))
+      .orderBy(sql`${isOurs} desc`, asc(c.id))
+      .limit(1);
   else throw new ChannelError("Chaîne de référence illisible");
   if (target) {
-    await updateChannel(target.id, { ...target, aliases: [...target.aliases, title] });
+    const mine = referenceOf(target);
+    await updateChannel(target.id, { ...mine, aliases: [...mine.aliases, title] });
     return target.name;
   }
   if (kind === "own") throw new ChannelError("Chaîne introuvable");

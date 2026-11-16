@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { db, type ProfileVersion, schema } from "@/db";
+import { db, type ProfileVersion, schema, titleContent } from "@/db";
 import { hasTmdbKey, isEpisodeKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
-import { contentsInOrder, isNewRelease, variantsOf, visibleContent } from "./contents";
+import { contentsInOrder, isNewRelease, variantsOf, visibleTitle } from "./contents";
 import { getProgress, isResumable, resumeKeys, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
@@ -29,16 +29,16 @@ export async function home(ctx: RestContext): Promise<Home> {
   const [resume, recentMovies, recentSeries, favKeys, watchedKeys, played, picks, recommended] = await Promise.all([
     resumeKeys(ctx.profile.id, 20),
     db
-      .select()
-      .from(schema.catalogContents)
-      .where(and(visibleContent(ctx, "vod"), hasTmdbKey, isNewRelease()))
-      .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
+      .select(titleContent)
+      .from(schema.catalogTitles)
+      .where(and(visibleTitle(ctx, "vod"), hasTmdbKey, isNewRelease()))
+      .orderBy(desc(schema.catalogTitles.addedAt), desc(schema.catalogTitles.id))
       .limit(HOME_ROW),
     db
-      .select()
-      .from(schema.catalogContents)
-      .where(visibleContent(ctx, "series"))
-      .orderBy(desc(schema.catalogContents.addedAt), desc(schema.catalogContents.id))
+      .select(titleContent)
+      .from(schema.catalogTitles)
+      .where(visibleTitle(ctx, "series"))
+      .orderBy(desc(schema.catalogTitles.addedAt), desc(schema.catalogTitles.id))
       .limit(HOME_ROW),
     favoriteKeys(ctx.profile.id),
     mostWatchedKeys(ctx.profile.id),
@@ -161,16 +161,16 @@ async function resumeCardsOf(ctx: RestContext, resume: Progress[]): Promise<Cont
   const episodeKeys = resume.filter((p) => isEpisodeKey(p.contentKey)).map((p) => p.contentKey);
   const movies = movieKeys.length
     ? await db
-        .select()
-        .from(schema.catalogContents)
-        .where(and(visibleContent(ctx, "vod"), inArray(schema.catalogContents.key, movieKeys)))
+        .select(titleContent)
+        .from(schema.catalogTitles)
+        .where(and(visibleTitle(ctx, "vod"), inArray(schema.catalogTitles.key, movieKeys)))
     : [];
   const episodes = episodeKeys.length
     ? await db
-        .select({ e: schema.catalogEpisodes, c: schema.catalogContents })
+        .select({ e: schema.catalogEpisodes, c: titleContent })
         .from(schema.catalogEpisodes)
-        .innerJoin(schema.catalogContents, eq(schema.catalogContents.id, schema.catalogEpisodes.contentId))
-        .where(and(inArray(schema.catalogEpisodes.key, episodeKeys), visibleContent(ctx)))
+        .innerJoin(schema.catalogTitles, eq(schema.catalogTitles.id, schema.catalogEpisodes.titleId))
+        .where(and(inArray(schema.catalogEpisodes.key, episodeKeys), visibleTitle(ctx)))
     : [];
   const movieOf = new Map(movies.map((c) => [c.key, c]));
   const episodeOf = new Map(episodes.map((r) => [r.e.key, r]));

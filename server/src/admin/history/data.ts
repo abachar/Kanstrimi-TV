@@ -1,6 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
-import { db, schema, type Content } from "@/db";
-import { listProfiles, parseKey } from "@/catalog";
+import { db, schema, titleContent, type Content } from "@/db";
+import { contentsByKey, listProfiles, parseKey } from "@/catalog";
 import { gridCard, listProgress, mostPlayedKeys, playsOf, type Card, type Progress, type RestContext } from "@/player";
 
 /** One line of « Historique »: a progress row, resolved to a movie or to an episode of a series. */
@@ -28,7 +28,7 @@ export async function mostPlayedRows(ctx: RestContext): Promise<MostPlayedRow[]>
     await Promise.all(profiles.map(async (p) => (await mostPlayedKeys(p.id)).map((r) => ({ ...r, profileName: p.name }))))
   ).flat();
   const keys = [...new Set(rows.map((r) => r.key))];
-  const contents = keys.length ? await db.select().from(schema.catalogContents).where(inArray(schema.catalogContents.key, keys)) : [];
+  const contents = await contentsByKey(keys);
   const byKey = new Map(contents.map((c) => [c.key, c]));
   return rows
     .map((r) => {
@@ -52,12 +52,12 @@ export async function historyRows(ctx: RestContext): Promise<{ ongoing: HistoryR
   const episodeKeys = progress.map((p) => p.contentKey).filter((k) => parseKey(k)?.episode !== undefined);
   const movieKeys = progress.map((p) => p.contentKey).filter((k) => !episodeKeys.includes(k));
   const [movies, episodes] = await Promise.all([
-    movieKeys.length ? db.select().from(schema.catalogContents).where(inArray(schema.catalogContents.key, movieKeys)) : [],
+    contentsByKey(movieKeys),
     episodeKeys.length
       ? db
-          .select({ episode: schema.catalogEpisodes, series: schema.catalogContents })
+          .select({ episode: schema.catalogEpisodes, series: titleContent })
           .from(schema.catalogEpisodes)
-          .innerJoin(schema.catalogContents, eq(schema.catalogContents.id, schema.catalogEpisodes.contentId))
+          .innerJoin(schema.catalogTitles, eq(schema.catalogTitles.id, schema.catalogEpisodes.titleId))
           .where(inArray(schema.catalogEpisodes.key, episodeKeys))
       : [],
   ]);

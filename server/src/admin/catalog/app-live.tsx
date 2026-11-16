@@ -326,7 +326,7 @@ function sections(groups: ChannelGroupWire[]): [string, ChannelGroupWire[]][] {
 }
 
 export function AppLiveView({ groups }: { groups: ChannelGroupWire[] }) {
-  // A channel with several themes sits in several groups: counted once.
+  // Counted once, whatever the groups it is listed in.
   const total = new Set(groups.flatMap((g) => g.channels.map((ch) => ch.id))).size;
   return (
     <>

@@ -1,8 +1,8 @@
 import { and, asc, desc, eq, gt, inArray, like, or } from "drizzle-orm";
-import { db, schema, type Content } from "@/db";
+import { db, schema, type Content, titleContent } from "@/db";
 import { cachedRecommendedKeys, isEpisodeKey, isTmdbKey, parseKey, recommendedKeys } from "@/catalog";
 import type { RestContext } from "./context";
-import { contentByKey, contentsInOrder, variantsOf, visibleContent } from "./contents";
+import { contentByKey, contentsInOrder, variantsOf, visibleTitle } from "./contents";
 import { getProgress, isResumable, listProgress, type Progress } from "./progress";
 import { favoriteKeys } from "./favorites";
 import { contentItem, isWatched, relatedItem, upNextItem } from "./cards";
@@ -61,15 +61,15 @@ async function watchStates(ctx: RestContext, contents: Content[]): Promise<Map<s
   const started = series.filter((c) => watched.has(c.key));
   if (!started.length) return states;
   const last = await db
-    .selectDistinctOn([schema.catalogEpisodes.contentId], { contentId: schema.catalogEpisodes.contentId, key: schema.catalogEpisodes.key })
+    .selectDistinctOn([schema.catalogEpisodes.titleId], { contentId: schema.catalogEpisodes.titleId, key: schema.catalogEpisodes.key })
     .from(schema.catalogEpisodes)
     .where(
       inArray(
-        schema.catalogEpisodes.contentId,
+        schema.catalogEpisodes.titleId,
         started.map((c) => c.id),
       ),
     )
-    .orderBy(schema.catalogEpisodes.contentId, desc(schema.catalogEpisodes.season), desc(schema.catalogEpisodes.number));
+    .orderBy(schema.catalogEpisodes.titleId, desc(schema.catalogEpisodes.season), desc(schema.catalogEpisodes.number));
   const lastKey = new Map(last.map((r) => [r.contentId, r.key]));
   for (const c of started) {
     const end = lastKey.get(c.id);
@@ -128,16 +128,12 @@ export async function suggestions(ctx: RestContext, key: string): Promise<Sugges
 async function nextInSaga(ctx: RestContext, movie: Content): Promise<Content | null> {
   if (movie.sagaId === null || !movie.releaseDate) return null;
   const later = await db
-    .select()
-    .from(schema.catalogContents)
+    .select(titleContent)
+    .from(schema.catalogTitles)
     .where(
-      and(
-        visibleContent(ctx, "vod"),
-        eq(schema.catalogContents.sagaId, movie.sagaId),
-        gt(schema.catalogContents.releaseDate, movie.releaseDate),
-      ),
+      and(visibleTitle(ctx, "vod"), eq(schema.catalogTitles.sagaId, movie.sagaId), gt(schema.catalogTitles.releaseDate, movie.releaseDate)),
     )
-    .orderBy(asc(schema.catalogContents.releaseDate), asc(schema.catalogContents.id));
+    .orderBy(asc(schema.catalogTitles.releaseDate), asc(schema.catalogTitles.id));
   const states = await watchStates(ctx, later);
   return later.find((c) => !states.has(c.key)) ?? null;
 }

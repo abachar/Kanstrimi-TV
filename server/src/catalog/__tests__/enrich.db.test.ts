@@ -50,9 +50,7 @@ describe("runEnrich", () => {
 
   it("fetches again the cache entries that predate the logos, asking for every useful image language", async () => {
     await db.insert(schema.cacheTmdb).values({ mediaType: "movie", tmdbId: 603, lang: "fr-FR", data: { id: 603, title: "Matrix" } });
-    await db
-      .insert(schema.catalogContents)
-      .values({ key: "tmdb:movie:603", kind: "vod", tmdbId: 603, title: "Matrix", addedAt: new Date() });
+    await db.insert(schema.catalogTitles).values({ key: "tmdb:movie:603", kind: "vod", tmdbId: 603, title: "Matrix", addedAt: new Date() });
     const urls: string[] = [];
     vi.stubGlobal("fetch", async (u: URL) => {
       urls.push(String(u));
@@ -188,7 +186,7 @@ describe("runEnrich", () => {
       .insert(schema.cacheTmdb)
       .values([700, 701].map((id) => ({ mediaType: "movie" as const, tmdbId: id, lang: "fr-FR", data: withLogos(id), fetchedAt: old })));
     await db
-      .insert(schema.catalogContents)
+      .insert(schema.catalogTitles)
       .values({ key: "tmdb:movie:700", kind: "vod", tmdbId: 700, title: "Film 700", addedAt: new Date() });
     const urls: string[] = [];
     vi.stubGlobal("fetch", async (u: URL) => {

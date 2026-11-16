@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
-import { db, schema, variants as vr, hiddenItem, type ProviderAccount } from "@/db";
+import { db, schema, variants as vr, hiddenItem, type ProviderAccount, titleContent } from "@/db";
 import {
   ACCOUNT,
   resetDb,
@@ -35,7 +35,7 @@ const ctx = async (): Promise<RestContext> => ({
   serveAdult: false,
 });
 const matrix = async () => {
-  const [c] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.tmdbId, 603));
+  const [c] = await db.select(titleContent).from(schema.catalogTitles).where(eq(schema.catalogTitles.tmdbId, 603));
   return c;
 };
 const sources = async () => {

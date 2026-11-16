@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import { db, schema, variants } from "@/db";
+import { db, schema, variants, type Kind } from "@/db";
 import { and, inArray, sql } from "drizzle-orm";
 import { getSettings } from "@/config";
 import pkg from "../../package.json";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
-import { servedVariant, visibleContent } from "./contents";
+import { servedVariant, visibleChannel, visibleTitle } from "./contents";
 import { sortLanguages } from "./versions";
 import { profileWire } from "./profiles";
 import type { ServerInfo } from "./types";
@@ -15,11 +15,14 @@ infoRoutes.get("/", async (c) => json(await serverInfo(c.get("ctx"))));
 
 export async function serverInfo(ctx: RestContext): Promise<ServerInfo> {
   const [counts, s, rate, langs] = await Promise.all([
-    db
-      .select({ kind: schema.catalogContents.kind, n: sql<number>`count(*)::int` })
-      .from(schema.catalogContents)
-      .where(visibleContent(ctx))
-      .groupBy(schema.catalogContents.kind),
+    Promise.all([
+      db
+        .select({ kind: schema.catalogTitles.kind, n: sql<number>`count(*)::int` })
+        .from(schema.catalogTitles)
+        .where(visibleTitle(ctx))
+        .groupBy(schema.catalogTitles.kind),
+      db.select({ kind: sql<Kind>`'live'`, n: sql<number>`count(*)::int` }).from(schema.catalogChannels).where(visibleChannel(ctx)),
+    ]).then((r) => r.flat()),
     getSettings(),
     db
       .select({
@@ -28,9 +31,7 @@ export async function serverInfo(ctx: RestContext): Promise<ServerInfo> {
       })
       .from(variants)
       .where(and(inArray(variants.kind, ["vod", "series"]), servedVariant(ctx))),
-    db.execute<{ l: string }>(
-      sql`select distinct unnest(languages) as l from ${schema.catalogContents} where ${visibleContent(ctx)} and kind <> 'live'`,
-    ),
+    db.execute<{ l: string }>(sql`select distinct unnest(languages) as l from ${schema.catalogTitles} where ${visibleTitle(ctx)}`),
   ]);
   const n = (k: string) => counts.find((c) => c.kind === k)?.n ?? 0;
   return {

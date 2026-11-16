@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
-import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { resetDb, closeDb, seedTmdb } from "@/test/db";
+import { resetDb, closeDb, seedTmdb, contentOfKey } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { refreshCardOnOpen } from "../cards";
 
-const content = async (key: string) => (await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, key)))[0];
+const content = async (key: string) => await contentOfKey(key);
 
 beforeAll(async () => {
   await resetDb();
@@ -13,7 +12,7 @@ beforeAll(async () => {
   // Cached before the logos were kept.
   await seedTmdb("movie", 603, { title: "Matrix" });
   await seedTmdb("movie", 949, { title: "Heat" });
-  await db.insert(schema.catalogContents).values([
+  await db.insert(schema.catalogTitles).values([
     { key: "tmdb:movie:603", kind: "vod", tmdbId: 603, title: "Matrix", addedAt: new Date() },
     { key: "tmdb:movie:949", kind: "vod", tmdbId: 949, title: "Heat", addedAt: new Date() },
   ]);

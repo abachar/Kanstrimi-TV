@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { and, asc, desc, sql } from "drizzle-orm";
-import { db, schema, type Content } from "@/db";
+import { and, asc, desc, sql, type SQL } from "drizzle-orm";
+import { channelContent, db, schema, titleContent, type Content } from "@/db";
 import { searchText, similarityKey } from "@/shared";
 import type { Env, RestContext } from "./context";
 import { badQuery, json } from "./http";
-import { visibleContent } from "./contents";
+import { visibleChannel, visibleTitle } from "./contents";
 import { getProgress, type Progress } from "./progress";
 import { contentItem } from "./cards";
 import { channelGroupName } from "./channels";
@@ -68,39 +68,69 @@ export async function search(
   const prefixes = terms.map((t) => (t.length >= PREFIX_MIN_LENGTH ? `${word(t)}:*` : word(t))).join(" & ");
   const words = terms.map(word).join(" & ");
   const key = similarityKey(query);
-  const t = schema.catalogContents;
-  // Same expression as the `catalog_contents_titles_trgm_idx` index, or the planner cannot use it.
-  const titles = sql`search_titles(${t.title}, ${t.originalTitle}, ${t.titleEn})`;
-  const fields = {
-    content: t,
-    exact: sql<boolean>`(${titleKey(t.title)} = ${key} or ${titleKey(t.originalTitle)} = ${key} or ${titleKey(t.titleEn)} = ${key})`,
-    closeness: sql<number>`word_similarity(${q}, ${titles})`,
-  };
-  const mostVoted = (kind: "vod" | "series" | "live", tsq: string) =>
+  type SearchKind = "vod" | "series" | "live";
+  const tt = schema.catalogTitles;
+  const ch = schema.catalogChannels;
+  /**
+   * What a search reads of a kind: a title has three names and TMDB's votes, a channel its one name.
+   * `names` is the expression of the table's trigram index (`catalog_titles_titles_trgm_idx`,
+   * `catalog_channels_names_trgm_idx`), or the planner cannot use it.
+   */
+  const sourceOf = (kind: SearchKind) =>
+    kind === "live"
+      ? {
+          table: ch,
+          id: ch.id,
+          search: ch.search,
+          title: ch.name,
+          votes: sql<number | null>`null::int`,
+          visible: visibleChannel(ctx),
+          names: sql`search_titles(${ch.name}, null, null)`,
+          exact: sql<boolean>`${titleKey(ch.name)} = ${key}`,
+          // The same fields as a title's, in the same order: one selection type for both.
+          content: channelContent as unknown as typeof titleContent,
+        }
+      : {
+          table: tt,
+          id: tt.id,
+          search: tt.search,
+          title: tt.title,
+          votes: sql<number | null>`${tt.voteCount}`,
+          visible: visibleTitle(ctx, kind),
+          names: sql`search_titles(${tt.title}, ${tt.originalTitle}, ${tt.titleEn})`,
+          exact: sql<boolean>`(${titleKey(tt.title)} = ${key} or ${titleKey(tt.originalTitle)} = ${key} or ${titleKey(tt.titleEn)} = ${key})`,
+          content: titleContent,
+        };
+  type Found = { content: Content; exact: boolean; closeness: number };
+  const mostVoted = (s: ReturnType<typeof sourceOf>, tsq: string) =>
     db
-      .select({ id: t.id })
-      .from(t)
-      .where(and(visibleContent(ctx, kind), sql`${t.search} @@ to_tsquery('simple', ${tsq})`))
-      .orderBy(sql`${t.voteCount} desc nulls last`, asc(t.id))
+      .select({ id: s.id })
+      .from(s.table)
+      .where(and(s.visible, sql`${s.search} @@ to_tsquery('simple', ${tsq})`))
+      .orderBy(sql`${s.votes} desc nulls last`, asc(s.id))
       .limit(candidates);
-  const find = (kind: "vod" | "series" | "live") =>
-    db
-      .select(fields)
-      .from(t)
-      .where(
-        prefixes === words
-          ? sql`${t.id} in (${mostVoted(kind, words)})`
-          : sql`${t.id} in ((${mostVoted(kind, prefixes)}) union (${mostVoted(kind, words)}))`,
-      )
-      .orderBy(desc(fields.exact), desc(fields.closeness), desc(t.voteCount), asc(t.title))
-      .limit(SEARCH_RESULTS);
-  const resembling = (kind: "vod" | "series" | "live") =>
-    db
-      .select(fields)
-      .from(t)
-      .where(and(visibleContent(ctx, kind), sql`${q} <% ${titles}`))
-      .orderBy(desc(fields.exact), desc(fields.closeness), desc(t.voteCount), asc(t.title))
-      .limit(SEARCH_RESULTS);
+  const rankedIn = (s: ReturnType<typeof sourceOf>, where: SQL): Promise<Found[]> => {
+    const closeness = sql<number>`word_similarity(${q}, ${s.names})`;
+    return db
+      .select({ content: s.content, exact: s.exact, closeness })
+      .from(s.table)
+      .where(where)
+      .orderBy(desc(s.exact), desc(closeness), sql`${s.votes} desc`, asc(s.title))
+      .limit(SEARCH_RESULTS) as unknown as Promise<Found[]>;
+  };
+  const find = (kind: SearchKind) => {
+    const s = sourceOf(kind);
+    return rankedIn(
+      s,
+      prefixes === words
+        ? sql`${s.id} in (${mostVoted(s, words)})`
+        : sql`${s.id} in ((${mostVoted(s, prefixes)}) union (${mostVoted(s, words)}))`,
+    );
+  };
+  const resembling = (kind: SearchKind) => {
+    const s = sourceOf(kind);
+    return rankedIn(s, and(s.visible, sql`${q} <% ${s.names}`)!);
+  };
   const run = (query: typeof find) =>
     Promise.all([
       scope === "all" || scope === "movies" ? query("vod") : [],

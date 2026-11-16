@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { sql } from "drizzle-orm";
-import { db, schema, variants as vr, type Kind } from "@/db";
+import { and, sql } from "drizzle-orm";
+import { db, variants as vr, type Kind } from "@/db";
+import { contentSource } from "../../queries";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
 import { runNaming } from "../../grouping/group";
 import { compileQuery, QueryError } from "..";
@@ -51,11 +52,12 @@ afterAll(closeDb);
 /** The titles of the contents a query finds. */
 async function find(q: string, kind: Kind = "vod"): Promise<string[]> {
   const where = compileQuery(q, { kind, lang: "fr-FR" });
+  const src = contentSource(kind);
   const rows = await db
-    .select({ title: schema.catalogContents.title })
-    .from(schema.catalogContents)
-    .where(sql`${schema.catalogContents.kind} = ${kind} ${where ? sql`and ${where}` : sql``}`)
-    .orderBy(schema.catalogContents.title);
+    .select(src.fields)
+    .from(src.table)
+    .where(and(src.ofKind, where ?? undefined))
+    .orderBy(src.title);
   return rows.map((r) => r.title);
 }
 /** The provider's names of the versions a filter keeps. */

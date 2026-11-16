@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { db, schema, variants as vr } from "@/db";
 import { env } from "@/shared";
 import { suggestChannels } from "@/providers/claude";
-import { PROFILE, resetDb, closeDb, seedCategories, seedItems, groupAndFilter } from "@/test/db";
-import { runChannels } from "../channels";
+import { PROFILE, resetDb, closeDb, seedCategories, seedItems, groupAndFilter, contentOfKey } from "@/test/db";
+import { isOurs, referenceOf, runChannels } from "../channels";
 import { runNaming } from "../grouping/group";
 import {
   attachName,
@@ -20,6 +20,9 @@ import {
   unmatchedNames,
   updateChannel,
 } from "../reference";
+
+/** The channels the admin said something of, as it edits them. */
+const ourChannels = async () => (await db.select().from(schema.catalogChannels).where(isOurs)).map(referenceOf);
 
 /** Claude answers only where a test makes it: without a key it answers null, as here. */
 vi.mock("@/providers/claude", async (importOriginal) => ({
@@ -103,7 +106,7 @@ describe("the reference gives a channel its identity", () => {
   it("gathers every spelling of a channel in one content per market, under its reference name", async () => {
     expect(await keysOf(["1", "2"])).toEqual(["live:ar-bein-sports-1", "live:ar-bein-sports-1"]);
     expect(await keysOf(["4"])).toEqual(["live:fr-bein-sports-1"]); // the same channel, as France lists it
-    const [ar] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "live:ar-bein-sports-1"));
+    const ar = await contentOfKey("live:ar-bein-sports-1");
     expect(ar).toMatchObject({ title: "beIN Sports 1", variantCount: 2, themes: ["Sport"], country: null }); // filed under a theme: pan-Arab
   });
 
@@ -182,7 +185,7 @@ describe("names left to attach", () => {
       contentKey: "live:ar-bein-sports-1",
       theme: "Sport",
     });
-    const [ours] = await db.select().from(schema.curationChannels);
+    const [ours] = await ourChannels();
     expect(ours).toMatchObject({
       name: "beIN Sports 1",
       market: "ar",
@@ -210,13 +213,13 @@ describe("names left to attach", () => {
       contentKey: "live:fr-automoto",
     });
     // Ours completes an iptv-org channel: its theme and its country are what we say.
-    const [bein] = await db.select().from(schema.curationChannels).where(eq(schema.curationChannels.market, "ar"));
+    const bein = (await ourChannels()).find((c) => c.market === "ar")!;
     await updateChannel(bein.id, { ...bein, theme: "Cinéma", country: "QA" });
     expect(await by("1")).toMatchObject({ channelId: bein.id, theme: "Cinéma", country: "QA", contentKey: "live:ar-bein-sports-1" });
     await updateChannel(bein.id, { ...bein, theme: null, country: "" });
     expect(await by("1")).toMatchObject({ theme: "Sport", country: null });
     await deleteChannel(id);
-    expect(await by("11")).toMatchObject({ channelName: null, channelId: null, theme: "Non reconnus" });
+    expect(await by("11")).toMatchObject({ channelName: null, theme: "Non reconnus" });
   });
 
   it("refuses a name that would designate two channels, an unknown iptv-org channel, a country outside the region", async () => {
@@ -265,5 +268,34 @@ describe("Claude reads what is left", () => {
     await runChannels();
     expect(suggestChannels).not.toHaveBeenCalled();
     expect((await by("7")).iptvMatch).toBe("ai");
+  });
+});
+
+describe("a channel of ours is a channel", () => {
+  it("is renamed in place, what the profile recorded following its key", async () => {
+    const bein = (await ourChannels()).find((c) => c.market === "ar")!;
+    const before = await contentOfKey("live:ar-bein-sports-1");
+    await updateChannel(bein.id, { ...bein, name: "beIN Sports One" });
+    expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: before.id, title: "beIN Sports One", variantCount: 3 });
+    expect(await contentOfKey("live:ar-bein-sports-1")).toBeUndefined();
+    expect((await db.select().from(schema.appFavorites)).map((f) => f.contentKey)).toEqual(["live:ar-bein-sports-one"]);
+  });
+
+  it("stays when no provider lists it any more, with nothing to play; a channel nobody said anything of goes", async () => {
+    const bein = (await ourChannels()).find((c) => c.market === "ar")!;
+    const chef = (await by("8")).contentKey!;
+    expect(await contentOfKey(chef)).toBeDefined();
+    await db.delete(schema.xtreamStreams).where(inArray(schema.xtreamStreams.upstreamId, ["1", "2", "3", "8"]));
+    await groupAndFilter();
+    expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: bein.id, variantCount: 0, visible: false });
+    expect((await ourChannels()).find((c) => c.id === bein.id)?.aliases).toEqual(["BEIN SPORTS 1 G"]);
+    expect(await contentOfKey(chef)).toBeUndefined();
+    // Its streams back: the same channel plays again.
+    await seedItems([{ kind: "live", xtreamId: "3", name: "BEIN SPORTS 1 Gᵁᴴᴰ", cat: "30" }]);
+    await runNaming();
+    serve();
+    await runChannels();
+    await groupAndFilter();
+    expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: bein.id, variantCount: 1, visible: true });
   });
 });

@@ -4,7 +4,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { slug } from "@/shared";
 
 /**
- * The identity of a content as the app sees it (`catalog_contents.key`), and the only place that
+ * The identity of a content as the app sees it (the `key` of a title or a channel), and the only place that
  * knows how it is spelled: `tmdb:movie:603`, `tmdb:tv:1396`, `fallback:movie:<slug>:<year>`,
  * `live:<market>-<slug>` for a channel of the reference (the slug of its reference name),
  * `live:x:<market>-<slug>` for a live entry no reference channel was found for (the slug of its own
@@ -81,6 +81,6 @@ export function keyKind(key: string): KeyKind {
 export const isTmdbKey = (key: string) => keyKind(key) === "tmdb";
 export const isFallbackKey = (key: string) => keyKind(key) === "fallback";
 
-/** The same tests, on `catalog_contents.key` in a query. */
-export const hasTmdbKey: SQL = sql`${schema.catalogContents.key} like 'tmdb:%'`;
-export const hasFallbackKey: SQL = sql`${schema.catalogContents.key} like 'fallback:%'`;
+/** The same tests, on a title's key in a query (a channel's is `live:…`). */
+export const hasTmdbKey: SQL = sql`${schema.catalogTitles.key} like 'tmdb:%'`;
+export const hasFallbackKey: SQL = sql`${schema.catalogTitles.key} like 'fallback:%'`;

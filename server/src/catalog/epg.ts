@@ -30,8 +30,8 @@ async function wantedChannelIds(): Promise<Set<string>> {
   const rows = await db
     .select({ own: sql<string | null>`nullif(${v.raw}->>'epg_channel_id', '')`, iptv: v.iptvId, mismatch: v.epgMismatch })
     .from(v)
-    .innerJoin(schema.catalogContents, eq(schema.catalogContents.id, v.contentId))
-    .where(and(eq(v.kind, "live"), eq(schema.catalogContents.visible, true), visibleItem));
+    .innerJoin(schema.catalogChannels, eq(schema.catalogChannels.id, v.channelId))
+    .where(and(eq(schema.catalogChannels.visible, true), visibleItem));
   return new Set(rows.flatMap((r) => [r.own, r.mismatch ? r.iptv : null]).filter((x): x is string => Boolean(x)));
 }
 

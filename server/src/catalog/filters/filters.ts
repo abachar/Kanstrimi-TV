@@ -78,7 +78,8 @@ export async function previewFilter(kind: Kind, query: string): Promise<FilterPr
   return db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout = '15s'`);
     const titles = (kept: boolean) => sql`(select coalesce(json_agg(t.title), '[]') from (
-      select c.title from j join catalog_contents c on c.id = j.content_id where (j.kept > 0) = ${kept} order by c.title limit ${PREVIEW_LIMIT}) t)`;
+      select c.title from j join ${kind === "live" ? sql`(select id, name as title from catalog_channels)` : sql`catalog_titles`} c on c.id = j.content_id
+      where (j.kept > 0) = ${kept} order by c.title limit ${PREVIEW_LIMIT}) t)`;
     const [row] = await tx.execute<{
       versions: number;
       kept_versions: number;

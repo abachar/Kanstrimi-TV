@@ -21,7 +21,7 @@ export {
   setEpgLink,
   updateEpgSource,
 } from "./epg-sources";
-export { iptvChannelById, setIptvMatch } from "./channels";
+export { iptvChannelById, isOurs, setIptvMatch } from "./channels";
 export {
   attachName,
   type Candidate,
@@ -86,7 +86,7 @@ export {
 export { checkRegexes, compileQuery, fieldsOf as queryFieldsOf, QueryError, type CompileOptions, type Field as QueryField } from "./query";
 export { cachedRecommendedKeys, recommendedKeys } from "./recommendations";
 export { baseMarkers, chapterMarkers, type FileChapter, type FileFacts, type Markers, markersOf } from "./markers";
-export { contentById, contentIdByKey, itemById, variantCountsByAccount, variantsOfContent } from "./queries";
+export { contentById, contentIdByKey, contentsByKey, contentSource, itemById, variantCountsByAccount, variantsOfContent } from "./queries";
 export {
   addStudio,
   listStudios,

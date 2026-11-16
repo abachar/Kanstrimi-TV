@@ -1,6 +1,6 @@
 import { getSettings } from "@/config";
 import { db, schema, client as pg, pgVariantRows, sqlTmdbMediaType, tmdbMediaType, variants, visibleItem, type Kind } from "@/db";
-import { and, asc, eq, gt, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import {
   liveMarket,
   liveTheme,
@@ -11,6 +11,7 @@ import {
   isAdultEntryName,
   QUALITY_RANK,
   DEFAULT_LANGUAGE_ORDER,
+  EVENTS_THEME,
   type CategoryHints,
   type Quality,
   type DynamicRange,
@@ -67,11 +68,12 @@ export async function runGrouping(): Promise<GroupStats> {
       const n = await assignKeys();
       await upsertContents();
       await fillCardFields();
+      await fillChannelSearch();
       const available = await refreshAggregates();
       const orphans = await deleteOrphans();
-      const [c] = await db
-        .select({ n: sql<number>`count(*)::int`, multi: sql<number>`count(*) filter (where variant_count > 1)::int` })
-        .from(schema.catalogContents);
+      const [c] = await db.execute<{ n: number; multi: number }>(sql`
+        select count(*)::int as n, (count(*) filter (where source_count > 1))::int as multi
+        from (select source_count from catalog_titles union all select source_count from catalog_channels) x`);
       return {
         items_grouped: n,
         contents: c.n,
@@ -91,18 +93,13 @@ export async function regroupItems(ids: number[]): Promise<number[]> {
   if (!ids.length) return [];
   return withCatalogLock(() =>
     rewritingContents(async () => {
-      const before = await db
-        .select({ id: schema.catalogVariants.contentId })
-        .from(schema.catalogVariants)
-        .where(inArray(schema.catalogVariants.id, ids));
+      const before = await db.select({ id: variants.contentId }).from(variants).where(inArray(variants.id, ids));
       await assignKeys(ids);
       await upsertContents(ids);
-      const after = await db
-        .select({ id: schema.catalogVariants.contentId })
-        .from(schema.catalogVariants)
-        .where(inArray(schema.catalogVariants.id, ids));
+      const after = await db.select({ id: variants.contentId }).from(variants).where(inArray(variants.id, ids));
       const touched = [...new Set([...before, ...after].map((r) => r.id).filter((x): x is number => x !== null))];
       await fillCardFields(touched);
+      await fillChannelSearch();
       await refreshAggregates(touched);
       await deleteOrphans();
       return touched;
@@ -351,40 +348,68 @@ async function followLiveKeys(moves: Map<string, Map<string, number>>) {
 
 async function upsertContents(onlyIds?: number[]) {
   const scope = onlyIds ? pg`and i.id = any(${onlyIds}::int[])` : pg``;
-  // Title and year come from the best variant, for a new content and for one without TMDB (fallback,
-  // live: the reference channel's name when it has one); a TMDB content keeps the card's (step 3), so
-  // the app never sees a raw title in between.
+  // Title and year come from the best variant, for a new title and for one without TMDB (fallback);
+  // a TMDB title keeps the card's (step 3), so the app never sees a raw title in between.
   // A row is written only when something changed; a new TMDB id or a new fallback title calls
   // for the card again (`cards_at` cleared).
   await pg`
-    insert into catalog_contents as c (key, kind, tmdb_id, title, year, market, added_at)
+    insert into catalog_titles as c (key, kind, tmdb_id, title, year, added_at)
     select distinct on (i.content_key) i.content_key, i.kind,
       case when i.match_status in ('matched', 'manual') and i.content_key like 'tmdb:%' then i.tmdb_id end,
-      coalesce(nullif(i.channel_name, ''), nullif(i.title, ''), i.name), i.year, i.market, i.added_at
+      coalesce(nullif(i.title, ''), i.name), i.year, i.added_at
     from ${pgVariantRows()} i
-    where i.content_key is not null ${scope}
+    where i.content_key is not null and i.kind <> 'live' ${scope}
     order by i.content_key, i.quality_rank desc, i.id
     on conflict (key) do update set
       kind = excluded.kind, tmdb_id = excluded.tmdb_id,
       title = case when excluded.tmdb_id is null then excluded.title else c.title end,
       year = case when excluded.tmdb_id is null then excluded.year else c.year end,
-      market = coalesce(excluded.market, c.market),
       cards_at = case
         when excluded.tmdb_id is distinct from c.tmdb_id or (excluded.tmdb_id is null and excluded.title is distinct from c.title) then null
         else c.cards_at end,
       updated_at = now()
     where (c.kind, c.tmdb_id) is distinct from (excluded.kind, excluded.tmdb_id)
-       or (excluded.tmdb_id is null and (c.title, c.year) is distinct from (excluded.title, excluded.year))
-       or (excluded.market is not null and excluded.market is distinct from c.market)`;
+       or (excluded.tmdb_id is null and (c.title, c.year) is distinct from (excluded.title, excluded.year))`;
+  // A channel bears its reference channel's name when it has one, else its best variant's; a new name
+  // is indexed again for the search (`search` cleared, `fillChannelSearch`).
   await pg`
-    update catalog_variants i set content_id = c.id
-    from catalog_contents c
-    where c.key = i.content_key and i.content_id is distinct from c.id ${scope}`;
+    insert into catalog_channels as c (key, name, market, added_at)
+    select distinct on (i.content_key) i.content_key,
+      coalesce(nullif(i.channel_name, ''), nullif(i.title, ''), i.name), i.market, i.added_at
+    from ${pgVariantRows()} i
+    where i.content_key is not null and i.kind = 'live' ${scope}
+    order by i.content_key, i.quality_rank desc, i.id
+    on conflict (key) do update set
+      name = excluded.name, market = coalesce(excluded.market, c.market),
+      search = case when excluded.name is distinct from c.name then null else c.search end,
+      updated_at = now()
+    where c.name is distinct from excluded.name or (excluded.market is not null and excluded.market is distinct from c.market)`;
+  await pg`
+    update catalog_variants i set title_id = c.id
+    from catalog_titles c
+    where c.key = i.content_key and i.title_id is distinct from c.id ${scope}`;
+  await pg`
+    update catalog_variants i set channel_id = c.id
+    from catalog_channels c
+    where c.key = i.content_key and i.channel_id is distinct from c.id ${scope}`;
+}
+
+/** The names of the channels the search has not indexed yet: new ones, renamed ones. */
+async function fillChannelSearch() {
+  const c = schema.catalogChannels;
+  const rows = await db.select({ id: c.id, name: c.name }).from(c).where(isNull(c.search));
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const part = rows.slice(i, i + CHUNK);
+    await pg`
+      update catalog_channels c set search = to_tsvector('simple', u.search)
+      from unnest(${part.map((r) => r.id)}::int[], ${part.map((r) => searchText(r.name))}::text[]) as u(id, search)
+      where c.id = u.id`;
+  }
 }
 
 // ---------------------------------------------------------------- 3. card fields
 
-/** One card as `fillCardFields` writes it, keyed by the columns of `catalog_contents`. */
+/** One card as `fillCardFields` writes it, keyed by the columns of `catalog_titles`. */
 type Card = {
   tmdb_adult: boolean;
   title: string;
@@ -496,7 +521,7 @@ function cardOf(r: { kind: Kind; tmdb_id: number | null; title: string; data: Tm
       network_ids: c.networkIds,
     };
   }
-  // Fallback and live: keep what the variants gave, index the title only.
+  // Fallback: keep what the variants gave, index the title only.
   return {
     tmdb_adult: false,
     title: r.title,
@@ -536,7 +561,7 @@ function cardOf(r: { kind: Kind; tmdb_id: number | null; title: string; data: Tm
  */
 async function fillCardFields(onlyIds?: number[]) {
   const lang = (await getSettings()).tmdb_language;
-  const c = schema.catalogContents;
+  const c = schema.catalogTitles;
   let last = 0;
   for (;;) {
     checkCancelled();
@@ -587,97 +612,139 @@ const variantEpgId = sql`case
 async function refreshAggregates(onlyIds?: number[]): Promise<number> {
   const scope = onlyIds ? sql`and content_id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``;
   const langOrder = `{${DEFAULT_LANGUAGE_ORDER.join(",")}}`;
+  // The variants of one side, each with whether it is visible and whether it counts: the visible ones,
+  // or all of them when none is (a hidden content still says what it is made of).
+  const counted = (live: boolean) => sql`
+    select *, variant_theme as theme, variant_adult as adult,
+      ${variantEpgId} as epg_id,
+      exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${variantEpgId}) as has_epg,
+      coalesce(array_position(${langOrder}::text[], lang), ${DEFAULT_LANGUAGE_ORDER.length + 1}) as lang_rank,
+      (${visibleItem}) as vis,
+      (${visibleItem} or not bool_or(${visibleItem}) over (partition by content_id)) as counted
+    from ${variants} where content_id is not null and ${live ? sql`kind = 'live'` : sql`kind <> 'live'`} ${scope}`;
   await db.execute(sql`
-    update catalog_contents c set
-      variant_count = a.n, added_at = a.added_at, visible = a.visible,
-      max_quality_rank = a.max_q, languages = a.langs, dynamic_range = a.dr, themes = a.themes,
-      market = coalesce(c.market, a.market), country = a.country, category_xtream_id = a.cat, iptv_id = a.iptv, logo_url = a.logo_url,
-      channel_number = a.num, epg_channel_id = a.epg, adult = c.tmdb_adult or a.all_adult, updated_at = now()
+    update catalog_titles c set
+      source_count = a.n, added_at = a.added_at, visible = a.visible,
+      max_quality_rank = a.max_q, languages = a.langs, dynamic_range = a.dr, adult = c.tmdb_adult or a.all_adult, updated_at = now()
     from (
-      select g.*, coalesce(ic.logo_path, g.logo) as logo_url
+      select content_id,
+        count(*) filter (where counted)::int as n,
+        max(added_at) filter (where counted) as added_at,
+        bool_or(vis) as visible,
+        -- Every variant flagged adult by its name: the title is.
+        bool_and(adult) as all_adult,
+        max(quality_rank) filter (where counted)::int as max_q,
+        coalesce(array_agg(distinct lang) filter (where lang is not null and counted), '{}') as langs,
+        case max(case dynamic_range when 'DV' then 2 when 'HDR' then 1 else 0 end) filter (where counted)
+          when 2 then 'DV' when 1 then 'HDR'
+        end as dr
+      from (${counted(false)}) i
+      group by content_id
+    ) a
+    where a.content_id = c.id
+      and (c.source_count, c.added_at, c.visible, c.max_quality_rank, c.languages, c.dynamic_range, c.adult)
+          is distinct from (a.n, a.added_at, a.visible, a.max_q, a.langs, a.dr, c.tmdb_adult or a.all_adult)`);
+  await db.execute(sql`
+    update catalog_channels c set
+      source_count = a.n, added_at = a.added_at, visible = a.visible,
+      max_quality_rank = a.max_q, languages = a.langs, status = a.status,
+      theme = case when 'theme' = any(c.edited) then c.theme else a.theme end,
+      market = coalesce(c.market, a.market), country = case when 'country' = any(c.edited) then c.country else a.country end,
+      iptv_id = a.iptv, logo_url = a.logo_url, number = a.num, epg_id = a.epg, adult = a.all_adult, updated_at = now()
+    from (
+      select g.*, coalesce(ic.logo_path, g.logo) as logo_url,
+        case when g.known then 'known' when g.theme = ${EVENTS_THEME} then 'event' else 'unknown' end as status
       from (
         select content_id,
           count(*) filter (where counted)::int as n,
           max(added_at) filter (where counted) as added_at,
           bool_or(vis) as visible,
-          -- Every variant flagged adult (by its name or by iptv-org): the content is.
+          -- Every variant flagged adult (by its name or by iptv-org): the channel is.
           bool_and(adult) as all_adult,
           max(quality_rank) filter (where counted)::int as max_q,
           coalesce(array_agg(distinct lang) filter (where lang is not null and counted), '{}') as langs,
-          coalesce(array_agg(distinct theme) filter (where theme is not null and counted), '{}') as themes,
-          case max(case dynamic_range when 'DV' then 2 when 'HDR' then 1 else 0 end) filter (where counted)
-            when 2 then 'DV' when 1 then 'HDR'
-          end as dr,
+          -- One theme: the one most of its variants bear. Recognised: one of them is a channel of the reference.
+          mode() within group (order by theme) filter (where theme is not null and counted) as theme,
+          bool_or(channel_name is not null) as known,
           (array_agg(market order by vis desc, quality_rank desc, position, id))[1] as market,
           (array_agg(country order by vis desc, quality_rank desc, position, id) filter (where country is not null))[1] as country,
           (array_agg(nullif(raw->>'stream_icon', '') order by vis desc, quality_rank desc, position, id))[1] as logo,
           (array_agg(iptv_id order by vis desc, quality_rank desc, position, id) filter (where iptv_id is not null))[1] as iptv,
-          (array_agg(category_xtream_id order by vis desc, quality_rank desc, position, id))[1] as cat,
           (array_agg(nullif(regexp_replace(coalesce(raw->>'num', ''), '\\D', '', 'g'), '')::int order by vis desc, quality_rank desc, position, id))[1] as num,
           -- The app's guide is the first version's (best language, then best quality; player/versions.ts).
           -- Same order here, among the variants that have a guide with programmes (« TF1 4K » files none,
           -- « TF1 FHD » does). They can still differ when that first version has no guide in its language:
           -- the app then takes the closest quality, every language mixed (player/guides.ts).
           (array_agg(epg_id order by vis desc, lang_rank, has_epg desc, quality_rank desc, position, id) filter (where epg_id is not null))[1] as epg
-        from (
-          select id, content_id, added_at, quality_rank, lang, dynamic_range, market, country, position, category_xtream_id, raw,
-            variant_theme as theme, variant_adult as adult, iptv_id,
-            ${variantEpgId} as epg_id,
-            exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${variantEpgId}) as has_epg,
-            coalesce(array_position(${langOrder}::text[], lang), ${DEFAULT_LANGUAGE_ORDER.length + 1}) as lang_rank,
-            (${visibleItem}) as vis,
-            (${visibleItem} or not bool_or(${visibleItem}) over (partition by content_id)) as counted
-          from ${variants} where content_id is not null ${scope}
-        ) i
+        from (${counted(true)}) i
         group by content_id
       ) g
       left join ${schema.cacheIptvorgChannels} ic on ic.id = g.iptv
     ) a
     where a.content_id = c.id
-      and (c.variant_count, c.added_at, c.visible, c.max_quality_rank, c.languages, c.dynamic_range, c.themes, c.market, c.country,
-           c.category_xtream_id, c.iptv_id, c.logo_url, c.channel_number, c.epg_channel_id, c.adult)
+      and (c.source_count, c.added_at, c.visible, c.max_quality_rank, c.languages, c.status, c.theme, c.market, c.country,
+           c.iptv_id, c.logo_url, c.number, c.epg_id, c.adult)
           is distinct from
-          (a.n, a.added_at, a.visible, a.max_q, a.langs, a.dr, a.themes, coalesce(c.market, a.market), a.country,
-           a.cat, a.iptv, a.logo_url, a.num, a.epg, c.tmdb_adult or a.all_adult)`);
+          (a.n, a.added_at, a.visible, a.max_q, a.langs, a.status, case when 'theme' = any(c.edited) then c.theme else a.theme end,
+           coalesce(c.market, a.market), case when 'country' = any(c.edited) then c.country else a.country end,
+           a.iptv, a.logo_url, a.num, a.epg, a.all_adult)`);
+  // A channel of ours no provider lists any more stays, with nothing to play.
+  await db.execute(sql`
+    update catalog_channels c set source_count = 0, visible = false, updated_at = now()
+    where (c.source_count <> 0 or c.visible) ${onlyIds ? sql`and c.id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``}
+      and not exists (select 1 from catalog_variants v where v.channel_id = c.id)`);
   await refreshProfileVisibility(onlyIds);
   return markWaitlistAvailable();
 }
 
 /**
- * What each profile sees, from the same predicate: a content is visible to a profile when one of its
- * versions is kept by the profile's filter (`catalog_variant_profiles`) and hidden neither by hand nor
- * through its category. Rows removed then added, only where it changed.
+ * What each profile sees, from the same predicate: a title or a channel is visible to a profile when one
+ * of its versions is kept by the profile's filter (`catalog_variant_profiles`) and hidden neither by hand
+ * nor through its category. Rows removed then added, only where it changed.
  */
 async function refreshProfileVisibility(onlyIds?: number[]) {
   const ids = onlyIds ? sql`${`{${onlyIds.join(",")}}`}::int[]` : null;
-  const seen = sql`exists (
-    select 1 from ${variants} join catalog_variant_profiles vp on vp.variant_id = variants.id
-    where variants.content_id = catalog_content_profiles.content_id and vp.profile_id = catalog_content_profiles.profile_id
-      and ${visibleItem})`;
-  await db.execute(sql`
-    delete from catalog_content_profiles
-    where ${ids ? sql`catalog_content_profiles.content_id = any(${ids}) and` : sql``} not ${seen}`);
-  await db.execute(sql`
-    insert into catalog_content_profiles (content_id, profile_id)
-    select distinct variants.content_id, vp.profile_id
-    from ${variants} join catalog_variant_profiles vp on vp.variant_id = variants.id
-    where variants.content_id is not null ${ids ? sql`and variants.content_id = any(${ids})` : sql``} and ${visibleItem}
-    on conflict do nothing`);
+  for (const side of [
+    { table: sql`app_profile_titles`, id: sql`title_id` },
+    { table: sql`app_profile_channels`, id: sql`channel_id` },
+  ]) {
+    const seen = sql`exists (
+      select 1 from ${variants} join catalog_variant_profiles vp on vp.variant_id = variants.id
+      where variants.${side.id} = ${side.table}.${side.id} and vp.profile_id = ${side.table}.profile_id
+        and ${visibleItem})`;
+    await db.execute(sql`
+      delete from ${side.table}
+      where ${ids ? sql`${side.table}.${side.id} = any(${ids}) and` : sql``} not ${seen}`);
+    await db.execute(sql`
+      insert into ${side.table} (${side.id}, profile_id)
+      select distinct variants.${side.id}, vp.profile_id
+      from ${variants} join catalog_variant_profiles vp on vp.variant_id = variants.id
+      where variants.${side.id} is not null ${ids ? sql`and variants.${side.id} = any(${ids})` : sql``} and ${visibleItem}
+      on conflict do nothing`);
+  }
 }
 
 // ---------------------------------------------------------------- 5. orphans
 
 async function deleteOrphans(): Promise<number> {
-  const rows = await db
-    .delete(schema.catalogContents)
-    .where(sql`not exists (select 1 from ${schema.catalogVariants} i where i.content_id = ${schema.catalogContents.id})`)
-    .returning({ id: schema.catalogContents.id });
-  return rows.length;
+  const titles = await db
+    .delete(schema.catalogTitles)
+    .where(sql`not exists (select 1 from ${schema.catalogVariants} i where i.title_id = ${schema.catalogTitles.id})`)
+    .returning({ id: schema.catalogTitles.id });
+  const channels = await db
+    .delete(schema.catalogChannels)
+    // A channel of ours (aliases, fields set by hand) stays when its variants are gone: what was said of it is not lost.
+    .where(
+      sql`not exists (select 1 from ${schema.catalogVariants} i where i.channel_id = ${schema.catalogChannels.id})
+        and cardinality(${schema.catalogChannels.aliases}) = 0 and cardinality(${schema.catalogChannels.edited}) = 0`,
+    )
+    .returning({ id: schema.catalogChannels.id });
+  return titles.length + channels.length;
 }
 
 /**
  * Counters for the dashboard, over what the app sees: a content counts when one of its variants
- * is visible, and « several variants » means several visible ones (recomputed here: `variant_count` only follows the switches after `refreshVisibility`).
+ * is visible, and « several variants » means several visible ones (recomputed here: `source_count` only follows the switches after `refreshVisibility`).
  * Sagas: the TMDB collections with at least two visible movies, as `/player/movies/sagas` lists them.
  */
 export async function groupingCounts() {
@@ -687,19 +754,36 @@ export async function groupingCounts() {
     .where(visibleItem)
     .groupBy(variants.contentId)
     .as("v");
-  return db
-    .select({
-      kind: schema.catalogContents.kind,
-      visible: sql<number>`count(*)::int`,
-      multi: sql<number>`count(*) filter (where ${v.n} > 1)::int`,
-      fallback: sql<number>`count(*) filter (where ${hasFallbackKey})::int`,
-      adult: sql<number>`count(*) filter (where ${schema.catalogContents.adult})::int`,
-      iptv: sql<number>`count(*) filter (where ${schema.catalogContents.iptvId} is not null)::int`,
-      sagas: sql<number>`(select count(*)::int from (
-        select 1 from ${schema.catalogContents} s where s.kind = ${schema.catalogContents.kind} and s.visible and s.saga_id is not null
-        group by s.saga_id having count(*) >= 2) x)`,
-    })
-    .from(schema.catalogContents)
-    .innerJoin(v, sql`${v.contentId} = ${schema.catalogContents.id}`)
-    .groupBy(schema.catalogContents.kind);
+  const t = schema.catalogTitles;
+  const c = schema.catalogChannels;
+  const [titles, channels] = await Promise.all([
+    db
+      .select({
+        kind: t.kind,
+        visible: sql<number>`count(*)::int`,
+        multi: sql<number>`count(*) filter (where ${v.n} > 1)::int`,
+        fallback: sql<number>`count(*) filter (where ${hasFallbackKey})::int`,
+        adult: sql<number>`count(*) filter (where ${t.adult})::int`,
+        iptv: sql<number>`0`,
+        sagas: sql<number>`(select count(*)::int from (
+          select 1 from ${t} s where s.kind = ${t.kind} and s.visible and s.saga_id is not null
+          group by s.saga_id having count(*) >= 2) x)`,
+      })
+      .from(t)
+      .innerJoin(v, sql`${v.contentId} = ${t.id}`)
+      .groupBy(t.kind),
+    db
+      .select({
+        kind: sql<Kind>`'live'`,
+        visible: sql<number>`count(*)::int`,
+        multi: sql<number>`count(*) filter (where ${v.n} > 1)::int`,
+        fallback: sql<number>`0`,
+        adult: sql<number>`count(*) filter (where ${c.adult})::int`,
+        iptv: sql<number>`count(*) filter (where ${c.iptvId} is not null)::int`,
+        sagas: sql<number>`0`,
+      })
+      .from(c)
+      .innerJoin(v, sql`${v.contentId} = ${c.id}`),
+  ]);
+  return [...titles, ...channels.filter((r) => r.visible > 0)];
 }

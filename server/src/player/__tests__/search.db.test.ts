@@ -26,7 +26,7 @@ beforeAll(async () => {
     [4, "Heat", 7000],
     [5, "A", 3],
   ];
-  await db.insert(schema.catalogContents).values(
+  await db.insert(schema.catalogTitles).values(
     movies.map(([id, title, voteCount]) => ({
       key: `tmdb:movie:${id}`,
       kind: "vod" as const,

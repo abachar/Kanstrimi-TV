@@ -13,8 +13,8 @@ export async function sourceRows(): Promise<SourceRow[]> {
     listEpgSources(),
     db.execute<{ s: number; n: number }>(sql`
       select substring(epg_fallback_id from '^@([0-9]+)/')::int as s, count(*)::int as n
-      from ${schema.catalogContents}
-      where kind = 'live' and visible and epg_fallback_id is not null
+      from ${schema.catalogChannels}
+      where visible and epg_fallback_id is not null
       group by 1`),
   ]);
   const linked = new Map(counts.map((r) => [r.s, r.n]));
@@ -58,17 +58,17 @@ export async function sourcePage(source: EpgSource, query: SourcePageQuery) {
     resolveEpgLinks(),
     db
       .select({
-        id: schema.catalogContents.id,
-        key: schema.catalogContents.key,
-        title: schema.catalogContents.title,
-        logo: schema.catalogContents.logoUrl,
-        market: schema.catalogContents.market,
-        country: schema.catalogContents.country,
-        fallbackId: schema.catalogContents.epgFallbackId,
+        id: schema.catalogChannels.id,
+        key: schema.catalogChannels.key,
+        title: schema.catalogChannels.name,
+        logo: schema.catalogChannels.logoUrl,
+        market: schema.catalogChannels.market,
+        country: schema.catalogChannels.country,
+        fallbackId: schema.catalogChannels.epgFallbackId,
       })
-      .from(schema.catalogContents)
-      .where(and(eq(schema.catalogContents.kind, "live"), eq(schema.catalogContents.visible, true)))
-      .orderBy(asc(schema.catalogContents.title), asc(schema.catalogContents.id)),
+      .from(schema.catalogChannels)
+      .where(and(eq(schema.catalogChannels.visible, true)))
+      .orderBy(asc(schema.catalogChannels.name), asc(schema.catalogChannels.id)),
   ]);
   const links = res.links.get(source.id) ?? new Map<string, EpgLinkState>();
   const refused = res.refused.get(source.id) ?? new Set<string>();

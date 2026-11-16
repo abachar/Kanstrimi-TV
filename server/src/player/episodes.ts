@@ -19,7 +19,7 @@ export async function loadEpisodes(
   const eps = await db
     .select()
     .from(schema.catalogEpisodes)
-    .where(eq(schema.catalogEpisodes.contentId, content.id))
+    .where(eq(schema.catalogEpisodes.titleId, content.id))
     .orderBy(asc(schema.catalogEpisodes.season), asc(schema.catalogEpisodes.number));
   if (!eps.length) return [];
   const byItem = new Map(variants.map((v) => [v.id, v]));

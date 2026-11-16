@@ -7,7 +7,18 @@ import { nightEnd } from "../epg";
 import { remaining } from "../cards";
 import { encodeCursor } from "../lists";
 import { liveChip } from "../channels";
-import { ACCOUNT, PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, seedProgrammes, groupAndFilter } from "@/test/db";
+import {
+  ACCOUNT,
+  PROFILE,
+  resetDb,
+  closeDb,
+  seedCategories,
+  seedItems,
+  seedTmdb,
+  seedProgrammes,
+  groupAndFilter,
+  contentOfKey,
+} from "@/test/db";
 
 import {
   addStudio,
@@ -488,14 +499,14 @@ describe("GET /movies and /series", () => {
 
   it("genres: kept in memory until the grouping rewrites the contents", async () => {
     const rowIds = async () => (await get("/movies")).body.map((r: { id: string }) => r.id);
-    const heat = eq(schema.catalogContents.key, "tmdb:movie:949"); // the only movie of « Crime »
-    const [{ id: heatId }] = await db.select({ id: schema.catalogContents.id }).from(schema.catalogContents).where(heat);
+    const heat = eq(schema.catalogTitles.key, "tmdb:movie:949"); // the only movie of « Crime »
+    const [{ id: heatId }] = await db.select({ id: schema.catalogTitles.id }).from(schema.catalogTitles).where(heat);
     expect(await rowIds()).toContain("crime");
     const shown = (hiddenManual: boolean) =>
-      db.update(schema.catalogVariants).set({ hiddenManual }).where(eq(schema.catalogVariants.contentId, heatId));
+      db.update(schema.catalogVariants).set({ hiddenManual }).where(eq(schema.catalogVariants.titleId, heatId));
     try {
       // Hidden behind the pipeline's back: the genre list is not read again.
-      await db.update(schema.catalogContents).set({ visible: false }).where(heat);
+      await db.update(schema.catalogTitles).set({ visible: false }).where(heat);
       expect(await rowIds()).toContain("crime");
       // Hidden for real: the grouping writes it, and the genres follow.
       await shown(true);
@@ -767,8 +778,8 @@ describe("channels", () => {
     }
   });
   it("a channel the provider leaves without programmes shows its fallback source's guide", async () => {
-    const bein = eq(schema.catalogContents.key, "live:fr-bein-sports-1");
-    await db.update(schema.catalogContents).set({ epgFallbackId: "@9/beIN SPORTS 1.qa" }).where(bein);
+    const bein = eq(schema.catalogChannels.key, "live:fr-bein-sports-1");
+    await db.update(schema.catalogChannels).set({ epgFallbackId: "@9/beIN SPORTS 1.qa" }).where(bein);
     await seedProgrammes([{ channelId: "@9/beIN SPORTS 1.qa", start: -30, end: 60, title: "Ligue des champions" }]);
     try {
       const { body } = await get("/channels/live:fr-bein-sports-1");
@@ -779,7 +790,7 @@ describe("channels", () => {
         "Ligue des champions",
       ]);
     } finally {
-      await db.update(schema.catalogContents).set({ epgFallbackId: null }).where(bein);
+      await db.update(schema.catalogChannels).set({ epgFallbackId: null }).where(bein);
       await db.delete(schema.cacheEpgProgrammes).where(like(schema.cacheEpgProgrammes.channelId, "@9/%"));
     }
   });
@@ -1066,7 +1077,7 @@ describe("Nouveautés, release order and visible variants", () => {
     const alpha = (await get("/movies?genre=recent&limit=50")).body.items.find((c: { id: string }) => c.id === "tmdb:movie:2001");
     expect(alpha.badges).not.toContain("4K");
     expect(alpha.badges.filter((b: string) => !/^(SD|HD|FHD|4K)\b/.test(b))).toEqual(["FR"]);
-    const [row] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "tmdb:movie:2001"));
+    const row = await contentOfKey("tmdb:movie:2001");
     expect(row.addedAt.getTime()).toBeLessThan(daysAgo(4).getTime());
   });
 
@@ -1574,11 +1585,8 @@ describe("GET /top-shelf", () => {
 
   it("the last title in progress, a started series with a new episode, then the week's top movies, each once", async () => {
     // The carousel draws the title logo in the image: Heat and Vincenzo get one, Matrix has its own.
-    await db
-      .update(schema.catalogContents)
-      .set({ titleLogoPath: "/heat-logo.png" })
-      .where(eq(schema.catalogContents.key, "tmdb:movie:949"));
-    await db.update(schema.catalogContents).set({ titleLogoPath: "/v-logo.png" }).where(eq(schema.catalogContents.key, "tmdb:tv:1396"));
+    await db.update(schema.catalogTitles).set({ titleLogoPath: "/heat-logo.png" }).where(eq(schema.catalogTitles.key, "tmdb:movie:949"));
+    await db.update(schema.catalogTitles).set({ titleLogoPath: "/v-logo.png" }).where(eq(schema.catalogTitles.key, "tmdb:tv:1396"));
     await db.delete(schema.appWatchProgress);
     await db.insert(schema.appWatchProgress).values([
       progressRow("tmdb:movie:603", 1000, 8280, new Date()),
@@ -1595,7 +1603,7 @@ describe("GET /top-shelf", () => {
       // Matrix is already there: the top movies go on with Heat only.
       ["top", "tmdb:movie:949", "tmdb:movie:949", "N° 1 cette semaine"],
     ]);
-    const [matrix] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "tmdb:movie:603"));
+    const matrix = await contentOfKey("tmdb:movie:603");
     expect(body[0]).toMatchObject({
       title: "Matrix",
       image: `http://kanstrimi.test/img/shelf/1x/bd.jpg${matrix.titleLogoPath}?layout=2`,
@@ -1627,12 +1635,9 @@ describe("GET /top-shelf", () => {
   });
 
   it("a title without a TMDB logo is left out: the carousel would show it untitled", async () => {
-    await db.update(schema.catalogContents).set({ titleLogoPath: null }).where(eq(schema.catalogContents.key, "tmdb:movie:949"));
+    await db.update(schema.catalogTitles).set({ titleLogoPath: null }).where(eq(schema.catalogTitles.key, "tmdb:movie:949"));
     expect((await get("/top-shelf")).body.map((i: { open_id: string }) => i.open_id)).not.toContain("tmdb:movie:949");
-    await db
-      .update(schema.catalogContents)
-      .set({ titleLogoPath: "/heat-logo.png" })
-      .where(eq(schema.catalogContents.key, "tmdb:movie:949"));
+    await db.update(schema.catalogTitles).set({ titleLogoPath: "/heat-logo.png" }).where(eq(schema.catalogTitles.key, "tmdb:movie:949"));
   });
 
   it("no new episode once the next one is started, nor when the series has had no arrival since", async () => {
@@ -1707,7 +1712,7 @@ describe("guide per quality", () => {
     expect(tf1.versions.map((v: { id: string }) => v.id)).toEqual(["vf-4k", "vf-fhd", "vf-hd"]);
     expect(tf1.now.title).toBe("Journal");
     expect(tf1.versions.every((v: object) => !("now" in v))).toBe(true);
-    const [tf1Content] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, tf1.id));
+    const tf1Content = await contentOfKey(tf1.id);
     expect(tf1Content.epgChannelId).toBe("TF1.fr");
 
     const m6 = byName("M6");
@@ -1741,7 +1746,7 @@ describe("guide of a channel with two languages", () => {
     const duo = channels.find((c: { name: string }) => c.name === "Duo");
     expect(duo.versions.map((v: { id: string }) => v.id)).toEqual(["vf-hd", "vo-4k"]);
     expect(duo.now.title).toBe("Version française");
-    const [content] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, duo.id));
+    const content = await contentOfKey(duo.id);
     expect(content.epgChannelId).toBe("duo-vf.fr");
   });
 });
@@ -1761,10 +1766,7 @@ describe("errors of /player", () => {
     ]);
     await runNaming();
     await groupAndFilter();
-    const [content] = await db
-      .select()
-      .from(schema.catalogContents)
-      .where(like(schema.catalogContents.key, "fallback:series:sans-reseau%"));
+    const [content] = await db.select().from(schema.catalogTitles).where(like(schema.catalogTitles.key, "fallback:series:sans-reseau%"));
     vi.stubGlobal("fetch", async () => new Response("", { status: 503 }));
     try {
       const r = await call(`/series/${content.key}`);
