@@ -1,14 +1,13 @@
 import { db, schema, client, type Profile, type ProviderAccount } from "@/db";
 import { invalidateAccounts, invalidateSettings } from "@/config";
-import { eq } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { eq, inArray, sql, type SQL } from "drizzle-orm";
 import type { XStream } from "@/providers/xtream";
 import { applyFilters, runGrouping } from "@/catalog";
 
 /** Empty every catalogue table between test files, then seed the default profile and the provider account. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table xtream_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, cache_tmdb, cache_xtream_info, app_profiles, app_profile_filters, catalog_variant_profiles, catalog_content_profiles, task_steps, task_runs, cache_iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, cache_epg_programmes, settings_epg_offsets, settings_epg_sources, cache_epg_source_channels, curation_epg_links, catalog_studios, app_waitlist, curation_channels, cache_tmdb_trending, cache_tmdb_recommendations, cache_tmdb_extras, cache_skipdb_segments, cache_theintrodb, cache_introdb restart identity cascade`,
+    sql`truncate table xtream_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, cache_tmdb, cache_xtream_info, app_profiles, app_profile_filters, catalog_variant_profiles, catalog_content_profiles, task_steps, task_runs, cache_iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, cache_epg_programmes, settings_epg_offsets, settings_epg_sources, cache_epg_source_channels, curation_epg_links, catalog_studios, app_waitlist, curation_channels, cache_tmdb_trending, cache_tmdb_recommendations, cache_tmdb_extras, cache_skipdb_segments, cache_theintrodb, cache_introdb restart identity cascade`,
   );
   await db.insert(schema.appProfiles).values({ name: "Hakim", isDefault: true, judgedAt: new Date() }); // the restarted identity gives it PROFILE
   await db
@@ -104,35 +103,32 @@ export async function seedCategories(
   rows: { accountId?: number; kind: "live" | "vod" | "series"; xtreamId: string; name: string; hiddenManual?: boolean }[],
 ) {
   if (!rows.length) return;
-  await db.insert(schema.catalogCategories).values(
+  await db.insert(schema.xtreamCategories).values(
     rows.map((c, i) => ({
       accountId: c.accountId ?? ACCOUNT,
       kind: c.kind,
       xtreamId: c.xtreamId,
       name: c.name,
       position: i,
-      hiddenManual: c.hiddenManual ?? false,
+      hidden: c.hiddenManual ?? false,
       raw: {},
     })),
   );
 }
 
+/** Streams as the import would have written them, each with its variant (`merge`), not read yet (`runNaming`). */
 export async function seedItems(rows: ItemSeed[]) {
   if (!rows.length) return [];
-  return db
-    .insert(schema.catalogVariants)
+  const streams = await db
+    .insert(schema.xtreamStreams)
     .values(
       rows.map((r, i) => ({
         accountId: r.accountId ?? ACCOUNT,
         kind: r.kind,
-        xtreamId: r.xtreamId,
+        upstreamId: r.xtreamId,
         name: r.name,
         categoryXtreamId: r.cat ?? null,
         position: i,
-        tmdbId: r.tmdbId ?? null,
-        matchStatus: r.matchStatus ?? (r.kind === "live" ? "skipped" : "pending"),
-        hiddenManual: r.hiddenManual ?? false,
-        keyOverride: r.keyOverride ?? null,
         section: r.section ?? null,
         raw: {
           name: r.name,
@@ -143,7 +139,17 @@ export async function seedItems(rows: ItemSeed[]) {
         addedAt: r.addedAt ?? new Date("2026-09-20T04:10:00Z"),
       })),
     )
-    .returning({ id: schema.catalogVariants.id, xtreamId: schema.catalogVariants.xtreamId });
+    .returning({ id: schema.xtreamStreams.id, xtreamId: schema.xtreamStreams.upstreamId });
+  await db.insert(schema.catalogVariants).values(
+    rows.map((r, i) => ({
+      id: streams[i].id,
+      tmdbId: r.tmdbId ?? null,
+      matchStatus: r.matchStatus ?? (r.kind === "live" ? ("skipped" as const) : ("pending" as const)),
+      hiddenManual: r.hiddenManual ?? false,
+      keyOverride: r.keyOverride ?? null,
+    })),
+  );
+  return streams;
 }
 
 export async function seedTmdb(mediaType: "movie" | "tv", tmdbId: number, data: Record<string, unknown>, lang = "fr-FR") {
@@ -176,8 +182,9 @@ export async function seedProgrammes(rows: { channelId: string; start: number; e
  */
 export async function knowChannels() {
   await db.execute(sql`
-    update catalog_variants set channel_name = clean_title
-    where kind = 'live' and channel_name is null and iptv_theme is null and iptv_match is null and nullif(clean_title, '') is not null`);
+    update catalog_variants v set channel_name = s.title
+    from xtream_streams s
+    where s.id = v.id and s.kind = 'live' and v.channel_name is null and v.iptv_theme is null and v.iptv_match is null and nullif(s.title, '') is not null`);
 }
 
 /**
@@ -190,3 +197,7 @@ export async function groupAndFilter() {
   const judged = await applyFilters();
   return { ...stats, variants_hidden: judged.variants_hidden, waitlist_available: stats.waitlist_available + judged.waitlist_available };
 }
+
+/** The variants of the streams matching `where` (a condition on `xtream_streams`), for a test that writes `catalog_variants`. */
+export const ofStreams = (where: SQL) =>
+  inArray(schema.catalogVariants.id, db.select({ id: schema.xtreamStreams.id }).from(schema.xtreamStreams).where(where));

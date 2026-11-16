@@ -1,13 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
-import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
+import { db, schema, variants as vr } from "@/db";
+import { PROFILE, resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter, ofStreams } from "@/test/db";
 import { runNaming, regroupItems, refreshVisibility, groupingCounts } from "../group";
 import { inArray } from "drizzle-orm";
 
 const content = async (key: string) => (await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, key)))[0];
-const variants = (contentId: number) =>
-  db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.contentId, contentId)).orderBy(schema.catalogVariants.id);
+const variants = (contentId: number) => db.select().from(vr).where(eq(vr.contentId, contentId)).orderBy(vr.id);
 
 afterAll(closeDb);
 
@@ -246,7 +245,7 @@ describe("runGrouping", () => {
 
   it("keeps the TMDB card's title when the variants' names change, and copies the card again when TMDB's is newer", async () => {
     const rename = (xtreamId: string, name: string) =>
-      db.update(schema.catalogVariants).set({ name }).where(eq(schema.catalogVariants.xtreamId, xtreamId));
+      db.update(schema.xtreamStreams).set({ name }).where(eq(schema.xtreamStreams.upstreamId, xtreamId));
     await rename("1", "|FR| Spidey (4K)");
     await rename("2", "|FR| Spidey (DV)");
     await runNaming();
@@ -268,13 +267,19 @@ describe("runGrouping", () => {
   });
 
   it("keeps iptv-org's adult flag and theme when the names are parsed again", async () => {
-    const tf1 = eq(schema.catalogVariants.xtreamId, "100");
-    await db.update(schema.catalogVariants).set({ iptvAdult: true, iptvTheme: "Sport" }).where(tf1);
+    const tf1 = eq(vr.xtreamId, "100");
+    await db
+      .update(schema.catalogVariants)
+      .set({ iptvAdult: true, iptvTheme: "Sport" })
+      .where(ofStreams(eq(schema.xtreamStreams.upstreamId, "100")));
     await runNaming(); // what `merge` does at every import, `channels` failing afterwards
-    const [v] = await db.select().from(schema.catalogVariants).where(tf1);
+    const [v] = await db.select().from(vr).where(tf1);
     expect(v).toMatchObject({ nameAdult: false, adult: true, theme: "Sport" });
-    await db.update(schema.catalogVariants).set({ iptvAdult: false, iptvTheme: null }).where(tf1);
-    const [back] = await db.select().from(schema.catalogVariants).where(tf1);
+    await db
+      .update(schema.catalogVariants)
+      .set({ iptvAdult: false, iptvTheme: null })
+      .where(ofStreams(eq(schema.xtreamStreams.upstreamId, "100")));
+    const [back] = await db.select().from(vr).where(tf1);
     expect(back.adult).toBe(false);
     expect(back.theme).toBe(back.nameTheme);
   });
@@ -282,7 +287,7 @@ describe("runGrouping", () => {
   it("counts for the dashboard what the app sees: hidden variants neither make a content nor several variants", async () => {
     const vod = async () => (await groupingCounts()).find((r) => r.kind === "vod")!;
     const before = await vod();
-    const rest = inArray(schema.catalogVariants.xtreamId, ["2", "3", "4"]);
+    const rest = ofStreams(inArray(schema.xtreamStreams.upstreamId, ["2", "3", "4"]));
     await db.update(schema.catalogVariants).set({ hiddenManual: true }).where(rest);
     // Spider-Man keeps one visible variant: still a content, no longer « several variants ».
     expect(await vod()).toMatchObject({ visible: before.visible, multi: before.multi - 1 });
@@ -291,7 +296,7 @@ describe("runGrouping", () => {
   });
 
   it("moves a variant to its TMDB group after a manual match, and drops the emptied fallback", async () => {
-    const [it] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "5"));
+    const [it] = await db.select().from(vr).where(eq(vr.xtreamId, "5"));
     await db.update(schema.catalogVariants).set({ tmdbId: 557, matchStatus: "manual" }).where(eq(schema.catalogVariants.id, it.id));
     await regroupItems([it.id]);
     expect(await content("fallback:movie:spider-man:2002")).toBeUndefined();
@@ -301,7 +306,7 @@ describe("runGrouping", () => {
   });
 
   it("honours a manual split through key_override", async () => {
-    const [it] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "4"));
+    const [it] = await db.select().from(vr).where(eq(vr.xtreamId, "4"));
     await db
       .update(schema.catalogVariants)
       .set({ keyOverride: `manual:${it.id}` })
@@ -314,13 +319,16 @@ describe("runGrouping", () => {
   });
 
   it("follows the admin visibility switches", async () => {
-    await db.update(schema.catalogVariants).set({ hiddenManual: false }).where(eq(schema.catalogVariants.xtreamId, "7"));
+    await db
+      .update(schema.catalogVariants)
+      .set({ hiddenManual: false })
+      .where(ofStreams(eq(schema.xtreamStreams.upstreamId, "7")));
     await refreshVisibility();
     expect((await content("fallback:movie:dune:-")).visible).toBe(true);
   });
 
   it("removes a content whose last variant disappeared", async () => {
-    await db.delete(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "102"));
+    await db.delete(schema.xtreamStreams).where(eq(schema.xtreamStreams.upstreamId, "102"));
     await runNaming();
     const stats = await groupAndFilter();
     expect(stats.orphans_removed).toBe(1);
@@ -344,8 +352,7 @@ describe("rules on versions", () => {
     await runNaming();
   });
 
-  const hiddenVersions = async () =>
-    (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.hiddenByRule, true))).map((v) => v.xtreamId).sort();
+  const hiddenVersions = async () => (await db.select().from(vr).where(eq(vr.hiddenByRule, true))).map((v) => v.xtreamId).sort();
   const languages = (query: string) =>
     db
       .insert(schema.appProfileFilters)

@@ -1,5 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
-import { db, KINDS, type Kind } from "@/db";
+import { db, KINDS, variants, type Kind } from "@/db";
 import { checkCancelled } from "@/shared";
 import { allFilters, compileFilter, filtersApplied } from "./filters";
 import { listProfiles, markProfileJudged, profileById } from "../profiles";
@@ -23,7 +23,8 @@ async function apply(contentIds?: number[], profileId?: number) {
   if (contentIds && !contentIds.length) return { variants_hidden: 0, waitlist_available: 0 };
   const profiles = profileId === undefined ? await listProfiles() : [await profileById(profileId)].filter((p) => p !== null);
   const filters = await allFilters();
-  const scope = contentIds ? sql`and catalog_variants.content_id = any(${`{${contentIds.join(",")}}`}::int[])` : sql``;
+  const ids = contentIds ? sql`${`{${contentIds.join(",")}}`}::int[]` : null;
+  const scope = ids ? sql`and variants.content_id = any(${ids})` : sql``;
   const touched = new Set<number>();
   const collect = (rows: { content_id: number | null }[]) => {
     for (const r of rows) if (r.content_id !== null) touched.add(r.content_id);
@@ -44,16 +45,16 @@ async function apply(contentIds?: number[], profileId?: number) {
       }
       collect(
         await db.execute<{ content_id: number | null }>(sql`
-          delete from catalog_variant_profiles using catalog_variants
-          where catalog_variant_profiles.variant_id = catalog_variants.id and catalog_variant_profiles.profile_id = ${profile.id}
-            and catalog_variants.kind = ${kind} ${scope} and not (${keep})
-          returning catalog_variants.content_id`),
+          delete from catalog_variant_profiles using ${variants}
+          where catalog_variant_profiles.variant_id = variants.id and catalog_variant_profiles.profile_id = ${profile.id}
+            and variants.kind = ${kind} ${scope} and not (${keep})
+          returning variants.content_id`),
       );
       collect(
         await db.execute<{ content_id: number | null }>(sql`
           insert into catalog_variant_profiles (variant_id, profile_id)
-          select catalog_variants.id, ${profile.id} from catalog_variants
-          where catalog_variants.kind = ${kind} ${scope} and (${keep})
+          select variants.id, ${profile.id} from ${variants}
+          where variants.kind = ${kind} ${scope} and (${keep})
           on conflict do nothing
           returning (select content_id from catalog_variants where id = variant_id) as content_id`),
       );
@@ -70,7 +71,7 @@ async function apply(contentIds?: number[], profileId?: number) {
   collect(
     await db.execute<{ content_id: number | null }>(sql`
       update catalog_variants set hidden_by_rule = ${hidden}
-      where true ${scope} and catalog_variants.hidden_by_rule is distinct from (${hidden})
+      where ${ids ? sql`catalog_variants.content_id = any(${ids}) and` : sql``} catalog_variants.hidden_by_rule is distinct from (${hidden})
       returning content_id`),
   );
   checkCancelled();

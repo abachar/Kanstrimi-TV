@@ -345,7 +345,7 @@ describe("adult contents", () => {
 
   it("an adult variant of a content that is not adult is never played without the setting", async () => {
     const flag = (xtreamId: string, nameAdult: boolean) =>
-      db.update(schema.catalogVariants).set({ nameAdult }).where(eq(schema.catalogVariants.xtreamId, xtreamId));
+      db.update(schema.xtreamStreams).set({ adult: nameAdult }).where(eq(schema.xtreamStreams.upstreamId, xtreamId));
     await flag("7", true); // Heat, Director's Cut
     await flag("100", true); // TF1 HD
     const heatVersions = async () => (await get("/movies/tmdb:movie:949")).body.versions.map((v: { id: string }) => v.id);

@@ -1,5 +1,5 @@
 import { and, asc, eq, ne, sql } from "drizzle-orm";
-import { db, schema, inDisabledAccount, visibleItem, type ReferenceChannel } from "@/db";
+import { db, schema, inDisabledAccount, variantRows, variants, visibleItem, type ReferenceChannel } from "@/db";
 import { similarity, similarityKey, slug } from "@/shared";
 import { countriesOf, type Index, loadIndex, nameKeys, rematchChannels, WATCHED_SHARE } from "./channels";
 import { EVENTS_THEME, LIVE_THEMES, REGIONS, UNKNOWN_THEME, type LiveTheme } from "./naming";
@@ -110,7 +110,7 @@ export type LiveSummary = { markets: LiveMarketStat[] /** The channels the profi
  * channels (`WATCHED_SHARE`). And how many channels this profile is shown.
  */
 export async function liveSummary(profileId: number): Promise<LiveSummary> {
-  const v = schema.catalogVariants;
+  const v = variants;
   const title = sql`coalesce(nullif(${v.cleanTitle}, ''), ${v.name})`;
   const rows = await db
     .select({
@@ -152,7 +152,7 @@ export async function listChannels(opts: { market: string; page: number; size: n
            (select count(*)::int from catalog_variants v where v.content_id = c.id) as versions, (count(*) over ())::int as total
     from catalog_contents c
     where c.kind = 'live' and c.market = ${opts.market} and c.key not like 'live:x:%'
-      and exists (select 1 from catalog_variants v join xtream_accounts a on a.id = v.account_id and a.enabled where v.content_id = c.id)
+      and exists (select 1 from ${variantRows} v join xtream_accounts a on a.id = v.account_id and a.enabled where v.content_id = c.id)
     order by c.title, c.id
     limit ${opts.size} offset ${(opts.page - 1) * opts.size}`);
   return { total: rows[0]?.total ?? 0, rows: rows.map(({ total: _, ...r }) => r) };
@@ -172,7 +172,7 @@ export type ContentChannel = {
   variantId: number;
 };
 export async function contentChannel(contentId: number): Promise<ContentChannel | null> {
-  const v = schema.catalogVariants;
+  const v = variants;
   const [row] = await db
     .select()
     .from(v)
@@ -310,16 +310,16 @@ export async function unmatchedNames(opts: {
 }): Promise<{ rows: UnmatchedName[]; total: number }> {
   const like = opts.q?.trim() ? `%${opts.q.trim().replace(/[\\%_]/g, "\\$&")}%` : null;
   const rows = await db.execute<Omit<UnmatchedName, "suggestions"> & { total: number }>(sql`
-    select v.market, coalesce(nullif(v.clean_title, ''), v.name) as title, count(*)::int as variants,
+    select v.market, coalesce(nullif(v.title, ''), v.name) as title, count(*)::int as variants,
            count(distinct v.account_id)::int as providers, min(c.name) as category, min(v.name) as sample,
            max(v.ai_kind) as "aiKind", max(v.ai_title) as "aiTitle", (count(*) over ())::int as total
-    from ${schema.catalogVariants} v
-    left join ${schema.catalogCategories} c on c.account_id = v.account_id and c.kind = v.kind and c.xtream_id = v.category_xtream_id
+    from ${variantRows} v
+    left join ${schema.xtreamCategories} c on c.account_id = v.account_id and c.kind = v.kind and c.xtream_id = v.category_xtream_id
     where v.kind = 'live' and v.channel_name is null and v.market = ${opts.market}
       and exists (select 1 from xtream_accounts a where a.id = v.account_id and a.enabled)
-      and ${opts.events ? sql`v.theme = ${EVENTS_THEME}` : sql`v.theme is distinct from ${EVENTS_THEME}`}
-      ${like ? sql`and (v.clean_title ilike ${like} or v.name ilike ${like})` : sql``}
-    group by v.market, coalesce(nullif(v.clean_title, ''), v.name)
+      and ${opts.events ? sql`v.variant_theme = ${EVENTS_THEME}` : sql`v.variant_theme is distinct from ${EVENTS_THEME}`}
+      ${like ? sql`and (v.title ilike ${like} or v.name ilike ${like})` : sql``}
+    group by v.market, coalesce(nullif(v.title, ''), v.name)
     order by count(*) desc, 2
     limit ${opts.size} offset ${(opts.page - 1) * opts.size}`);
   const pool = rows.length ? marketChannels(await loadIndex(), opts.market) : [];
@@ -332,8 +332,8 @@ export async function unmatchedNames(opts: {
 export type UnmatchedVariant = { id: number; name: string; provider: string; category: string | null; contentId: number | null };
 /** The variants that bear a name left without a reference channel. */
 export async function unmatchedVariants(market: string, title: string): Promise<UnmatchedVariant[]> {
-  const v = schema.catalogVariants;
-  const c = schema.catalogCategories;
+  const v = variants;
+  const c = schema.xtreamCategories;
   return db
     .select({ id: v.id, name: v.name, provider: schema.xtreamAccounts.name, category: c.name, contentId: v.contentId })
     .from(v)

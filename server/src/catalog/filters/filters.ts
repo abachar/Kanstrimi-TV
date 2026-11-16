@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
-import { db, schema, type Kind, type ProfileFilter } from "@/db";
+import { db, schema, variants, type Kind, type ProfileFilter } from "@/db";
 import { getSettings } from "@/config";
 import { checkRegexes, compileQuery, parseQuery, QueryError, type QueryNode } from "../query";
 import { DEFAULT_LANGUAGE_ORDER } from "../naming";
@@ -35,7 +35,7 @@ export async function allFilters(): Promise<Map<number, Partial<Record<Kind, Pro
   return out;
 }
 
-/** A filter's query compiled for `kind`, about `catalog_variants`; or what is wrong with it, in a sentence with its column. */
+/** A filter's query compiled for `kind`, about `variants`; or what is wrong with it, in a sentence with its column. */
 export async function compileFilter(query: string, kind: Kind): Promise<SQL | string> {
   try {
     const where = compileQuery(query, { kind, lang: (await getSettings()).tmdb_language, filter: true });
@@ -89,7 +89,7 @@ export async function previewFilter(kind: Kind, query: string): Promise<FilterPr
     }>(sql`
       with j as materialized (
         select content_id, count(*)::int as n, (count(*) filter (where coalesce(${where}, false)))::int as kept
-        from catalog_variants where kind = ${kind} and content_id is not null group by content_id)
+        from ${variants} where kind = ${kind} and content_id is not null group by content_id)
       select coalesce(sum(n), 0)::int as versions, coalesce(sum(kept), 0)::int as kept_versions,
         count(*)::int as contents, (count(*) filter (where kept > 0))::int as kept_contents,
         ${titles(true)} as kept, ${titles(false)} as left

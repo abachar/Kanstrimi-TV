@@ -1,5 +1,5 @@
 import { and, asc, eq, like, sql } from "drizzle-orm";
-import { db, schema, visibleItem, type EpgSource } from "@/db";
+import { db, schema, variants, visibleItem, type EpgSource } from "@/db";
 import { checkCancelled, describeError, isCancelled } from "@/shared";
 import { fetchXmltv, type ProgrammeRow } from "@/providers/xmltv";
 import { guideNameKey, parseSourceGuideId, sourceGuideId } from "./epg-ids";
@@ -143,7 +143,7 @@ export type EpgResolution = {
  * source's channel of that name that has the most of them.
  */
 export async function resolveEpgLinks(): Promise<EpgResolution> {
-  const v = schema.catalogVariants;
+  const v = variants;
   const [sources, contents, channels, manual] = await Promise.all([
     listEpgSources(),
     db.execute<{ id: number; key: string; title: string; epg: string | null; guided: boolean }>(sql`

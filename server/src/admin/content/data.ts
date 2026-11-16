@@ -134,7 +134,7 @@ async function guideOf(c: Content, items: Variant[]): Promise<ChannelGuide | nul
 async function variantDetails(items: Variant[], tmdbLang: string): Promise<VariantDetail[]> {
   if (!items.length) return [];
   const [cats, accounts] = await Promise.all([
-    db.select().from(schema.catalogCategories).where(eq(schema.catalogCategories.kind, items[0].kind)),
+    db.select().from(schema.xtreamCategories).where(eq(schema.xtreamCategories.kind, items[0].kind)),
     accountsById(),
   ]);
   const catOf = new Map(cats.map((c) => [`${c.accountId}:${c.xtreamId}`, c]));

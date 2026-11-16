@@ -6,7 +6,6 @@ import { getTmdbClient, runTrending } from "@/providers/tmdb";
 import { runSkipdbImport } from "@/providers/skipdb";
 import { runEnrich } from "./matching";
 import { runEpgRebuild } from "./epg";
-import { variantCountsByAccount } from "./queries";
 import { applyFilters } from "./filters/apply";
 import { runGrouping } from "./grouping/group";
 import { runMerge } from "./merge";
@@ -16,8 +15,8 @@ import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
 
 /**
  * The catalogue pipeline. Four steps, each a plain function of its own modules:
- *   source  — the lists of every enabled account into their raw copy, each checked against the catalogue
- *             (providers/xtream), then raw copy → catalogue by difference and the names parsed (merge.ts, no network)
+ *   source  — the lists of every enabled account written by difference to `xtream_streams`, each checked against what
+ *             it held (providers/xtream), then a variant for each new stream and the names read (merge.ts, no network)
  *   enrich  — TMDB matching of every pending film and series, hidden ones included, and a share of the
  *             stale cache (matching.ts); live variants matched to iptv-org: logo, theme, country (channels.ts)
  *   group   — variants → contents in the served languages, aggregates over the visible variants (no network)
@@ -58,9 +57,9 @@ type StepContext = RunOptions & { steps: Step[] };
 const RUNNERS: Record<Step, (ctx: StepContext) => Promise<unknown>> = {
   // Every account that could be read is merged before the failures of the others stop the step.
   source: async (ctx) => {
-    const read = await runSync({ acceptShrink: ctx.acceptShrink, currentCounts: await variantCountsByAccount() });
+    const read = await runSync({ acceptShrink: ctx.acceptShrink });
     checkCancelled();
-    const merged = await runMerge(ctx);
+    const merged = await runMerge();
     if (read.failed.length) {
       for (const f of read.failed) note(`fournisseur en échec : ${f}`);
       throw new PartialFailure(read.failed.join(" ; "));

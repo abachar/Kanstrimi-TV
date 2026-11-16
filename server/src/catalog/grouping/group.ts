@@ -1,6 +1,6 @@
 import { getSettings } from "@/config";
-import { db, schema, client as pg, sqlTmdbMediaType, tmdbMediaType, visibleItem, type Kind } from "@/db";
-import { and, asc, gt, inArray, sql, type SQL } from "drizzle-orm";
+import { db, schema, client as pg, pgVariantRows, sqlTmdbMediaType, tmdbMediaType, variants, visibleItem, type Kind } from "@/db";
+import { and, asc, eq, gt, inArray, sql, type SQL } from "drizzle-orm";
 import {
   liveMarket,
   liveTheme,
@@ -137,7 +137,7 @@ async function* chunksOf<T extends { id: number }>(select: (where: SQL) => Promi
   let last = 0;
   for (;;) {
     checkCancelled();
-    const rows = await select(and(gt(schema.catalogVariants.id, last), onlyIds ? inArray(schema.catalogVariants.id, onlyIds) : undefined)!);
+    const rows = await select(and(gt(variants.id, last), onlyIds ? inArray(variants.id, onlyIds) : undefined)!);
     if (!rows.length) return;
     last = rows[rows.length - 1].id;
     yield rows;
@@ -146,7 +146,7 @@ async function* chunksOf<T extends { id: number }>(select: (where: SQL) => Promi
 }
 
 async function categoryHints() {
-  const c = schema.catalogCategories;
+  const c = schema.xtreamCategories;
   const cats = await db.select({ accountId: c.accountId, kind: c.kind, xtreamId: c.xtreamId, name: c.name }).from(c);
   const map = new Map<string, CategoryHints & { adult: boolean }>();
   for (const k of cats) map.set(`${k.accountId}:${k.kind}:${k.xtreamId}`, { ...parseCategory(k.name), adult: isAdultCategory(k.name) });
@@ -154,28 +154,29 @@ async function categoryHints() {
 }
 
 /**
- * Names → variant columns (clean_title, year, market, language, quality, tags, edition, name_adult, name_theme, name_country).
- * Depends on the name, the section and the category only, so it runs right after `merge`: TMDB
- * matching reads `clean_title` and `year`, the grouping reads them all. Every name is parsed, only
- * the rows whose result changed are written: a new grammar applies everywhere at the next run. An
- * entry TMDB had given up on, whose title or year the grammar now reads otherwise than it had (a
+ * Names → what is read in them (`xtream_streams`: title, year, market, language, quality, tags, edition, adult, theme, country).
+ * Depends on the name, the section and the category only, so it runs right after the import: TMDB
+ * matching reads the title and the year, the grouping reads them all. Every name is parsed, only
+ * the rows whose result changed are written: a new grammar applies everywhere at the next run.
+ *
+ * An entry TMDB had given up on, whose title or year the grammar now reads otherwise than it had (a
  * first reading is not a change), goes back to pending: what was searched was the old reading.
  */
 export async function runNaming(onlyIds?: number[]): Promise<{ items_named: number }> {
   const hints = await categoryHints();
   let written = 0;
-  const v = schema.catalogVariants;
-  const chunks = chunksOf(
-    (where) =>
-      db
-        .select({ id: v.id, accountId: v.accountId, kind: v.kind, name: v.name, cat: v.categoryXtreamId, section: v.section })
-        .from(v)
-        .where(where)
-        .orderBy(asc(v.id))
-        .limit(CHUNK),
-    onlyIds,
-  );
-  for await (const rows of chunks) {
+  const s = schema.xtreamStreams;
+  let last = 0;
+  for (;;) {
+    checkCancelled();
+    const rows = await db
+      .select({ id: s.id, accountId: s.accountId, kind: s.kind, name: s.name, cat: s.categoryXtreamId, section: s.section })
+      .from(s)
+      .where(and(gt(s.id, last), eq(s.separator, false), onlyIds ? inArray(s.id, onlyIds) : undefined))
+      .orderBy(asc(s.id))
+      .limit(CHUNK);
+    if (!rows.length) break;
+    last = rows[rows.length - 1].id;
     const ids: number[] = [],
       titles: string[] = [],
       years: (number | null)[] = [],
@@ -212,28 +213,33 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       themes.push(r.kind === "live" ? liveTheme(r.section, h?.title ?? null, p.title) : null);
       countries.push(live?.country ?? null);
     }
-    const changed = await pg`
-      update catalog_variants i set
-        clean_title = u.title, year = u.year,
-        market = u.market, lang = u.lang, quality = u.quality, quality_rank = u.qrank, dynamic_range = u.dr,
-        tags = u.tags, season_hint = u.season, edition = u.edition, name_adult = u.adult, name_theme = u.theme, name_country = u.country,
-        match_status = case when i.match_status = 'unmatched' and i.clean_title is not null and (i.clean_title, i.year) is distinct from (u.title, u.year)
-                            then 'pending'::match_status else i.match_status end,
-        match_attempts = case when i.match_status = 'unmatched' and i.clean_title is not null and (i.clean_title, i.year) is distinct from (u.title, u.year)
-                              then 0 else i.match_attempts end
-      from (
-        select id, title, year, market, lang, quality, qrank, dr, coalesce(string_to_array(nullif(tags, ''), ','), '{}') as tags, season, edition,
-               adult::boolean as adult, theme, country
-        from unnest(${ids}::int[], ${titles}::text[], ${years}::int[], ${markets}::text[], ${langs}::text[],
-                    ${qualities}::text[], ${qranks}::int[], ${drs}::text[], ${tags}::text[], ${seasons}::int[], ${editions}::text[], ${adults.map(String)}::text[], ${themes}::text[],
-                    ${countries}::text[])
-          as x(id, title, year, market, lang, quality, qrank, dr, tags, season, edition, adult, theme, country)
-      ) u
-      where i.id = u.id
-        and (i.clean_title, i.year, i.market, i.lang, i.quality, i.quality_rank, i.dynamic_range, i.tags, i.season_hint, i.edition, i.name_adult, i.name_theme, i.name_country)
-            is distinct from (u.title, u.year, u.market, u.lang, u.quality, u.qrank, u.dr, u.tags, u.season, u.edition, u.adult, u.theme, u.country)
-      returning 1`;
+    const changed = await pg.begin(async (tx) => {
+      // Before the new reading replaces the old one: the entries it sends back to TMDB.
+      await tx`
+        update catalog_variants v set match_status = 'pending', match_attempts = 0
+        from unnest(${ids}::int[], ${titles}::text[], ${years}::int[]) as u(id, title, year)
+        join xtream_streams s on s.id = u.id
+        where v.id = u.id and v.match_status = 'unmatched' and s.title is not null and (s.title, s.year) is distinct from (u.title, u.year)`;
+      return tx`
+        update xtream_streams i set
+          title = u.title, year = u.year,
+          market = u.market, lang = u.lang, quality = u.quality, quality_rank = u.qrank, dynamic_range = u.dr,
+          tags = u.tags, season_hint = u.season, edition = u.edition, adult = u.adult, theme = u.theme, country = u.country
+        from (
+          select id, title, year, market, lang, quality, qrank, dr, coalesce(string_to_array(nullif(tags, ''), ','), '{}') as tags, season, edition,
+                 adult::boolean as adult, theme, country
+          from unnest(${ids}::int[], ${titles}::text[], ${years}::int[], ${markets}::text[], ${langs}::text[],
+                      ${qualities}::text[], ${qranks}::int[], ${drs}::text[], ${tags}::text[], ${seasons}::int[], ${editions}::text[], ${adults.map(String)}::text[], ${themes}::text[],
+                      ${countries}::text[])
+            as x(id, title, year, market, lang, quality, qrank, dr, tags, season, edition, adult, theme, country)
+        ) u
+        where i.id = u.id
+          and (i.title, i.year, i.market, i.lang, i.quality, i.quality_rank, i.dynamic_range, i.tags, i.season_hint, i.edition, i.adult, i.theme, i.country)
+              is distinct from (u.title, u.year, u.market, u.lang, u.quality, u.qrank, u.dr, u.tags, u.season, u.edition, u.adult, u.theme, u.country)
+        returning 1`;
+    });
     written += changed.length;
+    if (rows.length < CHUNK) break;
   }
   return { items_named: written };
 }
@@ -246,7 +252,7 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
 async function assignKeys(onlyIds?: number[]): Promise<number> {
   let total = 0;
   const moves = new Map<string, Map<string, number>>();
-  const v = schema.catalogVariants;
+  const v = variants;
   const chunks = chunksOf(
     (where) =>
       db
@@ -354,8 +360,8 @@ async function upsertContents(onlyIds?: number[]) {
     insert into catalog_contents as c (key, kind, tmdb_id, title, year, market, added_at)
     select distinct on (i.content_key) i.content_key, i.kind,
       case when i.match_status in ('matched', 'manual') and i.content_key like 'tmdb:%' then i.tmdb_id end,
-      coalesce(nullif(i.channel_name, ''), nullif(i.clean_title, ''), i.name), i.year, i.market, i.added_at
-    from catalog_variants i
+      coalesce(nullif(i.channel_name, ''), nullif(i.title, ''), i.name), i.year, i.market, i.added_at
+    from ${pgVariantRows()} i
     where i.content_key is not null ${scope}
     order by i.content_key, i.quality_rank desc, i.id
     on conflict (key) do update set
@@ -614,13 +620,14 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
           -- the app then takes the closest quality, every language mixed (player/guides.ts).
           (array_agg(epg_id order by vis desc, lang_rank, has_epg desc, quality_rank desc, position, id) filter (where epg_id is not null))[1] as epg
         from (
-          select id, content_id, added_at, quality_rank, lang, dynamic_range, market, country, position, category_xtream_id, raw, theme, adult, iptv_id,
+          select id, content_id, added_at, quality_rank, lang, dynamic_range, market, country, position, category_xtream_id, raw,
+            variant_theme as theme, variant_adult as adult, iptv_id,
             ${variantEpgId} as epg_id,
             exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${variantEpgId}) as has_epg,
             coalesce(array_position(${langOrder}::text[], lang), ${DEFAULT_LANGUAGE_ORDER.length + 1}) as lang_rank,
             (${visibleItem}) as vis,
             (${visibleItem} or not bool_or(${visibleItem}) over (partition by content_id)) as counted
-          from ${schema.catalogVariants} where content_id is not null ${scope}
+          from ${variants} where content_id is not null ${scope}
         ) i
         group by content_id
       ) g
@@ -644,17 +651,17 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
 async function refreshProfileVisibility(onlyIds?: number[]) {
   const ids = onlyIds ? sql`${`{${onlyIds.join(",")}}`}::int[]` : null;
   const seen = sql`exists (
-    select 1 from catalog_variants join catalog_variant_profiles vp on vp.variant_id = catalog_variants.id
-    where catalog_variants.content_id = catalog_content_profiles.content_id and vp.profile_id = catalog_content_profiles.profile_id
+    select 1 from ${variants} join catalog_variant_profiles vp on vp.variant_id = variants.id
+    where variants.content_id = catalog_content_profiles.content_id and vp.profile_id = catalog_content_profiles.profile_id
       and ${visibleItem})`;
   await db.execute(sql`
     delete from catalog_content_profiles
     where ${ids ? sql`catalog_content_profiles.content_id = any(${ids}) and` : sql``} not ${seen}`);
   await db.execute(sql`
     insert into catalog_content_profiles (content_id, profile_id)
-    select distinct catalog_variants.content_id, vp.profile_id
-    from catalog_variants join catalog_variant_profiles vp on vp.variant_id = catalog_variants.id
-    where catalog_variants.content_id is not null ${ids ? sql`and catalog_variants.content_id = any(${ids})` : sql``} and ${visibleItem}
+    select distinct variants.content_id, vp.profile_id
+    from ${variants} join catalog_variant_profiles vp on vp.variant_id = variants.id
+    where variants.content_id is not null ${ids ? sql`and variants.content_id = any(${ids})` : sql``} and ${visibleItem}
     on conflict do nothing`);
 }
 
@@ -675,10 +682,10 @@ async function deleteOrphans(): Promise<number> {
  */
 export async function groupingCounts() {
   const v = db
-    .select({ contentId: schema.catalogVariants.contentId, n: sql<number>`count(*)::int`.as("n") })
-    .from(schema.catalogVariants)
+    .select({ contentId: variants.contentId, n: sql<number>`count(*)::int`.as("n") })
+    .from(variants)
     .where(visibleItem)
-    .groupBy(schema.catalogVariants.contentId)
+    .groupBy(variants.contentId)
     .as("v");
   return db
     .select({

@@ -1,236 +1,34 @@
-import { client as pg, KINDS, type Kind } from "@/db";
-import { checkCancelled } from "@/shared";
-import { isSeparator, separatorText, SHRINK_FLOOR, SHRINK_HINT, SHRINK_RATIO } from "@/providers/xtream";
+import { client as pg } from "@/db";
 import { runNaming } from "./grouping/group";
 import { withCatalogLock } from "./lock";
 
 /**
- * The `merge` step: the raw copy of every account (`xtream_categories`, `xtream_streams`, written by
- * `source`) → the catalogue (`catalog_categories`, `catalog_variants`), by difference, each row under
- * its account (two providers reuse the same ids). A new entry is
- * inserted, a changed one updated, a vanished one deleted; an unchanged one is not written at all.
- * Then the names are parsed again (`runNaming`, which writes only what changed).
- *
- * The same guard as `source` stands before the deletions: a copy that would remove more than half
- * of a kind (empty after a deploy, a provider failure) is refused unless `acceptShrink`.
+ * The `merge` step, after `source` wrote the providers' lists (`xtream_streams`, by difference): every
+ * stream that is not a separator gets its variant (`catalog_variants`, under the stream's id), where the
+ * catalogue keeps what it decides about it; a variant goes with its stream. Then the names are read
+ * (`runNaming`, which writes only what changed).
  */
+export type MergeStats = { items_named: number };
 
-/**
- * Radio streams (`stream_type: "radio_streams"`) come without any category: no category rule
- * or switch could reach them, and the admin had nowhere to list them. They get a category of
- * ours, created when at least one exists; its id cannot collide with the provider's numbers.
- */
-export const RADIO_CATEGORY_ID = "_radio";
-const RADIO_CATEGORY_NAME = "RADIOS";
-
-const CHUNK = 5000;
-
-export type RawEntry = {
-  accountId: number;
-  kind: Kind;
-  xtreamId: string;
-  position: number;
-  name: string | null;
-  category: string | null;
-  streamType: string | null;
-  added: string | null;
-  lastModified: string | null;
-};
-export type DerivedEntry = {
-  accountId: number;
-  kind: Kind;
-  xtreamId: string;
-  position: number;
-  name: string;
-  category: string | null;
-  section: string | null;
-  addedAt: Date | null;
-};
-
-/**
- * The arrival date: `added` for live/vod, `last_modified` for series, Unix seconds as strings.
- * Null when missing, invalid or in the future: the stored date is kept, else the insert time.
- */
-export function parseAddedDate(kind: Kind, e: Pick<RawEntry, "added" | "lastModified">, now = new Date()): Date | null {
-  const v = kind === "series" ? e.lastModified : e.added;
-  if (!v) return null;
-  const n = Number(v);
-  if (Number.isNaN(n) || n <= 0) return null;
-  const d = new Date(n * 1000);
-  return Number.isNaN(d.getTime()) || d > now ? null : d;
-}
-
-/**
- * The entries as the catalogue stores them, from the raw copy in each provider's order. A separator
- * line names the section of the entries that follow it in the same category (« ----|FR| SPORT |FR|---- »);
- * it is not an entry. Radios without a category go to ours (`radios`: the accounts that have some).
- */
-export function deriveEntries(raw: RawEntry[]): { entries: DerivedEntry[]; radios: Set<number> } {
-  const entries: DerivedEntry[] = [];
-  const radios = new Set<number>();
-  const sections = new Map<string, string>();
-  for (const e of [...raw].sort(
-    (a, b) => a.accountId - b.accountId || KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.position - b.position,
-  )) {
-    const name = e.name ?? "";
-    const sectionKey = `${e.accountId}:${e.kind}:${e.category ?? ""}`;
-    if (isSeparator(name)) {
-      sections.set(sectionKey, separatorText(name));
-      continue;
-    }
-    const radio = e.kind === "live" && !e.category && e.streamType === "radio_streams";
-    if (radio) radios.add(e.accountId);
-    entries.push({
-      accountId: e.accountId,
-      kind: e.kind,
-      xtreamId: e.xtreamId,
-      position: e.position,
-      name,
-      category: radio ? RADIO_CATEGORY_ID : e.category,
-      section: sections.get(sectionKey) ?? null,
-      addedAt: parseAddedDate(e.kind, e),
-    });
-  }
-  return { entries, radios };
-}
-
-export type MergeStats = {
-  categories_added: number;
-  categories_updated: number;
-  categories_removed: number;
-  items_added: number;
-  items_updated: number;
-  items_removed: number;
-  items_named: number;
-};
-
-export function runMerge(opts: { acceptShrink?: boolean } = {}): Promise<MergeStats> {
+export function runMerge(): Promise<MergeStats> {
   return withCatalogLock(async () => {
-    const stats = await mergeCopy(opts.acceptShrink ?? false);
-    const named = await runNaming();
-    return { ...stats, items_named: named.items_named };
-  });
-}
-
-async function mergeCopy(acceptShrink: boolean): Promise<Omit<MergeStats, "items_named">> {
-  const raw = await pg<RawEntry[]>`
-    select account_id as "accountId", kind, xtream_id as "xtreamId", position, raw->>'name' as name, raw->>'category_id' as category,
-           raw->>'stream_type' as "streamType", raw->>'added' as added, raw->>'last_modified' as "lastModified"
-    from xtream_streams`;
-  const { entries, radios } = deriveEntries(raw);
-
-  return pg.begin(async (tx) => {
-    await tx`create temp table merge_entries (
-      account_id int, kind content_kind, xtream_id text, position int, name text, category text, section text, added_at timestamptz,
-      primary key (account_id, kind, xtream_id)) on commit drop`;
-    for (let i = 0; i < entries.length; i += CHUNK) {
-      checkCancelled();
-      const part = entries.slice(i, i + CHUNK);
-      await tx`
-        insert into merge_entries
-        select account_id, kind::content_kind, xtream_id, position, name, category, section, added_at::timestamptz
-        from unnest(${part.map((e) => e.accountId)}::int[], ${part.map((e) => e.kind)}::text[], ${part.map((e) => e.xtreamId)}::text[],
-                    ${part.map((e) => e.position)}::int[], ${part.map((e) => e.name)}::text[], ${part.map((e) => e.category)}::text[],
-                    ${part.map((e) => e.section)}::text[], ${part.map((e) => e.addedAt?.toISOString() ?? null)}::text[])
-          as u(account_id, kind, xtream_id, position, name, category, section, added_at)`;
-    }
-
-    // The guard: what would go, account by account and kind by kind, against what the catalogue holds.
-    const gone = await tx<{ account: string; kind: Kind; total: number; removed: number }[]>`
-      select a.name as account, v.kind, count(*)::int as total,
-             count(*) filter (where not exists (select 1 from merge_entries m
-               where m.account_id = v.account_id and m.kind = v.kind and m.xtream_id = v.xtream_id))::int as removed
-      from catalog_variants v join xtream_accounts a on a.id = v.account_id group by a.name, v.kind`;
-    for (const g of gone)
-      if (!acceptShrink && g.total >= SHRINK_FLOOR && g.total - g.removed < g.total * SHRINK_RATIO)
-        throw new Error(
-          `La copie de ${g.account} retirerait ${g.removed} des ${g.total} entrées ${g.kind} : fusion refusée, catalogue conservé (${SHRINK_HINT})`,
-        );
-
-    // Categories: each provider's, plus ours for the radios of the accounts that have some.
-    const cats = await tx`
-      with src as (
-        select account_id, kind, xtream_id, coalesce(raw->>'category_name', '') as name,
-               case when raw->>'parent_id' ~ '^[0-9]+$' then (raw->>'parent_id')::int else 0 end as parent_id, position, raw
-        from xtream_categories
-        union all
-        select r.account_id, 'live', ${RADIO_CATEGORY_ID}, ${RADIO_CATEGORY_NAME}, 0, 1000000, '{}'::jsonb
-        from unnest(${[...radios]}::int[]) as r(account_id)
-      ),
-      upd as (
-        update catalog_categories c set name = s.name, parent_id = s.parent_id, position = s.position, raw = s.raw, changed_at = now()
-        from src s
-        where c.account_id = s.account_id and c.kind = s.kind and c.xtream_id = s.xtream_id
-          and (c.name, c.parent_id, c.position, c.raw) is distinct from (s.name, s.parent_id, s.position, s.raw)
-        returning 1
-      ),
-      ins as (
-        insert into catalog_categories (account_id, kind, xtream_id, name, parent_id, position, raw)
-        select s.account_id, s.kind, s.xtream_id, s.name, s.parent_id, s.position, s.raw from src s
-        where not exists (select 1 from catalog_categories c where c.account_id = s.account_id and c.kind = s.kind and c.xtream_id = s.xtream_id)
-        returning 1
-      ),
-      del as (
-        delete from catalog_categories c
-        where not exists (select 1 from src s where s.account_id = c.account_id and s.kind = c.kind and s.xtream_id = c.xtream_id)
-        returning 1
-      )
-      select (select count(*) from ins)::int as added, (select count(*) from upd)::int as updated, (select count(*) from del)::int as removed`;
-
-    // Variants. A changed name sends a TMDB match back to pending (a manual one stays) and forgets what
-    // Claude read in the old name; a date the
-    // provider no longer gives cleanly keeps the stored one. What counts as a change beyond the name,
-    // category, section and date: for live, the rank and the raw entry whole (`num` is the channel
-    // number); for movies and series not `num` nor the rank, which only say where the entry sits in the
-    // provider's list: one title added at the top shifts every other, and comparing them would rewrite
-    // 70 000 rows for one new movie. They are refreshed whenever the entry changes for another reason.
-    const [upd] = await tx`
-      with u as (
-        update catalog_variants v set
-          name = m.name, category_xtream_id = m.category, position = m.position, raw = s.raw, section = m.section,
-          added_at = coalesce(m.added_at, v.added_at), changed_at = now(),
-          match_status = case when v.name <> m.name and v.match_status in ('matched', 'unmatched', 'pending') then 'pending'::match_status else v.match_status end,
-          match_attempts = case when v.name <> m.name then 0 else v.match_attempts end,
-          ai_kind = case when v.name <> m.name then null else v.ai_kind end,
-          ai_title = case when v.name <> m.name then null else v.ai_title end,
-          ai_original_title = case when v.name <> m.name then null else v.ai_original_title end,
-          ai_year = case when v.name <> m.name then null else v.ai_year end,
-          ai_asked_at = case when v.name <> m.name then null else v.ai_asked_at end
-        from merge_entries m join xtream_streams s on s.account_id = m.account_id and s.kind = m.kind and s.xtream_id = m.xtream_id
-        where v.account_id = m.account_id and v.kind = m.kind and v.xtream_id = m.xtream_id
-          and (v.name, v.category_xtream_id, v.section, v.added_at,
-               case when v.kind = 'live' then v.position end, case when v.kind = 'live' then v.raw else v.raw - 'num' end)
-              is distinct from (m.name, m.category, m.section, coalesce(m.added_at, v.added_at),
-               case when m.kind = 'live' then m.position end, case when m.kind = 'live' then s.raw else s.raw - 'num' end)
-        returning 1
-      )
-      select count(*)::int as n from u`;
-    const [ins] = await tx`
-      with i as (
-        insert into catalog_variants (account_id, kind, xtream_id, name, category_xtream_id, position, raw, section, added_at, match_status)
-        select m.account_id, m.kind, m.xtream_id, m.name, m.category, m.position, s.raw, m.section, coalesce(m.added_at, now()),
-               case when m.kind = 'live' then 'skipped'::match_status else 'pending'::match_status end
-        from merge_entries m join xtream_streams s on s.account_id = m.account_id and s.kind = m.kind and s.xtream_id = m.xtream_id
-        where not exists (select 1 from catalog_variants v where v.account_id = m.account_id and v.kind = m.kind and v.xtream_id = m.xtream_id)
-        returning 1
-      )
-      select count(*)::int as n from i`;
-    const [del] = await tx`
-      with d as (
-        delete from catalog_variants v
-        where not exists (select 1 from merge_entries m where m.account_id = v.account_id and m.kind = v.kind and m.xtream_id = v.xtream_id)
-        returning 1
-      )
-      select count(*)::int as n from d`;
-
-    const [c] = cats;
-    return {
-      categories_added: c.added,
-      categories_updated: c.updated,
-      categories_removed: c.removed,
-      items_added: ins.n,
-      items_updated: upd.n,
-      items_removed: del.n,
-    };
+    // A stream that has its variant and no reading was renamed by the provider (the import cleared its
+    // `title`; a new one has no variant yet): its TMDB match goes back to pending (a manual one stays)
+    // and what Claude read in the old name is forgotten.
+    await pg`
+      update catalog_variants v set
+        match_status = case when v.match_status in ('matched', 'unmatched') then 'pending'::match_status else v.match_status end,
+        match_attempts = 0, ai_kind = null, ai_title = null, ai_original_title = null, ai_year = null, ai_asked_at = null
+      from xtream_streams s
+      where s.id = v.id and s.title is null and not s.separator
+        and (v.match_status in ('matched', 'unmatched') or v.match_attempts <> 0 or v.ai_kind is not null or v.ai_asked_at is not null)`;
+    await pg`
+      insert into catalog_variants (id, match_status)
+      select s.id, case when s.kind = 'live' then 'skipped'::match_status else 'pending'::match_status end
+      from xtream_streams s
+      where not s.separator and not exists (select 1 from catalog_variants v where v.id = s.id)`;
+    // An entry the provider turned into a separator line is no version any more.
+    await pg`delete from catalog_variants v using xtream_streams s where s.id = v.id and s.separator`;
+    return runNaming();
   });
 }

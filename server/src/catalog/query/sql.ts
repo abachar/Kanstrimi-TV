@@ -1,5 +1,5 @@
 import { sql, type Column, type SQL } from "drizzle-orm";
-import { db, type Kind } from "@/db";
+import { db, variants, type Kind } from "@/db";
 import { QUALITY_RANK } from "../naming";
 import { parseQuery, QueryError, termsOf, type QueryNode, type QueryOp, type QueryTerm, type QueryValue } from "./parse";
 import { closestName, resolveCode } from "./codes";
@@ -15,7 +15,7 @@ export type CompileOptions = FieldContext & {
   /** The kind searched or judged: each kind has its own fields. */
   kind: Kind;
   /**
-   * A filter: it judges versions, the condition is about `catalog_variants` (never aliased); the fields
+   * A filter: it judges versions, the condition is about `variants` (`db/variants.ts`, never aliased); the fields
    * only searches may use are refused. Otherwise a search: about `catalog_contents` (never aliased).
    */
   filter?: boolean;
@@ -202,16 +202,15 @@ export function compileQuery(text: string, o: CompileOptions): SQL | null {
   // Every field first: an unknown one is the error a query gets, before its values are read.
   const fields = new Map(termsOf(root).map((t) => [t, fieldOf(t, o)]));
   const ofVersion = (n: QueryNode): boolean => (n.kind === "term" ? fields.get(n.term)!.level === "variant" : n.nodes.some(ofVersion));
-  /** The condition as it stands: the content fields on `catalog_contents`, the version ones on `catalog_variants`. */
+  /** The condition as it stands: the content fields on `catalog_contents`, the version ones on `variants`. */
   const plain = (n: QueryNode): SQL => {
     if (n.kind === "term") return termSql(n.term, fields.get(n.term)!, o);
     const cond = join(n.kind, n.nodes.map(plain));
     return n.neg ? sql`not ${cond}` : cond;
   };
-  /** On `catalog_variants`: the parts without a version field read its content, each run of them once. */
+  /** On `variants`: the parts without a version field read its content, each run of them once. */
   const onVersion = (n: QueryNode): SQL => {
-    if (!ofVersion(n))
-      return sql`exists (select 1 from catalog_contents where catalog_contents.id = catalog_variants.content_id and ${plain(n)})`;
+    if (!ofVersion(n)) return sql`exists (select 1 from catalog_contents where catalog_contents.id = variants.content_id and ${plain(n)})`;
     if (n.kind === "term") return plain(n);
     const content = n.nodes.filter((x) => !ofVersion(x));
     const parts = n.nodes.filter(ofVersion).map(onVersion);
@@ -226,6 +225,6 @@ export function compileQuery(text: string, o: CompileOptions): SQL | null {
   const parts = root.kind === "and" && !root.neg ? root.nodes : [root];
   const where = parts.filter((x) => !ofVersion(x)).map(plain);
   const version = parts.filter(ofVersion).map(plain);
-  where.push(sql`exists (select 1 from catalog_variants where catalog_variants.content_id = catalog_contents.id and ${and(version)})`);
+  where.push(sql`exists (select 1 from ${variants} where variants.content_id = catalog_contents.id and ${and(version)})`);
   return and(where);
 }

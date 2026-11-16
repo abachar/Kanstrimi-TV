@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
-import { db, schema, hiddenItem, type ProviderAccount } from "@/db";
+import { db, schema, variants as vr, hiddenItem, type ProviderAccount } from "@/db";
 import {
   ACCOUNT,
   resetDb,
@@ -64,7 +64,7 @@ afterAll(closeDb);
 
 describe("provider accounts", () => {
   it("keeps the same provider id apart per account, under one content", async () => {
-    const variants = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "1"));
+    const variants = await db.select().from(vr).where(eq(vr.xtreamId, "1"));
     expect(variants.map((v) => v.accountId).sort()).toEqual([ACCOUNT, backup.id]);
     expect(new Set(variants.map((v) => v.contentId)).size).toBe(1);
     expect((await matrix()).variantCount).toBe(3);
@@ -83,7 +83,7 @@ describe("provider accounts", () => {
 
   it("hides the variants of a disabled account, and shows them again once enabled", async () => {
     await setAccountEnabled(backup.id, false);
-    const hidden = await db.select({ id: schema.catalogVariants.id }).from(schema.catalogVariants).where(hiddenItem);
+    const hidden = await db.select({ id: vr.id }).from(vr).where(hiddenItem);
     expect(hidden).toHaveLength(2);
     await groupAndFilter();
     expect((await matrix()).variantCount).toBe(1);
@@ -95,8 +95,8 @@ describe("provider accounts", () => {
 
   it("takes everything an account brought away with it", async () => {
     await deleteAccount(backup.id);
-    expect(await db.select().from(schema.catalogVariants)).toHaveLength(1);
-    expect(await db.select().from(schema.catalogCategories)).toHaveLength(1);
+    expect(await db.select().from(vr)).toHaveLength(1);
+    expect(await db.select().from(schema.xtreamCategories)).toHaveLength(1);
     await groupAndFilter();
     expect((await matrix()).variantCount).toBe(1);
   });

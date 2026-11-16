@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { eq, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { eq } from "drizzle-orm";
+import { db, schema, variants as vr } from "@/db";
 import { resetDb, closeDb } from "@/test/db";
-import { runSync as syncSource, type XStream } from "@/providers/xtream";
-import { runMerge, RADIO_CATEGORY_ID } from "../merge";
+import { RADIO_CATEGORY_ID, runSync, type XStream } from "@/providers/xtream";
+import { runMerge } from "../merge";
 import { runNaming } from "../grouping/group";
-import { variantCountsByAccount } from "../queries";
 
 // What the provider lists; each test rewrites it before an import.
 let vod: unknown = [];
@@ -33,21 +32,20 @@ beforeAll(async () => {
 });
 afterAll(closeDb);
 
-/** The `source` step as the pipeline runs it: the provider is handed the catalogue's current counts. */
-const runSync = async (opts: { acceptShrink?: boolean } = {}) => syncSource({ ...opts, currentCounts: await variantCountsByAccount() });
+/** The `source` step as the pipeline runs it: the import, then the variants and the names. */
 const importAll = async (opts: { acceptShrink?: boolean } = {}) => {
-  await runSync(opts);
-  return runMerge(opts);
+  const read = await runSync(opts);
+  return { ...read.stats, ...(await runMerge()) };
 };
 const variants = async (kind: "live" | "vod" | "series") => {
-  const rows = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.kind, kind));
+  const rows = await db.select().from(vr).where(eq(vr.kind, kind));
   return new Map(rows.map((r) => [r.xtreamId, r]));
 };
 const films = (n: number, name = (i: number) => `Film ${i}`) =>
   Array.from({ length: n }, (_, i) => ({ stream_id: i + 1, name: name(i + 1), category_id: "20", added: "1720000000" }));
 
 describe("source → merge", () => {
-  it("builds the catalogue from the copy: sections, our radio category, arrival dates, names", async () => {
+  it("builds the catalogue from the lists: sections, our radio category, arrival dates, names", async () => {
     live = [
       { name: "•●★--|FR| SPORT |FR|---★●•", stream_id: 900, category_id: "10" },
       { name: "|FR| BEIN 1", stream_id: 1, category_id: "10" },
@@ -61,10 +59,12 @@ describe("source → merge", () => {
     const stats = await importAll();
     expect(stats).toMatchObject({ items_added: 64, items_updated: 0, items_removed: 0 });
     const l = await variants("live");
-    expect([...l.keys()].sort()).toEqual(["1", "2"]); // the separator is no entry
+    expect([...l.keys()].sort()).toEqual(["1", "2"]); // the separator is no version
+    const [separator] = await db.select().from(schema.xtreamStreams).where(eq(schema.xtreamStreams.separator, true));
+    expect(separator).toMatchObject({ upstreamId: "900", title: null }); // kept as a stream, never read
     expect(l.get("1")?.section).toBe("|FR| SPORT |FR|");
     expect(l.get("2")?.categoryXtreamId).toBe(RADIO_CATEGORY_ID);
-    const cats = await db.select({ id: schema.catalogCategories.xtreamId }).from(schema.catalogCategories);
+    const cats = await db.select({ id: schema.xtreamCategories.xtreamId }).from(schema.xtreamCategories);
     expect(cats.map((c) => c.id).sort()).toEqual(["10", "20", "30", RADIO_CATEGORY_ID]);
     expect((await variants("series")).get("1")?.addedAt).toEqual(new Date(1720000000 * 1000));
     expect((await variants("vod")).get("1")?.cleanTitle).toBe("Film 1"); // named in the same step
@@ -74,7 +74,9 @@ describe("source → merge", () => {
     const before = await variants("vod");
     const stats = await importAll();
     expect(stats).toMatchObject({ items_added: 0, items_updated: 0, items_removed: 0, categories_updated: 0, items_named: 0 });
-    expect((await variants("vod")).get("1")?.changedAt).toEqual(before.get("1")?.changedAt);
+    const after = await variants("vod");
+    expect(after.get("1")?.changedAt).toEqual(before.get("1")?.changedAt);
+    expect([...after.values()].map((v) => v.id)).toEqual([...before.values()].map((v) => v.id)); // a stream keeps its id
   });
 
   it("does not rewrite every movie when one is added at the top of the list", async () => {
@@ -122,15 +124,9 @@ describe("source → merge", () => {
     // As if an older grammar had read the title wrong: the new one differs, TMDB had given up.
     await db
       .update(schema.catalogVariants)
-      .set({
-        matchStatus: "unmatched",
-        matchAttempts: 3,
-        cleanTitle: "STFR",
-        aiKind: "movie",
-        aiTitle: "Film Three",
-        aiAskedAt: new Date(),
-      })
+      .set({ matchStatus: "unmatched", matchAttempts: 3, aiKind: "movie", aiTitle: "Film Three", aiAskedAt: new Date() })
       .where(eq(schema.catalogVariants.id, id));
+    await db.update(schema.xtreamStreams).set({ title: "STFR" }).where(eq(schema.xtreamStreams.id, id));
     expect(await runNaming()).toEqual({ items_named: 1 });
     let after = await variants("vod");
     expect(after.get("3")).toMatchObject({ matchStatus: "pending", matchAttempts: 0, cleanTitle: "Film 3", aiTitle: "Film Three" });
@@ -158,11 +154,17 @@ describe("source → merge", () => {
     expect((await variants("vod")).size).toBe(10);
   });
 
-  it("refuses to empty the catalogue from an empty copy (after a deploy)", async () => {
-    vod = films(80);
+  it("takes the variant away from an entry the provider turned into a separator line", async () => {
+    const before = await variants("vod");
+    vod = films(10, (i) => (i === 1 ? "----- FILMS -----" : `Film ${i}`));
     await importAll();
-    await db.execute(sql`truncate table xtream_streams`);
-    await expect(runMerge()).rejects.toThrow(/fusion refusée/);
-    expect((await variants("vod")).size).toBe(80);
+    const after = await variants("vod");
+    expect(after.has("1")).toBe(false);
+    expect(after.get("2")?.id).toBe(before.get("2")?.id);
+    const [row] = await db
+      .select()
+      .from(schema.xtreamStreams)
+      .where(eq(schema.xtreamStreams.id, before.get("1")!.id));
+    expect(row).toMatchObject({ separator: true, upstreamId: "1" });
   });
 });

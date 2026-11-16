@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { eq, inArray, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, variants as vr } from "@/db";
 import { resetDb, closeDb, seedItems } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { setTmdbPace } from "@/providers/tmdb";
@@ -28,20 +28,22 @@ describe("runEnrich", () => {
     vi.stubGlobal("fetch", fetch);
     await expect(runEnrich()).rejects.toThrow(/TMDB injoignable .*restent en attente/);
     expect(fetch.mock.calls.length).toBeLessThan(60);
-    const pending = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.matchStatus, "pending"));
+    const pending = await db.select().from(vr).where(eq(vr.matchStatus, "pending"));
     expect(pending).toHaveLength(60);
   });
 
   it("gives an entry up after three failures of its own, and tries it again a week later", async () => {
     vi.stubGlobal("fetch", async () => new Response("{}", { status: 400 })); // TMDB rejects the query itself
-    const status = async () => (await db.select({ s: schema.catalogVariants.matchStatus }).from(schema.catalogVariants)).map((r) => r.s);
+    const status = async () => (await db.select({ s: vr.matchStatus }).from(vr)).map((r) => r.s);
     await runEnrich();
     await runEnrich();
     expect(new Set(await status())).toEqual(new Set(["pending"]));
     await runEnrich();
     expect(new Set(await status())).toEqual(new Set(["unmatched"]));
 
-    await db.execute(sql`update catalog_variants set matched_at = now() - interval '8 days' where xtream_id = '0'`);
+    await db.execute(
+      sql`update catalog_variants set matched_at = now() - interval '8 days' where id in (select id from xtream_streams where upstream_id = '0')`,
+    );
     const stats = await runEnrich();
     expect(stats).toMatchObject({ retried: 1, processed: 0, errors: 1 });
   });
@@ -69,9 +71,7 @@ describe("runEnrich", () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", async () => new Response("", { status: 429, headers: { "retry-after": "0" } }));
     await expect(runEnrich()).rejects.toThrow(/TMDB injoignable/);
-    const rows = await db
-      .select({ s: schema.catalogVariants.matchStatus, a: schema.catalogVariants.matchAttempts })
-      .from(schema.catalogVariants);
+    const rows = await db.select({ s: vr.matchStatus, a: vr.matchAttempts }).from(vr);
     expect(new Set(rows.map((r) => r.s))).toEqual(new Set(["pending"]));
     expect(new Set(rows.map((r) => r.a))).toEqual(new Set([0]));
     logged.mockRestore();
@@ -83,9 +83,7 @@ describe("runEnrich", () => {
       const logged = vi.spyOn(console, "error").mockImplementation(() => {});
       vi.stubGlobal("fetch", async () => new Response("", { status }));
       await expect(runEnrich(), String(status)).rejects.toThrow(/TMDB injoignable/);
-      const rows = await db
-        .select({ s: schema.catalogVariants.matchStatus, a: schema.catalogVariants.matchAttempts })
-        .from(schema.catalogVariants);
+      const rows = await db.select({ s: vr.matchStatus, a: vr.matchAttempts }).from(vr);
       expect(new Set(rows.map((r) => r.s)), String(status)).toEqual(new Set(["pending"]));
       expect(new Set(rows.map((r) => r.a)), String(status)).toEqual(new Set([0]));
       logged.mockRestore();
@@ -155,7 +153,7 @@ describe("runEnrich", () => {
     expect(sent).toContain(`#${a.id} ·`);
     expect(sent).toContain(`#${c.id} ·`);
     expect(sent).not.toContain(`#${hidden.id} ·`); // hidden: not worth a question
-    const row = async (id: number) => (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, id)))[0];
+    const row = async (id: number) => (await db.select().from(vr).where(eq(vr.id, id)))[0];
     expect(await row(a.id)).toMatchObject({
       matchStatus: "matched",
       tmdbId: 900,

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { sql } from "drizzle-orm";
-import { db, schema, type Kind } from "@/db";
+import { db, schema, variants as vr, type Kind } from "@/db";
 import { resetDb, closeDb, seedCategories, seedItems, seedTmdb, groupAndFilter } from "@/test/db";
 import { runNaming } from "../../grouping/group";
 import { compileQuery, QueryError } from "..";
@@ -61,11 +61,7 @@ async function find(q: string, kind: Kind = "vod"): Promise<string[]> {
 /** The provider's names of the versions a filter keeps. */
 async function kept(q: string): Promise<string[]> {
   const where = compileQuery(q, { kind: "vod", lang: "fr-FR", filter: true })!;
-  const rows = await db
-    .select({ name: schema.catalogVariants.name })
-    .from(schema.catalogVariants)
-    .where(sql`${schema.catalogVariants.kind} = 'vod' and ${where}`)
-    .orderBy(schema.catalogVariants.name);
+  const rows = await db.select({ name: vr.name }).from(vr).where(sql`${vr.kind} = 'vod' and ${where}`).orderBy(vr.name);
   return rows.map((r) => r.name);
 }
 const fails = (q: string, o: { kind?: Kind; filter?: boolean } = {}) => {

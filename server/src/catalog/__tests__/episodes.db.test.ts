@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { db, schema, type Content, type Variant } from "@/db";
+import { db, schema, variants as vr, type Content, type Variant } from "@/db";
 import { ACCOUNT, resetDb, closeDb, seedAccount, seedItems, groupAndFilter } from "@/test/db";
 import { runNaming } from "../grouping/group";
 import { ensureEpisodes, UpstreamUnavailable } from "../episodes";
@@ -32,7 +32,7 @@ beforeEach(async () => {
   await runNaming();
   await groupAndFilter();
   [content] = await db.select().from(schema.catalogContents);
-  variants = await db.select().from(schema.catalogVariants);
+  variants = await db.select().from(vr);
 });
 afterEach(() => vi.unstubAllGlobals());
 afterAll(closeDb);
@@ -62,7 +62,7 @@ describe("ensureEpisodes", () => {
     ]);
     await runNaming();
     await groupAndFilter();
-    const all = await db.select().from(schema.catalogVariants);
+    const all = await db.select().from(vr);
     expect(all).toHaveLength(2);
     await ensureEpisodes(content, all, "fr-FR");
     expect(fetch).toHaveBeenCalledTimes(2);
@@ -98,7 +98,7 @@ describe("ensureEpisodes", () => {
     await runNaming();
     await groupAndFilter();
     [content] = await db.select().from(schema.catalogContents);
-    variants = await db.select().from(schema.catalogVariants);
+    variants = await db.select().from(vr);
     expect(variants).toHaveLength(3);
     await db.insert(schema.cacheXtreamInfo).values(
       variants.map((v, i) => ({

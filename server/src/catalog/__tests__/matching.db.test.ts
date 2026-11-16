@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, variants as vr } from "@/db";
 import { resetDb, closeDb, seedItems } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { setTmdbPace } from "@/providers/tmdb";
@@ -88,14 +88,14 @@ describe("matching", () => {
     await runNaming();
     vi.stubGlobal("fetch", fakeTmdb);
     const client = new TmdbClient("k", "fr-FR");
-    const variants = await db.select().from(schema.catalogVariants).orderBy(schema.catalogVariants.id);
+    const variants = await db.select().from(vr).orderBy(vr.id);
     const explained = [];
     for (const v of variants) explained.push(await explainMatch(client, v));
     expect(explained.map((e) => [e.verdict.via, e.verdict.tmdbId])).toEqual(CASES.map((c) => [c.via, c.tmdbId]));
 
     const stats = await runEnrich();
     expect(stats).toMatchObject({ processed: 6, matched: 5, unmatched: 1, errors: 0, ids_rejected: 1 });
-    const after = await db.select().from(schema.catalogVariants).orderBy(schema.catalogVariants.id);
+    const after = await db.select().from(vr).orderBy(vr.id);
     expect(after.map((v) => ({ status: v.matchStatus, tmdbId: v.tmdbId, score: v.matchScore }))).toEqual(
       explained.map((e) => ({ status: e.verdict.status, tmdbId: e.verdict.tmdbId, score: expect.closeTo(e.verdict.score, 5) })),
     );
@@ -147,10 +147,7 @@ describe("matching", () => {
   });
 
   it("gives a fresh start to what goes back to pending by hand: the attempts start again from zero", async () => {
-    const attempts = async () =>
-      (
-        await db.select({ a: schema.catalogVariants.matchAttempts, s: schema.catalogVariants.matchStatus }).from(schema.catalogVariants)
-      ).filter((r) => r.s === "pending");
+    const attempts = async () => (await db.select({ a: vr.matchAttempts, s: vr.matchStatus }).from(vr)).filter((r) => r.s === "pending");
     await db.update(schema.catalogVariants).set({ matchStatus: "unmatched", matchAttempts: 3 });
     expect(await retryUnmatched()).toBe(CASES.length);
     expect((await attempts()).map((r) => r.a)).toEqual(CASES.map(() => 0));
@@ -161,8 +158,8 @@ describe("matching", () => {
 
   it("an association by hand carries no score: it is not a measured match", async () => {
     vi.stubGlobal("fetch", fakeTmdb);
-    const [v] = await db.select().from(schema.catalogVariants).orderBy(schema.catalogVariants.id);
-    const row = async () => (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, v.id)))[0];
+    const [v] = await db.select().from(vr).orderBy(vr.id);
+    const row = async () => (await db.select().from(vr).where(eq(vr.id, v.id)))[0];
     await assignManual(v.id, 603);
     expect(await row()).toMatchObject({ matchStatus: "manual", tmdbId: 603, matchScore: null });
     await assignManual(v.id, null);

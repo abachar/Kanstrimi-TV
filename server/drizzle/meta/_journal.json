@@ -393,6 +393,13 @@
       "when": 1794791724705,
       "tag": "0055_table-scopes",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794792721107,
+      "tag": "0056_stream-reading",
+      "breakpoints": true
     }
   ]
 }

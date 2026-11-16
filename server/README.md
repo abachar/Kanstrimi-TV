@@ -44,7 +44,7 @@ Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres :
 
 | Étape | Rôle |
 |---|---|
-| `source` | copie brute des listes Xtream de chaque fournisseur actif, refusée pour lui si vide ou si son catalogue fond de moitié (panne) ; un fournisseur illisible garde sa copie, les autres passent, l'étape finit en échec sans arrêter le passage (`PartialFailure`) ; puis copie brute → variantes du catalogue, par différence, et analyse des noms (titre, année, marché, langue, qualité, édition) |
+| `source` | les listes Xtream de chaque fournisseur actif, écrites par différence dans `xtream_streams` et `xtream_categories` (un flux qui change est mis à jour, un nouveau inséré, un disparu supprimé : son `id` ne bouge pas), refusées pour lui si vides ou si son catalogue fond de moitié (panne) ; un fournisseur illisible garde ce qu'il avait, les autres passent, l'étape finit en échec sans arrêter le passage (`PartialFailure`) ; puis chaque flux nouveau reçoit sa variante, un flux renommé repart vers TMDB, et les noms sont lus (titre, année, marché, langue, qualité, édition) |
 | `enrich` | matching TMDB des éléments en attente (`catalog/matching.ts`), qui relit peu à peu les fiches anciennes ; avant lui, Claude (`providers/claude`, Sonnet) lit une fois les noms visibles que TMDB a abandonnés et suggère le titre à chercher, ou dit « hors TMDB » (concert, karaoké, combat) : la suggestion est un titre de plus à chercher, jugé par les mêmes scores avec l'année exigée, jamais un verdict ; puis chaque entrée du direct est rattachée à sa chaîne de référence (`catalog/channels.ts`), qui lui donne son identité, son thème, son logo, son drapeau adulte et son pays dans une région. L'un en panne n'empêche pas l'autre |
 | `group` | variantes → contenus (`catalog_contents`), fiches tirées du cache TMDB, agrégats sur les variantes visibles |
 | `filters` | les filtres de chaque profil (`catalog/filters/`) gardent ou écartent chaque version pour ce profil (`catalog_variant_profiles`) ; `hidden_by_rule` = écartée par tous ; puis les contenus touchés recomptent leurs agrégats, `visible` (vue par un profil au moins), ce que voit chaque profil (`catalog_content_profiles`) et les arrivées de la liste d'attente. Une version qu'aucun filtre n'a encore vue est écartée |
@@ -68,11 +68,14 @@ partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque pa
 
 ## Tables
 
-Le préfixe dit la portée : `xtream_` (ce que les fournisseurs envoient : `xtream_accounts`, les comptes, un par fournisseur, dans l'ordre de préférence, et la copie brute de chacun, `account_id` sur chaque ligne), `cache_` (les copies des sources externes, toutes reconstructibles : TMDB, iptv-org, SkipDB, TheIntroDB, IntroDB, fiches Xtream, guide des programmes),
+Le préfixe dit la portée : `xtream_` (ce que les fournisseurs envoient : `xtream_accounts`, les comptes, un par fournisseur, dans l'ordre de préférence, ses flux et ses catégories, `account_id` sur chaque ligne), `cache_` (les copies des sources externes, toutes reconstructibles : TMDB, iptv-org, SkipDB, TheIntroDB, IntroDB, fiches Xtream, guide des programmes),
 `catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes, les épisodes construits à l'ouverture d'une fiche et les studios ; `catalog_variant_profiles` et `catalog_content_profiles` = ce que chaque profil garde et voit), `curation_` (nos chaînes et les liens EPG posés à la main), `app_` (les personnes du foyer, `app_profiles` avec leurs réglages de lecture, leurs filtres, et ce que l'app enregistre pour chacune : favoris,
 progression, lectures (`app_plays`), versions choisies (`app_profile_versions`), temps regardé du direct, liste d'attente ; les appareils, leurs alertes), `settings` et `settings_` (les réglages du serveur, les sources et décalages EPG), `task_` (journal).
-Deux niveaux : variantes (une entrée d'un fournisseur, unique par (`account_id`, `kind`, `xtream_id`) : deux fournisseurs
-réutilisent les mêmes numéros) et contenus (`catalog_contents.key`, la seule identité exposée à l'app). Un titre présent chez
+Un flux (`xtream_streams`) est une entrée d'un fournisseur, unique par (`account_id`, `kind`, `upstream_id`) : deux fournisseurs
+réutilisent les mêmes numéros. Il porte ce que le fournisseur envoie et ce qu'on lit dans son nom, relisible à tout moment sans réseau ;
+les lignes séparatrices y restent (`separator`), elles nomment les sections. Sa variante (`catalog_variants`, même `id`) porte ce que le
+catalogue en décide : masquage, fiche TMDB, chaîne de référence, contenu. Le code lit les deux ensemble par `variants` (`db/variants.ts`)
+et écrit dans la table qui possède la colonne. Au-dessus, les contenus (`catalog_contents.key`, la seule identité exposée à l'app). Un titre présent chez
 plusieurs fournisseurs est un contenu dont chaque version liste une source par fournisseur, le préféré en premier.
 Une chaîne est sa chaîne de référence dans son marché (`live:<marché>-<nom de référence>`), quel que soit le nom que
 chaque fournisseur lui donne ; une entrée du direct sans chaîne de référence reste seule (`live:x:…`).
@@ -180,7 +183,7 @@ par son index.
   (`catalog/episodes.ts`, 12 h de fraîcheur) se reconstruit dès qu'une variante jamais interrogée rejoint le contenu :
   la copie d'un second fournisseur se joue sans attendre.
 - **Dates** : arrivée = date du fournisseur (`added`, `last_modified` pour une série) ; sortie = TMDB, tri par défaut.
-- **Données amont non fiables** : `xtream_id` n'est pas un identifiant, les champs manquent, l'identifiant TMDB fourni
+- **Données amont non fiables** : l'identifiant du fournisseur (`upstream_id`) n'est pas un identifiant, les champs manquent, l'identifiant TMDB fourni
   n'est jamais cru sur parole.
 - **Mises à jour massives** par `unnest()` avec le client postgres-js, pas le `sql` de Drizzle qui éclate les tableaux, ou
   par `jsonb_to_recordset` d'un seul paramètre (les cartes, colonnes décrites une fois dans `group.ts`). Une carte

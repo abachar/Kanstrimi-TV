@@ -1,5 +1,5 @@
 import { and, asc, eq, type SQL } from "drizzle-orm";
-import { db, schema, client as pg, inDisabledAccount, visibleItem, type ReferenceChannel } from "@/db";
+import { db, schema, variants as vr, client as pg, inDisabledAccount, visibleItem, type ReferenceChannel } from "@/db";
 import { checkCancelled, similarity, similarityKey, stripAccents } from "@/shared";
 import { syncIptv } from "@/providers/iptv";
 import { type ChannelSuggestion, suggestChannels } from "@/providers/claude";
@@ -15,7 +15,7 @@ import { EVENTS_THEME, LIVE_THEMES, REGIONS, themeOf, UNKNOWN_THEME, type LiveTh
  * content by the reference name, whatever each provider calls it), its theme, its country in a
  * region and, through the grouping, its logo. A variant without one keeps to itself under
  * « Événements » or « Non reconnus »; Claude reads those names once and says the channel's usual
- * name, looked up in the reference like any other. Runs after the naming (it reads `clean_title`
+ * name, looked up in the reference like any other. Runs after the naming (it reads the title
  * and `market`) and before the grouping. A manual match (`iptv_match = manual`) is kept.
  */
 
@@ -466,36 +466,36 @@ function resolve(idx: Index, it: LiveRow): Resolved {
 
 const nullIfSame = (v: string | null, same: string | null) => (v === same ? null : v);
 
-const live = eq(schema.catalogVariants.kind, "live");
+const live = eq(vr.kind, "live");
 const liveRows = (where: SQL = live): Promise<LiveRow[]> =>
   db
     .select({
-      id: schema.catalogVariants.id,
-      raw: schema.catalogVariants.raw,
-      name: schema.catalogVariants.name,
-      title: schema.catalogVariants.cleanTitle,
-      market: schema.catalogVariants.market,
-      nameTheme: schema.catalogVariants.nameTheme,
-      nameCountry: schema.catalogVariants.nameCountry,
-      section: schema.catalogVariants.section,
-      category: schema.catalogCategories.name,
-      iptvId: schema.catalogVariants.iptvId,
-      iptvMatch: schema.catalogVariants.iptvMatch,
-      aiKind: schema.catalogVariants.aiKind,
-      aiTitle: schema.catalogVariants.aiTitle,
-      aiAskedAt: schema.catalogVariants.aiAskedAt,
+      id: vr.id,
+      raw: vr.raw,
+      name: vr.name,
+      title: vr.cleanTitle,
+      market: vr.market,
+      nameTheme: vr.nameTheme,
+      nameCountry: vr.nameCountry,
+      section: vr.section,
+      category: schema.xtreamCategories.name,
+      iptvId: vr.iptvId,
+      iptvMatch: vr.iptvMatch,
+      aiKind: vr.aiKind,
+      aiTitle: vr.aiTitle,
+      aiAskedAt: vr.aiAskedAt,
     })
-    .from(schema.catalogVariants)
+    .from(vr)
     .leftJoin(
-      schema.catalogCategories,
+      schema.xtreamCategories,
       and(
-        eq(schema.catalogCategories.accountId, schema.catalogVariants.accountId),
-        eq(schema.catalogCategories.kind, schema.catalogVariants.kind),
-        eq(schema.catalogCategories.xtreamId, schema.catalogVariants.categoryXtreamId),
+        eq(schema.xtreamCategories.accountId, vr.accountId),
+        eq(schema.xtreamCategories.kind, vr.kind),
+        eq(schema.xtreamCategories.xtreamId, vr.categoryXtreamId),
       ),
     )
     .where(where)
-    .orderBy(asc(schema.catalogVariants.id));
+    .orderBy(asc(vr.id));
 
 /** Only the variants whose channel, theme, flag, EPG verdict or country moved are written: those are returned. */
 async function write(rows: Resolved[]): Promise<number[]> {
@@ -553,8 +553,7 @@ async function askClaude(
   resolved: Resolved[],
 ): Promise<{ ai_asked: number; ai_channels: number; ai_events: number }> {
   const stats = { ai_asked: 0, ai_channels: 0, ai_events: 0 };
-  const idsWhere = async (where: SQL) =>
-    new Set((await db.select({ id: schema.catalogVariants.id }).from(schema.catalogVariants).where(and(live, where))).map((r) => r.id));
+  const idsWhere = async (where: SQL) => new Set((await db.select({ id: vr.id }).from(vr).where(and(live, where))).map((r) => r.id));
   const [visible, unused] = await Promise.all([idsWhere(visibleItem), idsWhere(inDisabledAccount)]);
   const seen = new Map<string, { recognised: number; visible: number }>();
   rows.forEach((it, i) => {
@@ -657,7 +656,7 @@ export async function runChannels() {
  */
 export async function rematchChannels(market?: string): Promise<number> {
   const idx = await loadIndex();
-  const rows = await liveRows(market ? and(live, eq(schema.catalogVariants.market, market))! : live);
+  const rows = await liveRows(market ? and(live, eq(vr.market, market))! : live);
   const changed = await write(rows.map((it) => resolve(idx, it)));
   if (changed.length) await applyFilters({ contentIds: await regroupItems(changed) });
   return changed.length;
@@ -675,7 +674,7 @@ export async function setIptvMatch(itemId: number, iptvId: string | null | "auto
       .where(eq(schema.cacheIptvorgChannels.id, iptvId));
     if (!known) throw new Error(`Chaîne iptv-org inconnue : ${iptvId}`);
   }
-  const [it] = await liveRows(and(live, eq(schema.catalogVariants.id, itemId))!);
+  const [it] = await liveRows(and(live, eq(vr.id, itemId))!);
   if (!it) throw new Error("Chaîne introuvable");
   const pinned = iptvId === "auto" ? { ...it, iptvMatch: null } : { ...it, iptvId, iptvMatch: "manual" };
   await write([resolve(await loadIndex(), pinned)]);

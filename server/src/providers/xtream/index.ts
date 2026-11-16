@@ -1,8 +1,10 @@
 export { type Account, SERIES_INFO_TIMEOUT_MS, upstreamStreamUrl, type XStream, XtreamClient, XtreamError, xtreamFor } from "./client";
 export { fetchProgrammes } from "./epg";
 export {
-  type AccountCounts,
   runSync,
+  streamCounts,
+  RADIO_CATEGORY_ID,
+  type StreamEntry,
   type SyncResult,
   testXtream,
   isSeparator,

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db, schema, hiddenItem, visibleCategory, visibleItem } from "@/db";
+import { db, schema, variants, hiddenItem, visibleCategory, visibleItem } from "@/db";
 
 export type ItemCount = { kind: string; total: number; hidden: number; matched: number; unmatched: number; pending: number };
 export type CategoryCount = { kind: string; total: number; hidden: number };
@@ -8,23 +8,23 @@ export type CategoryCount = { kind: string; total: number; hidden: number };
 export async function counts(): Promise<{ items: ItemCount[]; categories: CategoryCount[] }> {
   const items = await db
     .select({
-      kind: schema.catalogVariants.kind,
+      kind: variants.kind,
       total: sql<number>`count(*)::int`,
       hidden: sql<number>`count(*) filter (where ${hiddenItem})::int`,
-      matched: sql<number>`count(*) filter (where ${visibleItem} and ${schema.catalogVariants.matchStatus} in ('matched','manual'))::int`,
-      unmatched: sql<number>`count(*) filter (where ${visibleItem} and ${schema.catalogVariants.matchStatus} = 'unmatched')::int`,
-      pending: sql<number>`count(*) filter (where ${visibleItem} and ${schema.catalogVariants.matchStatus} = 'pending')::int`,
+      matched: sql<number>`count(*) filter (where ${visibleItem} and ${variants.matchStatus} in ('matched','manual'))::int`,
+      unmatched: sql<number>`count(*) filter (where ${visibleItem} and ${variants.matchStatus} = 'unmatched')::int`,
+      pending: sql<number>`count(*) filter (where ${visibleItem} and ${variants.matchStatus} = 'pending')::int`,
     })
-    .from(schema.catalogVariants)
-    .groupBy(schema.catalogVariants.kind);
+    .from(variants)
+    .groupBy(variants.kind);
   const categories = await db
     .select({
-      kind: schema.catalogCategories.kind,
+      kind: schema.xtreamCategories.kind,
       total: sql<number>`count(*)::int`,
       hidden: sql<number>`count(*) filter (where not ${visibleCategory})::int`,
     })
-    .from(schema.catalogCategories)
-    .groupBy(schema.catalogCategories.kind);
+    .from(schema.xtreamCategories)
+    .groupBy(schema.xtreamCategories.kind);
   return { items, categories };
 }
 

@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { db, schema, visibleItem } from "@/db";
+import { db, schema, variants, visibleItem } from "@/db";
 import { checkCancelled, describeError, isCancelled } from "@/shared";
 import { activeAccounts, setSettings } from "@/config";
 import { fetchProgrammes } from "@/providers/xtream";
@@ -26,7 +26,7 @@ const KEEP_PAST_MS = 6 * 3600 * 1000;
  * per quality, whichever has programmes (`player/guides.ts`).
  */
 async function wantedChannelIds(): Promise<Set<string>> {
-  const v = schema.catalogVariants;
+  const v = variants;
   const rows = await db
     .select({ own: sql<string | null>`nullif(${v.raw}->>'epg_channel_id', '')`, iptv: v.iptvId, mismatch: v.epgMismatch })
     .from(v)

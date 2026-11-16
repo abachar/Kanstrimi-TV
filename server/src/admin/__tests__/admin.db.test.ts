@@ -11,13 +11,14 @@ import {
   seedProgrammes,
   groupAndFilter,
   knowChannels,
+  ofStreams,
 } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { itemById, launch, profileById } from "@/catalog";
 import { runAll, runNaming } from "@/catalog";
 import { startRun } from "@/catalog/journal";
 import { withCatalogLock } from "@/catalog/lock";
-import { db, schema } from "@/db";
+import { db, schema, variants as vr } from "@/db";
 import { eq } from "drizzle-orm";
 import { getSettings } from "@/config";
 import { setFavorite, setProgress, listProgress } from "@/player";
@@ -311,7 +312,9 @@ describe("admin", () => {
     expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
     // The variant's switch, on its content's page: the page reloads, the content follows without a `group` run.
     const categoriesHidden = async () =>
-      (await db.select().from(schema.catalogCategories)).map((c) => [c.id, c.hiddenManual] as const).sort((x, y) => x[0] - y[0]);
+      (await db.select().from(schema.xtreamCategories))
+        .map((c) => [`${c.kind}:${c.xtreamId}`, c.hidden] as const)
+        .sort((x, y) => x[0].localeCompare(y[0]));
     const before = await categoriesHidden();
     const hide = await post(`/admin/catalog/item/${matrixId}/visible`, {});
     expect(hide.status).toBe(204);
@@ -731,9 +734,12 @@ describe("admin", () => {
     await db.insert(schema.cacheIptvorgChannels).values({ id: "TF1.fr", name: "TF1", country: "FR", categories: ["general"] });
     // What `channels` writes for a name no known channel bears.
     for (const name of ["|FR| ZED TV HD", "|FR| ZED TV BIS"])
-      await db.update(schema.catalogVariants).set({ iptvTheme: "Non reconnus" }).where(eq(schema.catalogVariants.name, name));
+      await db
+        .update(schema.catalogVariants)
+        .set({ iptvTheme: "Non reconnus" })
+        .where(ofStreams(eq(schema.xtreamStreams.name, name)));
     await groupAndFilter();
-    const variant = async (n: string) => (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.name, n)))[0];
+    const variant = async (n: string) => (await db.select().from(vr).where(eq(vr.name, n)))[0];
     const live = "/admin/catalog?kind=live";
 
     // One screen: no menu entry, no page of its own for the channels.

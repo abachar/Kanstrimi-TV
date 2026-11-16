@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db, schema, type Content } from "@/db";
+import { db, schema, variants, type Content } from "@/db";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { slug } from "@/shared";
 import { LIVE_THEMES, parseKey } from "@/catalog";
@@ -204,8 +204,8 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
       .orderBy(asc(schema.catalogContents.channelNumber), asc(schema.catalogContents.title), asc(schema.catalogContents.id)),
     db
       .select()
-      .from(schema.catalogVariants)
-      .where(and(eq(schema.catalogVariants.kind, "live"), servedVariant(ctx), sql`${schema.catalogVariants.contentId} is not null`)),
+      .from(variants)
+      .where(and(eq(variants.kind, "live"), servedVariant(ctx), sql`${variants.contentId} is not null`)),
   ]);
   const marks = await profileMarks(
     ctx,

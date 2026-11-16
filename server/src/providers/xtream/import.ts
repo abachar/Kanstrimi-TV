@@ -1,10 +1,9 @@
-import { eq } from "drizzle-orm";
-import { db, schema, KINDS, type Kind, type ProviderAccount } from "@/db";
+import { client as pg, KINDS, type Kind, type ProviderAccount } from "@/db";
 import { checkCancelled, describeError, isCancelled, stripOrnaments } from "@/shared";
 import { activeAccounts, setSettings } from "@/config";
 import { XtreamClient, xtreamFor, type XCategory, type XStream } from "./client";
 
-const CHUNK = 1000;
+const CHUNK = 5000;
 
 /**
  * A list that shrinks under this share of what the catalogue holds is taken for a provider
@@ -73,6 +72,75 @@ export function prepareCategories(list: XCategory[]): { xtreamId: string; raw: X
 }
 
 /**
+ * Radio streams (`stream_type: "radio_streams"`) come without any category: no category rule
+ * or switch could reach them, and the admin had nowhere to list them. They get a category of
+ * ours, created when at least one exists; its id cannot collide with the provider's numbers.
+ */
+export const RADIO_CATEGORY_ID = "_radio";
+const RADIO_CATEGORY_NAME = "RADIOS";
+
+/** A scalar of the provider's JSON as text, as `raw->>'field'` would give it. */
+const asText = (v: unknown): string | null => (v === null || v === undefined ? null : String(v));
+
+/**
+ * The arrival date: `added` for live/vod, `last_modified` for series, Unix seconds as strings.
+ * Null when missing, invalid or in the future: the stored date is kept, else the insert time.
+ */
+export function parseAddedDate(kind: Kind, raw: Pick<XStream, "added" | "last_modified">, now = new Date()): Date | null {
+  const v = asText(kind === "series" ? raw.last_modified : raw.added);
+  if (!v) return null;
+  const n = Number(v);
+  if (Number.isNaN(n) || n <= 0) return null;
+  const d = new Date(n * 1000);
+  return Number.isNaN(d.getTime()) || d > now ? null : d;
+}
+
+/** One entry of a provider's list as `xtream_streams` stores it. */
+export type StreamEntry = {
+  kind: Kind;
+  upstreamId: string;
+  position: number;
+  raw: XStream;
+  name: string;
+  category: string | null;
+  /** A separator line: kept, it names the section of the entries that follow it in the same category. */
+  separator: boolean;
+  section: string | null;
+  addedAt: Date | null;
+};
+
+/**
+ * The entries of one kind in the provider's order. A separator line names the section of the entries
+ * that follow it in the same category (« ----|FR| SPORT |FR|---- »). Radios without a category go to
+ * ours (`radios`: the list has some).
+ */
+export function deriveEntries(kind: Kind, list: { xtreamId: string; raw: XStream }[]): { entries: StreamEntry[]; radios: boolean } {
+  const entries: StreamEntry[] = [];
+  const sections = new Map<string, string>();
+  let radios = false;
+  for (const [position, x] of list.entries()) {
+    const name = asText(x.raw.name) ?? "";
+    const own = asText(x.raw.category_id);
+    const separator = isSeparator(name);
+    if (separator) sections.set(own ?? "", separatorText(name));
+    const radio = !separator && kind === "live" && !own && x.raw.stream_type === "radio_streams";
+    if (radio) radios = true;
+    entries.push({
+      kind,
+      upstreamId: x.xtreamId,
+      position,
+      raw: x.raw,
+      name,
+      category: radio ? RADIO_CATEGORY_ID : own,
+      separator,
+      section: separator ? null : (sections.get(own ?? "") ?? null),
+      addedAt: parseAddedDate(kind, x.raw),
+    });
+  }
+  return { entries, radios };
+}
+
+/**
  * Throws when a kind lost more than half of what the catalogue holds: a provider failure far more
  * often than a real cleanup. `acceptShrink` (a manual run from the admin) lets a real one through.
  */
@@ -87,32 +155,46 @@ export function checkShrink(received: Record<Kind, number>, current: Record<Kind
   }
 }
 
-/** What the catalogue holds per account and kind: what each provider's lists are checked against. */
-export type AccountCounts = Map<number, Record<Kind, number>>;
 export type SyncResult = {
-  /** Totals over the accounts read, plus `accounts` read and `accounts_failed`. */
+  /** Totals over the accounts read (lists received, entries and categories added, updated, removed), plus `accounts` read and `accounts_failed`. */
   stats: Record<string, number>;
   /** One line per account that could not be read, its copy kept. */
   failed: string[];
 };
 
+/** How many entries (separators apart) each account holds per kind: what its lists are checked against. */
+export async function streamCounts(): Promise<Map<number, Record<Kind, number>>> {
+  const rows = await pg<{ accountId: number; kind: Kind; n: number }[]>`
+    select account_id as "accountId", kind, count(*)::int as n from xtream_streams where not separator group by account_id, kind`;
+  const out = new Map<number, Record<Kind, number>>();
+  for (const r of rows) {
+    const counts = out.get(r.accountId) ?? ({ live: 0, vod: 0, series: 0 } as Record<Kind, number>);
+    counts[r.kind] = r.n;
+    out.set(r.accountId, counts);
+  }
+  return out;
+}
+
 const NO_COUNTS: Record<Kind, number> = { live: 0, vod: 0, series: 0 };
 
 /**
- * The `source` step: reads the lists of every enabled account and, once they pass the checks,
- * replaces its raw copy (`xtream_categories`, `xtream_streams`) in one transaction. An account that
- * fails (down, refused, shrunk) keeps its copy and is reported; the step fails only when none could
- * be read. Never touches the catalogue: `merge` derives it from the copy.
+ * The `source` step: reads the lists of every enabled account and, once they pass the checks, writes
+ * them to `xtream_categories` and `xtream_streams` by difference, in one transaction: a new entry is
+ * inserted, a changed one updated, a vanished one deleted, an unchanged one not written at all, so a
+ * stream keeps its id for as long as the provider lists it. An account that fails (down, refused,
+ * shrunk) keeps what it had and is reported; the step fails only when none could be read. What the
+ * catalogue decided about a stream (`catalog_variants`) is not its business: it goes with a deleted stream.
  */
-export async function runSync(opts: { currentCounts: AccountCounts; acceptShrink?: boolean }): Promise<SyncResult> {
+export async function runSync(opts: { acceptShrink?: boolean } = {}): Promise<SyncResult> {
   const accounts = await activeAccounts();
   if (!accounts.length) throw new Error("Aucun fournisseur actif (page Fournisseurs)");
+  const current = await streamCounts();
   const totals: Record<string, number> = { accounts: 0, accounts_failed: 0 };
   const failed: string[] = [];
   for (const a of accounts) {
     checkCancelled();
     try {
-      const stats = await syncAccount(a, opts.currentCounts.get(a.id) ?? NO_COUNTS, opts.acceptShrink ?? false);
+      const stats = await syncAccount(a, current.get(a.id) ?? NO_COUNTS, opts.acceptShrink ?? false);
       for (const [k, v] of Object.entries(stats)) totals[k] = (totals[k] ?? 0) + v;
       totals.accounts++;
       console.log(`[source] ${a.name} : ${JSON.stringify(stats)}`);
@@ -142,33 +224,128 @@ async function syncAccount(
     vod: [() => client.vodCategories(), () => client.vodStreams()],
     series: [() => client.seriesCategories(), () => client.series()],
   };
-  const accountId = account.id;
-  const cats: { accountId: number; kind: Kind; xtreamId: string; position: number; raw: Record<string, unknown> }[] = [];
-  const streams: typeof cats = [];
+  const cats: { kind: Kind; xtreamId: string; name: string; parentId: number; position: number; raw: Record<string, unknown> }[] = [];
+  const streams: StreamEntry[] = [];
   const received = { live: 0, vod: 0, series: 0 } as Record<Kind, number>;
   const stats: Record<string, number> = {};
   for (const kind of KINDS) {
     const [getCats, getStreams] = fetchers[kind];
     const c = prepareCategories(asList(`${kind}_categories`, await getCats()));
-    const s = prepareStreams(kind, asList(`${kind}_streams`, await getStreams()));
-    cats.push(...c.map((x, i) => ({ accountId, kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> })));
-    for (const [i, x] of s.entries())
-      streams.push({ accountId, kind, xtreamId: x.xtreamId, position: i, raw: x.raw as Record<string, unknown> });
-    received[kind] = s.length;
+    const s = deriveEntries(kind, prepareStreams(kind, asList(`${kind}_streams`, await getStreams())));
+    for (const [i, x] of c.entries()) {
+      const parent = asText((x.raw as Record<string, unknown>).parent_id) ?? "";
+      cats.push({
+        kind,
+        xtreamId: x.xtreamId,
+        name: asText(x.raw.category_name) ?? "",
+        parentId: /^[0-9]+$/.test(parent) ? Number(parent) : 0,
+        position: i,
+        raw: x.raw as Record<string, unknown>,
+      });
+    }
+    // Ours, for the radios the provider lists without a category.
+    if (s.radios) cats.push({ kind, xtreamId: RADIO_CATEGORY_ID, name: RADIO_CATEGORY_NAME, parentId: 0, position: 1_000_000, raw: {} });
+    streams.push(...s.entries);
+    received[kind] = s.entries.filter((e) => !e.separator).length;
     stats[`${kind}_categories`] = c.length;
-    stats[`${kind}_items`] = s.length;
+    stats[`${kind}_items`] = received[kind];
   }
 
   checkShrink(received, currentCounts, acceptShrink);
 
   checkCancelled();
-  await db.transaction(async (tx) => {
-    await tx.delete(schema.xtreamCategories).where(eq(schema.xtreamCategories.accountId, accountId));
-    await tx.delete(schema.xtreamStreams).where(eq(schema.xtreamStreams.accountId, accountId));
-    for (let i = 0; i < cats.length; i += CHUNK) await tx.insert(schema.xtreamCategories).values(cats.slice(i, i + CHUNK));
-    for (let i = 0; i < streams.length; i += CHUNK) await tx.insert(schema.xtreamStreams).values(streams.slice(i, i + CHUNK));
+  const written = await pg.begin(async (tx) => {
+    const id = account.id;
+    const [c] = await tx`
+      with src as (
+        select kind::content_kind as kind, xtream_id, name, parent_id, position, raw::jsonb as raw
+        from unnest(${cats.map((x) => x.kind)}::text[], ${cats.map((x) => x.xtreamId)}::text[], ${cats.map((x) => x.name)}::text[],
+                    ${cats.map((x) => x.parentId)}::int[], ${cats.map((x) => x.position)}::int[], ${cats.map((x) => JSON.stringify(x.raw))}::text[])
+          as u(kind, xtream_id, name, parent_id, position, raw)
+      ),
+      upd as (
+        update xtream_categories c set name = s.name, parent_id = s.parent_id, position = s.position, raw = s.raw, changed_at = now()
+        from src s
+        where c.account_id = ${id} and c.kind = s.kind and c.xtream_id = s.xtream_id
+          and (c.name, c.parent_id, c.position, c.raw) is distinct from (s.name, s.parent_id, s.position, s.raw)
+        returning 1
+      ),
+      ins as (
+        insert into xtream_categories (account_id, kind, xtream_id, name, parent_id, position, raw)
+        select ${id}, s.kind, s.xtream_id, s.name, s.parent_id, s.position, s.raw from src s
+        where not exists (select 1 from xtream_categories c where c.account_id = ${id} and c.kind = s.kind and c.xtream_id = s.xtream_id)
+        returning 1
+      ),
+      del as (
+        delete from xtream_categories c
+        where c.account_id = ${id} and not exists (select 1 from src s where s.kind = c.kind and s.xtream_id = c.xtream_id)
+        returning 1
+      )
+      select (select count(*) from ins)::int as added, (select count(*) from upd)::int as updated, (select count(*) from del)::int as removed`;
+
+    await tx`create temp table sync_streams (
+      kind content_kind, upstream_id text, position int, raw jsonb, name text, category text, separator boolean, section text, added_at timestamptz,
+      primary key (kind, upstream_id)) on commit drop`;
+    for (let i = 0; i < streams.length; i += CHUNK) {
+      checkCancelled();
+      const part = streams.slice(i, i + CHUNK);
+      await tx`
+        insert into sync_streams
+        select kind::content_kind, upstream_id, position, raw::jsonb, name, category, separator::boolean, section, added_at::timestamptz
+        from unnest(${part.map((e) => e.kind)}::text[], ${part.map((e) => e.upstreamId)}::text[], ${part.map((e) => e.position)}::int[],
+                    ${part.map((e) => JSON.stringify(e.raw))}::text[], ${part.map((e) => e.name)}::text[], ${part.map((e) => e.category)}::text[],
+                    ${part.map((e) => String(e.separator))}::text[], ${part.map((e) => e.section)}::text[],
+                    ${part.map((e) => e.addedAt?.toISOString() ?? null)}::text[])
+          as u(kind, upstream_id, position, raw, name, category, separator, section, added_at)`;
+    }
+
+    // A changed name voids what was read in the old one (`title` null: to be read again); a date the
+    // provider no longer gives cleanly keeps the stored one. What counts as a change beyond the name,
+    // category, section and date: for live, the rank and the raw entry whole (`num` is the channel
+    // number); for movies and series not `num` nor the rank, which only say where the entry sits in the
+    // provider's list: one title added at the top shifts every other, and comparing them would rewrite
+    // 70 000 rows for one new movie. They are refreshed whenever the entry changes for another reason.
+    const [upd] = await tx`
+      with u as (
+        update xtream_streams s set
+          name = n.name, category_xtream_id = n.category, position = n.position, raw = n.raw, separator = n.separator, section = n.section,
+          added_at = coalesce(n.added_at, s.added_at), changed_at = now(),
+          title = case when s.name <> n.name then null else s.title end
+        from sync_streams n
+        where s.account_id = ${id} and s.kind = n.kind and s.upstream_id = n.upstream_id
+          and (s.name, s.category_xtream_id, s.section, s.separator, s.added_at,
+               case when s.kind = 'live' then s.position end, case when s.kind = 'live' then s.raw else s.raw - 'num' end)
+              is distinct from (n.name, n.category, n.section, n.separator, coalesce(n.added_at, s.added_at),
+               case when n.kind = 'live' then n.position end, case when n.kind = 'live' then n.raw else n.raw - 'num' end)
+        returning s.separator
+      )
+      select count(*) filter (where not separator)::int as n from u`;
+    const [ins] = await tx`
+      with i as (
+        insert into xtream_streams (account_id, kind, upstream_id, position, raw, name, category_xtream_id, separator, section, added_at)
+        select ${id}, n.kind, n.upstream_id, n.position, n.raw, n.name, n.category, n.separator, n.section, coalesce(n.added_at, now())
+        from sync_streams n
+        where not exists (select 1 from xtream_streams s where s.account_id = ${id} and s.kind = n.kind and s.upstream_id = n.upstream_id)
+        returning separator
+      )
+      select count(*) filter (where not separator)::int as n from i`;
+    const [del] = await tx`
+      with d as (
+        delete from xtream_streams s
+        where s.account_id = ${id} and not exists (select 1 from sync_streams n where n.kind = s.kind and n.upstream_id = s.upstream_id)
+        returning separator
+      )
+      select count(*) filter (where not separator)::int as n from d`;
+    return {
+      categories_added: c.added,
+      categories_updated: c.updated,
+      categories_removed: c.removed,
+      items_added: ins.n,
+      items_updated: upd.n,
+      items_removed: del.n,
+    };
   });
-  return stats;
+  return { ...stats, ...written };
 }
 
 /** Test upstream credentials without touching the DB. */

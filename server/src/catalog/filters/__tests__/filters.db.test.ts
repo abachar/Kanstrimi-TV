@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { db, schema, type Kind } from "@/db";
+import { db, schema, variants as vr, type Kind } from "@/db";
 import { compileQuery, createProfile, defaultProfile, deleteProfile, filterLanguages, listProfiles, setDefaultProfile } from "@/catalog";
 import { PROFILE, resetDb, closeDb, seedCategories, seedItems } from "@/test/db";
 import { runGrouping, runNaming } from "../../grouping/group";
@@ -36,7 +36,7 @@ const visible = async (kind: Kind) =>
     .sort();
 /** The xtream ids of the versions of `kind` the filter leaves out. */
 const left = async (kind: Kind) =>
-  (await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.kind, kind)))
+  (await db.select().from(vr).where(eq(vr.kind, kind)))
     .filter((v) => v.hiddenByRule !== false)
     .map((v) => v.xtreamId)
     .sort();
@@ -103,7 +103,7 @@ describe("filters", () => {
     await seedItems([{ kind: "vod", xtreamId: "4", name: "|FR| Heat 2" }]);
     await runNaming();
     await runGrouping();
-    const [fresh] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "4"));
+    const [fresh] = await db.select().from(vr).where(eq(vr.xtreamId, "4"));
     expect(fresh.hiddenByRule).toBeNull();
     expect(await visible("vod")).not.toContain("Heat 2");
     await applyFilters();

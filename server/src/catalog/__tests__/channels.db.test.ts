@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import fs from "node:fs";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, variants as vr } from "@/db";
 import { env } from "@/shared";
 import { resetDb, closeDb, seedItems, groupAndFilter } from "@/test/db";
 import { pickLogo, syncIptv } from "@/providers/iptv";
@@ -139,7 +139,7 @@ describe("runChannels", () => {
       epg_mismatch: 1,
       ai_asked: 0, // no key: Claude is not asked
     });
-    const items = await db.select().from(schema.catalogVariants).orderBy(schema.catalogVariants.xtreamId);
+    const items = await db.select().from(vr).orderBy(vr.xtreamId);
     const by = (x: string) => items.find((i) => i.xtreamId === x)!;
     expect(by("1")).toMatchObject({ iptvId: "TF1.fr", iptvMatch: "epg", channelName: "TF1" });
     expect(by("2")).toMatchObject({ iptvId: "BFMTV.fr", iptvMatch: "name", channelName: "BFM TV", theme: "Infos" }); // iptv-org first
@@ -177,16 +177,16 @@ describe("runChannels", () => {
   });
 
   it("keeps a manual pin across runs, and goes back to automatic on demand", async () => {
-    const [ligue] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.xtreamId, "5"));
+    const [ligue] = await db.select().from(vr).where(eq(vr.xtreamId, "5"));
     await setIptvMatch(ligue.id, "Canal1.fr");
     serve();
     await runChannels();
-    expect((await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, ligue.id)))[0]).toMatchObject({
+    expect((await db.select().from(vr).where(eq(vr.id, ligue.id)))[0]).toMatchObject({
       iptvId: "Canal1.fr",
       iptvMatch: "manual",
     });
     await setIptvMatch(ligue.id, "auto");
-    expect((await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, ligue.id)))[0]).toMatchObject({
+    expect((await db.select().from(vr).where(eq(vr.id, ligue.id)))[0]).toMatchObject({
       iptvId: null,
       iptvMatch: null,
     });

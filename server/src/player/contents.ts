@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { type Category, db, schema, type Content, type Variant, visibleCategory, visibleItem } from "@/db";
+import { type Category, db, schema, variants, type Content, type Variant, visibleCategory, visibleItem } from "@/db";
 import { parseKey } from "@/catalog";
 import type { RestContext } from "./context";
 import { playableOfItem, type Playable } from "./versions";
@@ -24,8 +24,8 @@ export const visibleContent = (ctx: RestContext, kind?: "live" | "vod" | "series
 export const servedVariant = (ctx: RestContext): SQL =>
   and(
     visibleItem,
-    sql`exists (select 1 from ${schema.catalogVariantProfiles} vp where vp.variant_id = ${schema.catalogVariants.id} and vp.profile_id = ${ctx.profile.id})`,
-    ctx.serveAdult ? undefined : eq(schema.catalogVariants.adult, false),
+    sql`exists (select 1 from ${schema.catalogVariantProfiles} vp where vp.variant_id = ${variants.id} and vp.profile_id = ${ctx.profile.id})`,
+    ctx.serveAdult ? undefined : eq(variants.adult, false),
   )!;
 
 /** « Nouveautés » holds the movies released in the last twelve months. */
@@ -83,15 +83,15 @@ export type Variants = { items: Variant[]; playables: Playable[]; categoryName: 
 export async function variantsOf(ctx: RestContext, content: Content): Promise<Variants> {
   const items = await db
     .select()
-    .from(schema.catalogVariants)
-    .where(and(eq(schema.catalogVariants.contentId, content.id), servedVariant(ctx)))
-    .orderBy(desc(schema.catalogVariants.qualityRank), asc(schema.catalogVariants.position), asc(schema.catalogVariants.id));
+    .from(variants)
+    .where(and(eq(variants.contentId, content.id), servedVariant(ctx)))
+    .orderBy(desc(variants.qualityRank), asc(variants.position), asc(variants.id));
   const catIds = [...new Set(items.map((i) => i.categoryXtreamId).filter((x): x is string => x !== null))];
   const cats = catIds.length
     ? await db
         .select()
-        .from(schema.catalogCategories)
-        .where(and(eq(schema.catalogCategories.kind, content.kind), inArray(schema.catalogCategories.xtreamId, catIds)))
+        .from(schema.xtreamCategories)
+        .where(and(eq(schema.xtreamCategories.kind, content.kind), inArray(schema.xtreamCategories.xtreamId, catIds)))
     : [];
   const names = categoryNames(cats);
   const categoryName = (it: Variant) => categoryNameOf(names, it);
@@ -107,7 +107,7 @@ export const categoryNameOf = (names: Map<string, string>, it: Pick<Variant, "ac
 export async function liveCategories() {
   return db
     .select()
-    .from(schema.catalogCategories)
-    .where(and(eq(schema.catalogCategories.kind, "live"), visibleCategory))
-    .orderBy(asc(schema.catalogCategories.position));
+    .from(schema.xtreamCategories)
+    .where(and(eq(schema.xtreamCategories.kind, "live"), visibleCategory))
+    .orderBy(asc(schema.xtreamCategories.position));
 }

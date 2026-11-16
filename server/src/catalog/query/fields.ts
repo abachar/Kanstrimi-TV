@@ -1,5 +1,5 @@
 import { sql, type Column, type SQL } from "drizzle-orm";
-import { schema, sqlTmdbMediaType, type Kind } from "@/db";
+import { schema, sqlTmdbMediaType, variants, type Kind } from "@/db";
 import { stripAccents } from "@/shared";
 import type { CodeList } from "./codes";
 
@@ -10,7 +10,7 @@ import type { CodeList } from "./codes";
  * - `content`, no prefix: the content as the app shows it (`catalog_contents`, never aliased), its TMDB
  *   sheet read in the cache;
  * - `variant`, prefixed `variant.` (what we read of a version) or `xtream.` (what the provider says of it):
- *   one version (`catalog_variants`, never aliased).
+ *   one version (`variants`, the variant with its stream, never aliased).
  * A filter judges versions, its content fields read on the version's content; a search lists contents,
  * a version field there meaning « one of its versions » (`sql.ts`).
  *
@@ -48,7 +48,7 @@ export type Field = {
 };
 
 const c = schema.catalogContents;
-const v = schema.catalogVariants;
+const v = variants;
 const ALL: Kind[] = ["live", "vod", "series"];
 const LIVE: Kind[] = ["live"];
 const VOD_SERIES: Kind[] = ["vod", "series"];
@@ -276,7 +276,7 @@ export const FIELDS: Field[] = [
     kinds: ALL,
     level: "variant",
     text: (_, p) =>
-      sql`exists (select 1 from catalog_categories k where k.account_id = ${v.accountId} and k.kind = ${v.kind} and k.xtream_id = ${v.categoryXtreamId} and ${p(sql`k.name`)})`,
+      sql`exists (select 1 from xtream_categories k where k.account_id = ${v.accountId} and k.kind = ${v.kind} and k.xtream_id = ${v.categoryXtreamId} and ${p(sql`k.name`)})`,
   },
   {
     names: ["xtream.fournisseur", "xtream.compte"],
@@ -313,7 +313,7 @@ export const FIELDS: Field[] = [
     example: "variant.thème:sport",
     kinds: LIVE,
     level: "variant",
-    text: (_, p) => p(v.theme),
+    text: (_, p) => p(sql`${v.theme}`),
   },
   {
     names: ["variant.langue", "variant.lang"],

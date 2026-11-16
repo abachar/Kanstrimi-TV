@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, inArray, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import pLimit from "p-limit";
-import { db, schema, sqlTmdbMediaType, tmdbHasLogos, tmdbMediaType, type Variant, visibleItem } from "@/db";
+import { db, schema, sqlTmdbMediaType, tmdbHasLogos, tmdbMediaType, variants, type Kind, type Variant, visibleItem } from "@/db";
 import { suggestTitles, type TitleQuery } from "@/providers/claude";
 import { cancelGuard, describeError, isUnreachable, progress } from "@/shared";
 import {
@@ -214,11 +214,18 @@ export async function setMatch(
     .where(eq(schema.catalogVariants.id, itemId));
 }
 
+/** The variants of these kinds, for a write on `catalog_variants`: the kind is its stream's. */
+const ofKinds = (kinds: Kind[]) =>
+  inArray(
+    schema.catalogVariants.id,
+    db.select({ id: schema.xtreamStreams.id }).from(schema.xtreamStreams).where(inArray(schema.xtreamStreams.kind, kinds)),
+  );
+
 // ---------------------------------------------------------------- the `enrich` step
 
 /**
  * Match every pending vod/series entry against TMDB, hidden ones included, and cache its
- * details. Reads the `clean_title` and `year` the naming wrote after the import; the pipeline
+ * details. Reads the title and the year the naming wrote after the import; the pipeline
  * filters and regroups afterwards. Before: the week-old failures go back to pending (those Claude
  * judged outside TMDB excepted), and Claude reads the visible names given up on that it has not seen
  * yet: what it identifies goes back to pending with its suggestion, judged right after. After: a
@@ -244,7 +251,7 @@ export async function runEnrich(opts: { limit?: number } = {}) {
     .set({ matchStatus: "pending", matchAttempts: 0 })
     .where(
       and(
-        inArray(schema.catalogVariants.kind, ["vod", "series"]),
+        ofKinds(["vod", "series"]),
         eq(schema.catalogVariants.matchStatus, "unmatched"),
         or(isNull(schema.catalogVariants.aiKind), ne(schema.catalogVariants.aiKind, "other")),
         or(isNull(schema.catalogVariants.matchedAt), lt(schema.catalogVariants.matchedAt, new Date(Date.now() - RETRY_UNMATCHED_MS))),
@@ -255,19 +262,19 @@ export async function runEnrich(opts: { limit?: number } = {}) {
   Object.assign(stats, await askClaude());
   const pending = await db
     .select({
-      id: schema.catalogVariants.id,
-      kind: schema.catalogVariants.kind,
-      name: schema.catalogVariants.name,
-      cleanTitle: schema.catalogVariants.cleanTitle,
-      year: schema.catalogVariants.year,
-      raw: schema.catalogVariants.raw,
-      aiKind: schema.catalogVariants.aiKind,
-      aiTitle: schema.catalogVariants.aiTitle,
-      aiOriginalTitle: schema.catalogVariants.aiOriginalTitle,
-      aiYear: schema.catalogVariants.aiYear,
+      id: variants.id,
+      kind: variants.kind,
+      name: variants.name,
+      cleanTitle: variants.cleanTitle,
+      year: variants.year,
+      raw: variants.raw,
+      aiKind: variants.aiKind,
+      aiTitle: variants.aiTitle,
+      aiOriginalTitle: variants.aiOriginalTitle,
+      aiYear: variants.aiYear,
     })
-    .from(schema.catalogVariants)
-    .where(and(inArray(schema.catalogVariants.kind, ["vod", "series"]), eq(schema.catalogVariants.matchStatus, "pending")))
+    .from(variants)
+    .where(and(inArray(variants.kind, ["vod", "series"]), eq(variants.matchStatus, "pending")))
     .limit(opts.limit ?? 100_000);
   // One details call per distinct provider id: 70 000 items carry ~45 000 ids.
   const byProvidedId = new Map<string, PendingItem[]>();
@@ -381,8 +388,8 @@ export async function runEnrich(opts: { limit?: number } = {}) {
  */
 async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_other: number }> {
   const stats = { ai_asked: 0, ai_titled: 0, ai_other: 0 };
-  const v = schema.catalogVariants;
-  const c = schema.catalogCategories;
+  const v = variants;
+  const c = schema.xtreamCategories;
   const rows: TitleQuery[] = await db
     .select({ id: v.id, kind: sql<"vod" | "series">`${v.kind}`, name: v.name, year: v.year, category: c.name })
     .from(v)
@@ -399,7 +406,7 @@ async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_ot
   for (const s of suggestions) {
     const titled = s.kind !== "other" && Boolean(s.title || s.originalTitle);
     await db
-      .update(v)
+      .update(schema.catalogVariants)
       .set({
         aiKind: s.kind,
         aiTitle: s.title,
@@ -408,7 +415,7 @@ async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_ot
         aiAskedAt: now,
         ...(titled ? { matchStatus: "pending" as const, matchAttempts: 0 } : {}),
       })
-      .where(eq(v.id, s.id));
+      .where(eq(schema.catalogVariants.id, s.id));
     stats.ai_asked++;
     if (titled) stats.ai_titled++;
     if (s.kind === "other") stats.ai_other++;
@@ -417,7 +424,7 @@ async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_ot
   const answered = new Set(suggestions.map((s) => s.id));
   const silent = rows.filter((r) => !answered.has(r.id)).map((r) => r.id);
   if (silent.length) {
-    await db.update(v).set({ aiAskedAt: now }).where(inArray(v.id, silent));
+    await db.update(schema.catalogVariants).set({ aiAskedAt: now }).where(inArray(schema.catalogVariants.id, silent));
     stats.ai_asked += silent.length;
   }
   return stats;
@@ -494,7 +501,7 @@ export async function searchCandidates(item: Variant, query: string, limit = 10)
 
 /** Assign a TMDB id by hand (null removes the association); the item is regrouped at once. */
 export async function assignManual(itemId: number, tmdbId: number | null) {
-  const [it] = await db.select().from(schema.catalogVariants).where(eq(schema.catalogVariants.id, itemId));
+  const [it] = await db.select().from(variants).where(eq(variants.id, itemId));
   if (!it) throw new Error("Variante introuvable");
   if (tmdbId) {
     const client = await getTmdbClient();
@@ -510,7 +517,7 @@ export async function retryUnmatched(): Promise<number> {
   const rows = await db
     .update(schema.catalogVariants)
     .set({ matchStatus: "pending", matchAttempts: 0 })
-    .where(and(inArray(schema.catalogVariants.kind, ["vod", "series"]), eq(schema.catalogVariants.matchStatus, "unmatched")))
+    .where(and(ofKinds(["vod", "series"]), eq(schema.catalogVariants.matchStatus, "unmatched")))
     .returning({ id: schema.catalogVariants.id });
   return rows.length;
 }
@@ -520,12 +527,10 @@ export async function resetMatches(kind?: "vod" | "series", clearOverrides = fal
   await db
     .update(schema.catalogVariants)
     .set({ matchStatus: "pending", tmdbId: null, matchScore: null, matchAttempts: 0 })
-    .where(
-      and(inArray(schema.catalogVariants.kind, kind ? [kind] : ["vod", "series"]), sql`${schema.catalogVariants.matchStatus} <> 'manual'`),
-    );
+    .where(and(ofKinds(kind ? [kind] : ["vod", "series"]), sql`${schema.catalogVariants.matchStatus} <> 'manual'`));
   if (clearOverrides)
     await db
       .update(schema.catalogVariants)
       .set({ keyOverride: null })
-      .where(inArray(schema.catalogVariants.kind, kind ? [kind] : ["vod", "series"]));
+      .where(ofKinds(kind ? [kind] : ["vod", "series"]));
 }

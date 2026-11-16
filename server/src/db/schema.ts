@@ -30,12 +30,6 @@ export const settings = pgTable("settings", {
 });
 
 /**
- * The provider's lists as the `source` step last read them, untouched: categories and entries
- * (separator lines included), one row per id, replaced as a whole at each import once they pass
- * the sanity checks. The `merge` step derives the catalogue from them. Created UNLOGGED by the
- * migration: a crash loses them, the next import rewrites them.
- */
-/**
  * An Xtream account, one per provider: the catalogue imports every enabled one, and a title found at
  * several providers lists one source per account (`position`: the preferred provider first, the one that
  * plays by default). Disabled: its catalogue stays but is served no more; deleted: everything it brought goes.
@@ -57,58 +51,39 @@ const accountId = () =>
     .notNull()
     .references(() => xtreamAccounts.id, { onDelete: "cascade" });
 
+/**
+ * A provider's categories, as the `source` step last read them, written by difference; one of ours beside
+ * them for the radios an account lists without a category (`_radio`). `hidden` is the only column of ours:
+ * a category hidden by hand in the admin.
+ */
 export const xtreamCategories = pgTable(
   "xtream_categories",
   {
     accountId: accountId(),
     kind: kindEnum("kind").notNull(),
     xtreamId: text("xtream_id").notNull(),
-    position: integer("position").notNull(),
-    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.accountId, t.kind, t.xtreamId] })],
-);
-export const xtreamStreams = pgTable(
-  "xtream_streams",
-  {
-    accountId: accountId(),
-    kind: kindEnum("kind").notNull(),
-    /** stream_id (live, vod) or series_id (series), trimmed: an opaque string. */
-    xtreamId: text("xtream_id").notNull(),
-    /** Rank in the provider's list: separators name the section of what follows them. */
-    position: integer("position").notNull(),
-    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.accountId, t.kind, t.xtreamId] })],
-);
-
-/** The provider's categories in the catalogue, where the admin hides them (by rule or by hand). */
-export const catalogCategories = pgTable(
-  "catalog_categories",
-  {
-    id: serial("id").primaryKey(),
-    accountId: accountId(),
-    kind: kindEnum("kind").notNull(),
-    xtreamId: text("xtream_id").notNull(),
     name: text("name").notNull(),
     parentId: integer("parent_id").default(0).notNull(),
     position: integer("position").default(0).notNull(),
-    hiddenManual: boolean("hidden_manual").default(false).notNull(),
+    hidden: boolean("hidden").default(false).notNull(),
     raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
-    /** Last time the provider's copy of this row changed (`merge`). */
+    /** Last time the provider's copy of this row changed. */
     changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("catalog_categories_kind_xtream_idx").on(t.accountId, t.kind, t.xtreamId)],
+  (t) => [primaryKey({ columns: [t.accountId, t.kind, t.xtreamId] })],
 );
 
 /**
- * One variant = one entry of the provider's lists: a live channel or a movie (a playable stream),
- * a series (its episodes are `catalog_episode_variants`). Written by `merge` (provider fields), the
- * naming (`name_*` and parsed fields), `channels` (`iptv_*`), `enrich` (`match_*`, `tmdb_id`),
- * `filters` (`hidden_by_rule`) and `group` (`content_key`, `content_id`).
+ * One entry of a provider's lists: a live channel or a movie (a playable stream), a series (its episodes
+ * are `catalog_episode_variants`), or a separator line. The `source` step writes it by difference (a
+ * changed entry updated, a new one inserted, a vanished one deleted), so `id` is stable: the catalogue
+ * hangs its own decisions on it (`catalog_variants`).
+ *
+ * Two halves: what the provider sends, and what is read in its name (`title` … `theme`), which depends
+ * on the name, the section and the category only and can be read again at any time, without the network.
  */
-export const catalogVariants = pgTable(
-  "catalog_variants",
+export const xtreamStreams = pgTable(
+  "xtream_streams",
   {
     id: serial("id").primaryKey(),
     accountId: accountId(),
@@ -118,21 +93,70 @@ export const catalogVariants = pgTable(
      * two providers reuse the same numbers. Providers are careless: ids may be non-numeric, repeated
      * across categories, or missing.
      */
-    xtreamId: text("xtream_id").notNull(),
+    upstreamId: text("upstream_id").notNull(),
     name: text("name").notNull(),
     categoryXtreamId: text("category_xtream_id"),
+    /** Rank in the provider's list. Refreshed at each import for live; for movies and series only when the entry changes. */
     position: integer("position").default(0).notNull(),
+    /** A separator line (« ----|FR| SPORT |FR|---- »): no variant, it names the section of the entries that follow it. */
+    separator: boolean("separator").default(false).notNull(),
+    /** Raw JSON object as returned by upstream get_*_streams / get_series. */
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    /** The provider's arrival date (`added`, `last_modified` for a series), else the first time it was seen. */
+    addedAt: timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Last time the provider's copy of this row changed. */
+    changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
+    /** The label of the separator line preceding the entry in its category, as the provider wrote it. */
+    section: text("section"),
+    // What is read in the name (`runNaming`).
+    /** The cleaned title. Null = the name was never read: a new entry, or one the provider renamed (the import clears it). */
+    title: text("title"),
+    year: integer("year"),
+    /** Market code from the prefix or the category ("fr", "it"…). */
+    market: text("market"),
+    /** Live: the country the name's own prefix says inside a region (« MA - 2M » → `MA`). */
+    country: text("country"),
+    /** API vocabulary: VF · VOSTFR · VO · ISO code. */
+    lang: text("lang"),
+    /** API vocabulary: SD · HD · FHD · 4K. Null = the provider said nothing. */
+    quality: text("quality"),
+    qualityRank: integer("quality_rank").default(0).notNull(),
+    /** HDR · DV, null = SDR. */
+    dynamicRange: text("dynamic_range"),
+    tags: text("tags").array().default([]).notNull(),
+    seasonHint: integer("season_hint"),
+    /** A cut other than the theatrical one, as the app shows it (« Version longue »); null = the usual cut. */
+    edition: text("edition"),
+    /** The name says so: adult category or tag in the name. */
+    adult: boolean("adult").default(false).notNull(),
+    /** Live: the theme the name gives (section, category, name). */
+    theme: text("theme"),
+  },
+  (t) => [
+    uniqueIndex("xtream_streams_account_kind_upstream_idx").on(t.accountId, t.kind, t.upstreamId),
+    index("xtream_streams_kind_cat_idx").on(t.accountId, t.kind, t.categoryXtreamId),
+  ],
+);
+
+/**
+ * What the catalogue decides about a stream, one row per entry that is not a separator, under the
+ * stream's own id: written by `merge` (created with its stream), `channels` (`iptv_*`, `channel_*`),
+ * `enrich` (`match_*`, `tmdb_id`, `ai_*`), `filters` (`hidden_by_rule`) and `group` (`content_key`,
+ * `content_id`). Read with its stream through `variants` (`db/variants.ts`).
+ */
+export const catalogVariants = pgTable(
+  "catalog_variants",
+  {
+    id: integer("id")
+      .primaryKey()
+      .references(() => xtreamStreams.id, { onDelete: "cascade" }),
     hiddenManual: boolean("hidden_manual").default(false).notNull(),
     /**
-     * The filter of its kind (`curation_filters`) leaves it out, written by the `filters` step. Null = not
+     * No profile's filter keeps it, written by the `filters` step. Null = not
      * judged yet, a new version: left out until the filter has seen it.
      */
     hiddenByRule: boolean("hidden_by_rule"),
-    /** Raw JSON object as returned by upstream get_*_streams / get_series. */
-    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
     // TMDB matching (vod + series only)
-    cleanTitle: text("clean_title"),
-    year: integer("year"),
     tmdbId: integer("tmdb_id"),
     matchStatus: matchStatusEnum("match_status").default("pending").notNull(),
     matchScore: real("match_score"),
@@ -149,44 +173,19 @@ export const catalogVariants = pgTable(
     aiOriginalTitle: text("ai_original_title"),
     aiYear: integer("ai_year"),
     aiAskedAt: timestamp("ai_asked_at", { withTimezone: true }),
-    addedAt: timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
-    /** Last time the provider's copy of this row changed (`merge`). */
-    changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
     // Grouping (block 1): one item is one playable variant of a content.
     /** Computed key, joins `catalog_contents.key`; the row it currently belongs to is `content_id`. */
     contentKey: text("content_key"),
     contentId: integer("content_id").references(() => catalogContents.id, { onDelete: "set null" }),
     /** Manual merge / split from the admin: wins over the computed key. */
     keyOverride: text("key_override"),
-    /** Market code from the prefix or the category ("fr", "it"…). */
-    market: text("market"),
-    /** API vocabulary: VF · VOSTFR · VO · ISO code. */
-    lang: text("lang"),
-    /** API vocabulary: SD · HD · FHD · 4K. Null = the provider said nothing. */
-    quality: text("quality"),
-    qualityRank: integer("quality_rank").default(0).notNull(),
-    /** HDR · DV, null = SDR. */
-    dynamicRange: text("dynamic_range"),
-    tags: text("tags").array().default([]).notNull(),
-    seasonHint: integer("season_hint"),
-    /** A cut other than the theatrical one, as the app shows it (« Version longue »); null = the usual cut. */
-    edition: text("edition"),
-    /** The name says so: adult category or tag in the name (naming). */
-    nameAdult: boolean("name_adult").default(false).notNull(),
-    /** Live: the label of the separator line preceding the entry in its category, as the provider wrote it. */
-    section: text("section"),
-    /** Live: the theme the name gives (section, category, name), written by the naming. */
-    nameTheme: text("name_theme"),
     /**
      * Live: iptv-org's channel says so (`is_nsfw`, `xxx`), and the theme the reference gives (« Événements » or
      * « Non reconnus » without one), null when it only repeats the name's; written by `channels`, kept when it fails.
+     * A variant is adult when its name or iptv-org says so, its theme is the reference's, else the name's (`variants`).
      */
     iptvAdult: boolean("iptv_adult").default(false).notNull(),
     iptvTheme: text("iptv_theme"),
-    /** Derived, never written: each source keeps its own column, so one step failing cannot undo another's. */
-    adult: boolean("adult").generatedAlwaysAs(sql`name_adult or iptv_adult`).notNull(),
-    /** Live: the theme the app groups by (« Sport », « Cinéma »…): the reference's, else the name's. */
-    theme: text("theme").generatedAlwaysAs(sql`coalesce(iptv_theme, name_theme)`),
     /** Live: the iptv-org channel this variant is (`TF1.fr`), and how its reference channel was found: epg · name · name-global · alias · ai · manual. */
     iptvId: text("iptv_id"),
     iptvMatch: text("iptv_match"),
@@ -194,8 +193,6 @@ export const catalogVariants = pgTable(
     epgMismatch: boolean("epg_mismatch").default(false).notNull(),
     /** Live, regional market only (« ar »): the country it is shown under (`MA`), written by `channels`; null = the whole region. */
     country: text("country"),
-    /** Live: the country the name's own prefix says inside a region (« MA - 2M » → `MA`), written by the naming. */
-    nameCountry: text("name_country"),
     /**
      * Live: the reference channel this variant is, written by `channels`: its name (ours, else iptv-org's), which
      * gives the content its identity and title, and our own row when there is one. Null name = not recognised.
@@ -204,9 +201,7 @@ export const catalogVariants = pgTable(
     channelId: integer("channel_id").references(() => curationChannels.id, { onDelete: "set null" }),
   },
   (t) => [
-    uniqueIndex("catalog_variants_kind_xtream_idx").on(t.accountId, t.kind, t.xtreamId),
-    index("catalog_variants_kind_cat_idx").on(t.accountId, t.kind, t.categoryXtreamId),
-    index("catalog_variants_match_idx").on(t.kind, t.matchStatus),
+    index("catalog_variants_match_idx").on(t.matchStatus),
     index("catalog_variants_content_idx").on(t.contentId),
     index("catalog_variants_content_key_idx").on(t.contentKey),
   ],
@@ -952,11 +947,11 @@ export const cacheSkipdbSegments = pgTable(
 );
 
 export type ProviderAccount = typeof xtreamAccounts.$inferSelect;
-export type Variant = typeof catalogVariants.$inferSelect;
+export type Stream = typeof xtreamStreams.$inferSelect;
 export type Episode = typeof catalogEpisodes.$inferSelect;
 export type Device = typeof appDevices.$inferSelect;
 export type Content = typeof catalogContents.$inferSelect;
-export type Category = typeof catalogCategories.$inferSelect;
+export type Category = typeof xtreamCategories.$inferSelect;
 export type ProfileFilter = typeof appProfileFilters.$inferSelect;
 export type ProfileVersion = typeof appProfileVersions.$inferSelect;
 export type Plays = typeof appPlays.$inferSelect;

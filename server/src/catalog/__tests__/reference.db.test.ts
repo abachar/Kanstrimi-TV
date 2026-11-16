@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import fs from "node:fs";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { db, schema, variants as vr } from "@/db";
 import { env } from "@/shared";
 import { suggestChannels } from "@/providers/claude";
 import { PROFILE, resetDb, closeDb, seedCategories, seedItems, groupAndFilter } from "@/test/db";
@@ -46,7 +46,7 @@ function serve() {
   );
 }
 
-const variants = async () => db.select().from(schema.catalogVariants).orderBy(schema.catalogVariants.xtreamId);
+const variants = async () => db.select().from(vr).orderBy(vr.xtreamId);
 const by = async (xtreamId: string) => (await variants()).find((v) => v.xtreamId === xtreamId)!;
 const keysOf = async (xtreamIds: string[]) => (await variants()).filter((v) => xtreamIds.includes(v.xtreamId)).map((v) => v.contentKey);
 
