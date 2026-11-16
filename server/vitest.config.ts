@@ -18,11 +18,12 @@ export default defineConfig({
       SESSION_SECRET: "test-only-secret-not-for-production-32chars",
       ADMIN_EMAIL: "admin@kanstrimi.test",
       DATA_DIR: "/tmp/kanstrimi-test-data",
-      // Never the real account from the shell: a test sets what it needs (`setSecretsForTests`).
+      // Never the real account nor the real keys from the shell: a test sets what it needs (`setSecretsForTests`).
       XTREAM_URL: "",
       XTREAM_USERNAME: "",
       XTREAM_PASSWORD: "",
       TMDB_API_KEY: "",
+      ANTHROPIC_API_KEY: "",
     },
   },
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
