@@ -140,7 +140,7 @@ describe("admin", () => {
     expect(await html("/admin/catalog?kind=vod")).not.toContain('name="view"');
     expect(await html("/admin/catalog?kind=live")).toContain("Rechercher : tf1, thème:sport"); // examples of the kind
     expect(await html("/admin/catalog?kind=vod&q=genr%3Ascience")).toContain("voulais-tu genre");
-    const found = await html("/admin/catalog?kind=vod&q=qualit%C3%A9%3A%3E%3Dfhd");
+    const found = await html("/admin/catalog?kind=vod&q=xtream.qualit%C3%A9%3A%3E%3Dfhd");
     expect(found).toContain(`/admin/content/k/${encodeURIComponent("tmdb:movie:603")}`);
     expect(found).toContain("1 contenu pour");
     expect(await html("/admin/catalog?kind=vod&q=genre%3A%3E5")).toContain("pas un nombre");
@@ -345,15 +345,15 @@ describe("admin", () => {
     const me = `/admin/profiles/${PROFILE}`;
     const preview = await (await post("/admin/profiles/preview", { query: "matrix", kind: "vod" })).text();
     expect(preview).toMatch(/Garde <span[^>]*>1<\/span> fiche sur 1 \(2 versions sur 2\)/);
-    expect(await (await post("/admin/profiles/preview", { query: "genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
-    expect(flash(await post(`${me}/filters`, { kind: "live", query: 'marché:"fr"' }))).toContain("à appliquer");
+    expect(await (await post("/admin/profiles/preview", { query: "catalogue.genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
+    expect(flash(await post(`${me}/filters`, { kind: "live", query: 'xtream.marché:"fr"' }))).toContain("à appliquer");
     const page = await html(me);
     expect(page).toContain("Filtres modifiés depuis le dernier passage");
     expect(page).toContain(`action="${me}/apply"`);
-    expect(page).toContain("marché:&quot;fr&quot;</textarea>");
+    expect(page).toContain("xtream.marché:&quot;fr&quot;</textarea>");
     expect(page).toContain("tout est vu"); // the films and series have none
     expect(await html("/admin/profiles")).toContain("filtres à appliquer");
-    const invalid = await (await post(`${me}/filters`, { kind: "vod", query: "titre:/(/" })).text();
+    const invalid = await (await post(`${me}/filters`, { kind: "vod", query: "catalogue.titre:/(/" })).text();
     expect(invalid).toContain("Requête invalide");
     expect(invalid).toContain("titre:/(/</textarea>");
     expect(flash(await post(`${me}/filters`, { kind: "live", query: "" }))).toContain("Filtre enregistré");
@@ -578,7 +578,7 @@ describe("admin", () => {
       expect(grid).toContain("qatar1 · TF1.qa");
       // The grid's search is the filter language, on the channels' variants.
       expect(await html("/admin/epg?q=tf1")).toContain("Journal du Golfe");
-      expect(await html(`/admin/epg?q=${encodeURIComponent('marché:"fr"')}`)).toContain("Journal du Golfe");
+      expect(await html(`/admin/epg?q=${encodeURIComponent('xtream.marché:"fr"')}`)).toContain("Journal du Golfe");
       const neg = await html("/admin/epg?q=-tf1");
       expect(neg).not.toContain("Journal du Golfe");
       expect(await html(`/admin/epg?q=${encodeURIComponent("champ:x")}`)).toContain('role="alert"');
@@ -634,11 +634,12 @@ describe("admin", () => {
 
   it("a filter on versions, applied from « Filtres »: the version and the content say so", async () => {
     const page = await html(`/admin/profiles/${PROFILE}`);
-    expect(page).toContain("Champs d&#39;une version");
+    expect(page).toContain("Mots d&#39;un flux : xtream.");
+    expect(page).toContain("catalogue.genre:&quot;animation&quot;"); // a filter writes every prefix
     expect(page).not.toContain('<code class="font-mono text-xs">visible</code>'); // searches only
     const save = (query: string) => post(`/admin/profiles/${PROFILE}/filters`, { kind: "vod", query });
     try {
-      expect(flash(await save('variant.langue:"vf"'))).toContain("Filtre enregistré");
+      expect(flash(await save('xtream.langue:"vf"'))).toContain("Filtre enregistré");
       expect(await runAll("manual", "filters")).toBe(true);
       expect(await html(`/admin/profiles/${PROFILE}`)).not.toContain("modifiés depuis le dernier passage");
       // Matrix keeps its VF version, its VOST one is left out.
@@ -646,7 +647,7 @@ describe("admin", () => {
       const sheet = await html(`/admin/content/${matrix}`);
       expect(sheet).toContain("Visible dans l&#39;app");
       expect(sheet).toContain("écartée par les filtres");
-      expect(flash(await save('variant.langue:"it"'))).toContain("Filtre enregistré");
+      expect(flash(await save('xtream.langue:"it"'))).toContain("Filtre enregistré");
       expect(await runAll("manual", "filters")).toBe(true);
       expect(await html(`/admin/content/${matrix}`)).toContain("Aucune version servie : 2 versions écartées par les filtres");
     } finally {
@@ -765,8 +766,8 @@ describe("admin", () => {
     const shortcuts = {
       "Dans l&#39;app de Hakim": 'profil:"Hakim"',
       "Toutes les chaînes": '-thème:"événements","non reconnus"',
-      "Non rattachées": 'thème:"non reconnus" && marché:"fr","it"', // the markets the profiles watch
-      Événements: 'thème:"événements" && marché:"fr","it"',
+      "Non rattachées": 'thème:"non reconnus" && xtream.marché:"fr","it"', // the markets the profiles watch
+      Événements: 'thème:"événements" && xtream.marché:"fr","it"',
     };
     for (const [label, text] of Object.entries(shortcuts)) {
       expect(shown).toContain(label);

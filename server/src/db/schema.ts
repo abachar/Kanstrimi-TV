@@ -321,7 +321,7 @@ export const catalogChannels = pgTable(
     aliases: text("aliases").array().default([]).notNull(),
     /** The fields set by hand (`name`, `theme`, `country`): iptv-org and the variants no longer decide them. */
     edited: text("edited").array().default([]).notNull(),
-    /** Regional market only: its variants' country (`MA`), the app's group « Maroc · … »; null = the whole region, or the market's. */
+    /** The country it is shown under, by ISO code: its market's when the market is one (`homeCountries`), the one the provider says inside a region (`MA`); null = a region's channel (pan-Arab). */
     country: text("country"),
     /** The theme the app groups it under (« Sport », « Cinéma »…): ours when set by hand, else the reference's, « Événements » or « Non reconnus » without one. */
     theme: text("theme"),

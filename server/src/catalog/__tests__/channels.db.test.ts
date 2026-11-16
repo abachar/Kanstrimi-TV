@@ -9,6 +9,9 @@ import { pickLogo, syncIptv } from "@/providers/iptv";
 import {
   channelKey,
   countriesOf,
+  HOME_CHANNELS,
+  HOME_SHARE,
+  homeCountries,
   iptvTheme,
   isEventFeed,
   mergedTheme,
@@ -90,6 +93,25 @@ describe("iptv-org helpers", () => {
     expect(regionCountry("ar", "OSNMovies.ae", ["|AR| OSN MOVIES |AR|", "|AR| QATAR |AR|"])).toBe("AE");
     expect(regionCountry("fr", "TF1.fr", ["|FR| FRANCE FHD |FR|"])).toBeNull(); // not a region
   });
+  it("says which markets are a country: by their code, or when most of their channels come from one", () => {
+    const of = (market: string, countries: Record<string, number>) =>
+      Object.entries(countries).flatMap(([country, n]) => Array.from({ length: n }, () => ({ market, country })));
+    const homes = homeCountries([
+      ...of("fr", { FR: 6, QA: 3, GB: 2 }), // a French list also carries beIN and National Geographic
+      ...of("uk", { GB: 2, US: 1 }), // iptv-org's « UK » is GB
+      ...of("alb", { AL: 3, US: 2, GB: 1 }), // ISO's three letters
+      ...of("sp", { US: 9, CA: 2 }), // no country's code: its channels say it
+      ...of("is", { IL: 9, US: 1 }), // « is » is Israel, not Iceland
+      ...of("af", { FR: 3, SN: 3, CI: 3, CM: 3 }), // a region: no country holds it
+      ...of("ex-yu", { RS: 6, HR: 3, BA: 3 }),
+      ...of("nfl", { US: 2 }), // too few to say
+      ...of("ar", { MA: 20 }), // a region we know stays one
+      { market: null, country: "FR" },
+      { market: "it", country: null },
+    ]);
+    expect(Object.fromEntries(homes)).toEqual({ fr: "FR", uk: "GB", alb: "AL", sp: "US", is: "IL" });
+    expect(HOME_SHARE * HOME_CHANNELS).toBe(6);
+  });
   it("reads the other providers' ways of naming a country: the name's own prefix, a bare section, a category", () => {
     expect(regionCountry("ar", "MBC5.ae", [null], { nameCountry: "MA" })).toBe("MA"); // « MA - MBC 5 »
     expect(regionCountry("ar", null, ["| LIBAN |"])).toBe("LB");
@@ -151,8 +173,8 @@ describe("runChannels", () => {
     expect(by("7")).toMatchObject({ iptvId: "ERTU1.eg", how: "name", channelName: "ERTU 1", epgMismatch: true });
     expect(by("8")).toMatchObject({ iptvId: null, epgMismatch: false });
     expect(by("9")).toMatchObject({ iptvId: "AlResalah.sa", how: "epg", theme: "Religion" });
-    // In the Arab world, iptv-org's country; outside a region, none.
-    expect([by("4").country, by("7").country, by("9").country, by("1").country]).toEqual(["AE", "EG", "SA", null]);
+    // In the Arab world, iptv-org's country; « fr » is France, where its recognised channels come from, the names left too.
+    expect([by("4").country, by("7").country, by("9").country, by("1").country, by("3").country]).toEqual(["AE", "EG", "SA", "FR", "FR"]);
   });
 
   it("gives the content iptv-org's logo through this server, the provider's otherwise", async () => {

@@ -11,9 +11,9 @@ import { QueryHelp } from "../catalog/search-bar";
 export const AVATAR_ASSETS = ["cropper.min.css", "cropper.min.js", "avatar.js"];
 
 const PLACEHOLDER: Record<Kind, string> = {
-  live: 'marché:"fr" || pays:maroc',
-  vod: 'variant.langue:"vf","vo"',
-  series: 'variant.langue:"vf","vo"',
+  live: "catalogue.pays:france || catalogue.pays:maroc",
+  vod: 'xtream.langue:"vf","vo"',
+  series: 'xtream.langue:"vf","vo"',
 };
 
 /** A query typed and refused: the form shows it again with what is wrong. */

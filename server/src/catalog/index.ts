@@ -81,7 +81,16 @@ export {
   type Step,
   type Task,
 } from "./pipeline";
-export { checkRegexes, compileQuery, fieldsOf as queryFieldsOf, QueryError, type CompileOptions, type Field as QueryField } from "./query";
+export {
+  checkRegexes,
+  compileQuery,
+  fieldsOf as queryFieldsOf,
+  nameIn as queryNameIn,
+  QueryError,
+  type CompileOptions,
+  type Field as QueryField,
+  type Home as QueryHome,
+} from "./query";
 export { cachedRecommendedKeys, recommendedKeys } from "./recommendations";
 export { baseMarkers, chapterMarkers, type FileChapter, type FileFacts, type Markers, markersOf } from "./markers";
 export { contentById, contentIdByKey, contentsByKey, contentSource, itemById, variantCountsByAccount, variantsOfContent } from "./queries";

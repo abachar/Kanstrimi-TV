@@ -3,7 +3,20 @@ import { db, schema, variants, type Kind } from "@/db";
 import { QUALITY_RANK } from "../naming";
 import { parseQuery, QueryError, termsOf, type QueryNode, type QueryOp, type QueryTerm, type QueryValue } from "./parse";
 import { closestName, resolveCode } from "./codes";
-import { closestField, distance, fieldByName, fieldKey, otherKindsOf, TITLE, type Field, type FieldContext, type Pred } from "./fields";
+import {
+  closestField,
+  distance,
+  fieldByName,
+  fieldKey,
+  nameIn,
+  otherKindsOf,
+  prefixedNames,
+  TITLE,
+  type Field,
+  type FieldContext,
+  type Home,
+  type Pred,
+} from "./fields";
 
 /**
  * A query checked against the fields of its kind, then written as conditions. Nothing reaches the
@@ -15,11 +28,17 @@ export type CompileOptions = FieldContext & {
   /** The kind searched or judged: each kind has its own fields. */
   kind: Kind;
   /**
-   * A filter: it judges versions, the condition is about `variants` (`db/variants.ts`, never aliased); the fields
-   * only searches may use are refused. Otherwise a search: about the kind's table, `catalog_titles` or `catalog_channels` (never aliased).
+   * A filter: it judges streams, the condition is about `variants` (`db/variants.ts`, never aliased); every
+   * name carries its prefix, and the fields only searches may use are refused. Otherwise a search of the
+   * catalogue: about the kind's table, `catalog_titles` or `catalog_channels` (never aliased), the
+   * catalogue's names written without prefix.
    */
   filter?: boolean;
 };
+
+/** A field under the name the query may write it by: what its errors say. */
+type Named = Field & { label: string };
+const homeOf = (o: CompileOptions): Home => (o.filter ? null : "catalogue");
 
 /** Case and accents never matter: both sides go through `unaccent(lower(…))`. */
 const norm = (e: SQL | Column) => sql`unaccent(lower(${e}))`;
@@ -55,9 +74,9 @@ function regexPred(pattern: string, at: number): Pred {
   return (e) => sql`(${e} ~* ${re} or unaccent(${e}) ~* ${re})`;
 }
 
-const number = (val: QueryValue, field: Field): number => {
+const number = (val: QueryValue, field: Named): number => {
   const n = Number(val.text);
-  if (!val.text.trim() || !Number.isFinite(n)) throw new QueryError(`« ${val.text} » n'est pas un nombre (${field.names[0]})`, val.at);
+  if (!val.text.trim() || !Number.isFinite(n)) throw new QueryError(`« ${val.text} » n'est pas un nombre (${field.label})`, val.at);
   return n;
 };
 const QUALITIES = Object.keys(QUALITY_RANK).join(", ");
@@ -68,11 +87,11 @@ const qualityRank = (val: QueryValue): number => {
 };
 
 /** Numbers and qualities: compared as numbers, a quality by its rank. */
-function numeric(op: QueryOp, f: Field, value: SQL): SQL {
+function numeric(op: QueryOp, f: Named, value: SQL): SQL {
   const read = f.type === "quality" ? qualityRank : (val: QueryValue) => number(val, f);
   switch (op.kind) {
     case "regex":
-      throw new QueryError(`${f.names[0]} est un nombre : pas d'expression régulière`, op.at);
+      throw new QueryError(`${f.label} est un nombre : pas d'expression régulière`, op.at);
     case "match":
       return sql`${value} in (${sql.join(
         op.values.map((val) => sql`${read(val)}`),
@@ -93,9 +112,9 @@ function numeric(op: QueryOp, f: Field, value: SQL): SQL {
 }
 
 /** A value among a few: each one stands for its condition, a list for « one of them ». */
-function choice(op: QueryOp, f: Field, choices: Record<string, SQL>, at: number): SQL {
+function choice(op: QueryOp, f: Named, choices: Record<string, SQL>, at: number): SQL {
   const names = Object.keys(choices);
-  const say = `${f.names[0]} vaut ${names.slice(0, -1).join(", ")} ou ${names[names.length - 1]}`;
+  const say = `${f.label} vaut ${names.slice(0, -1).join(", ")} ou ${names[names.length - 1]}`;
   if (op.kind !== "match") throw new QueryError(say, at);
   return sql`(${sql.join(
     op.values.map((val) => {
@@ -108,9 +127,9 @@ function choice(op: QueryOp, f: Field, choices: Record<string, SQL>, at: number)
 }
 
 /** ISO codes, given by code or by French name, each compared exactly. */
-function codesPred(op: QueryOp, f: Field, at: number): Pred {
+function codesPred(op: QueryOp, f: Named, at: number): Pred {
   const what = f.codes === "language" ? "une langue" : "un pays";
-  if (op.kind !== "match") throw new QueryError(`${f.names[0]} est ${what} : ni comparaison ni expression régulière`, at);
+  if (op.kind !== "match") throw new QueryError(`${f.label} est ${what} : ni comparaison ni expression régulière`, at);
   const codes = op.values.map((val) => {
     const code = resolveCode(f.codes!, val.text);
     if (code) return { text: code, exact: true, at: val.at };
@@ -125,13 +144,17 @@ function codesPred(op: QueryOp, f: Field, at: number): Pred {
 
 const KIND_NAMES: Record<Kind, string> = { live: "au direct", vod: "aux films", series: "aux séries" };
 
-function fieldOf(t: QueryTerm, o: CompileOptions): Field {
-  if (t.field === null) return TITLE;
-  const f = fieldByName(t.field, o.kind);
-  if (f) return f;
-  const elsewhere = [...new Set(otherKindsOf(t.field))];
+function fieldOf(t: QueryTerm, o: CompileOptions): Named {
+  const home = homeOf(o);
+  const named = (f: Field) => ({ ...f, label: nameIn(f, home) });
+  if (t.field === null) return named(TITLE);
+  const f = fieldByName(t.field, o.kind, home);
+  if (f) return named(f);
+  const prefixed = prefixedNames(t.field, o.kind, home);
+  if (prefixed.length) throw new QueryError(`Un filtre juge la fiche et le flux : écrire ${prefixed.join(" ou ")}`, t.fieldAt);
+  const elsewhere = [...new Set(otherKindsOf(t.field, home))];
   if (elsewhere.length) throw new QueryError(`${t.field} ne s'applique qu'${elsewhere.map((k) => KIND_NAMES[k]).join(" et ")}`, t.fieldAt);
-  const near = closestField(t.field, o.kind);
+  const near = closestField(t.field, o.kind, home);
   throw new QueryError(
     `Champ inconnu : ${t.field}${near ? ` — voulais-tu ${near} ?` : ""} (un texte avec deux-points s'écrit entre guillemets)`,
     t.fieldAt,
@@ -148,7 +171,7 @@ function hasValue(f: Field, o: CompileOptions): SQL {
   return f.text!(o, (e) => sql`coalesce(${e}, '') <> ''`);
 }
 
-function opSql(op: QueryOp, f: Field, o: CompileOptions, at: number): SQL {
+function opSql(op: QueryOp, f: Named, o: CompileOptions, at: number): SQL {
   if (f.type === "enum") return choice(op, f, f.choices!(o), at);
   if (op.kind === "match" && op.values.some(isNone)) {
     const none = sql`not coalesce(${hasValue(f, o)}, false)`;
@@ -159,11 +182,11 @@ function opSql(op: QueryOp, f: Field, o: CompileOptions, at: number): SQL {
   if (f.type === "code") return f.text!(o, codesPred(op, f, at));
   if (op.kind === "match") return f.text!(o, textPred(op.values));
   if (op.kind === "regex") return f.text!(o, regexPred(op.pattern, op.at));
-  throw new QueryError(`${f.names[0]} n'est pas un nombre : <, >, = et .. sont réservés aux nombres`, at);
+  throw new QueryError(`${f.label} n'est pas un nombre : <, >, = et .. sont réservés aux nombres`, at);
 }
 
-function termSql(t: QueryTerm, f: Field, o: CompileOptions): SQL {
-  if (o.filter && f.searchOnly) throw new QueryError(`${f.names[0]} ne sert qu'aux recherches, pas aux filtres`, t.fieldAt);
+function termSql(t: QueryTerm, f: Named, o: CompileOptions): SQL {
+  if (o.filter && f.searchOnly) throw new QueryError(`${f.label} ne sert qu'aux recherches, pas aux filtres`, t.fieldAt);
   const cond = opSql(t.op, f, o, t.fieldAt);
   // A missing value is no match, and its negation a match: `-genre:horreur` keeps the films without genre.
   return t.neg ? sql`not coalesce(${cond}, false)` : sql`coalesce(${cond}, false)`;
@@ -189,12 +212,12 @@ export async function checkRegexes(text: string): Promise<void> {
 }
 
 /**
- * What a query stands for; null for an empty one. Throws `QueryError`. The expression is judged version
- * by version, its content fields read on the version's content:
- * - a filter keeps the versions that pass: `marché:"fr" || variant.langue:"vf"` keeps every version of the
- *   French channels and the VF ones of the others;
- * - a search finds the contents one of whose versions passes, so `variant.langue:"vf" && variant.qualité:4k`
- *   is a film with a version in VF and 4K. Without a version field, the content alone answers.
+ * What a query stands for; null for an empty one. Throws `QueryError`. The expression is judged stream
+ * by stream, its catalogue words read on the stream's entry:
+ * - a filter keeps the streams that pass: `xtream.marché:"fr" || xtream.langue:"vf"` keeps every stream of
+ *   the French lists and the VF ones of the others;
+ * - a search finds the entries one of whose streams passes, so `xtream.langue:"vf" && xtream.qualité:4k`
+ *   is a film with a stream in VF and 4K. Without a stream word, the entry alone answers.
  */
 export function compileQuery(text: string, o: CompileOptions): SQL | null {
   const root = parseQuery(text);
@@ -206,7 +229,7 @@ export function compileQuery(text: string, o: CompileOptions): SQL | null {
       : { table: schema.catalogTitles, id: schema.catalogTitles.id, ofVariant: variants.titleId };
   // Every field first: an unknown one is the error a query gets, before its values are read.
   const fields = new Map(termsOf(root).map((t) => [t, fieldOf(t, o)]));
-  const ofVersion = (n: QueryNode): boolean => (n.kind === "term" ? fields.get(n.term)!.level === "variant" : n.nodes.some(ofVersion));
+  const ofVersion = (n: QueryNode): boolean => (n.kind === "term" ? fields.get(n.term)!.scope === "xtream" : n.nodes.some(ofVersion));
   /** The condition as it stands: the content fields on the kind's table, the version ones on `variants`. */
   const plain = (n: QueryNode): SQL => {
     if (n.kind === "term") return termSql(n.term, fields.get(n.term)!, o);

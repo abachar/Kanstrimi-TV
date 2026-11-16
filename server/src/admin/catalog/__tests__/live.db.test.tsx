@@ -68,8 +68,8 @@ describe("the Live screen's tree", () => {
     expect((await liveShortcuts()).map((s) => [s.label, s.q, s.count])).toEqual([
       ["Dans l'app de Hakim", 'profil:"Hakim"', 71],
       ["Toutes les chaînes", '-thème:"événements","non reconnus"', 1],
-      ["Non rattachées", 'thème:"non reconnus" && marché:"fr"', 70],
-      ["Événements", 'thème:"événements" && marché:"fr"', 0],
+      ["Non rattachées", 'thème:"non reconnus" && xtream.marché:"fr"', 70],
+      ["Événements", 'thème:"événements" && xtream.marché:"fr"', 0],
     ]);
   });
 });

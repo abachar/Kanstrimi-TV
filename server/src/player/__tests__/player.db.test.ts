@@ -6,7 +6,7 @@ import { player as api } from "..";
 import { nightEnd } from "../epg";
 import { remaining } from "../cards";
 import { encodeCursor } from "../lists";
-import { liveChip } from "../channels";
+import { channelGroupName, liveChip } from "../channels";
 import {
   ACCOUNT,
   PROFILE,
@@ -400,7 +400,7 @@ describe("profiles", () => {
     ]);
     expect((await get("/info")).body.profile).toEqual(body.profiles[0]);
     const vost = await createProfile({ name: "VOST", avatar: null });
-    expect(await saveFilter(vost.id, "vod", 'variant.langue:"vostfr","vf"')).toBeNull();
+    expect(await saveFilter(vost.id, "vod", 'xtream.langue:"vostfr","vf"')).toBeNull();
     await applyFilters({ profileId: vost.id });
     // biome-ignore lint/suspicious/noExplicitAny: read field by field, as the app would
     const withHeader = async (path: string): Promise<any> => (await call(path, { headers: { "x-profile": String(vost.id) } })).json();
@@ -739,6 +739,26 @@ describe("channels", () => {
     expect(tf1.now).toMatchObject({ title: "Journal", overview: "Les titres" });
     expect(tf1.next).toMatchObject({ title: "Film du soir" });
     expect(body[1].channels[0]).toMatchObject({ has_epg: false, now: null, next: null });
+  });
+  it("a channel sits under its country, a region's under the region, even when both bear the same code", async () => {
+    expect(channelGroupName({ country: "QA", market: "fr", themes: ["Sport"] })).toBe("Qatar · Sport");
+    expect(channelGroupName({ country: "IL", market: "is", themes: ["Infos"] })).toBe("Israël · Infos");
+    expect(channelGroupName({ country: null, market: "ar", themes: ["Sport"] })).toBe("Monde arabe · Sport"); // pan-Arab
+    const c = schema.catalogChannels;
+    const [tf1, bein] = [eq(c.key, "live:fr-tf1"), eq(c.key, "live:fr-bein-sports-1")];
+    const before = await db.select({ key: c.key, market: c.market, country: c.country }).from(c);
+    try {
+      // « ar » is the Arab world, AR Argentina.
+      await db.update(c).set({ market: "arg", country: "AR" }).where(tf1);
+      await db.update(c).set({ market: "ar", country: null }).where(bein);
+      const { body } = await get("/channels");
+      expect(body.map((g: { id: string; name: string }) => [g.id, g.name])).toEqual([
+        ["pays-ar-generalistes", "Argentine · Généralistes"],
+        ["ar-sport", "Monde arabe · Sport"],
+      ]);
+    } finally {
+      for (const r of before) await db.update(c).set({ market: r.market, country: r.country }).where(eq(c.key, r.key));
+    }
   });
   it("a channel mixing languages names them on its chips, VF as FR", () => {
     expect(liveChip({ quality: "HD", language: "VF" }, true)).toBe("HD/FR");

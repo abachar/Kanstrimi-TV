@@ -13,8 +13,8 @@ import { EVENTS_THEME, LIVE_THEMES, REGIONS, themeOf, UNKNOWN_THEME, type LiveTh
  * own: the iptv-org database (refreshed here, providers/iptv) and the channels of ours (the admin's
  * Live screen: a channel iptv-org does not know, the names the providers use for one). Every live
  * variant is matched to a reference channel, which gives it its identity (the grouping keys the
- * content by the reference name, whatever each provider calls it), its theme, its country in a
- * region and, through the grouping, its logo. A variant without one keeps to itself under
+ * content by the reference name, whatever each provider calls it), its theme, its country
+ * (`homeCountries`) and, through the grouping, its logo. A variant without one keeps to itself under
  * « Événements » or « Non reconnus »; Claude reads those names once and says the channel's usual
  * name, looked up in the reference like any other. Runs after the naming (it reads the title
  * and `market`) and before the grouping. A manual match (`iptv_match = manual`) is kept.
@@ -422,6 +422,8 @@ type Resolved = {
   /** What this stream alone would make the channel: a theme, a country in a region, adult by iptv-org. */
   theme: string;
   country: string | null;
+  /** Where its reference channel is from, by ISO code; null without one in iptv-org. */
+  refCountry: string | null;
   adult: boolean;
   epgMismatch: boolean;
 };
@@ -503,6 +505,7 @@ function resolve(idx: Index, it: LiveRow, pin?: { iptvId: string | null }): Reso
       own && own.country !== null
         ? own.country || null
         : regionCountry(it.market, ch?.id ?? null, [it.section], { nameCountry: it.nameCountry, category: it.category }),
+    refCountry: ch ? isoCountry(ch.country) : null,
     adult: Boolean(ch?.isNsfw || ch?.categories.includes("xxx")),
     epgMismatch,
   };
@@ -553,6 +556,7 @@ function most<T>(values: (T | null)[]): T | null {
  * Attaches each live stream to its channel, found by its key or created; one attached by hand stays
  * where it is. Then every channel met says what its streams make it: recognised or not, its iptv-org
  * channel, its theme and its country (unless set by hand), adult when iptv-org or every name says so.
+ * The country is its market's when the market is one (`homeCountries`), else what a region says of it.
  * What the profiles recorded under a key no stream bears any more follows its streams (`followLiveKeys`).
  * Only what moved is written; returns the streams that changed channel and the channels they left.
  */
@@ -619,15 +623,26 @@ async function attach(rows: LiveRow[], resolved: Resolved[]): Promise<{ moved: n
   }
   await followLiveKeys(moves);
 
-  // 3. What each channel is, from all the streams on it.
+  // 3. What each channel is, from all the streams on it; its country once every channel of its market is known.
+  const made: { ch: Channel; facts: ReturnType<typeof channelFacts>["facts"]; from: string | null; auto: boolean }[] = [];
   for (const [key, members] of onChannel) {
     const ch = channels.get(key);
-    if (!ch) continue;
-    const facts = channelFacts(
-      ch,
-      members.map((i) => rows[i]),
-      members.map((i) => resolved[i]),
-    );
+    if (ch)
+      made.push({
+        ch,
+        ...channelFacts(
+          ch,
+          members.map((i) => rows[i]),
+          members.map((i) => resolved[i]),
+        ),
+      });
+  }
+  const homes = homeCountries(
+    made.filter((m) => m.auto && m.facts.status === "known").map((m) => ({ market: m.ch.market, country: m.from })),
+  );
+  for (const { ch, facts, auto } of made) {
+    const home = ch.market ? homes.get(ch.market) : undefined;
+    if (home && auto && !ch.edited.includes("country")) facts.country = home;
     const changed = (Object.keys(facts) as (keyof typeof facts)[]).some((k) => facts[k] !== ch[k]);
     if (changed)
       await db
@@ -641,7 +656,8 @@ async function attach(rows: LiveRow[], resolved: Resolved[]): Promise<{ moved: n
 /**
  * What its streams make a channel. Those found by the reference decide; streams put there by hand
  * alone (a pin, a merge) leave it what it was, but for what their names say. A field set by hand
- * (`edited`) is not touched.
+ * (`edited`) is not touched. `from`: where its reference channel is from; `auto`: streams found by the
+ * reference decided.
  */
 function channelFacts(ch: Channel, rows: LiveRow[], resolved: Resolved[]) {
   const auto = resolved.filter((_, i) => !rows[i].manual);
@@ -650,13 +666,69 @@ function channelFacts(ch: Channel, rows: LiveRow[], resolved: Resolved[]) {
   const iptv = auto.length ? most(auto.map((r) => r.iptv)) : ch.iptvId;
   const named = auto.find((r) => r.known);
   return {
-    status: (known ? "known" : event ? "event" : "unknown") as Channel["status"],
-    name: ch.edited.includes("name") || !named ? ch.name : named.name,
-    iptvId: iptv,
-    theme: ch.edited.includes("theme") ? ch.theme : auto.length ? most(auto.map((r) => r.theme)) : ch.theme,
-    country: ch.edited.includes("country") ? ch.country : auto.length ? most(auto.map((r) => r.country)) : ch.country,
-    adult: (auto.length ? auto.some((r) => r.adult) : false) || rows.every((it) => it.nameAdult),
+    facts: {
+      status: (known ? "known" : event ? "event" : "unknown") as Channel["status"],
+      name: ch.edited.includes("name") || !named ? ch.name : named.name,
+      iptvId: iptv,
+      theme: ch.edited.includes("theme") ? ch.theme : auto.length ? most(auto.map((r) => r.theme)) : ch.theme,
+      country: ch.edited.includes("country") ? ch.country : auto.length ? most(auto.map((r) => r.country)) : ch.country,
+      adult: (auto.length ? auto.some((r) => r.adult) : false) || rows.every((it) => it.nameAdult),
+    },
+    from: most(auto.map((r) => r.refCountry)),
+    auto: auto.length > 0,
   };
+}
+
+/** ISO 3166 three-letter codes, which providers also name their lists by (« ALB », « USA »), with their two-letter ones. */
+const ALPHA3: Record<string, string> = Object.fromEntries(
+  (
+    "AFG:AF ALB:AL DZA:DZ AND:AD AGO:AO ARG:AR ARM:AM AUS:AU AUT:AT AZE:AZ BHS:BS BHR:BH BGD:BD BRB:BB BLR:BY BEL:BE BLZ:BZ BEN:BJ " +
+    "BTN:BT BOL:BO BIH:BA BWA:BW BRA:BR BRN:BN BGR:BG BFA:BF BDI:BI KHM:KH CMR:CM CAN:CA CPV:CV CAF:CF TCD:TD CHL:CL CHN:CN COL:CO " +
+    "COM:KM COG:CG COD:CD CRI:CR CIV:CI HRV:HR CUB:CU CUW:CW CYP:CY CZE:CZ DNK:DK DJI:DJ DOM:DO ECU:EC EGY:EG SLV:SV GNQ:GQ ERI:ER " +
+    "EST:EE SWZ:SZ ETH:ET FJI:FJ FIN:FI FRA:FR GUF:GF GAB:GA GMB:GM GEO:GE DEU:DE GHA:GH GRC:GR GLP:GP GTM:GT GIN:GN GNB:GW GUY:GY " +
+    "HTI:HT HND:HN HKG:HK HUN:HU ISL:IS IND:IN IDN:ID IRN:IR IRQ:IQ IRL:IE ISR:IL ITA:IT JAM:JM JPN:JP JOR:JO KAZ:KZ KEN:KE KOR:KR " +
+    "PRK:KP KWT:KW KGZ:KG LAO:LA LVA:LV LBN:LB LSO:LS LBR:LR LBY:LY LIE:LI LTU:LT LUX:LU MAC:MO MDG:MG MWI:MW MYS:MY MDV:MV MLI:ML " +
+    "MLT:MT MTQ:MQ MRT:MR MUS:MU MEX:MX MDA:MD MCO:MC MNG:MN MNE:ME MAR:MA MOZ:MZ MMR:MM NAM:NA NPL:NP NLD:NL NZL:NZ NIC:NI NER:NE " +
+    "NGA:NG MKD:MK NOR:NO OMN:OM PAK:PK PSE:PS PAN:PA PNG:PG PRY:PY PER:PE PHL:PH POL:PL PRT:PT PRI:PR QAT:QA REU:RE ROU:RO RUS:RU " +
+    "RWA:RW SAU:SA SEN:SN SRB:RS SYC:SC SLE:SL SGP:SG SVK:SK SVN:SI SOM:SO ZAF:ZA SSD:SS ESP:ES LKA:LK SDN:SD SUR:SR SWE:SE CHE:CH " +
+    "SYR:SY TWN:TW TJK:TJ TZA:TZ THA:TH TLS:TL TGO:TG TTO:TT TUN:TN TUR:TR TKM:TM UGA:UG UKR:UA ARE:AE GBR:GB USA:US URY:UY UZB:UZ " +
+    "VEN:VE VNM:VN YEM:YE ZMB:ZM ZWE:ZW XKX:XK"
+  )
+    .split(" ")
+    .map((pair) => pair.split(":")),
+);
+/** A country's ISO two-letter code from the ways it is written: iptv-org's « UK » is GB, a list named « ALB » is AL's. */
+const isoCountry = (code: string) => {
+  const c = code.toUpperCase();
+  return c === "UK" ? "GB" : (ALPHA3[c] ?? c);
+};
+/** A market holding this share of channels from one country is that country's, with this many channels at least. */
+export const HOME_SHARE = 0.6;
+export const HOME_CHANNELS = 10;
+
+/**
+ * The markets that are a country, with that country. A provider's code is not a country's (« is » is
+ * Israel, « sp » American sport, « af » Africa, « usa » the United States), so the channels say it: a
+ * market is the country most of its recognised channels come from, when its code is that country's,
+ * in two letters or three (« fr »: a French list also carries beIN, RTL9 and National Geographic), or
+ * when the share is plain (`HOME_SHARE` of `HOME_CHANNELS` at least). Every channel of such a market is shown under that
+ * country, whatever its own. The others are regions (the Arab world, Africa, ex-Yugoslavia): their
+ * channels have no country but the one the provider says inside a region we know (`regionCountry`).
+ */
+export function homeCountries(channels: { market: string | null; country: string | null }[]): Map<string, string> {
+  const tally = new Map<string, Map<string, number>>();
+  for (const { market, country } of channels) {
+    if (!market || !country || REGIONS[market]) continue;
+    const t = tally.get(market) ?? new Map<string, number>();
+    tally.set(market, t.set(country, (t.get(country) ?? 0) + 1));
+  }
+  const homes = new Map<string, string>();
+  for (const [market, t] of tally) {
+    const total = [...t.values()].reduce((a, b) => a + b, 0);
+    const [top, n] = [...t].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+    if (isoCountry(market) === top || (total >= HOME_CHANNELS && n >= HOME_SHARE * total)) homes.set(market, top);
+  }
+  return homes;
 }
 
 /** Names Claude reads per run; a run or two covers what a new provider brings. */

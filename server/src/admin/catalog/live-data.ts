@@ -37,7 +37,7 @@ export type Shortcut = { label: string; title: string; q: string; count: number 
  */
 export async function liveShortcuts(): Promise<Shortcut[]> {
   const [profiles, markets, settings] = await Promise.all([listProfiles(), watchedMarkets(), getSettings()]);
-  const here = markets.length ? ` && marché:${markets.map(quoted).join(",")}` : "";
+  const here = markets.length ? ` && xtream.marché:${markets.map(quoted).join(",")}` : "";
   const loose = [EVENTS_THEME, UNKNOWN_THEME].map((t) => quoted(t.toLowerCase())).join(",");
   const list: Omit<Shortcut, "count">[] = [
     ...profiles.map((p) => ({

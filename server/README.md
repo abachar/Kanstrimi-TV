@@ -144,21 +144,23 @@ par son index.
   `a,b` l'un de, `pays:aucun` sans valeur, `< <= > >= = ..` pour les nombres, `/regex/`, `-` nie ; `&&` « et », `||` « ou » (plus faible),
   toujours écrits (un espace seul entre deux termes est une erreur ; des mots libres qui se suivent forment un seul
   texte : `casa de papel`), `( … )` groupe, `-( … )` nie un groupe ; casse et accents ignorés. Chaque type
-  (Direct, Films, Séries) a ses champs, dans un seul registre (`catalog/query/fields.ts`) qui sert aux recherches, aux
-  filtres et à l'aide : sans préfixe, la fiche (ses colonnes, sa fiche TMDB en cache) ; `variant.` et `xtream.`, une
-  version (ce qu'on en lit, ce qu'en dit le fournisseur). Avec un champ de version, l'expression se juge version par
-  version, ses champs de fiche lus sur la fiche de la version : une recherche trouve les fiches dont une version passe. Vérifiée champ par champ avant tout SQL, ses valeurs toujours en paramètres.
+  (Direct, Films, Séries) a ses mots, dans un seul registre (`catalog/query/fields.ts`) qui sert aux recherches, aux
+  filtres et à l'aide, chacun sous son préfixe : `catalogue.` pour notre fiche (ses colonnes, sa fiche TMDB en cache),
+  `xtream.` pour un flux d'un fournisseur (ce qu'il en dit, ce qu'on lit dans son nom : marché, langue, qualité). Les
+  écrans du catalogue écrivent les mots de la fiche sans préfixe (`pays:maroc`) ; un filtre de profil, qui juge les
+  deux, écrit toujours le préfixe. Avec un mot de flux, l'expression se juge flux par flux, ses mots de fiche lus sur
+  la fiche du flux : une recherche trouve les fiches dont un flux passe. Vérifiée mot par mot avant tout SQL, ses valeurs toujours en paramètres.
 - **Filtres** (`app_profile_filters`) : par profil, un au plus par type, une requête qui dit ce que ce profil voit, comme une
   recherche dit ce qu'elle affiche ; sans filtre (ou vide), le profil voit tout. Il se juge version par version, ses champs de
   fiche lus sur la fiche de la version (`app_profile_streams` : gardée pour ce profil ; `catalog_streams.filtered` :
   true écartée par tous, null pas encore jugée) ; une fiche sans version gardée disparaît pour ce profil. Par exemple
-  `(marché:"fr" || (marché:"ar" && (pays:maroc || (thème:"sport" && pays:aucun)))) && -thème:"non reconnus"` pour le direct,
-  `variant.langue:"vf","vo","ar" && xtream.marché:"fr","ar","en"` pour les films. Ils s'appliquent à l'étape `filters` ;
+  `xtream.marché:"fr" || (xtream.marché:"ar" && (catalogue.pays:maroc || (catalogue.thème:"sport" && catalogue.pays:aucun)))`
+  pour le direct, `xtream.langue:"vf","vo","ar" && xtream.marché:"fr","ar","en"` pour les films. Ils s'appliquent à l'étape `filters` ;
   enregistrer un filtre ne l'applique pas (`applied_at` null : bandeau) ; un profil créé ne voit rien tant que l'étape ne l'a pas
   jugé. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
-  Un profil d'enfant se fait par le filtre : `genre:"animation" && classification:"TP","U","G" && variant.langue:"vf"`
-  (la classification TMDB manque sur la moitié des films : `|| classification:aucun` les garde), `thème:"jeunesse"` au Direct.
-  Les langues que le filtre Films ou Séries nomme (`variant.langue:"vf","vo"`), dans l'ordre écrit, sont l'ordre des versions
+  Un profil d'enfant se fait par le filtre : `catalogue.genre:"animation" && catalogue.classification:"TP","U","G" && xtream.langue:"vf"`
+  (la classification TMDB manque sur la moitié des films : `|| catalogue.classification:aucun` les garde), `catalogue.thème:"jeunesse"` au Direct.
+  Les langues que le filtre Films ou Séries nomme (`xtream.langue:"vf","vo"`), dans l'ordre écrit, sont l'ordre des versions
   servies au profil et donc son ordre de lecture (`filterLanguages`, `ctx.languageOrder`) ; sans langue nommée, VF, VOSTFR, VO.
 - **Écrans Live, Films, Séries de l'admin** : ce que l'app affiche, par les fonctions mêmes de `/player` : ses rangées
   repliées, chacune dépliée en tableau de tous ses titres (studios et sagas sur deux niveaux) ; la recherche porte sur les
@@ -253,7 +255,7 @@ par son index.
   une heure, deux équipes, un flux numéroté) ou « Non reconnus » : un filtre de profil les écarte. L'écran Live est
   le seul écran des chaînes : un seul arbre, marché → thème → chaînes (`catalog/live-tree.ts`), pour tout ce que porte un
   fournisseur en service, les noms restés sans chaîne y étant des chaînes à leur nom sous « Non reconnus » et
-  « Événements ». La recherche l'élague (`marché:be`, `thème:sport`, `profil:inès`, `ia:oui`) ; ses raccourcis (dans
+  « Événements ». La recherche l'élague (`pays:maroc`, `thème:sport`, `profil:inès`, `ia:oui`) ; ses raccourcis (dans
   l'app de chaque profil, toutes les chaînes, non rattachées, événements) sont des recherches écrites d'avance, avec
   ce qu'elles trouvent. L'arbre vient replié, une branche chargée à son ouverture, et déplié quand il reste peu de
   chaînes ; un nom se rattache sur sa ligne (suggestions à un clic, ou « Autre… » : recherche dans toute la
@@ -261,10 +263,15 @@ par son index.
   les noms d'une chaîne se changent sur sa fiche. Une chaîne dont la clé change emmène ce que les profils y avaient
   enregistré (liste, temps regardé, version choisie).
 - **Groupes du direct** : pays × thème (« France · Sport », `section` et `theme` dans `/channels`), le thème venant de
-  la référence. Une chaîne a un seul thème : celui posé à la main, sinon le plus fréquent de ses variantes. Un préfixe de pays d'une région (« |MA| », « MA - ») range la chaîne dans la région (`ar`), qui se
+  la référence. Une chaîne a un seul thème : celui posé à la main, sinon le plus fréquent de ses variantes. Son pays
+  est celui de son marché quand le marché en est un (`homeCountries`) : le code d'un fournisseur n'est pas celui d'un
+  pays (« is » est Israël, « sp » du sport américain, « usa » les États-Unis), ce sont donc ses chaînes reconnues
+  qui le disent, par le pays d'où vient la plupart (le code du marché étant le sien, ou 60 % d'au moins dix chaînes) ;
+  toutes ses chaînes vont alors sous ce pays, la beIN française sous France. Les autres marchés sont des régions
+  (Monde arabe, Afrique), sans pays. Un préfixe de pays d'une région connue (« |MA| », « MA - ») range la chaîne dans la région (`ar`), qui se
   découpe par pays (`regionCountry`) : celui du préfixe, sinon celui d'iptv-org s'il est dans la région, sinon celui
   de la section du fournisseur, ou de sa catégorie quand il ne trace pas de sections ; une chaîne rangée sous un
-  thème ou un bouquet seulement (beIN, OSN) reste sous « Monde arabe ».
+  thème ou un bouquet seulement (beIN, OSN) reste sous « Monde arabe ». Le pays posé à la main l'emporte.
 - **« Si vous avez aimé… »** (`catalog/recommendations.ts`, `player/related.ts`) : recommandations TMDB (`/recommendations`,
   une page) demandées à la volée (ouverture d'une fiche, lecture, graines de l'accueil en fond), gardées 7 jours dans
   `cache_tmdb_recommendations` (ids seuls), croisées avec le catalogue visible à chaque lecture. Jamais un titre vu ; la suite

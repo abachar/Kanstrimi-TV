@@ -160,7 +160,7 @@ describe("the live catalogue is one tree", () => {
   });
 
   it("lists a branch's channels, and says of a content what it is in the reference", async () => {
-    const rows = await liveChannels(search('marché:"ar" && -thème:"non reconnus"'), { offset: 0, limit: 10 });
+    const rows = await liveChannels(search('xtream.marché:"ar" && -thème:"non reconnus"'), { offset: 0, limit: 10 });
     expect(rows.map((c) => [c.name, c.country, c.theme, c.streams, c.visible, c.status])).toEqual([
       ["2M", "MA", "Généralistes", 1, true, "known"],
       ["beIN Sports 1", null, "Sport", 2, true, "known"],
@@ -244,7 +244,7 @@ describe("names left to attach", () => {
     serve();
     await runChannels();
     expect((await by("3")).how).toBe("alias");
-    expect(await countLiveChannels(search('bein && thème:"non reconnus" && marché:"ar"'))).toBe(0);
+    expect(await countLiveChannels(search('bein && thème:"non reconnus" && xtream.marché:"ar"'))).toBe(0);
   });
 
   it("takes a channel of ours for what iptv-org does not know, and what we say of it", async () => {

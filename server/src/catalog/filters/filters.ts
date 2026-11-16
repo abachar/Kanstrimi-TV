@@ -125,7 +125,7 @@ export async function filtersApplied(profileId: number, kinds: Kind[]) {
 }
 
 /**
- * The languages a profile's filter names for `kind`, in the order written: `variant.langue:"vf","vo"`
+ * The languages a profile's filter names for `kind`, in the order written: `xtream.langue:"vf","vo"`
  * reads « VF first, then VO ». Terms negated, or under a negated group, say what is left out, not an
  * order. Without one, the default order. These are the versions the profile plays and their order.
  */
@@ -144,7 +144,7 @@ export function filterLanguages(query: string, fallback: readonly string[] = DEF
       return;
     }
     const t = node.term;
-    if (neg !== t.neg || !t.field || !["variant.langue", "variant.lang"].includes(t.field.toLowerCase()) || t.op.kind !== "match") return;
+    if (neg !== t.neg || !t.field || !["xtream.langue", "xtream.lang"].includes(t.field.toLowerCase()) || t.op.kind !== "match") return;
     for (const v of t.op.values) {
       const code = v.text.trim().toUpperCase();
       if (code && !out.includes(code)) out.push(code);

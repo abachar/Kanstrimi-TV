@@ -364,7 +364,7 @@ describe("rules on versions", () => {
   });
 
   it("leaves versions out before the aggregates: a content keeps the others, or disappears; a kind's filter never touches another", async () => {
-    await languages('variant.langue:"vf","vo","ar"');
+    await languages('xtream.langue:"vf","vo","ar"');
     const stats = await groupAndFilter();
     expect(await hiddenVersions()).toEqual(["2", "3", "4"]);
     expect(stats.variants_hidden).toBe(3);
@@ -377,7 +377,7 @@ describe("rules on versions", () => {
   });
 
   it("serves a version again once the filter keeps it", async () => {
-    await languages('variant.langue:"vf","vo","ar","it"');
+    await languages('xtream.langue:"vf","vo","ar","it"');
     await groupAndFilter();
     expect(await hiddenVersions()).toEqual(["4"]);
     expect((await content("tmdb:movie:438631")).sourceCount).toBe(2);

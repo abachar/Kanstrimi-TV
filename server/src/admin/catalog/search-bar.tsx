@@ -1,88 +1,96 @@
 import type { Kind } from "@/db";
-import { queryFieldsOf, type QueryField } from "@/catalog";
+import { queryFieldsOf, queryNameIn, type QueryField, type QueryHome } from "@/catalog";
 import { Icon } from "../icons";
 
 /**
  * The filter language at a glance, under a search box or a filter's query: the syntax with examples of
- * this kind, then its fields, those of the content then those of a version. Folded: it is there for the
- * day one forgets. The fields come from the registry (`catalog/query/fields.ts`): the searches and the
- * filters show the same ones, a filter without those only searches may use.
+ * this kind, then its words, those of our entry then those of a provider's stream. Folded: it is there
+ * for the day one forgets. The words come from the registry (`catalog/query/fields.ts`): the searches
+ * and the filters show the same ones, a filter under their prefixes and without those only searches
+ * may use.
  */
-const SYNTAX: Record<Kind, [string, string][]> = {
-  vod: [
+/** How a word is written here: `c` one of the catalogue's, `x` one of a stream's. */
+type Names = { c: (name: string) => string; x: (name: string) => string };
+const SYNTAX: Record<Kind, (n: Names) => [string, string][]> = {
+  vod: ({ c, x }) => [
     ["seigneur des anneaux", "texte libre : le titre contient « seigneur des anneaux »"],
-    ["genre:anim", "contient"],
-    ['genre:"animation"', "égal"],
-    ['genre:anim,"drame"', "l'un de (chacun contient, ou égal entre guillemets)"],
-    ["langue:japonais", "codes de langue et de pays : par code ou par nom, toujours égal"],
-    ["saga:aucun", "aucun : le champ n'a pas de valeur"],
-    ["année:<1980", "comparaison : < <= > >= ="],
-    ["note:6..8", "intervalle"],
-    ["xtream.nom:/\\(4K\\)$/", "expression régulière"],
-    ["-tmdb:oui", "le « - » nie un terme"],
-    ["genre:anim && langue:ja", "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
-    ["genre:horreur || genre:thriller", "|| veut dire « ou », plus faible que « et »"],
-    ["(genre:anim || langue:ja) && note:>7", "les parenthèses groupent ; -( … ) nie un groupe"],
-    ['variant.langue:"vf"', "champ de version : recherche, une de ses versions ; filtre, garde les versions"],
+    [`${c("genre")}:anim`, "contient"],
+    [`${c("genre")}:"animation"`, "égal"],
+    [`${c("genre")}:anim,"drame"`, "l'un de (chacun contient, ou égal entre guillemets)"],
+    [`${c("langue")}:japonais`, "codes de langue et de pays : par code ou par nom, toujours égal"],
+    [`${c("saga")}:aucun`, "aucun : le champ n'a pas de valeur"],
+    [`${c("année")}:<1980`, "comparaison : < <= > >= ="],
+    [`${c("note")}:6..8`, "intervalle"],
+    [`${x("nom")}:/\\(4K\\)$/`, "expression régulière"],
+    [`-${c("tmdb")}:oui`, "le « - » nie un terme"],
+    [`${c("genre")}:anim && ${c("langue")}:ja`, "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
+    [`${c("genre")}:horreur || ${c("genre")}:thriller`, "|| veut dire « ou », plus faible que « et »"],
+    [`(${c("genre")}:anim || ${c("langue")}:ja) && ${c("note")}:>7`, "les parenthèses groupent ; -( … ) nie un groupe"],
+    [`${x("langue")}:"vf"`, "mot d'un flux : recherche, l'un de ses flux ; filtre, garde ces flux"],
   ],
-  series: [
+  series: ({ c, x }) => [
     ["casa de papel", "texte libre : le titre contient « casa de papel »"],
-    ["genre:com", "contient"],
-    ['genre:"comédie"', "égal"],
-    ['genre:com,"drame"', "l'un de (chacun contient, ou égal entre guillemets)"],
-    ["langue:coréen", "codes de langue et de pays : par code ou par nom, toujours égal"],
-    ["note:aucun", "aucun : le champ n'a pas de valeur"],
-    ["année:<1990", "comparaison : < <= > >= ="],
-    ["note:7..9", "intervalle"],
-    ["xtream.nom:/\\(VOST\\)/", "expression régulière"],
-    ["-tmdb:oui", "le « - » nie un terme"],
-    ["genre:animation && langue:japonais", "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
-    ["genre:drame || genre:crime", "|| veut dire « ou », plus faible que « et »"],
-    ["(langue:coréen || langue:ja) && note:>8", "les parenthèses groupent ; -( … ) nie un groupe"],
-    ['variant.langue:"vf"', "champ de version : recherche, une de ses versions ; filtre, garde les versions"],
+    [`${c("genre")}:com`, "contient"],
+    [`${c("genre")}:"comédie"`, "égal"],
+    [`${c("genre")}:com,"drame"`, "l'un de (chacun contient, ou égal entre guillemets)"],
+    [`${c("langue")}:coréen`, "codes de langue et de pays : par code ou par nom, toujours égal"],
+    [`${c("note")}:aucun`, "aucun : le champ n'a pas de valeur"],
+    [`${c("année")}:<1990`, "comparaison : < <= > >= ="],
+    [`${c("note")}:7..9`, "intervalle"],
+    [`${x("nom")}:/\\(VOST\\)/`, "expression régulière"],
+    [`-${c("tmdb")}:oui`, "le « - » nie un terme"],
+    [`${c("genre")}:animation && ${c("langue")}:japonais`, "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
+    [`${c("genre")}:drame || ${c("genre")}:crime`, "|| veut dire « ou », plus faible que « et »"],
+    [`(${c("langue")}:coréen || ${c("langue")}:ja) && ${c("note")}:>8`, "les parenthèses groupent ; -( … ) nie un groupe"],
+    [`${x("langue")}:"vf"`, "mot d'un flux : recherche, l'un de ses flux ; filtre, garde ces flux"],
   ],
-  live: [
-    ["tf1", "texte libre : le titre contient « tf1 »"],
-    ["thème:spo", "contient"],
-    ['thème:"sport"', "égal"],
-    ['thème:spo,"infos"', "l'un de (chacun contient, ou égal entre guillemets)"],
-    ["pays:maroc", "codes de pays : par code ou par nom, toujours égal"],
-    ["pays:aucun", "aucun : le champ n'a pas de valeur"],
-    ["qualité:>=fhd", "comparaison : < <= > >= ="],
-    ["qualité:hd..fhd", "intervalle"],
-    ["xtream.nom:/\\bHD$/", "expression régulière"],
-    ["-adulte:oui", "le « - » nie un terme"],
-    ["thème:sport && pays:maroc", "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
-    ['marché:"fr" || pays:maroc', "|| veut dire « ou », plus faible que « et »"],
-    ['(thème:sport || thème:infos) && marché:"fr"', "les parenthèses groupent ; -( … ) nie un groupe"],
-    ["xtream.catégorie:radios", "champ de version : recherche, une de ses versions ; filtre, garde les versions"],
+  live: ({ c, x }) => [
+    ["tf1", "texte libre : le nom contient « tf1 »"],
+    [`${c("thème")}:spo`, "contient"],
+    [`${c("thème")}:"sport"`, "égal"],
+    [`${c("thème")}:spo,"infos"`, "l'un de (chacun contient, ou égal entre guillemets)"],
+    [`${c("pays")}:maroc`, "codes de pays : par code ou par nom, toujours égal"],
+    [`${c("pays")}:aucun`, "aucun : le champ n'a pas de valeur"],
+    [`${x("qualité")}:>=fhd`, "comparaison : < <= > >= ="],
+    [`${x("qualité")}:hd..fhd`, "intervalle"],
+    [`${x("nom")}:/\\bHD$/`, "expression régulière"],
+    [`-${c("adulte")}:oui`, "le « - » nie un terme"],
+    [`${c("thème")}:sport && ${c("pays")}:maroc`, "&& veut dire « et » ; un espace seul entre deux termes est une erreur"],
+    [`${c("pays")}:france || ${c("pays")}:maroc`, "|| veut dire « ou », plus faible que « et »"],
+    [`(${c("thème")}:sport || ${c("thème")}:infos) && ${c("pays")}:france`, "les parenthèses groupent ; -( … ) nie un groupe"],
+    [`${x("catégorie")}:radios`, "mot d'un flux : recherche, l'un de ses flux ; filtre, garde ces flux"],
   ],
 };
 const PLACEHOLDER: Record<Kind, string> = {
-  vod: "Rechercher : matrix, genre:animation, qualité:>=fhd…",
+  vod: "Rechercher : matrix, genre:animation, année:>=2020…",
   series: "Rechercher : friends, genre:comédie, langue:japonais…",
   live: "Rechercher : tf1, thème:sport, pays:maroc…",
 };
 
-const FieldList = ({ fields }: { fields: QueryField[] }) => (
+const FieldList = ({ fields, home }: { fields: QueryField[]; home: QueryHome }) => (
   <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">
     {fields.map((f) => (
       <>
         <dt>
-          <code class="font-mono text-xs">{f.names[0]}</code>
+          <code class="font-mono text-xs">{queryNameIn(f, home)}</code>
         </dt>
         <dd class="text-muted-foreground">
           {f.doc}
-          {f.type === "number" || f.type === "quality" ? " · nombre" : ""} · <code class="font-mono text-xs">{f.example}</code>
+          {f.type === "number" || f.type === "quality" ? " · nombre" : ""} ·{" "}
+          <code class="font-mono text-xs">
+            {queryNameIn(f, home)}:{f.example}
+          </code>
         </dd>
       </>
     ))}
   </dl>
 );
 
-/** `filter`: the fields only searches may use are left out. */
+/** `filter`: every word under its prefix, and those only searches may use left out. */
 export function QueryHelp({ kind, filter = false }: { kind: Kind; filter?: boolean }) {
   const fields = queryFieldsOf(kind).filter((f) => !filter || !f.searchOnly);
+  const home: QueryHome = filter ? null : "catalogue";
+  const names: Names = { c: (name) => (filter ? `catalogue.${name}` : name), x: (name) => `xtream.${name}` };
   return (
     <details class="group text-sm">
       <summary class="w-fit cursor-pointer text-muted-foreground hover:text-foreground">
@@ -94,7 +102,7 @@ export function QueryHelp({ kind, filter = false }: { kind: Kind; filter?: boole
           <h3 class="font-semibold">Syntaxe</h3>
           <p class="text-muted-foreground">La casse et les accents ne comptent jamais.</p>
           <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">
-            {SYNTAX[kind].map(([ex, what]) => (
+            {SYNTAX[kind](names).map(([ex, what]) => (
               <>
                 <dt>
                   <code class="font-mono text-xs">{ex}</code>
@@ -105,15 +113,15 @@ export function QueryHelp({ kind, filter = false }: { kind: Kind; filter?: boole
           </dl>
         </section>
         <section class="flex flex-col gap-2">
-          <h3 class="font-semibold">Champs de la fiche</h3>
-          <FieldList fields={fields.filter((f) => f.level === "content")} />
-          <h3 class="mt-2 font-semibold">Champs d'une version</h3>
+          <h3 class="font-semibold">Mots de la fiche{filter ? " : catalogue." : ""}</h3>
+          <FieldList fields={fields.filter((f) => f.scope === "catalogue")} home={home} />
+          <h3 class="mt-2 font-semibold">Mots d'un flux : xtream.</h3>
           <p class="text-muted-foreground">
             {filter
-              ? "Un filtre se juge version par version, ses champs de fiche lus sur la fiche de la version : il garde les versions qui correspondent."
-              : "La requête se juge version par version : une fiche sort si l'une de ses versions correspond, les termes de version décrivant la même."}
+              ? "Un filtre se juge flux par flux, ses mots de fiche lus sur la fiche du flux : il garde les flux qui correspondent."
+              : "La requête se juge flux par flux : une fiche sort si l'un de ses flux correspond, les mots de flux décrivant le même."}
           </p>
-          <FieldList fields={fields.filter((f) => f.level === "variant")} />
+          <FieldList fields={fields.filter((f) => f.scope === "xtream")} home={home} />
         </section>
       </div>
     </details>

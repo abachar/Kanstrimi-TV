@@ -178,10 +178,25 @@ const MARKET_NAMES: Record<string, string> = {
   af: "Afrique",
 };
 const marketName = (m: string | null) => (m ? (MARKET_NAMES[m] ?? m.toUpperCase()) : "International");
+const countryNames = new Intl.DisplayNames("fr", { type: "region", fallback: "none" });
+/** The markets named above that are no country: their code is another's (AR is Argentina, AF Afghanistan). */
+const REGION_MARKETS = new Set(["ar", "af", "krd"]);
+const countryName = (code: string) =>
+  (!REGION_MARKETS.has(code) && MARKET_NAMES[code]) || countryNames.of(code.toUpperCase()) || code.toUpperCase();
+/**
+ * Where a channel is shown: under its country, else under its market, a region (« Monde arabe »,
+ * « Afrique »). A country's code may be a region's too (« ar » is the Arab world, AR Argentina), hence a
+ * key of its own; `code` starts the group's id.
+ */
+function placeOf(c: Pick<Content, "country" | "market">): { key: string; code: string | null; country: boolean; name: string } {
+  if (!c.country) return { key: `market:${c.market ?? ""}`, code: c.market, country: false, name: marketName(c.market) };
+  const code = c.country.toLowerCase();
+  return { key: `country:${code}`, code, country: true, name: countryName(code) };
+}
 
 /** The first group a channel sits in on the Direct screen, « France · Sport »: what a search result says of it. */
 export function channelGroupName(c: Pick<Content, "country" | "market" | "themes">): string {
-  return `${marketName(c.country?.toLowerCase() ?? c.market)} · ${c.themes[0] ?? LIVE_THEMES[0]}`;
+  return `${placeOf(c).name} · ${c.themes[0] ?? LIVE_THEMES[0]}`;
 }
 const themeRank = (t: string) => {
   const i = (LIVE_THEMES as readonly string[]).indexOf(t);
@@ -189,11 +204,11 @@ const themeRank = (t: string) => {
 };
 
 /**
- * One group per market × theme (« France · Sport »), the themes coming from the provider's own
+ * One group per country × theme (« France · Sport »), the themes coming from the provider's own
  * separator lines and thematic categories. A channel has one theme, so it sits in one group.
- * A region's channels go under their country (« Maroc · Sport »), the pan-Arab ones stay under
- * « Monde arabe ». Markets with the most channels first; within a market, the known themes in
- * their order, then the provider's own labels alphabetically.
+ * A channel without a country is a region's: the pan-Arab ones stay under « Monde arabe ». Countries
+ * with the most channels first; within one, the known themes in their order, then the provider's own
+ * labels alphabetically.
  */
 export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[]> {
   const [channels, items] = await Promise.all([
@@ -221,34 +236,38 @@ export async function channelGroups(ctx: RestContext): Promise<ChannelGroupWire[
     ...channels.flatMap((c) => (c.epgFallbackId ? [c.epgFallbackId] : [])),
   ]);
 
-  type Group = { market: string | null; theme: string; channels: ChannelWire[] };
+  type Group = { place: ReturnType<typeof placeOf>; theme: string; channels: ChannelWire[] };
   const groups = new Map<string, Group>();
   for (const c of channels) {
     const playables = withFallback(c, byContent.get(c.id) ?? []);
     if (!playables.length) continue;
     const wire = channelWire(ctx, c, playables, marks, epg);
-    const market = c.country?.toLowerCase() ?? c.market;
+    const place = placeOf(c);
     for (const theme of c.themes.length ? c.themes : [LIVE_THEMES[0]]) {
-      const key = `${market ?? ""}|${theme}`;
-      const g = groups.get(key) ?? { market, theme, channels: [] };
+      const key = `${place.key}|${theme}`;
+      const g = groups.get(key) ?? { place, theme, channels: [] };
       g.channels.push(wire);
       groups.set(key, g);
     }
   }
-  const perMarket = new Map<string | null, number>();
-  for (const g of groups.values()) perMarket.set(g.market, (perMarket.get(g.market) ?? 0) + g.channels.length);
+  const perPlace = new Map<string, number>();
+  for (const g of groups.values()) perPlace.set(g.place.key, (perPlace.get(g.place.key) ?? 0) + g.channels.length);
+  // A country whose code is also a region's shown here says it is the country.
+  const regions = new Set([...groups.values()].filter((g) => !g.place.country).map((g) => g.place.code));
+  const idOf = (p: Group["place"]) => (p.country && regions.has(p.code) ? `pays-${p.code}` : (p.code ?? "intl"));
   return [...groups.values()]
     .sort(
       (a, b) =>
-        perMarket.get(b.market)! - perMarket.get(a.market)! ||
-        (a.market ?? "").localeCompare(b.market ?? "") ||
+        perPlace.get(b.place.key)! - perPlace.get(a.place.key)! ||
+        (a.place.code ?? "").localeCompare(b.place.code ?? "") ||
+        a.place.key.localeCompare(b.place.key) ||
         themeRank(a.theme) - themeRank(b.theme) ||
         a.theme.localeCompare(b.theme),
     )
     .map((g) => ({
-      id: `${g.market ?? "intl"}-${slug(g.theme)}`,
-      name: `${marketName(g.market)} · ${g.theme}`,
-      section: marketName(g.market),
+      id: `${idOf(g.place)}-${slug(g.theme)}`,
+      name: `${g.place.name} · ${g.theme}`,
+      section: g.place.name,
       theme: g.theme,
       channels: g.channels,
     }));
