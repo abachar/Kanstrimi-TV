@@ -23,8 +23,7 @@ type Identification =
   | "aiOriginalTitle"
   | "aiYear"
   | "aiAskedAt";
-export type Content = Omit<Title, "sourceCount" | Identification> & {
-  variantCount: number;
+export type Content = Omit<Title, Identification> & {
   market: string | null;
   country: string | null;
   themes: string[];
@@ -38,7 +37,6 @@ export type Content = Omit<Title, "sourceCount" | Identification> & {
 const t = schema.catalogTitles;
 const c = schema.catalogChannels;
 const {
-  sourceCount,
   searchTitle: _searchTitle,
   searchYear: _searchYear,
   matchStatus: _matchStatus,
@@ -59,7 +57,6 @@ const none = {
 
 export const titleContent = {
   ...titleColumns,
-  variantCount: sourceCount,
   market: none.text("market"),
   country: none.text("country"),
   themes: sql<string[]>`'{}'::text[]`.as("themes"),
@@ -112,7 +109,7 @@ export const channelContent = {
   networkIds: sql<number[]>`'{}'::int[]`.as("network_ids"),
   search: c.search,
   updatedAt: c.updatedAt,
-  variantCount: c.sourceCount,
+  sourceCount: c.sourceCount,
   market: c.market,
   country: c.country,
   themes: sql<string[]>`case when ${c.theme} is null then '{}'::text[] else array[${c.theme}] end`.as("themes"),

@@ -49,12 +49,12 @@ beforeAll(async () => {
   await setAccountForTests({ url: "http://x" });
   await seedCategories([{ kind: "live", xtreamId: "20", name: "FRANCE | TV" }]);
   await seedItems([
-    { kind: "live", xtreamId: "100", name: "|FR| TF1 HD", cat: "20", raw: { epg_channel_id: "TF1.fr" } },
-    { kind: "live", xtreamId: "101", name: "|FR| SECRET", cat: "20", hiddenManual: true, raw: { epg_channel_id: "Secret.fr" } },
-    { kind: "live", xtreamId: "102", name: "|FR| M6 HD", cat: "20", raw: { epg_channel_id: "M6.fr" } },
+    { kind: "live", upstreamId: "100", name: "|FR| TF1 HD", cat: "20", raw: { epg_channel_id: "TF1.fr" } },
+    { kind: "live", upstreamId: "101", name: "|FR| SECRET", cat: "20", hidden: true, raw: { epg_channel_id: "Secret.fr" } },
+    { kind: "live", upstreamId: "102", name: "|FR| M6 HD", cat: "20", raw: { epg_channel_id: "M6.fr" } },
     // The provider names a guide for them but files no programme: the fallback sources complete them.
-    { kind: "live", xtreamId: "103", name: "BEIN SPORTS 1", cat: "20", raw: { epg_channel_id: "beINSports1Fr.qa" } },
-    { kind: "live", xtreamId: "104", name: "AL AOULA", cat: "20" },
+    { kind: "live", upstreamId: "103", name: "BEIN SPORTS 1", cat: "20", raw: { epg_channel_id: "beINSports1Fr.qa" } },
+    { kind: "live", upstreamId: "104", name: "AL AOULA", cat: "20" },
   ]);
   await knowChannels(); // what the enrich step does with a reference that knows them
   expect(await runAll("manual", "group")).toBe(true); // group → filters

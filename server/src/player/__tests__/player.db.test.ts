@@ -82,12 +82,12 @@ beforeAll(async () => {
     { kind: "series", xtreamId: "30", name: "|FR| SERIES" },
     { kind: "live", xtreamId: "20", name: "FRANCE FHD | TV" },
     { kind: "live", xtreamId: "21", name: "SPORTS HD | TV" },
-    { kind: "live", xtreamId: "22", name: "HIDDEN | TV", hiddenManual: true },
+    { kind: "live", xtreamId: "22", name: "HIDDEN | TV", hidden: true },
   ]);
   const items = await seedItems([
     {
       kind: "vod",
-      xtreamId: "1",
+      upstreamId: "1",
       name: "|FR| Matrix (4K)",
       cat: "10",
       tmdbId: 603,
@@ -96,7 +96,7 @@ beforeAll(async () => {
     },
     {
       kind: "vod",
-      xtreamId: "2",
+      upstreamId: "2",
       name: "|FR| Matrix (VOST)",
       cat: "11",
       tmdbId: 603,
@@ -105,7 +105,7 @@ beforeAll(async () => {
     },
     {
       kind: "vod",
-      xtreamId: "3",
+      upstreamId: "3",
       name: "|FR| Heat (VOST)",
       cat: "11",
       tmdbId: 949,
@@ -114,7 +114,7 @@ beforeAll(async () => {
     },
     {
       kind: "vod",
-      xtreamId: "7",
+      upstreamId: "7",
       name: "|FR| Heat (Director's Cut) (VOST)",
       cat: "11",
       tmdbId: 949,
@@ -123,16 +123,16 @@ beforeAll(async () => {
     },
     {
       kind: "vod",
-      xtreamId: "4",
+      upstreamId: "4",
       name: `AZ - Silver.Book.of.Dreams.${THIS_YEAR}`,
       cat: "12",
       matchStatus: "unmatched",
       addedAt: daysAgo(14),
     },
-    { kind: "vod", xtreamId: "5", name: "|FR| Caché", cat: "12", matchStatus: "unmatched", hiddenManual: true },
+    { kind: "vod", upstreamId: "5", name: "|FR| Caché", cat: "12", matchStatus: "unmatched", hidden: true },
     {
       kind: "vod",
-      xtreamId: "6",
+      upstreamId: "6",
       name: "|FR| Clan of Violence",
       cat: "13",
       matchStatus: "unmatched",
@@ -140,17 +140,17 @@ beforeAll(async () => {
     },
     {
       kind: "series",
-      xtreamId: "200",
+      upstreamId: "200",
       name: "|FR| Vincenzo (MULTI)",
       cat: "30",
       tmdbId: 1396,
       matchStatus: "matched",
       addedAt: daysAgo(11),
     },
-    { kind: "series", xtreamId: "201", name: "|FR| Vincenzo (VOST)", cat: "30", tmdbId: 1396, matchStatus: "matched" },
+    { kind: "series", upstreamId: "201", name: "|FR| Vincenzo (VOST)", cat: "30", tmdbId: 1396, matchStatus: "matched" },
     {
       kind: "live",
-      xtreamId: "100",
+      upstreamId: "100",
       name: "|FR| TF1 HD",
       cat: "20",
       section: "|FR| FRANCE FHD |FR|",
@@ -158,14 +158,14 @@ beforeAll(async () => {
     },
     {
       kind: "live",
-      xtreamId: "101",
+      upstreamId: "101",
       name: "|FR| TF1 FHD",
       cat: "20",
       section: "|FR| FRANCE FHD |FR|",
       raw: { num: 2, stream_icon: "http://x/tf1-fhd.png", epg_channel_id: "TF1.fr" },
     },
-    { kind: "live", xtreamId: "102", name: "|FR| BEIN SPORTS 1 HD", cat: "21", raw: { num: 30 } },
-    { kind: "live", xtreamId: "103", name: "|FR| SECRET TV", cat: "22", raw: { num: 99 } },
+    { kind: "live", upstreamId: "102", name: "|FR| BEIN SPORTS 1 HD", cat: "21", raw: { num: 30 } },
+    { kind: "live", upstreamId: "103", name: "|FR| SECRET TV", cat: "22", raw: { num: 99 } },
   ]);
   await seedProgrammes([
     { channelId: "TF1.fr", start: -30, end: 30, title: "Journal", overview: "Les titres" },
@@ -279,16 +279,16 @@ beforeAll(async () => {
       ]),
     ),
   });
-  const multi = items.find((i) => i.xtreamId === "200")!,
-    vost = items.find((i) => i.xtreamId === "201")!;
+  const multi = items.find((i) => i.upstreamId === "200")!,
+    vost = items.find((i) => i.upstreamId === "201")!;
   await db.insert(schema.cacheXtreamInfo).values([
     {
       accountId: ACCOUNT,
       kind: "series",
-      xtreamId: multi.xtreamId,
+      xtreamId: multi.upstreamId,
       data: providerInfo({ "1": ["e11", "e12"], "2": ["e21"] }, { "2:1": "Marée haute" }),
     },
-    { accountId: ACCOUNT, kind: "series", xtreamId: vost.xtreamId, data: providerInfo({ "1": ["e11v", "e12v"] }, {}) },
+    { accountId: ACCOUNT, kind: "series", xtreamId: vost.upstreamId, data: providerInfo({ "1": ["e11v", "e12v"] }, {}) },
   ]);
   await runNaming();
   await groupAndFilter();
@@ -502,8 +502,7 @@ describe("GET /movies and /series", () => {
     const heat = eq(schema.catalogTitles.key, "tmdb:movie:949"); // the only movie of « Crime »
     const [{ id: heatId }] = await db.select({ id: schema.catalogTitles.id }).from(schema.catalogTitles).where(heat);
     expect(await rowIds()).toContain("crime");
-    const shown = (hiddenManual: boolean) =>
-      db.update(schema.catalogVariants).set({ hiddenManual }).where(eq(schema.catalogVariants.titleId, heatId));
+    const shown = (hidden: boolean) => db.update(schema.catalogStreams).set({ hidden }).where(eq(schema.catalogStreams.titleId, heatId));
     try {
       // Hidden behind the pipeline's back: the genre list is not read again.
       await db.update(schema.catalogTitles).set({ visible: false }).where(heat);
@@ -1033,20 +1032,20 @@ describe("Nouveautés, release order and visible variants", () => {
   // Seeded after the catalogue tests, whose rows and counts must not see these movies.
   beforeAll(async () => {
     await seedItems([
-      { kind: "vod", xtreamId: "n1", name: "|FR| Alpha (VF)", cat: "12", tmdbId: 2001, matchStatus: "matched", addedAt: daysAgo(5) },
+      { kind: "vod", upstreamId: "n1", name: "|FR| Alpha (VF)", cat: "12", tmdbId: 2001, matchStatus: "matched", addedAt: daysAgo(5) },
       {
         kind: "vod",
-        xtreamId: "n1-hidden",
+        upstreamId: "n1-hidden",
         name: "|FR| Alpha 4K (VOST)",
         cat: "12",
         tmdbId: 2001,
         matchStatus: "matched",
         addedAt: daysAgo(1),
-        hiddenManual: true,
+        hidden: true,
       },
-      { kind: "vod", xtreamId: "n2", name: "|FR| Beta (VF)", cat: "12", tmdbId: 2002, matchStatus: "matched", addedAt: daysAgo(6) },
-      { kind: "vod", xtreamId: "n3", name: "|FR| Gamma (VF)", cat: "12", tmdbId: 2003, matchStatus: "matched", addedAt: daysAgo(1) },
-      { kind: "vod", xtreamId: "n4", name: "|FR| Undated (VF)", cat: "12", matchStatus: "unmatched", addedAt: daysAgo(1) },
+      { kind: "vod", upstreamId: "n2", name: "|FR| Beta (VF)", cat: "12", tmdbId: 2002, matchStatus: "matched", addedAt: daysAgo(6) },
+      { kind: "vod", upstreamId: "n3", name: "|FR| Gamma (VF)", cat: "12", tmdbId: 2003, matchStatus: "matched", addedAt: daysAgo(1) },
+      { kind: "vod", upstreamId: "n4", name: "|FR| Undated (VF)", cat: "12", matchStatus: "unmatched", addedAt: daysAgo(1) },
     ]);
     const films: [number, string, string][] = [
       [2001, "Alpha", ymd(daysAgo(20))],
@@ -1100,8 +1099,8 @@ describe("Nouveautés, release order and visible variants", () => {
 describe("sagas", () => {
   // Seeded after the catalogue tests, whose rows and counts must not see these movies.
   beforeAll(async () => {
-    const movie = (xtreamId: string, name: string, tmdbId: number, hiddenManual = false) =>
-      ({ kind: "vod", xtreamId, name, cat: "12", tmdbId, matchStatus: "matched", addedAt: daysAgo(3), hiddenManual }) as const;
+    const movie = (upstreamId: string, name: string, tmdbId: number, hidden = false) =>
+      ({ kind: "vod", upstreamId, name, cat: "12", tmdbId, matchStatus: "matched", addedAt: daysAgo(3), hidden }) as const;
     await seedItems([
       movie("s1", "|FR| Trilogie Un (VF)", 3001),
       movie("s2", "|FR| Trilogie Deux (VF)", 3002),
@@ -1190,12 +1189,12 @@ describe("people", () => {
     await seedItems([
       {
         kind: "vod",
-        xtreamId: "pe1",
+        upstreamId: "pe1",
         name: "|FR| Film Caché Keanu (VF)",
         cat: "12",
         tmdbId: 3101,
         matchStatus: "matched",
-        hiddenManual: true,
+        hidden: true,
       },
     ]);
     await seedTmdb("movie", 3101, {
@@ -1239,9 +1238,17 @@ describe("studios and top 10", () => {
   // Seeded after the catalogue tests, whose rows and counts must not see these titles.
   beforeAll(async () => {
     await seedItems([
-      { kind: "vod", xtreamId: "p1", name: "|FR| Pixar Un (VF)", cat: "12", tmdbId: 4001, matchStatus: "matched", addedAt: daysAgo(2) },
-      { kind: "vod", xtreamId: "p2", name: "|FR| Pixar Caché (VF)", cat: "12", tmdbId: 4002, matchStatus: "matched", hiddenManual: true },
-      { kind: "series", xtreamId: "h1", name: "|FR| Série HBO (VF)", cat: "30", tmdbId: 4003, matchStatus: "matched", addedAt: daysAgo(2) },
+      { kind: "vod", upstreamId: "p1", name: "|FR| Pixar Un (VF)", cat: "12", tmdbId: 4001, matchStatus: "matched", addedAt: daysAgo(2) },
+      { kind: "vod", upstreamId: "p2", name: "|FR| Pixar Caché (VF)", cat: "12", tmdbId: 4002, matchStatus: "matched", hidden: true },
+      {
+        kind: "series",
+        upstreamId: "h1",
+        name: "|FR| Série HBO (VF)",
+        cat: "30",
+        tmdbId: 4003,
+        matchStatus: "matched",
+        addedAt: daysAgo(2),
+      },
     ]);
     const pixar = { id: 3, name: "Pixar", logo_path: "/pixar.png" };
     await seedTmdb("movie", 4001, {
@@ -1692,10 +1699,10 @@ describe("guide per quality", () => {
   beforeAll(async () => {
     await seedItems([
       // « TF1 4K » names a guide without programmes: it takes the FHD's, so the channel keeps TF1.fr.
-      { kind: "live", xtreamId: "110", name: "|FR| TF1 4K", cat: "20", raw: { num: 3, epg_channel_id: "tf1-4k.fr" } },
+      { kind: "live", upstreamId: "110", name: "|FR| TF1 4K", cat: "20", raw: { num: 3, epg_channel_id: "tf1-4k.fr" } },
       // « M6 4K » has a guide of its own, which is not the HD's.
-      { kind: "live", xtreamId: "111", name: "|FR| M6 HD", cat: "20", raw: { num: 6, epg_channel_id: "M6.fr" } },
-      { kind: "live", xtreamId: "112", name: "|FR| M6 4K", cat: "20", raw: { num: 7, epg_channel_id: "m6-4k.fr" } },
+      { kind: "live", upstreamId: "111", name: "|FR| M6 HD", cat: "20", raw: { num: 6, epg_channel_id: "M6.fr" } },
+      { kind: "live", upstreamId: "112", name: "|FR| M6 4K", cat: "20", raw: { num: 7, epg_channel_id: "m6-4k.fr" } },
     ]);
     await seedProgrammes([
       { channelId: "M6.fr", start: -10, end: 50, title: "Météo" },
@@ -1730,8 +1737,8 @@ describe("guide per quality", () => {
 describe("guide of a channel with two languages", () => {
   beforeAll(async () => {
     await seedItems([
-      { kind: "live", xtreamId: "120", name: "|FR| Duo VF HD", cat: "20", raw: { num: 8, epg_channel_id: "duo-vf.fr" } },
-      { kind: "live", xtreamId: "121", name: "|FR| Duo VO 4K", cat: "20", raw: { num: 9, epg_channel_id: "duo-vo.fr" } },
+      { kind: "live", upstreamId: "120", name: "|FR| Duo VF HD", cat: "20", raw: { num: 8, epg_channel_id: "duo-vf.fr" } },
+      { kind: "live", upstreamId: "121", name: "|FR| Duo VO 4K", cat: "20", raw: { num: 9, epg_channel_id: "duo-vo.fr" } },
     ]);
     await seedProgrammes([
       { channelId: "duo-vf.fr", start: -10, end: 50, title: "Version française" },
@@ -1762,7 +1769,7 @@ describe("errors of /player", () => {
 
   it("a series whose episodes cannot be rebuilt, the provider being down and nothing cached, answers 502 upstream", async () => {
     await seedItems([
-      { kind: "series", xtreamId: "900", name: "|FR| Sans Reseau (MULTI)", cat: "30", matchStatus: "unmatched", addedAt: new Date() },
+      { kind: "series", upstreamId: "900", name: "|FR| Sans Reseau (MULTI)", cat: "30", matchStatus: "unmatched", addedAt: new Date() },
     ]);
     await runNaming();
     await groupAndFilter();

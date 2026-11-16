@@ -53,9 +53,9 @@ beforeAll(async () => {
     { accountId: backup.id, kind: "vod", xtreamId: "10", name: "|FR| FILMS" },
   ]);
   await seedItems([
-    { kind: "vod", xtreamId: "1", name: "|FR| Matrix (1999) 4K", cat: "10", tmdbId: 603, matchStatus: "matched" },
-    { accountId: backup.id, kind: "vod", xtreamId: "1", name: "|FR| Matrix (1999) 4K", cat: "10", tmdbId: 603, matchStatus: "matched" },
-    { accountId: backup.id, kind: "vod", xtreamId: "2", name: "|FR| Matrix (1999)", cat: "10", tmdbId: 603, matchStatus: "matched" },
+    { kind: "vod", upstreamId: "1", name: "|FR| Matrix (1999) 4K", cat: "10", tmdbId: 603, matchStatus: "matched" },
+    { accountId: backup.id, kind: "vod", upstreamId: "1", name: "|FR| Matrix (1999) 4K", cat: "10", tmdbId: 603, matchStatus: "matched" },
+    { accountId: backup.id, kind: "vod", upstreamId: "2", name: "|FR| Matrix (1999)", cat: "10", tmdbId: 603, matchStatus: "matched" },
   ]);
   await runNaming();
   await groupAndFilter();
@@ -64,10 +64,10 @@ afterAll(closeDb);
 
 describe("provider accounts", () => {
   it("keeps the same provider id apart per account, under one content", async () => {
-    const variants = await db.select().from(vr).where(eq(vr.xtreamId, "1"));
+    const variants = await db.select().from(vr).where(eq(vr.upstreamId, "1"));
     expect(variants.map((v) => v.accountId).sort()).toEqual([ACCOUNT, backup.id]);
     expect(new Set(variants.map((v) => v.contentId)).size).toBe(1);
-    expect((await matrix()).variantCount).toBe(3);
+    expect((await matrix()).sourceCount).toBe(3);
   });
 
   it("lists one source per account in a version, the preferred account first, each on its own URL", async () => {
@@ -86,11 +86,11 @@ describe("provider accounts", () => {
     const hidden = await db.select({ id: vr.id }).from(vr).where(hiddenItem);
     expect(hidden).toHaveLength(2);
     await groupAndFilter();
-    expect((await matrix()).variantCount).toBe(1);
+    expect((await matrix()).sourceCount).toBe(1);
     expect(await sources()).toEqual(["vf-4k provider.test http://provider.test/movie/u/p/1.mkv"]);
     await setAccountEnabled(backup.id, true);
     await groupAndFilter();
-    expect((await matrix()).variantCount).toBe(3);
+    expect((await matrix()).sourceCount).toBe(3);
   });
 
   it("takes everything an account brought away with it", async () => {
@@ -98,6 +98,6 @@ describe("provider accounts", () => {
     expect(await db.select().from(vr)).toHaveLength(1);
     expect(await db.select().from(schema.xtreamCategories)).toHaveLength(1);
     await groupAndFilter();
-    expect((await matrix()).variantCount).toBe(1);
+    expect((await matrix()).sourceCount).toBe(1);
   });
 });

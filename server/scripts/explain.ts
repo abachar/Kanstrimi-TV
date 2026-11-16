@@ -13,7 +13,7 @@ const e = await explainMatch(client, {
   id: 0,
   kind: kind as "vod" | "series",
   name,
-  cleanTitle: ct.title,
+  title: ct.title,
   year: ct.year ?? null,
   raw: tmdb ? { tmdb } : {},
 });

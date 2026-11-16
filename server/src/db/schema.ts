@@ -78,7 +78,7 @@ export const xtreamCategories = pgTable(
  * One entry of a provider's lists: a live channel or a movie (a playable stream), a series (its episodes
  * are `catalog_episode_sources`), or a separator line. The `source` step writes it by difference (a
  * changed entry updated, a new one inserted, a vanished one deleted), so `id` is stable: the catalogue
- * hangs its own decisions on it (`catalog_variants`).
+ * hangs its own decisions on it (`catalog_streams`).
  *
  * Two halves: what the provider sends, and what is read in its name (`title` … `theme`), which depends
  * on the name, the section and the category only and can be read again at any time, without the network.
@@ -144,21 +144,22 @@ export const xtreamStreams = pgTable(
 /**
  * What the catalogue decides about a stream, one row per entry that is not a separator, under the
  * stream's own id: created with its stream (`merge`), attached to its title by `group` (`attachTitles`) or
- * to its channel by `channels`, judged by `filters` (`hidden_by_rule`). What identifies a title or a
+ * to its channel by `channels`, judged by `filters` (`filtered`). What identifies a title or a
  * channel is on the title or the channel. Read with its stream through `variants` (`db/variants.ts`).
  */
-export const catalogVariants = pgTable(
-  "catalog_variants",
+export const catalogStreams = pgTable(
+  "catalog_streams",
   {
-    id: integer("id")
+    xtreamId: integer("xtream_id")
       .primaryKey()
       .references(() => xtreamStreams.id, { onDelete: "cascade" }),
-    hiddenManual: boolean("hidden_manual").default(false).notNull(),
+    /** Hidden by hand. */
+    hidden: boolean("hidden").default(false).notNull(),
     /**
      * No profile's filter keeps it, written by the `filters` step. Null = not
      * judged yet, a new version: left out until the filter has seen it.
      */
-    hiddenByRule: boolean("hidden_by_rule"),
+    filtered: boolean("filtered"),
     /**
      * How it came to its title or its channel. A movie, a series: `provided` (the TMDB id the provider gave,
      * checked), `title` (the same title and year as a stream already there), `search` (TMDB found it),
@@ -180,11 +181,11 @@ export const catalogVariants = pgTable(
   },
   (t) => [
     // The expression `variants` reads as `content_id` (`db/variants.ts`): keep the two in step.
-    index("catalog_variants_content_idx").on(sql`coalesce(${t.titleId}, ${t.channelId})`),
+    index("catalog_streams_content_idx").on(sql`coalesce(${t.titleId}, ${t.channelId})`),
     // What a deleted title or channel looks its variants up by.
-    index("catalog_variants_title_idx").on(t.titleId),
-    index("catalog_variants_channel_idx").on(t.channelId),
-    check("catalog_variants_one_content", sql`num_nonnulls(${t.titleId}, ${t.channelId}) <= 1`),
+    index("catalog_streams_title_idx").on(t.titleId),
+    index("catalog_streams_channel_idx").on(t.channelId),
+    check("catalog_streams_one_content", sql`num_nonnulls(${t.titleId}, ${t.channelId}) <= 1`),
   ],
 );
 
@@ -489,7 +490,7 @@ export const appProfileFilters = pgTable(
   (t) => [primaryKey({ columns: [t.profileId, t.kind] })],
 );
 
-/** The streams a profile's filter keeps (a row = kept), by the stream's id; `catalog_variants.hidden_by_rule` is « kept by no profile ». */
+/** The streams a profile's filter keeps (a row = kept), by the stream's id; `catalog_streams.filtered` is « kept by no profile ». */
 export const appProfileStreams = pgTable(
   "app_profile_streams",
   {

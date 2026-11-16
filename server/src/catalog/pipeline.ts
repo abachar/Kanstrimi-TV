@@ -22,7 +22,7 @@ import { withRunLog, withStep, note, purgeRunLogs } from "./runlog";
  *   group   — each new stream of a movie or a series identified and attached to its title (TMDB only when the
  *             catalogue does not know it, matching.ts), live variants → channels, cards, aggregates over the
  *             visible variants
- *   filters — the filter of each kind keeps or leaves out each version (`hidden_by_rule`), then the
+ *   filters — the filter of each kind keeps or leaves out each version (`filtered`), then the
  *             aggregates, `visible` and the waitlist (no network)
  * Matching comes first so that a title shown never waits for its TMDB sheet. The filters come last: they
  * read the content as the app shows it. A new version is left out until they judge it.

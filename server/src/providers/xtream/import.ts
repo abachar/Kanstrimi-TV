@@ -63,8 +63,8 @@ function asList<T>(what: string, v: unknown): T[] {
 }
 
 /** The entries of one kind, deduplicated, each with its id, in the provider's order. */
-export function prepareStreams(kind: Kind, list: XStream[]): { xtreamId: string; raw: XStream }[] {
-  return dedupe(list, (x) => upstreamId(kind, x)).map((x) => ({ xtreamId: upstreamId(kind, x)!, raw: x }));
+export function prepareStreams(kind: Kind, list: XStream[]): { upstreamId: string; raw: XStream }[] {
+  return dedupe(list, (x) => upstreamId(kind, x)).map((x) => ({ upstreamId: upstreamId(kind, x)!, raw: x }));
 }
 export function prepareCategories(list: XCategory[]): { xtreamId: string; raw: XCategory }[] {
   const id = (c: XCategory) => (c.category_id === null || c.category_id === undefined ? null : String(c.category_id));
@@ -114,7 +114,7 @@ export type StreamEntry = {
  * that follow it in the same category (« ----|FR| SPORT |FR|---- »). Radios without a category go to
  * ours (`radios`: the list has some).
  */
-export function deriveEntries(kind: Kind, list: { xtreamId: string; raw: XStream }[]): { entries: StreamEntry[]; radios: boolean } {
+export function deriveEntries(kind: Kind, list: { upstreamId: string; raw: XStream }[]): { entries: StreamEntry[]; radios: boolean } {
   const entries: StreamEntry[] = [];
   const sections = new Map<string, string>();
   let radios = false;
@@ -127,7 +127,7 @@ export function deriveEntries(kind: Kind, list: { xtreamId: string; raw: XStream
     if (radio) radios = true;
     entries.push({
       kind,
-      upstreamId: x.xtreamId,
+      upstreamId: x.upstreamId,
       position,
       raw: x.raw,
       name,
@@ -183,7 +183,7 @@ const NO_COUNTS: Record<Kind, number> = { live: 0, vod: 0, series: 0 };
  * inserted, a changed one updated, a vanished one deleted, an unchanged one not written at all, so a
  * stream keeps its id for as long as the provider lists it. An account that fails (down, refused,
  * shrunk) keeps what it had and is reported; the step fails only when none could be read. What the
- * catalogue decided about a stream (`catalog_variants`) is not its business: it goes with a deleted stream.
+ * catalogue decided about a stream (`catalog_streams`) is not its business: it goes with a deleted stream.
  */
 export async function runSync(opts: { acceptShrink?: boolean } = {}): Promise<SyncResult> {
   const accounts = await activeAccounts();

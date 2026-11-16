@@ -58,7 +58,7 @@ export function playableOfItem(it: Variant, categoryName: string | null): Playab
   return {
     sourceId: sourceId("item", it.id),
     container: ext.toUpperCase(),
-    upstream: { accountId: it.accountId, kind: it.kind === "live" ? "live" : "movie", id: it.xtreamId, ext },
+    upstream: { accountId: it.accountId, kind: it.kind === "live" ? "live" : "movie", id: it.upstreamId, ext },
     lang: it.lang,
     quality: it.quality,
     dynamicRange: it.dynamicRange,

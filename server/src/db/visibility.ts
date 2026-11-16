@@ -24,17 +24,12 @@ export const inDisabledAccount: SQL = sql`exists (
  * neither by hand nor through its category, its provider enabled. A content is visible when one of its versions is.
  */
 export const visibleItem: SQL = and(
-  sql`${variants.hiddenByRule} is false`,
-  eq(variants.hiddenManual, false),
+  sql`${variants.filtered} is false`,
+  eq(variants.hidden, false),
   sql`not ${inHiddenCategory}`,
   sql`not ${inDisabledAccount}`,
 )!;
-export const hiddenItem: SQL = or(
-  sql`${variants.hiddenByRule} is not false`,
-  eq(variants.hiddenManual, true),
-  inHiddenCategory,
-  inDisabledAccount,
-)!;
+export const hiddenItem: SQL = or(sql`${variants.filtered} is not false`, eq(variants.hidden, true), inHiddenCategory, inDisabledAccount)!;
 export const visibleCategory: SQL = eq(schema.xtreamCategories.hidden, false);
 
 /** The same rule as `inHiddenCategory`, on a row already loaded. */
@@ -43,6 +38,6 @@ export function isCategoryHidden(c: Pick<Category, "hidden"> | null | undefined)
 }
 
 /** The same rule as `hiddenItem`, on rows already loaded; the category may be unknown. */
-export function isItemHidden(it: Pick<Variant, "hiddenByRule" | "hiddenManual">, category?: Pick<Category, "hidden"> | null): boolean {
-  return it.hiddenByRule !== false || it.hiddenManual || isCategoryHidden(category);
+export function isItemHidden(it: Pick<Variant, "filtered" | "hidden">, category?: Pick<Category, "hidden"> | null): boolean {
+  return it.filtered !== false || it.hidden || isCategoryHidden(category);
 }

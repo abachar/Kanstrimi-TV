@@ -99,7 +99,7 @@ function TitleRow({ c, rank }: { c: Content; rank: number }) {
           <Badge tone="muted">{l}</Badge>
         ))}
       </div>
-      <div class={`${CELL} tabular-nums md:col-span-1`}>{c.variantCount}</div>
+      <div class={`${CELL} tabular-nums md:col-span-1`}>{c.sourceCount}</div>
       <div class={`${CELL} text-muted-foreground tabular-nums md:col-span-1`}>{c.addedAt.toLocaleDateString("fr-FR")}</div>
     </div>
   );

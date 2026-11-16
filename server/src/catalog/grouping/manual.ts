@@ -48,7 +48,10 @@ export async function mergeVariantInto(item: Variant, contentKey: string): Promi
 export async function resetVariant(item: Variant): Promise<Content | null> {
   if (item.kind === "live") await moved(item, null);
   else {
-    await db.update(schema.catalogVariants).set({ titleId: null, how: null, manual: false }).where(eq(schema.catalogVariants.id, item.id));
+    await db
+      .update(schema.catalogStreams)
+      .set({ titleId: null, how: null, manual: false })
+      .where(eq(schema.catalogStreams.xtreamId, item.id));
     await attachTitles([item.id]);
     await regrouped(item);
   }
@@ -56,7 +59,7 @@ export async function resetVariant(item: Variant): Promise<Content | null> {
   return after?.contentId ? contentById(after.contentId) : null;
 }
 
-export type MergeCandidate = Pick<Content, "id" | "key" | "title" | "year" | "variantCount">;
+export type MergeCandidate = Pick<Content, "id" | "key" | "title" | "year" | "sourceCount">;
 
 /** Contents of the same kind whose title contains the query, the current one excluded. */
 export async function mergeCandidates(item: Variant, q: string, limit = 10): Promise<MergeCandidate[]> {
@@ -65,13 +68,13 @@ export async function mergeCandidates(item: Variant, q: string, limit = 10): Pro
   const c = schema.catalogChannels;
   if (item.kind === "live")
     return db
-      .select({ id: c.id, key: c.key, title: c.name, year: sql<number | null>`null::int`, variantCount: c.sourceCount })
+      .select({ id: c.id, key: c.key, title: c.name, year: sql<number | null>`null::int`, sourceCount: c.sourceCount })
       .from(c)
       .where(and(ilike(c.name, `%${q}%`), sql`${c.id} <> ${item.contentId ?? 0}`))
       .orderBy(desc(c.sourceCount), asc(c.name))
       .limit(limit);
   return db
-    .select({ id: t.id, key: t.key, title: t.title, year: t.year, variantCount: t.sourceCount })
+    .select({ id: t.id, key: t.key, title: t.title, year: t.year, sourceCount: t.sourceCount })
     .from(t)
     .where(and(eq(t.kind, item.kind), ilike(t.title, `%${q}%`), sql`${t.id} <> ${item.contentId ?? 0}`))
     .orderBy(desc(t.sourceCount), asc(t.title))

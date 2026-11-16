@@ -137,7 +137,7 @@ export async function deleteChannel(id: number): Promise<void> {
   const [row] = await db.update(c).set({ aliases: [], edited: [], updatedAt: new Date() }).where(eq(c.id, id)).returning();
   if (!row) return;
   if (row.market) await rematchChannels(row.market);
-  await db.delete(c).where(and(eq(c.id, id), sql`not exists (select 1 from catalog_variants v where v.channel_id = ${c.id})`));
+  await db.delete(c).where(and(eq(c.id, id), sql`not exists (select 1 from catalog_streams v where v.channel_id = ${c.id})`));
 }
 
 /** A channel of ours by its id; null when the admin said nothing of it. */
@@ -168,7 +168,7 @@ export type LiveSummary = { markets: LiveMarketStat[] /** The channels the profi
  */
 export async function liveSummary(profileId: number): Promise<LiveSummary> {
   const v = variants;
-  const title = sql`coalesce(nullif(${v.cleanTitle}, ''), ${v.name})`;
+  const title = sql`coalesce(nullif(${v.title}, ''), ${v.name})`;
   const rows = await db
     .select({
       market: v.market,
@@ -206,7 +206,7 @@ export async function listChannels(opts: { market: string; page: number; size: n
   const rows = await db.execute<ChannelRow & { total: number }>(sql`
     select c.id, c.name as title, c.country, case when c.theme is null then '{}'::text[] else array[c.theme] end as themes,
            c.logo_url as "logoUrl", c.visible,
-           (select count(*)::int from catalog_variants v where v.channel_id = c.id) as versions, (count(*) over ())::int as total
+           (select count(*)::int from catalog_streams v where v.channel_id = c.id) as versions, (count(*) over ())::int as total
     from catalog_channels c
     where c.market = ${opts.market} and c.status = 'known'
       and exists (select 1 from ${variantRows} v join xtream_accounts a on a.id = v.account_id and a.enabled where v.channel_id = c.id)
@@ -246,7 +246,7 @@ export async function contentChannel(contentId: number): Promise<ContentChannel 
     name: row.channelName,
     iptv: iptv ?? null,
     own: ours ? referenceOf(channel) : null,
-    title: row.cleanTitle || row.name,
+    title: row.title || row.name,
     variantId: row.id,
   };
 }
@@ -400,7 +400,7 @@ export async function unmatchedVariants(market: string, title: string): Promise<
         eq(v.market, market),
         eq(schema.xtreamAccounts.enabled, true),
         sql`${v.channelName} is null`,
-        sql`coalesce(nullif(${v.cleanTitle}, ''), ${v.name}) = ${title}`,
+        sql`coalesce(nullif(${v.title}, ''), ${v.name}) = ${title}`,
       ),
     )
     .orderBy(asc(schema.xtreamAccounts.position), asc(v.position));

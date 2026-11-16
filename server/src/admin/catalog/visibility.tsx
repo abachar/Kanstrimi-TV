@@ -1,6 +1,6 @@
 /**
  * The switch of a variant on its content's page. Reads as "Visible", never as "Masqué": a switch
- * that is off must mean the thing is off. The stored column is `hidden_manual`, so the UI value is
+ * that is off must mean the thing is off. The stored column is `hidden`, so the UI value is
  * its opposite — the route inverts it back, then the page reloads: the content's own visibility and
  * aggregates follow. The filter of its kind or a category hidden outranks the switch, which says so
  * instead of showing a lie.
@@ -9,19 +9,19 @@
 export function VisibilityToggle({
   id,
   filtered = false,
-  hiddenManual,
+  hidden,
   catHidden = false,
   short = false,
 }: {
   id: number;
   /** The filter of its kind leaves it out (true), or has not judged it yet (null). */
   filtered?: boolean | null;
-  hiddenManual: boolean;
+  hidden: boolean;
   catHidden?: boolean;
   short?: boolean;
 }) {
   const domId = `vis-item-${id}`;
-  const visible = !hiddenManual;
+  const visible = !hidden;
   const forced =
     filtered !== false
       ? short

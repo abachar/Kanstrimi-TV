@@ -10,15 +10,15 @@ beforeAll(async () => {
   await resetDb();
   await seedCategories([
     { kind: "vod", xtreamId: "10", name: "FILMS" },
-    { kind: "vod", xtreamId: "11", name: "CACHÉE", hiddenManual: true },
+    { kind: "vod", xtreamId: "11", name: "CACHÉE", hidden: true },
   ]);
   await seedItems([
-    { kind: "vod", xtreamId: "1", name: "Matrix", cat: "10", tmdbId: 603, matchStatus: "matched" },
-    { kind: "vod", xtreamId: "2", name: "Heat", cat: "10", matchStatus: "unmatched" },
-    { kind: "vod", xtreamId: "3", name: "Masqué à la main", cat: "10", hiddenManual: true, matchStatus: "unmatched" },
-    { kind: "vod", xtreamId: "4", name: "Dans la catégorie cachée", cat: "11", matchStatus: "pending" },
-    { kind: "vod", xtreamId: "5", name: "Sans catégorie amont", matchStatus: "unmatched" },
-    { kind: "live", xtreamId: "100", name: "TF1", cat: "20" },
+    { kind: "vod", upstreamId: "1", name: "Matrix", cat: "10", tmdbId: 603, matchStatus: "matched" },
+    { kind: "vod", upstreamId: "2", name: "Heat", cat: "10", matchStatus: "unmatched" },
+    { kind: "vod", upstreamId: "3", name: "Masqué à la main", cat: "10", hidden: true, matchStatus: "unmatched" },
+    { kind: "vod", upstreamId: "4", name: "Dans la catégorie cachée", cat: "11", matchStatus: "pending" },
+    { kind: "vod", upstreamId: "5", name: "Sans catégorie amont", matchStatus: "unmatched" },
+    { kind: "live", upstreamId: "100", name: "TF1", cat: "20" },
   ]);
   await runNaming();
   await groupAndFilter();
@@ -48,13 +48,13 @@ describe("admin catalogue", () => {
     expect(await found("mat")).toBe(1);
   });
 
-  it("the manual switch writes hidden_manual, and the content follows", async () => {
+  it("the manual switch writes `hidden`, and the content follows", async () => {
     const heat = (await searchContents(db, "vod", compileQuery("heat", { kind: "vod", lang: "fr-FR" })!, 0)).rows[0];
-    const [variant] = await db.query.catalogVariants.findMany({ where: (v, { eq }) => eq(v.titleId, heat.id) });
-    await setItemHiddenManual(variant.id, true);
+    const [variant] = await db.query.catalogStreams.findMany({ where: (v, { eq }) => eq(v.titleId, heat.id) });
+    await setItemHiddenManual(variant.xtreamId, true);
     await settled();
     expect(await found("visible:oui")).toBe(2);
-    await setItemHiddenManual(variant.id, false);
+    await setItemHiddenManual(variant.xtreamId, false);
     await settled();
     expect(await found("visible:oui")).toBe(3);
   });

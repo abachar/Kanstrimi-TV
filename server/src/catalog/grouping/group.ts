@@ -70,7 +70,7 @@ export async function runGrouping(): Promise<GroupStats> {
       const orphans = await deleteOrphans();
       const [c] = await db.execute<{ n: number; multi: number; grouped: number }>(sql`
         select count(*)::int as n, (count(*) filter (where source_count > 1))::int as multi,
-          (select count(*)::int from catalog_variants where title_id is not null or channel_id is not null) as grouped
+          (select count(*)::int from catalog_streams where title_id is not null or channel_id is not null) as grouped
         from (select source_count from catalog_titles union all select source_count from catalog_channels) x`);
       return {
         items_grouped: c.grouped,
@@ -194,10 +194,10 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
     const changed = await pg.begin(async (tx) => {
       // Before the new reading replaces the old one: a stream on a title without a card leaves it, to be identified again.
       await tx`
-        update catalog_variants v set title_id = null, how = null
+        update catalog_streams v set title_id = null, how = null
         from unnest(${ids}::int[], ${titles}::text[], ${years}::int[]) as u(id, title, year)
         join xtream_streams s on s.id = u.id, catalog_titles t
-        where v.id = u.id and t.id = v.title_id and t.tmdb_id is null and not v.manual
+        where v.xtream_id = u.id and t.id = v.title_id and t.tmdb_id is null and not v.manual
           and s.title is not null and (s.title, s.year) is distinct from (u.title, u.year)`;
       return tx`
         update xtream_streams i set
@@ -244,7 +244,7 @@ export async function followLiveKeys(moves: Map<string, Map<string, number>>) {
   const olds = [...moves.keys()];
   const marked = await pg<{ key: string }[]>`
     select key from unnest(${olds}::text[]) as o(key)
-    where not exists (select 1 from catalog_variants v join catalog_channels c on c.id = v.channel_id where c.key = o.key)
+    where not exists (select 1 from catalog_streams v join catalog_channels c on c.id = v.channel_id where c.key = o.key)
       and (exists (select 1 from app_favorites f where f.content_key = o.key)
         or exists (select 1 from app_live_watch w where w.content_key = o.key)
         or exists (select 1 from app_profile_versions p where p.content_key = o.key)
@@ -557,7 +557,7 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
   await db.execute(sql`
     update catalog_channels c set source_count = 0, visible = false, updated_at = now()
     where (c.source_count <> 0 or c.visible) ${onlyIds ? sql`and c.id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``}
-      and not exists (select 1 from catalog_variants v where v.channel_id = c.id)`);
+      and not exists (select 1 from catalog_streams v where v.channel_id = c.id)`);
   await refreshProfileVisibility(onlyIds);
   return markWaitlistAvailable();
 }
@@ -594,14 +594,14 @@ async function refreshProfileVisibility(onlyIds?: number[]) {
 async function deleteOrphans(): Promise<number> {
   const titles = await db
     .delete(schema.catalogTitles)
-    .where(sql`not exists (select 1 from ${schema.catalogVariants} i where i.title_id = ${schema.catalogTitles.id})`)
+    .where(sql`not exists (select 1 from ${schema.catalogStreams} i where i.title_id = ${schema.catalogTitles.id})`)
     .returning({ id: schema.catalogTitles.id });
   const channels = await db
     .delete(schema.catalogChannels)
     // A channel the admin said something of (aliases, fields set by hand, a guide linked by hand), or whose name Claude has
     // read, stays when its variants are gone: what was said of it is not lost, the name is not asked again.
     .where(
-      sql`not exists (select 1 from ${schema.catalogVariants} i where i.channel_id = ${schema.catalogChannels.id})
+      sql`not exists (select 1 from ${schema.catalogStreams} i where i.channel_id = ${schema.catalogChannels.id})
         and cardinality(${schema.catalogChannels.aliases}) = 0 and cardinality(${schema.catalogChannels.edited}) = 0
         and ${schema.catalogChannels.aiAskedAt} is null
         and not exists (select 1 from ${schema.catalogChannelGuides} g where g.channel_id = ${schema.catalogChannels.id})`,

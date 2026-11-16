@@ -29,7 +29,7 @@ const ctx = {
 
 beforeAll(async () => {
   await resetDb();
-  await seedItems([{ kind: "series", xtreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
+  await seedItems([{ kind: "series", upstreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
   await runNaming();
   await groupAndFilter();
   // A series in progress that received something since: the carousel looks for its next episode.

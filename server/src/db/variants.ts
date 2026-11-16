@@ -3,12 +3,12 @@ import { client, db, schema } from "./client";
 
 /**
  * A variant as the catalogue reads it: a provider's stream (`xtream_streams`: what it sends, what its
- * name says) with what the catalogue decided about it (`catalog_variants`), one row under the stream's
+ * name says) with what the catalogue decided about it (`catalog_streams`), one row under the stream's
  * id. Reads go through here; writes name the table that owns the column.
  *
- * The fields keep the names the readers know (`xtreamId` is the stream's `upstream_id`, `cleanTitle`
- * its `title`, `nameAdult`, `nameTheme` and `nameCountry` what its name says). `adult` and `theme`
- * are derived: adult by its name or by its channel, its channel's theme before the name's.
+ * `id` is the stream's (ours, stable), `upstreamId` the one its provider gives it. `nameAdult`, `nameTheme`
+ * and `nameCountry` are what its name says; `adult` and `theme` are derived: adult by its name or by its
+ * channel, its channel's theme before the name's. `hidden`: by hand; `filtered`: kept by no profile's filter.
  *
  * In SQL the columns bear their table's names, but for the three a stream and its variant both have
  * (`name_adult`, `name_theme`, `name_country` are the stream's) and the two derived ones
@@ -21,17 +21,17 @@ import { client, db, schema } from "./client";
  * A channel's (`catalog_channels`) likewise: its name in the reference, its iptv-org channel, its theme,
  * its country, what Claude read in its name.
  */
-const v = schema.catalogVariants;
+const v = schema.catalogStreams;
 const s = schema.xtreamStreams;
 const t = schema.catalogTitles;
 const c = schema.catalogChannels;
 
 const variantQuery = db
   .select({
-    id: v.id,
+    id: s.id,
     accountId: s.accountId,
     kind: s.kind,
-    xtreamId: s.upstreamId,
+    upstreamId: s.upstreamId,
     name: s.name,
     categoryXtreamId: s.categoryXtreamId,
     position: s.position,
@@ -39,7 +39,7 @@ const variantQuery = db
     addedAt: s.addedAt,
     changedAt: s.changedAt,
     section: s.section,
-    cleanTitle: s.title,
+    title: s.title,
     year: s.year,
     market: s.market,
     lang: s.lang,
@@ -52,8 +52,8 @@ const variantQuery = db
     nameAdult: sql<boolean>`${s.adult}`.as("name_adult"),
     nameTheme: sql<string | null>`${s.theme}`.as("name_theme"),
     nameCountry: sql<string | null>`${s.country}`.as("name_country"),
-    hiddenManual: v.hiddenManual,
-    hiddenByRule: v.hiddenByRule,
+    hidden: v.hidden,
+    filtered: v.filtered,
     // What its title (a movie, a series) or its channel (live) says of it: the identification is theirs, read here for each stream.
     tmdbId: t.tmdbId,
     /** `pending` while it has no title, then its title's: `matched`, `unmatched` (no card), `manual` when attached by hand. */
@@ -74,7 +74,7 @@ const variantQuery = db
     manual: v.manual,
     /** Its title's key, or its channel's. */
     contentKey: sql<string | null>`coalesce(${t.key}, ${c.key})`.as("variant_key"),
-    /** The title or the channel it belongs to, whichever it is: their ids come from one sequence. The expression of `catalog_variants_content_idx`. */
+    /** The title or the channel it belongs to, whichever it is: their ids come from one sequence. The expression of `catalog_streams_content_idx`. */
     contentId: sql<number | null>`coalesce(${v.titleId}, ${v.channelId})`.as("content_id"),
     titleId: v.titleId,
     channelId: v.channelId,
@@ -87,7 +87,7 @@ const variantQuery = db
     epgMismatch: v.epgMismatch,
   })
   .from(v)
-  .innerJoin(s, eq(s.id, v.id))
+  .innerJoin(s, eq(s.id, v.xtreamId))
   .leftJoin(t, eq(t.id, v.titleId))
   .leftJoin(c, eq(c.id, v.channelId));
 

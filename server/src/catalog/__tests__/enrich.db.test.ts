@@ -12,7 +12,7 @@ const cardless = (n: number, prefix: string) =>
   seedItems(
     Array.from({ length: n }, (_, i) => ({
       kind: "vod" as const,
-      xtreamId: `${prefix}${i}`,
+      upstreamId: `${prefix}${i}`,
       name: `|FR| ${prefix} ${i}`,
       matchStatus: "unmatched" as const,
     })),
@@ -34,8 +34,8 @@ afterAll(async () => {
 describe("runEnrich", () => {
   it("asks TMDB again about a title without a card a week later, not before; a title it now knows becomes that title", async () => {
     const [film, twin] = await seedItems([
-      { kind: "vod", xtreamId: "f", name: "|FR| Film Tardif (2024)", matchStatus: "unmatched" },
-      { kind: "vod", xtreamId: "g", name: "|FR| Film Tardif (2024) (4K)", matchStatus: "unmatched" },
+      { kind: "vod", upstreamId: "f", name: "|FR| Film Tardif (2024)", matchStatus: "unmatched" },
+      { kind: "vod", upstreamId: "g", name: "|FR| Film Tardif (2024) (4K)", matchStatus: "unmatched" },
     ]);
     const id = await titleOf(film.id);
     expect(await titleOf(twin.id)).toBe(id);
@@ -61,7 +61,7 @@ describe("runEnrich", () => {
   });
 
   it("gives the streams of a title without a card to the title the catalogue already has, when TMDB says they are the same", async () => {
-    const [other] = await seedItems([{ kind: "vod", xtreamId: "o", name: "|FR| Le Film Tardif", matchStatus: "unmatched" }]);
+    const [other] = await seedItems([{ kind: "vod", upstreamId: "o", name: "|FR| Le Film Tardif", matchStatus: "unmatched" }]);
     const id = await titleOf(other.id);
     await db.update(t).set({ matchedAt: aWeekAgo() }).where(eq(t.id, id));
     vi.stubGlobal("fetch", async (u: URL | string) => {
@@ -129,18 +129,18 @@ describe("runEnrich", () => {
 
   it("has Claude read once the visible titles TMDB gave up on, searches its titles, and leaves what it saw outside TMDB alone", async () => {
     const [a, b, c, hidden] = await seedItems([
-      { kind: "vod", xtreamId: "a", name: "|AR| Al Jamra | 2017 | الجمرة", matchStatus: "unmatched" },
-      { kind: "vod", xtreamId: "b", name: "|FR| Hellfest - Jour 2 (2025)", matchStatus: "unmatched" },
-      { kind: "vod", xtreamId: "c", name: "|AR| Inconnu", matchStatus: "unmatched" },
-      { kind: "vod", xtreamId: "h", name: "|AR| Caché", matchStatus: "unmatched" },
+      { kind: "vod", upstreamId: "a", name: "|AR| Al Jamra | 2017 | الجمرة", matchStatus: "unmatched" },
+      { kind: "vod", upstreamId: "b", name: "|FR| Hellfest - Jour 2 (2025)", matchStatus: "unmatched" },
+      { kind: "vod", upstreamId: "c", name: "|AR| Inconnu", matchStatus: "unmatched" },
+      { kind: "vod", upstreamId: "h", name: "|AR| Caché", matchStatus: "unmatched" },
     ]);
     const [ta, tb, tc, th] = await Promise.all([a, b, c, hidden].map((r) => titleOf(r.id)));
     // What the filters would have written: three of them are seen by the app.
     await db
-      .update(schema.catalogVariants)
-      .set({ hiddenByRule: false })
-      .where(inArray(schema.catalogVariants.id, [a.id, b.id, c.id]));
-    await db.update(schema.catalogVariants).set({ hiddenByRule: true }).where(eq(schema.catalogVariants.id, hidden.id));
+      .update(schema.catalogStreams)
+      .set({ filtered: false })
+      .where(inArray(schema.catalogStreams.xtreamId, [a.id, b.id, c.id]));
+    await db.update(schema.catalogStreams).set({ filtered: true }).where(eq(schema.catalogStreams.xtreamId, hidden.id));
     await db
       .update(t)
       .set({ visible: true })

@@ -64,10 +64,10 @@ beforeAll(async () => {
   ]);
   await seedTmdb("movie", 603, { title: "Matrix", release_date: "1999-03-31", genres: [{ id: 878, name: "Science-Fiction" }] });
   const items = await seedItems([
-    { kind: "vod", xtreamId: "1", name: "|FR| Matrix (4K)", cat: "10", tmdbId: 603, matchStatus: "matched" },
-    { kind: "vod", xtreamId: "2", name: "|FR| Matrix (VOST)", cat: "10", tmdbId: 603, matchStatus: "matched" },
-    { kind: "live", xtreamId: "100", name: "|FR| TF1 HD", cat: "20" },
-    { kind: "live", xtreamId: "101", name: "|IT| BELLA RADIO", section: "|IT| ITALIA |IT|" },
+    { kind: "vod", upstreamId: "1", name: "|FR| Matrix (4K)", cat: "10", tmdbId: 603, matchStatus: "matched" },
+    { kind: "vod", upstreamId: "2", name: "|FR| Matrix (VOST)", cat: "10", tmdbId: 603, matchStatus: "matched" },
+    { kind: "live", upstreamId: "100", name: "|FR| TF1 HD", cat: "20" },
+    { kind: "live", upstreamId: "101", name: "|IT| BELLA RADIO", section: "|IT| ITALIA |IT|" },
   ]);
   matrixId = items[0].id;
   await runNaming(); // what the source step does after the import
@@ -310,7 +310,7 @@ describe("admin", () => {
       const [c] = await db.select(titleContent).from(schema.catalogTitles).where(eq(schema.catalogTitles.id, it!.contentId!));
       return c;
     };
-    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
+    expect(await contentOf()).toMatchObject({ visible: true, sourceCount: 2 });
     // The variant's switch, on its content's page: the page reloads, the content follows without a `group` run.
     const categoriesHidden = async () =>
       (await db.select().from(schema.xtreamCategories))
@@ -320,12 +320,12 @@ describe("admin", () => {
     const hide = await post(`/admin/catalog/item/${matrixId}/visible`, {});
     expect(hide.status).toBe(204);
     expect(hide.headers.get("hx-refresh")).toBe("true");
-    expect((await itemById(matrixId))?.hiddenManual).toBe(true);
-    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 1 }); // the VOST stays
+    expect((await itemById(matrixId))?.hidden).toBe(true);
+    expect(await contentOf()).toMatchObject({ visible: true, sourceCount: 1 }); // the VOST stays
     expect(await categoriesHidden()).toEqual(before); // never a category with the same id
     await post(`/admin/catalog/item/${matrixId}/visible`, { visible: "on" });
-    expect((await itemById(matrixId))?.hiddenManual).toBe(false);
-    expect(await contentOf()).toMatchObject({ visible: true, variantCount: 2 });
+    expect((await itemById(matrixId))?.hidden).toBe(false);
+    expect(await contentOf()).toMatchObject({ visible: true, sourceCount: 2 });
     expect((await post("/admin/catalog/category/1/visible", {})).status).toBe(404); // no screen hides a category any more
   });
 
@@ -685,7 +685,9 @@ describe("admin", () => {
     // A series: its episodes come from the provider's sheet (in cache here), all marked at once.
     await seedCategories([{ kind: "series", xtreamId: "30", name: "|FR| SERIES" }]);
     await seedTmdb("tv", 1396, { name: "Vincenzo", first_air_date: "2021-02-20" });
-    await seedItems([{ kind: "series", xtreamId: "200", name: "|FR| Vincenzo (MULTI)", cat: "30", tmdbId: 1396, matchStatus: "matched" }]);
+    await seedItems([
+      { kind: "series", upstreamId: "200", name: "|FR| Vincenzo (MULTI)", cat: "30", tmdbId: 1396, matchStatus: "matched" },
+    ]);
     await db.insert(schema.cacheXtreamInfo).values({
       accountId: ACCOUNT,
       kind: "series",
@@ -728,8 +730,8 @@ describe("admin", () => {
 
   it("Live: the figures that filter it, every channel, the names left attached in place, a channel edited on its page", async () => {
     await seedItems([
-      { kind: "live", xtreamId: "150", name: "|FR| ZED TV HD", cat: "20" },
-      { kind: "live", xtreamId: "151", name: "|FR| ZED TV BIS", cat: "20" },
+      { kind: "live", upstreamId: "150", name: "|FR| ZED TV HD", cat: "20" },
+      { kind: "live", upstreamId: "151", name: "|FR| ZED TV BIS", cat: "20" },
     ]);
     await runNaming();
     await db.insert(schema.cacheIptvorgChannels).values({ id: "TF1.fr", name: "TF1", country: "FR", categories: ["general"] });

@@ -67,7 +67,7 @@ export const ID_THRESHOLD = 0.55;
 /** What the provider says of an entry: its cleaned name and the raw fields it sent; and the titles Claude read in it, if any. */
 export type EntryClues = {
   name: string;
-  cleanTitle: string | null;
+  title: string | null;
   year: number | null;
   raw: Record<string, unknown>;
   aiKind?: string | null;
@@ -103,7 +103,7 @@ const imageHash = (u: unknown) => {
  * the director, the year, the TMDB image hashes it copied, the trailer key.
  */
 export function idEvidence(d: TmdbDetails, it: EntryClues): Evidence {
-  const titles = [it.cleanTitle || it.name];
+  const titles = [it.title || it.name];
   if (it.aiKind === "movie" || it.aiKind === "series")
     titles.push(...[it.aiTitle, it.aiOriginalTitle].filter((t): t is string => Boolean(t)));
   const similarity = Math.max(...titles.map((t) => bestSimilarity(d, t)));

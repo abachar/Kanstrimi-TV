@@ -50,18 +50,18 @@ beforeAll(async () => {
   await resetDb();
   fs.rmSync(path.join(env.dataDir, "iptv-org"), { recursive: true, force: true });
   await seedItems([
-    { kind: "live", xtreamId: "1", name: "|FR| TF1 FHD", raw: { epg_channel_id: "TF1.fr" } },
-    { kind: "live", xtreamId: "2", name: "|FR| BFM TV HD", section: "|FR| SPORT |FR|" },
-    { kind: "live", xtreamId: "3", name: "|FR| FRANCE 3 BRETAGNE", section: "|FR| RÉGIONALES |FR|" },
-    { kind: "live", xtreamId: "4", name: "|AR| MBC 3" },
-    { kind: "live", xtreamId: "5", name: "|FR| LIGUE1+ 9" },
-    { kind: "live", xtreamId: "6", name: "|IT| CANAL UN" },
+    { kind: "live", upstreamId: "1", name: "|FR| TF1 FHD", raw: { epg_channel_id: "TF1.fr" } },
+    { kind: "live", upstreamId: "2", name: "|FR| BFM TV HD", section: "|FR| SPORT |FR|" },
+    { kind: "live", upstreamId: "3", name: "|FR| FRANCE 3 BRETAGNE", section: "|FR| RÉGIONALES |FR|" },
+    { kind: "live", upstreamId: "4", name: "|AR| MBC 3" },
+    { kind: "live", upstreamId: "5", name: "|FR| LIGUE1+ 9" },
+    { kind: "live", upstreamId: "6", name: "|IT| CANAL UN" },
     // The provider's EPG id names a Dubai channel; the name says ERTU 1.
-    { kind: "live", xtreamId: "7", name: "|AR| AL OULA HD (ERTU 1) EGY", raw: { epg_channel_id: "DubaiAlOula.ae" } },
+    { kind: "live", upstreamId: "7", name: "|AR| AL OULA HD (ERTU 1) EGY", raw: { epg_channel_id: "DubaiAlOula.ae" } },
     // An EPG id iptv-org gives to another channel, and no channel by name: no match, the guide stays.
-    { kind: "live", xtreamId: "8", name: "|UK| CNBC", raw: { epg_channel_id: "BBCParliament.uk" } },
+    { kind: "live", upstreamId: "8", name: "|UK| CNBC", raw: { epg_channel_id: "BBCParliament.uk" } },
     // Another spelling of the same name: the EPG id is kept.
-    { kind: "live", xtreamId: "9", name: "|AR| AL RESALA", raw: { epg_channel_id: "AlResalah.sa" } },
+    { kind: "live", upstreamId: "9", name: "|AR| AL RESALA", raw: { epg_channel_id: "AlResalah.sa" } },
   ]);
   await runNaming();
 });
@@ -139,8 +139,8 @@ describe("runChannels", () => {
       epg_mismatch: 1,
       ai_asked: 0, // no key: Claude is not asked
     });
-    const items = await db.select().from(vr).orderBy(vr.xtreamId);
-    const by = (x: string) => items.find((i) => i.xtreamId === x)!;
+    const items = await db.select().from(vr).orderBy(vr.upstreamId);
+    const by = (x: string) => items.find((i) => i.upstreamId === x)!;
     expect(by("1")).toMatchObject({ iptvId: "TF1.fr", how: "epg", channelName: "TF1" });
     expect(by("2")).toMatchObject({ iptvId: "BFMTV.fr", how: "name", channelName: "BFM TV", theme: "Infos" }); // iptv-org first
     expect(by("4")).toMatchObject({ iptvId: "MBC3.ae", how: "name", theme: "Jeunesse" }); // « ar » = the Arab world
@@ -177,7 +177,7 @@ describe("runChannels", () => {
   });
 
   it("keeps a manual pin across runs, and goes back to automatic on demand", async () => {
-    const [ligue] = await db.select().from(vr).where(eq(vr.xtreamId, "5"));
+    const [ligue] = await db.select().from(vr).where(eq(vr.upstreamId, "5"));
     await setIptvMatch(ligue.id, "Canal1.fr");
     serve();
     await runChannels();

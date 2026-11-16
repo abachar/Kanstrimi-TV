@@ -515,7 +515,7 @@ const liveRows = (where: SQL = live): Promise<LiveRow[]> =>
       id: vr.id,
       raw: vr.raw,
       name: vr.name,
-      title: vr.cleanTitle,
+      title: vr.title,
       market: vr.market,
       nameTheme: vr.nameTheme,
       nameCountry: vr.nameCountry,
@@ -612,10 +612,10 @@ async function attach(rows: LiveRow[], resolved: Resolved[]): Promise<{ moved: n
     checkCancelled();
     const part = moved.slice(i, i + CHUNK);
     await pg`
-      update catalog_variants v set channel_id = u.channel_id, how = u.how, epg_mismatch = u.mismatch::boolean
+      update catalog_streams v set channel_id = u.channel_id, how = u.how, epg_mismatch = u.mismatch::boolean
       from unnest(${part.map((m) => m.id)}::int[], ${part.map((m) => m.channelId)}::int[], ${part.map((m) => m.how)}::text[],
                   ${part.map((m) => String(m.mismatch))}::text[]) as u(id, channel_id, how, mismatch)
-      where v.id = u.id and (v.channel_id, v.how, v.epg_mismatch) is distinct from (u.channel_id, u.how, u.mismatch::boolean)`;
+      where v.xtream_id = u.id and (v.channel_id, v.how, v.epg_mismatch) is distinct from (u.channel_id, u.how, u.mismatch::boolean)`;
   }
   await followLiveKeys(moves);
 
@@ -809,15 +809,15 @@ async function putByHand(
 ) {
   const [it] = await liveRows(and(live, eq(vr.id, itemId))!);
   if (!it) throw new Error("Chaîne introuvable");
-  const v = schema.catalogVariants;
-  if (to === null) await db.update(v).set({ manual: false }).where(eq(v.id, itemId));
+  const v = schema.catalogStreams;
+  if (to === null) await db.update(v).set({ manual: false }).where(eq(v.xtreamId, itemId));
   else {
     const idx = await loadIndex();
     const ch = await to(it, idx);
     await db
       .update(v)
       .set({ channelId: ch.id, how: "manual", manual: true, epgMismatch: epg ? epg(it, idx) : false })
-      .where(eq(v.id, itemId));
+      .where(eq(v.xtreamId, itemId));
     if (it.channelKey && it.channelKey !== ch.key) await followLiveKeys(new Map([[it.channelKey, new Map([[ch.key, 1]])]]));
   }
   // Its market read again: the channel it left and the one it joined say what their streams now make them.
@@ -860,13 +860,10 @@ export async function setIptvMatch(itemId: number, iptvId: string | null | "auto
 }
 
 /** Admin: a live variant alone on a channel of its own (`manual:<id>`), on another channel (its key), or back to the reference (null). */
-export async function setLiveChannel(
-  item: { id: number; name: string; cleanTitle: string | null; market: string | null },
-  key: string | null,
-) {
+export async function setLiveChannel(item: { id: number; name: string; title: string | null; market: string | null }, key: string | null) {
   if (key === null) return putByHand(item.id, null);
   await putByHand(item.id, async () => {
-    if (key === `manual:${item.id}`) return channelFor({ key, name: item.cleanTitle || item.name, market: item.market, status: "unknown" });
+    if (key === `manual:${item.id}`) return channelFor({ key, name: item.title || item.name, market: item.market, status: "unknown" });
     const [ch] = await db.select().from(schema.catalogChannels).where(eq(schema.catalogChannels.key, key));
     if (!ch) throw new Error("Chaîne introuvable");
     return ch;

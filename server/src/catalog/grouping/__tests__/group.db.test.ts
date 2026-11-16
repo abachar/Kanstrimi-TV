@@ -18,7 +18,7 @@ describe("runGrouping", () => {
       { kind: "vod", xtreamId: "10", name: "|FR| FILMS 4K DV" },
       { kind: "vod", xtreamId: "11", name: "|FR| FILMS VOST" },
       { kind: "vod", xtreamId: "12", name: "|IT| FILM RECENTI" },
-      { kind: "vod", xtreamId: "13", name: "|FR| FILMS HEVC", hiddenManual: true },
+      { kind: "vod", xtreamId: "13", name: "|FR| FILMS HEVC", hidden: true },
       { kind: "live", xtreamId: "20", name: "FRANCE FHD | TV" },
       { kind: "live", xtreamId: "21", name: "BELGIUM | TV" },
       { kind: "series", xtreamId: "30", name: "|FR| SERIES" },
@@ -27,7 +27,7 @@ describe("runGrouping", () => {
       // Spider-Man: four variants, one matched pair by TMDB id, two by title fallback (pending)
       {
         kind: "vod",
-        xtreamId: "1",
+        upstreamId: "1",
         name: "|FR| Spider-Man (4K)",
         cat: "10",
         tmdbId: 557,
@@ -36,40 +36,40 @@ describe("runGrouping", () => {
       },
       {
         kind: "vod",
-        xtreamId: "2",
+        upstreamId: "2",
         name: "|FR| Spider-Man (DV)",
         cat: "10",
         tmdbId: 557,
         matchStatus: "matched",
         addedAt: new Date("2026-09-10T00:00:00Z"),
       },
-      { kind: "vod", xtreamId: "3", name: "|FR| Spider-Man (VOST)", cat: "11", tmdbId: 557, matchStatus: "matched" },
-      { kind: "vod", xtreamId: "4", name: "|IT| Spider-Man", cat: "12", tmdbId: 557, matchStatus: "manual" },
+      { kind: "vod", upstreamId: "3", name: "|FR| Spider-Man (VOST)", cat: "11", tmdbId: 557, matchStatus: "matched" },
+      { kind: "vod", upstreamId: "4", name: "|IT| Spider-Man", cat: "12", tmdbId: 557, matchStatus: "manual" },
       // Same title, not matched yet: fallback group of its own
-      { kind: "vod", xtreamId: "5", name: "|FR| Spider-Man | 2002", cat: "11", matchStatus: "pending" },
+      { kind: "vod", upstreamId: "5", name: "|FR| Spider-Man | 2002", cat: "11", matchStatus: "pending" },
       // Hidden category: the item exists but the content is not visible
-      { kind: "vod", xtreamId: "6", name: "|FR| Tenet (HEVC)", cat: "13", matchStatus: "unmatched" },
+      { kind: "vod", upstreamId: "6", name: "|FR| Tenet (HEVC)", cat: "13", matchStatus: "unmatched" },
       // Manually hidden
-      { kind: "vod", xtreamId: "7", name: "|FR| Dune", cat: "12", matchStatus: "unmatched", hiddenManual: true },
+      { kind: "vod", upstreamId: "7", name: "|FR| Dune", cat: "12", matchStatus: "unmatched", hidden: true },
       // Live: HD + FHD of the same channel, a Belgian namesake
       {
         kind: "live",
-        xtreamId: "100",
+        upstreamId: "100",
         name: "|FR| TF1 HD",
         cat: "20",
         raw: { num: 1, stream_icon: "http://x/tf1-hd.png", epg_channel_id: "TF1.fr" },
       },
       {
         kind: "live",
-        xtreamId: "101",
+        upstreamId: "101",
         name: "|FR| TF1 FHD",
         cat: "20",
         raw: { num: 2, stream_icon: "http://x/tf1-fhd.png", epg_channel_id: "TF1.fr" },
       },
-      { kind: "live", xtreamId: "102", name: "|BE| TF1", cat: "21", raw: { num: 3 } },
+      { kind: "live", upstreamId: "102", name: "|BE| TF1", cat: "21", raw: { num: 3 } },
       // Series split per season upstream
-      { kind: "series", xtreamId: "200", name: "|FR| Vincenzo (MULTI) S01", cat: "30", tmdbId: 1396, matchStatus: "matched" },
-      { kind: "series", xtreamId: "201", name: "|FR| Vincenzo (VOST)", cat: "30", tmdbId: 1396, matchStatus: "matched" },
+      { kind: "series", upstreamId: "200", name: "|FR| Vincenzo (MULTI) S01", cat: "30", tmdbId: 1396, matchStatus: "matched" },
+      { kind: "series", upstreamId: "201", name: "|FR| Vincenzo (VOST)", cat: "30", tmdbId: 1396, matchStatus: "matched" },
     ]);
     await seedTmdb("movie", 557, {
       title: "Spider-Man",
@@ -132,7 +132,7 @@ describe("runGrouping", () => {
     expect(sm.cast).toEqual([{ id: 2, name: "Tobey Maguire", role: "Peter Parker", profile: "/tobey.jpg" }]);
     expect(sm.director).toBe("Sam Raimi");
     expect(sm.trailerKey).toBe("abc");
-    expect(sm.variantCount).toBe(4);
+    expect(sm.sourceCount).toBe(4);
     expect(sm.visible).toBe(true);
     expect(sm.maxQualityRank).toBe(4);
     expect(sm.dynamicRange).toBe("DV");
@@ -140,7 +140,7 @@ describe("runGrouping", () => {
     expect(sm.addedAt.toISOString()).toBe("2026-09-20T04:10:00.000Z");
 
     const v = await variants(sm.id);
-    expect(v.map((x) => [x.xtreamId, x.lang, x.quality, x.dynamicRange])).toEqual([
+    expect(v.map((x) => [x.upstreamId, x.lang, x.quality, x.dynamicRange])).toEqual([
       ["1", "VF", "4K", "DV"], // category "FILMS 4K DV" gives DV to the plain 4K entry
       ["2", "VF", "4K", "DV"], // the (DV) entry: quality from the category
       ["3", "VOSTFR", null, null],
@@ -163,7 +163,7 @@ describe("runGrouping", () => {
   it("keeps unmatched variants in a fallback content, invisible when its variants are hidden", async () => {
     const fb = await content("fallback:movie:spider-man:2002");
     expect(fb).toBeDefined();
-    expect(fb.variantCount).toBe(1);
+    expect(fb.sourceCount).toBe(1);
     expect(fb.year).toBe(2002);
     expect(fb.tmdbId).toBeNull();
     expect(fb.visible).toBe(true);
@@ -175,18 +175,18 @@ describe("runGrouping", () => {
 
   it("groups channels by market and name, keeping the best variant's logo and number", async () => {
     const fr = await content("live:fr-tf1");
-    expect(fr.variantCount).toBe(2);
+    expect(fr.sourceCount).toBe(2);
     expect(fr.maxQualityRank).toBe(3);
     expect(fr.logoUrl).toBe("http://x/tf1-fhd.png");
     expect(fr.channelNumber).toBe(2);
     expect(fr.epgChannelId).toBe("TF1.fr");
     expect(fr.title).toBe("TF1");
-    expect((await content("live:be-tf1")).variantCount).toBe(1);
+    expect((await content("live:be-tf1")).sourceCount).toBe(1);
   });
 
   it("merges series entries split per season upstream", async () => {
     const s = await content("tmdb:tv:1396");
-    expect(s.variantCount).toBe(2);
+    expect(s.sourceCount).toBe(2);
     expect(s.endYear).toBe(2021);
     expect(s.runtime).toBe(80);
     expect(s.director).toBe("Park Jae-bum");
@@ -270,7 +270,7 @@ describe("runGrouping", () => {
   });
 
   it("keeps its channel's adult flag and theme when the names are parsed again", async () => {
-    const tf1 = eq(vr.xtreamId, "100");
+    const tf1 = eq(vr.upstreamId, "100");
     const [{ channelId }] = await db.select().from(vr).where(tf1);
     const channel = eq(schema.catalogChannels.id, channelId!);
     const [was] = await db.select().from(schema.catalogChannels).where(channel);
@@ -290,36 +290,36 @@ describe("runGrouping", () => {
     const vod = async () => (await groupingCounts()).find((r) => r.kind === "vod")!;
     const before = await vod();
     const rest = ofStreams(inArray(schema.xtreamStreams.upstreamId, ["2", "3", "4"]));
-    await db.update(schema.catalogVariants).set({ hiddenManual: true }).where(rest);
+    await db.update(schema.catalogStreams).set({ hidden: true }).where(rest);
     // Spider-Man keeps one visible variant: still a content, no longer « several variants ».
     expect(await vod()).toMatchObject({ visible: before.visible, multi: before.multi - 1 });
-    await db.update(schema.catalogVariants).set({ hiddenManual: false }).where(rest);
+    await db.update(schema.catalogStreams).set({ hidden: false }).where(rest);
     expect(await vod()).toEqual(before);
   });
 
   it("moves a variant to its TMDB title when attached by hand, and drops the emptied title without a card", async () => {
-    const [it] = await db.select().from(vr).where(eq(vr.xtreamId, "5"));
+    const [it] = await db.select().from(vr).where(eq(vr.upstreamId, "5"));
     await mergeVariantInto(it, "tmdb:movie:557");
     expect((await db.select().from(vr).where(eq(vr.id, it.id)))[0]).toMatchObject({ manual: true, matchStatus: "manual", tmdbId: 557 });
     expect(await content("fallback:movie:spider-man:2002")).toBeUndefined();
     const sm = await content("tmdb:movie:557");
-    expect(sm.variantCount).toBe(5);
-    expect((await variants(sm.id)).map((x) => x.xtreamId)).toContain("5");
+    expect(sm.sourceCount).toBe(5);
+    expect((await variants(sm.id)).map((x) => x.upstreamId)).toContain("5");
   });
 
   it("gives a variant split out by hand a title of its own", async () => {
-    const [it] = await db.select().from(vr).where(eq(vr.xtreamId, "4"));
+    const [it] = await db.select().from(vr).where(eq(vr.upstreamId, "4"));
     await splitVariant(it);
-    expect((await content("tmdb:movie:557")).variantCount).toBe(4);
+    expect((await content("tmdb:movie:557")).sourceCount).toBe(4);
     const split = await content(`manual:${it.id}`);
-    expect(split.variantCount).toBe(1);
+    expect(split.sourceCount).toBe(1);
     expect(split.title).toBe("Spider-Man");
   });
 
   it("follows the admin visibility switches", async () => {
     await db
-      .update(schema.catalogVariants)
-      .set({ hiddenManual: false })
+      .update(schema.catalogStreams)
+      .set({ hidden: false })
       .where(ofStreams(eq(schema.xtreamStreams.upstreamId, "7")));
     await refreshVisibility();
     expect((await content("fallback:movie:dune:-")).visible).toBe(true);
@@ -338,11 +338,11 @@ describe("rules on versions", () => {
   beforeAll(async () => {
     await resetDb();
     await seedItems([
-      { kind: "vod", xtreamId: "1", name: "|FR| Dune", tmdbId: 438631, matchStatus: "matched" },
-      { kind: "vod", xtreamId: "2", name: "|IT| Dune", tmdbId: 438631, matchStatus: "matched" },
-      { kind: "vod", xtreamId: "3", name: "|IT| Mio figlio", tmdbId: 1001, matchStatus: "matched" },
-      { kind: "vod", xtreamId: "4", name: "|FR| Sisyphus (VOST)", tmdbId: 1002, matchStatus: "matched" },
-      { kind: "live", xtreamId: "5", name: "|IT| RAI 1" },
+      { kind: "vod", upstreamId: "1", name: "|FR| Dune", tmdbId: 438631, matchStatus: "matched" },
+      { kind: "vod", upstreamId: "2", name: "|IT| Dune", tmdbId: 438631, matchStatus: "matched" },
+      { kind: "vod", upstreamId: "3", name: "|IT| Mio figlio", tmdbId: 1001, matchStatus: "matched" },
+      { kind: "vod", upstreamId: "4", name: "|FR| Sisyphus (VOST)", tmdbId: 1002, matchStatus: "matched" },
+      { kind: "live", upstreamId: "5", name: "|IT| RAI 1" },
     ]);
     await seedTmdb("movie", 438631, { title: "Dune", release_date: "2021-09-15" });
     await seedTmdb("movie", 1001, { title: "Mio figlio", release_date: "2017-01-01" });
@@ -350,7 +350,7 @@ describe("rules on versions", () => {
     await runNaming();
   });
 
-  const hiddenVersions = async () => (await db.select().from(vr).where(eq(vr.hiddenByRule, true))).map((v) => v.xtreamId).sort();
+  const hiddenVersions = async () => (await db.select().from(vr).where(eq(vr.filtered, true))).map((v) => v.upstreamId).sort();
   const languages = (query: string) =>
     db
       .insert(schema.appProfileFilters)
@@ -369,7 +369,7 @@ describe("rules on versions", () => {
     expect(await hiddenVersions()).toEqual(["2", "3", "4"]);
     expect(stats.variants_hidden).toBe(3);
     const dune = await content("tmdb:movie:438631");
-    expect(dune).toMatchObject({ visible: true, variantCount: 1, languages: ["VF"] });
+    expect(dune).toMatchObject({ visible: true, sourceCount: 1, languages: ["VF"] });
     expect((await content("tmdb:movie:1001")).visible).toBe(false); // Italian only
     expect((await content("tmdb:movie:1002")).visible).toBe(false); // VOSTFR only
     const [rai] = await db.select().from(schema.catalogChannels);
@@ -380,6 +380,6 @@ describe("rules on versions", () => {
     await languages('variant.langue:"vf","vo","ar","it"');
     await groupAndFilter();
     expect(await hiddenVersions()).toEqual(["4"]);
-    expect((await content("tmdb:movie:438631")).variantCount).toBe(2);
+    expect((await content("tmdb:movie:438631")).sourceCount).toBe(2);
   });
 });

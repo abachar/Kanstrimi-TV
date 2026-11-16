@@ -39,7 +39,7 @@ const importAll = async (opts: { acceptShrink?: boolean } = {}) => {
 };
 const variants = async (kind: "live" | "vod" | "series") => {
   const rows = await db.select().from(vr).where(eq(vr.kind, kind));
-  return new Map(rows.map((r) => [r.xtreamId, r]));
+  return new Map(rows.map((r) => [r.upstreamId, r]));
 };
 /** A title as a past identification left it, and a stream hung on it. */
 const title = async (key: string, tmdbId: number | null) =>
@@ -58,7 +58,7 @@ const title = async (key: string, tmdbId: number | null) =>
       .returning({ id: schema.catalogTitles.id })
   )[0].id;
 const attach = (id: number, titleId: number, how: string, manual = false) =>
-  db.update(schema.catalogVariants).set({ titleId, how, manual }).where(eq(schema.catalogVariants.id, id));
+  db.update(schema.catalogStreams).set({ titleId, how, manual }).where(eq(schema.catalogStreams.xtreamId, id));
 const films = (n: number, name = (i: number) => `Film ${i}`) =>
   Array.from({ length: n }, (_, i) => ({ stream_id: i + 1, name: name(i + 1), category_id: "20", added: "1720000000" }));
 
@@ -85,7 +85,7 @@ describe("source → merge", () => {
     const cats = await db.select({ id: schema.xtreamCategories.xtreamId }).from(schema.xtreamCategories);
     expect(cats.map((c) => c.id).sort()).toEqual(["10", "20", "30", RADIO_CATEGORY_ID]);
     expect((await variants("series")).get("1")?.addedAt).toEqual(new Date(1720000000 * 1000));
-    expect((await variants("vod")).get("1")?.cleanTitle).toBe("Film 1"); // named in the same step
+    expect((await variants("vod")).get("1")?.title).toBe("Film 1"); // named in the same step
   });
 
   it("writes nothing when nothing changed", async () => {
@@ -137,13 +137,13 @@ describe("source → merge", () => {
     await attach(id, await title("fallback:movie:stfr:-", null), "none");
     await db.update(schema.xtreamStreams).set({ title: "STFR" }).where(eq(schema.xtreamStreams.id, id));
     expect(await runNaming()).toEqual({ items_named: 1 });
-    expect((await variants("vod")).get("3")).toMatchObject({ matchStatus: "pending", titleId: null, cleanTitle: "Film 3" });
+    expect((await variants("vod")).get("3")).toMatchObject({ matchStatus: "pending", titleId: null, title: "Film 3" });
     // The same on a title TMDB knows: the reading follows the grammar, the stream stays where it is.
     const known = await title("tmdb:movie:3", 3);
     await attach(id, known, "search");
     await db.update(schema.xtreamStreams).set({ title: "STFR" }).where(eq(schema.xtreamStreams.id, id));
     expect(await runNaming()).toEqual({ items_named: 1 });
-    expect((await variants("vod")).get("3")).toMatchObject({ matchStatus: "matched", titleId: known, cleanTitle: "Film 3" });
+    expect((await variants("vod")).get("3")).toMatchObject({ matchStatus: "matched", titleId: known, title: "Film 3" });
     expect(await runNaming()).toEqual({ items_named: 0 });
     // Renamed by the provider: it leaves even that title, to be identified under its new name.
     vod = films(59, (i) => (i <= 2 ? `Film ${i} (2020)` : i === 3 ? "Film 3 (2021)" : `Film ${i}`));

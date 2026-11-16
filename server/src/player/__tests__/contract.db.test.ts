@@ -121,14 +121,14 @@ beforeAll(async () => {
     { kind: "live", xtreamId: "21", name: "SPORTS HD | TV" },
   ]);
   await seedItems([
-    { kind: "vod", xtreamId: "1", name: "|FR| Matrix (4K)", cat: "10", tmdbId: 603, matchStatus: "matched", addedAt: daysAgo(9) },
-    { kind: "vod", xtreamId: "2", name: "|FR| Matrix (VOST)", cat: "11", tmdbId: 603, matchStatus: "matched", addedAt: daysAgo(28) },
-    { kind: "vod", xtreamId: "3", name: "|FR| Matrix Reloaded", cat: "10", tmdbId: 604, matchStatus: "matched", addedAt: daysAgo(3) },
-    { kind: "vod", xtreamId: "4", name: "|FR| Heat (VOST)", cat: "11", tmdbId: 949, matchStatus: "matched", addedAt: daysAgo(19) },
-    { kind: "vod", xtreamId: "5", name: "|FR| Silver Book of Dreams 2026", cat: "11", matchStatus: "unmatched", addedAt: daysAgo(14) },
+    { kind: "vod", upstreamId: "1", name: "|FR| Matrix (4K)", cat: "10", tmdbId: 603, matchStatus: "matched", addedAt: daysAgo(9) },
+    { kind: "vod", upstreamId: "2", name: "|FR| Matrix (VOST)", cat: "11", tmdbId: 603, matchStatus: "matched", addedAt: daysAgo(28) },
+    { kind: "vod", upstreamId: "3", name: "|FR| Matrix Reloaded", cat: "10", tmdbId: 604, matchStatus: "matched", addedAt: daysAgo(3) },
+    { kind: "vod", upstreamId: "4", name: "|FR| Heat (VOST)", cat: "11", tmdbId: 949, matchStatus: "matched", addedAt: daysAgo(19) },
+    { kind: "vod", upstreamId: "5", name: "|FR| Silver Book of Dreams 2026", cat: "11", matchStatus: "unmatched", addedAt: daysAgo(14) },
     {
       kind: "series",
-      xtreamId: "200",
+      upstreamId: "200",
       name: "|FR| Vincenzo (MULTI)",
       cat: "30",
       tmdbId: 1396,
@@ -137,7 +137,7 @@ beforeAll(async () => {
     },
     {
       kind: "live",
-      xtreamId: "100",
+      upstreamId: "100",
       name: "|FR| TF1 HD",
       cat: "20",
       section: "|FR| FRANCE FHD |FR|",
@@ -145,13 +145,13 @@ beforeAll(async () => {
     },
     {
       kind: "live",
-      xtreamId: "101",
+      upstreamId: "101",
       name: "|FR| TF1 FHD",
       cat: "20",
       section: "|FR| FRANCE FHD |FR|",
       raw: { num: 2, stream_icon: "http://x/tf1-fhd.png", epg_channel_id: "TF1.fr" },
     },
-    { kind: "live", xtreamId: "102", name: "|FR| BEIN SPORTS 1 HD", cat: "21", section: "|FR| SPORTS |FR|", raw: { num: 30 } },
+    { kind: "live", upstreamId: "102", name: "|FR| BEIN SPORTS 1 HD", cat: "21", section: "|FR| SPORTS |FR|", raw: { num: 30 } },
   ]);
   await db.insert(schema.cacheEpgProgrammes).values(
     [

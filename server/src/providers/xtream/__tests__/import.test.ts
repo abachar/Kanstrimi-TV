@@ -16,14 +16,14 @@ const streams: XStream[] = [
 describe("prepareStreams", () => {
   it("keeps opaque ids, drops entries without one, keeps the first occurrence of each id", () => {
     const out = prepareStreams("live", streams);
-    expect(out.map((s) => s.xtreamId)).toEqual(["900", "1", "2", "ab-12"]);
+    expect(out.map((s) => s.upstreamId)).toEqual(["900", "1", "2", "ab-12"]);
     expect(out[1].raw.name).toBe("A"); // first occurrence wins
     // Separator lines are kept as the provider sent them: the catalogue reads them (`merge`).
     expect(out[0].raw.name).toContain("FRANCE FHD");
   });
 
   it("reads series by series_id", () => {
-    expect(prepareStreams("series", [{ name: "S", series_id: 7 }]).map((s) => s.xtreamId)).toEqual(["7"]);
+    expect(prepareStreams("series", [{ name: "S", series_id: 7 }]).map((s) => s.upstreamId)).toEqual(["7"]);
   });
 });
 
@@ -55,7 +55,7 @@ describe("checkShrink", () => {
 });
 
 const e = (id: number, name: string, category: string | null, more: Partial<XStream> = {}) => ({
-  xtreamId: String(id),
+  upstreamId: String(id),
   raw: { stream_id: id, name, category_id: category as string, ...more } as XStream,
 });
 

@@ -27,9 +27,9 @@ beforeAll(async () => {
   await seedTmdb("movie", 603, { title: "Matrix", release_date: "1999-03-31" });
   await seedTmdb("movie", 1100, { title: "Dune : Troisième partie", release_date: "2026-12-16" });
   const items = await seedItems([
-    { kind: "vod", xtreamId: "1", name: "|FR| Matrix", cat: "10", tmdbId: 603, matchStatus: "matched" },
+    { kind: "vod", upstreamId: "1", name: "|FR| Matrix", cat: "10", tmdbId: 603, matchStatus: "matched" },
     // Listed by the provider but hidden: not available yet.
-    { kind: "vod", xtreamId: "2", name: "|FR| Dune Troisieme Partie", cat: "10", tmdbId: 1100, matchStatus: "matched", hiddenManual: true },
+    { kind: "vod", upstreamId: "2", name: "|FR| Dune Troisieme Partie", cat: "10", tmdbId: 1100, matchStatus: "matched", hidden: true },
   ]);
   duneId = items[1].id;
   await runNaming();

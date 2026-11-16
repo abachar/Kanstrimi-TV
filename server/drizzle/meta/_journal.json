@@ -435,6 +435,13 @@
       "when": 1794817313798,
       "tag": "0061_channels-identified",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794818642162,
+      "tag": "0062_catalog-streams",
+      "breakpoints": true
     }
   ]
 }

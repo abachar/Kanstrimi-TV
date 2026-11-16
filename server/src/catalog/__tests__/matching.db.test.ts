@@ -93,7 +93,7 @@ const byName = async (name: string) => (await db.select().from(vr).where(eq(vr.n
 
 describe("identification", () => {
   it("attachTitles gives each stream the title explainMatch finds, for every path of the matching", async () => {
-    await seedItems(CASES.map((c, i) => ({ kind: "vod" as const, xtreamId: String(i), name: c.name, raw: c.raw })));
+    await seedItems(CASES.map((c, i) => ({ kind: "vod" as const, upstreamId: String(i), name: c.name, raw: c.raw })));
     await named();
     vi.stubGlobal("fetch", fakeTmdb);
     const client = new TmdbClient("k", "fr-FR");
@@ -129,9 +129,9 @@ describe("identification", () => {
 
   it("attaches a new stream of a title the catalogue has without asking TMDB: its id, or the same title and year", async () => {
     await seedItems([
-      { kind: "vod", xtreamId: "10", name: "|FR| Dune (2021) (4K)" },
-      { kind: "vod", xtreamId: "11", name: "|FR| Matrix (1999) (VOSTFR)", raw: { tmdb: "603" } },
-      { kind: "vod", xtreamId: "12", name: "|FR| Zzz Introuvable (HD)" },
+      { kind: "vod", upstreamId: "10", name: "|FR| Dune (2021) (4K)" },
+      { kind: "vod", upstreamId: "11", name: "|FR| Matrix (1999) (VOSTFR)", raw: { tmdb: "603" } },
+      { kind: "vod", upstreamId: "12", name: "|FR| Zzz Introuvable (HD)" },
     ]);
     await named();
     const fetch = outage();
@@ -144,7 +144,7 @@ describe("identification", () => {
   });
 
   it("leaves a stream without a title while TMDB cannot be reached, and stops asking after a streak of outages", async () => {
-    await seedItems(Array.from({ length: 60 }, (_, i) => ({ kind: "vod" as const, xtreamId: `n${i}`, name: `|FR| Nouveau ${i}` })));
+    await seedItems(Array.from({ length: 60 }, (_, i) => ({ kind: "vod" as const, upstreamId: `n${i}`, name: `|FR| Nouveau ${i}` })));
     await named();
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const fetch = outage();
@@ -166,13 +166,13 @@ describe("identification", () => {
   });
 
   it("gives its title without a card at once to a stream TMDB rejects the search of, and to every stream without a TMDB key", async () => {
-    await seedItems([{ kind: "vod", xtreamId: "r1", name: "|FR| Requête Refusée" }]);
+    await seedItems([{ kind: "vod", upstreamId: "r1", name: "|FR| Requête Refusée" }]);
     await named();
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", async () => new Response("{}", { status: 400 })); // TMDB rejects the query itself
     expect(await attachTitles()).toMatchObject({ to_attach: 1, without_card: 1, errors: 1, waiting: 0 });
     logged.mockRestore();
-    await seedItems([{ kind: "vod", xtreamId: "r2", name: "|FR| Sans Clé" }]);
+    await seedItems([{ kind: "vod", upstreamId: "r2", name: "|FR| Sans Clé" }]);
     await named();
     setSecretsForTests({ tmdb_api_key: "" });
     const fetch = outage();
@@ -192,7 +192,7 @@ describe("identification", () => {
       id: 0,
       kind: "vod",
       name,
-      cleanTitle: name.replace(/^\|AR\| /, ""),
+      title: name.replace(/^\|AR\| /, ""),
       year,
       raw: {},
       aiKind: "movie",

@@ -69,13 +69,13 @@ const REFRESH_PER_RUN = 500;
  */
 const BACKFILL_PER_RUN = 5000;
 
-export type PendingItem = Pick<Variant, "id" | "kind" | "name" | "cleanTitle" | "year" | "raw"> &
+export type PendingItem = Pick<Variant, "id" | "kind" | "name" | "title" | "year" | "raw"> &
   Partial<Pick<Variant, "aiKind" | "aiTitle" | "aiOriginalTitle" | "aiYear">>;
 
 /** The titles Claude suggested for an entry, when it saw a movie or a series in it and they add to the cleaned title. */
 export function suggestedTitles(it: PendingItem): string[] {
   if (it.aiKind !== "movie" && it.aiKind !== "series") return [];
-  const own = (it.cleanTitle || it.name).toLowerCase();
+  const own = (it.title || it.name).toLowerCase();
   return [...new Set([it.aiTitle, it.aiOriginalTitle].filter((t): t is string => Boolean(t) && t!.toLowerCase() !== own))];
 }
 
@@ -125,7 +125,7 @@ export async function explainMatch(
   known?: { provided: TmdbDetails | null },
 ): Promise<MatchExplanation> {
   const mediaType = tmdbMediaType(it.kind);
-  const ct = { title: it.cleanTitle || it.name, year: it.year ?? undefined };
+  const ct = { title: it.title || it.name, year: it.year ?? undefined };
   const out: MatchExplanation = {
     cleaned: ct,
     threshold: MATCH_THRESHOLD,
@@ -213,7 +213,7 @@ export async function explainMatch(
 
 type TitleKind = "vod" | "series";
 /** What a title is asked for: the stream that brings it, read. */
-type Reading = Pick<Variant, "kind" | "name" | "cleanTitle" | "year">;
+type Reading = Pick<Variant, "kind" | "name" | "title" | "year">;
 
 /**
  * The title of a TMDB id (`tmdb:movie:603`), or the one without a card a reading gives
@@ -221,7 +221,7 @@ type Reading = Pick<Variant, "kind" | "name" | "cleanTitle" | "year">;
  */
 async function titleFor(it: Reading, tmdbId: number | null, more: { score?: number | null; asked?: boolean; manual?: boolean } = {}) {
   const t = schema.catalogTitles;
-  const title = it.cleanTitle || it.name;
+  const title = it.title || it.name;
   const key = contentKey({ kind: it.kind, title, year: it.year, tmdbId, matchStatus: tmdbId ? "matched" : "unmatched" });
   const [made] = await db
     .insert(t)
@@ -250,7 +250,7 @@ async function titleFor(it: Reading, tmdbId: number | null, more: { score?: numb
 /** A title made for one stream alone, under a key of its own (`manual:<id>`): split out by hand. */
 export async function titleApart(it: Reading & { id: number }): Promise<number> {
   const t = schema.catalogTitles;
-  const title = it.cleanTitle || it.name;
+  const title = it.title || it.name;
   const values = {
     key: `manual:${it.id}`,
     kind: it.kind,
@@ -270,7 +270,7 @@ export async function titleApart(it: Reading & { id: number }): Promise<number> 
 
 /** Hangs streams on a title; `manual`: the identification leaves them there. */
 export async function attachTo(ids: number[], titleId: number, how: string, manual = false) {
-  if (ids.length) await db.update(schema.catalogVariants).set({ titleId, how, manual }).where(inArray(schema.catalogVariants.id, ids));
+  if (ids.length) await db.update(schema.catalogStreams).set({ titleId, how, manual }).where(inArray(schema.catalogStreams.xtreamId, ids));
 }
 
 export type AttachStats = {
@@ -308,7 +308,7 @@ export async function attachTitles(onlyIds?: number[]): Promise<AttachStats> {
       id: variants.id,
       kind: variants.kind,
       name: variants.name,
-      cleanTitle: variants.cleanTitle,
+      title: variants.title,
       year: variants.year,
       raw: variants.raw,
     })
@@ -388,14 +388,14 @@ export async function attachTitles(onlyIds?: number[]): Promise<AttachStats> {
     checkCancelled();
     // 2. The same reading as a stream that has its title: that title, most of them agreeing.
     for (let i = 0; i < pending.length; i += 5000) {
-      const part = pending.slice(i, i + 5000).filter((it) => it.cleanTitle);
+      const part = pending.slice(i, i + 5000).filter((it) => it.title);
       if (!part.length) continue;
       const known = await pg<{ id: number; title_id: number }[]>`
         select p.id, k.title_id
-        from unnest(${part.map((it) => it.id)}::int[], ${part.map((it) => it.kind)}::text[], ${part.map((it) => it.cleanTitle)}::text[],
+        from unnest(${part.map((it) => it.id)}::int[], ${part.map((it) => it.kind)}::text[], ${part.map((it) => it.title)}::text[],
                     ${part.map((it) => it.year)}::int[]) as p(id, kind, title, year)
         cross join lateral (
-          select v.title_id from xtream_streams s join catalog_variants v on v.id = s.id
+          select v.title_id from xtream_streams s join catalog_streams v on v.xtream_id = s.id
           where s.kind = p.kind::content_kind and s.title = p.title and s.year is not distinct from p.year
             and v.title_id is not null and not v.manual
           group by v.title_id order by count(*) desc, v.title_id limit 1
@@ -412,7 +412,7 @@ export async function attachTitles(onlyIds?: number[]): Promise<AttachStats> {
     // 3. and 4. One search per reading; what TMDB does not know gets a title without a card.
     const byReading = new Map<string, PendingStream[]>();
     for (const it of pending) {
-      const k = `${it.kind}|${it.cleanTitle || it.name}|${it.year ?? ""}`;
+      const k = `${it.kind}|${it.title || it.name}|${it.year ?? ""}`;
       byReading.set(k, [...(byReading.get(k) ?? []), it]);
     }
     await Promise.all(
@@ -458,7 +458,7 @@ export async function attachTitles(onlyIds?: number[]): Promise<AttachStats> {
 /** How many streams of movies and series wait for their title (TMDB did not answer): the catalogue does not serve them. */
 export async function waitingStreams(): Promise<number> {
   const [r] = await db.execute<{ n: number }>(sql`
-    select count(*)::int as n from catalog_variants v join xtream_streams s on s.id = v.id
+    select count(*)::int as n from catalog_streams v join xtream_streams s on s.id = v.xtream_id
     where v.title_id is null and s.kind <> 'live'`);
   return r.n;
 }
@@ -476,7 +476,7 @@ async function adopt(title: CardlessTitle, tmdbId: number, score: number) {
   const key = contentKey({ kind: title.kind, title: "", tmdbId, matchStatus: "matched" });
   const [there] = await db.select({ id: t.id }).from(t).where(eq(t.key, key));
   if (there) {
-    await db.update(schema.catalogVariants).set({ titleId: there.id }).where(eq(schema.catalogVariants.titleId, title.id));
+    await db.update(schema.catalogStreams).set({ titleId: there.id }).where(eq(schema.catalogStreams.titleId, title.id));
     await db.delete(t).where(eq(t.id, title.id));
     return;
   }
@@ -516,7 +516,7 @@ export async function runEnrich(opts: { limit?: number } = {}) {
       kind: sql<TitleKind>`${t.kind}`,
       key: t.key,
       name: variants.name,
-      cleanTitle: t.searchTitle,
+      title: t.searchTitle,
       year: t.searchYear,
       raw: variants.raw,
       aiKind: t.aiKind,
@@ -573,7 +573,7 @@ export async function runEnrich(opts: { limit?: number } = {}) {
             stats.processed++;
           } catch (e) {
             stats.errors++;
-            console.error(`[enrich] ${title.kind} titre ${title.id} « ${title.cleanTitle ?? title.name} » : ${describeError(e)}`);
+            console.error(`[enrich] ${title.kind} titre ${title.id} « ${title.title ?? title.name} » : ${describeError(e)}`);
             if (isUnreachable(e)) {
               if (++unreachable >= MAX_UNREACHABLE && !halted) {
                 halted = describeError(e);
@@ -764,14 +764,14 @@ export async function retryUnmatched(): Promise<number> {
  */
 export async function resetMatches(kind?: TitleKind, clearOverrides = false) {
   const kinds: Kind[] = kind ? [kind] : ["vod", "series"];
-  const v = schema.catalogVariants;
+  const v = schema.catalogStreams;
   await db
     .update(v)
     .set({ titleId: null, how: null, manual: false })
     .where(
       and(
         inArray(
-          v.id,
+          v.xtreamId,
           db.select({ id: schema.xtreamStreams.id }).from(schema.xtreamStreams).where(inArray(schema.xtreamStreams.kind, kinds)),
         ),
         clearOverrides ? undefined : eq(v.manual, false),

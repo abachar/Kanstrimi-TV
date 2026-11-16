@@ -49,9 +49,9 @@ function serve() {
   );
 }
 
-const variants = async () => db.select().from(vr).orderBy(vr.xtreamId);
-const by = async (xtreamId: string) => (await variants()).find((v) => v.xtreamId === xtreamId)!;
-const keysOf = async (xtreamIds: string[]) => (await variants()).filter((v) => xtreamIds.includes(v.xtreamId)).map((v) => v.contentKey);
+const variants = async () => db.select().from(vr).orderBy(vr.upstreamId);
+const by = async (xtreamId: string) => (await variants()).find((v) => v.upstreamId === xtreamId)!;
+const keysOf = async (xtreamIds: string[]) => (await variants()).filter((v) => xtreamIds.includes(v.upstreamId)).map((v) => v.contentKey);
 
 beforeAll(async () => {
   await resetDb();
@@ -66,19 +66,19 @@ beforeAll(async () => {
   ]);
   await seedItems([
     // One channel, four spellings of two providers, in two markets.
-    { kind: "live", xtreamId: "1", name: "AR - BEIN SPORTS 1 HD", cat: "30" },
-    { kind: "live", xtreamId: "2", name: "AR - BEIN SPORTS 1 LQ", cat: "30" },
-    { kind: "live", xtreamId: "3", name: "BEIN SPORTS 1 Gᵁᴴᴰ", cat: "30" },
-    { kind: "live", xtreamId: "4", name: "FR - BEIN SPORTS 1 FHD+", cat: "35" },
+    { kind: "live", upstreamId: "1", name: "AR - BEIN SPORTS 1 HD", cat: "30" },
+    { kind: "live", upstreamId: "2", name: "AR - BEIN SPORTS 1 LQ", cat: "30" },
+    { kind: "live", upstreamId: "3", name: "BEIN SPORTS 1 Gᵁᴴᴰ", cat: "30" },
+    { kind: "live", upstreamId: "4", name: "FR - BEIN SPORTS 1 FHD+", cat: "35" },
     // Morocco, as three providers write it.
-    { kind: "live", xtreamId: "5", name: "|MA| 2M MAROC FHD", cat: "33" },
-    { kind: "live", xtreamId: "6", name: "MA - TAMAZIGHT HD", cat: "31" },
-    { kind: "live", xtreamId: "7", name: "MA - TNT AL OULA FHD", cat: "31" },
+    { kind: "live", upstreamId: "5", name: "|MA| 2M MAROC FHD", cat: "33" },
+    { kind: "live", upstreamId: "6", name: "MA - TAMAZIGHT HD", cat: "31" },
+    { kind: "live", upstreamId: "7", name: "MA - TNT AL OULA FHD", cat: "31" },
     // A sub-prefix that is no country, a radio named like a channel, an event feed, a channel iptv-org spells otherwise.
-    { kind: "live", xtreamId: "8", name: "CH - CHEF OMAR 1", cat: "32" },
-    { kind: "live", xtreamId: "9", name: "|MA| 2M MAROC", cat: "34" },
-    { kind: "live", xtreamId: "10", name: "FR - CANAL+ LIVE 3", cat: "35" },
-    { kind: "live", xtreamId: "11", name: "FR - AUTOMOTO FHD", cat: "35" },
+    { kind: "live", upstreamId: "8", name: "CH - CHEF OMAR 1", cat: "32" },
+    { kind: "live", upstreamId: "9", name: "|MA| 2M MAROC", cat: "34" },
+    { kind: "live", upstreamId: "10", name: "FR - CANAL+ LIVE 3", cat: "35" },
+    { kind: "live", upstreamId: "11", name: "FR - AUTOMOTO FHD", cat: "35" },
   ]);
   await runNaming();
   serve();
@@ -107,7 +107,7 @@ describe("the reference gives a channel its identity", () => {
     expect(await keysOf(["1", "2"])).toEqual(["live:ar-bein-sports-1", "live:ar-bein-sports-1"]);
     expect(await keysOf(["4"])).toEqual(["live:fr-bein-sports-1"]); // the same channel, as France lists it
     const ar = await contentOfKey("live:ar-bein-sports-1");
-    expect(ar).toMatchObject({ title: "beIN Sports 1", variantCount: 2, themes: ["Sport"], country: null }); // filed under a theme: pan-Arab
+    expect(ar).toMatchObject({ title: "beIN Sports 1", sourceCount: 2, themes: ["Sport"], country: null }); // filed under a theme: pan-Arab
   });
 
   it("leaves what it does not know to itself: an event feed, a radio, a name of the provider's own", async () => {
@@ -196,7 +196,7 @@ describe("names left to attach", () => {
       country: null,
       theme: null,
     });
-    expect((await variants()).filter((v) => v.channelId === ours.id).map((v) => v.xtreamId)).toEqual(["1", "2", "3"]);
+    expect((await variants()).filter((v) => v.channelId === ours.id).map((v) => v.upstreamId)).toEqual(["1", "2", "3"]);
     expect((await db.select().from(schema.appFavorites)).map((f) => f.contentKey)).toEqual(["live:ar-bein-sports-1"]);
     // The next run keeps it, and nothing of the market is left to attach.
     serve();
@@ -283,7 +283,7 @@ describe("a channel of ours is a channel", () => {
     const bein = (await ourChannels()).find((c) => c.market === "ar")!;
     const before = await contentOfKey("live:ar-bein-sports-1");
     await updateChannel(bein.id, { ...bein, name: "beIN Sports One" });
-    expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: before.id, title: "beIN Sports One", variantCount: 3 });
+    expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: before.id, title: "beIN Sports One", sourceCount: 3 });
     expect(await contentOfKey("live:ar-bein-sports-1")).toBeUndefined();
     expect((await db.select().from(schema.appFavorites)).map((f) => f.contentKey)).toEqual(["live:ar-bein-sports-one"]);
   });
@@ -295,16 +295,16 @@ describe("a channel of ours is a channel", () => {
     expect(await contentOfKey(radio)).toBeDefined();
     await db.delete(schema.xtreamStreams).where(inArray(schema.xtreamStreams.upstreamId, ["1", "2", "3", "8", "9"]));
     await groupAndFilter();
-    expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: bein.id, variantCount: 0, visible: false });
+    expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: bein.id, sourceCount: 0, visible: false });
     expect((await ourChannels()).find((c) => c.id === bein.id)?.aliases).toEqual(["BEIN SPORTS 1 G"]);
     expect(await contentOfKey(radio)).toBeUndefined();
-    expect(await contentOfKey(chef)).toMatchObject({ variantCount: 0, visible: false }); // kept: its name is not asked again
+    expect(await contentOfKey(chef)).toMatchObject({ sourceCount: 0, visible: false }); // kept: its name is not asked again
     // Its streams back: the same channel plays again.
-    await seedItems([{ kind: "live", xtreamId: "3", name: "BEIN SPORTS 1 Gᵁᴴᴰ", cat: "30" }]);
+    await seedItems([{ kind: "live", upstreamId: "3", name: "BEIN SPORTS 1 Gᵁᴴᴰ", cat: "30" }]);
     await runNaming();
     serve();
     await runChannels();
     await groupAndFilter();
-    expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: bein.id, variantCount: 1, visible: true });
+    expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: bein.id, sourceCount: 1, visible: true });
   });
 });

@@ -26,11 +26,11 @@ beforeAll(async () => {
     { kind: "live", xtreamId: "20", name: "ITALY | TV" },
   ]);
   await seedItems([
-    { kind: "vod", xtreamId: "1", name: "|FR| Matrix", cat: "10" },
-    { kind: "vod", xtreamId: "2", name: "|IT| Heat", cat: "10" },
-    { kind: "vod", xtreamId: "3", name: "|FR| Clan of Violence", cat: "13" },
-    { kind: "live", xtreamId: "100", name: "|IT| RAI 1", cat: "20" },
-    { kind: "live", xtreamId: "101", name: "|FR| TF1" },
+    { kind: "vod", upstreamId: "1", name: "|FR| Matrix", cat: "10" },
+    { kind: "vod", upstreamId: "2", name: "|IT| Heat", cat: "10" },
+    { kind: "vod", upstreamId: "3", name: "|FR| Clan of Violence", cat: "13" },
+    { kind: "live", upstreamId: "100", name: "|IT| RAI 1", cat: "20" },
+    { kind: "live", upstreamId: "101", name: "|FR| TF1" },
   ]);
   await runNaming();
   await knowChannels();
@@ -49,8 +49,8 @@ const visible = async (kind: Kind) =>
 /** The xtream ids of the versions of `kind` the filter leaves out. */
 const left = async (kind: Kind) =>
   (await db.select().from(vr).where(eq(vr.kind, kind)))
-    .filter((v) => v.hiddenByRule !== false)
-    .map((v) => v.xtreamId)
+    .filter((v) => v.filtered !== false)
+    .map((v) => v.upstreamId)
     .sort();
 /** Saved then applied: what a pass from « Filtres » does. */
 async function filter(kind: Kind, query: string) {
@@ -112,12 +112,12 @@ describe("filters", () => {
   });
 
   it("a version the filter has not seen is left out until it judges it", async () => {
-    await seedItems([{ kind: "vod", xtreamId: "4", name: "|FR| Heat 2" }]);
+    await seedItems([{ kind: "vod", upstreamId: "4", name: "|FR| Heat 2" }]);
     await runNaming();
     await attachTitles();
     await runGrouping();
-    const [fresh] = await db.select().from(vr).where(eq(vr.xtreamId, "4"));
-    expect(fresh.hiddenByRule).toBeNull();
+    const [fresh] = await db.select().from(vr).where(eq(vr.upstreamId, "4"));
+    expect(fresh.filtered).toBeNull();
     expect(await visible("vod")).not.toContain("Heat 2");
     await applyFilters();
     expect(await visible("vod")).toContain("Heat 2");

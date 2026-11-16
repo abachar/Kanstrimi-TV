@@ -153,14 +153,14 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
     .where(
       and(
         eq(schema.cacheXtreamInfo.kind, "series"),
-        inArray(schema.cacheXtreamInfo.xtreamId, [...new Set(variants.map((v) => v.xtreamId))]),
+        inArray(schema.cacheXtreamInfo.xtreamId, [...new Set(variants.map((v) => v.upstreamId))]),
       ),
     );
   const askedKeys = new Set(asked.map((a) => `${a.accountId}:${a.xtreamId}`));
-  const unasked = variants.some((v) => !askedKeys.has(`${v.accountId}:${v.xtreamId}`));
+  const unasked = variants.some((v) => !askedKeys.has(`${v.accountId}:${v.upstreamId}`));
   if (fresh.at && sources > 0 && !unasked && Date.now() - new Date(fresh.at).getTime() < INFO_TTL_MS) return;
 
-  type Found = { season: number; number: number; sources: { itemId: number; xtreamId: string; container: string | null }[]; meta: Meta };
+  type Found = { season: number; number: number; sources: { itemId: number; upstreamId: string; container: string | null }[]; meta: Meta };
   const found = new Map<string, Found>();
   const providerMeta = new Map<string, Meta>();
   // A provider down without a cached answer is skipped: the other providers' episodes still come.
@@ -169,7 +169,7 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
   for (const v of variants) {
     let info: UpstreamInfo;
     try {
-      info = await upstreamInfo(upstreams.get(v.accountId)!, v.accountId, v.xtreamId);
+      info = await upstreamInfo(upstreams.get(v.accountId)!, v.accountId, v.upstreamId);
     } catch (e) {
       if (!(e instanceof UpstreamUnavailable)) throw e;
       unavailable++;
@@ -193,8 +193,8 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
       for (const e of Array.isArray(list) ? list : []) {
         const season = num(e.season) ?? num(seasonKey) ?? v.seasonHint ?? 1;
         const number = num(e.episode_num);
-        const xtreamId = e.id != null ? String(e.id).trim() : "";
-        if (number === null || !xtreamId) continue;
+        const upstreamId = e.id != null ? String(e.id).trim() : "";
+        if (number === null || !upstreamId) continue;
         const k = `${season}:${number}`;
         const info = e.info ?? {};
         const meta: Meta = {
@@ -206,7 +206,7 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
         };
         const f = found.get(k) ?? { season, number, sources: [], meta };
         if (!f.sources.some((s) => s.itemId === v.id))
-          f.sources.push({ itemId: v.id, xtreamId, container: e.container_extension ? String(e.container_extension) : null });
+          f.sources.push({ itemId: v.id, upstreamId, container: e.container_extension ? String(e.container_extension) : null });
         found.set(k, f);
       }
   }
@@ -285,7 +285,7 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
       f.sources.map((s) => ({
         episodeId: ids.get(`${f.season}:${f.number}`)!,
         xtreamId: s.itemId,
-        upstreamId: s.xtreamId,
+        upstreamId: s.upstreamId,
         container: s.container,
         seenAt: now,
       })),

@@ -222,7 +222,7 @@ export function MergeForm({ itemId, results }: { itemId: number; results?: Merge
               {r.title}
               {r.year ? ` (${r.year})` : ""}{" "}
               <span class="text-muted-foreground">
-                · {r.variantCount} variante(s) · <code class="font-mono text-xs">{r.key}</code>
+                · {r.sourceCount} variante(s) · <code class="font-mono text-xs">{r.key}</code>
               </span>
             </button>
           ))}
@@ -262,7 +262,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
   const quality = [it.quality, it.dynamicRange].filter(Boolean).join(" · ");
   // What the naming read in the name and the category, and nowhere else on the row.
   const read = [
-    it.cleanTitle && it.cleanTitle !== it.name ? `« ${it.cleanTitle} »` : null,
+    it.title && it.title !== it.name ? `« ${it.title} »` : null,
     it.year,
     it.aiAskedAt
       ? it.aiKind === "other"
@@ -279,7 +279,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
     it.country ? `pays ${it.country}` : null,
     it.adult ? "adulte" : null,
     `clé ${it.contentKey ?? "en attente de TMDB"}${it.manual ? " (imposée)" : ""}`,
-    `${account} · amont ${it.xtreamId} · interne #${it.id}`,
+    `${account} · amont ${it.upstreamId} · interne #${it.id}`,
   ].filter((x) => x !== null && x !== "");
   return (
     <div class="relative" id={`variant-${it.id}`}>
@@ -328,11 +328,11 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
                   ["Note", raw.rating],
                   [
                     "Masquée",
-                    it.hiddenByRule === null
+                    it.filtered === null
                       ? "pas encore jugée par les filtres"
-                      : it.hiddenByRule
+                      : it.filtered
                         ? "écartée par les filtres"
-                        : it.hiddenManual
+                        : it.hidden
                           ? "à la main"
                           : null,
                   ],
@@ -352,7 +352,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
       </details>
       {/* Beside the summary, never inside: a click on the switch or the menu must not fold the row. */}
       <div class="absolute end-3 top-1 flex h-9 items-center gap-1">
-        <VisibilityToggle id={it.id} filtered={it.hiddenByRule} hiddenManual={it.hiddenManual} catHidden={isCategoryHidden(cat)} short />
+        <VisibilityToggle id={it.id} filtered={it.filtered} hidden={it.hidden} catHidden={isCategoryHidden(cat)} short />
         <GroupMenu v={v} alone={alone} />
       </div>
       <div id={`merge-slot-${it.id}`}></div>
@@ -372,9 +372,9 @@ function hidingReason(c: Content, variants: VariantDetail[]): string | null {
     unjudged = 0,
     manual = 0;
   for (const v of variants) {
-    if (v.item.hiddenByRule === null) unjudged++;
-    else if (v.item.hiddenByRule) filtered++;
-    else if (v.item.hiddenManual) manual++;
+    if (v.item.filtered === null) unjudged++;
+    else if (v.item.filtered) filtered++;
+    else if (v.item.hidden) manual++;
     else if (isCategoryHidden(v.category)) cats.add(v.category!.name);
   }
   const causes = [
@@ -514,8 +514,8 @@ function Hero({
           )}
         </div>
         <p class="mt-auto text-xs text-muted-foreground">
-          <code class="font-mono">{c.key}</code> · ajouté le {c.addedAt.toLocaleDateString("fr-FR")} · {fmt(c.variantCount)} variante
-          {c.variantCount > 1 ? "s" : ""} visible{c.variantCount > 1 ? "s" : ""} sur {fmt(total)}
+          <code class="font-mono">{c.key}</code> · ajouté le {c.addedAt.toLocaleDateString("fr-FR")} · {fmt(c.sourceCount)} variante
+          {c.sourceCount > 1 ? "s" : ""} visible{c.sourceCount > 1 ? "s" : ""} sur {fmt(total)}
           {c.adult && c.visible ? " · servi seulement si les contenus adultes sont activés" : ""}
         </p>
       </div>

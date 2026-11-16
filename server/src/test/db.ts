@@ -10,7 +10,7 @@ export const contentOfKey = async (key: string) => (await contentsByKey([key]))[
 /** Empty every catalogue table between test files, then seed the default profile and the provider account. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table xtream_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_titles, catalog_channels, catalog_episodes, catalog_episode_sources, cache_tmdb, cache_xtream_info, app_profiles, app_profile_filters, app_profile_streams, app_profile_titles, app_profile_channels, task_steps, task_runs, cache_iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, cache_epg_programmes, settings_epg_offsets, settings_epg_sources, cache_epg_source_channels, catalog_channel_guides, catalog_studios, app_waitlist, cache_tmdb_trending, cache_tmdb_recommendations, cache_tmdb_extras, cache_skipdb_segments, cache_theintrodb, cache_introdb restart identity cascade`,
+    sql`truncate table xtream_accounts, xtream_streams, xtream_categories, catalog_streams, catalog_titles, catalog_channels, catalog_episodes, catalog_episode_sources, cache_tmdb, cache_xtream_info, app_profiles, app_profile_filters, app_profile_streams, app_profile_titles, app_profile_channels, task_steps, task_runs, cache_iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, cache_epg_programmes, settings_epg_offsets, settings_epg_sources, cache_epg_source_channels, catalog_channel_guides, catalog_studios, app_waitlist, cache_tmdb_trending, cache_tmdb_recommendations, cache_tmdb_extras, cache_skipdb_segments, cache_theintrodb, cache_introdb restart identity cascade`,
   );
   await db.insert(schema.appProfiles).values({ name: "Hakim", isDefault: true, judgedAt: new Date() }); // the restarted identity gives it PROFILE
   await db
@@ -93,19 +93,20 @@ export type ItemSeed = {
   /** The provider account; the seeded one by default. */
   accountId?: number;
   kind: "live" | "vod" | "series";
-  xtreamId: string;
+  /** The id the provider gives the stream. */
+  upstreamId: string;
   name: string;
   cat?: string;
   tmdbId?: number;
   matchStatus?: "pending" | "matched" | "unmatched" | "manual" | "skipped";
-  hiddenManual?: boolean;
+  hidden?: boolean;
   raw?: Partial<XStream>;
   addedAt?: Date;
   section?: string;
 };
 
 export async function seedCategories(
-  rows: { accountId?: number; kind: "live" | "vod" | "series"; xtreamId: string; name: string; hiddenManual?: boolean }[],
+  rows: { accountId?: number; kind: "live" | "vod" | "series"; xtreamId: string; name: string; hidden?: boolean }[],
 ) {
   if (!rows.length) return;
   await db.insert(schema.xtreamCategories).values(
@@ -115,7 +116,7 @@ export async function seedCategories(
       xtreamId: c.xtreamId,
       name: c.name,
       position: i,
-      hidden: c.hiddenManual ?? false,
+      hidden: c.hidden ?? false,
       raw: {},
     })),
   );
@@ -130,25 +131,25 @@ export async function seedItems(rows: ItemSeed[]) {
       rows.map((r, i) => ({
         accountId: r.accountId ?? ACCOUNT,
         kind: r.kind,
-        upstreamId: r.xtreamId,
+        upstreamId: r.upstreamId,
         name: r.name,
         categoryXtreamId: r.cat ?? null,
         position: i,
         section: r.section ?? null,
         raw: {
           name: r.name,
-          stream_id: Number(r.xtreamId) || r.xtreamId,
+          stream_id: Number(r.upstreamId) || r.upstreamId,
           container_extension: r.kind === "live" ? "ts" : "mkv",
           ...r.raw,
         } as Record<string, unknown>,
         addedAt: r.addedAt ?? new Date("2026-09-20T04:10:00Z"),
       })),
     )
-    .returning({ id: schema.xtreamStreams.id, xtreamId: schema.xtreamStreams.upstreamId });
-  await db.insert(schema.catalogVariants).values(
+    .returning({ id: schema.xtreamStreams.id, upstreamId: schema.xtreamStreams.upstreamId });
+  await db.insert(schema.catalogStreams).values(
     rows.map((r, i) => ({
-      id: streams[i].id,
-      hiddenManual: r.hiddenManual ?? false,
+      xtreamId: streams[i].id,
+      hidden: r.hidden ?? false,
     })),
   );
   // A movie or a series seeded as matched has its TMDB title already, and one seeded as unmatched its
@@ -179,9 +180,9 @@ export async function seedItems(rows: ItemSeed[]) {
     const [title] = await db.select({ id: schema.catalogTitles.id }).from(schema.catalogTitles).where(eq(schema.catalogTitles.key, key));
     const manual = r.matchStatus === "manual";
     await db
-      .update(schema.catalogVariants)
+      .update(schema.catalogStreams)
       .set({ titleId: title.id, how: manual ? "manual" : matched ? "search" : "none", manual })
-      .where(eq(schema.catalogVariants.id, streams[i].id));
+      .where(eq(schema.catalogStreams.xtreamId, streams[i].id));
   }
   return streams;
 }
@@ -218,7 +219,7 @@ export async function knowChannels() {
   const rows = await db
     .select({
       id: variants.id,
-      title: sql<string>`coalesce(nullif(${variants.cleanTitle}, ''), ${variants.name})`,
+      title: sql<string>`coalesce(nullif(${variants.title}, ''), ${variants.name})`,
       market: variants.market,
       theme: variants.nameTheme,
       adult: variants.nameAdult,
@@ -250,11 +251,11 @@ export async function knowChannels() {
       .from(schema.catalogChannels)
       .where(eq(schema.catalogChannels.key, key));
     await db
-      .update(schema.catalogVariants)
+      .update(schema.catalogStreams)
       .set({ channelId: channel.id, how: "name" })
       .where(
         inArray(
-          schema.catalogVariants.id,
+          schema.catalogStreams.xtreamId,
           streams.map((r) => r.id),
         ),
       );
@@ -273,16 +274,16 @@ export async function groupAndFilter() {
   return { ...stats, variants_hidden: judged.variants_hidden, waitlist_available: stats.waitlist_available + judged.waitlist_available };
 }
 
-/** The variants of the streams matching `where` (a condition on `xtream_streams`), for a test that writes `catalog_variants`. */
+/** The variants of the streams matching `where` (a condition on `xtream_streams`), for a test that writes `catalog_streams`. */
 export const ofStreams = (where: SQL) =>
-  inArray(schema.catalogVariants.id, db.select({ id: schema.xtreamStreams.id }).from(schema.xtreamStreams).where(where));
+  inArray(schema.catalogStreams.xtreamId, db.select({ id: schema.xtreamStreams.id }).from(schema.xtreamStreams).where(where));
 
 /** What `channels` does with a live name the reference does not know: each of these streams on a channel of its own name, « Non reconnus ». */
 export async function leaveUnknown(names: string[]) {
   const rows = await db
     .select({
       id: variants.id,
-      title: sql<string>`coalesce(nullif(${variants.cleanTitle}, ''), ${variants.name})`,
+      title: sql<string>`coalesce(nullif(${variants.title}, ''), ${variants.name})`,
       market: variants.market,
     })
     .from(variants)
@@ -297,6 +298,6 @@ export async function leaveUnknown(names: string[]) {
       .select({ id: schema.catalogChannels.id })
       .from(schema.catalogChannels)
       .where(eq(schema.catalogChannels.key, key));
-    await db.update(schema.catalogVariants).set({ channelId: channel.id, how: null }).where(eq(schema.catalogVariants.id, r.id));
+    await db.update(schema.catalogStreams).set({ channelId: channel.id, how: null }).where(eq(schema.catalogStreams.xtreamId, r.id));
   }
 }

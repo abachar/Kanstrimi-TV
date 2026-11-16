@@ -124,7 +124,7 @@ catalogRoutes.get("/shelf", async (c) => {
 });
 
 /**
- * A variant's switch, on its content's page. It says "Visible", the column stores `hidden_manual`:
+ * A variant's switch, on its content's page. It says "Visible", the column stores `hidden`:
  * invert on the way in, then reload the page, whose content follows.
  */
 catalogRoutes.post("/item/:id/visible", async (c) => {

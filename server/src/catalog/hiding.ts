@@ -9,12 +9,12 @@ import { withCatalogLock } from "./lock";
  * touches follow at once, in the background under the catalogue lock: the switch never waits behind a pipeline run,
  * and the app sees the change without waiting for the next `group`.
  */
-export async function setItemHiddenManual(id: number, hiddenManual: boolean) {
+export async function setItemHiddenManual(id: number, hidden: boolean) {
   const [row] = await db
-    .update(schema.catalogVariants)
-    .set({ hiddenManual })
-    .where(eq(schema.catalogVariants.id, id))
-    .returning({ titleId: schema.catalogVariants.titleId, channelId: schema.catalogVariants.channelId });
+    .update(schema.catalogStreams)
+    .set({ hidden })
+    .where(eq(schema.catalogStreams.xtreamId, id))
+    .returning({ titleId: schema.catalogStreams.titleId, channelId: schema.catalogStreams.channelId });
   const contentId = row?.titleId ?? row?.channelId;
   if (contentId != null) refreshInBackground([contentId]);
 }

@@ -9,7 +9,7 @@ import { withCatalogLock } from "../lock";
 /**
  * The `filters` step, after the grouping: each version judged by the filter of each profile, kept
  * (an `app_profile_streams` row) or left out; a profile without a filter keeps everything. Then
- * `catalog_variants.hidden_by_rule` says « kept by no profile », and the contents whose versions moved
+ * `catalog_streams.filtered` says « kept by no profile », and the contents whose versions moved
  * count again only what is left: their aggregates, `visible` (seen by one profile), what each profile
  * sees (`app_profile_titles`, `app_profile_channels`) and the waitlist's arrivals. A filter that no longer compiles leaves
  * its kind as it was for that profile, said in the log. `contentIds`: only the versions of those (a
@@ -56,7 +56,7 @@ async function apply(contentIds?: number[], profileId?: number) {
           select variants.id, ${profile.id} from ${variants}
           where variants.kind = ${kind} ${scope} and (${keep})
           on conflict do nothing
-          returning (select coalesce(title_id, channel_id) from catalog_variants where id = xtream_id) as content_id`),
+          returning (select coalesce(cs.title_id, cs.channel_id) from catalog_streams cs where cs.xtream_id = app_profile_streams.xtream_id) as content_id`),
       );
       if (filter) judged.push(kind);
     }
@@ -67,17 +67,17 @@ async function apply(contentIds?: number[], profileId?: number) {
   }
   checkCancelled();
   // Left out by every profile: the union the rest of the catalogue (aggregates, EPG, search) reads.
-  const hidden = sql`not exists (select 1 from app_profile_streams vp where vp.xtream_id = catalog_variants.id)`;
+  const hidden = sql`not exists (select 1 from app_profile_streams vp where vp.xtream_id = catalog_streams.xtream_id)`;
   collect(
     await db.execute<{ content_id: number | null }>(sql`
-      update catalog_variants set hidden_by_rule = ${hidden}
-      where ${ids ? sql`coalesce(catalog_variants.title_id, catalog_variants.channel_id) = any(${ids}) and` : sql``} catalog_variants.hidden_by_rule is distinct from (${hidden})
+      update catalog_streams set filtered = ${hidden}
+      where ${ids ? sql`coalesce(catalog_streams.title_id, catalog_streams.channel_id) = any(${ids}) and` : sql``} catalog_streams.filtered is distinct from (${hidden})
       returning coalesce(title_id, channel_id) as content_id`),
   );
   checkCancelled();
   const waitlist_available = touched.size ? await refreshVisibility([...touched]) : 0;
   // The verdict tables move by tens of thousands of rows at once: fresh statistics, or the planner guesses for a day.
   await db.execute(sql`analyze app_profile_streams, app_profile_titles, app_profile_channels`);
-  const [r] = await db.execute<{ n: number }>(sql`select count(*)::int as n from catalog_variants where hidden_by_rule`);
+  const [r] = await db.execute<{ n: number }>(sql`select count(*)::int as n from catalog_streams where filtered`);
   return { variants_hidden: r.n, waitlist_available };
 }

@@ -80,7 +80,7 @@ describe("idEvidence", () => {
     id: 0,
     kind: "series" as const,
     name: "|FR| Patriarche (MULTI)",
-    cleanTitle: "Patriarche",
+    title: "Patriarche",
     year: 2025,
     raw: {
       cast: "Nikki Amuka-Bird, Daniel Rigby, Gemma Jones",

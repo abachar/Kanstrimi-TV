@@ -28,7 +28,7 @@ const episodes = async () =>
 
 beforeEach(async () => {
   await resetDb();
-  await seedItems([{ kind: "series", xtreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
+  await seedItems([{ kind: "series", upstreamId: "300", name: "|FR| Dark (MULTI)", matchStatus: "unmatched", addedAt: new Date() }]);
   await runNaming();
   await groupAndFilter();
   [content] = await db.select(titleContent).from(schema.catalogTitles);
@@ -58,7 +58,7 @@ describe("ensureEpisodes", () => {
     // The same series at a second provider, grouped meanwhile: its episodes come without waiting for the 12 h.
     const backup = await seedAccount();
     await seedItems([
-      { accountId: backup.id, kind: "series", xtreamId: "77", name: "|FR| Dark (2017)", matchStatus: "unmatched", addedAt: new Date() },
+      { accountId: backup.id, kind: "series", upstreamId: "77", name: "|FR| Dark (2017)", matchStatus: "unmatched", addedAt: new Date() },
     ]);
     await runNaming();
     await groupAndFilter();
@@ -92,8 +92,8 @@ describe("ensureEpisodes", () => {
 
   it("stops asking the provider after the first outage of a rebuild: the other variants read their cache", async () => {
     await seedItems([
-      { kind: "series", xtreamId: "301", name: "|FR| Dark (VOSTFR)", matchStatus: "unmatched", addedAt: new Date() },
-      { kind: "series", xtreamId: "302", name: "|FR| Dark (VF)", matchStatus: "unmatched", addedAt: new Date() },
+      { kind: "series", upstreamId: "301", name: "|FR| Dark (VOSTFR)", matchStatus: "unmatched", addedAt: new Date() },
+      { kind: "series", upstreamId: "302", name: "|FR| Dark (VF)", matchStatus: "unmatched", addedAt: new Date() },
     ]);
     await runNaming();
     await groupAndFilter();
@@ -104,7 +104,7 @@ describe("ensureEpisodes", () => {
       variants.map((v, i) => ({
         accountId: ACCOUNT,
         kind: "series" as const,
-        xtreamId: v.xtreamId,
+        xtreamId: v.upstreamId,
         data: info(2, `v${i}-`),
         fetchedAt: new Date(0),
       })),

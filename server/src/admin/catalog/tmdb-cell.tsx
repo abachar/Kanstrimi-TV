@@ -37,7 +37,7 @@ export function TmdbCell({ it, results }: { it: Variant; results?: TmdbCandidate
       <div class="mt-2 flex flex-col gap-2">
         <form hx-post="/admin/catalog/tmdb-search" hx-target={target} hx-swap="outerHTML" hx-indicator="this" class="flex gap-2">
           <input type="hidden" name="id" value={it.id} />
-          <input class="input h-8" type="text" name="q" value={it.cleanTitle ?? it.name} aria-label="Titre à chercher sur TMDB" />
+          <input class="input h-8" type="text" name="q" value={it.title ?? it.name} aria-label="Titre à chercher sur TMDB" />
           <button class="btn" data-variant="outline" data-size="sm">
             <Icon name="search" />
             Chercher
