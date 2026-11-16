@@ -52,7 +52,7 @@ describe("notify", () => {
     expect(sent.map((s) => s.token[0])).toEqual(["a"]); // the tablet turned runs off
     const [latest] = await recentNotifications(1);
     expect(latest).toMatchObject({ kind: "runs", status: "unregistered", detail: "Unregistered", deviceName: "iPhone" });
-    expect(await db.select().from(schema.devicePush)).toHaveLength(1);
+    expect(await db.select().from(schema.appDevicePush)).toHaveLength(1);
     answers = {};
   });
 

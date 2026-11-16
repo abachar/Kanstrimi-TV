@@ -73,9 +73,9 @@ async function ensureLogo(file: string): Promise<{ path: string; contentType: st
   );
   if (cached) return { path: local, contentType: TYPES[ext] };
   const [ch] = await db
-    .select({ url: schema.iptvorgChannels.logoUrl, path: schema.iptvorgChannels.logoPath })
-    .from(schema.iptvorgChannels)
-    .where(eq(schema.iptvorgChannels.id, decodeURIComponent(id)));
+    .select({ url: schema.cacheIptvorgChannels.logoUrl, path: schema.cacheIptvorgChannels.logoPath })
+    .from(schema.cacheIptvorgChannels)
+    .where(eq(schema.cacheIptvorgChannels.id, decodeURIComponent(id)));
   // Only the current logo of a known channel: the route is not an open proxy.
   if (!ch?.url || ch.path !== `/img/logos/${file}`) return null;
   const res = await fetchPublic(ch.url);

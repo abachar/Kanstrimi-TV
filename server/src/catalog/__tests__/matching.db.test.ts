@@ -100,7 +100,7 @@ describe("matching", () => {
       explained.map((e) => ({ status: e.verdict.status, tmdbId: e.verdict.tmdbId, score: expect.closeTo(e.verdict.score, 5) })),
     );
     // A match found by search leaves its document in the cache, as the card needs it.
-    const cached = await db.select({ id: schema.tmdbCache.tmdbId }).from(schema.tmdbCache).where(eq(schema.tmdbCache.tmdbId, 438631));
+    const cached = await db.select({ id: schema.cacheTmdb.tmdbId }).from(schema.cacheTmdb).where(eq(schema.cacheTmdb.tmdbId, 438631));
     expect(cached).toHaveLength(1);
   });
 

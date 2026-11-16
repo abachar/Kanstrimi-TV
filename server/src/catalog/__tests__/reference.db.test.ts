@@ -166,7 +166,7 @@ describe("names left to attach", () => {
       { profileId: PROFILE, contentKey: "live:ar-bein-sports-1", day: "2026-11-10", seconds: 30 },
       { profileId: PROFILE, contentKey: old, day: "2026-11-11", seconds: 40 },
     ]);
-    const [source] = await db.insert(schema.curationEpgSources).values({ name: "s", url: "https://epg.test/s.xml" }).returning();
+    const [source] = await db.insert(schema.settingsEpgSources).values({ name: "s", url: "https://epg.test/s.xml" }).returning();
     await db.insert(schema.curationEpgLinks).values({ sourceId: source.id, contentKey: old, channelId: "bein1" });
     expect(await attachName("ar", "BEIN SPORTS 1 G", "iptv:beINSports1.qa")).toBe("beIN Sports 1");
     expect(

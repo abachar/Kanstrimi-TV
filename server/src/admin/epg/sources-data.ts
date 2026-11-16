@@ -52,9 +52,9 @@ export async function sourcePage(source: EpgSource, query: SourcePageQuery) {
   const [channels, res, contents] = await Promise.all([
     db
       .select()
-      .from(schema.catalogEpgSourceChannels)
-      .where(eq(schema.catalogEpgSourceChannels.sourceId, source.id))
-      .orderBy(asc(schema.catalogEpgSourceChannels.channelId)),
+      .from(schema.cacheEpgSourceChannels)
+      .where(eq(schema.cacheEpgSourceChannels.sourceId, source.id))
+      .orderBy(asc(schema.cacheEpgSourceChannels.channelId)),
     resolveEpgLinks(),
     db
       .select({

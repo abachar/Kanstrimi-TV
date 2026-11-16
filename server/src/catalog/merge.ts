@@ -140,7 +140,7 @@ async function mergeCopy(acceptShrink: boolean): Promise<Omit<MergeStats, "items
       select a.name as account, v.kind, count(*)::int as total,
              count(*) filter (where not exists (select 1 from merge_entries m
                where m.account_id = v.account_id and m.kind = v.kind and m.xtream_id = v.xtream_id))::int as removed
-      from catalog_variants v join provider_accounts a on a.id = v.account_id group by a.name, v.kind`;
+      from catalog_variants v join xtream_accounts a on a.id = v.account_id group by a.name, v.kind`;
     for (const g of gone)
       if (!acceptShrink && g.total >= SHRINK_FLOOR && g.total - g.removed < g.total * SHRINK_RATIO)
         throw new Error(

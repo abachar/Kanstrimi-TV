@@ -21,7 +21,7 @@ function stub(status = 200, headers: Record<string, string> = {}) {
 
 beforeAll(resetDb);
 beforeEach(async () => {
-  await db.delete(schema.introdbCache);
+  await db.delete(schema.cacheIntrodb);
   resetIntrodb();
   asked = [];
   answer = { intro: { start_sec: 64.33, end_sec: 98.62, start_ms: 64330, end_ms: 98620, confidence: 1, submission_count: 3 } };
@@ -60,7 +60,7 @@ describe("IntroDB", () => {
     await introdbSegments(EPISODE, 1000);
     await introdbSegments(EPISODE, 1000);
     expect(asked).toHaveLength(1);
-    await db.update(schema.introdbCache).set({ fetchedAt: daysAgo(31) });
+    await db.update(schema.cacheIntrodb).set({ fetchedAt: daysAgo(31) });
     answer = { intro: { start_ms: 60000, end_ms: 95000 } };
     expect(await introdbSegments(EPISODE, 1000)).toEqual([{ ...INTRO, start: 60, end: 95 }]);
   });
@@ -70,14 +70,14 @@ describe("IntroDB", () => {
     expect(await introdbSegments(EPISODE, 1000)).toEqual([]);
     expect(await introdbSegments(EPISODE, 1000)).toEqual([]);
     expect(asked).toHaveLength(1);
-    await db.update(schema.introdbCache).set({ fetchedAt: daysAgo(8) });
+    await db.update(schema.cacheIntrodb).set({ fetchedAt: daysAgo(8) });
     answer = { intro: { start_ms: 1000, end_ms: 31000 } };
     expect(await introdbSegments(EPISODE, 1000)).toHaveLength(1);
   });
 
   it("an outage answers what was kept, and leaves that episode alone ten minutes", async () => {
     await introdbSegments(EPISODE, 1000);
-    await db.update(schema.introdbCache).set({ fetchedAt: daysAgo(31) });
+    await db.update(schema.cacheIntrodb).set({ fetchedAt: daysAgo(31) });
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     stub(503);
     expect(await introdbSegments(EPISODE, 1000)).toEqual([INTRO]);
@@ -95,7 +95,7 @@ describe("IntroDB", () => {
     stub();
     expect(await introdbSegments(OTHER, 1000)).toEqual([]);
     expect(asked).toHaveLength(1);
-    expect(await db.$count(schema.introdbCache)).toBe(0);
+    expect(await db.$count(schema.cacheIntrodb)).toBe(0);
     vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + 121_000 });
     expect(await introdbSegments(OTHER, 1000)).toHaveLength(1);
     vi.useRealTimers();
@@ -109,7 +109,7 @@ describe("IntroDB", () => {
     answer = { intro: { start_ms: 1000, end_ms: 31000 } };
     expect(await introdbSegments(OTHER, 1000)).toEqual([]);
     expect(asked).toHaveLength(DAILY_BUDGET);
-    expect(await db.$count(schema.introdbCache)).toBe(DAILY_BUDGET);
+    expect(await db.$count(schema.cacheIntrodb)).toBe(DAILY_BUDGET);
     vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + 86400000 });
     expect(await introdbSegments(OTHER, 1000)).toHaveLength(1);
     vi.useRealTimers();

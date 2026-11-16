@@ -7,11 +7,11 @@ export async function trendingContents(kind: "vod" | "series", where: SQL | unde
     .select({ content: schema.catalogContents })
     .from(schema.catalogContents)
     .innerJoin(
-      schema.tmdbTrending,
-      and(eq(schema.tmdbTrending.tmdbId, schema.catalogContents.tmdbId), eq(schema.tmdbTrending.mediaType, tmdbMediaType(kind))),
+      schema.cacheTmdbTrending,
+      and(eq(schema.cacheTmdbTrending.tmdbId, schema.catalogContents.tmdbId), eq(schema.cacheTmdbTrending.mediaType, tmdbMediaType(kind))),
     )
     .where(and(eq(schema.catalogContents.kind, kind), where))
-    .orderBy(asc(schema.tmdbTrending.rank))
+    .orderBy(asc(schema.cacheTmdbTrending.rank))
     .limit(limit);
   return rows.map((r) => r.content);
 }

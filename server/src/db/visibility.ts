@@ -14,7 +14,7 @@ export const inHiddenCategory: SQL = sql`exists (
 
 /** The variant's provider account is disabled (Fournisseurs): its whole catalogue is kept but served no more. */
 export const inDisabledAccount: SQL = sql`exists (
-  select 1 from ${schema.providerAccounts} a where a.id = ${schema.catalogVariants.accountId} and not a.enabled)`;
+  select 1 from ${schema.xtreamAccounts} a where a.id = ${schema.catalogVariants.accountId} and not a.enabled)`;
 
 /**
  * Served to the players: kept by the filter of its kind (null = not judged yet: not served), hidden

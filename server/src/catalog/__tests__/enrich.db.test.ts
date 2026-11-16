@@ -47,7 +47,7 @@ describe("runEnrich", () => {
   });
 
   it("fetches again the cache entries that predate the logos, asking for every useful image language", async () => {
-    await db.insert(schema.tmdbCache).values({ mediaType: "movie", tmdbId: 603, lang: "fr-FR", data: { id: 603, title: "Matrix" } });
+    await db.insert(schema.cacheTmdb).values({ mediaType: "movie", tmdbId: 603, lang: "fr-FR", data: { id: 603, title: "Matrix" } });
     await db
       .insert(schema.catalogContents)
       .values({ key: "tmdb:movie:603", kind: "vod", tmdbId: 603, title: "Matrix", addedAt: new Date() });
@@ -58,7 +58,7 @@ describe("runEnrich", () => {
     });
     expect(await runEnrich()).toMatchObject({ refreshed: 1 });
     expect(new URL(urls.find((u) => u.includes("/movie/603"))!).searchParams.get("include_image_language")).toBe("fr,en,null");
-    const [c] = await db.select().from(schema.tmdbCache).where(eq(schema.tmdbCache.tmdbId, 603));
+    const [c] = await db.select().from(schema.cacheTmdb).where(eq(schema.cacheTmdb.tmdbId, 603));
     expect((c.data as { images: unknown }).images).toMatchObject({ logos: [{ file_path: "/m.png", iso_639_1: "fr" }] });
     // Once caught up, nothing left to fetch before the TTL.
     expect(await runEnrich()).toMatchObject({ refreshed: 0 });
@@ -187,7 +187,7 @@ describe("runEnrich", () => {
     });
     const old = new Date(Date.now() - 31 * 86400000);
     await db
-      .insert(schema.tmdbCache)
+      .insert(schema.cacheTmdb)
       .values([700, 701].map((id) => ({ mediaType: "movie" as const, tmdbId: id, lang: "fr-FR", data: withLogos(id), fetchedAt: old })));
     await db
       .insert(schema.catalogContents)
@@ -201,8 +201,8 @@ describe("runEnrich", () => {
     expect(urls.filter((u) => /\/movie\/70[01]\b/.test(u)).map((u) => new URL(u).pathname)).toEqual(["/3/movie/700"]);
     const rows = await db
       .select()
-      .from(schema.tmdbCache)
-      .where(inArray(schema.tmdbCache.tmdbId, [700, 701]));
+      .from(schema.cacheTmdb)
+      .where(inArray(schema.cacheTmdb.tmdbId, [700, 701]));
     const fresh = (id: number) => rows.find((r) => r.tmdbId === id)!.fetchedAt.getTime() > Date.now() - 60_000;
     expect([fresh(700), fresh(701)]).toEqual([true, false]);
   });

@@ -19,7 +19,7 @@ const CHUNK = 5000;
 const MAX_MS = 36_000_000;
 
 type Release = { tag_name?: string; assets?: { name?: string; browser_download_url?: string }[] };
-type Row = typeof schema.skipdbSegments.$inferInsert;
+type Row = typeof schema.cacheSkipdbSegments.$inferInsert;
 
 async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
   const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(timeoutMs) });
@@ -70,13 +70,13 @@ export async function runSkipdbImport() {
   const rows = (Array.isArray(dump.segments) ? dump.segments : [])
     .map((s) => (s && typeof s === "object" ? rowOf(s as Record<string, unknown>) : null))
     .filter((r): r is Row => r !== null && !seen.has(r.id) && Boolean(seen.add(r.id)));
-  const [{ before }] = await db.select({ before: count() }).from(schema.skipdbSegments);
+  const [{ before }] = await db.select({ before: count() }).from(schema.cacheSkipdbSegments);
   if (!rows.length) throw new Error("SkipDB : export vide, l'import précédent est gardé");
   if (rows.length < before * SHRINK_RATIO)
     throw new Error(`SkipDB : l'export fond de ${before} à ${rows.length} segments, l'import précédent est gardé`);
   await db.transaction(async (tx) => {
-    await tx.delete(schema.skipdbSegments);
-    for (let i = 0; i < rows.length; i += CHUNK) await tx.insert(schema.skipdbSegments).values(rows.slice(i, i + CHUNK));
+    await tx.delete(schema.cacheSkipdbSegments);
+    for (let i = 0; i < rows.length; i += CHUNK) await tx.insert(schema.cacheSkipdbSegments).values(rows.slice(i, i + CHUNK));
   });
   return { segments: rows.length, titles: new Set(rows.map((r) => r.imdbId)).size };
 }

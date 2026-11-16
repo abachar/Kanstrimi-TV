@@ -229,17 +229,17 @@ describe("runGrouping", () => {
         )
       )[0];
     const before = await stamp();
-    await db.execute(sql`update tmdb_cache set fetched_at = now() + interval '1 minute' where tmdb_id = 557 and media_type = 'movie'`);
+    await db.execute(sql`update cache_tmdb set fetched_at = now() + interval '1 minute' where tmdb_id = 557 and media_type = 'movie'`);
     await groupAndFilter();
     const same = await stamp();
     expect(same.updated_at).toBe(before.updated_at);
     expect(same.cards_at).not.toBe(before.cards_at);
-    await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{vote_average}', '8.1'), fetched_at = now() + interval '2 minutes'
+    await db.execute(sql`update cache_tmdb set data = jsonb_set(data, '{vote_average}', '8.1'), fetched_at = now() + interval '2 minutes'
       where tmdb_id = 557 and media_type = 'movie'`);
     await groupAndFilter();
     expect((await stamp()).updated_at).not.toBe(before.updated_at);
     expect((await content("tmdb:movie:557")).rating).toBe(8.1);
-    await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{vote_average}', '7.31'), fetched_at = now() + interval '3 minutes'
+    await db.execute(sql`update cache_tmdb set data = jsonb_set(data, '{vote_average}', '7.31'), fetched_at = now() + interval '3 minutes'
       where tmdb_id = 557 and media_type = 'movie'`);
     await groupAndFilter();
   });
@@ -253,12 +253,12 @@ describe("runGrouping", () => {
     await groupAndFilter();
     expect((await content("tmdb:movie:557")).title).toBe("Spider-Man"); // the card is current and not copied again: the upsert must leave the title alone
 
-    await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{title}', '"Spider-Man, le film"'), fetched_at = now() + interval '1 minute'
+    await db.execute(sql`update cache_tmdb set data = jsonb_set(data, '{title}', '"Spider-Man, le film"'), fetched_at = now() + interval '1 minute'
       where tmdb_id = 557 and media_type = 'movie'`);
     await groupAndFilter();
     expect((await content("tmdb:movie:557")).title).toBe("Spider-Man, le film");
 
-    await db.execute(sql`update tmdb_cache set data = jsonb_set(data, '{title}', '"Spider-Man"'), fetched_at = now() + interval '2 minutes'
+    await db.execute(sql`update cache_tmdb set data = jsonb_set(data, '{title}', '"Spider-Man"'), fetched_at = now() + interval '2 minutes'
       where tmdb_id = 557 and media_type = 'movie'`);
     await rename("1", "|FR| Spider-Man (4K)");
     await rename("2", "|FR| Spider-Man (DV)");

@@ -429,20 +429,20 @@ async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_ot
  * keeps the old entry (tried again next run). Returns how many landed.
  */
 async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>, checkCancelled: () => void): Promise<number> {
-  const users = sql`from ${schema.catalogContents} c where c.tmdb_id = ${schema.tmdbCache.tmdbId}
-    and ${sqlTmdbMediaType(sql`c.kind`)} = ${schema.tmdbCache.mediaType}`;
+  const users = sql`from ${schema.catalogContents} c where c.tmdb_id = ${schema.cacheTmdb.tmdbId}
+    and ${sqlTmdbMediaType(sql`c.kind`)} = ${schema.cacheTmdb.mediaType}`;
   const pick = (cond: SQL, max: number, order: SQL[]) =>
     db
-      .select({ mediaType: schema.tmdbCache.mediaType, tmdbId: schema.tmdbCache.tmdbId })
-      .from(schema.tmdbCache)
-      .where(and(eq(schema.tmdbCache.lang, client.language), cond, sql`exists (select 1 ${users})`))
+      .select({ mediaType: schema.cacheTmdb.mediaType, tmdbId: schema.cacheTmdb.tmdbId })
+      .from(schema.cacheTmdb)
+      .where(and(eq(schema.cacheTmdb.lang, client.language), cond, sql`exists (select 1 ${users})`))
       .orderBy(...order)
       .limit(max);
   const cutoff = new Date(Date.now() - DETAILS_TTL_MS);
   const withoutLogos = sql`not ${tmdbHasLogos}`;
-  const old = await pick(lt(schema.tmdbCache.fetchedAt, cutoff)!, REFRESH_PER_RUN, [asc(schema.tmdbCache.fetchedAt)]);
+  const old = await pick(lt(schema.cacheTmdb.fetchedAt, cutoff)!, REFRESH_PER_RUN, [asc(schema.cacheTmdb.fetchedAt)]);
   // What the app shows first gets its logo first: visible titles, the latest releases.
-  const logoless = await pick(and(withoutLogos, gte(schema.tmdbCache.fetchedAt, cutoff))!, BACKFILL_PER_RUN, [
+  const logoless = await pick(and(withoutLogos, gte(schema.cacheTmdb.fetchedAt, cutoff))!, BACKFILL_PER_RUN, [
     sql`(select bool_or(c.visible) ${users}) desc`,
     sql`(select max(c.release_date) ${users}) desc nulls last`,
   ]);

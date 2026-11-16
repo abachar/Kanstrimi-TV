@@ -153,7 +153,7 @@ beforeAll(async () => {
     },
     { kind: "live", xtreamId: "102", name: "|FR| BEIN SPORTS 1 HD", cat: "21", section: "|FR| SPORTS |FR|", raw: { num: 30 } },
   ]);
-  await db.insert(schema.catalogEpgProgrammes).values(
+  await db.insert(schema.cacheEpgProgrammes).values(
     [
       { start: -150, end: -30, title: "Avant", overview: null },
       { start: -30, end: 30, title: "Journal", overview: "Les titres du jour." },
@@ -252,7 +252,7 @@ beforeAll(async () => {
     vote_count: 900,
     content_ratings: { results: [{ iso_3166_1: "FR", rating: "16" }] },
   });
-  await db.insert(schema.tmdbCache).values({
+  await db.insert(schema.cacheTmdb).values({
     mediaType: "tv_season",
     tmdbId: 1396,
     lang: "fr-FR#s1",
@@ -270,7 +270,7 @@ beforeAll(async () => {
       ],
     },
   });
-  await db.insert(schema.xtreamInfoCache).values({
+  await db.insert(schema.cacheXtreamInfo).values({
     accountId: ACCOUNT,
     kind: "series",
     xtreamId: "200",
@@ -320,21 +320,21 @@ beforeAll(async () => {
   await db
     .insert(schema.appPlays)
     .values({ profileId: PROFILE, contentKey: "tmdb:movie:603", plays: 3, firstAt: daysAgo(20), lastAt: daysAgo(2) });
-  await db.insert(schema.tmdbTrending).values([
+  await db.insert(schema.cacheTmdbTrending).values([
     { mediaType: "movie", rank: 1, tmdbId: 604, fetchedAt: daysAgo(1) },
     { mediaType: "movie", rank: 2, tmdbId: 603, fetchedAt: daysAgo(1) },
     { mediaType: "tv", rank: 1, tmdbId: 1396, fetchedAt: daysAgo(1) },
   ]);
-  await db.insert(schema.tmdbRecommendations).values([
+  await db.insert(schema.cacheTmdbRecommendations).values([
     { mediaType: "movie", tmdbId: 603, ids: [604, 949], fetchedAt: at(-10) },
     { mediaType: "movie", tmdbId: 949, ids: [603], fetchedAt: at(-10) },
     { mediaType: "tv", tmdbId: 1396, ids: [], fetchedAt: at(-10) },
   ]);
   // Already asked of TheIntroDB, which did not know the movie: the markers of a file without chapters ask nothing.
   await db
-    .insert(schema.theintrodbCache)
+    .insert(schema.cacheTheintrodb)
     .values({ mediaType: "movie", tmdbId: 603, season: 0, episode: 0, duration: 8160, segments: [], fetchedAt: at(-10) });
-  await db.insert(schema.curationWaitlist).values({
+  await db.insert(schema.appWaitlist).values({
     profileId: PROFILE,
     contentKey: "tmdb:movie:604",
     tmdbId: 604,

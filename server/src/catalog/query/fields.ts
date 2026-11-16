@@ -55,7 +55,7 @@ const VOD_SERIES: Kind[] = ["vod", "series"];
 
 /** Any element of a JSON array of the content's TMDB sheet matching: `elements` yields rows `e(value text)`. */
 const tmdbAny = (ctx: FieldContext, elements: SQL, pred: Pred) =>
-  sql`exists (select 1 from tmdb_cache t, ${elements} where t.tmdb_id = ${c.tmdbId} and t.lang = ${ctx.lang}
+  sql`exists (select 1 from cache_tmdb t, ${elements} where t.tmdb_id = ${c.tmdbId} and t.lang = ${ctx.lang}
     and t.media_type = ${sqlTmdbMediaType(c.kind)} and ${pred(sql`e.value`)})`;
 /** Any element of an array column matching. */
 const arrayAny = (col: Column, pred: Pred) => sql`exists (select 1 from unnest(${col}) e(value) where ${pred(sql`e.value`)})`;
@@ -285,7 +285,7 @@ export const FIELDS: Field[] = [
     example: "xtream.fournisseur:backup",
     kinds: ALL,
     level: "variant",
-    text: (_, p) => sql`exists (select 1 from provider_accounts a where a.id = ${v.accountId} and ${p(sql`a.name`)})`,
+    text: (_, p) => sql`exists (select 1 from xtream_accounts a where a.id = ${v.accountId} and ${p(sql`a.name`)})`,
   },
   {
     names: ["xtream.section"],

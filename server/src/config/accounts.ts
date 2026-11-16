@@ -3,7 +3,7 @@ import { db, schema, type ProviderAccount } from "@/db";
 import { env } from "@/shared";
 
 /**
- * The provider accounts (`provider_accounts`), edited in Fournisseurs: one Xtream account per
+ * The provider accounts (`xtream_accounts`), edited in Fournisseurs: one Xtream account per
  * provider, in the order of preference the admin gives them (the first provider's source is the one
  * that plays by default). Stored in clear: the apps receive the same credentials in every stream URL.
  * One process, one reader: cached in memory, dropped on every write.
@@ -17,7 +17,7 @@ export function invalidateAccounts() {
 /** Every account, preferred first. */
 export async function listAccounts(): Promise<ProviderAccount[]> {
   if (!cache)
-    cache = await db.select().from(schema.providerAccounts).orderBy(asc(schema.providerAccounts.position), asc(schema.providerAccounts.id));
+    cache = await db.select().from(schema.xtreamAccounts).orderBy(asc(schema.xtreamAccounts.position), asc(schema.xtreamAccounts.id));
   return [...cache];
 }
 /** The enabled accounts, preferred first: what the pipeline imports and the apps play. */
@@ -52,10 +52,10 @@ const clean = (input: AccountInput): AccountInput => ({
 export async function createAccount(input: AccountInput): Promise<ProviderAccount> {
   check(input);
   const [{ last }] = await db
-    .select({ last: sql<number>`coalesce(max(${schema.providerAccounts.position}), 0)::int` })
-    .from(schema.providerAccounts);
+    .select({ last: sql<number>`coalesce(max(${schema.xtreamAccounts.position}), 0)::int` })
+    .from(schema.xtreamAccounts);
   const [row] = await db
-    .insert(schema.providerAccounts)
+    .insert(schema.xtreamAccounts)
     .values({ ...clean(input), position: last + 1 })
     .returning();
   invalidateAccounts();
@@ -65,27 +65,27 @@ export async function createAccount(input: AccountInput): Promise<ProviderAccoun
 export async function updateAccount(id: number, input: AccountInput): Promise<void> {
   check(input);
   await db
-    .update(schema.providerAccounts)
+    .update(schema.xtreamAccounts)
     .set({ ...clean(input), updatedAt: new Date() })
-    .where(eq(schema.providerAccounts.id, id));
+    .where(eq(schema.xtreamAccounts.id, id));
   invalidateAccounts();
 }
 
 /** Disabled: its catalogue stays in base but is served no more, until it is enabled again. */
 export async function setAccountEnabled(id: number, enabled: boolean): Promise<void> {
-  await db.update(schema.providerAccounts).set({ enabled, updatedAt: new Date() }).where(eq(schema.providerAccounts.id, id));
+  await db.update(schema.xtreamAccounts).set({ enabled, updatedAt: new Date() }).where(eq(schema.xtreamAccounts.id, id));
   invalidateAccounts();
 }
 
 /** Deleted: every row it brought goes with it (cascade); the contents left without a variant go at the next grouping. */
 export async function deleteAccount(id: number): Promise<void> {
-  await db.delete(schema.providerAccounts).where(eq(schema.providerAccounts.id, id));
+  await db.delete(schema.xtreamAccounts).where(eq(schema.xtreamAccounts.id, id));
   invalidateAccounts();
 }
 
 /** Swaps the account with its neighbour: up = more preferred. */
 export async function moveAccount(id: number, dir: "up" | "down"): Promise<void> {
-  const t = schema.providerAccounts;
+  const t = schema.xtreamAccounts;
   const [me] = await db.select().from(t).where(eq(t.id, id));
   if (!me) return;
   const [other] = await db
@@ -121,9 +121,9 @@ export async function seedAccountFromEnv(): Promise<"filled" | "created" | "noth
   const empty = accounts.find((a) => !isAccountComplete(a));
   if (empty) {
     await db
-      .update(schema.providerAccounts)
+      .update(schema.xtreamAccounts)
       .set({ name: empty.name === "Fournisseur" ? name : empty.name, url, username, password, updatedAt: new Date() })
-      .where(eq(schema.providerAccounts.id, empty.id));
+      .where(eq(schema.xtreamAccounts.id, empty.id));
     invalidateAccounts();
     return "filled";
   }

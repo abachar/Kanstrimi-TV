@@ -55,7 +55,7 @@ async function upstreamsOf(variants: Variant[]): Promise<Upstreams> {
 
 /** get_series_info through the 12 h cache; the cache is the fallback when the provider is down or not configured. */
 async function upstreamInfo(upstream: Upstream, accountId: number, xtreamId: string): Promise<UpstreamInfo> {
-  const c = schema.xtreamInfoCache;
+  const c = schema.cacheXtreamInfo;
   const [cached] = await db
     .select()
     .from(c)
@@ -148,12 +148,12 @@ async function rebuildEpisodes(content: Content, variants: Variant[], tmdbLang: 
   // A fresh tree is kept, unless a variant joined the content since and was never asked (no cached answer
   // for it): another provider's copy of the series, playable even while the first one is down.
   const asked = await db
-    .select({ accountId: schema.xtreamInfoCache.accountId, xtreamId: schema.xtreamInfoCache.xtreamId })
-    .from(schema.xtreamInfoCache)
+    .select({ accountId: schema.cacheXtreamInfo.accountId, xtreamId: schema.cacheXtreamInfo.xtreamId })
+    .from(schema.cacheXtreamInfo)
     .where(
       and(
-        eq(schema.xtreamInfoCache.kind, "series"),
-        inArray(schema.xtreamInfoCache.xtreamId, [...new Set(variants.map((v) => v.xtreamId))]),
+        eq(schema.cacheXtreamInfo.kind, "series"),
+        inArray(schema.cacheXtreamInfo.xtreamId, [...new Set(variants.map((v) => v.xtreamId))]),
       ),
     );
   const askedKeys = new Set(asked.map((a) => `${a.accountId}:${a.xtreamId}`));

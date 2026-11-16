@@ -29,16 +29,16 @@ export async function epgOf(channelIds: string[], now = new Date()): Promise<Map
   // postgres-js template, not drizzle's `sql`: the latter spreads an array parameter into a list.
   const rows = await client<Row[]>`
     select u.id,
-           exists (select 1 from catalog_epg_programmes e where e.channel_id = u.id) as has_epg,
+           exists (select 1 from cache_epg_programmes e where e.channel_id = u.id) as has_epg,
            n.title as now_title, n.start_at::text as now_start, n.end_at::text as now_end, n.overview as now_overview,
            x.title as next_title, x.start_at::text as next_start, x.end_at::text as next_end, x.overview as next_overview
     from unnest(${ids}::text[]) as u(id)
     left join lateral (
-      select title, start_at, end_at, overview from catalog_epg_programmes e
+      select title, start_at, end_at, overview from cache_epg_programmes e
       where e.channel_id = u.id and e.start_at <= ${now.toISOString()}::timestamptz and e.end_at > ${now.toISOString()}::timestamptz
       order by e.start_at desc limit 1) n on true
     left join lateral (
-      select title, start_at, end_at, overview from catalog_epg_programmes e
+      select title, start_at, end_at, overview from cache_epg_programmes e
       where e.channel_id = u.id and e.start_at > ${now.toISOString()}::timestamptz
       order by e.start_at limit 1) x on true`;
   return new Map(
@@ -64,7 +64,7 @@ export function nightEnd(now = new Date()): Date {
 /** A channel's programmes from the one on air until the end of the broadcast day, in order. */
 export async function dayProgrammes(channelId: string, now = new Date()): Promise<Programme[]> {
   const rows = await client<{ title: string; start_at: string; end_at: string; overview: string | null }[]>`
-    select title, start_at::text, end_at::text, overview from catalog_epg_programmes
+    select title, start_at::text, end_at::text, overview from cache_epg_programmes
     where channel_id = ${channelId} and end_at > ${now.toISOString()}::timestamptz and start_at < ${nightEnd(now).toISOString()}::timestamptz
     order by start_at`;
   return rows.map((r) => programme(r.title, r.start_at, r.end_at, r.overview)!);

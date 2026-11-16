@@ -7,7 +7,7 @@ import { isOffsetMinutes, reapplyOffsets } from "./epg-offsets";
 
 /**
  * Fallback guides: XMLTV files (open-epg…) that complete the provider's for the visible channels it
- * leaves without programmes. Each source lists its channels (`catalog_epg_source_channels`); a
+ * leaves without programmes. Each source lists its channels (`cache_epg_source_channels`); a
  * channel of ours is linked to one of them by name, or by hand in the admin (`curation_epg_links`).
  * The first enabled source, in their order, whose linked channel has programmes gives the channel its
  * `epg_fallback_id`; the app tries it after the provider's guide ids.
@@ -16,10 +16,10 @@ import { isOffsetMinutes, reapplyOffsets } from "./epg-offsets";
 const BATCH = 1000;
 
 export const listEpgSources = () =>
-  db.select().from(schema.curationEpgSources).orderBy(asc(schema.curationEpgSources.position), asc(schema.curationEpgSources.id));
+  db.select().from(schema.settingsEpgSources).orderBy(asc(schema.settingsEpgSources.position), asc(schema.settingsEpgSources.id));
 
 export async function epgSourceById(id: number): Promise<EpgSource | null> {
-  const [s] = await db.select().from(schema.curationEpgSources).where(eq(schema.curationEpgSources.id, id));
+  const [s] = await db.select().from(schema.settingsEpgSources).where(eq(schema.settingsEpgSources.id, id));
   return s ?? null;
 }
 
@@ -47,9 +47,9 @@ const defaultName = (url: string) =>
 export async function addEpgSource(input: { name?: string; url: string }): Promise<EpgSource> {
   const url = checkUrl(input.url);
   const name = input.name?.trim() || defaultName(url);
-  const [{ max }] = await db.select({ max: sql<number>`coalesce(max(position), -1)::int` }).from(schema.curationEpgSources);
+  const [{ max }] = await db.select({ max: sql<number>`coalesce(max(position), -1)::int` }).from(schema.settingsEpgSources);
   const [s] = await db
-    .insert(schema.curationEpgSources)
+    .insert(schema.settingsEpgSources)
     .values({ name, url, position: max + 1 })
     .onConflictDoNothing()
     .returning();
@@ -64,14 +64,14 @@ export async function updateEpgSource(id: number, input: { name: string; url: st
   if (!isOffsetMinutes(input.offsetMinutes)) throw new Error("Décalage invalide : ± 12 h par pas de 5 min");
   const url = checkUrl(input.url);
   const clash = await db
-    .select({ id: schema.curationEpgSources.id })
-    .from(schema.curationEpgSources)
-    .where(and(eq(schema.curationEpgSources.url, url), sql`${schema.curationEpgSources.id} <> ${id}`));
+    .select({ id: schema.settingsEpgSources.id })
+    .from(schema.settingsEpgSources)
+    .where(and(eq(schema.settingsEpgSources.url, url), sql`${schema.settingsEpgSources.id} <> ${id}`));
   if (clash.length) throw new Error("Cette adresse est déjà une source");
   await db
-    .update(schema.curationEpgSources)
+    .update(schema.settingsEpgSources)
     .set({ name: input.name.trim() || defaultName(url), url, enabled: input.enabled, offsetMinutes: input.offsetMinutes })
-    .where(eq(schema.curationEpgSources.id, id));
+    .where(eq(schema.settingsEpgSources.id, id));
   if (before.offsetMinutes !== input.offsetMinutes) await reapplyOffsets();
   if (before.enabled !== input.enabled) await refreshEpgFallbacks();
 }
@@ -85,7 +85,7 @@ export async function moveEpgSource(id: number, step: -1 | 1) {
   [all[i], all[j]] = [all[j], all[i]];
   await db.transaction(async (tx) => {
     for (const [position, s] of all.entries())
-      await tx.update(schema.curationEpgSources).set({ position }).where(eq(schema.curationEpgSources.id, s.id));
+      await tx.update(schema.settingsEpgSources).set({ position }).where(eq(schema.settingsEpgSources.id, s.id));
   });
   await refreshEpgFallbacks();
 }
@@ -93,8 +93,8 @@ export async function moveEpgSource(id: number, step: -1 | 1) {
 /** Removes a source, its channels, its links and its programmes. */
 export async function deleteEpgSource(id: number) {
   await db.transaction(async (tx) => {
-    await tx.delete(schema.curationEpgSources).where(eq(schema.curationEpgSources.id, id));
-    await tx.delete(schema.catalogEpgProgrammes).where(like(schema.catalogEpgProgrammes.channelId, `@${id}/%`));
+    await tx.delete(schema.settingsEpgSources).where(eq(schema.settingsEpgSources.id, id));
+    await tx.delete(schema.cacheEpgProgrammes).where(like(schema.cacheEpgProgrammes.channelId, `@${id}/%`));
   });
   await refreshEpgFallbacks();
 }
@@ -110,9 +110,9 @@ export async function setEpgLink(sourceId: number, contentKey: string, choice: s
   else {
     if (choice !== null) {
       const [known] = await db
-        .select({ id: schema.catalogEpgSourceChannels.channelId })
-        .from(schema.catalogEpgSourceChannels)
-        .where(and(eq(schema.catalogEpgSourceChannels.sourceId, sourceId), eq(schema.catalogEpgSourceChannels.channelId, choice)));
+        .select({ id: schema.cacheEpgSourceChannels.channelId })
+        .from(schema.cacheEpgSourceChannels)
+        .where(and(eq(schema.cacheEpgSourceChannels.sourceId, sourceId), eq(schema.cacheEpgSourceChannels.channelId, choice)));
       if (!known) throw new Error(`« ${choice} » n'est pas une chaîne de cette source`);
     }
     await db
@@ -151,13 +151,13 @@ export async function resolveEpgLinks(): Promise<EpgResolution> {
         exists (
           select 1 from ${v}
           where ${v.contentId} = cc.id and ${visibleItem} and (
-            exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = nullif(${v.raw}->>'epg_channel_id', ''))
-            or (${v.epgMismatch} and exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = ${v.iptvId})))
+            exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = nullif(${v.raw}->>'epg_channel_id', ''))
+            or (${v.epgMismatch} and exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${v.iptvId})))
         ) as guided
       from ${schema.catalogContents} cc
       where cc.kind = 'live' and cc.visible
       order by cc.title, cc.id`),
-    db.select().from(schema.catalogEpgSourceChannels),
+    db.select().from(schema.cacheEpgSourceChannels),
     db.select().from(schema.curationEpgLinks),
   ]);
   const programmes = new Map(channels.map((c) => [sourceGuideId(c.sourceId, c.channelId), c.programmes]));
@@ -256,12 +256,12 @@ async function saveSourceChannels(s: EpgSource, f: Fetched) {
     };
   });
   await db.transaction(async (tx) => {
-    await tx.delete(schema.catalogEpgSourceChannels).where(eq(schema.catalogEpgSourceChannels.sourceId, s.id));
-    for (let i = 0; i < rows.length; i += BATCH) await tx.insert(schema.catalogEpgSourceChannels).values(rows.slice(i, i + BATCH));
+    await tx.delete(schema.cacheEpgSourceChannels).where(eq(schema.cacheEpgSourceChannels.sourceId, s.id));
+    for (let i = 0; i < rows.length; i += BATCH) await tx.insert(schema.cacheEpgSourceChannels).values(rows.slice(i, i + BATCH));
     await tx
-      .update(schema.curationEpgSources)
+      .update(schema.settingsEpgSources)
       .set({ fetchedAt: new Date(), fetchError: null, channelCount: rows.length })
-      .where(eq(schema.curationEpgSources.id, s.id));
+      .where(eq(schema.settingsEpgSources.id, s.id));
   });
 }
 
@@ -296,7 +296,7 @@ export async function importEpgSources(): Promise<SourcesImport> {
       const message = describeError(e);
       errors.push(`${s.name} : ${message}`);
       console.warn(`[epg] source « ${s.name} » en échec, liste et programmes précédents gardés :`, message);
-      await db.update(schema.curationEpgSources).set({ fetchError: message }).where(eq(schema.curationEpgSources.id, s.id));
+      await db.update(schema.settingsEpgSources).set({ fetchError: message }).where(eq(schema.settingsEpgSources.id, s.id));
     }
   }
   const { fallback } = await resolveEpgLinks();

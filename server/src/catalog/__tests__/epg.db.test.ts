@@ -39,9 +39,9 @@ const stats = (channels: number, programmes: number, more: { fallbacks?: number;
 const rows = async () =>
   (
     await db
-      .select({ title: schema.catalogEpgProgrammes.title, channel: schema.catalogEpgProgrammes.channelId })
-      .from(schema.catalogEpgProgrammes)
-      .orderBy(schema.catalogEpgProgrammes.startAt, schema.catalogEpgProgrammes.channelId)
+      .select({ title: schema.cacheEpgProgrammes.title, channel: schema.cacheEpgProgrammes.channelId })
+      .from(schema.cacheEpgProgrammes)
+      .orderBy(schema.cacheEpgProgrammes.startAt, schema.cacheEpgProgrammes.channelId)
   ).map((r) => `${r.channel}:${r.title}`);
 
 beforeAll(async () => {
@@ -58,7 +58,7 @@ beforeAll(async () => {
   ]);
   expect(await runAll("manual", "group")).toBe(true); // group → filters
   // Rows the pruning must drop: a programme long over, from an older import.
-  await db.execute(sql`insert into catalog_epg_programmes (channel_id, start_at, end_at, title, imported_at)
+  await db.execute(sql`insert into cache_epg_programmes (channel_id, start_at, end_at, title, imported_at)
     values ('TF1.fr', now() - interval '2 days', now() - interval '47 hours', 'Vieux', now() - interval '3 days')`);
 });
 afterAll(async () => {
@@ -128,7 +128,7 @@ describe("EPG time corrections", () => {
 
   it("shifts the stored guide at once, then at every import; a duplicate programme is kept once", async () => {
     const times = async () =>
-      (await db.select().from(schema.catalogEpgProgrammes).orderBy(schema.catalogEpgProgrammes.startAt)).map((r) => [
+      (await db.select().from(schema.cacheEpgProgrammes).orderBy(schema.cacheEpgProgrammes.startAt)).map((r) => [
         r.startAt.toISOString().slice(11, 16),
         r.offsetMinutes,
       ]);
@@ -222,7 +222,7 @@ describe("EPG fallback sources", () => {
       `@${id}/beIN SPORTS 1.qa:Ligue des champions`,
       `@${id}/beIN SPORTS 1.qa:Studio`,
     ]);
-    const [src] = await db.select().from(schema.curationEpgSources);
+    const [src] = await db.select().from(schema.settingsEpgSources);
     expect(src).toMatchObject({ channelCount: 5, fetchError: null });
     expect(src.fetchedAt).not.toBeNull();
   });
@@ -251,7 +251,7 @@ describe("EPG fallback sources", () => {
       (
         await db
           .select()
-          .from(schema.catalogEpgProgrammes)
+          .from(schema.cacheEpgProgrammes)
           .where(sql`channel_id = ${`@${id}/Al Aoula.ma`}`)
       )[0]?.startAt
         .toISOString()
@@ -264,12 +264,12 @@ describe("EPG fallback sources", () => {
     files.set(URL, 500);
     expect(await runEpgRebuild()).toEqual(stats(1, 2, { fallbacks: 2, sourceErrors: 1 }));
     expect(await sourceRows()).toHaveLength(3);
-    expect((await db.select().from(schema.curationEpgSources))[0].fetchError).toContain("HTTP 500");
+    expect((await db.select().from(schema.settingsEpgSources))[0].fetchError).toContain("HTTP 500");
     await updateEpgSource(id, { name: "Qatar", url: URL, enabled: false, offsetMinutes: -180 });
     expect(await fallbacks()).toEqual({});
     await runEpgRebuild();
     expect(await sourceRows()).toEqual([]);
     await deleteEpgSource(id);
-    expect(await db.select().from(schema.catalogEpgSourceChannels)).toEqual([]);
+    expect(await db.select().from(schema.cacheEpgSourceChannels)).toEqual([]);
   });
 });

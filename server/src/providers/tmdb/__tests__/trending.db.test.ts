@@ -4,7 +4,7 @@ import { resetDb, closeDb } from "@/test/db";
 import { setSecretsForTests } from "@/config";
 import { runTrending } from "../trending";
 
-const ranks = async () => (await db.select().from(schema.tmdbTrending)).map((r) => [r.mediaType, r.tmdbId]).sort();
+const ranks = async () => (await db.select().from(schema.cacheTmdbTrending)).map((r) => [r.mediaType, r.tmdbId]).sort();
 
 beforeAll(async () => {
   await resetDb();

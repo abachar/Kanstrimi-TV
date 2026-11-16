@@ -40,7 +40,7 @@ export const settings = pgTable("settings", {
  * several providers lists one source per account (`position`: the preferred provider first, the one that
  * plays by default). Disabled: its catalogue stays but is served no more; deleted: everything it brought goes.
  */
-export const providerAccounts = pgTable("provider_accounts", {
+export const xtreamAccounts = pgTable("xtream_accounts", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   url: text("url").notNull(),
@@ -55,7 +55,7 @@ export const providerAccounts = pgTable("provider_accounts", {
 const accountId = () =>
   integer("account_id")
     .notNull()
-    .references(() => providerAccounts.id, { onDelete: "cascade" });
+    .references(() => xtreamAccounts.id, { onDelete: "cascade" });
 
 export const xtreamCategories = pgTable(
   "xtream_categories",
@@ -214,7 +214,7 @@ export const catalogVariants = pgTable(
 
 /**
  * One content = one work (a movie, a series, a channel), the thing the app lists, plays,
- * favourites and resumes. Filled by the `group` job from `items` and `tmdb_cache`; every
+ * favourites and resumes. Filled by the `group` job from `items` and `cache_tmdb`; every
  * column is derived and rewritten in place at each run. External references (favourites,
  * progress) use `key`, never `id`: a row may vanish and come back with a new id.
  */
@@ -275,7 +275,7 @@ export const catalogContents = pgTable(
     adult: boolean("adult").default(false).notNull(),
     /** TMDB's own adult flag, copied with the card: `adult` is computed from it and the variants. */
     tmdbAdult: boolean("tmdb_adult").default(false).notNull(),
-    /** When and in which language the card fields were last copied from `tmdb_cache`: older than the cache entry = copied again. */
+    /** When and in which language the card fields were last copied from `cache_tmdb`: older than the cache entry = copied again. */
     cardsAt: timestamp("cards_at", { withTimezone: true }),
     cardsLang: text("cards_lang"),
     addedAt: timestamp("added_at", { withTimezone: true }).notNull(),
@@ -316,8 +316,8 @@ export const catalogContents = pgTable(
 );
 
 /** Cached TMDB details (movie or tv), one row per (type, id, lang). */
-export const tmdbCache = pgTable(
-  "tmdb_cache",
+export const cacheTmdb = pgTable(
+  "cache_tmdb",
   {
     id: serial("id").primaryKey(),
     mediaType: text("media_type").notNull(), // movie | tv
@@ -327,19 +327,19 @@ export const tmdbCache = pgTable(
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("tmdb_cache_idx").on(t.mediaType, t.tmdbId, t.lang),
+    uniqueIndex("cache_tmdb_idx").on(t.mediaType, t.tmdbId, t.lang),
     // The entries cached before the logos, which `enrich` fetches again: found without reading
     // (and detoasting) every document. Empties itself as the backfill goes. Keep in step with `tmdbHasLogos`
     // (`tmdb-cache.ts`), which renders qualified columns and imports this file.
-    index("tmdb_cache_logoless_idx")
+    index("cache_tmdb_logoless_idx")
       .on(t.lang, t.mediaType, t.tmdbId, t.fetchedAt)
       .where(sql`not coalesce(${t.data} -> 'images' ? 'logos', false)`),
   ],
 );
 
 /** Cached upstream get_vod_info / get_series_info responses. */
-export const xtreamInfoCache = pgTable(
-  "xtream_info_cache",
+export const cacheXtreamInfo = pgTable(
+  "cache_xtream_info",
   {
     id: serial("id").primaryKey(),
     accountId: accountId(),
@@ -348,7 +348,7 @@ export const xtreamInfoCache = pgTable(
     data: jsonb("data").$type<Record<string, unknown>>().notNull(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("xtream_info_cache_idx").on(t.accountId, t.kind, t.xtreamId)],
+  (t) => [uniqueIndex("cache_xtream_info_idx").on(t.accountId, t.kind, t.xtreamId)],
 );
 
 const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
@@ -478,8 +478,8 @@ export const catalogContentProfiles = pgTable(
  * The channels of the iptv-org database (github.com/iptv-org/database), refreshed daily by the
  * `channels` step: what the live variants are matched against, for their logo, theme and details.
  */
-export const iptvorgChannels = pgTable(
-  "iptvorg_channels",
+export const cacheIptvorgChannels = pgTable(
+  "cache_iptvorg_channels",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
@@ -497,7 +497,7 @@ export const iptvorgChannels = pgTable(
     logoUrl: text("logo_url"),
     logoPath: text("logo_path"),
   },
-  (t) => [index("iptvorg_channels_country_idx").on(t.country)],
+  (t) => [index("cache_iptvorg_channels_country_idx").on(t.country)],
 );
 
 /**
@@ -608,8 +608,8 @@ export const catalogEpisodeVariants = pgTable(
  * source's, `@<source>/<channel>` (`epg_fallback_id`). Each import replaces, channel by channel, what
  * it brings: a channel missing from a file keeps its programmes until they are over.
  */
-export const catalogEpgProgrammes = pgTable(
-  "catalog_epg_programmes",
+export const cacheEpgProgrammes = pgTable(
+  "cache_epg_programmes",
   {
     id: serial("id").primaryKey(),
     channelId: text("channel_id").notNull(),
@@ -621,30 +621,27 @@ export const catalogEpgProgrammes = pgTable(
     /** The correction applied to the provider's times (`epg_offsets`), so a new rule shifts by the difference. */
     offsetMinutes: integer("offset_minutes").default(0).notNull(),
   },
-  (t) => [
-    index("catalog_epg_programmes_channel_start_idx").on(t.channelId, t.startAt),
-    index("catalog_epg_programmes_end_idx").on(t.endAt),
-  ],
+  (t) => [index("cache_epg_programmes_channel_start_idx").on(t.channelId, t.startAt), index("cache_epg_programmes_end_idx").on(t.endAt)],
 );
-export type EpgProgramme = typeof catalogEpgProgrammes.$inferSelect;
+export type EpgProgramme = typeof cacheEpgProgrammes.$inferSelect;
 
 /**
  * Corrections of the provider's guide times: a guide id (`beINSports3.qa`) or every id of a
  * suffix (`*.qa`), shifted by `minutes`. The exact id wins over a suffix; set from the EPG page.
  */
-export const curationEpgOffsets = pgTable("curation_epg_offsets", {
+export const settingsEpgOffsets = pgTable("settings_epg_offsets", {
   pattern: text("pattern").primaryKey(),
   minutes: integer("minutes").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type EpgOffset = typeof curationEpgOffsets.$inferSelect;
+export type EpgOffset = typeof settingsEpgOffsets.$inferSelect;
 
 /**
  * The fallback guides: XMLTV files that complete the provider's for the visible channels it leaves
  * without programmes (open-epg…), tried in `position` order. Set on the EPG page; `fetched_at`,
  * `fetch_error` and `channel_count` are the last import's outcome. `offset_minutes` shifts the whole file.
  */
-export const curationEpgSources = pgTable("curation_epg_sources", {
+export const settingsEpgSources = pgTable("settings_epg_sources", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   url: text("url").notNull().unique(),
@@ -656,15 +653,15 @@ export const curationEpgSources = pgTable("curation_epg_sources", {
   channelCount: integer("channel_count"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
-export type EpgSource = typeof curationEpgSources.$inferSelect;
+export type EpgSource = typeof settingsEpgSources.$inferSelect;
 
 /** The channels a fallback source declares or files programmes for, as of its last successful import. */
-export const catalogEpgSourceChannels = pgTable(
-  "catalog_epg_source_channels",
+export const cacheEpgSourceChannels = pgTable(
+  "cache_epg_source_channels",
   {
     sourceId: integer("source_id")
       .notNull()
-      .references(() => curationEpgSources.id, { onDelete: "cascade" }),
+      .references(() => settingsEpgSources.id, { onDelete: "cascade" }),
     channelId: text("channel_id").notNull(),
     names: text("names").array().default([]).notNull(),
     programmes: integer("programmes").default(0).notNull(),
@@ -673,7 +670,7 @@ export const catalogEpgSourceChannels = pgTable(
   },
   (t) => [primaryKey({ columns: [t.sourceId, t.channelId] })],
 );
-export type EpgSourceChannel = typeof catalogEpgSourceChannels.$inferSelect;
+export type EpgSourceChannel = typeof cacheEpgSourceChannels.$inferSelect;
 
 /**
  * The admin's links between a channel (content key) and a fallback source: `channel_id` forces one of
@@ -684,7 +681,7 @@ export const curationEpgLinks = pgTable(
   {
     sourceId: integer("source_id")
       .notNull()
-      .references(() => curationEpgSources.id, { onDelete: "cascade" }),
+      .references(() => settingsEpgSources.id, { onDelete: "cascade" }),
     contentKey: text("content_key").notNull(),
     channelId: text("channel_id"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -769,7 +766,7 @@ export const appDevices = pgTable("app_devices", {
  * it was issued for (a build from Xcode talks to APNs' sandbox, one from TestFlight to production),
  * and which alerts the admin lets it receive. One row per device; gone with it.
  */
-export const devicePush = pgTable("device_push", {
+export const appDevicePush = pgTable("app_device_push", {
   deviceId: integer("device_id")
     .primaryKey()
     .references(() => appDevices.id, { onDelete: "cascade" }),
@@ -782,8 +779,8 @@ export const devicePush = pgTable("device_push", {
 });
 
 /** Every alert sent (or refused by APNs), for the admin's log. `link`: the `kanstrimi://` URL the alert opens. */
-export const notifications = pgTable(
-  "notifications",
+export const appNotifications = pgTable(
+  "app_notifications",
   {
     id: serial("id").primaryKey(),
     deviceId: integer("device_id").references(() => appDevices.id, { onDelete: "set null" }),
@@ -795,7 +792,7 @@ export const notifications = pgTable(
     detail: text("detail"), // APNs' reason or the error when it failed
     sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("notifications_sent_idx").on(t.sentAt)],
+  (t) => [index("app_notifications_sent_idx").on(t.sentAt)],
 );
 
 /**
@@ -803,8 +800,8 @@ export const notifications = pgTable(
  * (`company`: Pixar, A24) or a TV network (`network`: HBO, Netflix). Name and logo are copied
  * from TMDB when the studio is added.
  */
-export const curationStudios = pgTable(
-  "curation_studios",
+export const catalogStudios = pgTable(
+  "catalog_studios",
   {
     id: serial("id").primaryKey(),
     kind: text("kind").$type<"company" | "network">().notNull(),
@@ -813,7 +810,7 @@ export const curationStudios = pgTable(
     logoPath: text("logo_path"),
     position: integer("position").default(0).notNull(),
   },
-  (t) => [uniqueIndex("curation_studios_kind_tmdb_idx").on(t.kind, t.tmdbId)],
+  (t) => [uniqueIndex("catalog_studios_kind_tmdb_idx").on(t.kind, t.tmdbId)],
 );
 
 /**
@@ -822,8 +819,8 @@ export const curationStudios = pgTable(
  * `available_at`: the first time a visible content carried the key; `started_at`: the first time the
  * app played 5 % of it. Available and not started = the home hero and the head of the Top Shelf.
  */
-export const curationWaitlist = pgTable(
-  "curation_waitlist",
+export const appWaitlist = pgTable(
+  "app_waitlist",
   {
     profileId: integer("profile_id")
       .notNull()
@@ -842,8 +839,8 @@ export const curationWaitlist = pgTable(
 );
 
 /** TMDB's weekly trending lists, replaced by the `trending` step: the « Top 10 » rows cross them with the catalogue. */
-export const tmdbTrending = pgTable(
-  "tmdb_trending",
+export const cacheTmdbTrending = pgTable(
+  "cache_tmdb_trending",
   {
     mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
     rank: integer("rank").notNull(),
@@ -858,8 +855,8 @@ export const tmdbTrending = pgTable(
  * when it seeds the home row. Ids only, in TMDB's order; crossed with the catalogue at every read, so a title that
  * arrives shows up at once. Fetched again past a week.
  */
-export const tmdbRecommendations = pgTable(
-  "tmdb_recommendations",
+export const cacheTmdbRecommendations = pgTable(
+  "cache_tmdb_recommendations",
   {
     mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
     tmdbId: integer("tmdb_id").notNull(),
@@ -874,8 +871,8 @@ export const tmdbRecommendations = pgTable(
  * `credits_scene`: TMDB's keywords announce a scene during or after the end credits of a movie.
  * `imdb_id`: the key of the public bases of markers (a series' own id, not its episodes').
  */
-export const tmdbExtras = pgTable(
-  "tmdb_extras",
+export const cacheTmdbExtras = pgTable(
+  "cache_tmdb_extras",
   {
     mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
     tmdbId: integer("tmdb_id").notNull(),
@@ -903,8 +900,8 @@ export type MarkerSegment = {
  * it plays and SkipDB does not know it. A movie has season 0 and episode 0. An empty answer is kept too, a week;
  * a known title, a month.
  */
-export const theintrodbCache = pgTable(
-  "theintrodb_cache",
+export const cacheTheintrodb = pgTable(
+  "cache_theintrodb",
   {
     mediaType: text("media_type").$type<"movie" | "tv">().notNull(),
     tmdbId: integer("tmdb_id").notNull(),
@@ -922,8 +919,8 @@ export const theintrodbCache = pgTable(
  * file the base does not name, asked when the episode plays and no other source knows them. An empty answer is kept too, a
  * week; a known episode, a month.
  */
-export const introdbCache = pgTable(
-  "introdb_cache",
+export const cacheIntrodb = pgTable(
+  "cache_introdb",
   {
     imdbId: text("imdb_id").notNull(),
     season: integer("season").notNull(),
@@ -939,8 +936,8 @@ export const introdbCache = pgTable(
  * `id` is SkipDB's. A movie has season 0 and episode 0. `duration_ms`: the length of the file the segment was
  * measured on, null when SkipDB does not know it.
  */
-export const skipdbSegments = pgTable(
-  "skipdb_segments",
+export const cacheSkipdbSegments = pgTable(
+  "cache_skipdb_segments",
   {
     id: integer("id").primaryKey(),
     imdbId: text("imdb_id").notNull(),
@@ -951,10 +948,10 @@ export const skipdbSegments = pgTable(
     endMs: integer("end_ms").notNull(),
     durationMs: integer("duration_ms"),
   },
-  (t) => [index("skipdb_segments_title_idx").on(t.imdbId, t.season, t.episode)],
+  (t) => [index("cache_skipdb_segments_title_idx").on(t.imdbId, t.season, t.episode)],
 );
 
-export type ProviderAccount = typeof providerAccounts.$inferSelect;
+export type ProviderAccount = typeof xtreamAccounts.$inferSelect;
 export type Variant = typeof catalogVariants.$inferSelect;
 export type Episode = typeof catalogEpisodes.$inferSelect;
 export type Device = typeof appDevices.$inferSelect;
@@ -967,8 +964,8 @@ export type Plays = typeof appPlays.$inferSelect;
 export type Profile = Omit<typeof appProfiles.$inferSelect, "avatar"> & { avatarVersion: string };
 export type TaskStep = typeof taskSteps.$inferSelect;
 export type TaskRun = typeof taskRuns.$inferSelect;
-export type IptvorgChannel = typeof iptvorgChannels.$inferSelect;
-export type Studio = typeof curationStudios.$inferSelect;
-export type WaitlistEntry = typeof curationWaitlist.$inferSelect;
-export type DevicePush = typeof devicePush.$inferSelect;
-export type Notification = typeof notifications.$inferSelect;
+export type IptvorgChannel = typeof cacheIptvorgChannels.$inferSelect;
+export type Studio = typeof catalogStudios.$inferSelect;
+export type WaitlistEntry = typeof appWaitlist.$inferSelect;
+export type DevicePush = typeof appDevicePush.$inferSelect;
+export type Notification = typeof appNotifications.$inferSelect;

@@ -8,11 +8,11 @@ import { applyFilters, runGrouping } from "@/catalog";
 /** Empty every catalogue table between test files, then seed the default profile and the provider account. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table provider_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, tmdb_cache, xtream_info_cache, app_profiles, app_profile_filters, catalog_variant_profiles, catalog_content_profiles, task_steps, task_runs, iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, catalog_epg_programmes, curation_epg_offsets, curation_epg_sources, catalog_epg_source_channels, curation_epg_links, curation_studios, curation_waitlist, curation_channels, tmdb_trending, tmdb_recommendations, tmdb_extras, skipdb_segments, theintrodb_cache, introdb_cache restart identity cascade`,
+    sql`truncate table xtream_accounts, xtream_streams, xtream_categories, catalog_variants, catalog_contents, catalog_episodes, catalog_episode_variants, catalog_categories, cache_tmdb, cache_xtream_info, app_profiles, app_profile_filters, catalog_variant_profiles, catalog_content_profiles, task_steps, task_runs, cache_iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, cache_epg_programmes, settings_epg_offsets, settings_epg_sources, cache_epg_source_channels, curation_epg_links, catalog_studios, app_waitlist, curation_channels, cache_tmdb_trending, cache_tmdb_recommendations, cache_tmdb_extras, cache_skipdb_segments, cache_theintrodb, cache_introdb restart identity cascade`,
   );
   await db.insert(schema.appProfiles).values({ name: "Hakim", isDefault: true, judgedAt: new Date() }); // the restarted identity gives it PROFILE
   await db
-    .insert(schema.providerAccounts)
+    .insert(schema.xtreamAccounts)
     .values({ name: "provider.test", url: "http://provider.test", username: "u", password: "p", position: 1 }); // ACCOUNT
   invalidateSettings();
   invalidateAccounts();
@@ -22,13 +22,13 @@ export async function resetDb() {
 export const ACCOUNT = 1;
 /** Changes the seeded account (its URL, its state) for a test file. */
 export async function setAccountForTests(values: Partial<Pick<ProviderAccount, "name" | "url" | "username" | "password" | "enabled">>) {
-  await db.update(schema.providerAccounts).set(values).where(eq(schema.providerAccounts.id, ACCOUNT));
+  await db.update(schema.xtreamAccounts).set(values).where(eq(schema.xtreamAccounts.id, ACCOUNT));
   invalidateAccounts();
 }
 /** A second provider for the tests that need one: its rows carry its id. */
 export async function seedAccount(values: Partial<Pick<ProviderAccount, "name" | "url" | "username" | "password" | "enabled">> = {}) {
   const [row] = await db
-    .insert(schema.providerAccounts)
+    .insert(schema.xtreamAccounts)
     .values({ name: "backup.test", url: "http://backup.test", username: "u2", password: "p2", position: 2, ...values })
     .returning();
   invalidateAccounts();
@@ -148,7 +148,7 @@ export async function seedItems(rows: ItemSeed[]) {
 
 export async function seedTmdb(mediaType: "movie" | "tv", tmdbId: number, data: Record<string, unknown>, lang = "fr-FR") {
   await db
-    .insert(schema.tmdbCache)
+    .insert(schema.cacheTmdb)
     .values({ mediaType, tmdbId, lang, data: { id: tmdbId, ...data } })
     .onConflictDoNothing();
 }
@@ -157,7 +157,7 @@ export async function seedTmdb(mediaType: "movie" | "tv", tmdbId: number, data: 
 export async function seedProgrammes(rows: { channelId: string; start: number; end: number; title: string; overview?: string }[]) {
   if (!rows.length) return;
   const now = Date.now();
-  await db.insert(schema.catalogEpgProgrammes).values(
+  await db.insert(schema.cacheEpgProgrammes).values(
     rows.map((r) => ({
       channelId: r.channelId,
       startAt: new Date(now + r.start * 60_000),

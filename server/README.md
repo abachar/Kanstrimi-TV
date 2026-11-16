@@ -27,7 +27,7 @@ filtres) et **Appareils** pour appairer l'Apple TV ou l'iPhone. En local, `DEV_P
 | `npm run check` | linter et format sans rien réécrire (`biome ci`, comme la CI) |
 | `npm run db:generate` | migration après un changement de `src/db/schema.ts` |
 | `npm run db:migrate` | applique `drizzle/*.sql` (en production : le conteneur `kanstrimi-migrate`) |
-| `scripts/tmdb-cache-clean.sh [--fix]` | trouve, et vide avec `--fix`, les documents illisibles de `tmdb_cache` |
+| `scripts/tmdb-cache-clean.sh [--fix]` | trouve, et vide avec `--fix`, les documents illisibles de `cache_tmdb` |
 
 Les tests `*.db.test.ts` utilisent une base de test (`TEST_DATABASE_URL`, sinon `kanstrimi_test`), jamais la base de dev.
 Les tests vivent dans un `__tests__/` à côté du code.
@@ -68,9 +68,9 @@ partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque pa
 
 ## Tables
 
-Le préfixe dit d'où vient la donnée : `provider_accounts` (les comptes Xtream, un par fournisseur, dans l'ordre de préférence), `xtream_` (copie et cache de chaque fournisseur, `account_id` sur chaque ligne), `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_` (caches des sources),
-`catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes et les épisodes construits à l'ouverture d'une fiche ; `catalog_variant_profiles` et `catalog_content_profiles` = ce que chaque profil garde et voit), `curation_` (choix de l'admin), `app_` (les personnes du foyer, `app_profiles` avec leurs réglages de lecture, leurs filtres, et ce que l'app enregistre pour chacune : favoris,
-progression, lectures (`app_plays`), versions choisies (`app_profile_versions`), temps regardé du direct, liste d'attente ; les appareils), `task_` (journal), et `settings`.
+Le préfixe dit la portée : `xtream_` (ce que les fournisseurs envoient : `xtream_accounts`, les comptes, un par fournisseur, dans l'ordre de préférence, et la copie brute de chacun, `account_id` sur chaque ligne), `cache_` (les copies des sources externes, toutes reconstructibles : TMDB, iptv-org, SkipDB, TheIntroDB, IntroDB, fiches Xtream, guide des programmes),
+`catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes, les épisodes construits à l'ouverture d'une fiche et les studios ; `catalog_variant_profiles` et `catalog_content_profiles` = ce que chaque profil garde et voit), `curation_` (nos chaînes et les liens EPG posés à la main), `app_` (les personnes du foyer, `app_profiles` avec leurs réglages de lecture, leurs filtres, et ce que l'app enregistre pour chacune : favoris,
+progression, lectures (`app_plays`), versions choisies (`app_profile_versions`), temps regardé du direct, liste d'attente ; les appareils, leurs alertes), `settings` et `settings_` (les réglages du serveur, les sources et décalages EPG), `task_` (journal).
 Deux niveaux : variantes (une entrée d'un fournisseur, unique par (`account_id`, `kind`, `xtream_id`) : deux fournisseurs
 réutilisent les mêmes numéros) et contenus (`catalog_contents.key`, la seule identité exposée à l'app). Un titre présent chez
 plusieurs fournisseurs est un contenu dont chaque version liste une source par fournisseur, le préféré en premier.
@@ -103,7 +103,7 @@ player/     /player, un fichier par ressource ; types.ts = le contrat
 catalog/    le domaine : grammaire des noms, clés, profils et leurs filtres, groupement, épisodes, pipeline
 devices/    appairage, jetons, enregistrement push des téléphones
 notify/     les alertes de l'app (APNs) : textes, envoi, journal ; branché sur les événements du catalogue par main.ts
-providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), claude/ (lecture des noms inconnus de TMDB et de la référence des chaînes, sans table), iptv/, skipdb/, theintrodb/, introdb/ ; un provider ne connaît pas le catalogue et n'écrit que ses tables (`xtream_`, `tmdb_`, `iptvorg_`, `skipdb_`, `theintrodb_`, `introdb_`), vérifié par `architecture.test.ts`
+providers/  xtream/, xmltv/ (lecture d'un guide XMLTV, gzip compris), tmdb/ (dont le cache d'images), claude/ (lecture des noms inconnus de TMDB et de la référence des chaînes, sans table), iptv/, skipdb/, theintrodb/, introdb/ ; un provider ne connaît pas le catalogue et ne touche que ses tables (`xtream_`, `cache_`), vérifié par `architecture.test.ts`
 config/     réglages (base et environnement), mot de passe
 db/         client, schéma, migrations, prédicats de visibilité
 shared/     utilitaires ; n'importe jamais `@/`
@@ -253,7 +253,7 @@ par son index.
   thème ou un bouquet seulement (beIN, OSN) reste sous « Monde arabe ».
 - **« Si vous avez aimé… »** (`catalog/recommendations.ts`, `player/related.ts`) : recommandations TMDB (`/recommendations`,
   une page) demandées à la volée (ouverture d'une fiche, lecture, graines de l'accueil en fond), gardées 7 jours dans
-  `tmdb_recommendations` (ids seuls), croisées avec le catalogue visible à chaque lecture. Jamais un titre vu ; la suite
+  `cache_tmdb_recommendations` (ids seuls), croisées avec le catalogue visible à chaque lecture. Jamais un titre vu ; la suite
   d'un titre écarte aussi ceux en cours, l'accueil aussi « Ma liste ». `/playback/{id}/suggestions` : panneau du lecteur
   et suite (saga d'abord) ; `/playback/{série}` lit l'épisode où elle reprend.
 - **Récaps, intros et génériques** (`catalog/markers.ts`, `POST /playback/{id}/markers`) : l'app envoie ce qu'elle lit

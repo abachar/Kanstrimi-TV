@@ -26,7 +26,7 @@ import { markWaitlistAvailable } from "../waitlist";
  *
  *  1. items → content_key, from the columns `runNaming` wrote (run after each import)
  *  2. contents upserted from the keys, items linked by id
- *  3. card fields copied from tmdb_cache (or just the title for fallbacks)
+ *  3. card fields copied from cache_tmdb (or just the title for fallbacks)
  *  4. aggregates (variant count, languages, quality, visibility)
  *  5. contents left without a variant are removed
  *
@@ -537,7 +537,7 @@ async function fillCardFields(onlyIds?: number[]) {
     const rows = await db.execute<{ id: number; kind: Kind; tmdb_id: number | null; title: string; data: TmdbDetails | null }>(sql`
       select c.id, c.kind, c.tmdb_id, c.title, t.data
       from ${c} c
-      left join ${schema.tmdbCache} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = ${sqlTmdbMediaType(sql`c.kind`)}
+      left join ${schema.cacheTmdb} t on t.tmdb_id = c.tmdb_id and t.lang = ${lang} and t.media_type = ${sqlTmdbMediaType(sql`c.kind`)}
       where c.id > ${last} ${onlyIds ? sql`and c.id = any(${`{${onlyIds.join(",")}}`}::int[])` : sql``}
         and (c.cards_at is null or c.cards_lang is distinct from ${lang} or t.fetched_at > c.cards_at)
       order by c.id limit ${CARD_CHUNK}`);
@@ -570,7 +570,7 @@ async function fillCardFields(onlyIds?: number[]) {
  * found by name, but only when the provider files no programme under it: a guide is never lost for nothing.
  */
 const variantEpgId = sql`case
-  when epg_mismatch and not exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = raw->>'epg_channel_id')
+  when epg_mismatch and not exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = raw->>'epg_channel_id')
   then iptv_id else nullif(raw->>'epg_channel_id', '') end`;
 
 /**
@@ -616,7 +616,7 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
         from (
           select id, content_id, added_at, quality_rank, lang, dynamic_range, market, country, position, category_xtream_id, raw, theme, adult, iptv_id,
             ${variantEpgId} as epg_id,
-            exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = ${variantEpgId}) as has_epg,
+            exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${variantEpgId}) as has_epg,
             coalesce(array_position(${langOrder}::text[], lang), ${DEFAULT_LANGUAGE_ORDER.length + 1}) as lang_rank,
             (${visibleItem}) as vis,
             (${visibleItem} or not bool_or(${visibleItem}) over (partition by content_id)) as counted
@@ -624,7 +624,7 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
         ) i
         group by content_id
       ) g
-      left join ${schema.iptvorgChannels} ic on ic.id = g.iptv
+      left join ${schema.cacheIptvorgChannels} ic on ic.id = g.iptv
     ) a
     where a.content_id = c.id
       and (c.variant_count, c.added_at, c.visible, c.max_quality_rank, c.languages, c.dynamic_range, c.themes, c.market, c.country,

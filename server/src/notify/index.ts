@@ -7,7 +7,7 @@ import { runAlert, testAlert, waitlistAlert, type Arrival, type RunSummary } fro
 
 /**
  * The alerts of the app: « Film attendu arrivé » and « Traitement complet terminé », each a switch
- * per device in the admin, sent through APNs and journalled in `notifications`. The catalogue
+ * per device in the admin, sent through APNs and journalled in `app_notifications`. The catalogue
  * never calls this block: `main.ts` wires its events to `notifyArrivals` and `notifyRunFinished`.
  */
 export type NotificationKind = PushKind | "test";
@@ -55,7 +55,7 @@ async function deliver(kind: NotificationKind, target: PushTarget, alert: ApnsAl
   }
   if (status !== "sent") console.warn(`[notify] ${kind} → ${target.device.name ?? target.device.code} : ${status} (${detail})`);
   const [row] = await db
-    .insert(schema.notifications)
+    .insert(schema.appNotifications)
     .values({ deviceId: target.device.id, kind, title: alert.title, body: alert.body, link: alert.link ?? null, status, detail })
     .returning();
   return row;
@@ -87,10 +87,10 @@ export async function sendTestNotification(code: string): Promise<Notification |
 /** The admin's log: the latest alerts, the device's name beside each. */
 export async function recentNotifications(limit = 30): Promise<NotificationRow[]> {
   const rows = await db
-    .select({ n: schema.notifications, deviceName: schema.appDevices.name })
-    .from(schema.notifications)
-    .leftJoin(schema.appDevices, eq(schema.appDevices.id, schema.notifications.deviceId))
-    .orderBy(desc(schema.notifications.id))
+    .select({ n: schema.appNotifications, deviceName: schema.appDevices.name })
+    .from(schema.appNotifications)
+    .leftJoin(schema.appDevices, eq(schema.appDevices.id, schema.appNotifications.deviceId))
+    .orderBy(desc(schema.appNotifications.id))
     .limit(limit);
   return rows.map((r) => ({ ...r.n, deviceName: r.deviceName }));
 }

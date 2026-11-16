@@ -14,23 +14,23 @@ export async function getTmdbClient() {
   return new TmdbClient(s.tmdb_api_key, s.tmdb_language);
 }
 
-/** A document of `tmdb_cache`: details by (`movie` | `tv`, id, language), a season by (`tv_season`, show id, `<lang>#s<n>`). */
+/** A document of `cache_tmdb`: details by (`movie` | `tv`, id, language), a season by (`tv_season`, show id, `<lang>#s<n>`). */
 export type TmdbCacheKey = { mediaType: string; tmdbId: number; lang: string };
 
 export async function readTmdbCache(k: TmdbCacheKey): Promise<{ data: Record<string, unknown>; fetchedAt: Date } | undefined> {
   const [row] = await db
-    .select({ data: schema.tmdbCache.data, fetchedAt: schema.tmdbCache.fetchedAt })
-    .from(schema.tmdbCache)
-    .where(and(eq(schema.tmdbCache.mediaType, k.mediaType), eq(schema.tmdbCache.tmdbId, k.tmdbId), eq(schema.tmdbCache.lang, k.lang)));
+    .select({ data: schema.cacheTmdb.data, fetchedAt: schema.cacheTmdb.fetchedAt })
+    .from(schema.cacheTmdb)
+    .where(and(eq(schema.cacheTmdb.mediaType, k.mediaType), eq(schema.cacheTmdb.tmdbId, k.tmdbId), eq(schema.cacheTmdb.lang, k.lang)));
   return row;
 }
 
 export async function writeTmdbCache(k: TmdbCacheKey, data: Record<string, unknown>) {
   await db
-    .insert(schema.tmdbCache)
+    .insert(schema.cacheTmdb)
     .values({ ...k, data })
     .onConflictDoUpdate({
-      target: [schema.tmdbCache.mediaType, schema.tmdbCache.tmdbId, schema.tmdbCache.lang],
+      target: [schema.cacheTmdb.mediaType, schema.cacheTmdb.tmdbId, schema.cacheTmdb.lang],
       set: { data, fetchedAt: new Date() },
     });
 }

@@ -83,7 +83,7 @@ export type ContentDetail = {
 /** What the base holds per guide id: how many programmes, until when. */
 async function guideStats(ids: string[]): Promise<Map<string, { programmes: number; until: Date }>> {
   if (!ids.length) return new Map();
-  const p = schema.catalogEpgProgrammes;
+  const p = schema.cacheEpgProgrammes;
   const rows = await db
     .select({ id: p.channelId, programmes: sql<number>`count(*)::int`, until: sql<Date>`max(${p.endAt})` })
     .from(p)
@@ -124,7 +124,7 @@ async function guideOf(c: Content, items: Variant[]): Promise<ChannelGuide | nul
     return { item, candidates, used: candidates.find((x) => x.programmes)?.id ?? null };
   });
   const shown = variants.find((v) => v.used)?.used ?? null;
-  const p = schema.catalogEpgProgrammes;
+  const p = schema.cacheEpgProgrammes;
   const programmes = shown
     ? await db.select({ title: p.title, startAt: p.startAt, endAt: p.endAt }).from(p).where(eq(p.channelId, shown)).orderBy(asc(p.startAt))
     : [];

@@ -84,7 +84,7 @@ describe("ensureEpisodes", () => {
     });
     await expect(ensureEpisodes(content, variants, "fr-FR")).rejects.toBeInstanceOf(UpstreamUnavailable);
     await db
-      .insert(schema.xtreamInfoCache)
+      .insert(schema.cacheXtreamInfo)
       .values({ accountId: ACCOUNT, kind: "series", xtreamId: "300", data: info(3), fetchedAt: new Date(0) });
     await ensureEpisodes(content, variants, "fr-FR");
     expect(await episodes()).toHaveLength(3);
@@ -100,7 +100,7 @@ describe("ensureEpisodes", () => {
     [content] = await db.select().from(schema.catalogContents);
     variants = await db.select().from(schema.catalogVariants);
     expect(variants).toHaveLength(3);
-    await db.insert(schema.xtreamInfoCache).values(
+    await db.insert(schema.cacheXtreamInfo).values(
       variants.map((v, i) => ({
         accountId: ACCOUNT,
         kind: "series" as const,

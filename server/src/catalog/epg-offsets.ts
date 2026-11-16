@@ -21,8 +21,8 @@ export type OffsetRules = { exact: Map<string, number>; suffixes: [string, numbe
 
 export async function offsetRules(): Promise<OffsetRules> {
   const [rows, sources] = await Promise.all([
-    db.select().from(schema.curationEpgOffsets),
-    db.select({ id: schema.curationEpgSources.id, offsetMinutes: schema.curationEpgSources.offsetMinutes }).from(schema.curationEpgSources),
+    db.select().from(schema.settingsEpgOffsets),
+    db.select({ id: schema.settingsEpgSources.id, offsetMinutes: schema.settingsEpgSources.offsetMinutes }).from(schema.settingsEpgSources),
   ]);
   return compile(rows, sources);
 }
@@ -50,18 +50,18 @@ export function offsetOf(rules: OffsetRules, channelId: string): number {
   return rules.suffixes.find(([s]) => id.endsWith(s))?.[1] ?? 0;
 }
 
-export const listOffsets = () => db.select().from(schema.curationEpgOffsets).orderBy(schema.curationEpgOffsets.pattern);
+export const listOffsets = () => db.select().from(schema.settingsEpgOffsets).orderBy(schema.settingsEpgOffsets.pattern);
 
 /** Sets a rule (0 minutes removes it) and shifts the stored guide by the difference. */
 export async function setOffset(pattern: string, minutes: number) {
   if (!isOffsetPattern(pattern)) throw new Error(`Règle invalide : ${pattern}`);
   if (!isOffsetMinutes(minutes)) throw new Error("Décalage invalide : ± 12 h par pas de 5 min");
-  if (minutes === 0) await db.delete(schema.curationEpgOffsets).where(eq(schema.curationEpgOffsets.pattern, pattern));
+  if (minutes === 0) await db.delete(schema.settingsEpgOffsets).where(eq(schema.settingsEpgOffsets.pattern, pattern));
   else
     await db
-      .insert(schema.curationEpgOffsets)
+      .insert(schema.settingsEpgOffsets)
       .values({ pattern, minutes })
-      .onConflictDoUpdate({ target: schema.curationEpgOffsets.pattern, set: { minutes, updatedAt: new Date() } });
+      .onConflictDoUpdate({ target: schema.settingsEpgOffsets.pattern, set: { minutes, updatedAt: new Date() } });
   return reapplyOffsets();
 }
 
@@ -69,15 +69,15 @@ export async function setOffset(pattern: string, minutes: number) {
 export async function reapplyOffsets(): Promise<number> {
   const rules = await offsetRules();
   const groups = await db
-    .selectDistinct({ channelId: schema.catalogEpgProgrammes.channelId, offset: schema.catalogEpgProgrammes.offsetMinutes })
-    .from(schema.catalogEpgProgrammes);
+    .selectDistinct({ channelId: schema.cacheEpgProgrammes.channelId, offset: schema.cacheEpgProgrammes.offsetMinutes })
+    .from(schema.cacheEpgProgrammes);
   let moved = 0;
   for (const g of groups) {
     const want = offsetOf(rules, g.channelId);
     if (want === g.offset) continue;
     const delta = want - g.offset;
     const rows = await db.execute(sql`
-      update catalog_epg_programmes set
+      update cache_epg_programmes set
         start_at = start_at + make_interval(mins => ${delta}),
         end_at = end_at + make_interval(mins => ${delta}),
         offset_minutes = ${want}

@@ -12,7 +12,7 @@ const PAGES = 5;
 export async function runTrending() {
   const client = await getTmdbClient();
   if (!client) throw new Error("Clé API TMDB non configurée");
-  const rows: (typeof schema.tmdbTrending.$inferInsert)[] = [];
+  const rows: (typeof schema.cacheTmdbTrending.$inferInsert)[] = [];
   for (const mediaType of ["movie", "tv"] as const) {
     const seen = new Set<number>();
     for (let page = 1; page <= PAGES; page++) {
@@ -27,8 +27,8 @@ export async function runTrending() {
   const series = rows.length - movies;
   if (!movies || !series) throw new Error(`Tendances TMDB vides (${movies} films, ${series} séries) : la liste précédente est gardée`);
   await db.transaction(async (tx) => {
-    await tx.delete(schema.tmdbTrending);
-    await tx.insert(schema.tmdbTrending).values(rows);
+    await tx.delete(schema.cacheTmdbTrending);
+    await tx.insert(schema.cacheTmdbTrending).values(rows);
   });
   return { movies, series };
 }

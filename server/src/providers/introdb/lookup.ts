@@ -4,7 +4,7 @@ import { dayBudget, describeError, singleFlight, within } from "@/shared";
 
 /**
  * IntroDB (introdb.app): the recaps and the intros its users timed, by the IMDb id of a series, asked episode by
- * episode when one plays and kept in `introdb_cache` (its terms allow a player to ask title by title, and forbid
+ * episode when one plays and kept in `cache_introdb` (its terms allow a player to ask title by title, and forbid
  * copying the base). It does not say which file a segment was measured on: the recap and the intro only, which may
  * be given unchecked, never the credits. One request per episode. Never fails: an outage, a refusal or the day's
  * budget spent answer what was kept, or nothing.
@@ -45,7 +45,7 @@ function segmentsOf(answer: Answer): MarkerSegment[] {
 }
 
 const where = (ref: EpisodeRef) =>
-  and(eq(schema.introdbCache.imdbId, ref.imdbId), eq(schema.introdbCache.season, ref.season), eq(schema.introdbCache.episode, ref.episode));
+  and(eq(schema.cacheIntrodb.imdbId, ref.imdbId), eq(schema.cacheIntrodb.season, ref.season), eq(schema.cacheIntrodb.episode, ref.episode));
 
 /** Ask the base and replace what was kept; null when it could not be asked. */
 function fetchOnce(ref: EpisodeRef): Promise<MarkerSegment[] | null> {
@@ -63,10 +63,10 @@ function fetchOnce(ref: EpisodeRef): Promise<MarkerSegment[] | null> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const segments = segmentsOf((await res.json()) as Answer);
     await db
-      .insert(schema.introdbCache)
+      .insert(schema.cacheIntrodb)
       .values({ ...ref, segments, fetchedAt: new Date() })
       .onConflictDoUpdate({
-        target: [schema.introdbCache.imdbId, schema.introdbCache.season, schema.introdbCache.episode],
+        target: [schema.cacheIntrodb.imdbId, schema.cacheIntrodb.season, schema.cacheIntrodb.episode],
         set: { segments: sql`excluded.segments`, fetchedAt: sql`excluded.fetched_at` },
       });
     return segments;
@@ -79,7 +79,7 @@ function fetchOnce(ref: EpisodeRef): Promise<MarkerSegment[] | null> {
  * which what was kept (or nothing) answers and the lookup lands for the next call.
  */
 export async function introdbSegments(ref: EpisodeRef, waitMs: number): Promise<MarkerSegment[]> {
-  const [row]: Row[] = await db.select().from(schema.introdbCache).where(where(ref));
+  const [row]: Row[] = await db.select().from(schema.cacheIntrodb).where(where(ref));
   if (row && Date.now() - row.fetchedAt.getTime() < (row.segments.length ? KNOWN_TTL_MS : UNKNOWN_TTL_MS)) return row.segments;
   return (await within(fetchOnce(ref), waitMs, null)) ?? row?.segments ?? [];
 }

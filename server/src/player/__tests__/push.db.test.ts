@@ -24,7 +24,7 @@ describe("PUT /devices/me/push", () => {
 
   it("registers the phone's token, refuses a malformed one, and forgets it on DELETE", async () => {
     expect((await call("PUT", "/devices/me/push", { platform: "ios", token: "AB".repeat(32), environment: "sandbox" })).status).toBe(204);
-    const [row] = await db.select().from(schema.devicePush);
+    const [row] = await db.select().from(schema.appDevicePush);
     expect(row).toMatchObject({ platform: "ios", token: "ab".repeat(32), environment: "sandbox" });
     expect((await call("PUT", "/devices/me/push", { platform: "android", token: "ab".repeat(32), environment: "sandbox" })).status).toBe(
       400,
@@ -33,6 +33,6 @@ describe("PUT /devices/me/push", () => {
     expect((await call("PUT", "/devices/me/push")).status).toBe(400);
     expect((await api.request("/devices/me/push", { method: "PUT" })).status).toBe(401);
     expect((await call("DELETE", "/devices/me/push")).status).toBe(204);
-    expect(await db.select().from(schema.devicePush)).toHaveLength(0);
+    expect(await db.select().from(schema.appDevicePush)).toHaveLength(0);
   });
 });

@@ -4,7 +4,7 @@ import { dayBudget, describeError, singleFlight, within } from "@/shared";
 
 /**
  * TheIntroDB (theintrodb.org): the recaps, intros, end credits and previews of the next episode its users measured,
- * asked title by title when one plays and kept in `theintrodb_cache` (its terms allow a personal server to keep
+ * asked title by title when one plays and kept in `cache_theintrodb` (its terms allow a personal server to keep
  * what it asked, and forbid copying the base). Two requests per title: the segments of the version closest to the file, then the lengths of the files
  * it knows, which say whether that version is this file. Never fails: an outage, a refusal or the day's budget
  * spent answer what was kept, or nothing.
@@ -74,11 +74,11 @@ function segmentsOf(media: Media, measuredOn: number | null): MarkerSegment[] {
 
 const where = (ref: TitleRef, duration: number) =>
   and(
-    eq(schema.theintrodbCache.mediaType, ref.mediaType),
-    eq(schema.theintrodbCache.tmdbId, ref.tmdbId),
-    eq(schema.theintrodbCache.season, ref.season ?? 0),
-    eq(schema.theintrodbCache.episode, ref.episode ?? 0),
-    eq(schema.theintrodbCache.duration, duration),
+    eq(schema.cacheTheintrodb.mediaType, ref.mediaType),
+    eq(schema.cacheTheintrodb.tmdbId, ref.tmdbId),
+    eq(schema.cacheTheintrodb.season, ref.season ?? 0),
+    eq(schema.cacheTheintrodb.episode, ref.episode ?? 0),
+    eq(schema.cacheTheintrodb.duration, duration),
   );
 
 /** Ask the base and replace what was kept; null when it could not be asked. */
@@ -98,15 +98,15 @@ function fetchOnce(ref: TitleRef, duration: number): Promise<MarkerSegment[] | n
       segments = segmentsOf(media, closest ?? null);
     }
     await db
-      .insert(schema.theintrodbCache)
+      .insert(schema.cacheTheintrodb)
       .values({ ...ref, season: ref.season ?? 0, episode: ref.episode ?? 0, duration, segments, fetchedAt: new Date() })
       .onConflictDoUpdate({
         target: [
-          schema.theintrodbCache.mediaType,
-          schema.theintrodbCache.tmdbId,
-          schema.theintrodbCache.season,
-          schema.theintrodbCache.episode,
-          schema.theintrodbCache.duration,
+          schema.cacheTheintrodb.mediaType,
+          schema.cacheTheintrodb.tmdbId,
+          schema.cacheTheintrodb.season,
+          schema.cacheTheintrodb.episode,
+          schema.cacheTheintrodb.duration,
         ],
         set: { segments: sql`excluded.segments`, fetchedAt: sql`excluded.fetched_at` },
       });
@@ -122,7 +122,7 @@ function fetchOnce(ref: TitleRef, duration: number): Promise<MarkerSegment[] | n
 export async function theintrodbSegments(ref: TitleRef, duration: number, waitMs: number): Promise<MarkerSegment[]> {
   if (ref.mediaType === "tv" && (ref.season === undefined || ref.episode === undefined)) return [];
   const length = Math.round(duration);
-  const [row]: Row[] = await db.select().from(schema.theintrodbCache).where(where(ref, length));
+  const [row]: Row[] = await db.select().from(schema.cacheTheintrodb).where(where(ref, length));
   if (row && Date.now() - row.fetchedAt.getTime() < (row.segments.length ? KNOWN_TTL_MS : UNKNOWN_TTL_MS)) return row.segments;
   return (await within(fetchOnce(ref, length), waitMs, null)) ?? row?.segments ?? [];
 }

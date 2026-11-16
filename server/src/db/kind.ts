@@ -8,5 +8,5 @@ export const KINDS: readonly Kind[] = schema.kindEnum.enumValues;
 export type TmdbMediaType = "movie" | "tv";
 /** TMDB's word for a kind. Live channels have no TMDB counterpart; callers exclude them first. */
 export const tmdbMediaType = (kind: Kind): TmdbMediaType => (kind === "vod" ? "movie" : "tv");
-/** The same in SQL, for a kind column: what joins a content or a variant to its `tmdb_cache` / `tmdb_trending` row. */
+/** The same in SQL, for a kind column: what joins a content or a variant to its `cache_tmdb` / `cache_tmdb_trending` row. */
 export const sqlTmdbMediaType = (kind: AnyColumn | SQL) => sql`(case ${kind} when 'vod' then 'movie' else 'tv' end)`;

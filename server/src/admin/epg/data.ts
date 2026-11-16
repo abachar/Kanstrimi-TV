@@ -25,11 +25,11 @@ export type GridChannel = {
 export type GridQuery = { from: Date; to: Date; q: string; page: number };
 export const CHANNELS_PER_PAGE = 40;
 
-const providerGuided = sql`exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = ${schema.catalogContents.epgChannelId})`;
+const providerGuided = sql`exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${schema.catalogContents.epgChannelId})`;
 const guideId = sql<
   string | null
 >`case when ${providerGuided} then ${schema.catalogContents.epgChannelId} else ${schema.catalogContents.epgFallbackId} end`;
-const withGuide = sql`exists (select 1 from ${schema.catalogEpgProgrammes} p where p.channel_id = ${guideId})`;
+const withGuide = sql`exists (select 1 from ${schema.cacheEpgProgrammes} p where p.channel_id = ${guideId})`;
 
 /** One page of the grid: the channels with a guide that meet `match` (the compiled `q`), with their programmes. */
 export async function epgGrid(ex: Exec, g: GridQuery, match: SQL | null): Promise<{ channels: GridChannel[]; total: number }> {
@@ -77,23 +77,23 @@ const sourceNameOf = (names: Map<number, string>, epgId: string) => {
 /** Programmes overlapping [from, to), each once, in order. */
 export async function programmesOf(channelIds: string[], from: Date, to: Date) {
   return db
-    .selectDistinctOn([schema.catalogEpgProgrammes.channelId, schema.catalogEpgProgrammes.startAt], {
-      id: schema.catalogEpgProgrammes.id,
-      channelId: schema.catalogEpgProgrammes.channelId,
-      startAt: schema.catalogEpgProgrammes.startAt,
-      endAt: schema.catalogEpgProgrammes.endAt,
-      title: schema.catalogEpgProgrammes.title,
-      overview: schema.catalogEpgProgrammes.overview,
+    .selectDistinctOn([schema.cacheEpgProgrammes.channelId, schema.cacheEpgProgrammes.startAt], {
+      id: schema.cacheEpgProgrammes.id,
+      channelId: schema.cacheEpgProgrammes.channelId,
+      startAt: schema.cacheEpgProgrammes.startAt,
+      endAt: schema.cacheEpgProgrammes.endAt,
+      title: schema.cacheEpgProgrammes.title,
+      overview: schema.cacheEpgProgrammes.overview,
     })
-    .from(schema.catalogEpgProgrammes)
+    .from(schema.cacheEpgProgrammes)
     .where(
       and(
-        inArray(schema.catalogEpgProgrammes.channelId, channelIds),
-        lt(schema.catalogEpgProgrammes.startAt, to),
-        gt(schema.catalogEpgProgrammes.endAt, from),
+        inArray(schema.cacheEpgProgrammes.channelId, channelIds),
+        lt(schema.cacheEpgProgrammes.startAt, to),
+        gt(schema.cacheEpgProgrammes.endAt, from),
       ),
     )
-    .orderBy(asc(schema.catalogEpgProgrammes.channelId), asc(schema.catalogEpgProgrammes.startAt));
+    .orderBy(asc(schema.cacheEpgProgrammes.channelId), asc(schema.cacheEpgProgrammes.startAt));
 }
 
 /** One guide id: the channels showing it (name, logo), for the correction panel. */

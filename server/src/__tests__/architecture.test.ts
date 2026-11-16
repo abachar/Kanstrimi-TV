@@ -92,23 +92,21 @@ describe("architecture", () => {
     expect([...writes, ...setters]).toEqual([]);
   });
   it("player reads no TMDB table: the catalogue answers for it", () => {
-    const reads = files.filter(
-      (f) => block(f) === "player" && /schema\.tmdb|tmdb_(cache|trending|recommendations)/.test(fs.readFileSync(f, "utf8")),
-    );
+    const reads = files.filter((f) => block(f) === "player" && /schema\.cacheTmdb|cache_tmdb/.test(fs.readFileSync(f, "utf8")));
     expect(reads.map((f) => path.relative(root, f))).toEqual([]);
   });
   it("player takes one pure function from the Xtream provider, and nothing from TMDB", () => {
     const fromXtream = files.filter((f) => block(f) === "player").flatMap((f) => named(f, "providers/xtream"));
     expect([...new Set(fromXtream)]).toEqual(["upstreamStreamUrl"]);
   });
-  it("a provider touches only its own tables: no catalog_ nor curation_ table", () => {
+  it("a provider touches only its own tables: xtream_ and cache_", () => {
     const reads = files
       .filter((f) => block(f).startsWith("providers/"))
       .flatMap((f) =>
         fs
           .readFileSync(f, "utf8")
           .split("\n")
-          .flatMap((line, i) => (/schema\.(catalog|curation)/.test(line) ? [`${path.relative(root, f)}:${i + 1}: ${line.trim()}`] : [])),
+          .flatMap((line, i) => (/schema\.(?!xtream|cache)\w/.test(line) ? [`${path.relative(root, f)}:${i + 1}: ${line.trim()}`] : [])),
       );
     expect(reads).toEqual([]);
   });

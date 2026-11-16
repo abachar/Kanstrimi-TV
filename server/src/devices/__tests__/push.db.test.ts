@@ -54,6 +54,6 @@ describe("push registration", () => {
     await registerPush(other.id, { platform: "ios", token: TOKEN_A, environment: "sandbox" });
     await revokeDevice(other.code);
     await forgetDevice(other.code);
-    expect(await db.select().from(schema.devicePush)).toHaveLength(1); // the revoked phone's row, until it is forgotten
+    expect(await db.select().from(schema.appDevicePush)).toHaveLength(1); // the revoked phone's row, until it is forgotten
   });
 });

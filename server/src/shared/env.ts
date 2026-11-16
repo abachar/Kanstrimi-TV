@@ -30,7 +30,7 @@ const schema = z
     TMDB_API_KEY: z.string().trim().default(""),
     /** The Anthropic key, for Claude's reading of the titles TMDB does not know; same handling. Empty = the step is skipped. */
     ANTHROPIC_API_KEY: z.string().trim().default(""),
-    /** The provider account of before the `provider_accounts` table: read once at boot to fill the first account, then unneeded. */
+    /** The provider account of before the `xtream_accounts` table: read once at boot to fill the first account, then unneeded. */
     XTREAM_URL: z.string().trim().default(""),
     XTREAM_USERNAME: z.string().trim().default(""),
     XTREAM_PASSWORD: z.string().default(""),

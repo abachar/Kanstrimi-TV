@@ -8,12 +8,12 @@ export type TitleRef = { imdbId: string; season?: number; episode?: number };
 export async function segmentsOf(ref: TitleRef): Promise<MarkerSegment[]> {
   const rows = await db
     .select()
-    .from(schema.skipdbSegments)
+    .from(schema.cacheSkipdbSegments)
     .where(
       and(
-        eq(schema.skipdbSegments.imdbId, ref.imdbId),
-        eq(schema.skipdbSegments.season, ref.season ?? 0),
-        eq(schema.skipdbSegments.episode, ref.episode ?? 0),
+        eq(schema.cacheSkipdbSegments.imdbId, ref.imdbId),
+        eq(schema.cacheSkipdbSegments.season, ref.season ?? 0),
+        eq(schema.cacheSkipdbSegments.episode, ref.episode ?? 0),
       ),
     );
   return rows.map((r) => ({

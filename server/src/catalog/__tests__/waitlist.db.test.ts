@@ -18,8 +18,7 @@ import {
 } from "../waitlist";
 
 let duneId = 0;
-const entry = async (key: string) =>
-  (await db.select().from(schema.curationWaitlist).where(eq(schema.curationWaitlist.contentKey, key)))[0];
+const entry = async (key: string) => (await db.select().from(schema.appWaitlist).where(eq(schema.appWaitlist.contentKey, key)))[0];
 
 beforeAll(async () => {
   await resetDb();
@@ -75,7 +74,7 @@ describe("« Liste d'attente »", () => {
       availableAt: null,
       startedAt: null,
     });
-    const [cached] = await db.select().from(schema.tmdbCache).where(eq(schema.tmdbCache.tmdbId, 1200));
+    const [cached] = await db.select().from(schema.cacheTmdb).where(eq(schema.cacheTmdb.tmdbId, 1200));
     expect(cached.mediaType).toBe("movie");
     // The admin reads it back as a sheet, from the cache alone.
     expect((await listWaitlist()).find((e) => e.tmdbId === 1200)!.sheet).toEqual({

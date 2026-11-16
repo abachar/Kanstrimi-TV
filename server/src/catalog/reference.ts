@@ -45,9 +45,9 @@ async function checked(input: ChannelInput, id?: number): Promise<ChannelInput> 
   let iptvId = input.iptvId?.trim() || null;
   if (iptvId) {
     const [known] = await db
-      .select({ id: schema.iptvorgChannels.id })
-      .from(schema.iptvorgChannels)
-      .where(sql`lower(${schema.iptvorgChannels.id}) = ${iptvId.toLowerCase()}`);
+      .select({ id: schema.cacheIptvorgChannels.id })
+      .from(schema.cacheIptvorgChannels)
+      .where(sql`lower(${schema.cacheIptvorgChannels.id}) = ${iptvId.toLowerCase()}`);
     if (!known) throw new ChannelError(`Chaîne iptv-org inconnue : ${iptvId}`);
     iptvId = known.id;
   }
@@ -152,7 +152,7 @@ export async function listChannels(opts: { market: string; page: number; size: n
            (select count(*)::int from catalog_variants v where v.content_id = c.id) as versions, (count(*) over ())::int as total
     from catalog_contents c
     where c.kind = 'live' and c.market = ${opts.market} and c.key not like 'live:x:%'
-      and exists (select 1 from catalog_variants v join provider_accounts a on a.id = v.account_id and a.enabled where v.content_id = c.id)
+      and exists (select 1 from catalog_variants v join xtream_accounts a on a.id = v.account_id and a.enabled where v.content_id = c.id)
     order by c.title, c.id
     limit ${opts.size} offset ${(opts.page - 1) * opts.size}`);
   return { total: rows[0]?.total ?? 0, rows: rows.map(({ total: _, ...r }) => r) };
@@ -182,9 +182,9 @@ export async function contentChannel(contentId: number): Promise<ContentChannel 
   if (!row) return null;
   const [iptv] = row.iptvId
     ? await db
-        .select({ id: schema.iptvorgChannels.id, name: schema.iptvorgChannels.name })
-        .from(schema.iptvorgChannels)
-        .where(eq(schema.iptvorgChannels.id, row.iptvId))
+        .select({ id: schema.cacheIptvorgChannels.id, name: schema.cacheIptvorgChannels.name })
+        .from(schema.cacheIptvorgChannels)
+        .where(eq(schema.cacheIptvorgChannels.id, row.iptvId))
     : [];
   return {
     market: row.market,
@@ -316,7 +316,7 @@ export async function unmatchedNames(opts: {
     from ${schema.catalogVariants} v
     left join ${schema.catalogCategories} c on c.account_id = v.account_id and c.kind = v.kind and c.xtream_id = v.category_xtream_id
     where v.kind = 'live' and v.channel_name is null and v.market = ${opts.market}
-      and exists (select 1 from provider_accounts a where a.id = v.account_id and a.enabled)
+      and exists (select 1 from xtream_accounts a where a.id = v.account_id and a.enabled)
       and ${opts.events ? sql`v.theme = ${EVENTS_THEME}` : sql`v.theme is distinct from ${EVENTS_THEME}`}
       ${like ? sql`and (v.clean_title ilike ${like} or v.name ilike ${like})` : sql``}
     group by v.market, coalesce(nullif(v.clean_title, ''), v.name)
@@ -335,20 +335,20 @@ export async function unmatchedVariants(market: string, title: string): Promise<
   const v = schema.catalogVariants;
   const c = schema.catalogCategories;
   return db
-    .select({ id: v.id, name: v.name, provider: schema.providerAccounts.name, category: c.name, contentId: v.contentId })
+    .select({ id: v.id, name: v.name, provider: schema.xtreamAccounts.name, category: c.name, contentId: v.contentId })
     .from(v)
-    .innerJoin(schema.providerAccounts, eq(schema.providerAccounts.id, v.accountId))
+    .innerJoin(schema.xtreamAccounts, eq(schema.xtreamAccounts.id, v.accountId))
     .leftJoin(c, and(eq(c.accountId, v.accountId), eq(c.kind, v.kind), eq(c.xtreamId, v.categoryXtreamId)))
     .where(
       and(
         eq(v.kind, "live"),
         eq(v.market, market),
-        eq(schema.providerAccounts.enabled, true),
+        eq(schema.xtreamAccounts.enabled, true),
         sql`${v.channelName} is null`,
         sql`coalesce(nullif(${v.cleanTitle}, ''), ${v.name}) = ${title}`,
       ),
     )
-    .orderBy(asc(schema.providerAccounts.position), asc(v.position));
+    .orderBy(asc(schema.xtreamAccounts.position), asc(v.position));
 }
 
 /**
@@ -376,7 +376,7 @@ export async function attachName(market: string, title: string, ref: string): Pr
     return target.name;
   }
   if (kind === "own") throw new ChannelError("Chaîne introuvable");
-  const [iptv] = await db.select().from(schema.iptvorgChannels).where(eq(schema.iptvorgChannels.id, id));
+  const [iptv] = await db.select().from(schema.cacheIptvorgChannels).where(eq(schema.cacheIptvorgChannels.id, id));
   if (!iptv) throw new ChannelError(`Chaîne iptv-org inconnue : ${id}`);
   await createChannel({ name: iptv.name, market, country: null, theme: null, aliases: [title], iptvId: iptv.id });
   return iptv.name;

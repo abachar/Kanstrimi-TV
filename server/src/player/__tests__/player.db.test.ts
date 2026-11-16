@@ -232,7 +232,7 @@ beforeAll(async () => {
     ],
   });
   // TMDB season 1 in cache: episode names come from there.
-  await db.insert(schema.tmdbCache).values({
+  await db.insert(schema.cacheTmdb).values({
     mediaType: "tv_season",
     tmdbId: 1396,
     lang: "fr-FR#s1",
@@ -270,7 +270,7 @@ beforeAll(async () => {
   });
   const multi = items.find((i) => i.xtreamId === "200")!,
     vost = items.find((i) => i.xtreamId === "201")!;
-  await db.insert(schema.xtreamInfoCache).values([
+  await db.insert(schema.cacheXtreamInfo).values([
     {
       accountId: ACCOUNT,
       kind: "series",
@@ -763,7 +763,7 @@ describe("channels", () => {
       expect((await get("/channels/live:fr-secret-tv/programmes")).status).toBe(404);
     } finally {
       vi.useRealTimers();
-      await db.delete(schema.catalogEpgProgrammes).where(lt(schema.catalogEpgProgrammes.startAt, new Date(2021, 0, 1)));
+      await db.delete(schema.cacheEpgProgrammes).where(lt(schema.cacheEpgProgrammes.startAt, new Date(2021, 0, 1)));
     }
   });
   it("a channel the provider leaves without programmes shows its fallback source's guide", async () => {
@@ -780,7 +780,7 @@ describe("channels", () => {
       ]);
     } finally {
       await db.update(schema.catalogContents).set({ epgFallbackId: null }).where(bein);
-      await db.delete(schema.catalogEpgProgrammes).where(like(schema.catalogEpgProgrammes.channelId, "@9/%"));
+      await db.delete(schema.cacheEpgProgrammes).where(like(schema.cacheEpgProgrammes.channelId, "@9/%"));
     }
   });
   it("the broadcast day ends at the next 6:00", () => {
@@ -1251,13 +1251,13 @@ describe("studios and top 10", () => {
       first_air_date: ymd(daysAgo(30)),
       networks: [{ id: 49, name: "HBO", logo_path: "/hbo.png" }],
     });
-    await db.insert(schema.curationStudios).values([
+    await db.insert(schema.catalogStudios).values([
       { kind: "network", tmdbId: 49, name: "HBO", logoPath: "/hbo.png", position: 1 },
       { kind: "company", tmdbId: 3, name: "Pixar", logoPath: "/pixar.png", position: 2 },
       { kind: "company", tmdbId: 999, name: "Sans titre", logoPath: null, position: 3 },
     ]);
     // Trending ranks: Heat, a title missing from the catalogue, the hidden Pixar, then Matrix.
-    await db.insert(schema.tmdbTrending).values([
+    await db.insert(schema.cacheTmdbTrending).values([
       { mediaType: "movie", rank: 1, tmdbId: 949 },
       { mediaType: "movie", rank: 2, tmdbId: 123456 },
       { mediaType: "movie", rank: 3, tmdbId: 4002 },
@@ -1296,7 +1296,7 @@ describe("studios and top 10", () => {
   });
 
   it("admin: suggestions from the catalogue, add, reorder, remove", async () => {
-    await db.delete(schema.curationStudios).where(eq(schema.curationStudios.tmdbId, 3));
+    await db.delete(schema.catalogStudios).where(eq(schema.catalogStudios.tmdbId, 3));
     const suggestions = await studioSuggestions();
     expect(suggestions).toContainEqual({ kind: "company", tmdbId: 3, name: "Pixar", logoPath: "/pixar.png", country: null, count: 1 });
     expect(suggestions.some((s) => s.kind === "network" && s.tmdbId === 49)).toBe(false); // already chosen
@@ -1656,7 +1656,7 @@ describe("GET /top-shelf", () => {
 
 describe("« Liste d'attente »: hero and Top Shelf", () => {
   it("an awaited movie that arrived is the hero and heads the Top Shelf until 5 % of it is played", async () => {
-    await db.insert(schema.curationWaitlist).values({ profileId: PROFILE, contentKey: "tmdb:movie:949", tmdbId: 949, title: "Heat" });
+    await db.insert(schema.appWaitlist).values({ profileId: PROFILE, contentKey: "tmdb:movie:949", tmdbId: 949, title: "Heat" });
     // Heat is visible already: the next regroup flags it available.
     expect((await groupAndFilter()).waitlist_available).toBe(1);
     expect((await get("/home")).body.heroes[0]).toMatchObject({ tagline: "FILM · ENFIN DISPONIBLE", item: { id: "tmdb:movie:949" } });
@@ -1676,9 +1676,9 @@ describe("« Liste d'attente »: hero and Top Shelf", () => {
     expect(body.heroes.map((h: { tagline: string }) => h.tagline)).not.toContain("FILM · ENFIN DISPONIBLE");
     expect(body.rows.find((r: { id: string }) => r.id === "resume").cards.map((c: { id: string }) => c.id)).toContain("tmdb:movie:949");
     expect((await get("/top-shelf")).body.map((i: { reason: string }) => i.reason)).not.toContain("available");
-    const [w] = await db.select().from(schema.curationWaitlist);
+    const [w] = await db.select().from(schema.appWaitlist);
     expect(w.startedAt).not.toBeNull();
-    await db.delete(schema.curationWaitlist);
+    await db.delete(schema.appWaitlist);
     await db.delete(schema.appWatchProgress).where(eq(schema.appWatchProgress.contentKey, "tmdb:movie:949"));
   });
 });

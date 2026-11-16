@@ -39,7 +39,7 @@ function stub(status = 200) {
 
 beforeAll(resetDb);
 beforeEach(async () => {
-  await db.delete(schema.skipdbSegments);
+  await db.delete(schema.cacheSkipdbSegments);
   id = 0;
   releases = RELEASES;
   fetched = [];
@@ -96,14 +96,14 @@ describe("SkipDB import", () => {
       null,
     ];
     expect(await runSkipdbImport()).toEqual({ segments: 1, titles: 1 });
-    expect((await db.select().from(schema.skipdbSegments)).map((r) => [r.id, r.startMs])).toEqual([[kept.id, 3426000]]);
+    expect((await db.select().from(schema.cacheSkipdbSegments)).map((r) => [r.id, r.startMs])).toEqual([[kept.id, 3426000]]);
   });
 
   it("replaces the previous import as a whole", async () => {
     await runSkipdbImport();
     segments = [seg({ imdb_id: "tt9999999" }), seg({ imdb_id: "tt9999999", episode: 3 })];
     expect(await runSkipdbImport()).toEqual({ segments: 2, titles: 1 });
-    const rows = await db.select().from(schema.skipdbSegments).orderBy(asc(schema.skipdbSegments.id));
+    const rows = await db.select().from(schema.cacheSkipdbSegments).orderBy(asc(schema.cacheSkipdbSegments.id));
     expect(rows.map((r) => [r.imdbId, r.episode])).toEqual([
       ["tt9999999", 2],
       ["tt9999999", 3],
@@ -121,6 +121,6 @@ describe("SkipDB import", () => {
     stub();
     releases = [{ tag_name: "data-latest", assets: [{ name: "skipdb-dump.json", browser_download_url: "https://old.test/dump.json" }] }];
     await expect(runSkipdbImport()).rejects.toThrow(/aucun export daté/);
-    expect(await db.$count(schema.skipdbSegments)).toBe(3);
+    expect(await db.$count(schema.cacheSkipdbSegments)).toBe(3);
   });
 });

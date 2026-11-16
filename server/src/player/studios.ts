@@ -25,7 +25,7 @@ export async function studiosOf(ctx: RestContext, kind: "vod" | "series"): Promi
     backdrop_path: string | null;
   }>(sql`
     select s.kind, s.tmdb_id, s.name, s.logo_path, n.n, b.backdrop_path
-    from ${schema.curationStudios} s
+    from ${schema.catalogStudios} s
     cross join lateral (
       select count(*)::int as n from ${schema.catalogContents}
       where ${visibleContent(ctx, kind)} and ${ofStudio("s")}

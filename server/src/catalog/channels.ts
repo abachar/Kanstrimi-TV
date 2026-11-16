@@ -229,14 +229,14 @@ export type Index = {
 export async function loadIndex(): Promise<Index> {
   const rows = await db
     .select({
-      id: schema.iptvorgChannels.id,
-      name: schema.iptvorgChannels.name,
-      altNames: schema.iptvorgChannels.altNames,
-      country: schema.iptvorgChannels.country,
-      categories: schema.iptvorgChannels.categories,
-      isNsfw: schema.iptvorgChannels.isNsfw,
+      id: schema.cacheIptvorgChannels.id,
+      name: schema.cacheIptvorgChannels.name,
+      altNames: schema.cacheIptvorgChannels.altNames,
+      country: schema.cacheIptvorgChannels.country,
+      categories: schema.cacheIptvorgChannels.categories,
+      isNsfw: schema.cacheIptvorgChannels.isNsfw,
     })
-    .from(schema.iptvorgChannels);
+    .from(schema.cacheIptvorgChannels);
   const idx: Index = {
     byId: new Map(),
     byNameCountry: new Map(),
@@ -670,9 +670,9 @@ export async function rematchChannels(market?: string): Promise<number> {
 export async function setIptvMatch(itemId: number, iptvId: string | null | "auto") {
   if (iptvId && iptvId !== "auto") {
     const [known] = await db
-      .select({ id: schema.iptvorgChannels.id })
-      .from(schema.iptvorgChannels)
-      .where(eq(schema.iptvorgChannels.id, iptvId));
+      .select({ id: schema.cacheIptvorgChannels.id })
+      .from(schema.cacheIptvorgChannels)
+      .where(eq(schema.cacheIptvorgChannels.id, iptvId));
     if (!known) throw new Error(`Chaîne iptv-org inconnue : ${iptvId}`);
   }
   const [it] = await liveRows(and(live, eq(schema.catalogVariants.id, itemId))!);
@@ -685,6 +685,6 @@ export async function setIptvMatch(itemId: number, iptvId: string | null | "auto
 /** The iptv-org channel of a variant, for the admin. */
 export async function iptvChannelById(id: string | null) {
   if (!id) return null;
-  const [ch] = await db.select().from(schema.iptvorgChannels).where(eq(schema.iptvorgChannels.id, id));
+  const [ch] = await db.select().from(schema.cacheIptvorgChannels).where(eq(schema.cacheIptvorgChannels.id, id));
   return ch ?? null;
 }

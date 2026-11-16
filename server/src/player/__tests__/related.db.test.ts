@@ -65,7 +65,7 @@ beforeAll(async () => {
   await profileSeesVisible();
 });
 beforeEach(async () => {
-  await db.delete(schema.tmdbRecommendations);
+  await db.delete(schema.cacheTmdbRecommendations);
   await db.delete(schema.appWatchProgress);
   await db.delete(schema.appFavorites);
   resetRecommendations();
@@ -122,7 +122,7 @@ describe("fetch on demand", () => {
   });
 
   it("past a week the list is fetched again; a failure keeps the old one and leaves TMDB alone", async () => {
-    await db.insert(schema.tmdbRecommendations).values({ mediaType: "movie", tmdbId: 1, ids: [5], fetchedAt: daysAgo(8) });
+    await db.insert(schema.cacheTmdbRecommendations).values({ mediaType: "movie", tmdbId: 1, ids: [5], fetchedAt: daysAgo(8) });
     stubTmdb(undefined, 500);
     expect(await recommendedKeys("tmdb:movie:1", 1000)).toEqual(["tmdb:movie:5"]);
     expect(await recommendedKeys("tmdb:movie:1", 1000)).toEqual(["tmdb:movie:5"]);

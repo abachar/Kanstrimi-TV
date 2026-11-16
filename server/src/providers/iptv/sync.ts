@@ -108,9 +108,9 @@ export async function syncIptv(): Promise<{ iptv_channels: number; iptv_logos: n
     if (!have) throw e;
     console.warn("[channels] iptv-org injoignable, copie précédente gardée :", (e as Error).message);
   }
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.iptvorgChannels);
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.cacheIptvorgChannels);
   if (!changed && n > 0) {
-    const [{ logos }] = await db.select({ logos: sql<number>`count(logo_path)::int` }).from(schema.iptvorgChannels);
+    const [{ logos }] = await db.select({ logos: sql<number>`count(logo_path)::int` }).from(schema.cacheIptvorgChannels);
     return { iptv_channels: n, iptv_logos: logos, iptv_updated: 0 };
   }
 
@@ -119,7 +119,7 @@ export async function syncIptv(): Promise<{ iptv_channels: number; iptv_logos: n
   for (const l of logos) logosBy.set(l.channel, [...(logosBy.get(l.channel) ?? []), l]);
   let withLogo = 0;
   await db.transaction(async (tx) => {
-    await tx.delete(schema.iptvorgChannels);
+    await tx.delete(schema.cacheIptvorgChannels);
     for (let i = 0; i < channels.length; i += CHUNK) {
       checkCancelled();
       const rows = channels.slice(i, i + CHUNK).map((c) => {
@@ -142,7 +142,7 @@ export async function syncIptv(): Promise<{ iptv_channels: number; iptv_logos: n
           logoPath: logo ? logoPath(c.id, logo) : null,
         };
       });
-      await tx.insert(schema.iptvorgChannels).values(rows).onConflictDoNothing();
+      await tx.insert(schema.cacheIptvorgChannels).values(rows).onConflictDoNothing();
     }
   });
   console.log(`[channels] iptv-org : ${channels.length} chaînes, ${withLogo} avec un logo dessinable`);

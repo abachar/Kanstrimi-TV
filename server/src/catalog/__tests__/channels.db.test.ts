@@ -164,7 +164,7 @@ describe("runChannels", () => {
     expect(ertu.epgChannelId).toBe("ERTU1.eg");
     expect(ertu.country).toBe("EG"); // the app's « Égypte · … »
     // …unless the provider files programmes under its own id: then its guide stays.
-    await db.insert(schema.catalogEpgProgrammes).values({
+    await db.insert(schema.cacheEpgProgrammes).values({
       channelId: "DubaiAlOula.ae",
       startAt: new Date(),
       endAt: new Date(Date.now() + 3600_000),
@@ -199,7 +199,7 @@ describe("syncIptv", () => {
     const old = new Date(Date.now() - 48 * 3600 * 1000);
     for (const f of ["channels", "logos"]) await fs.promises.utimes(path.join(env.dataDir, "iptv-org", `${f}.json`), old, old);
   };
-  const count = async () => (await db.select().from(schema.iptvorgChannels)).length;
+  const count = async () => (await db.select().from(schema.cacheIptvorgChannels)).length;
 
   it("rebuilds the table only when a file changed", async () => {
     serve();

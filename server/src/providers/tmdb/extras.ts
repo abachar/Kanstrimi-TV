@@ -6,7 +6,7 @@ import type { TitleRef } from "./recommendations";
 
 /**
  * What the player asks of a title beyond its sheet, fetched on demand when it plays and kept a week in
- * `tmdb_extras`. Never fails: a TMDB outage answers what it had, or null (unknown).
+ * `cache_tmdb_extras`. Never fails: a TMDB outage answers what it had, or null (unknown).
  */
 
 export type Extras = { creditsScene: boolean; imdbId: string | null };
@@ -26,8 +26,8 @@ const refId = (r: TitleRef) => `${r.mediaType}:${r.tmdbId}`;
 async function cachedRow(ref: TitleRef): Promise<Row | undefined> {
   const [row] = await db
     .select()
-    .from(schema.tmdbExtras)
-    .where(and(eq(schema.tmdbExtras.mediaType, ref.mediaType), eq(schema.tmdbExtras.tmdbId, ref.tmdbId)));
+    .from(schema.cacheTmdbExtras)
+    .where(and(eq(schema.cacheTmdbExtras.mediaType, ref.mediaType), eq(schema.cacheTmdbExtras.tmdbId, ref.tmdbId)));
   return row;
 }
 
@@ -50,10 +50,10 @@ function fetchOnce(ref: TitleRef): Promise<Extras | null> {
       imdbId: typeof ids.value.imdb_id === "string" && /^tt\d+$/.test(ids.value.imdb_id) ? ids.value.imdb_id : null,
     };
     await db
-      .insert(schema.tmdbExtras)
+      .insert(schema.cacheTmdbExtras)
       .values({ ...ref, ...found, fetchedAt: new Date() })
       .onConflictDoUpdate({
-        target: [schema.tmdbExtras.mediaType, schema.tmdbExtras.tmdbId],
+        target: [schema.cacheTmdbExtras.mediaType, schema.cacheTmdbExtras.tmdbId],
         set: { creditsScene: sql`excluded.credits_scene`, imdbId: sql`excluded.imdb_id`, fetchedAt: sql`excluded.fetched_at` },
       });
     return found;

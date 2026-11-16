@@ -524,7 +524,7 @@ describe("admin", () => {
       expect(page).toMatch(/<input type="hidden" name="at" value="[^"]+"/);
       expect(await html("/admin/epg/preview/TF1.fr?minutes=0")).toContain("Maintenant unique"); // no day: now
     } finally {
-      await db.delete(schema.catalogEpgProgrammes);
+      await db.delete(schema.cacheEpgProgrammes);
     }
   });
 
@@ -535,9 +535,9 @@ describe("admin", () => {
     expect(flash(await post("/admin/epg/sources", { url: "pas une adresse" }))).toContain("Adresse invalide");
     expect(await html("/admin/epg")).toContain("Sources EPG de secours");
     expect(await html("/admin/settings")).not.toContain("Sources EPG de secours");
-    const [src] = await db.select().from(schema.curationEpgSources);
+    const [src] = await db.select().from(schema.settingsEpgSources);
     const base = `/admin/epg/sources/${src.id}`;
-    await db.insert(schema.catalogEpgSourceChannels).values({ sourceId: src.id, channelId: "TF1.qa", names: ["TF1 Qatar"], programmes: 3 });
+    await db.insert(schema.cacheEpgSourceChannels).values({ sourceId: src.id, channelId: "TF1.qa", names: ["TF1 Qatar"], programmes: 3 });
     const [tf1] = await db.select().from(schema.catalogContents).where(eq(schema.catalogContents.key, "live:fr-tf1"));
     expect(tf1).toBeDefined();
     try {
@@ -576,13 +576,13 @@ describe("admin", () => {
       expect(sheet).toMatch(/aria-label="Fil d'Ariane".*<a href="\/admin\/catalog\?kind=live"[^>]*>Live<\/a>.*aria-current="page">TF1</s);
       expect(await html(base)).toMatch(/aria-label="Fil d'Ariane".*<a href="\/admin\/epg"[^>]*>EPG<\/a>/s);
       expect(flash(await post(base, { name: "Qatar", url, offset: "-180" }))).toContain("Source enregistrée");
-      expect((await db.select().from(schema.curationEpgSources))[0]).toMatchObject({ name: "Qatar", enabled: false, offsetMinutes: -180 });
+      expect((await db.select().from(schema.settingsEpgSources))[0]).toMatchObject({ name: "Qatar", enabled: false, offsetMinutes: -180 });
       expect(flash(await post(`${base}/delete`, {}))).toContain("Source supprimée");
-      expect(await db.select().from(schema.curationEpgSources)).toEqual([]);
+      expect(await db.select().from(schema.settingsEpgSources)).toEqual([]);
       expect((await call(base)).status).toBe(404);
     } finally {
-      await db.delete(schema.curationEpgSources);
-      await db.delete(schema.catalogEpgProgrammes);
+      await db.delete(schema.settingsEpgSources);
+      await db.delete(schema.cacheEpgProgrammes);
     }
   });
 
@@ -682,7 +682,7 @@ describe("admin", () => {
     await seedCategories([{ kind: "series", xtreamId: "30", name: "|FR| SERIES" }]);
     await seedTmdb("tv", 1396, { name: "Vincenzo", first_air_date: "2021-02-20" });
     await seedItems([{ kind: "series", xtreamId: "200", name: "|FR| Vincenzo (MULTI)", cat: "30", tmdbId: 1396, matchStatus: "matched" }]);
-    await db.insert(schema.xtreamInfoCache).values({
+    await db.insert(schema.cacheXtreamInfo).values({
       accountId: ACCOUNT,
       kind: "series",
       xtreamId: "200",
@@ -728,7 +728,7 @@ describe("admin", () => {
       { kind: "live", xtreamId: "151", name: "|FR| ZED TV BIS", cat: "20" },
     ]);
     await runNaming();
-    await db.insert(schema.iptvorgChannels).values({ id: "TF1.fr", name: "TF1", country: "FR", categories: ["general"] });
+    await db.insert(schema.cacheIptvorgChannels).values({ id: "TF1.fr", name: "TF1", country: "FR", categories: ["general"] });
     // What `channels` writes for a name no known channel bears.
     for (const name of ["|FR| ZED TV HD", "|FR| ZED TV BIS"])
       await db.update(schema.catalogVariants).set({ iptvTheme: "Non reconnus" }).where(eq(schema.catalogVariants.name, name));

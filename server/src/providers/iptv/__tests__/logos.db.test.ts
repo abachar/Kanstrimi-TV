@@ -21,7 +21,7 @@ const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
 beforeAll(async () => {
   await resetDb();
   await fs.rm(path.join(env.dataDir, "images", "logos"), { recursive: true, force: true });
-  await db.insert(schema.iptvorgChannels).values([
+  await db.insert(schema.cacheIptvorgChannels).values([
     { id: "TF1.fr", name: "TF1", country: "FR", logoUrl: "https://example.org/tf1.png", logoPath: "/img/logos/TF1.fr-0123456789.png" },
     { id: "M6.fr", name: "M6", country: "FR", logoUrl: "http://example.org/m6.png", logoPath: "/img/logos/M6.fr-0123456789.png" },
     { id: "W9.fr", name: "W9", country: "FR", logoUrl: "https://nas.test/w9.png", logoPath: "/img/logos/W9.fr-0123456789.png" },

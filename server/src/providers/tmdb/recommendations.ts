@@ -4,7 +4,7 @@ import { describeError, singleFlight, within } from "@/shared";
 import { getTmdbClient } from "./details";
 
 /**
- * TMDB's recommendations of a title, fetched on demand and kept a week in `tmdb_recommendations`
+ * TMDB's recommendations of a title, fetched on demand and kept a week in `cache_tmdb_recommendations`
  * (ids only, in TMDB's order). Never fails: a TMDB outage answers the list it had, or nothing.
  */
 
@@ -29,8 +29,8 @@ async function cachedRows(refs: TitleRef[]): Promise<Map<string, Row>> {
   const pairs = [...new Map(refs.map((r) => [refId(r), sql`(${r.mediaType}, ${r.tmdbId}::int)`])).values()];
   const rows = await db
     .select()
-    .from(schema.tmdbRecommendations)
-    .where(sql`(${schema.tmdbRecommendations.mediaType}, ${schema.tmdbRecommendations.tmdbId}) in (${sql.join(pairs, sql`, `)})`);
+    .from(schema.cacheTmdbRecommendations)
+    .where(sql`(${schema.cacheTmdbRecommendations.mediaType}, ${schema.cacheTmdbRecommendations.tmdbId}) in (${sql.join(pairs, sql`, `)})`);
   return new Map(rows.map((r) => [refId(r), { ids: r.ids, fetchedAt: r.fetchedAt }]));
 }
 
@@ -42,10 +42,10 @@ function fetchOnce(ref: TitleRef): Promise<number[] | null> {
     const res = await client.recommendations(ref.mediaType, ref.tmdbId);
     const ids = [...new Set((res.results ?? []).map((r) => r.id).filter((id) => Number.isInteger(id) && id !== ref.tmdbId))];
     await db
-      .insert(schema.tmdbRecommendations)
+      .insert(schema.cacheTmdbRecommendations)
       .values({ ...ref, ids, fetchedAt: new Date() })
       .onConflictDoUpdate({
-        target: [schema.tmdbRecommendations.mediaType, schema.tmdbRecommendations.tmdbId],
+        target: [schema.cacheTmdbRecommendations.mediaType, schema.cacheTmdbRecommendations.tmdbId],
         set: { ids: sql`excluded.ids`, fetchedAt: sql`excluded.fetched_at` },
       });
     return ids;

@@ -84,7 +84,7 @@ const segment = (
   season = 0,
   episode = 0,
 ) =>
-  db.insert(schema.skipdbSegments).values({
+  db.insert(schema.cacheSkipdbSegments).values({
     id: ++segmentId,
     imdbId,
     season,
@@ -121,10 +121,10 @@ beforeAll(async () => {
   await profileSeesVisible();
 });
 beforeEach(async () => {
-  await db.delete(schema.tmdbExtras);
-  await db.delete(schema.skipdbSegments);
-  await db.delete(schema.theintrodbCache);
-  await db.delete(schema.introdbCache);
+  await db.delete(schema.cacheTmdbExtras);
+  await db.delete(schema.cacheSkipdbSegments);
+  await db.delete(schema.cacheTheintrodb);
+  await db.delete(schema.cacheIntrodb);
   resetExtras();
   resetTheintrodb();
   resetIntrodb();
@@ -160,7 +160,7 @@ describe("POST /playback/{id}/markers", () => {
     expect(await (await post("tmdb:movie:19995", BLURAY)).json()).toEqual({ skips: [], credits: { at: 10292, countdown: 20 } });
     expect(await (await post("tmdb:movie:19995", BLURAY)).json()).toMatchObject({ credits: { at: 10292 } });
     expect(calls.sort()).toEqual(["movie:19995:external_ids", "movie:19995:keywords"]);
-    await db.update(schema.tmdbExtras).set({ fetchedAt: daysAgo(8) });
+    await db.update(schema.cacheTmdbExtras).set({ fetchedAt: daysAgo(8) });
     keywords[19995] = [179431];
     expect(await (await post("tmdb:movie:19995", BLURAY)).json()).toEqual({ skips: [], credits: null });
     expect(calls).toHaveLength(4);
@@ -281,7 +281,7 @@ describe("POST /playback/{id}/markers", () => {
     // A recap is an episode's: a movie's chapter of that name is not one.
     expect(await skips("tmdb:movie:19995", { duration: 3000, chapters })).toEqual([{ start: 62, end: 92, label: "Passer l'intro" }]);
     // The bases: an intro timed from the start of the file runs over the recap, and starts where the recap ends.
-    await db.delete(schema.introdbCache);
+    await db.delete(schema.cacheIntrodb);
     introdb["tt11905462:2:2"] = { recap: { start_ms: 1000, end_ms: 74000 }, intro: { start_ms: 0, end_ms: 114000 } };
     expect(await skips("tmdb:tv:88516:s02e02", { duration: 3100, chapters: [] })).toEqual([
       { start: 1, end: 74, label: "Passer le récap" },
@@ -294,7 +294,7 @@ describe("POST /playback/{id}/markers", () => {
       { start: 70, end: 114, label: "Passer l'intro" },
     ]);
     await db
-      .insert(schema.skipdbSegments)
+      .insert(schema.cacheSkipdbSegments)
       .values({ id: 9001, imdbId: "tt11905462", season: 2, episode: 2, kind: "recap", startMs: 0, endMs: 65000, durationMs: null });
     expect(await skips("tmdb:tv:88516:s02e02", { duration: 3200, chapters: [] })).toEqual([
       { start: 0, end: 65, label: "Passer le récap" },
@@ -331,7 +331,7 @@ describe("POST /playback/{id}/markers", () => {
     expect(await (await post("tmdb:movie:19995", plain)).json()).toEqual({ skips: [], credits: { at: 10292, countdown: 20 } });
     expect(await (await post("tmdb:movie:1726", { duration: 7560, chapters: [] })).json()).toEqual({ skips: [], credits: null });
     delete imdb[19995];
-    await db.delete(schema.tmdbExtras);
+    await db.delete(schema.cacheTmdbExtras);
     expect(await (await post("tmdb:movie:19995", plain)).json()).toEqual({ skips: [], credits: null });
   });
 

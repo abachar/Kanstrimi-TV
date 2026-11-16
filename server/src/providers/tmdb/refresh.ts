@@ -22,12 +22,12 @@ export function refreshDetails(mediaType: "movie" | "tv", tmdbId: number): Promi
     if (!client) return false;
     const [cached] = await db
       .select({
-        fetchedAt: schema.tmdbCache.fetchedAt,
+        fetchedAt: schema.cacheTmdb.fetchedAt,
         hasLogos: tmdbHasLogos,
       })
-      .from(schema.tmdbCache)
+      .from(schema.cacheTmdb)
       .where(
-        and(eq(schema.tmdbCache.mediaType, mediaType), eq(schema.tmdbCache.tmdbId, tmdbId), eq(schema.tmdbCache.lang, client.language)),
+        and(eq(schema.cacheTmdb.mediaType, mediaType), eq(schema.cacheTmdb.tmdbId, tmdbId), eq(schema.cacheTmdb.lang, client.language)),
       );
     if (cached?.hasLogos && Date.now() - cached.fetchedAt.getTime() < SHEET_TTL_MS) return false;
     await fetchDetails(client, mediaType, tmdbId);

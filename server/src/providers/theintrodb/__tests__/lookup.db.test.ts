@@ -23,7 +23,7 @@ function stub(status = 200, headers: Record<string, string> = {}) {
 
 beforeAll(resetDb);
 beforeEach(async () => {
-  await db.delete(schema.theintrodbCache);
+  await db.delete(schema.cacheTheintrodb);
   resetTheintrodb();
   asked = [];
   media = { intro: [{ start_ms: 314360, end_ms: 330461 }], credits: [{ start_ms: 2839000, end_ms: null }] };
@@ -87,7 +87,7 @@ describe("TheIntroDB", () => {
     expect(asked).toHaveLength(2);
     await theintrodbSegments(EPISODE, 2950, 1000);
     expect(asked).toHaveLength(4);
-    await db.update(schema.theintrodbCache).set({ fetchedAt: daysAgo(31) });
+    await db.update(schema.cacheTheintrodb).set({ fetchedAt: daysAgo(31) });
     media = { credits: [{ start_ms: 2840000, end_ms: null }] };
     expect(await theintrodbSegments(EPISODE, 2893, 1000)).toEqual([{ kind: "credits", start: 2840, end: null, measuredOn: 2893.176 }]);
   });
@@ -97,14 +97,14 @@ describe("TheIntroDB", () => {
     expect(await theintrodbSegments(EPISODE, 2893, 1000)).toEqual([]);
     expect(await theintrodbSegments(EPISODE, 2893, 1000)).toEqual([]);
     expect(asked).toHaveLength(1);
-    await db.update(schema.theintrodbCache).set({ fetchedAt: daysAgo(8) });
+    await db.update(schema.cacheTheintrodb).set({ fetchedAt: daysAgo(8) });
     media = { intro: [{ start_ms: 1000, end_ms: 31000 }] };
     expect(await theintrodbSegments(EPISODE, 2893, 1000)).toHaveLength(1);
   });
 
   it("an outage answers what was kept, and leaves that title alone ten minutes", async () => {
     await theintrodbSegments(EPISODE, 2893, 1000);
-    await db.update(schema.theintrodbCache).set({ fetchedAt: daysAgo(31) });
+    await db.update(schema.cacheTheintrodb).set({ fetchedAt: daysAgo(31) });
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     stub(503);
     expect(await theintrodbSegments(EPISODE, 2893, 1000)).toHaveLength(2);
@@ -122,7 +122,7 @@ describe("TheIntroDB", () => {
     stub();
     expect(await theintrodbSegments(MOVIE, 7560, 1000)).toEqual([]);
     expect(asked).toHaveLength(1);
-    expect(await db.$count(schema.theintrodbCache)).toBe(0);
+    expect(await db.$count(schema.cacheTheintrodb)).toBe(0);
     vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + 121_000 });
     expect(await theintrodbSegments(MOVIE, 7560, 1000)).toHaveLength(2);
     vi.useRealTimers();
@@ -136,7 +136,7 @@ describe("TheIntroDB", () => {
     media = { intro: [{ start_ms: 1000, end_ms: 31000 }] };
     expect(await theintrodbSegments(MOVIE, 7560, 1000)).toEqual([]);
     expect(asked).toHaveLength(DAILY_BUDGET);
-    expect(await db.$count(schema.theintrodbCache)).toBe(DAILY_BUDGET);
+    expect(await db.$count(schema.cacheTheintrodb)).toBe(DAILY_BUDGET);
     vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + 86400000 });
     expect(await theintrodbSegments(MOVIE, 7560, 1000)).toHaveLength(1);
     vi.useRealTimers();

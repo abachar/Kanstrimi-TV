@@ -9,7 +9,7 @@ import { importEpgSources } from "./epg-sources";
 
 /**
  * The XMLTV guide of each provider account, completed by the fallback sources (epg-sources.ts), stored in
- * `catalog_epg_programmes` for the channels the app can see, and nothing else: a few tens of
+ * `cache_epg_programmes` for the channels the app can see, and nothing else: a few tens of
  * thousands of rows. The providers download and parse; this file chooses the channels and keeps the rows.
  * Guide ids are the providers' own and may meet (« TF1.fr » at both): the preferred account's programmes
  * are kept for a channel id, the next account only fills the ids it left empty.
@@ -35,7 +35,7 @@ async function wantedChannelIds(): Promise<Set<string>> {
   return new Set(rows.flatMap((r) => [r.own, r.mismatch ? r.iptv : null]).filter((x): x is string => Boolean(x)));
 }
 
-type Row = typeof schema.catalogEpgProgrammes.$inferInsert;
+type Row = typeof schema.cacheEpgProgrammes.$inferInsert;
 
 /**
  * Programmes as rows: times shifted by the corrections, each programme once per channel and start
@@ -68,10 +68,10 @@ async function mergeProgrammes(rows: Row[]) {
   const from = JSON.stringify([...firstStart].map(([id, t]) => ({ id, t: new Date(t).toISOString() })));
   await db.transaction(async (tx) => {
     await tx.execute(sql`
-      delete from ${schema.catalogEpgProgrammes} p
+      delete from ${schema.cacheEpgProgrammes} p
       using jsonb_to_recordset(${from}::jsonb) as u(id text, t timestamptz)
       where p.channel_id = u.id and p.end_at > u.t`);
-    for (let i = 0; i < rows.length; i += BATCH) await tx.insert(schema.catalogEpgProgrammes).values(rows.slice(i, i + BATCH));
+    for (let i = 0; i < rows.length; i += BATCH) await tx.insert(schema.cacheEpgProgrammes).values(rows.slice(i, i + BATCH));
   });
 }
 
@@ -79,7 +79,7 @@ async function mergeProgrammes(rows: Row[]) {
 async function prune(inUse: Set<string>) {
   const ids = JSON.stringify([...inUse]);
   await db.execute(sql`
-    delete from ${schema.catalogEpgProgrammes}
+    delete from ${schema.cacheEpgProgrammes}
     where end_at < ${new Date(Date.now() - KEEP_PAST_MS).toISOString()}::timestamptz
        or channel_id not in (select jsonb_array_elements_text(${ids}::jsonb))`);
 }
@@ -150,6 +150,6 @@ export async function epgStat(): Promise<EpgStat> {
   }>(sql`
     select count(*)::int as programmes, count(distinct channel_id)::int as channels,
            min(start_at)::text as "from", max(end_at)::text as "to", max(imported_at)::text as imported_at
-    from catalog_epg_programmes`);
+    from cache_epg_programmes`);
   return { programmes: r.programmes, channels: r.channels, from: r.from, to: r.to, importedAt: r.imported_at };
 }
