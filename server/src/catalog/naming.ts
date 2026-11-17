@@ -150,7 +150,9 @@ const NOISE_WORDS = [
   "WEBDL",
   "HDRIP",
   "DVDRIP",
+  "HDCAM",
   "CAM",
+  "HDTS",
   "TS",
   "LIGHT",
   "AC3",
@@ -220,6 +222,11 @@ const TZ_DELAY = /\|?\s*[-+]?\d{1,2}H\s*\|?/gi;
 const RAISED = /[\u00B2\u00B3\u00B9\u02B0-\u02B8\u02E0-\u02E4\u1D2C-\u1D6A\u1D9B-\u1DBF\u2070-\u207F]+/g;
 /** A bare resolution closing a live name: « BEIN SPORTS 1 720 ». */
 const TRAILING_RESOLUTION = /\s(480|576|720|1080|2160)\s*$/;
+/**
+ * The word some providers open an Arabic name with to say what it is, never a part of its title:
+ * « فيلم القصص » is the film « القصص », « مسلسل الكيف » the series « الكيف » (film, series, show, play, documentary).
+ */
+const KIND_WORD = /^(?:فيلم|فلم|مسلسل|برنامج|مسرحية|وثائقي)\s+(?=\S)/u;
 const SEASON_TAG = /(?:^|[\s\-([|])(?:S(\d{1,2})|(?:Saison|Season|Temporada|Stagione)\s*(\d{1,2}))(?=$|[\s\-)\]|])/i;
 
 /** Edition words → the label the app shows. Case ignored, accents optional. */
@@ -404,6 +411,7 @@ export function parseName(raw: string, kind: Kind): ParsedName {
       return last;
     });
   s = tidy(s);
+  if (kind !== "live") s = s.replace(KIND_WORD, "");
 
   return {
     title: s || raw.trim(),

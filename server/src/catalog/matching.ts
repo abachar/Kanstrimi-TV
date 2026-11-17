@@ -20,11 +20,13 @@ import {
   detailsWithNames,
   type Evidence,
   fetchDetails,
+  forgetDetails,
   getCachedDetails,
   getDetails,
   getTmdbClient,
   ID_THRESHOLD,
   idEvidence,
+  isGone,
   MATCH_THRESHOLD,
   namesOf,
   type ScoredDetail,
@@ -468,6 +470,13 @@ export async function waitingStreams(): Promise<number> {
 type CardlessTitle = { id: number; kind: TitleKind; key: string } & PendingItem;
 
 /**
+ * A title changes key by a look then a write (`adopt`, `disown`), and the step judges twenty at once:
+ * two titles without a card that TMDB names alike in the same instant would both find the key free.
+ * One at a time: the second finds the first and joins it.
+ */
+const oneKeyAtATime = pLimit(1);
+
+/**
  * A title without a card that TMDB now knows becomes that title: the same row under its TMDB key, or,
  * when the catalogue already has it, its streams join the one that is there.
  */
@@ -498,6 +507,50 @@ async function adopt(title: CardlessTitle, tmdbId: number, score: number) {
 }
 
 /**
+ * TMDB no longer has a document (deleted, or merged into another id): its cached copy goes, and the
+ * titles that bore it are without a card again and never asked, so that the next run searches them
+ * by what their streams read; the reverse of `adopt`. One that meets a title without a card of the
+ * same reading gives it its streams.
+ */
+async function disown(mediaType: "movie" | "tv", tmdbId: number) {
+  const t = schema.catalogTitles;
+  const kind: TitleKind = mediaType === "movie" ? "vod" : "series";
+  await forgetDetails(mediaType, tmdbId);
+  const bearers = await db
+    .select({ id: t.id, title: t.title, year: t.year, searchTitle: t.searchTitle, searchYear: t.searchYear })
+    .from(t)
+    .where(and(eq(t.kind, kind), eq(t.tmdbId, tmdbId)));
+  for (const b of bearers) {
+    // What was searched, not what TMDB called it: the card's title goes with the card.
+    const [title, year] = b.searchTitle ? [b.searchTitle, b.searchYear] : [b.title, b.year];
+    const key = contentKey({ kind, title, year, tmdbId: null, matchStatus: "unmatched" });
+    const [there] = await db.select({ id: t.id }).from(t).where(eq(t.key, key));
+    if (there) {
+      await db.update(schema.catalogStreams).set({ titleId: there.id }).where(eq(schema.catalogStreams.titleId, b.id));
+      await db.delete(t).where(eq(t.id, b.id));
+      continue;
+    }
+    // Its episodes were listed under the old key: they are built again when the sheet opens.
+    await db.delete(schema.catalogEpisodes).where(eq(schema.catalogEpisodes.titleId, b.id));
+    await db
+      .update(t)
+      .set({
+        key,
+        tmdbId: null,
+        title,
+        year,
+        matchStatus: "unmatched",
+        matchScore: null,
+        matchedAt: null,
+        matchAttempts: 0,
+        cardsAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(t.id, b.id));
+  }
+}
+
+/**
  * The titles without a card, asked again: those never asked, those asked more than a week ago (TMDB
  * may have the title by now), and those Claude just read (visible ones, each once: what it suggests is
  * one more title to search, judged by the same scores). Then a share of the stale cache is fetched
@@ -507,7 +560,18 @@ async function adopt(title: CardlessTitle, tmdbId: number, score: number) {
 export async function runEnrich(opts: { limit?: number } = {}) {
   const client = await getTmdbClient();
   if (!client) throw new Error("Clé API TMDB non configurée");
-  const stats = { processed: 0, matched: 0, unmatched: 0, errors: 0, retried: 0, refreshed: 0, ai_asked: 0, ai_titled: 0, ai_other: 0 };
+  const stats = {
+    processed: 0,
+    matched: 0,
+    unmatched: 0,
+    errors: 0,
+    retried: 0,
+    refreshed: 0,
+    cards_gone: 0,
+    ai_asked: 0,
+    ai_titled: 0,
+    ai_other: 0,
+  };
   Object.assign(stats, await askClaude());
   const t = schema.catalogTitles;
   const due = await db
@@ -560,7 +624,8 @@ export async function runEnrich(opts: { limit?: number } = {}) {
             if ((verdict.via === "search" || verdict.via === "suggestion") && verdict.tmdbId)
               await getDetails(client, tmdbMediaType(title.kind), verdict.tmdbId);
             if (verdict.status === "matched" && verdict.tmdbId) {
-              await adopt(title, verdict.tmdbId, verdict.score);
+              const tmdbId = verdict.tmdbId;
+              await oneKeyAtATime(() => adopt(title, tmdbId, verdict.score));
               stats.matched++;
             } else {
               await db
@@ -598,9 +663,9 @@ export async function runEnrich(opts: { limit?: number } = {}) {
     beat.stop();
   }
   checkCancelled();
-  if (!halted) stats.refreshed = await refreshStale(client, limit, checkCancelled);
+  if (!halted) Object.assign(stats, await refreshStale(client, limit, checkCancelled));
   console.log(
-    `[enrich] ${n(stats.retried)} titres sans fiche redemandés : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ai_asked)} noms lus par Claude (${n(stats.ai_titled)} titres suggérés, ${n(stats.ai_other)} hors TMDB), ${n(stats.refreshed)} fiches rafraîchies`,
+    `[enrich] ${n(stats.retried)} titres sans fiche redemandés : ${n(stats.matched)} associés, ${n(stats.unmatched)} non trouvés, ${n(stats.errors)} erreurs, ${n(stats.ai_asked)} noms lus par Claude (${n(stats.ai_titled)} titres suggérés, ${n(stats.ai_other)} hors TMDB), ${n(stats.refreshed)} fiches rafraîchies, ${n(stats.cards_gone)} retirées par TMDB`,
   );
   if (halted)
     throw new Error(
@@ -664,9 +729,14 @@ async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_ot
 /**
  * The oldest cache entries past the TTL that a content still uses, fetched again: at most
  * REFRESH_PER_RUN; plus at most BACKFILL_PER_RUN used entries that predate the logos. A failure
- * keeps the old entry (tried again next run). Returns how many landed.
+ * keeps the old entry (tried again next run), except a document TMDB no longer has: its titles go
+ * back to being identified (`disown`). Returns how many landed and how many were gone.
  */
-async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>, checkCancelled: () => void): Promise<number> {
+async function refreshStale(
+  client: TmdbClient,
+  limit: ReturnType<typeof pLimit>,
+  checkCancelled: () => void,
+): Promise<{ refreshed: number; cards_gone: number }> {
   const users = sql`from ${schema.catalogTitles} c where c.tmdb_id = ${schema.cacheTmdb.tmdbId}
     and ${sqlTmdbMediaType(sql`c.kind`)} = ${schema.cacheTmdb.mediaType}`;
   const pick = (cond: SQL, max: number, order: SQL[]) =>
@@ -685,25 +755,35 @@ async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>
     sql`(select max(c.release_date) ${users}) desc nulls last`,
   ]);
   const stale = [...old, ...logoless];
-  if (!stale.length) return 0;
+  if (!stale.length) return { refreshed: 0, cards_gone: 0 };
   const n = (x: number) => x.toLocaleString("fr-FR");
   console.log(
     `[enrich] ${n(stale.length)} fiches TMDB à relire : ${n(old.length)} de plus de 30 jours, ${n(logoless.length)} d'avant les logos`,
   );
   let done = 0,
+    gone = 0,
     failed = 0;
-  const beat = progress("enrich", stale.length, () => `${n(done)} fiches relues · ${n(failed)} erreurs`);
+  const beat = progress("enrich", stale.length, () => `${n(done)} fiches relues · ${n(gone)} retirées par TMDB · ${n(failed)} erreurs`);
   try {
     await Promise.all(
       stale.map((r) =>
         limit(async () => {
           checkCancelled();
+          const mediaType = r.mediaType as "movie" | "tv";
           try {
-            await fetchDetails(client, r.mediaType as "movie" | "tv", r.tmdbId);
-            done++;
+            const d = await fetchDetails(client, mediaType, r.tmdbId).catch((e) => {
+              if (isGone(e)) return null;
+              throw e;
+            });
+            if (d) done++;
+            else {
+              await oneKeyAtATime(() => disown(mediaType, r.tmdbId));
+              gone++;
+              console.log(`[enrich] TMDB n'a plus ${mediaType} ${r.tmdbId} : son titre sera cherché de nouveau par son nom`);
+            }
           } catch (e) {
             failed++;
-            console.error(`[enrich] rafraîchissement TMDB ${r.mediaType} ${r.tmdbId} : ${describeError(e)}`);
+            console.error(`[enrich] rafraîchissement TMDB ${mediaType} ${r.tmdbId} : ${describeError(e)}`);
           } finally {
             beat.tick();
           }
@@ -713,7 +793,7 @@ async function refreshStale(client: TmdbClient, limit: ReturnType<typeof pLimit>
   } finally {
     beat.stop();
   }
-  return done;
+  return { refreshed: done, cards_gone: gone };
 }
 
 // ---------------------------------------------------------------- manual corrections (admin)

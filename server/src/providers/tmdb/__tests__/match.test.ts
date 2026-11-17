@@ -21,6 +21,22 @@ describe("cleanTitle", () => {
 describe("similarity", () => {
   it("is 1 for identical (accent/case insensitive)", () => expect(similarity("Amélie", "amelie")).toBe(1));
   it("is low for different titles", () => expect(similarity("The Matrix", "Titanic")).toBeLessThan(0.3));
+  it("reads a title written in another script, Arabic spelled one way", () => {
+    expect(similarity("القصص", "القصص")).toBe(1);
+    expect(similarity("عمر وسلمى 2", "عمر و سلمي ٢")).toBeGreaterThan(0.8);
+    expect(similarity("أبو علي", "ابو علي")).toBe(1);
+    expect(similarity("Χώρα Προέλευσης", "Χώρα προέλευσης")).toBe(1);
+    expect(similarity("القصص", "الحريفة")).toBeLessThan(0.3);
+  });
+  it("compares each alphabet on its own: a name in two scripts is either of its halves", () => {
+    expect(similarity("Fas Melh Wa Dakh فص ملح وداخ", "فص ملح وداخ")).toBe(1);
+    expect(similarity("Fas Melh Wa Dakh فص ملح وداخ", "Fas Melh Wa Dakh")).toBe(1);
+  });
+  it("finds nothing in common between two titles that share a number, or a Latin letter ASCII lacks", () => {
+    expect(similarity("Avatar 2", "Frozen 2")).toBeLessThan(0.3);
+    expect(similarity("Søren", "Bjørn")).toBeLessThan(0.3);
+    expect(similarity("M", "X")).toBe(0);
+  });
 });
 
 describe("scoreAll", () => {
@@ -101,6 +117,13 @@ describe("idEvidence", () => {
     images: { backdrops: [{ file_path: "/eDB1CCNcxnFANadgiWyFlzaqvK6.jpg" }] },
     videos: { results: [{ key: "SnuP9SjGq4w", site: "YouTube", type: "Trailer" }] },
   };
+  it("accepts the id of a film the provider names in Arabic, by its original title", async () => {
+    const { idEvidence } = await import("../match");
+    const doc = { id: 1329071, title: "Notre Histoire - Chroniques du Caire", original_title: "القصص", release_date: "2026-06-17" };
+    const ev = idEvidence(doc, { name: "AR - القصص (2026)", title: "القصص", year: 2026, raw: {} });
+    expect(ev).toMatchObject({ similarity: 1, accepted: true });
+    expect(idEvidence(doc, { name: "AR - الحريفة (2026)", title: "الحريفة", year: 2026, raw: {} }).accepted).toBe(false);
+  });
   it("accepts a provider title TMDB never recorded when cast, image or trailer agree", async () => {
     const { idEvidence } = await import("../match");
     const ev = idEvidence(heritage, patriarche);

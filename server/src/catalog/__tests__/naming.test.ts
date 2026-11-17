@@ -65,6 +65,11 @@ describe("parseName", () => {
       "series",
       { title: "Desperate Housewives - I segreti di Wisteria Lane", language: "IT" },
     ],
+    // The word that says what an Arabic name is (film, series) is not its title; alone, it is.
+    ["AR - فيلم القصص (2026)", "vod", { title: "القصص", year: 2026, market: "ar" }],
+    ["AR - HDCAM فيلم القصص (2026)", "vod", { title: "القصص", year: 2026 }],
+    ["AR - مسلسل الكيف", "series", { title: "الكيف" }],
+    ["AR - فيلم", "vod", { title: "فيلم" }],
     // Series split per season upstream.
     ["Vincenzo (MULTI) S01", "series", { title: "Vincenzo", seasonHint: 1 }],
     ["|FR| Squid Game - Saison 2 (VOSTFR)", "series", { title: "Squid Game", seasonHint: 2, language: "VOSTFR" }],

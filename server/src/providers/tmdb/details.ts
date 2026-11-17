@@ -1,7 +1,7 @@
 import { getSettings } from "@/config";
 import { db, schema } from "@/db";
-import { and, eq } from "drizzle-orm";
-import { TmdbClient, type TmdbDetails } from "./client";
+import { and, eq, inArray } from "drizzle-orm";
+import { TmdbClient, TmdbError, type TmdbDetails } from "./client";
 import { hasAllNames } from "./match";
 import { describeError, isUnreachable } from "@/shared";
 
@@ -80,6 +80,15 @@ export async function fetchDetails(client: TmdbClient, mediaType: "movie" | "tv"
   const data = mediaType === "movie" ? await client.movie(tmdbId) : await client.tv(tmdbId);
   await writeTmdbCache({ mediaType, tmdbId, lang: client.language }, data);
   return data;
+}
+
+/** TMDB answered that it has no such document: deleted, or merged into another id. Not an outage. */
+export const isGone = (e: unknown) => e instanceof TmdbError && e.status === 404;
+
+/** A document TMDB no longer has leaves the cache, in every language, a series with its seasons: nothing must read it as current. */
+export async function forgetDetails(mediaType: "movie" | "tv", tmdbId: number) {
+  const c = schema.cacheTmdb;
+  await db.delete(c).where(and(inArray(c.mediaType, mediaType === "tv" ? ["tv", "tv_season"] : ["movie"]), eq(c.tmdbId, tmdbId)));
 }
 
 /** Read-only cached lookup (no network). */

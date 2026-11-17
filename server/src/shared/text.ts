@@ -47,12 +47,43 @@ export function slug(s: string): string {
   );
 }
 
-/** Dice coefficient on bigrams — good enough for title similarity. */
+/**
+ * What a text says outside the Latin alphabet (Arabic, Cyrillic, Greek, Hebrew, Chinese…), for the
+ * title similarity: its other letters and its digits, with what Arabic spells loosely written one
+ * way (vowel marks and the hamza dropped, « ة » as « ه », « ى » as « ي », « ٢ » as « 2 »). Empty
+ * when it holds no such letter: « Avatar 2 » says nothing here.
+ */
+export function otherScriptKey(s: string): string {
+  // NFD first: « أ », « إ », « آ », « ؤ », « ئ » are a letter and a mark.
+  const k = stripAccents(s)
+    .replace(/[\u0591-\u05c7\u064b-\u065f\u0670\u0640]/g, "")
+    .replace(/\u0671/g, "\u0627")
+    .replace(/[\u0649\u06cc]/g, "\u064a")
+    .replace(/\u0629/g, "\u0647")
+    .replace(/\u06a9/g, "\u0643")
+    .replace(/[\u0660-\u0669\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) & 0xf))
+    .toLowerCase()
+    .replace(/\p{Script=Latin}+/gu, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+  return /\p{L}/u.test(k) ? k : "";
+}
+
+/**
+ * How close two titles are, each alphabet on its own: what they say in Latin letters, or what they
+ * say in another script, whichever agrees most. « Fas Melh Wa Dakh فص ملح وداخ » is both
+ * « Fas Melh Wa Dakh » and « فص ملح وداخ ».
+ */
 export function similarity(a: string, b: string): number {
-  const na = similarityKey(a),
-    nb = similarityKey(b);
+  return Math.max(dice(similarityKey(a), similarityKey(b)), dice(otherScriptKey(a), otherScriptKey(b)));
+}
+
+/** Dice coefficient on bigrams — good enough for title similarity. */
+function dice(na: string, nb: string): number {
   if (!na || !nb) return 0;
   if (na === nb) return 1;
+  // Two different single characters share no pair of letters.
+  if (na.length + nb.length <= 2) return 0;
   const bg = (s: string) => {
     const m = new Map<string, number>();
     for (let i = 0; i < s.length - 1; i++) {

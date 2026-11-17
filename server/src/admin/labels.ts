@@ -80,6 +80,7 @@ export const STAT_LABELS: Record<string, string> = {
   ai_titled: "titres suggérés",
   ai_other: "hors TMDB",
   refreshed: "fiches TMDB rafraîchies",
+  cards_gone: "fiches retirées par TMDB",
   iptv_channels: "chaînes iptv-org",
   iptv_logos: "avec logo",
   iptv_updated: "base mise à jour",

@@ -4,9 +4,11 @@ export {
   DETAILS_TTL_MS,
   detailsWithNames,
   fetchDetails,
+  forgetDetails,
   getCachedDetails,
   getDetails,
   getTmdbClient,
+  isGone,
   readTmdbCache,
   writeTmdbCache,
 } from "./details";

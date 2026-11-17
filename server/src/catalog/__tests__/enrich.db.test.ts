@@ -75,6 +75,26 @@ describe("runEnrich", () => {
     expect(await db.select().from(t).where(eq(t.id, id))).toEqual([]);
   });
 
+  it("makes one title of two titles without a card that TMDB names alike in the same run", async () => {
+    const parts = await seedItems([
+      { kind: "vod", upstreamId: "p1", name: "|FR| Livre du Meurtre (1) (2014)", matchStatus: "unmatched" },
+      { kind: "vod", upstreamId: "p2", name: "|FR| Livre du Meurtre (2) (2014)", matchStatus: "unmatched" },
+    ]);
+    const ids = await Promise.all(parts.map((p) => titleOf(p.id)));
+    expect(new Set(ids).size).toBe(2);
+    await db.update(t).set({ matchedAt: aWeekAgo() }).where(inArray(t.id, ids));
+    const film = { id: 5110, title: "Livre du Meurtre", release_date: "2014-10-25" };
+    vi.stubGlobal("fetch", async (u: URL | string) => {
+      // Both answers land together: each title would find the key free.
+      await new Promise((r) => setTimeout(r, 20));
+      return Response.json(new URL(String(u)).pathname.endsWith("/search/movie") ? { results: [film] } : film);
+    });
+    expect(await runEnrich()).toMatchObject({ retried: 2, matched: 2, errors: 0 });
+    const there = await contentOfKey("tmdb:movie:5110");
+    expect(await Promise.all(parts.map((p) => titleOf(p.id)))).toEqual([there.id, there.id]);
+    expect(await db.select({ id: t.id }).from(t).where(inArray(t.id, ids))).toEqual([{ id: there.id }]);
+  });
+
   it("does not ask before a week about a title TMDB still does not know, nor about one whose search it rejects", async () => {
     const [unknown, refused] = await cardless(2, "Inconnu");
     const ids = [await titleOf(unknown.id), await titleOf(refused.id)];
@@ -242,5 +262,39 @@ describe("runEnrich", () => {
       .where(inArray(schema.cacheTmdb.tmdbId, [700, 701]));
     const fresh = (id: number) => rows.find((r) => r.tmdbId === id)!.fetchedAt.getTime() > Date.now() - 60_000;
     expect([fresh(700), fresh(701)]).toEqual([true, false]);
+  });
+
+  it("sends a title back to being identified when TMDB no longer has its document", async () => {
+    const [stream] = await seedItems([
+      { kind: "vod", upstreamId: "gone", name: "|FR| Pyramide Noire (2023)", tmdbId: 710, matchStatus: "matched" },
+    ]);
+    const id = await titleOf(stream.id);
+    const old = new Date(Date.now() - 31 * 86400000);
+    await db
+      .insert(schema.cacheTmdb)
+      .values({ mediaType: "movie", tmdbId: 710, lang: "fr-FR", data: { id: 710, title: "Fiche 710" }, fetchedAt: old });
+    vi.stubGlobal("fetch", async (u: URL | string) =>
+      /\/movie\/710\b/.test(String(u)) ? new Response("{}", { status: 404 }) : Response.json({ id: 700, title: "Film 700" }),
+    );
+    expect(await runEnrich()).toMatchObject({ cards_gone: 1, errors: 0 });
+    // The same row, its streams still on it, without a card and never asked: the next run searches it by name.
+    const [now] = await db.select().from(t).where(eq(t.id, id));
+    expect(now).toMatchObject({
+      key: "fallback:movie:pyramide-noire:2023",
+      tmdbId: null,
+      title: "Pyramide Noire",
+      matchStatus: "unmatched",
+      matchedAt: null,
+      cardsAt: null,
+    });
+    expect(await titleOf(stream.id)).toBe(id);
+    expect(await db.select().from(schema.cacheTmdb).where(eq(schema.cacheTmdb.tmdbId, 710))).toEqual([]);
+    // Its name finds it again, under whatever id TMDB gives it now; the dead id the provider may still send is no error.
+    vi.stubGlobal("fetch", async (u: URL | string) => {
+      const film = { id: 711, title: "Pyramide Noire", release_date: "2023-05-01" };
+      return Response.json(new URL(String(u)).pathname.endsWith("/search/movie") ? { results: [film] } : film);
+    });
+    expect(await runEnrich()).toMatchObject({ retried: 1, matched: 1, errors: 0 });
+    expect((await db.select().from(t).where(eq(t.id, id)))[0]).toMatchObject({ key: "tmdb:movie:711", tmdbId: 711 });
   });
 });
