@@ -236,6 +236,30 @@ describe("runEnrich", () => {
     setSecretsForTests({ anthropic_api_key: "" });
   });
 
+  it("leaves to TMDB first a title it is about to ask again: Claude reads it only once TMDB said no", async () => {
+    const [w] = await seedItems([{ kind: "vod", upstreamId: "w", name: "|AR| En Attente (2020)", matchStatus: "unmatched" }]);
+    const id = await titleOf(w.id);
+    await db.update(schema.catalogStreams).set({ filtered: false }).where(eq(schema.catalogStreams.xtreamId, w.id));
+    // « Retenter les introuvables »: to be asked again in this run.
+    await db.update(t).set({ visible: true, matchedAt: null }).where(eq(t.id, id));
+    const hosts: string[] = [];
+    vi.stubGlobal("fetch", async (u: URL | string) => {
+      hosts.push(new URL(String(u)).hostname);
+      return Response.json({ results: [] });
+    });
+    setSecretsForTests({ anthropic_api_key: "a" });
+    try {
+      expect(await runEnrich()).toMatchObject({ ai_asked: 0, retried: 1, unmatched: 1 });
+      expect(hosts).not.toContain("api.anthropic.com");
+      expect((await db.select().from(t).where(eq(t.id, id)))[0]).toMatchObject({ aiAskedAt: null });
+      // TMDB said no: the next run is Claude's.
+      await runEnrich().catch(() => {});
+      expect(hosts).toContain("api.anthropic.com");
+    } finally {
+      setSecretsForTests({ anthropic_api_key: "" });
+    }
+  });
+
   it("fetches again an entry older than 30 days that a content still uses, and leaves an orphan one alone", async () => {
     const withLogos = (id: number) => ({
       id,

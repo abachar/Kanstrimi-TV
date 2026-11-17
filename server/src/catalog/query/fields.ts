@@ -372,6 +372,16 @@ export const FIELDS: Field[] = [
     choices: () => yesNo(sql`${v.adult}`),
   },
   {
+    names: ["tmdb"],
+    scope: "xtream",
+    type: "enum",
+    doc: "Le fournisseur donne un identifiant TMDB pour ce flux : oui ou non (cru seulement quand la fiche porte son nom)",
+    example: "oui",
+    kinds: VOD_SERIES,
+    // As `providedTmdbId` reads it: `tmdb`, else `tmdb_id`, a positive number.
+    choices: () => yesNo(sql`(coalesce(${v.raw}->>'tmdb', ${v.raw}->>'tmdb_id', '') ~ '^0*[1-9][0-9]*$')`),
+  },
+  {
     names: ["ia", "claude"],
     scope: "xtream",
     type: "enum",

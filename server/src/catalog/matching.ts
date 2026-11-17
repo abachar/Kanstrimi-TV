@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import pLimit from "p-limit";
 import { getSettings } from "@/config";
 import {
@@ -675,7 +675,8 @@ export async function runEnrich(opts: { limit?: number } = {}) {
 }
 
 /**
- * Claude reads the visible titles TMDB gave up on and that it has not read yet, AI_PER_RUN at most:
+ * Claude reads the visible titles TMDB gave up on (asked, and not waiting to be asked again: this run's
+ * search may find them without it) and that it has not read yet, AI_PER_RUN at most:
  * the ones it identifies are asked again right after with its suggestion, the others keep what it said
  * (`other`, or nothing). Each title is asked once; a request that fails leaves its titles for the next
  * run. Without a key, nothing happens.
@@ -689,7 +690,17 @@ async function askClaude(): Promise<{ ai_asked: number; ai_titled: number; ai_ot
     .from(t)
     .innerJoin(variants, eq(variants.titleId, t.id))
     .leftJoin(c, and(eq(c.accountId, variants.accountId), eq(c.kind, variants.kind), eq(c.xtreamId, variants.categoryXtreamId)))
-    .where(and(isNull(t.tmdbId), eq(t.matchStatus, "unmatched"), isNull(t.aiAskedAt), eq(t.visible, true), visibleItem))
+    .where(
+      and(
+        isNull(t.tmdbId),
+        eq(t.matchStatus, "unmatched"),
+        // TMDB said no: one it is about to be asked about (never asked, a retry called for) is not Claude's yet.
+        isNotNull(t.matchedAt),
+        isNull(t.aiAskedAt),
+        eq(t.visible, true),
+        visibleItem,
+      ),
+    )
     .orderBy(t.id, asc(variants.id))
     .limit(AI_PER_RUN);
   if (!rows.length) return stats;

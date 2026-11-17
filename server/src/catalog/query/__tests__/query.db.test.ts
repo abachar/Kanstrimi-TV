@@ -38,10 +38,10 @@ beforeAll(async () => {
     vote_count: 4000,
   });
   await seedItems([
-    { kind: "vod", upstreamId: "1", name: "|FR| Matrix (4K)", cat: "10", tmdbId: 603, matchStatus: "matched" },
+    { kind: "vod", upstreamId: "1", name: "|FR| Matrix (4K)", cat: "10", tmdbId: 603, matchStatus: "matched", raw: { tmdb: "603" } },
     { kind: "vod", upstreamId: "2", name: "|FR| Matrix (VOSTFR)", cat: "11", tmdbId: 603, matchStatus: "matched" },
     { kind: "vod", upstreamId: "3", name: "|FR| Dilwale Dulhania", cat: "11", tmdbId: 900, matchStatus: "matched" },
-    { kind: "vod", upstreamId: "4", name: "|FR| Inconnu 100% (2010)", cat: "11", matchStatus: "unmatched" },
+    { kind: "vod", upstreamId: "4", name: "|FR| Inconnu 100% (2010)", cat: "11", matchStatus: "unmatched", raw: { tmdb_id: 777 } },
     { kind: "live", upstreamId: "100", name: "|FR| TF1 HD", section: "|FR| GÉNÉRALISTES |FR|" },
   ]);
   await runNaming();
@@ -189,6 +189,14 @@ describe("filter language: conditions on a content", () => {
       await db.update(schema.catalogStreams).set({ how }).where(tf1);
     }
     expect(fails("xtream.ia:oui", { filter: true })).toContain("recherches");
+  });
+
+  it("finds the streams the provider gives a TMDB id for, and among them those left without a card", async () => {
+    expect(await streams("tmdb:oui")).toEqual([S_UNKNOWN, S_4K]);
+    expect(await streams("tmdb:non")).toEqual([S_DILWALE, S_VOST]);
+    expect(await streams("tmdb:oui && catalogue.tmdb:non")).toEqual([S_UNKNOWN]);
+    expect(await kept("xtream.tmdb:oui && catalogue.tmdb:oui")).toEqual([S_4K]);
+    expect(fails("xtream.tmdb:oui", { kind: "live", filter: true })).toBeTruthy();
   });
 
   it("reads || and groups, a version field anywhere judging version by version", async () => {
