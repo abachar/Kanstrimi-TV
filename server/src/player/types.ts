@@ -15,7 +15,8 @@ export type Provider = { id: string; name: string; kind: "xtream" | "local" | (s
  * They come in the order the app shows them and tries them: the profile's languages in its order, the usual
  * cut before an edition, descending quality then dynamic range, the providers in the order of preference.
  * `badge` « 4K DV », `label` « FR · 4K DV · Version longue »: the variant's language, quality and cut, written
- * here. `name` and `category` are the provider's own words: what tells five « FHD » apart.
+ * here. `quality` is what a player measured in the stream when one played it (`POST …/measure`), else what the
+ * provider's name says. `name` and `category` are the provider's own words: what tells five « FHD » apart.
  * `edition`: a cut other than the theatrical one (« Version longue », « Director's Cut »), absent for the usual cut.
  * `stream_url`: the provider's own URL, played as is; null for a series' own variants (its sheet), which
  * name its streams and play nothing: an episode's variants play.
@@ -332,6 +333,13 @@ export type PlaybackMarkers = {
   skips: { start: number; end: number; label: string }[];
   credits: { at: number; countdown: number } | null;
 };
+
+/**
+ * `POST /playback/{id}/measure`, once the picture shows: the variant playing and the size of its picture as the
+ * player read it in the stream, in pixels. The server makes it the variant's quality (« 4K » announced, 1920 × 1080
+ * read: FHD from now on, for everyone); an episode's measure is its series' stream's. Nothing comes back.
+ */
+export type PictureMeasure = { variant: string; width: number; height: number };
 
 /** `/search`: movies, series and channels in one list, the most relevant first. */
 export type SearchResults = { query: string; items: ContentItem[] };

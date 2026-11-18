@@ -272,6 +272,7 @@ function VariantRow({ v, open, alone, tmdbLang }: { v: VariantDetail; open: bool
     it.theme,
     it.country ? `pays ${it.country}` : null,
     it.adult ? "adulte" : null,
+    it.measuredAt ? `qualité mesurée ${it.measuredWidth} × ${it.measuredHeight} (annoncée : ${it.announcedQuality ?? "rien"})` : null,
     `clé ${it.contentKey ?? "en attente de TMDB"}${it.manual ? " (imposée)" : ""}`,
     `${account} · amont ${it.upstreamId} · interne #${it.id}`,
   ].filter((x) => x !== null && x !== "");

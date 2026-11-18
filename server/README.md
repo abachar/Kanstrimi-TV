@@ -77,7 +77,7 @@ Le préfixe dit la portée : `xtream_` (ce que les fournisseurs envoient : `xtre
 `catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes, les épisodes construits à l'ouverture d'une fiche et les studios ; `catalog_channel_guides` = les guides liés à la main à une chaîne), `app_` (les personnes du foyer, `app_profiles` avec leurs réglages de lecture, leurs filtres, et ce que l'app enregistre pour chacune : favoris,
 progression, lectures (`app_plays`), variantes choisies (`app_profile_variants`), temps regardé du direct, liste d'attente ; les flux que son filtre garde, `app_profile_streams`, les titres et les chaînes qu'elle voit, `app_profile_titles` et `app_profile_channels` ; les appareils, leurs alertes), `settings` et `settings_` (les réglages du serveur, les sources et décalages EPG), `task_` (journal).
 Un flux (`xtream_streams`) est une entrée d'un fournisseur, unique par (`account_id`, `kind`, `upstream_id`) : deux fournisseurs
-réutilisent les mêmes numéros. Il porte ce que le fournisseur envoie et ce qu'on lit dans son nom, relisible à tout moment sans réseau ;
+réutilisent les mêmes numéros. Il porte ce que le fournisseur envoie, ce qu'on lit dans son nom, relisible à tout moment sans réseau, et ce qu'un lecteur y a mesuré (`measured_*`) ;
 les lignes séparatrices y restent (`separator`), elles nomment les sections. Sa ligne dans `catalog_streams` (une par flux, sous son id : `xtream_id`) porte ce que le
 catalogue en décide : le titre ou la chaîne auquel il est attaché, comment (`how`) et si c'est à la main (`manual`), masqué à la main (`hidden`), écarté par les filtres (`filtered`). Le code lit les deux ensemble par `variants` (`db/variants.ts`)
 et écrit dans la table qui possède la colonne. Au-dessus, les contenus : un titre (`catalog_titles`, un film ou une série) ou une chaîne (`catalog_channels`), chacun avec sa `key`, la seule identité exposée à l'app ; leurs identifiants sortent de la même séquence, un id de contenu désigne une seule ligne. Une variante nomme le sien par `title_id` ou `channel_id`. Le code les lit sous une même forme (`titleContent`, `channelContent`, `db/contents.ts`). Un titre présent chez
@@ -168,7 +168,7 @@ par son index.
 - **Écran Flux de l'admin** (`admin/streams/`) : ce que les fournisseurs envoient, en liste plate par type (Direct,
   Films, Séries), chaque flux avec son fournisseur, sa catégorie, ce qu'on lit dans son nom, la fiche où il est rangé,
   comment il y est venu et ce que l'app en fait (gardé, écarté, masqué). Sa recherche est le langage de filtre vu du
-  flux : ses mots sans préfixe (`langue:"vostfr"`, `catégorie:nfl`, `fournisseur:backup`, `ia:oui`, `manuel:oui`, `tmdb:oui` quand le fournisseur donne un identifiant TMDB : `tmdb:oui && catalogue.tmdb:non` montre ceux restés sans fiche), le
+  flux : ses mots sans préfixe (`langue:"vostfr"`, `catégorie:nfl`, `fournisseur:backup`, `ia:oui`, `manuel:oui`, `mesuré:oui`, `tmdb:oui` quand le fournisseur donne un identifiant TMDB : `tmdb:oui && catalogue.tmdb:non` montre ceux restés sans fiche), le
   texte libre lu dans le nom du fournisseur, ceux de la fiche sous `catalogue.` (`catalogue.tmdb:non`,
   `catalogue.thème:"non reconnus"`). Sur la ligne : ranger le flux sous une autre fiche (recherche, puis un clic), le
   détacher en une fiche à part, ou le rendre au rangement automatique ; son nom ouvre le flux sur sa fiche.
@@ -241,6 +241,16 @@ par son index.
   donne (`name`, `category`), qui distinguent deux variantes de même qualité. Une série a ses propres variantes, ses
   flux, qui ne se lisent pas (`stream_url` null) ; ce sont celles de ses épisodes qui se lisent. Une chaîne donne en
   plus ses pastilles de qualité (`chips`). Les apps affichent, elles ne nomment rien.
+- **Qualité mesurée** (`catalog/measure.ts`, `POST /playback/{id}/measure`) : le nom d'un flux est une promesse (« 4K » sur un
+  fichier en 1080p, rien du tout sur une chaîne) ; le lecteur, lui, lit l'image. Une fois l'image affichée, l'app envoie la
+  variante lue et la taille de son image en pixels : le serveur en tire SD, HD, FHD ou 4K (`qualityOfPicture`, par la
+  largeur d'abord, un film en scope étant moins haut que son nom) et en fait la qualité du flux, `quality` et
+  `quality_rank`, donc partout où une qualité compte : variante servie, ordre de la liste, meilleure qualité d'un titre,
+  filtre d'un profil. Ce que disait le nom reste à côté (`announced_quality`), et le nommage ne touche plus à la qualité
+  d'un flux mesuré. Un épisode mesure le flux de sa série, donc tous ses épisodes. Aucune remise à zéro : chaque lecture
+  mesure de nouveau, et un flux que le fournisseur remplace sous le même identifiant est corrigé à sa prochaine lecture ;
+  un flux jamais lu garde ce que dit son nom. La plage dynamique (HDR, DV) reste celle du nom. Le serveur n'ouvre aucun
+  flux lui-même. Dans l'admin, l'écran Flux montre « mesuré 1920 × 1080 · annoncé 4K » et cherche par `mesuré:oui`.
 - **Liens de lecture** : `stream_url` est l'URL du fournisseur de la variante, compte compris, envoyée aux seuls appareils appairés ;
   l'app la lit elle-même (le fournisseur répond encore un `302` vers son backend) et ne redemande `/playback` qu'au « Réessayer » d'une panne.
 - **Ne jamais journaliser une URL brute** : le mot de passe Xtream y circule. Passer par `requestLogger()`.

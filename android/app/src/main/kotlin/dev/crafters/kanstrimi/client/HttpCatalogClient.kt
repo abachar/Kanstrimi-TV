@@ -14,6 +14,7 @@ import dev.crafters.kanstrimi.contract.PairingCode
 import dev.crafters.kanstrimi.contract.PairingStatus
 import dev.crafters.kanstrimi.contract.PairingStatusWire
 import dev.crafters.kanstrimi.contract.PersonSheet
+import dev.crafters.kanstrimi.contract.PictureSize
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Profile
@@ -113,6 +114,8 @@ class HttpCatalogClient(
         sendNoContent("PUT", "playback/${progress.contentId}/progress",
             body = ProgressBody(progress.position.roundToLong().toDouble(), progress.duration.roundToLong().toDouble()))
     override suspend fun reportWatchTime(id: String, seconds: Int) = sendNoContent("POST", "playback/$id/watch-time", body = WatchTimeBody(seconds))
+    override suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize) =
+        sendNoContent("POST", "playback/$id/measure", body = MeasureBody(variantId, picture.width, picture.height))
 
     override suspend fun search(query: String): SearchResults = send("GET", "search", query = listOf("q" to query))
     override suspend fun removeFromResume(id: String) = sendNoContent("DELETE", "playback/$id/progress")
@@ -122,6 +125,7 @@ class HttpCatalogClient(
     override suspend fun forgetVariant(id: String) = sendNoContent("DELETE", "playback/$id/variant")
 
     @Serializable private data class VariantBody(val variant: String)
+    @Serializable private data class MeasureBody(val variant: String, val width: Int, val height: Int)
     @Serializable private data class ProgressBody(val position: Double, val duration: Double)
     @Serializable private data class WatchTimeBody(val seconds: Int)
     @Serializable private data class WatchedBody(val watched: Boolean, val season: Int? = null)
@@ -159,6 +163,7 @@ class HttpCatalogClient(
             is WatchTimeBody -> encode(body)
             is WatchedBody -> encode(body)
             is VariantBody -> encode(body)
+            is MeasureBody -> encode(body)
             is ProfileSettingsPatch -> encode(body)
             else -> error("corps non sérialisable : ${body::class}")
         }

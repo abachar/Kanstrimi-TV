@@ -4,6 +4,7 @@ import dev.crafters.kanstrimi.contract.Channel
 import dev.crafters.kanstrimi.contract.Credits
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.Quality
+import dev.crafters.kanstrimi.contract.PictureSize
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.RememberedVariant
 import dev.crafters.kanstrimi.contract.FileFacts
@@ -299,6 +300,89 @@ class PlayerServiceTest {
         engine.emit(EnginePhase.ENDED)
         runCurrent()
         assertNull(player.context)
+    }
+
+    // MARK: - Measured picture
+
+    @Test
+    fun `image affichée - sa taille part au serveur une fois par ouverture, avec la variante lue`() = runTest {
+        engine.pictureSize = PictureSize(1920, 1080)
+        val player = service()
+        player.play(Fixtures.film(variants = listOf("a", "b")))
+        runCurrent()
+        assertTrue(client.measures.isEmpty(), "rien avant la première image")
+        engine.emit(EnginePhase.PLAYING)
+        runCurrent()
+        assertEquals(listOf(Triple("tmdb:movie:603", "a", PictureSize(1920, 1080))), client.measures)
+        engine.emit(EnginePhase.BUFFERING)
+        engine.emit(EnginePhase.PLAYING)
+        engine.emitTime(30.0, 6000.0)
+        runCurrent()
+        assertEquals(1, client.measures.size)
+        // Another variant is another stream: its own picture.
+        engine.pictureSize = PictureSize(3840, 1608)
+        player.switchVariant(player.context!!.variants[1])
+        runCurrent()
+        assertEquals(1, client.measures.size, "pas avant l'image de la nouvelle variante")
+        engine.emit(EnginePhase.LOADING)
+        engine.emit(EnginePhase.PLAYING)
+        runCurrent()
+        assertEquals(Triple("tmdb:movie:603", "b", PictureSize(3840, 1608)), client.measures.last())
+        assertEquals(2, client.measures.size)
+        player.stop()
+    }
+
+    @Test
+    fun `image pas encore lue au premier affichage - envoyée dès que le moteur la connaît, une seule fois`() = runTest {
+        val player = service()
+        player.play(Fixtures.film(variants = listOf("a")))
+        engine.emit(EnginePhase.PLAYING)
+        engine.emitTime(1.0, 6000.0)
+        runCurrent()
+        assertEquals(PlayerService.Phase.PLAYING, player.phase)
+        assertTrue(client.measures.isEmpty())
+        engine.pictureSize = PictureSize(1280, 720)
+        engine.emitTime(2.0, 6000.0)
+        engine.emitTime(2.5, 6000.0)
+        runCurrent()
+        assertEquals(listOf(Triple("tmdb:movie:603", "a", PictureSize(1280, 720))), client.measures)
+        player.stop()
+    }
+
+    @Test
+    fun `chaque ouverture mesure de nouveau - reprise après une panne, zap - et un refus du serveur ne dérange rien`() = runTest {
+        client.channelAnswer = { id -> Fixtures.channel(id, now = now) }
+        engine.pictureSize = PictureSize(1920, 1080)
+        val player = service()
+        player.playChannel(tf1, listOf(tf1, france2))
+        engine.emit(EnginePhase.PLAYING)
+        runCurrent()
+        assertEquals(listOf(Triple("live:fr-tf1", "live:fr-tf1-FHD", PictureSize(1920, 1080))), client.measures)
+        // The stream is cut and opened again: read again.
+        engine.emitError()
+        runCurrent()
+        engine.emit(EnginePhase.LOADING)
+        engine.emit(EnginePhase.PLAYING)
+        runCurrent()
+        assertEquals(2, client.measures.size)
+        // The server refuses the next one: nothing said, playback goes on, and it is not sent again.
+        client.measureFails = true
+        engine.pictureSize = PictureSize(1280, 720)
+        player.zap(1)
+        engine.emit(EnginePhase.LOADING)
+        engine.emit(EnginePhase.PLAYING)
+        engine.emitTime(5.0, 0.0)
+        runCurrent()
+        assertEquals("live:fr-france2", player.channel?.id)
+        assertEquals(PlayerService.Phase.PLAYING, player.phase)
+        assertEquals(2, client.measures.size)
+        assertNull(player.toast)
+        assertTrue(notices.isEmpty())
+        client.measureFails = false
+        engine.emitTime(6.0, 0.0)
+        runCurrent()
+        assertEquals(2, client.measures.size)
+        player.stop()
     }
 
     // MARK: - Markers

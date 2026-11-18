@@ -413,6 +413,18 @@ struct HTTPCatalogClientTests {
         #expect(try await client.markers(id: ContentID("tmdb:movie:603"), file: file) == PlaybackMarkers(skips: [], credits: nil))
     }
 
+    @Test("Mesure : POST …/measure avec la variante lue et la taille de son image")
+    func measureTravels() async throws {
+        answer(204, "")
+        try await client.reportMeasure(id: ContentID("tmdb:tv:1396:s01e02"), variantID: "src-e2", picture: PictureSize(width: 1920, height: 800))
+        #expect(try last.httpMethod == "POST")
+        #expect(try last.url?.path() == "/player/playback/tmdb:tv:1396:s01e02/measure")
+        let body = try #require(JSONSerialization.jsonObject(with: StubProtocol.bodies.last ?? Data()) as? [String: Any])
+        #expect(body["variant"] as? String == "src-e2")
+        #expect(body["width"] as? Int == 1920)
+        #expect(body["height"] as? Int == 800)
+    }
+
     @Test("Chaînes les plus regardées : POST …/watch-time, rangée d'accueil, rang sur /channels, type de rangée inconnu toléré")
     func mostWatchedChannelsTravel() async throws {
         answer(204, "")

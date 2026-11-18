@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { parseKey } from "@/catalog";
+import { parseKey, recordMeasure } from "@/catalog";
 import type { Content } from "@/db";
 import type { Env, RestContext } from "./context";
 import { fail, json, noContent } from "./http";
@@ -12,7 +12,7 @@ import { badgesOf, castOf, episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
 import { addWatchTime } from "./watch-time";
 import { playbackMarkers } from "./markers";
-import { forgetVariant, rememberedFor, rememberedWire, rememberVariant } from "./remembered";
+import { forgetVariant, rememberedFor, rememberedWire, rememberVariant, streamOfTitle } from "./remembered";
 import type { ProfileVariant } from "@/db";
 import type { NextEpisode, Playback, Variant } from "./types";
 
@@ -22,7 +22,8 @@ import type { NextEpisode, Playback, Variant } from "./types";
  * `DELETE …/progress`: out of « Reprendre »; `PUT …/watched`: seen or not, a whole season on a series id;
  * `POST …/watch-time`: seconds of a channel played, for « Chaînes les plus regardées »;
  * `POST …/markers`: the intro and the end credits of the file the app opened;
- * `PUT …/variant`: the variant chosen for the title (a series, from any episode), `DELETE …/variant` forgets it.
+ * `PUT …/variant`: the variant chosen for the title (a series, from any episode), `DELETE …/variant` forgets it;
+ * `POST …/measure`: the picture the app read in the variant it plays, which says its real quality.
  */
 export const playbackRoutes = new Hono<Env>();
 
@@ -119,6 +120,24 @@ playbackRoutes.put("/:id/variant", async (c) => {
   const kept = await rememberVariant(c.get("ctx"), key, body.data.variant);
   if (kept === "unknown_title") return fail("not_found", "Contenu introuvable");
   if (kept === "unknown_variant") return fail("bad_request", "Variante inconnue pour ce titre");
+  return noContent();
+});
+
+const measureBody = z.object({
+  variant: z.string().min(1).max(200),
+  width: z.number().int().min(16).max(16384),
+  height: z.number().int().min(16).max(16384),
+});
+/** The size of the picture the app read in the variant playing: its quality from now on (a series' stream: from any episode). */
+playbackRoutes.post("/:id/measure", async (c) => {
+  const key = c.req.param("id");
+  if (!parseKey(key)) return fail("not_found", "Contenu introuvable");
+  const body = measureBody.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return fail("bad_request", "variant (identifiant d'une variante du titre), width et height (pixels) attendus");
+  const stream = await streamOfTitle(c.get("ctx"), key, body.data.variant);
+  if (stream === "unknown_title") return fail("not_found", "Contenu introuvable");
+  if (stream === "unknown_variant") return fail("bad_request", "Variante inconnue pour ce titre");
+  await recordMeasure(stream.streamId, body.data.width, body.data.height);
   return noContent();
 });
 

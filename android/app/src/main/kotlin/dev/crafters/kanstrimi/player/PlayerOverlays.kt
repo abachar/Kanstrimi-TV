@@ -141,7 +141,6 @@ fun StreamFailureDialog(player: PlayerService) {
                 }
                 TextButton(onClick = { player.stop() }, modifier = Modifier.fillMaxWidth()) { Text("Quitter", color = Theme.text) }
             }
-            if (reason == null) Text("Réessayer suffit souvent : le fournisseur change de serveur d'une tentative à l'autre.", style = MaterialTheme.typography.bodySmall, color = Theme.secondary)
         }
     }
 }

@@ -13,6 +13,7 @@ import dev.crafters.kanstrimi.contract.Page
 import dev.crafters.kanstrimi.contract.PairingCode
 import dev.crafters.kanstrimi.contract.PairingStatus
 import dev.crafters.kanstrimi.contract.PersonSheet
+import dev.crafters.kanstrimi.contract.PictureSize
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Profile
@@ -114,6 +115,8 @@ interface CatalogClient {
     suspend fun markers(id: String, file: FileFacts): PlaybackMarkers
     suspend fun report(progress: ProgressReport)
     suspend fun reportWatchTime(id: String, seconds: Int)
+    /** `POST /playback/{id}/measure`: the picture read in the variant playing `id` (a movie, an episode, a channel). */
+    suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize)
 
     suspend fun search(query: String): SearchResults
     suspend fun removeFromResume(id: String)

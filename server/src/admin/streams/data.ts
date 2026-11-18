@@ -22,6 +22,10 @@ export type StreamRow = {
   account: string | null;
   category: string | null;
   quality: string | null;
+  /** The picture a player read in it, « 1920 × 1080 »; null: never played, `quality` is what its name says. */
+  measured: string | null;
+  /** What its name says, when a measure says otherwise. */
+  announced: string | null;
   lang: string | null;
   /** The entry it is filed under: its id (titles and channels share one sequence), its name, and whether the catalogue knows it. */
   contentId: number | null;
@@ -53,6 +57,9 @@ export async function searchStreams(
         category: sql<string | null>`(select k.name from xtream_categories k
           where k.account_id = ${of("account_id")} and k.kind = ${of("kind")} and k.xtream_id = ${of("category_xtream_id")} limit 1)`,
         quality: v.quality,
+        measured: sql<string | null>`${v.measuredWidth} || ' × ' || ${v.measuredHeight}`,
+        announced: sql<string | null>`case when ${v.measuredAt} is not null and ${v.announcedQuality} is distinct from ${v.quality}
+          then coalesce(${v.announcedQuality}, 'rien') end`,
         lang: v.lang,
         contentId: v.contentId,
         entry: sql<string | null>`coalesce(

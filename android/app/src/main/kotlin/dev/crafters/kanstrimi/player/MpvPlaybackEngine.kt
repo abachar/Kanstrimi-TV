@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.crafters.kanstrimi.contract.FileFacts
+import dev.crafters.kanstrimi.contract.PictureSize
 import dev.jdtech.mpv.MPVLib
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -64,6 +65,16 @@ class MpvPlaybackEngine(context: Context) : PlaybackEngine {
     override val fileFacts: FileFacts? get() = if (isLiveItem || length <= 0) null else FileFacts(length, emptyList())
     override var streamFacts: StreamFacts? = null
         private set
+    /**
+     * The size of the picture as the decoder gives it (`video-params`: the source's, before any filter or scaling
+     * to the surface); asked again while `readFacts` has not seen it yet.
+     */
+    override val pictureSize: PictureSize?
+        get() {
+            val w = videoWidth.takeIf { it > 0 } ?: mpv?.getPropertyInt("video-params/w") ?: 0
+            val h = videoHeight.takeIf { it > 0 } ?: mpv?.getPropertyInt("video-params/h") ?: 0
+            return if (w > 0 && h > 0) PictureSize(w, h) else null
+        }
     /** The picture's size once known, for Picture-in-Picture. */
     var videoWidth: Int by mutableStateOf(0)
         private set

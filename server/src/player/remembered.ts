@@ -47,21 +47,27 @@ async function streamOf(id: string): Promise<number | null> {
 }
 
 /**
- * Keeps the variant `id` names for the title of `key` (the series for an episode): one of the title's own
- * (a series': picked on its sheet) or, for a series, an episode's under one of its streams (picked in the
- * player). `unknown_title`, `unknown_variant` when it is not one of them; kept only while the setting is on.
+ * The stream of the title of `key` (the series for an episode) that variant `id` names: one of the title's own
+ * (a series': picked on its sheet) or, for a series, an episode's under one of its streams (the one playing).
+ * `unknown_title`, `unknown_variant` when it is not one of them.
  */
-export async function rememberVariant(ctx: RestContext, key: string, id: string): Promise<"ok" | "unknown_title" | "unknown_variant"> {
+export async function streamOfTitle(ctx: RestContext, key: string, id: string): Promise<Playable | "unknown_title" | "unknown_variant"> {
   const content = await contentByKey(ctx, rememberKey(key));
   if (!content) return "unknown_title";
   const streamId = await streamOf(id);
-  const chosen = streamId === null ? undefined : (await variantsOf(ctx, content)).playables.find((p) => p.streamId === streamId);
-  if (!chosen) return "unknown_variant";
+  const stream = streamId === null ? undefined : (await variantsOf(ctx, content)).playables.find((p) => p.streamId === streamId);
+  return stream ?? "unknown_variant";
+}
+
+/** Keeps the variant `id` names for the title of `key` (`streamOfTitle`); kept only while the setting is on. */
+export async function rememberVariant(ctx: RestContext, key: string, id: string): Promise<"ok" | "unknown_title" | "unknown_variant"> {
+  const chosen = await streamOfTitle(ctx, key, id);
+  if (typeof chosen === "string") return chosen;
   if (!ctx.profile.rememberVariants) return "ok";
   const row = {
     profileId: ctx.profile.id,
     contentKey: rememberKey(key),
-    streamId,
+    streamId: chosen.streamId,
     language: chosen.lang ?? "VO",
     quality: qualityOf(chosen.quality),
     dynamicRange: drOf(chosen.dynamicRange) ?? null,

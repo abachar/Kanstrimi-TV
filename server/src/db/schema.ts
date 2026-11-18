@@ -80,8 +80,10 @@ export const xtreamCategories = pgTable(
  * changed entry updated, a new one inserted, a vanished one deleted), so `id` is stable: the catalogue
  * hangs its own decisions on it (`catalog_streams`).
  *
- * Two halves: what the provider sends, and what is read in its name (`title` … `theme`), which depends
- * on the name, the section and the category only and can be read again at any time, without the network.
+ * Three parts: what the provider sends, what is read in its name (`title` … `theme`), which depends
+ * on the name, the section and the category only and can be read again at any time, without the network,
+ * and what a player measured in the stream it opened (`measured_*`), which wins over the name: a provider
+ * writes « 4K » on what it serves in 1080p.
  */
 export const xtreamStreams = pgTable(
   "xtream_streams",
@@ -119,9 +121,21 @@ export const xtreamStreams = pgTable(
     country: text("country"),
     /** API vocabulary: VF · VOSTFR · VO · ISO code. */
     lang: text("lang"),
-    /** API vocabulary: SD · HD · FHD · 4K. Null = the provider said nothing. */
+    /**
+     * API vocabulary: SD · HD · FHD · 4K. What the stream is: measured by a player when one played it
+     * (`measured_at`), else what its name says; null = never played, and the provider said nothing.
+     */
     quality: text("quality"),
     qualityRank: integer("quality_rank").default(0).notNull(),
+    /** What its name says, kept beside a measure (null without one: `quality` is then what the name says). */
+    announcedQuality: text("announced_quality"),
+    /**
+     * The picture a player last read in the stream, in pixels (a series: in the last episode played under it),
+     * and when. Each playback writes it again; nothing resets it but the stream going away.
+     */
+    measuredWidth: integer("measured_width"),
+    measuredHeight: integer("measured_height"),
+    measuredAt: timestamp("measured_at", { withTimezone: true }),
     /** HDR · DV, null = SDR. */
     dynamicRange: text("dynamic_range"),
     tags: text("tags").array().default([]).notNull(),

@@ -1,6 +1,7 @@
 package dev.crafters.kanstrimi.player
 
 import dev.crafters.kanstrimi.contract.FileFacts
+import dev.crafters.kanstrimi.contract.PictureSize
 
 /** The engine's own phase, as `PlayerService` hears it. */
 enum class EnginePhase { IDLE, LOADING, BUFFERING, PLAYING, PAUSED, ENDED, ERROR }
@@ -66,4 +67,6 @@ interface PlaybackEngine {
     /** What was read in the file opened: its length (Media3 reads no Matroska chapters: none sent); null until the length is known. */
     val fileFacts: FileFacts?
     val streamFacts: StreamFacts?
+    /** The picture of the stream opened, as its video track declares it (not the surface's, not the screen's); null until it is read. */
+    val pictureSize: PictureSize?
 }

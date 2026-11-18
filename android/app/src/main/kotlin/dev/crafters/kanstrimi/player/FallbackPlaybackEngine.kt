@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.crafters.kanstrimi.contract.FileFacts
+import dev.crafters.kanstrimi.contract.PictureSize
 
 private const val TAG = "kanstrimi.player"
 
@@ -76,4 +77,5 @@ class FallbackPlaybackEngine<E : PlaybackEngine, M : PlaybackEngine>(val exo: E,
     override val textTracks: List<EngineTrack> get() = active.textTracks
     override val fileFacts: FileFacts? get() = active.fileFacts
     override val streamFacts: StreamFacts? get() = active.streamFacts
+    override val pictureSize: PictureSize? get() = active.pictureSize
 }

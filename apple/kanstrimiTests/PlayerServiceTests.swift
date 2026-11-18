@@ -11,6 +11,7 @@ final class FakePlaybackEngine: PlaybackEngine {
     private(set) var seeks: [Double] = []
     /// What the engine read in the file it opened; nil, the file says nothing and no marker is asked for.
     var fileFacts: FileFacts?
+    var pictureSize: PictureSize?
     private let phases = PassthroughSubject<PlaybackPhase, Never>()
     private let times = PassthroughSubject<Double, Never>()
     private let sourceResets = PassthroughSubject<Void, Never>()
@@ -234,6 +235,44 @@ struct PlayerServiceTests {
         #expect(engine.loads.count == 1)
         try await settle(seconds: 5) { engine.loads.count == 2 }
         #expect(player.context?.content.id == context.next?.id)
+        player.stop()
+    }
+
+    // MARK: - Measure
+
+    @Test("Image affichée : sa taille part au serveur une fois par ouverture, avec la variante lue")
+    func pictureIsReportedOncePerOpening() async throws {
+        engine.pictureSize = PictureSize(width: 1920, height: 1080)
+        player.play(Self.film(streams: ["a", "b"]))
+        #expect(client.measures.isEmpty)
+        engine.emit(.playing)
+        try await settle { client.measures.count == 1 }
+        #expect(client.measures[0].variantID == "a")
+        #expect(client.measures[0].picture == PictureSize(width: 1920, height: 1080))
+        engine.emit(.rebuffering)
+        engine.emit(.playing)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(client.measures.count == 1)
+        // Another variant is another stream: its own picture.
+        engine.pictureSize = PictureSize(width: 3840, height: 1608)
+        player.switchVariant(try #require(player.context?.variants[1]))
+        engine.emit(.loading)
+        engine.emit(.playing)
+        try await settle { client.measures.count == 2 }
+        #expect(client.measures[1].variantID == "b")
+        #expect(client.measures[1].picture.width == 3840)
+        player.stop()
+    }
+
+    @Test("Image pas encore lue au premier affichage : envoyée dès que le moteur la connaît")
+    func pictureKnownLater() async throws {
+        player.play(Self.film(streams: ["a"]))
+        engine.emit(.playing)
+        try await settle { player.phase == .playing }
+        #expect(client.measures.isEmpty)
+        engine.pictureSize = PictureSize(width: 1280, height: 720)
+        engine.emit(time: 2)
+        try await settle { client.measures.count == 1 }
         player.stop()
     }
 

@@ -12,7 +12,8 @@ Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des mét
 du fournisseur, que l'app lit directement (sans passer par le serveur, donc par le VPN de l'appareil s'il en a un).
 Cette URL contient le compte du fournisseur : seuls les appareils appairés la reçoivent. Un titre présent chez plusieurs
 fournisseurs n'apparaît qu'une fois ; il porte une variante par flux, le fournisseur préféré d'abord à qualité égale,
-et le lecteur bascule sur la variante équivalente suivante en cas de panne.
+et le lecteur bascule sur la variante équivalente suivante en cas de panne. La qualité d'une variante est celle que le
+lecteur a mesurée dans le flux quand il l'a déjà lu, pas celle que le fournisseur écrit dans son nom.
 
 ```
 Fournisseurs Xtream ─► server/ ──► Postgres (catalogue filtré, enrichi, groupé)

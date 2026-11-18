@@ -563,5 +563,11 @@ sealed interface PairingStatus {
     }
 }
 
+/**
+ * The picture of a stream as the player read it, in pixels: what `POST /playback/{id}/measure` sends with the
+ * variant playing. The server makes it the variant's quality (« 4K » announced, 1920 × 1080 read: FHD from now on).
+ */
+data class PictureSize(val width: Int, val height: Int)
+
 /** `PUT /playback/{id}/progress`: where a title stands, `position` and `duration` in seconds. */
 data class ProgressReport(val contentId: String, val position: Double, val duration: Double, val sentAt: Instant = Instant.now())

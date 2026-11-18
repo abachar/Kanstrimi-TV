@@ -1,5 +1,6 @@
 package dev.crafters.kanstrimi.client
 
+import dev.crafters.kanstrimi.contract.PictureSize
 import dev.crafters.kanstrimi.contract.ProfileSettings
 import dev.crafters.kanstrimi.contract.ProfileSettingsPatch
 import dev.crafters.kanstrimi.contract.Quality
@@ -45,7 +46,7 @@ class HttpCatalogClientTest {
     }
 
     @Test
-    fun theVariantRoutesAndTheSettingsLeaveWithTheContractsNames() {
+    fun theVariantRoutesTheMeasureAndTheSettingsLeaveWithTheContractsNames() {
         // The calls stop at an interceptor: what would have left for the server, answered as it would.
         val sent = ArrayList<String>()
         val profile = """{"id":1,"name":"Hakim","is_default":true,"avatar":"a","settings":{"max_quality":"FHD","auto_play_next":true,"remember_variants":false,"switch_variant_on_failure":true}}"""
@@ -66,6 +67,7 @@ class HttpCatalogClientTest {
             client.forgetVariant("tmdb:movie:603")
             client.programmes("live:fr-tf1", "src-i8")
             client.programmes("live:fr-tf1", null)
+            client.reportMeasure("tmdb:tv:1396:s01e02", "src-e2", PictureSize(1920, 1080))
             val answered = client.updateSettings(ProfileSettingsPatch(ProfileSettings(Quality.FHD, autoPlayNext = true, rememberVariants = false, switchVariantOnFailure = true)))
             assertFalse(answered.settings.rememberVariants)
         }
@@ -76,6 +78,7 @@ class HttpCatalogClientTest {
                 "DELETE /player/playback/tmdb:movie:603/variant",
                 "GET /player/channels/live:fr-tf1/programmes?variant=src-i8",
                 "GET /player/channels/live:fr-tf1/programmes",
+                """POST /player/playback/tmdb:tv:1396:s01e02/measure {"variant":"src-e2","width":1920,"height":1080}""",
                 """PUT /player/profiles/me/settings {"max_quality":"FHD","auto_play_next":true,"remember_variants":false,"switch_variant_on_failure":true}""",
             ),
             sent,

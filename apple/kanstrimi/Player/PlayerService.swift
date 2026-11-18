@@ -133,6 +133,8 @@ final class PlayerService {
     private var markersTask: Task<Void, Never>?
     /// The markers of the file open were asked for: once per opening.
     private var markersAsked = false
+    /// The picture of the stream open was reported: once per opening.
+    private var measureSent = false
     private var nextTriggered = false
     /// Bumped once the final report of a playback has reached the server (or the offline queue):
     /// the screens that show progress (home, sheet) reload on it.
@@ -504,8 +506,9 @@ final class PlayerService {
         }
         cancelTimers(keepCountdown: true)
         restartTask?.cancel(); restartTask = nil
-        // Another variant, the same one again: each start opens a file, its markers asked anew.
+        // Another variant, the same one again: each start opens a file, its markers asked and its picture read anew.
         forgetMarkers()
+        measureSent = false
         context = ctx
         let changed = variant?.id != v.id
         variant = v
@@ -539,6 +542,7 @@ final class PlayerService {
         startDeadline?.cancel()
         if let variant { failedVariants.clear(variant.id) }
         fetchMarkers()
+        reportMeasure()
     }
 
     /// Once started, a variant that keeps rebuffering or stalling while playing is a failed one (the next
@@ -730,6 +734,14 @@ final class PlayerService {
 
     /// Once the file is open and playing: what the engine read in it (its length, its chapters) goes to the server,
     /// which answers what can be skipped in it and where its end credits are. A failure leaves the player as without markers.
+    /// Tells the server the picture read in the variant playing, once it shows: its real quality, which the
+    /// provider's name only announces. Once per opening, as soon as the engine knows it.
+    private func reportMeasure() {
+        guard isStarted, !measureSent, let ctx = context, let variant, let picture = playback.pictureSize else { return }
+        measureSent = true
+        Task { [client] in try? await client.reportMeasure(id: ctx.content.id, variantID: variant.id, picture: picture) }
+    }
+
     private func fetchMarkers() {
         guard isStarted, !isLive, !markersAsked, let ctx = context, let facts = playback.fileFacts else { return }
         markersAsked = true
@@ -914,6 +926,8 @@ final class PlayerService {
         guard phase != .opening, phase != .idle, !playback.isSeeking, pendingSeeks == 0 else { return }
         time = engineTime
         markStartedIfReady()
+        // The picture may be read after the first frame shows: asked again until it is known.
+        reportMeasure()
         maybeStartCountdown()
         onPlaybackChanged?()
     }

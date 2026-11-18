@@ -154,6 +154,8 @@ class PlayerService(
     private var prefetchJob: Job? = null
     private var changeJob: Job? = null
     private var markersAsked = false
+    /** The picture of the stream open was reported: once per opening. */
+    private var measureSent = false
     private var nextTriggered = false
 
     init {
@@ -546,8 +548,9 @@ class PlayerService(
         }
         cancelTimers(keepCountdown = true)
         restartJob?.cancel(); restartJob = null
-        // Another variant, the same one again: each start opens a file, its markers asked anew.
+        // Another variant, the same one again: each start opens a file, its markers asked and its picture read anew.
         forgetMarkers()
+        measureSent = false
         context = ctx
         val changedVariant = variant?.id != v.id
         variant = v
@@ -581,6 +584,21 @@ class PlayerService(
         startDeadline?.cancel()
         variant?.let { failedVariants.clear(it.id) }
         fetchMarkers()
+        reportMeasure()
+    }
+
+    /**
+     * Tells the server the picture read in the variant playing, once it shows: its real quality, which the
+     * provider's name only announces. Once per opening, as soon as the engine knows it; a failure is not told nor
+     * tried again.
+     */
+    private fun reportMeasure() {
+        if (!isStarted || measureSent) return
+        val ctx = context ?: return
+        val v = variant ?: return
+        val picture = engine.pictureSize ?: return
+        measureSent = true
+        scope.launch { runCatching { client().reportMeasure(ctx.content.id, v.id, picture) } }
     }
 
     /**
@@ -893,6 +911,8 @@ class PlayerService(
         if (phase == Phase.OPENING) return
         time = position
         markStartedIfReady()
+        // The engine may read the picture's size after its first frame: asked at each tick until it is sent.
+        reportMeasure()
         maybeStartCountdown()
     }
 

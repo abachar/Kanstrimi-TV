@@ -107,7 +107,7 @@ struct VariantRow: View {
             Text(showsLanguage ? "\(variant.language.short) · \(variant.badge)" : variant.badge)
                 .font(metrics.compact ? .subheadline.weight(.bold) : .headline)
                 .fixedSize()
-                .frame(minWidth: metrics.compact ? (showsLanguage ? 124 : 64) : (showsLanguage ? 200 : 150), alignment: .leading)
+                .frame(minWidth: metrics.compact ? (showsLanguage ? 100 : 64) : (showsLanguage ? 200 : 150), alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 // A phone shows less of a line: the name takes two, what tells two variants apart being at its end.
                 Text(variant.name).font(metrics.compact ? .subheadline : .callout).lineLimit(metrics.compact ? 2 : 1)

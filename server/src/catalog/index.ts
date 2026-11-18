@@ -3,6 +3,7 @@ export { setItemHiddenManual } from "./hiding";
 export { trendingContents } from "./trending";
 export { ensureEpisodes, seasonsOf, UpstreamUnavailable } from "./episodes";
 export { contentsGeneration, groupingCounts, runGrouping, runNaming } from "./grouping/group";
+export { qualityOfPicture, recordMeasure } from "./measure";
 export { type MergeCandidate, mergeCandidates, mergeVariantInto, resetVariant, splitVariant } from "./grouping/manual";
 export { closeOrphanLogs, recentRuns, runById, lastRunsByTask, type RunWithSteps } from "./journal";
 export { readRunLog, runLogPath } from "./runlog";

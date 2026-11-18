@@ -151,6 +151,13 @@ nonisolated struct PlaybackContent: Hashable, Sendable {
     let backdrop: URL?
 }
 
+/// The picture the player read in the stream it opened, in pixels: what the server makes the variant's quality of
+/// (`POST /playback/{id}/measure`), whatever the provider's name says.
+nonisolated struct PictureSize: Hashable, Sendable {
+    let width: Int
+    let height: Int
+}
+
 nonisolated struct PlaybackContext: Hashable, Sendable {
     let content: PlaybackContent
     let variants: [Variant]

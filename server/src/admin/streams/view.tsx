@@ -70,6 +70,12 @@ function StreamLine({ s, kind }: { s: StreamRow; kind: Kind }) {
           {[s.quality, s.lang].filter(Boolean).map((x) => (
             <Badge tone="muted">{x}</Badge>
           ))}
+          {s.measured && (
+            <div class="w-full text-xs text-muted-foreground">
+              mesuré {s.measured}
+              {s.announced && ` · annoncé ${s.announced}`}
+            </div>
+          )}
         </div>
         <div class="min-w-0 md:col-span-3">
           {s.contentId ? (

@@ -15,7 +15,7 @@ import {
   contentOfKey,
 } from "@/test/db";
 import { setSecretsForTests } from "@/config";
-import { isOurs, itemById, launch, profileById } from "@/catalog";
+import { isOurs, itemById, launch, profileById, recordMeasure } from "@/catalog";
 import { runAll, runNaming } from "@/catalog";
 import { startRun } from "@/catalog/journal";
 import { withCatalogLock } from "@/catalog/lock";
@@ -269,6 +269,24 @@ describe("admin", () => {
     const more = await call(`/admin/streams/rows?kind=vod&q=${encodeURIComponent("matrix")}&n=1`);
     expect(await more.text()).toContain("|FR| Matrix (VOST)");
     expect((await call("/admin/streams/rows?kind=vod&q=genr%3Ax&n=0")).status).toBe(204);
+    // A stream a player measured: what was read, and what its name announced when it said otherwise.
+    expect(await html(q("mesuré:oui"))).toContain("Aucun flux");
+    try {
+      expect(await recordMeasure(matrixId, 1920, 1080)).toBe("FHD");
+      const measured = await html(q("mesuré:oui"));
+      expect(measured).toContain("1 flux pour");
+      expect(measured).toContain("mesuré 1920 × 1080 · annoncé 4K");
+      expect(await html(q("qualité:4k"))).not.toContain("|FR| Matrix (4K)");
+      expect(await html(`/admin/content/${(await itemById(matrixId))!.contentId}`)).toContain(
+        "qualité mesurée 1920 × 1080 (annoncée : 4K)",
+      );
+    } finally {
+      await db
+        .update(schema.xtreamStreams)
+        .set({ measuredWidth: null, measuredHeight: null, measuredAt: null, announcedQuality: null, quality: "4K", qualityRank: 4 })
+        .where(eq(schema.xtreamStreams.id, matrixId));
+      await withCatalogLock(async () => {});
+    }
   });
 
   it("serves htmx from its own assets and asks for confirmation through htmx, without inline script", async () => {

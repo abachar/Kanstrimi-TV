@@ -392,6 +392,16 @@ export const FIELDS: Field[] = [
     choices: () => yesNo(sql`(${v.how} = 'ai' or ${v.aiAskedAt} is not null)`),
   },
   {
+    names: ["mesuré", "measured"],
+    scope: "xtream",
+    type: "enum",
+    doc: "Qualité mesurée par un lecteur, et non lue dans le nom : oui ou non",
+    example: "oui",
+    kinds: ALL,
+    searchOnly: true,
+    choices: () => yesNo(sql`${v.measuredAt} is not null`),
+  },
+  {
     names: ["manuel", "manual"],
     scope: "xtream",
     type: "enum",

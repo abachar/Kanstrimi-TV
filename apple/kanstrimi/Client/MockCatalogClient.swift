@@ -594,8 +594,15 @@ final class MockCatalogClient: CatalogClient {
     /// Tests only: what the server answers for the file opened (the demo has no file), and what it was sent.
     var markersAnswer = PlaybackMarkers(skips: [], credits: nil)
     private(set) var markersAsked: [FileFacts] = []
+    /// Tests only: the pictures reported, each with the variant it was read in.
+    private(set) var measures: [(variantID: String, picture: PictureSize)] = []
     /// Tests only: what was reported as watched.
     func reported(_ id: ContentID) -> Progress? { progress[id] }
+
+    func reportMeasure(id: ContentID, variantID: String, picture: PictureSize) async throws {
+        measures.append((variantID, picture))
+        try await gate()
+    }
 
     func markers(id: ContentID, file: FileFacts) async throws -> PlaybackMarkers {
         markersAsked.append(file)

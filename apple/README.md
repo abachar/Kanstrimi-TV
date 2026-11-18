@@ -78,6 +78,9 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
   du lecteur (`VariantStrip`, ouvert par le bouton rond de la barre comme un panneau, à la place du menu système) ;
   toutes marquent la variante en cours, celles en échec récent sur l'appareil et celle que Lecture jouerait. Infos nomme
   celle en cours. Les variantes propres d'une série ne se lisent pas : celle choisie est mémorisée pour tous ses épisodes.
+- **Qualité mesurée** : une fois l'image affichée, `PlayerService` envoie la taille de l'image que le moteur a lue dans
+  le flux (`POST /playback/{id}/measure`, une fois par ouverture) ; le serveur en fait la qualité de la variante, quoi
+  qu'en dise le nom du fournisseur. Infos montre déjà l'écart en direct (`StreamFacts`, pastille ambre).
 - **Pannes** : un seul chemin (`handleStreamFailure`) : la variante équivalente suivante (même langue, qualité, plage
   dynamique et montage, chez un autre fournisseur), deux essais, puis le dialogue, qui propose « Réessayer » et toutes
   les autres variantes ; une reprise

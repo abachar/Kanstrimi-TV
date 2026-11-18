@@ -38,6 +38,7 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.MediaSession
 import dev.crafters.kanstrimi.contract.FileFacts
+import dev.crafters.kanstrimi.contract.PictureSize
 import java.util.Locale
 
 private const val TAG = "kanstrimi.player"
@@ -86,6 +87,18 @@ class ExoPlaybackEngine(context: Context) : PlaybackEngine {
         }
     override var streamFacts: StreamFacts? = null
         private set
+    /**
+     * The size the video track being decoded declares (`ExoPlayer.videoFormat`: the stream's, whatever the surface);
+     * a track that declares none (some transport streams) gives the size of the frames decoded instead.
+     */
+    override val pictureSize: PictureSize?
+        get() {
+            val p = player ?: return null
+            val format = p.videoFormat
+            if (format != null && format.width > 0 && format.height > 0) return PictureSize(format.width, format.height)
+            val decoded = p.videoSize
+            return if (decoded.width > 0 && decoded.height > 0) PictureSize(decoded.width, decoded.height) else null
+        }
     private var videoDecoder: String? = null
     private var audioDecoder: String? = null
     /** The item loaded is a channel: once ready, a dynamic window (HLS, DASH) is joined at its live edge. */

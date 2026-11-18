@@ -132,7 +132,8 @@ async function categoryHints() {
 }
 
 /**
- * Names → what is read in them (`xtream_streams`: title, year, market, language, quality, tags, edition, adult, theme, country).
+ * Names → what is read in them (`xtream_streams`: title, year, market, language, quality, tags, edition, adult, theme, country);
+ * the quality of a stream a player measured stays the measure, the name's going to `announced_quality`.
  * Depends on the name, the section and the category only, so it runs right after the import: TMDB
  * matching reads the title and the year, the grouping reads them all. Every name is parsed, only
  * the rows whose result changed are written: a new grammar applies everywhere at the next run.
@@ -202,7 +203,11 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       return tx`
         update xtream_streams i set
           title = u.title, year = u.year,
-          market = u.market, lang = u.lang, quality = u.quality, quality_rank = u.qrank, dynamic_range = u.dr,
+          market = u.market, lang = u.lang, dynamic_range = u.dr,
+          -- A measured quality stays (catalog/measure.ts): the name only says what was announced.
+          quality = case when i.measured_at is null then u.quality else i.quality end,
+          quality_rank = case when i.measured_at is null then u.qrank else i.quality_rank end,
+          announced_quality = case when i.measured_at is null then null else u.quality end,
           tags = u.tags, season_hint = u.season, edition = u.edition, adult = u.adult, theme = u.theme, country = u.country
         from (
           select id, title, year, market, lang, quality, qrank, dr, coalesce(string_to_array(nullif(tags, ''), ','), '{}') as tags, season, edition,
@@ -213,8 +218,11 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
             as x(id, title, year, market, lang, quality, qrank, dr, tags, season, edition, adult, theme, country)
         ) u
         where i.id = u.id
-          and (i.title, i.year, i.market, i.lang, i.quality, i.quality_rank, i.dynamic_range, i.tags, i.season_hint, i.edition, i.adult, i.theme, i.country)
-              is distinct from (u.title, u.year, u.market, u.lang, u.quality, u.qrank, u.dr, u.tags, u.season, u.edition, u.adult, u.theme, u.country)
+          and (i.title, i.year, i.market, i.lang, i.dynamic_range, i.tags, i.season_hint, i.edition, i.adult, i.theme, i.country,
+               case when i.measured_at is null then i.quality else i.announced_quality end,
+               case when i.measured_at is null then i.quality_rank end)
+              is distinct from (u.title, u.year, u.market, u.lang, u.dr, u.tags, u.season, u.edition, u.adult, u.theme, u.country,
+               u.quality, case when i.measured_at is null then u.qrank end)
         returning 1`;
     });
     written += changed.length;

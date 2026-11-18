@@ -19,6 +19,7 @@ import dev.crafters.kanstrimi.contract.Page
 import dev.crafters.kanstrimi.contract.PairingCode
 import dev.crafters.kanstrimi.contract.PairingStatus
 import dev.crafters.kanstrimi.contract.PersonSheet
+import dev.crafters.kanstrimi.contract.PictureSize
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.ProfileSettings
@@ -113,6 +114,8 @@ class FakePlaybackEngine : PlaybackEngine {
     override val audioTracks: List<EngineTrack> = emptyList()
     override val textTracks: List<EngineTrack> = emptyList()
     override val streamFacts: StreamFacts? = null
+    /** The picture the engine has read in the stream open; null: not yet. */
+    override var pictureSize: PictureSize? = null
 
     override fun load(url: String, live: Boolean, startPosition: Double?, description: MediaDescription) {
         loads.add(url)
@@ -170,6 +173,13 @@ class FakeCatalogClient : CatalogClient {
         reports.add(progress)
     }
     override suspend fun reportWatchTime(id: String, seconds: Int) { watchTimes.add(id to seconds) }
+    /** The pictures reported: the content, the variant and the size, in order; `measureFails`: the server refuses them. */
+    val measures = ArrayList<Triple<String, String, PictureSize>>()
+    var measureFails = false
+    override suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize) {
+        if (measureFails) throw CatalogException.Server("Variante inconnue pour ce titre")
+        measures.add(Triple(id, variantId, picture))
+    }
     override suspend fun detail(id: String): Card { detailCalls += 1; return Card(id = id, kind = ContentKind.MOVIE, title = "Matrix") }
     override suspend fun channel(id: String): Channel = channelAnswer?.invoke(id) ?: error("unused")
 

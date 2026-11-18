@@ -1846,6 +1846,83 @@ describe("errors of /player", () => {
   });
 });
 
+describe("measured quality", () => {
+  type V = { id: string; label: string; quality: string; badge: string };
+  const variantOf = async (path: string, label: string): Promise<V> =>
+    ((await get(path)).body.variants as V[]).find((v) => v.label === label) ?? { id: `none:${label}`, label, quality: "", badge: "" };
+  const measure = (id: string, body: unknown) => call(`/playback/${id}/measure`, { method: "POST", body: JSON.stringify(body) });
+  const streamOf = async (upstreamId: string, kind: "vod" | "series") => {
+    const rows = await db.select().from(schema.xtreamStreams).where(eq(schema.xtreamStreams.upstreamId, upstreamId));
+    return rows.find((r) => r.kind === kind)!;
+  };
+  /** The aggregates follow a measure behind the catalogue's lock: wait for them. */
+  const settled = async (done: () => Promise<boolean>) => {
+    for (let i = 0; i < 100 && !(await done()); i++) await new Promise((r) => setTimeout(r, 20));
+    expect(await done()).toBe(true);
+  };
+  afterAll(async () => {
+    // What the names say again, for the tests that follow.
+    await db.update(schema.xtreamStreams).set({ measuredWidth: null, measuredHeight: null, measuredAt: null, announcedQuality: null });
+    await db.update(schema.xtreamStreams).set({ title: null });
+    await runNaming();
+    await groupAndFilter();
+  });
+
+  it("the picture a player read is the variant's quality, whatever its name says, and the naming leaves it", async () => {
+    const dv = await variantOf("/movies/tmdb:movie:603", "FR · 4K DV");
+    expect((await contentOfKey("tmdb:movie:603")).maxQualityRank).toBe(4);
+    expect((await measure("tmdb:movie:603", { variant: dv.id, width: 1920, height: 1080 })).status).toBe(204);
+    // Announced 4K, read in 1080p: FHD from now on, on the sheet and in the playback; its dynamic range is still its name's.
+    const sheet = (await get("/movies/tmdb:movie:603")).body;
+    expect(sheet.variants.find((v: V) => v.id === dv.id)).toMatchObject({ quality: "FHD", badge: "FHD DV", label: "FR · FHD DV" });
+    expect(sheet.max_quality).toBe("FHD");
+    expect((await get("/playback/tmdb:movie:603")).body.variants.map((v: V) => v.label)).toContain("FR · FHD DV");
+    expect(await streamOf("1", "vod")).toMatchObject({
+      quality: "FHD",
+      qualityRank: 3,
+      announcedQuality: "4K",
+      measuredWidth: 1920,
+      measuredHeight: 1080,
+    });
+    // The title's best quality follows, once the catalogue is free.
+    await settled(async () => (await contentOfKey("tmdb:movie:603")).maxQualityRank === 3);
+    // The names are read again (a new grammar, a renamed stream): the measure stays, what the name says beside it.
+    await db.update(schema.xtreamStreams).set({ title: null }).where(eq(schema.xtreamStreams.upstreamId, "1"));
+    await runNaming();
+    expect(await streamOf("1", "vod")).toMatchObject({ quality: "FHD", qualityRank: 3, announcedQuality: "4K" });
+    // The next playback measures again, and wins again.
+    expect((await measure("tmdb:movie:603", { variant: dv.id, width: 3840, height: 1608 })).status).toBe(204);
+    expect(await streamOf("1", "vod")).toMatchObject({ quality: "4K", qualityRank: 4, announcedQuality: "4K", measuredHeight: 1608 });
+  });
+
+  it("an episode's measure is its series' stream's: every episode under it, and the series' own variant", async () => {
+    const e1 = await variantOf("/playback/tmdb:tv:1396:s01e01", "VOSTF · HD");
+    expect((await measure("tmdb:tv:1396:s01e01", { variant: e1.id, width: 1280, height: 534 })).status).toBe(204);
+    expect((await variantOf("/playback/tmdb:tv:1396:s01e01", "VOSTF · HD")).id).toBe(e1.id);
+    expect((await measure("tmdb:tv:1396:s01e01", { variant: e1.id, width: 3840, height: 2160 })).status).toBe(204);
+    expect((await variantOf("/playback/tmdb:tv:1396:s01e01", "VOSTF · 4K")).id).toBe(e1.id);
+    expect((await variantOf("/playback/tmdb:tv:1396:s01e02", "VOSTF · 4K")).id).toMatch(/^src-e/);
+    expect((await variantOf("/series/tmdb:tv:1396", "VOSTF · 4K")).id).toMatch(/^src-i/);
+  });
+
+  it("a channel's variant too", async () => {
+    const hd = await variantOf("/channels/live:fr-tf1", "FR · HD");
+    expect((await measure("live:fr-tf1", { variant: hd.id, width: 720, height: 576 })).status).toBe(204);
+    const tf1 = (await get("/channels/live:fr-tf1")).body;
+    expect(tf1.variants.find((v: V) => v.id === hd.id)).toMatchObject({ quality: "SD", chip: "SD" });
+    expect(tf1.chips).toEqual(["4K", "FHD", "SD"]);
+  });
+
+  it("a variant the title does not have, a size that is none, a malformed body, an unknown title", async () => {
+    const dv = (await get("/movies/tmdb:movie:603")).body.variants[0] as V;
+    expect((await measure("tmdb:movie:949", { variant: dv.id, width: 1920, height: 1080 })).status).toBe(400);
+    expect((await measure("tmdb:movie:603", { variant: dv.id, width: 0, height: 1080 })).status).toBe(400);
+    expect((await measure("tmdb:movie:603", { variant: dv.id, width: 1920.5, height: 1080 })).status).toBe(400);
+    expect((await measure("tmdb:movie:603", { variant: dv.id })).status).toBe(400);
+    expect((await measure("tmdb:movie:999", { variant: dv.id, width: 1920, height: 1080 })).status).toBe(404);
+  });
+});
+
 describe("stream_url", () => {
   it("the provider's own URL, played as is: no redirect through this server", async () => {
     const sheet = (await get("/movies/tmdb:movie:603")).body;

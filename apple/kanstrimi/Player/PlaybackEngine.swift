@@ -27,6 +27,8 @@ protocol PlaybackEngine: AnyObject {
     var isSubtitleActive: Bool { get }
     /// What was read in the file opened: its length and its chapters; nil until the length is known.
     var fileFacts: FileFacts? { get }
+    /// The picture of the stream opened, as its video track declares it; nil until it is read.
+    var pictureSize: PictureSize? { get }
 
     var phaseChanges: AnyPublisher<PlaybackPhase, Never> { get }
     var timeChanges: AnyPublisher<Double, Never> { get }
@@ -64,6 +66,11 @@ extension PlayerCore: PlaybackEngine {
         return FileFacts(duration: engine.duration, chapters: engine.mediaChapters.map {
             FileFacts.Chapter(name: $0.name, start: $0.startSeconds, end: $0.startSeconds + $0.durationSeconds)
         })
+    }
+
+    var pictureSize: PictureSize? {
+        let width = Int(engine.sourceVideoWidth), height = Int(engine.sourceVideoHeight)
+        return width > 0 && height > 0 ? PictureSize(width: width, height: height) : nil
     }
 
     var phaseChanges: AnyPublisher<PlaybackPhase, Never> { engine.$playbackPhase.eraseToAnyPublisher() }
