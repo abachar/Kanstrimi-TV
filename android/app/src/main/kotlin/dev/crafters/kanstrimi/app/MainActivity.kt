@@ -53,9 +53,10 @@ class MainActivity : ComponentActivity() {
      *   debug.tab         — profile | home | live | movies | series | search | settings
      *   debug.open        — a title's id (`tmdb:movie:603`) or a saga's: its sheet is pushed above the tab
      *   debug.search      — the query the search screen starts with (with `debug.tab search`)
+     *   debug.variants    — with debug.open, the sheet's « Variantes » picker is open
      *   debug.play        — a content id the player opens (a movie, a series, an episode of the demo), or `live`
      *                       / `live:<id>` for a channel of the demo in its list
-     *   debug.playerState — vodPaused | opening | failure | nextEpisode | nextTitle | panel | skipIntro | livePlaying:
+     *   debug.playerState — vodPaused | opening | failure | nextEpisode | nextTitle | panel | variants | skipIntro | livePlaying:
      *                       with debug.play, stages the player in that state instead of streaming (no stream in the demo)
      *   debug.playUrl     — a public test file (an MP4 or MKV of Big Buck Bunny…) played by the engine on the
      *                       emulator; never a provider URL
@@ -74,6 +75,7 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra("debug.tab")?.let { env.navigator.select(it) }
         intent.getStringExtra("debug.open")?.let { env.open(it) }
         intent.getStringExtra("debug.search")?.let { env.debugSearch = it }
+        env.debugVariants = intent.getBooleanExtra("debug.variants", false)
         intent.getStringExtra("debug.play")?.let { id ->
             val state = intent.getStringExtra("debug.playerState")
             env.scope.launch { delay(800); PlayerDebug.play(env.player, env.client, id, state) }

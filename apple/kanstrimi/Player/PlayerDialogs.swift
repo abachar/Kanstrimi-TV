@@ -17,53 +17,38 @@ struct StreamFailureDialog: View {
                     Text("La vidéo n'a pas démarré après \(f.attempts) tentative\(f.attempts > 1 ? "s" : "").")
                         .font(.body).foregroundStyle(Theme.secondary)
                 }
-                // One button per row, like a tvOS alert: the variant label can be long and the dialog is narrow.
                 VStack(alignment: .leading, spacing: 14) {
-                    if !metrics.compact {
-                        // The variant that failed retries; every other one, on a single line, plays instead.
-                        if let v = player.variant {
-                            Button { player.retryFromServer() } label: { Label("Réessayer · \(v.label)", systemImage: "arrow.clockwise") }
-                                .focused($focused)
-                        }
-                        let others = player.alternativeVariants
-                        if !others.isEmpty {
-                            Text("ou essayer une autre variante").font(.callout).foregroundStyle(Theme.secondary).padding(.top, 8)
-                            ScrollView(.horizontal) {
-                                HStack(spacing: 14) {
-                                    ForEach(others) { v in
-                                        Button("\(v.label) · \(v.provider.name)") { player.playInstead(v) }
-                                    }
-                                }
-                                // Room for the focus enlargement, now that the scroll is clipped to the panel.
-                                .padding(.vertical, 12)
-                                .padding(.horizontal, 12)
-                            }
-                            // The same room taken back outside: the chips stay aligned with the text above.
-                            .padding(.horizontal, -12)
-                        }
-                    } else {
-                        // Réessayer is the answer most of the time: the one filled button, as wide as the dialog.
+                    // Réessayer is the answer most of the time: first, the one filled button on a phone.
+                    if metrics.compact {
                         Button { player.retryFromServer() } label: {
                             Label("Réessayer", systemImage: "arrow.clockwise").font(.headline).phoneFullWidth(metrics, height: 40)
                         }
                         .prominentButtonStyle()
                         .focused($focused)
-                        if let alt = player.alternativeVariants.first {
-                            Button { player.playInstead(alt) } label: {
-                                Label("Autre variante · \(alt.label) · \(alt.provider.name)", systemImage: "rectangle.stack.badge.play").phoneFullWidth(metrics, height: 40)
+                    } else if let v = player.variant {
+                        Button { player.retryFromServer() } label: { Label("Réessayer · \(v.name)", systemImage: "arrow.clockwise").lineLimit(1) }
+                            .focused($focused)
+                    }
+                    let others = player.alternativeVariants
+                    if !others.isEmpty {
+                        Text("ou essayer une autre variante").font(.callout).foregroundStyle(Theme.secondary).padding(.top, 8)
+                        ScrollView {
+                            VariantList(variants: others, marks: { VariantMarks(failed: env.failedVariants.isFailed($0.id)) }, inline: true,
+                                        severalLanguages: (player.context?.variants.languages.count ?? 0) > 1) {
+                                player.playInstead($0)
                             }
-                            .buttonStyle(.bordered)
+                            // tvOS enlarges the focused row: room for it inside the scroll view, which clips.
+                            .padding(.vertical, Platform.isTV ? 16 : 0)
+                            .padding(.horizontal, Platform.isTV ? 40 : 0)
                         }
+                        .padding(.horizontal, Platform.isTV ? -40 : 0)
+                        .frame(maxHeight: Platform.isTV ? 380 : 240)
                     }
                     if !metrics.compact {
                         Button("Quitter", role: .cancel) { player.stop() }
                     } else {
                         Button("Quitter", role: .cancel) { player.stop() }.frame(maxWidth: .infinity).padding(.top, 2)
                     }
-                }
-                if metrics.compact {
-                    Text("Réessayer suffit souvent : une variante de même qualité est essayée quand il y en a une autre.")
-                        .font(.footnote).foregroundStyle(Theme.secondary)
                 }
             }
             .padding(metrics.panelPadding)

@@ -80,6 +80,9 @@ class AppEnvironment(context: Context) {
     /** `debug.search` (MainActivity): the query the search screen starts with, read once. */
     var debugSearch: String? = null
 
+    /** `debug.variants` (MainActivity): the sheet pushed by `debug.open` shows its variants at once, read once. */
+    var debugVariants: Boolean = false
+
     private val _info = MutableStateFlow<ServerInfo?>(null)
     val info: StateFlow<ServerInfo?> = _info.asStateFlow()
 

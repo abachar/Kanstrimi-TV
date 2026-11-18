@@ -75,7 +75,7 @@ fun DetailScreen(id: String) {
     val env = LocalEnvironment.current
     val scope = rememberCoroutineScope()
     val model = remember(id) { DetailModel(id, env) }
-    var showVariants by remember { mutableStateOf(false) }
+    var showVariants by remember { mutableStateOf(env.debugVariants.also { env.debugVariants = false }) }
     LaunchedEffect(model) { if (model.card == null) model.load() }
 
     val card = model.card
@@ -86,7 +86,7 @@ fun DetailScreen(id: String) {
         else -> LoadingPanel()
     }
     if (showVariants && card != null) {
-        VariantSheet(card, selectedId = model.selectedVariantId, onDismiss = { showVariants = false }) { variant ->
+        VariantSheet(card, recommendedId = model.recommendedVariantId, isFailed = env.player.failedVariants::isFailed, onDismiss = { showVariants = false }) { variant ->
             showVariants = false
             model.choose(variant)
         }

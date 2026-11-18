@@ -66,7 +66,10 @@ enum class DynamicRange {
     val label: String get() = if (this == HDR) "HDR" else "DV"
 }
 
-/** The language codes the server writes (`VF`, `VOSTFR`, `VO`) and the labels the screen shows (« FR », « VOSTF », « VO »). */
+/**
+ * The language codes the server writes (`VF`, `VOSTFR`, `VO`) and how the screen says them: `short` on a badge or in
+ * a line (« FR », « VOSTF », « VO »), `label` as a heading (« Français », « VOSTF », « Version originale »).
+ */
 object Language {
     const val VF = "VF"
     const val VOSTFR = "VOSTFR"
@@ -80,7 +83,7 @@ object Language {
 
     fun label(code: String): String = when (code) {
         VF -> "Français"
-        VOSTFR -> "Version originale sous-titrée"
+        VOSTFR -> "VOSTF"
         VO -> "Version originale"
         else -> code
     }
@@ -121,14 +124,11 @@ data class Variant(
 ) {
     val isPlayable: Boolean get() = streamUrl != null
 
-    /** The second line of a variant in a list: whose stream it is, in the provider's words. */
+    /** Whose stream it is, in the provider's words: what the player's Infos say of the one playing. */
     val stream: String get() = "${provider.name} · $name"
-
-    /** The first line of a variant in a list: its label when the list mixes languages, else its quality and its cut. */
-    fun title(amongLanguages: Boolean): String = if (amongLanguages) label else listOfNotNull(badge, edition).joinToString(" · ")
 }
 
-/** Whether these variants come in more than one language: their lines then say it. */
+/** Whether these variants come in more than one language: the lists then say each one's. */
 val List<Variant>.mixLanguages: Boolean get() = distinctBy { it.language }.size > 1
 
 /** `resumable`: between 5 % and « Vu », decided by the server: the app offers « Reprendre » on it and compares no threshold. */

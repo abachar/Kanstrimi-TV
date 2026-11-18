@@ -1,5 +1,6 @@
 package dev.crafters.kanstrimi.player
 
+import androidx.compose.runtime.mutableStateMapOf
 import dev.crafters.kanstrimi.client.CatalogClient
 import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.contract.ProgressReport
@@ -8,16 +9,24 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.time.Instant
 
-/** A variant that failed to start gives way to its equivalents for a day; a successful start clears the mark. */
+/**
+ * A variant that failed to start gives way to its equivalents for a day; a successful start clears the mark. The
+ * marks are Compose state: the lists that show « EN ÉCHEC » read them while they draw, and follow them.
+ */
 class FailedVariantsStore(private val now: () -> Instant = { Instant.now() }) {
-    private val failures = HashMap<String, Instant>()
+    private val failures = mutableStateMapOf<String, Instant>()
 
-    fun markFailed(variantId: String) { failures[variantId] = now() }
-    fun isFailed(variantId: String): Boolean {
-        val at = failures[variantId] ?: return false
-        if (now().epochSecond - at.epochSecond > TTL_SECONDS) { failures.remove(variantId); return false }
-        return true
+    private fun isRecent(at: Instant): Boolean = now().epochSecond - at.epochSecond <= TTL_SECONDS
+
+    /** Marks the variant, and drops the marks older than a day. */
+    fun markFailed(variantId: String) {
+        failures.filterValues { !isRecent(it) }.keys.forEach(failures::remove)
+        failures[variantId] = now()
     }
+
+    /** Reads only: asked while a list draws, it changes nothing. */
+    fun isFailed(variantId: String): Boolean = failures[variantId]?.let(::isRecent) ?: false
+
     fun clear(variantId: String) { failures.remove(variantId) }
 
     companion object {

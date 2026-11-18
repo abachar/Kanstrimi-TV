@@ -188,6 +188,8 @@ private struct ChannelListPreviewHost: View {
 #Preview("Barre · film · Similaires") { BarPreviewHost(kind: .movie, panel: .related) }
 #Preview("Barre · film · Distribution") { BarPreviewHost(kind: .movie, panel: .cast) }
 #Preview("Barre · série · Épisodes") { BarPreviewHost(kind: .episode, panel: .episodes) }
+#Preview("Barre · film · Variantes") { BarPreviewHost(kind: .movie, panel: .variants) }
+#Preview("Barre · direct · Variantes") { BarPreviewHost(kind: .live, panel: .variants) }
 #Preview("Direct · chaînes ◀") { ChannelListPreviewHost() }
 #endif
 #endif

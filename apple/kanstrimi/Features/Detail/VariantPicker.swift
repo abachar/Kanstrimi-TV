@@ -1,14 +1,15 @@
 import SwiftUI
 
-/// The sheet behind "Variantes" and the long press on Lecture [8]: the title's variants in the server's order, one
-/// button each, which plays it at once; a series' own variants play nothing (« Variante de la série »): the one
-/// picked is remembered for every episode.
+/// The sheet behind "Variantes" and the long press on Lecture [8]: the title's variants (`VariantList`), the one
+/// Lecture would play badged, those that failed here a moment ago marked; a pick plays at once. A series' own
+/// variants play nothing (« Variante de la série »): the one picked is remembered for every episode.
 struct VariantPicker: View {
     let title: String
     let variants: [Variant]
     let recommendedID: String?
     var isSeries = false
     let onPick: (_ variant: Variant) -> Void
+    @Environment(AppEnvironment.self) private var env
     @Environment(\.dismiss) private var dismiss
     @Environment(\.metrics) private var metrics
 
@@ -22,18 +23,12 @@ struct VariantPicker: View {
                     Text(title).font(.callout).foregroundStyle(Theme.secondary)
                 }
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        ForEach(variants) { variant in
-                            Button {
-                                dismiss()
-                                // Let the sheet finish dismissing before what the pick presents (the player cover).
-                                Task {
-                                    try? await Task.sleep(for: .milliseconds(400))
-                                    onPick(variant)
-                                }
-                            } label: {
-                                label(variant).frame(maxWidth: .infinity, alignment: .leading)
-                            }
+                    VariantList(variants: variants, marks: marks) { variant in
+                        dismiss()
+                        // Let the sheet finish dismissing before what the pick presents (the player cover).
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(400))
+                            onPick(variant)
                         }
                     }
                     // tvOS enlarges the focused button: room for it inside the scroll view, which clips.
@@ -56,17 +51,7 @@ struct VariantPicker: View {
         .onBackCommand { dismiss() }
     }
 
-    /// The line of a variant: what it is, where it comes from; the one Lecture would play badged.
-    @ViewBuilder private func label(_ variant: Variant) -> some View {
-        HStack(spacing: 18) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(variant.title(withLanguage: variants.languages.count > 1)).font(.headline)
-                Text(variant.origin).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            if variant.id == recommendedID { AccentTag("RECOMMANDÉ", style: metrics.compact ? .standard : .spaced).fixedSize() }
-        }
-        .padding(.horizontal, metrics.compact ? 0 : 10)
-        .multilineTextAlignment(.leading)
+    private func marks(_ variant: Variant) -> VariantMarks {
+        VariantMarks(failed: env.failedVariants.isFailed(variant.id), recommended: variant.id == recommendedID)
     }
 }

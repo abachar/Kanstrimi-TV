@@ -7,8 +7,12 @@ import SwiftUI
 /// that receives the input when no panel is open).
 struct PlayerScreen: View {
     enum Sheet: Equatable { case none, channels }
-    /// iPhone: what the bar of the touch controls opens above its buttons, like the tvOS bar's panels.
-    enum BarPanel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", related = "Similaires", cast = "Distribution", infos = "Infos" }
+    /// iPhone: what the bar of the touch controls opens above its buttons, like the tvOS bar's panels. `variants` is
+    /// opened by its round button, beside the audio and the subtitles, not by a text button.
+    enum BarPanel: String, Hashable {
+        case programme = "Programme", recents = "Récentes", episodes = "Épisodes", related = "Similaires", cast = "Distribution", infos = "Infos"
+        case variants = "Variantes"
+    }
 
     @Environment(AppEnvironment.self) var env
     @State var controlsVisible = true

@@ -52,6 +52,8 @@ class PlayerServiceTest {
         assertEquals("b", player.variant?.id)
         assertEquals(PlayerService.Phase.OPENING, player.phase)
         assertEquals(PlayerService.Toast("Variante changée automatiquement", "Fournisseur A → Fournisseur B · FR · HD"), player.toast)
+        assertTrue(player.failedVariants.isFailed("a"), "la liste la marque « EN ÉCHEC »")
+        assertFalse(player.failedVariants.isFailed("b"))
         // The switch is not the profile's choice: nothing kept, nothing sent.
         assertNull(player.remembered(null, "tmdb:movie:603", player.context!!.variants))
         assertTrue(client.rememberedVariants.isEmpty())
@@ -65,6 +67,11 @@ class PlayerServiceTest {
         runCurrent()
         assertEquals(PlayerService.Phase.FAILED, player.phase)
         assertEquals(listOf("a"), player.alternativeVariants.map { it.id })
+        // From the dialog the other one plays after all: its mark goes with its first picture.
+        player.playInstead(player.alternativeVariants[0])
+        engine.emit(EnginePhase.PLAYING)
+        assertFalse(player.failedVariants.isFailed("a"))
+        assertTrue(player.failedVariants.isFailed("b"))
         player.stop()
     }
 

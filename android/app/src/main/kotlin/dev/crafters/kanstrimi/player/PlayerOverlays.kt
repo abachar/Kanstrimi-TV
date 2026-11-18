@@ -26,7 +26,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,24 +37,26 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.crafters.kanstrimi.R
 import dev.crafters.kanstrimi.contract.mixLanguages
 import dev.crafters.kanstrimi.ui.UpNextCard
-import dev.crafters.kanstrimi.ui.VariantLine
+import dev.crafters.kanstrimi.ui.VariantList
+import dev.crafters.kanstrimi.ui.VariantMarks
 import dev.crafters.kanstrimi.ui.theme.Theme
 
 // The player's overlays: the loading badge, the toast, « Passer … », the failure dialog, « À suivre ».
 
-/** A round translucent button of the chrome. */
+/** A round translucent button of the chrome; white while the panel it opens is up (`selected`), like the chips. */
 @Composable
-fun RoundIcon(painter: Painter, label: String, size: Int = 40, onClick: () -> Unit) {
+fun RoundIcon(painter: Painter, label: String, size: Int = 40, selected: Boolean = false, onClick: () -> Unit) {
     Box(
-        modifier = Modifier.size(size.dp).background(Theme.surfaceRaised, CircleShape).clickable(onClick = onClick, role = Role.Button),
+        modifier = Modifier.size(size.dp).background(if (selected) Color.White else Theme.surfaceRaised, CircleShape).clickable(onClick = onClick, role = Role.Button),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(painter, contentDescription = label, tint = Color.White, modifier = Modifier.size((size * 0.5f).dp))
+        Icon(painter, contentDescription = label, tint = if (selected) Color.Black else Color.White, modifier = Modifier.size((size * 0.5f).dp))
     }
 }
 
@@ -102,16 +103,17 @@ fun SkipButton(label: String, barShown: Boolean, onClick: () -> Unit) {
 }
 
 /**
- * After 10 s without an image and the automatic attempts: Réessayer, the other variants (one line each, in the
- * server's order), Quitter. When the picture's codec has no decoder here (`Failure.reason`), the reason replaces the
- * count and Réessayer: only another variant can help.
+ * After 10 s without an image and the automatic attempts: Réessayer (it names the stream it tries again), every
+ * other variant (`VariantList`, the language on the row, those that failed here lately marked), Quitter. When the
+ * picture's codec has no decoder here (`Failure.reason`), the reason replaces the count and Réessayer: only another
+ * variant can help.
  */
 @Composable
 fun StreamFailureDialog(player: PlayerService) {
     val reason = player.failure?.reason
     Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) {
         Column(
-            modifier = Modifier.widthIn(max = 560.dp).background(Color(0xF21C1D23), RoundedCornerShape(28.dp)).padding(32.dp),
+            modifier = Modifier.widthIn(max = 720.dp).background(Color(0xF21C1D23), RoundedCornerShape(28.dp)).padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Text(player.context?.content?.title ?: "", style = MaterialTheme.typography.titleMedium, color = Theme.secondary)
@@ -122,20 +124,20 @@ fun StreamFailureDialog(player: PlayerService) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (reason == null) Button(onClick = { player.retryFromServer() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Theme.text, contentColor = Color.Black)) {
                     Icon(Icons.Filled.Refresh, contentDescription = null)
-                    Text("Réessayer", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 6.dp))
+                    Text(
+                        listOfNotNull("Réessayer", player.variant?.name).joinToString(" · "), fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 6.dp),
+                    )
                 }
                 val others = player.alternativeVariants
                 if (others.isNotEmpty()) {
-                    val amongLanguages = player.context?.variants.orEmpty().mixLanguages
                     Text("ou essayer une autre variante", style = MaterialTheme.typography.bodyMedium, color = Theme.secondary)
-                    Column(modifier = Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        others.forEach { v ->
-                            OutlinedButton(
-                                onClick = { player.playInstead(v) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Theme.text),
-                            ) { VariantLine(v, amongLanguages, modifier = Modifier.weight(1f)) }
-                        }
-                    }
+                    VariantList(
+                        others, modifier = Modifier.heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
+                        marks = { VariantMarks(failed = player.failedVariants.isFailed(it.id)) }, inline = true,
+                        // The one that failed is not in the list: the title's languages, not the list's, say whether to name them.
+                        severalLanguages = player.context?.variants.orEmpty().filter { it.isPlayable }.mixLanguages,
+                    ) { player.playInstead(it) }
                 }
                 TextButton(onClick = { player.stop() }, modifier = Modifier.fillMaxWidth()) { Text("Quitter", color = Theme.text) }
             }

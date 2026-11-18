@@ -48,14 +48,13 @@ final class FailedVariantsStore {
     init(now: @escaping () -> Date = { .now }) { self.now = now }
 
     func markFailed(_ variantID: String) { failures[variantID] = now() }
+    /// Reads only: the lists ask while they draw.
     func isFailed(_ variantID: String) -> Bool {
-        guard let at = failures[variantID] else { return false }
-        if now().timeIntervalSince(at) > Self.ttl { failures.removeValue(forKey: variantID); return false }
-        return true
+        failures[variantID].map { now().timeIntervalSince($0) <= Self.ttl } ?? false
     }
     /// A successful start clears the mark: the variant is tried again at the next playback.
     func clear(_ variantID: String) { failures.removeValue(forKey: variantID) }
-    var count: Int { failures.count }
+    var count: Int { failures.keys.count(where: isFailed) }
 }
 
 /// Durable queue of progress reports that could not reach the server. Replayed in order, last wins.

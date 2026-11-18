@@ -15,7 +15,7 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 | `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping ; il parle au moteur par la façade `PlaybackEngine`, que les tests remplacent), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VariantChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
 | `Features/` | Un dossier par écran, une seule vue pour les deux plateformes ; `Profiles/` = « Qui regarde ? », l'écran Profil et l'avatar. |
 | `Shared/` | `Platform.swift` (`Metrics`, `Platform.isTV` / `isPad`, modificateurs par plateforme), `Theme`, `CardViews` (images, rangées, grilles, menu d'une affiche), `ChannelViews` (logo, `LoadedChannelCard`, `channelItem`), `Stores`. |
-| `Shared/Cards/` | Les cartes (`PosterCard`, `WideCard`, `ChannelCard`, `ProgrammeCard`, `UpNextCard`, `HeroBanner`, `SeeAllCard`, `RetryCard`, `StudioTile`, `CastCell`), un fichier chacune avec ses `#Preview` (données fixes). Composants bêtes : un modèle (`ContentItem` du contrat, `ChannelItem`…) et des actions en entrée, jamais `AppEnvironment` ni `.task` (vérifié par `CardsArchitectureTests`) ; charger, garder l'état, le focus et agir reste à l'écran. Le parent (rangée, grille, colonne) fixe la largeur, souvent depuis `Metrics` ; la carte prend toute celle qu'on lui donne et en tire sa hauteur. |
+| `Shared/Cards/` | Les cartes (`PosterCard`, `WideCard`, `ChannelCard`, `ProgrammeCard`, `UpNextCard`, `HeroBanner`, `SeeAllCard`, `RetryCard`, `StudioTile`, `CastCell`, `VariantCard`), un fichier chacune avec ses `#Preview` (données fixes). Composants bêtes : un modèle (`ContentItem` du contrat, `ChannelItem`…) et des actions en entrée, jamais `AppEnvironment` ni `.task` (vérifié par `CardsArchitectureTests`) ; charger, garder l'état, le focus et agir reste à l'écran. Le parent (rangée, grille, colonne) fixe la largeur, souvent depuis `Metrics` ; la carte prend toute celle qu'on lui donne et en tire sa hauteur. |
 | `../TopShelf/` | Extension Top Shelf (tvOS seul) : appelle `GET /player/top-shelf` pour le profil de l'Apple TV (`X-Profile` lu dans le Keychain partagé), carrousel plein écran. |
 | `../Entitlements/` | Groupe de Keychain partagé par l'app et l'extension. |
 | `scripts/` | `shot.sh` / `shot-all.sh` : captures du client de démo dans `ui-review/` (hors git). |
@@ -73,10 +73,14 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
 - **Variantes** : un titre porte une variante par flux de fournisseur (`Variant`), dans l'ordre du serveur (langues du
   profil, qualité décroissante, fournisseur préféré d'abord), avec ses textes (`badge` « 4K DV », `label`
   « FR · 4K DV ») et le nom et la catégorie que le fournisseur lui donne, qui distinguent deux variantes de même
-  qualité. « Variantes » de la fiche et du lecteur les listent telles quelles ; Infos nomme celle en cours. Les
-  variantes propres d'une série ne se lisent pas : celle choisie est mémorisée pour tous ses épisodes.
+  qualité. Deux présentations (`Shared/Cards/VariantCard.swift`) : la liste (`VariantList` : feuille « Variantes » de la
+  fiche et de l'accueil, dialogue d'échec ; un intertitre par langue, ou la langue sur la ligne) et le bandeau de cartes
+  du lecteur (`VariantStrip`, ouvert par le bouton rond de la barre comme un panneau, à la place du menu système) ;
+  toutes marquent la variante en cours, celles en échec récent sur l'appareil et celle que Lecture jouerait. Infos nomme
+  celle en cours. Les variantes propres d'une série ne se lisent pas : celle choisie est mémorisée pour tous ses épisodes.
 - **Pannes** : un seul chemin (`handleStreamFailure`) : la variante équivalente suivante (même langue, qualité, plage
-  dynamique et montage, chez un autre fournisseur), deux essais, puis le dialogue ; une reprise
+  dynamique et montage, chez un autre fournisseur), deux essais, puis le dialogue, qui propose « Réessayer » et toutes
+  les autres variantes ; une reprise
   rouvre les liens du fournisseur tels quels (ils n'expirent pas), seul « Réessayer » les redemande au serveur
   (`/playback`, `/channels/{id}`). Seuils dans `PlayerService`.
 - **Retour après 10 min d'absence** : l'accueil et le Direct se rechargent (`resumeRevision`). Une action qui échoue

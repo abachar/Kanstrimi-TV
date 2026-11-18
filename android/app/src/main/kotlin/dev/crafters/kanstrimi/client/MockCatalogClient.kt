@@ -88,7 +88,8 @@ class MockCatalogClient(private val assets: AssetManager, private val latencyMil
         return withSettings(current)
     }
     override suspend fun rememberVariant(id: String, variantId: String) {
-        val listed = if (id.startsWith("live:")) channel(id).variants else playback(id).variants
+        // Like the server: one of the title's variants, or for a series one of its own or of the episode's.
+        val listed = if (id.startsWith("live:")) channel(id).variants else playback(id).variants + detail(seriesIdOf(id) ?: id).variants
         val v = listed.firstOrNull { it.id == variantId } ?: return
         remembered[seriesIdOf(id) ?: id] = RememberedVariant.of(v)
     }

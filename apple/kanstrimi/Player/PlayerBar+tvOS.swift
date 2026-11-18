@@ -3,8 +3,8 @@ import SwiftUI
 
 /// tvOS: the one bar over the video, for a film, an episode or a channel. A press shows it a few seconds;
 /// ▼ hands the focus to its buttons. On top the title and the progress (the programme's in live); below,
-/// on the left the text buttons that open a panel above the bar, on the right the icons whose menu picks
-/// a variant, an audio track or the subtitles.
+/// on the left the text buttons that open a panel under them, on the right the icons: the variants, a panel too,
+/// then the menus that pick an audio track or the subtitles.
 struct PlayerBar: View {
     typealias Panel = PlayerScreen.BarPanel
     private enum Focus: Hashable { case panel(Panel), variants, audio, subtitles }
@@ -66,7 +66,7 @@ struct PlayerBar: View {
         .onChange(of: focus) { _, _ in onActivity() }
         // Innermost: Back closes the open panel first, then gives the video back.
         .onExitCommand {
-            if let open = panel { panel = nil; focus = .panel(open) } else { onLeave(true) }
+            if let open = panel { panel = nil; focus = open == .variants ? .variants : .panel(open) } else { onLeave(true) }
         }
     }
 
@@ -108,7 +108,7 @@ struct PlayerBar: View {
             }
             Spacer()
             // Each menu only when it offers a choice; the tracks are known once the player has read the stream.
-            if player.offersVariants { variantsMenu }
+            if player.offersVariants { variantsButton }
             if player.offersAudio { audioMenu }
             if player.offersSubtitles { subtitlesMenu }
         }
@@ -120,14 +120,11 @@ struct PlayerBar: View {
         }
     }
 
-    private var variantsMenu: some View {
-        Menu {
-            VariantMenuItems()
-        } label: {
+    private var variantsButton: some View {
+        Button { panel = panel == .variants ? nil : .variants } label: {
             Image(systemName: "rectangle.stack.badge.play").accessibilityLabel("Variantes")
         }
-        .menuStyle(.button)
-        .buttonStyle(BarButtonStyle(round: true))
+        .buttonStyle(BarButtonStyle(round: true, selected: panel == .variants && interactive))
         .focused($focus, equals: .variants)
     }
 
@@ -163,6 +160,7 @@ struct PlayerBar: View {
         case .related: RelatedStrip(onActivity: onActivity) { onLeave(true) }
         case .cast: PlayerCastStrip(onActivity: onActivity)
         case .infos: PlayerInfos()
+        case .variants: VariantStrip(onActivity: onActivity) { onLeave(true) }
         }
     }
 }

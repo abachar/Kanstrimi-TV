@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import dev.crafters.kanstrimi.client.CatalogException
-import dev.crafters.kanstrimi.contract.Variant
 import dev.crafters.kanstrimi.ui.theme.Theme
 import java.text.NumberFormat
 import java.time.Instant
@@ -147,18 +146,6 @@ fun Badge(text: String, filled: Boolean = false, small: Boolean = false) {
     )
 }
 
-/**
- * A variant in a list (the sheet, the player's menu, the failure dialog): what it is (« FR · 4K DV » among several
- * languages, else « 4K DV »), over whose stream it is (« provider · name »).
- */
-@Composable
-fun VariantLine(variant: Variant, amongLanguages: Boolean, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(variant.title(amongLanguages), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Text(variant.stream, style = MaterialTheme.typography.bodySmall, color = Theme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
 /** The amber tag on a capsule: a hint, a warning, « RECOMMANDÉ ». */
 @Composable
 fun AccentTag(text: String) {
@@ -177,10 +164,16 @@ fun LiveTag(text: String = "DIRECT", size: Int = 11) {
     )
 }
 
-/** « EN COURS » over a programme or a channel. */
+/** « EN COURS » over a programme, a channel or a variant. */
 @Composable
 fun OnAirLabel() {
     Text("EN COURS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Theme.accent, letterSpacing = 1.sp)
+}
+
+/** A variant that failed on this device lately. */
+@Composable
+fun FailedLabel() {
+    Text("EN ÉCHEC", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Theme.danger, letterSpacing = 1.sp)
 }
 
 /**

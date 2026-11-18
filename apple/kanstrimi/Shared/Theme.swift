@@ -148,6 +148,13 @@ struct OnAirLabel: View {
     }
 }
 
+/// A variant that failed on this device a moment ago.
+struct FailedLabel: View {
+    var body: some View {
+        Text("EN ÉCHEC").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(Theme.danger)
+    }
+}
+
 /// The tick on a poster or a wide card already watched.
 struct WatchedCheck: View {
     @Environment(\.metrics) private var metrics

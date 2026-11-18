@@ -169,6 +169,25 @@ class VariantChooserTest {
     }
 
     @Test
+    fun `demander si une variante est en échec ne change rien - les listes le demandent en se dessinant`() {
+        var now = Instant.ofEpochSecond(1_000_000)
+        val store = FailedVariantsStore { now }
+        store.markFailed("a")
+        val later = now.plusSeconds(25 * 3600)
+        val marked = now
+        now = later
+        assertFalse(store.isFailed("a"))
+        // The read dropped nothing: seen from the day it was marked, the mark is still there.
+        now = marked
+        assertTrue(store.isFailed("a"))
+        // The next failure does the cleaning.
+        now = later
+        store.markFailed("b")
+        now = marked
+        assertFalse(store.isFailed("a"))
+    }
+
+    @Test
     fun `l'identifiant de série d'un épisode`() {
         assertEquals("tmdb:tv:1396", seriesIdOf("tmdb:tv:1396:s01e05"))
         assertNull(seriesIdOf("tmdb:movie:603"))

@@ -91,6 +91,40 @@ struct RecentChannelsStrip: View {
     }
 }
 
+/// Variantes: the title's variants in the server's order, one card each, the one playing marked, those that failed
+/// here a moment ago too; a click switches at once and keeps the choice for the title. Shared by the tvOS bar and
+/// the touch controls.
+struct VariantStrip: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.metrics) private var metrics
+    @FocusState private var focused: String?
+    var onActivity: () -> Void = { }
+    let onPick: () -> Void
+    private var player: PlayerService { env.player }
+
+    var body: some View {
+        let variants = player.context?.variants.playable ?? []
+        let severalLanguages = variants.languages.count > 1
+        ScrollView(.horizontal) {
+            HStack(spacing: 20) {
+                ForEach(variants) { v in
+                    VariantCard(variant: v, marks: VariantMarks(playing: v.id == player.variant?.id, failed: env.failedVariants.isFailed(v.id)),
+                                showsLanguage: severalLanguages, nameLines: player.isLive ? 1 : 2) {
+                        if v.id != player.variant?.id { player.switchVariant(v) }
+                        onPick()
+                    }
+                    .frame(width: metrics.recentCard)
+                    .focused($focused, equals: v.id)
+                }
+            }
+            .padding(.vertical, metrics.compact ? 8 : 24).padding(.horizontal, metrics.compact ? 0 : 8)
+        }
+        .scrollClipDisabled()
+        .defaultFocus($focused, player.variant?.id)
+        .onChange(of: focused) { _, _ in onActivity() }
+    }
+}
+
 // MARK: - Infos and episodes, shared by the tvOS bar and the touch controls
 
 /// Infos: in live the channel and what it shows, the guide's summary included; otherwise the title,

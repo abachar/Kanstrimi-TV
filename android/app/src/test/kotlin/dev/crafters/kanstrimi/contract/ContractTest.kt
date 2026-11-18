@@ -46,7 +46,7 @@ class ContractTest {
                 assertTrue(!c.seasons.isNullOrEmpty())
                 // A series' own variants name its streams and play nothing; its episodes' play.
                 assertTrue(c.variants.isNotEmpty() && c.variants.none { v -> v.isPlayable })
-                assertTrue(c.seasons!!.flatMap { s -> s.episodes }.flatMap { e -> e.variants }.all { v -> v.isPlayable })
+                assertTrue(c.seasons.orEmpty().flatMap { s -> s.episodes }.flatMap { e -> e.variants }.all { v -> v.isPlayable })
             }
         },
         "studios-movies" to { decode<List<Studio>>(it) },
@@ -94,15 +94,13 @@ class ContractTest {
     }
 
     @Test
-    fun aVariantsLinesSayWhatItIsAndWhoseStreamItIs() {
+    fun aTitleInSeveralLanguagesSaysEachVariantsLanguage() {
         val variants = decode<Card>(File(dir, "movie-detail.json").readText()).variants
         assertTrue(variants.mixLanguages)
-        assertEquals("FR · 4K DV", variants[0].title(amongLanguages = true))
-        assertEquals("4K DV", variants[0].title(amongLanguages = false))
+        assertEquals(listOf("Français", "VOSTF"), variants.map { Language.label(it.language) })
+        assertEquals(listOf("FR", "VOSTF"), variants.map { Language.short(it.language) })
         assertEquals("provider.test · |FR| Matrix (4K)", variants[0].stream)
-        val long = variants[0].copy(edition = "Version longue")
-        assertEquals("4K DV · Version longue", long.title(amongLanguages = false))
-        assertFalse(listOf(variants[0], long).mixLanguages)
+        assertFalse(listOf(variants[0], variants[0].copy(id = "other", edition = "Version longue")).mixLanguages)
     }
 
     @Test

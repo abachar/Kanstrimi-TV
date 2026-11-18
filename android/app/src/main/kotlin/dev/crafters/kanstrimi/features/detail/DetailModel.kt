@@ -67,8 +67,8 @@ class DetailModel(val id: String, private val env: AppEnvironment) {
 
     fun play(fromStart: Boolean = false) = env.player.play(id, fromStart = fromStart)
 
-    /** The variant the sheet checks: the one Lecture starts in, else (a series' own variants play nothing) the one chosen for the series. */
-    val selectedVariantId: String?
+    /** The variant the picker recommends: the one Lecture starts in, else (a series' own variants play nothing) the one chosen for the series. */
+    val recommendedVariantId: String?
         get() {
             val c = card ?: return null
             return env.player.startChoice(id, c.variants, c.remembered)?.id ?: env.player.remembered(c.remembered, id, c.variants)?.id

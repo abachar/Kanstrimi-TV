@@ -45,7 +45,8 @@ class PlayerService(
     private val engine: PlaybackEngine,
     private val scope: CoroutineScope,
     progressQueue: ProgressQueue,
-    private val failedVariants: FailedVariantsStore = FailedVariantsStore(),
+    /** The variants that failed here lately: the chooser skips them, the lists mark them « EN ÉCHEC ». */
+    val failedVariants: FailedVariantsStore = FailedVariantsStore(),
     private val capabilities: VariantChooser.Capabilities = VariantChooser.Capabilities.tablet,
     /** An action that failed outside the player screen (a title that cannot be loaded): said in the app's notice. */
     private val notify: (String) -> Unit = {},
@@ -115,8 +116,9 @@ class PlayerService(
     var scanRate: Double by mutableDoubleStateOf(0.0); private set
     /** Playback goes on with the player screen reduced (Picture-in-Picture). */
     var isMinimized: Boolean by mutableStateOf(false)
-    /** Debug states: a drawn picture stands in for the video. */
+    /** Debug states: a drawn picture stands in for the video, and the panel the staged state opens. */
     var debugFrame: Boolean by mutableStateOf(false); private set
+    var debugPanel: BarPanel? by mutableStateOf(null); private set
     /** The facts the engine read in the stream, for the Infos panel. */
     var streamFacts: StreamFacts? by mutableStateOf(null); private set
 
@@ -331,7 +333,7 @@ class PlayerService(
         forgetMarkers()
         titleCard = null; titleCardFailed = false; titleCardId = null
         audioTracks = emptyList(); textTracks = emptyList(); streamFacts = null
-        debugFrame = false
+        debugFrame = false; debugPanel = null
     }
 
     // MARK: - Controls
@@ -551,7 +553,7 @@ class PlayerService(
         variant = v
         if (changedVariant && ctx.isLive) showGuide()
         failure = null
-        debugFrame = false
+        debugFrame = false; debugPanel = null
         phase = Phase.OPENING
         isBuffering = false
         bufferingProgress = 0
@@ -911,13 +913,14 @@ class PlayerService(
 
     // MARK: - Debug
 
-    enum class PreviewState { vodPaused, opening, failure, nextEpisode, nextTitle, panel, skipIntro, livePlaying }
+    enum class PreviewState { vodPaused, opening, failure, nextEpisode, nextTitle, panel, variants, skipIntro, livePlaying }
 
     /** Previews and captures: puts the player in a given state without a stream, a drawn picture for the video. */
     fun debugPut(ctx: PlaybackContext, state: PreviewState, suggestions: Suggestions? = null, channels: List<Channel> = emptyList()) {
         engine.stop()
         cancelTimers()
         debugFrame = true
+        debugPanel = null
         context = ctx
         this.suggestions = suggestions
         variant = ctx.variants.firstOrNull()
@@ -945,6 +948,12 @@ class PlayerService(
             PreviewState.failure -> { phase = Phase.FAILED; failure = Failure(2) }
             PreviewState.nextEpisode, PreviewState.nextTitle -> { phase = Phase.PLAYING; time = duration - 8; nextCountdown = 7 }
             PreviewState.panel -> phase = Phase.PLAYING
+            PreviewState.variants -> {
+                // The Variantes panel open, as after a failure: the last variant marked.
+                phase = Phase.PLAYING
+                debugPanel = BarPanel.VARIANTS
+                ctx.variants.lastOrNull()?.takeIf { it.id != variant?.id }?.let { failedVariants.markFailed(it.id) }
+            }
             PreviewState.skipIntro -> {
                 phase = Phase.PLAYING
                 time = 0.0

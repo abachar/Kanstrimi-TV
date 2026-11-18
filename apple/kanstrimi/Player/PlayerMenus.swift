@@ -83,23 +83,6 @@ struct PlayerTimeLine: View {
     }
 }
 
-/// The Variantes menu: the title's variants in the server's order, the one playing checked. A channel's lines
-/// start with its chip.
-struct VariantMenuItems: View {
-    @Environment(AppEnvironment.self) private var env
-    var body: some View {
-        let player = env.player
-        let variants = player.context?.variants.playable ?? []
-        let severalLanguages = variants.languages.count > 1
-        ForEach(variants) { v in
-            Button { player.switchVariant(v) } label: {
-                let text = "\(v.chip ?? v.title(withLanguage: severalLanguages)) · \(v.origin)"
-                if v.id == player.variant?.id { Label(text, systemImage: "checkmark") } else { Text(text) }
-            }
-        }
-    }
-}
-
 /// The Audio menu: the stream's tracks, the one playing checked.
 struct AudioMenuItems: View {
     @Environment(AppEnvironment.self) private var env

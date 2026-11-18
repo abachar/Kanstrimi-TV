@@ -109,14 +109,15 @@ struct VariantChooser {
     }
 
     /// The highest quality that fits, dynamic range as a tiebreaker, by the first provider that has not just failed;
-    /// the lowest quality when nothing fits. The usual cut only, when there is one.
+    /// the lowest quality and dynamic range when nothing fits. The usual cut only, when there is one.
     private func best(among all: [Variant]) -> Variant? {
         let usual = all.filter { $0.edition == nil }
         let candidates = usual.isEmpty ? all : usual
         let fitting = candidates.filter(fits)
-        let top = fitting.isEmpty
-            ? candidates.min { $0.quality < $1.quality }
-            : fitting.max { a, b in a.quality != b.quality ? a.quality < b.quality : (a.dynamicRange ?? .sdr) < (b.dynamicRange ?? .sdr) }
+        let lower: (Variant, Variant) -> Bool = { a, b in
+            a.quality != b.quality ? a.quality < b.quality : (a.dynamicRange ?? .sdr) < (b.dynamicRange ?? .sdr)
+        }
+        let top = fitting.isEmpty ? candidates.min(by: lower) : fitting.max(by: lower)
         guard let top else { return nil }
         return working(candidates.filter { $0.quality == top.quality && ($0.dynamicRange ?? .sdr) == (top.dynamicRange ?? .sdr) })
     }

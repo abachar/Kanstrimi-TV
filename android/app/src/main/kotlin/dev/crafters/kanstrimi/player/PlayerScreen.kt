@@ -95,6 +95,7 @@ fun PlayerScreen() {
     }
     LaunchedEffect(player.phase) { if (player.phase != PlayerService.Phase.PLAYING) showControls() }
     LaunchedEffect(player.context?.content?.id) { panel = null; showControls() }
+    LaunchedEffect(player.debugPanel) { player.debugPanel?.let { panel = it } }
     LaunchedEffect(player.isLive) { if (!player.isLive) channelsOpen = false }
 
     ImmersiveWindow()

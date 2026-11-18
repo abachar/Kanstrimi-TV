@@ -48,10 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.crafters.kanstrimi.R
 import dev.crafters.kanstrimi.app.AppEnvironment
-import dev.crafters.kanstrimi.contract.mixLanguages
 import dev.crafters.kanstrimi.ui.LiveTag
 import dev.crafters.kanstrimi.ui.ProgressBar
-import dev.crafters.kanstrimi.ui.VariantLine
 import dev.crafters.kanstrimi.ui.formatHour
 import dev.crafters.kanstrimi.ui.theme.Theme
 import kotlinx.coroutines.delay
@@ -61,7 +59,8 @@ import kotlinx.coroutines.launch
  * The touch controls, laid out like the Apple app's (`PlayerControls+iOS`). At the top: close, Picture-in-Picture.
  * In the middle (films, episodes): −10 s, play/pause, +10 s. At the bottom: the title, the progress, then on the
  * left the buttons that open a panel above them (Épisodes · Similaires · Distribution · Infos) and on the right
- * the Variantes, Audio and Sous-titres menus. A panel open hides the title and the progress.
+ * the Variantes button, which opens its panel too, and the Audio and Sous-titres menus. A panel open hides the
+ * title and the progress.
  */
 @Composable
 fun PlayerControls(
@@ -227,7 +226,7 @@ private fun Progress(player: PlayerService, scrubTime: Double?, onActivity: () -
     }
 }
 
-/** Panels on the left (live: « Chaînes » first, the list beside the video), menus on the right. */
+/** Panels on the left (live: « Chaînes » first, the list beside the video); the variants' panel and the menus on the right. */
 @Composable
 private fun Buttons(player: PlayerService, panel: BarPanel?, onPanel: (BarPanel?) -> Unit, onChannels: () -> Unit, onActivity: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -238,7 +237,10 @@ private fun Buttons(player: PlayerService, panel: BarPanel?, onPanel: (BarPanel?
                 Chip(p.title, selected) { onPanel(if (selected) null else p); onActivity() }
             }
         }
-        if (player.offersVariants) VariantsMenu(player, onActivity)
+        if (player.offersVariants) {
+            val selected = panel == BarPanel.VARIANTS
+            RoundIcon(painterResource(R.drawable.ic_layers), "Variantes", selected = selected) { onPanel(if (selected) null else BarPanel.VARIANTS); onActivity() }
+        }
         if (player.offersAudio) TracksMenu(player, audio = true, onActivity)
         if (player.offersSubtitles) TracksMenu(player, audio = false, onActivity)
     }
@@ -253,27 +255,6 @@ private fun Chip(title: String, selected: Boolean, onClick: () -> Unit) {
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 9.dp),
     )
-}
-
-/** The Variantes menu: the title's variants in the server's order, one line each (`VariantLine`), the one playing checked. */
-@Composable
-private fun VariantsMenu(player: PlayerService, onActivity: () -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        RoundIcon(painterResource(R.drawable.ic_layers), "Variantes") { open = true; onActivity() }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            val variants = player.context?.variants.orEmpty().filter { it.isPlayable }
-            val amongLanguages = variants.mixLanguages
-            Text("Variantes", style = MaterialTheme.typography.labelMedium, color = Theme.secondary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-            variants.forEach { v ->
-                DropdownMenuItem(
-                    text = { VariantLine(v, amongLanguages, modifier = Modifier.padding(vertical = 6.dp)) },
-                    leadingIcon = { if (v.id == player.variant?.id) Icon(Icons.Filled.Check, contentDescription = null) else Spacer(modifier = Modifier.width(24.dp)) },
-                    onClick = { open = false; player.switchVariant(v); onActivity() },
-                )
-            }
-        }
-    }
 }
 
 /** The Audio menu (the stream's tracks, the one playing checked) or the Sous-titres menu (off, then the tracks). */

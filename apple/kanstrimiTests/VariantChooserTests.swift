@@ -34,6 +34,14 @@ struct VariantChooserTests {
         #expect(chooser.choose(from: variants)?.variant.id == "vf-fhd")
     }
 
+    @Test("Rien ne tient dans le plafond : la plus basse qualité, sans plage dynamique étendue si possible")
+    func nothingFits() {
+        var chooser = VariantChooser(languageOrder: [.vf], maxQuality: .sd)
+        chooser.capabilities = .init(maxQuality: .sd, supportsHDR: false, supportsDolbyVision: false)
+        let variants = [Fixtures.variant("vf-4k-dv", .vf, .uhd, dr: .dolbyVision), Fixtures.variant("vf-fhd-hdr", .vf, .fhd, dr: .hdr), Fixtures.variant("vf-fhd", .vf, .fhd)]
+        #expect(chooser.choose(from: variants)?.variant.id == "vf-fhd")
+    }
+
     @Test("Une TV sans Dolby Vision prend le 4K HDR, chez le fournisseur préféré")
     func capabilitiesMatter() {
         var chooser = VariantChooser(languageOrder: [.vf], maxQuality: .uhd)

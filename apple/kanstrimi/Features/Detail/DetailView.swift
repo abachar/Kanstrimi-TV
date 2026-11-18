@@ -27,7 +27,9 @@ struct DetailView: View {
         .onChange(of: env.player.progressRevision) { Task { await model?.refresh() } }
         .platformSheet(isPresented: $showPicker) {
             if let model, let d = model.detail {
-                VariantPicker(title: d.title, variants: d.variants, recommendedID: model.choice?.variant.id, isSeries: model.isSeries) { v in
+                // A series' own variants play nothing: the one marked is the one kept for it.
+                VariantPicker(title: d.title, variants: d.variants, recommendedID: model.isSeries ? model.remembered?.id : model.choice?.variant.id,
+                              isSeries: model.isSeries) { v in
                     model.chose(variant: v)
                 }
                 .environment(env)
