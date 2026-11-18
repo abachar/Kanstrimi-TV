@@ -1,5 +1,6 @@
 package dev.crafters.kanstrimi.client
 
+import dev.crafters.kanstrimi.contract.MeasureResult
 import dev.crafters.kanstrimi.contract.PictureSize
 import dev.crafters.kanstrimi.contract.ProfileSettings
 import dev.crafters.kanstrimi.contract.ProfileSettingsPatch
@@ -57,6 +58,7 @@ class HttpCatalogClientTest {
             val answer = when {
                 request.url.encodedPath.endsWith("/programmes") -> "[]"
                 request.url.encodedPath.endsWith("/settings") -> profile
+                request.url.encodedPath.endsWith("/measure") -> """{"quality":"FHD","changed":true}"""
                 else -> ""
             }
             Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("OK").body(answer.toResponseBody()).build()
@@ -67,7 +69,7 @@ class HttpCatalogClientTest {
             client.forgetVariant("tmdb:movie:603")
             client.programmes("live:fr-tf1", "src-i8")
             client.programmes("live:fr-tf1", null)
-            client.reportMeasure("tmdb:tv:1396:s01e02", "src-e2", PictureSize(1920, 1080))
+            assertEquals(MeasureResult(Quality.FHD, changed = true), client.reportMeasure("tmdb:tv:1396:s01e02", "src-e2", PictureSize(1920, 1080)))
             val answered = client.updateSettings(ProfileSettingsPatch(ProfileSettings(Quality.FHD, autoPlayNext = true, rememberVariants = false, switchVariantOnFailure = true)))
             assertFalse(answered.settings.rememberVariants)
         }

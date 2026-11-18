@@ -158,6 +158,13 @@ nonisolated struct PictureSize: Hashable, Sendable {
     let height: Int
 }
 
+/// What the server answers a measure: the quality it read in the picture, and `changed` when it is another than the
+/// one the variant was served with: the variants held are then out of date, and asked for again.
+nonisolated struct MeasureResult: Codable, Hashable, Sendable {
+    let quality: Quality
+    let changed: Bool
+}
+
 nonisolated struct PlaybackContext: Hashable, Sendable {
     let content: PlaybackContent
     let variants: [Variant]
@@ -176,6 +183,11 @@ nonisolated struct PlaybackContext: Hashable, Sendable {
     init(content: PlaybackContent, playback: Playback) {
         self.init(content: content, variants: playback.variants, resumeAt: playback.resumeAt, duration: playback.duration, next: playback.next,
                   cast: playback.cast, remembered: playback.remembered)
+    }
+
+    /// The same playback with its variants as the server now says them, everything else kept.
+    func with(variants: [Variant]) -> PlaybackContext {
+        PlaybackContext(content: content, variants: variants, resumeAt: resumeAt, duration: duration, next: next, cast: cast, remembered: remembered)
     }
 
     /// The same title from `position` (nil: from the start), everything else kept.

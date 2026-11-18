@@ -569,5 +569,12 @@ sealed interface PairingStatus {
  */
 data class PictureSize(val width: Int, val height: Int)
 
+/**
+ * The answer to a measure: the quality measured, and `changed` when it is not the one the stream had: the variants
+ * the app holds are then out of date (their quality, their texts, their order) and are asked for again.
+ */
+@Serializable
+data class MeasureResult(val quality: Quality, val changed: Boolean)
+
 /** `PUT /playback/{id}/progress`: where a title stands, `position` and `duration` in seconds. */
 data class ProgressReport(val contentId: String, val position: Double, val duration: Double, val sentAt: Instant = Instant.now())

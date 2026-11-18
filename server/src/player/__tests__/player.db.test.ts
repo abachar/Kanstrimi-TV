@@ -1871,7 +1871,14 @@ describe("measured quality", () => {
   it("the picture a player read is the variant's quality, whatever its name says, and the naming leaves it", async () => {
     const dv = await variantOf("/movies/tmdb:movie:603", "FR · 4K DV");
     expect((await contentOfKey("tmdb:movie:603")).maxQualityRank).toBe(4);
-    expect((await measure("tmdb:movie:603", { variant: dv.id, width: 1920, height: 1080 })).status).toBe(204);
+    const first = await measure("tmdb:movie:603", { variant: dv.id, width: 1920, height: 1080 });
+    expect(first.status).toBe(200);
+    // The quality is another than the one served: the app asks for its variants again.
+    expect(await first.json()).toEqual({ quality: "FHD", changed: true });
+    expect(await (await measure("tmdb:movie:603", { variant: dv.id, width: 1920, height: 800 })).json()).toEqual({
+      quality: "FHD",
+      changed: false,
+    });
     // Announced 4K, read in 1080p: FHD from now on, on the sheet and in the playback; its dynamic range is still its name's.
     const sheet = (await get("/movies/tmdb:movie:603")).body;
     expect(sheet.variants.find((v: V) => v.id === dv.id)).toMatchObject({ quality: "FHD", badge: "FHD DV", label: "FR · FHD DV" });
@@ -1882,7 +1889,7 @@ describe("measured quality", () => {
       qualityRank: 3,
       announcedQuality: "4K",
       measuredWidth: 1920,
-      measuredHeight: 1080,
+      measuredHeight: 800,
     });
     // The title's best quality follows, once the catalogue is free.
     await settled(async () => (await contentOfKey("tmdb:movie:603")).maxQualityRank === 3);
@@ -1891,15 +1898,18 @@ describe("measured quality", () => {
     await runNaming();
     expect(await streamOf("1", "vod")).toMatchObject({ quality: "FHD", qualityRank: 3, announcedQuality: "4K" });
     // The next playback measures again, and wins again.
-    expect((await measure("tmdb:movie:603", { variant: dv.id, width: 3840, height: 1608 })).status).toBe(204);
+    expect((await measure("tmdb:movie:603", { variant: dv.id, width: 3840, height: 1608 })).status).toBe(200);
     expect(await streamOf("1", "vod")).toMatchObject({ quality: "4K", qualityRank: 4, announcedQuality: "4K", measuredHeight: 1608 });
   });
 
   it("an episode's measure is its series' stream's: every episode under it, and the series' own variant", async () => {
     const e1 = await variantOf("/playback/tmdb:tv:1396:s01e01", "VOSTF · HD");
-    expect((await measure("tmdb:tv:1396:s01e01", { variant: e1.id, width: 1280, height: 534 })).status).toBe(204);
+    expect(await (await measure("tmdb:tv:1396:s01e01", { variant: e1.id, width: 1280, height: 534 })).json()).toEqual({
+      quality: "HD",
+      changed: false,
+    });
     expect((await variantOf("/playback/tmdb:tv:1396:s01e01", "VOSTF · HD")).id).toBe(e1.id);
-    expect((await measure("tmdb:tv:1396:s01e01", { variant: e1.id, width: 3840, height: 2160 })).status).toBe(204);
+    expect((await measure("tmdb:tv:1396:s01e01", { variant: e1.id, width: 3840, height: 2160 })).status).toBe(200);
     expect((await variantOf("/playback/tmdb:tv:1396:s01e01", "VOSTF · 4K")).id).toBe(e1.id);
     expect((await variantOf("/playback/tmdb:tv:1396:s01e02", "VOSTF · 4K")).id).toMatch(/^src-e/);
     expect((await variantOf("/series/tmdb:tv:1396", "VOSTF · 4K")).id).toMatch(/^src-i/);
@@ -1907,7 +1917,7 @@ describe("measured quality", () => {
 
   it("a channel's variant too", async () => {
     const hd = await variantOf("/channels/live:fr-tf1", "FR · HD");
-    expect((await measure("live:fr-tf1", { variant: hd.id, width: 720, height: 576 })).status).toBe(204);
+    expect((await measure("live:fr-tf1", { variant: hd.id, width: 720, height: 576 })).status).toBe(200);
     const tf1 = (await get("/channels/live:fr-tf1")).body;
     expect(tf1.variants.find((v: V) => v.id === hd.id)).toMatchObject({ quality: "SD", chip: "SD" });
     expect(tf1.chips).toEqual(["4K", "FHD", "SD"]);

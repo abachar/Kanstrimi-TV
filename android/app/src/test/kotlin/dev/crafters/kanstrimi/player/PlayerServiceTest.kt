@@ -5,6 +5,7 @@ import dev.crafters.kanstrimi.contract.Credits
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.Quality
 import dev.crafters.kanstrimi.contract.PictureSize
+import dev.crafters.kanstrimi.contract.MeasureResult
 import dev.crafters.kanstrimi.contract.Playback
 import dev.crafters.kanstrimi.contract.RememberedVariant
 import dev.crafters.kanstrimi.contract.FileFacts
@@ -382,6 +383,116 @@ class PlayerServiceTest {
         engine.emitTime(6.0, 0.0)
         runCurrent()
         assertEquals(2, client.measures.size)
+        player.stop()
+    }
+
+    /** « a » announced in 4K and measured in Full HD: the server lists it after « b » now, under its real quality. */
+    private val announced = listOf(Fixtures.variant("a", "VF", Quality.UHD), Fixtures.variant("b", "VF", Quality.FHD, provider = Fixtures.second))
+    private val measured = listOf(announced[1], Fixtures.variant("a", "VF", Quality.FHD))
+
+    @Test
+    fun `mesure qui change la qualité - les variantes sont redemandées une fois, celle en cours remplacée, la lecture continue`() = runTest {
+        engine.pictureSize = PictureSize(1920, 1080)
+        client.measureAnswer = MeasureResult(Quality.FHD, changed = true)
+        // What `/playback` says of the rest by then must not leak in: only the variants are taken.
+        client.playbackAnswer = { Playback(variants = measured, resumeAt = 999.0, duration = 1.0, remembered = RememberedVariant.of(measured[0])) }
+        val player = service()
+        val ctx = PlaybackContext(PlaybackContent("tmdb:movie:603", dev.crafters.kanstrimi.contract.ContentKind.MOVIE, "Matrix"), announced, resumeAt = 120.0, duration = 6000.0)
+        player.play(ctx)
+        assertEquals("4K", player.variant?.badge)
+        engine.emit(EnginePhase.PLAYING)
+        engine.emitTime(125.0, 6000.0)
+        runCurrent()
+        assertEquals(listOf("tmdb:movie:603"), client.playbackAsked)
+        assertEquals("a", player.variant?.id)
+        assertEquals("FHD", player.variant?.badge)
+        assertEquals(listOf("b", "a"), player.context?.variants?.map { it.id })
+        assertEquals(ctx.copy(variants = measured), player.context, "la reprise, la durée, la suite et le choix mémorisé restent ceux du contexte")
+        assertEquals(1, engine.loads.size, "aucun nouveau chargement")
+        assertEquals(0, engine.stops)
+        assertEquals(PlayerService.Phase.PLAYING, player.phase)
+        assertEquals(125.0, player.time)
+        assertTrue(client.rememberedVariants.isEmpty())
+        // Not asked again while the same stream plays.
+        engine.emit(EnginePhase.BUFFERING)
+        engine.emit(EnginePhase.PLAYING)
+        engine.emitTime(130.0, 6000.0)
+        runCurrent()
+        assertEquals(1, client.playbackAsked.size)
+        player.stop()
+    }
+
+    @Test
+    fun `mesure qui ne change rien, ou réponse perdue - rien n'est redemandé`() = runTest {
+        engine.pictureSize = PictureSize(3840, 2160)
+        client.measureAnswer = MeasureResult(Quality.UHD, changed = false)
+        val player = service()
+        player.play(Fixtures.film(variants = emptyList()).copy(variants = announced))
+        engine.emit(EnginePhase.PLAYING)
+        runCurrent()
+        assertEquals(1, client.measures.size)
+        assertTrue(client.playbackAsked.isEmpty())
+        assertEquals(announced, player.context?.variants)
+        // The quality changed but the variants cannot be fetched: those held stay, playback goes on.
+        client.measureAnswer = MeasureResult(Quality.FHD, changed = true)
+        client.playbackAnswer = { throw dev.crafters.kanstrimi.client.CatalogException.Offline("timeout") }
+        player.switchVariant(announced[1])
+        engine.emit(EnginePhase.LOADING)
+        engine.emit(EnginePhase.PLAYING)
+        runCurrent()
+        assertEquals(listOf("tmdb:movie:603"), client.playbackAsked)
+        assertEquals(announced, player.context?.variants)
+        assertEquals("b", player.variant?.id)
+        assertEquals(PlayerService.Phase.PLAYING, player.phase)
+        assertTrue(notices.isEmpty())
+        player.stop()
+    }
+
+    @Test
+    fun `mesure qui change la qualité, mais le lecteur est passé à un autre titre - rien n'est touché`() = runTest {
+        engine.pictureSize = PictureSize(1920, 1080)
+        client.measureAnswer = MeasureResult(Quality.FHD, changed = true)
+        client.playbackAnswer = { Playback(variants = measured, duration = 6000.0) }
+        val player = service()
+        player.play(Fixtures.film(variants = emptyList()).copy(variants = announced))
+        engine.emit(EnginePhase.PLAYING)
+        // The answer to the measure is still on its way when another film starts.
+        val other = Fixtures.film("tmdb:movie:949", variants = listOf("c"))
+        player.play(other)
+        runCurrent()
+        assertTrue(client.playbackAsked.isEmpty())
+        assertEquals(other.variants, player.context?.variants)
+        assertEquals("c", player.variant?.id)
+        player.stop()
+    }
+
+    @Test
+    fun `chaîne mesurée dans une autre qualité - son détail est redemandé, sa variante et sa liste de zapping suivent, sans coupure`() = runTest {
+        engine.pictureSize = PictureSize(1280, 720)
+        client.measureAnswer = MeasureResult(Quality.HD, changed = true)
+        // « FHD » announced, 720p read: the channel comes in HD only from now on.
+        client.channelAnswer = { id ->
+            val c = Fixtures.channel(id, now = now)
+            val real = c.variants.map { v -> if (v.quality == Quality.FHD) Fixtures.variant(v.id, "VF", Quality.HD, url = v.streamUrl, chip = "HD") else v }
+            c.copy(variants = real, chips = listOf("HD"), maxQuality = Quality.HD)
+        }
+        val player = service()
+        player.playChannel(tf1, listOf(tf1, france2))
+        assertEquals("FHD", player.variant?.badge)
+        engine.emit(EnginePhase.PLAYING)
+        runCurrent()
+        // Once for its guide when it opened, once for its variants after the measure.
+        assertEquals(listOf("live:fr-tf1", "live:fr-tf1"), client.channelAsked)
+        assertEquals("live:fr-tf1-FHD", player.variant?.id)
+        assertEquals("HD", player.variant?.badge)
+        assertEquals(listOf("HD", "HD"), player.context?.variants?.map { it.badge })
+        assertEquals(1, engine.loads.size)
+        assertEquals("Journal", player.epg.now?.title)
+        // Zapped away and back: the channel of the list has the new variants, not those of before the measure.
+        val listed = player.channels.first { it.id == "live:fr-tf1" }
+        assertEquals(listOf("HD"), listed.chips)
+        assertEquals(listOf("HD", "HD"), listed.variants.map { it.badge })
+        assertEquals(france2, player.channels[1])
         player.stop()
     }
 

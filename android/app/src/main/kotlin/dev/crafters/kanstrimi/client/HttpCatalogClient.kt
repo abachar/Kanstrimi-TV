@@ -9,6 +9,7 @@ import dev.crafters.kanstrimi.contract.ContentItem
 import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.contract.FileFacts
 import dev.crafters.kanstrimi.contract.Home
+import dev.crafters.kanstrimi.contract.MeasureResult
 import dev.crafters.kanstrimi.contract.Page
 import dev.crafters.kanstrimi.contract.PairingCode
 import dev.crafters.kanstrimi.contract.PairingStatus
@@ -114,8 +115,8 @@ class HttpCatalogClient(
         sendNoContent("PUT", "playback/${progress.contentId}/progress",
             body = ProgressBody(progress.position.roundToLong().toDouble(), progress.duration.roundToLong().toDouble()))
     override suspend fun reportWatchTime(id: String, seconds: Int) = sendNoContent("POST", "playback/$id/watch-time", body = WatchTimeBody(seconds))
-    override suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize) =
-        sendNoContent("POST", "playback/$id/measure", body = MeasureBody(variantId, picture.width, picture.height))
+    override suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize): MeasureResult =
+        send("POST", "playback/$id/measure", body = MeasureBody(variantId, picture.width, picture.height))
 
     override suspend fun search(query: String): SearchResults = send("GET", "search", query = listOf("q" to query))
     override suspend fun removeFromResume(id: String) = sendNoContent("DELETE", "playback/$id/progress")

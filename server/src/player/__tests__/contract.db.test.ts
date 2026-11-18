@@ -76,6 +76,8 @@ const ROUTES: Record<string, string | { path: string; body: unknown }> = {
   "top-shelf": "/top-shelf",
   profiles: "/profiles",
   error: "/movies/tmdb:movie:999999",
+  // Last: it changes the quality of a variant the answers above serve as announced.
+  measure: { path: "/playback/tmdb:movie:603/measure", body: { variant: "src-i1", width: 1920, height: 1080 } },
 };
 
 /** Every path of a JSON value with the types found there: `rows[].cards[].title: string`. */

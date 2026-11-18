@@ -272,7 +272,7 @@ describe("admin", () => {
     // A stream a player measured: what was read, and what its name announced when it said otherwise.
     expect(await html(q("mesuré:oui"))).toContain("Aucun flux");
     try {
-      expect(await recordMeasure(matrixId, 1920, 1080)).toBe("FHD");
+      expect(await recordMeasure(matrixId, 1920, 1080)).toEqual({ quality: "FHD", changed: true });
       const measured = await html(q("mesuré:oui"));
       expect(measured).toContain("1 flux pour");
       expect(measured).toContain("mesuré 1920 × 1080 · annoncé 4K");

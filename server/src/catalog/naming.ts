@@ -34,6 +34,8 @@ export type ParsedName = {
 export type CategoryHints = Pick<ParsedName, "market" | "language" | "quality" | "dynamicRange" | "tags"> & { title: string };
 
 export const QUALITY_RANK: Record<Quality, number> = { SD: 1, HD: 2, FHD: 3, "4K": 4 };
+/** What a stream is served as while nothing says its quality: the app needs a value, and providers rarely ship worse. */
+export const UNKNOWN_QUALITY: Quality = "HD";
 export const DYNAMIC_RANGE_RANK: Record<DynamicRange, number> = { HDR: 1, DV: 2 };
 /** Inverse of `QUALITY_RANK`; null for an unknown quality (rank 0). */
 export function qualityOfRank(rank: number): Quality | null {

@@ -264,6 +264,50 @@ struct PlayerServiceTests {
         player.stop()
     }
 
+    @Test("Mesure qui change la qualité : les variantes sont redemandées, la lecture continue sur la même")
+    func measureThatChangesTheQualityRefreshesTheVariants() async throws {
+        engine.pictureSize = PictureSize(width: 1920, height: 1080)
+        client.measureAnswer = MeasureResult(quality: .fhd, changed: true)
+        let context = try await playingEpisode()
+        // Once to play it, once more for its variants as the server now says them.
+        try await settle { client.playbacksAsked.filter { $0 == context.content.id }.count == 2 }
+        #expect(client.measures.count == 1)
+        #expect(engine.loads.count == 1)
+        #expect(player.phase == .playing)
+        #expect(player.variant?.id == client.measures[0].variantID)
+        #expect(player.context?.next == context.next)
+        player.stop()
+    }
+
+    @Test("Mesure qui confirme la qualité : rien n'est redemandé")
+    func measureThatConfirmsTheQualityAsksNothing() async throws {
+        engine.pictureSize = PictureSize(width: 1280, height: 720)
+        let context = try await playingEpisode()
+        try await settle { client.measures.count == 1 }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(client.playbacksAsked.filter { $0 == context.content.id }.count == 1)
+        player.stop()
+    }
+
+    @Test("Chaîne : la mesure qui change la qualité rafraîchit ses variantes et sa place dans la liste de zapping")
+    func liveMeasureRefreshesTheChannelToo() async throws {
+        let channels = try await client.channels().flatMap(\.channels)
+        engine.pictureSize = PictureSize(width: 1280, height: 720)
+        client.measureAnswer = MeasureResult(quality: .hd, changed: true)
+        player.play(channel: channels[0], in: channels)
+        engine.emit(.playing)
+        // Its detail once to play it, once more for its variants as the server now says them.
+        try await settle { client.channelsAsked.filter { $0 == channels[0].id }.count == 2 && player.channels.first == player.channel }
+        #expect(engine.loads.count == 1)
+        #expect(player.channel?.id == channels[0].id)
+        #expect(player.variant?.id == client.measures[0].variantID)
+        // The list still knows where the channel playing sits: zapping goes on from it.
+        client.measureAnswer = MeasureResult(quality: .hd, changed: false)
+        player.zap(offset: 1)
+        #expect(player.channel?.id == channels[1].id)
+        player.stop()
+    }
+
     @Test("Image pas encore lue au premier affichage : envoyée dès que le moteur la connaît")
     func pictureKnownLater() async throws {
         player.play(Self.film(streams: ["a"]))

@@ -9,6 +9,7 @@ import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.contract.DynamicRange
 import dev.crafters.kanstrimi.contract.FileFacts
 import dev.crafters.kanstrimi.contract.Home
+import dev.crafters.kanstrimi.contract.MeasureResult
 import dev.crafters.kanstrimi.contract.Page
 import dev.crafters.kanstrimi.contract.PairingCode
 import dev.crafters.kanstrimi.contract.PairingStatus
@@ -115,8 +116,11 @@ interface CatalogClient {
     suspend fun markers(id: String, file: FileFacts): PlaybackMarkers
     suspend fun report(progress: ProgressReport)
     suspend fun reportWatchTime(id: String, seconds: Int)
-    /** `POST /playback/{id}/measure`: the picture read in the variant playing `id` (a movie, an episode, a channel). */
-    suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize)
+    /**
+     * `POST /playback/{id}/measure`: the picture read in the variant playing `id` (a movie, an episode, a channel);
+     * answers the quality it makes, and whether that changed what the server serves.
+     */
+    suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize): MeasureResult
 
     suspend fun search(query: String): SearchResults
     suspend fun removeFromResume(id: String)

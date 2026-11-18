@@ -492,6 +492,7 @@ final class MockCatalogClient: CatalogClient {
     private var mostWatched: [Channel] { Array(groups.flatMap(\.channels).prefix(6)) }
 
     func channel(id: ContentID) async throws -> Channel {
+        channelsAsked.append(id)
         try await gate()
         guard let c = rawChannel(id) else { throw CatalogError.notFound }
         let day = scenario.emptyEPG || c.hasEPG == false ? [] : schedule(for: c)
@@ -535,6 +536,7 @@ final class MockCatalogClient: CatalogClient {
     // MARK: - Playback
 
     func playback(id: ContentID) async throws -> Playback {
+        playbacksAsked.append(id)
         try await gate()
         if let m = movies.first(where: { $0.id == id }) {
             let p = progress[id]
@@ -596,12 +598,17 @@ final class MockCatalogClient: CatalogClient {
     private(set) var markersAsked: [FileFacts] = []
     /// Tests only: the pictures reported, each with the variant it was read in.
     private(set) var measures: [(variantID: String, picture: PictureSize)] = []
+    /// Tests only: what a measure is answered, and the playbacks asked.
+    var measureAnswer = MeasureResult(quality: .hd, changed: false)
+    private(set) var playbacksAsked: [ContentID] = []
+    private(set) var channelsAsked: [ContentID] = []
     /// Tests only: what was reported as watched.
     func reported(_ id: ContentID) -> Progress? { progress[id] }
 
-    func reportMeasure(id: ContentID, variantID: String, picture: PictureSize) async throws {
+    func reportMeasure(id: ContentID, variantID: String, picture: PictureSize) async throws -> MeasureResult {
         measures.append((variantID, picture))
         try await gate()
+        return measureAnswer
     }
 
     func markers(id: ContentID, file: FileFacts) async throws -> PlaybackMarkers {

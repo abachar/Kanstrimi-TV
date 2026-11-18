@@ -1,4 +1,4 @@
-import { QUALITY_RANK, DYNAMIC_RANGE_RANK, DEFAULT_LANGUAGE_ORDER, qualityOfRank as knownQualityOfRank } from "@/catalog";
+import { QUALITY_RANK, DYNAMIC_RANGE_RANK, DEFAULT_LANGUAGE_ORDER, UNKNOWN_QUALITY, qualityOfRank as knownQualityOfRank } from "@/catalog";
 import type { Variant } from "@/db";
 import type { DynamicRange, Quality, Variant as VariantWire } from "./types";
 import { accountRank, providerOf, type RestContext, streamUrlOf } from "./context";
@@ -26,9 +26,9 @@ export const languageLabel = (code: string): string => (code === "VF" ? "FR" : c
 export function sortLanguages(langs: Iterable<string>, order: readonly string[] = DEFAULT_LANGUAGE_ORDER): string[] {
   return [...new Set(langs)].sort((a, b) => langRank(order, a) - langRank(order, b) || a.localeCompare(b));
 }
-/** Unknown quality is served as HD: the app needs a value, and providers rarely ship worse. */
-export const qualityOf = (q: string | null | undefined): Quality => (q && q in QUALITY_RANK ? (q as Quality) : "HD");
-export const qualityOfRank = (r: number): Quality => knownQualityOfRank(r) ?? "HD";
+/** Unknown quality is served as `UNKNOWN_QUALITY`. */
+export const qualityOf = (q: string | null | undefined): Quality => (q && q in QUALITY_RANK ? (q as Quality) : UNKNOWN_QUALITY);
+export const qualityOfRank = (r: number): Quality => knownQualityOfRank(r) ?? UNKNOWN_QUALITY;
 export const drOf = (d: string | null | undefined): DynamicRange | undefined => (d === "HDR" || d === "DV" ? d : undefined);
 
 /** What a variant needs from a playable row, whether it is an item or an episode source. */

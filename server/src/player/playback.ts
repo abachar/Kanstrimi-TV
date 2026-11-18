@@ -14,7 +14,7 @@ import { addWatchTime } from "./watch-time";
 import { playbackMarkers } from "./markers";
 import { forgetVariant, rememberedFor, rememberedWire, rememberVariant, streamOfTitle } from "./remembered";
 import type { ProfileVariant } from "@/db";
-import type { NextEpisode, Playback, Variant } from "./types";
+import type { MeasureResult, NextEpisode, Playback, Variant } from "./types";
 
 /**
  * `/playback/{id}`: variants, resume point and next episode (a series: of the episode it resumes on);
@@ -128,7 +128,10 @@ const measureBody = z.object({
   width: z.number().int().min(16).max(16384),
   height: z.number().int().min(16).max(16384),
 });
-/** The size of the picture the app read in the variant playing: its quality from now on (a series' stream: from any episode). */
+/**
+ * The size of the picture the app read in the variant playing: its quality from now on (a series' stream: from any
+ * episode). Answers that quality, and whether it is another than the one the app was served.
+ */
 playbackRoutes.post("/:id/measure", async (c) => {
   const key = c.req.param("id");
   if (!parseKey(key)) return fail("not_found", "Contenu introuvable");
@@ -137,8 +140,9 @@ playbackRoutes.post("/:id/measure", async (c) => {
   const stream = await streamOfTitle(c.get("ctx"), key, body.data.variant);
   if (stream === "unknown_title") return fail("not_found", "Contenu introuvable");
   if (stream === "unknown_variant") return fail("bad_request", "Variante inconnue pour ce titre");
-  await recordMeasure(stream.streamId, body.data.width, body.data.height);
-  return noContent();
+  const measured = await recordMeasure(stream.streamId, body.data.width, body.data.height);
+  if (!measured) return fail("bad_request", "Variante inconnue pour ce titre");
+  return json(measured satisfies MeasureResult);
 });
 
 /** The title starts on the best variant again. */

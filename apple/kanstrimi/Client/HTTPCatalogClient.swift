@@ -89,9 +89,9 @@ final class HTTPCatalogClient: CatalogClient {
     func markers(id: ContentID, file: FileFacts) async throws -> PlaybackMarkers {
         try await send("POST", "playback/\(id.rawValue)/markers", body: file)
     }
-    func reportMeasure(id: ContentID, variantID: String, picture: PictureSize) async throws {
+    func reportMeasure(id: ContentID, variantID: String, picture: PictureSize) async throws -> MeasureResult {
         struct Body: Encodable { let variant: String; let width: Int; let height: Int }
-        try await sendNoContent("POST", "playback/\(id.rawValue)/measure", body: Body(variant: variantID, width: picture.width, height: picture.height))
+        return try await send("POST", "playback/\(id.rawValue)/measure", body: Body(variant: variantID, width: picture.width, height: picture.height))
     }
     func report(_ progress: ProgressReport) async throws {
         struct Body: Encodable { let position: Double; let duration: Double }

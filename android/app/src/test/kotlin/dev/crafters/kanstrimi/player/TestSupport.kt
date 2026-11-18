@@ -13,6 +13,7 @@ import dev.crafters.kanstrimi.contract.DynamicRange
 import dev.crafters.kanstrimi.contract.EpisodeRef
 import dev.crafters.kanstrimi.contract.FileFacts
 import dev.crafters.kanstrimi.contract.Home
+import dev.crafters.kanstrimi.contract.MeasureResult
 import dev.crafters.kanstrimi.contract.Language
 import dev.crafters.kanstrimi.contract.NextEpisode
 import dev.crafters.kanstrimi.contract.Page
@@ -162,10 +163,13 @@ class FakeCatalogClient : CatalogClient {
 
     fun reported(id: String): ProgressReport? = reports.lastOrNull { it.contentId == id }
 
-    /** `/playback/{id}` when a test needs its own; else one HD variant named after the title. */
+    /** `/playback/{id}` when a test needs its own; else one HD variant named after the title. The ids asked, in order. */
     var playbackAnswer: ((String) -> Playback)? = null
-    override suspend fun playback(id: String): Playback =
-        playbackAnswer?.invoke(id) ?: Playback(variants = listOf(Fixtures.variant("next-$id", "VF", Quality.HD)), duration = 2700.0)
+    val playbackAsked = ArrayList<String>()
+    override suspend fun playback(id: String): Playback {
+        playbackAsked.add(id)
+        return playbackAnswer?.invoke(id) ?: Playback(variants = listOf(Fixtures.variant("next-$id", "VF", Quality.HD)), duration = 2700.0)
+    }
     override suspend fun suggestions(id: String): Suggestions = suggestionsAnswer
     override suspend fun markers(id: String, file: FileFacts): PlaybackMarkers { markersAsked.add(file); return markersAnswer }
     override suspend fun report(progress: ProgressReport) {
@@ -173,15 +177,24 @@ class FakeCatalogClient : CatalogClient {
         reports.add(progress)
     }
     override suspend fun reportWatchTime(id: String, seconds: Int) { watchTimes.add(id to seconds) }
-    /** The pictures reported: the content, the variant and the size, in order; `measureFails`: the server refuses them. */
+    /**
+     * The pictures reported: the content, the variant and the size, in order; `measureFails`: the server refuses
+     * them; `measureAnswer`: what it answers otherwise.
+     */
     val measures = ArrayList<Triple<String, String, PictureSize>>()
     var measureFails = false
-    override suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize) {
+    var measureAnswer = MeasureResult(Quality.HD, changed = false)
+    override suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize): MeasureResult {
         if (measureFails) throw CatalogException.Server("Variante inconnue pour ce titre")
         measures.add(Triple(id, variantId, picture))
+        return measureAnswer
     }
     override suspend fun detail(id: String): Card { detailCalls += 1; return Card(id = id, kind = ContentKind.MOVIE, title = "Matrix") }
-    override suspend fun channel(id: String): Channel = channelAnswer?.invoke(id) ?: error("unused")
+    val channelAsked = ArrayList<String>()
+    override suspend fun channel(id: String): Channel {
+        channelAsked.add(id)
+        return channelAnswer?.invoke(id) ?: error("unused")
+    }
 
     override suspend fun createDevice(): PairingCode = error("unused")
     override suspend fun pollDevice(code: String): PairingStatus = error("unused")

@@ -3,7 +3,7 @@ import { db, schema } from "@/db";
 import { describeError } from "@/shared";
 import { refreshVisibility } from "./grouping/group";
 import { withCatalogLock } from "./lock";
-import { QUALITY_RANK, type Quality } from "./naming";
+import { QUALITY_RANK, UNKNOWN_QUALITY, type Quality } from "./naming";
 
 /**
  * What a player read in the stream it opened: the size of its picture. A provider's name is a promise (« 4K » on
@@ -28,9 +28,13 @@ export function qualityOfPicture(width: number, height: number): Quality {
  * Keeps the picture a player read in stream `streamId` (a series' stream: in one of its episodes), and makes
  * its quality that of the stream. When the quality changes, the content it is on counts its aggregates again
  * (best quality, badges), behind whatever the catalogue is busy with: the player does not wait. Returns the
- * quality measured; null for a stream that is gone.
+ * quality measured and whether it is another than the one the stream was served with; null for a stream that is gone.
  */
-export async function recordMeasure(streamId: number, width: number, height: number): Promise<Quality | null> {
+export async function recordMeasure(
+  streamId: number,
+  width: number,
+  height: number,
+): Promise<{ quality: Quality; changed: boolean } | null> {
   const s = schema.xtreamStreams;
   const [before] = await db.select({ quality: s.quality, measuredAt: s.measuredAt }).from(s).where(eq(s.id, streamId));
   if (!before) return null;
@@ -47,10 +51,10 @@ export async function recordMeasure(streamId: number, width: number, height: num
       qualityRank: QUALITY_RANK[quality],
     })
     .where(eq(s.id, streamId));
-  if (quality !== before.quality) {
+  if (quality !== before.quality)
     void recount(streamId).catch((e) => console.error(`[measure] flux ${streamId} : agrégats non recalculés,`, describeError(e)));
-  }
-  return quality;
+  // A stream whose name says nothing was served as `UNKNOWN_QUALITY`: measured as such, nothing changes for the app.
+  return { quality, changed: quality !== (before.quality ?? UNKNOWN_QUALITY) };
 }
 
 /** The aggregates of the content a stream is on, once the catalogue is free. */

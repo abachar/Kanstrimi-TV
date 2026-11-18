@@ -128,7 +128,7 @@ protocol CatalogClient: AnyObject {
     /// `POST /playback/{id}/markers`: the intro and the end credits of the file the player opened.
     func markers(id: ContentID, file: FileFacts) async throws -> PlaybackMarkers
     /// `POST /playback/{id}/measure`: the picture read in the variant playing, which says its real quality.
-    func reportMeasure(id: ContentID, variantID: String, picture: PictureSize) async throws
+    func reportMeasure(id: ContentID, variantID: String, picture: PictureSize) async throws -> MeasureResult
     /// `PUT /playback/{id}/progress`
     func report(_ progress: ProgressReport) async throws
     /// `POST /playback/{id}/watch-time`: seconds of a channel played since the last report (« Chaînes les plus regardées »).

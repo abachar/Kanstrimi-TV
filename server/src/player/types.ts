@@ -337,9 +337,15 @@ export type PlaybackMarkers = {
 /**
  * `POST /playback/{id}/measure`, once the picture shows: the variant playing and the size of its picture as the
  * player read it in the stream, in pixels. The server makes it the variant's quality (« 4K » announced, 1920 × 1080
- * read: FHD from now on, for everyone); an episode's measure is its series' stream's. Nothing comes back.
+ * read: FHD from now on, for everyone); an episode's measure is its series' stream's.
  */
 export type PictureMeasure = { variant: string; width: number; height: number };
+/**
+ * Its answer: the quality measured, and `changed` when it is not the one the stream had: the variants the app holds
+ * are then out of date (their quality, their texts, their order), and it asks for them again (`/playback/{id}`,
+ * `/channels/{id}`) without interrupting what plays.
+ */
+export type MeasureResult = { quality: Quality; changed: boolean };
 
 /** `/search`: movies, series and channels in one list, the most relevant first. */
 export type SearchResults = { query: string; items: ContentItem[] };

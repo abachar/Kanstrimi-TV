@@ -109,7 +109,9 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
   série (sa fiche, « Variante de la série ») ne se lisent pas : choisie, elle est mémorisée, rien ne démarre.
 - **Qualité mesurée** : le nom d'un flux ne dit pas sa vraie qualité. Une fois l'image affichée, `PlayerService`
   envoie une fois par ouverture (autre variante, reprise après panne, zap : de nouveau) la taille de l'image du flux,
-  `POST /playback/{id}/measure` avec la variante lue ; un échec est ignoré. `PlaybackEngine.pictureSize` : la piste
+  `POST /playback/{id}/measure` avec la variante lue ; un échec est ignoré. Réponse `changed` : la qualité servie
+  a changé, les variantes du contenu en lecture sont redemandées (`refreshVariants` : `/playback/{id}` ou
+  `/channels/{id}`) et remplacent la liste et la variante en cours, sans relancer ni déplacer la lecture. `PlaybackEngine.pictureSize` : la piste
   vidéo décodée chez ExoPlayer (`videoFormat`, à défaut `videoSize`), `video-params` chez mpv, jamais la surface.
 - **Pannes** : un seul chemin (`handleStreamFailure`) : la variante équivalente suivante (même langue × qualité ×
   plage × édition, pas en échec depuis 24 h), sinon la même encore, puis le dialogue au troisième échec ; seuils dans

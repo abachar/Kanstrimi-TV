@@ -71,6 +71,8 @@ class ContractTest {
         "suggestions-episode" to { decode<Suggestions>(it) },
         "markers-episode" to { assertEquals(20, decode<PlaybackMarkers>(it).credits?.countdown) },
         "markers-none" to { assertEquals(PlaybackMarkers(), decode<PlaybackMarkers>(it)) },
+        // A measure that made the stream another quality: the app asks its variants again on `changed`.
+        "measure" to { assertEquals(MeasureResult(Quality.FHD, changed = true), decode<MeasureResult>(it)) },
         "search" to { decode<SearchResults>(it) },
         "error" to {
             // The client's error mapping must find the server's message in it.

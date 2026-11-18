@@ -9,6 +9,8 @@ import dev.crafters.kanstrimi.contract.ContentItem
 import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.contract.FileFacts
 import dev.crafters.kanstrimi.contract.Home
+import dev.crafters.kanstrimi.contract.MeasureResult
+import dev.crafters.kanstrimi.contract.Quality
 import dev.crafters.kanstrimi.contract.Page
 import dev.crafters.kanstrimi.contract.PairingCode
 import dev.crafters.kanstrimi.contract.PairingStatus
@@ -114,7 +116,9 @@ class MockCatalogClient(private val assets: AssetManager, private val latencyMil
     override suspend fun markers(id: String, file: FileFacts): PlaybackMarkers = read("markers-episode")
     override suspend fun report(progress: ProgressReport) {}
     override suspend fun reportWatchTime(id: String, seconds: Int) {}
-    override suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize) {}
+    /** What the demo answers to a measure; nothing changes unless a test says so. */
+    var measureResult = MeasureResult(Quality.FHD, changed = false)
+    override suspend fun reportMeasure(id: String, variantId: String, picture: PictureSize): MeasureResult = measureResult
 
     override suspend fun search(query: String): SearchResults = read<SearchResults>("search").let { it.copy(query = query) }
     override suspend fun removeFromResume(id: String) {}

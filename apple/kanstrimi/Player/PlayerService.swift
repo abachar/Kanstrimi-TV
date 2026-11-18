@@ -735,11 +735,31 @@ final class PlayerService {
     /// Once the file is open and playing: what the engine read in it (its length, its chapters) goes to the server,
     /// which answers what can be skipped in it and where its end credits are. A failure leaves the player as without markers.
     /// Tells the server the picture read in the variant playing, once it shows: its real quality, which the
-    /// provider's name only announces. Once per opening, as soon as the engine knows it.
+    /// provider's name only announces. Once per opening, as soon as the engine knows it. A measure that changes
+    /// the quality makes the variants held out of date: they are asked for again.
     private func reportMeasure() {
         guard isStarted, !measureSent, let ctx = context, let variant, let picture = playback.pictureSize else { return }
         measureSent = true
-        Task { [client] in try? await client.reportMeasure(id: ctx.content.id, variantID: variant.id, picture: picture) }
+        Task { [weak self, client] in
+            guard let result = try? await client.reportMeasure(id: ctx.content.id, variantID: variant.id, picture: picture), result.changed else { return }
+            await self?.refreshVariants(of: ctx)
+        }
+    }
+
+    /// The variants of what plays as the server now says them (their quality, their texts, their order), the one
+    /// playing among them: the lists redraw, the playback goes on untouched. A channel is brought up to date in the
+    /// zapping list too: zapping away and back would otherwise play its old variants, which no measure would correct.
+    private func refreshVariants(of ctx: PlaybackContext) async {
+        let live = ctx.content.kind == .live ? try? await client.channel(id: ctx.content.id) : nil
+        let fresh = ctx.content.kind == .live ? live?.variants : (try? await client.playback(id: ctx.content.id))?.variants
+        guard let fresh, !fresh.isEmpty, let context, context.content.id == ctx.content.id else { return }
+        self.context = context.with(variants: fresh)
+        if let playing = variant, let now = fresh.first(where: { $0.id == playing.id }) { variant = now }
+        guard let live, channel?.id == live.id else { return }
+        if let index = channels.firstIndex(where: { $0.id == live.id }) { channels[index] = live }
+        channel = live
+        channelDetail = live
+        showGuide()
     }
 
     private func fetchMarkers() {

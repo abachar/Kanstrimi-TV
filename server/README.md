@@ -247,7 +247,8 @@ par son index.
   largeur d'abord, un film en scope étant moins haut que son nom) et en fait la qualité du flux, `quality` et
   `quality_rank`, donc partout où une qualité compte : variante servie, ordre de la liste, meilleure qualité d'un titre,
   filtre d'un profil. Ce que disait le nom reste à côté (`announced_quality`), et le nommage ne touche plus à la qualité
-  d'un flux mesuré. Un épisode mesure le flux de sa série, donc tous ses épisodes. Aucune remise à zéro : chaque lecture
+  d'un flux mesuré. Un épisode mesure le flux de sa série, donc tous ses épisodes. La réponse dit la qualité mesurée et si elle change celle qui
+  était servie (`changed`) : l'app redemande alors ses variantes, sans toucher à la lecture. Aucune remise à zéro : chaque lecture
   mesure de nouveau, et un flux que le fournisseur remplace sous le même identifiant est corrigé à sa prochaine lecture ;
   un flux jamais lu garde ce que dit son nom. La plage dynamique (HDR, DV) reste celle du nom. Le serveur n'ouvre aucun
   flux lui-même. Dans l'admin, l'écran Flux montre « mesuré 1920 × 1080 · annoncé 4K » et cherche par `mesuré:oui`.

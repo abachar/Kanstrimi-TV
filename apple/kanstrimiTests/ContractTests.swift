@@ -8,7 +8,7 @@ struct ContractTests {
     private static let names = ["info", "home", "movies", "series", "movies-list", "movies-studio", "movie-detail", "series-detail",
                                 "studios-movies", "studios-series", "sagas", "saga", "person", "channels", "channel",
                                 "channel-programmes", "playback-movie", "playback-series", "playback-episode", "suggestions",
-                                "suggestions-episode", "markers-episode", "markers-none", "search", "error", "top-shelf", "profiles"]
+                                "suggestions-episode", "markers-episode", "markers-none", "search", "error", "top-shelf", "profiles", "measure"]
 
     /// How the app reads each file; false for a name it does not know.
     @MainActor private static func read(_ name: String, _ data: Data) throws -> Bool {
@@ -31,6 +31,7 @@ struct ContractTests {
         case "suggestions", "suggestions-episode": _ = try d.decode(Suggestions.self, from: data)
         case "markers-episode": return try d.decode(PlaybackMarkers.self, from: data).credits?.countdown == 20
         case "markers-none": return try d.decode(PlaybackMarkers.self, from: data) == PlaybackMarkers(skips: [], credits: nil)
+        case "measure": return try d.decode(MeasureResult.self, from: data).changed
         case "search": _ = try d.decode(SearchResults.self, from: data)
         case "error":
             // The client's error mapping must find the server's message in it.

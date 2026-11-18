@@ -590,7 +590,7 @@ class PlayerService(
     /**
      * Tells the server the picture read in the variant playing, once it shows: its real quality, which the
      * provider's name only announces. Once per opening, as soon as the engine knows it; a failure is not told nor
-     * tried again.
+     * tried again. When the measure changed the quality the server serves, the variants held here are out of date.
      */
     private fun reportMeasure() {
         if (!isStarted || measureSent) return
@@ -598,7 +598,32 @@ class PlayerService(
         val v = variant ?: return
         val picture = engine.pictureSize ?: return
         measureSent = true
-        scope.launch { runCatching { client().reportMeasure(ctx.content.id, v.id, picture) } }
+        scope.launch {
+            val result = runCatching { client().reportMeasure(ctx.content.id, v.id, picture) }.getOrNull() ?: return@launch
+            if (result.changed) refreshVariants(ctx.content.id)
+        }
+    }
+
+    /**
+     * Asks the variants of what plays again (`/channels/{id}` in live, `/playback/{id}` otherwise) and puts them in
+     * place of those held: the list, and the one playing found by its id. Playback goes on untouched: no new load,
+     * the same position, what follows and the profile's choice as they were. Nothing when the answer fails, or
+     * comes after the player moved to another title. Live: the channel of the zapping list takes them too, so a zap
+     * away and back does not bring the old ones.
+     */
+    private suspend fun refreshVariants(id: String) {
+        val asked = context?.takeIf { it.content.id == id } ?: return
+        val channel = if (asked.isLive) runCatching { client().channel(id) }.getOrNull() ?: return else null
+        val fresh = channel?.variants ?: runCatching { client().playback(id).variants }.getOrNull() ?: return
+        val current = context?.takeIf { it.content.id == id } ?: return
+        if (fresh.isEmpty()) return
+        context = current.copy(variants = fresh)
+        variant?.let { playing -> fresh.firstOrNull { it.id == playing.id }?.let { variant = it } }
+        if (channel != null) {
+            val update = { c: Channel -> if (c.id == id) c.copy(variants = fresh, chips = channel.chips, maxQuality = channel.maxQuality) else c }
+            channels = channels.map(update)
+            this.channel = this.channel?.let(update)
+        }
     }
 
     /**
