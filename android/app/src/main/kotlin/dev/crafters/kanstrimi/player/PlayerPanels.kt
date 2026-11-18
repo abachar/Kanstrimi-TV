@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,19 +40,15 @@ import dev.crafters.kanstrimi.R
 import dev.crafters.kanstrimi.app.AppEnvironment
 import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.contract.Episode
-import dev.crafters.kanstrimi.contract.mixLanguages
 import dev.crafters.kanstrimi.ui.Badge
-import dev.crafters.kanstrimi.ui.LocalMetrics
-import dev.crafters.kanstrimi.ui.VariantCard
-import dev.crafters.kanstrimi.ui.VariantMarks
 import dev.crafters.kanstrimi.ui.WideCard
 import dev.crafters.kanstrimi.ui.theme.Theme
 import kotlinx.coroutines.launch
 
-/** What the bar of the touch controls opens above its buttons (the Apple app's `BarPanel`); Variantes from its round button, the others from their chip. */
-enum class BarPanel(val title: String) { PROGRAMME("Programme"), RECENTS("Récentes"), EPISODES("Épisodes"), RELATED("Similaires"), CAST("Distribution"), INFOS("Infos"), VARIANTS("Variantes") }
+/** What the bar of the touch controls opens above its buttons (the Apple app's `BarPanel`). */
+enum class BarPanel(val title: String) { PROGRAMME("Programme"), RECENTS("Récentes"), EPISODES("Épisodes"), RELATED("Similaires"), CAST("Distribution"), INFOS("Infos") }
 
-/** The panels the bar offers as chips: live, an episode, a film. Similaires once the server answered with some, Distribution when the title has a cast. */
+/** The panels the bar offers: live, an episode, a film. Similaires once the server answered with some, Distribution when the title has a cast. */
 val PlayerService.panels: List<BarPanel>
     get() {
         if (isLive) return listOf(BarPanel.PROGRAMME, BarPanel.RECENTS, BarPanel.INFOS)
@@ -72,7 +67,6 @@ fun PanelContent(panel: BarPanel, player: PlayerService, env: AppEnvironment, on
         BarPanel.RELATED -> RelatedStrip(player, env, onPick)
         BarPanel.CAST -> PlayerCastStrip(player, env)
         BarPanel.INFOS -> PlayerInfos(player)
-        BarPanel.VARIANTS -> VariantStrip(player, onPick)
     }
 }
 
@@ -101,32 +95,6 @@ private fun SeasonEpisodesStrip(player: PlayerService, env: AppEnvironment, onPi
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-/**
- * Variantes: the title's variants in the server's order, one card each in the sizes of « Récentes », the one playing
- * marked, those that failed here lately too; a tap switches at once, keeps the choice for the title and closes the
- * panel. The strip opens on the one playing.
- */
-@Composable
-private fun VariantStrip(player: PlayerService, onPick: () -> Unit) {
-    val metrics = LocalMetrics.current
-    val variants = player.context?.variants.orEmpty().filter { it.isPlayable }
-    val severalLanguages = variants.mixLanguages
-    val state = rememberLazyListState(initialFirstVisibleItemIndex = variants.indexOfFirst { it.id == player.variant?.id }.coerceAtLeast(0))
-    LazyRow(state = state, horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
-        items(variants, key = { it.id }) { v ->
-            val playing = v.id == player.variant?.id
-            VariantCard(
-                v, modifier = Modifier.width(metrics.channelCardWidth),
-                marks = VariantMarks(playing = playing, failed = player.failedVariants.isFailed(v.id)),
-                showsLanguage = severalLanguages, nameLines = if (player.isLive) 1 else 2,
-            ) {
-                if (!playing) player.switchVariant(v)
-                onPick()
             }
         }
     }

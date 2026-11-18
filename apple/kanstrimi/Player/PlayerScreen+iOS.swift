@@ -23,12 +23,13 @@ extension PlayerScreen {
                     UserDefaults.standard.removeObject(forKey: "debug.landscape")
                     Task { try? await Task.sleep(for: .seconds(1.2)); OrientationLock.rotate(to: .landscapeRight) }
                 }
-                // PANEL=<Programme|Récentes|Épisodes|Infos|Chaînes>: that panel open, or the channel list.
+                // PANEL=<Programme|Récentes|Épisodes|Infos|Chaînes|Variantes>: that panel open, or the list of channels or of variants.
                 if let name = UserDefaults.standard.string(forKey: "debug.panel") {
                     UserDefaults.standard.removeObject(forKey: "debug.panel")
                     Task {
                         try? await Task.sleep(for: .seconds(1.5))
-                        if name == "Chaînes" { sheet = .channels } else { barPanel = BarPanel(rawValue: name); showControls(autoHide: false) }
+                        if name == "Chaînes" { sheet = .channels } else if name == "Variantes" { sheet = .variants }
+                        else { barPanel = BarPanel(rawValue: name); showControls(autoHide: false) }
                     }
                 }
                 #endif
@@ -87,7 +88,8 @@ extension PlayerScreen {
     private var firstPanel: BarPanel { player.context?.content.kind == .episode ? .episodes : .infos }
 
     var controls: some View {
-        PlayerControls(scrubTime: scrubTime, isPortrait: isPortrait, panel: $barPanel, onExit: { exit() }, onActivity: { showControls(autoHide: barPanel == nil) })
+        PlayerControls(scrubTime: scrubTime, isPortrait: isPortrait, panel: $barPanel, onExit: { exit() }, onVariants: { openVariants() },
+                       onActivity: { showControls(autoHide: barPanel == nil) })
     }
 }
 #endif

@@ -118,6 +118,39 @@ private struct RelatedStripPreviewHost: View {
 #Preview("Lecteur · direct") { PlayerPreviewHost(state: .livePlaying) }
 #Preview("Lecteur · chargement") { PlayerPreviewHost(state: .opening) }
 
+/// The variants of what plays, beside the video: a film's, or a channel's.
+private struct VariantListPreviewHost: View {
+    var live = false
+    @State private var env = PreviewData.makeEnv()
+    @State private var ready = false
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                PreviewFrame().ignoresSafeArea()
+                // As the player does: from the bottom when held upright.
+                if ready { VariantListOverlay(onClose: {}, touch: !Platform.isTV, fromBottom: geo.size.height > geo.size.width) }
+            }
+        }
+        .environment(env)
+        .preferredColorScheme(.dark)
+        .tint(.white)
+        .task {
+            if live {
+                let list = await PreviewData.channels(env)
+                let ctx = PlaybackContext(content: PlaybackContent(id: list[0].id, kind: .live, title: list[0].name, subtitle: nil, episode: nil, backdrop: nil),
+                                          playback: try! await env.client.playback(id: list[0].id))
+                env.player.debugPut(ctx, state: .livePlaying, channels: list)
+            } else {
+                env.player.debugPut(await PreviewData.movieContext(env), state: .panel)
+            }
+            ready = true
+        }
+    }
+}
+
+#Preview("Lecteur · variantes · film") { VariantListPreviewHost() }
+#Preview("Lecteur · variantes · chaîne") { VariantListPreviewHost(live: true) }
+
 #if os(tvOS)
 /// tvOS bar with its buttons in hand, a panel open or not. Focus does not show in a preview.
 private struct BarPreviewHost: View {
@@ -188,8 +221,6 @@ private struct ChannelListPreviewHost: View {
 #Preview("Barre · film · Similaires") { BarPreviewHost(kind: .movie, panel: .related) }
 #Preview("Barre · film · Distribution") { BarPreviewHost(kind: .movie, panel: .cast) }
 #Preview("Barre · série · Épisodes") { BarPreviewHost(kind: .episode, panel: .episodes) }
-#Preview("Barre · film · Variantes") { BarPreviewHost(kind: .movie, panel: .variants) }
-#Preview("Barre · direct · Variantes") { BarPreviewHost(kind: .live, panel: .variants) }
 #Preview("Direct · chaînes ◀") { ChannelListPreviewHost() }
 #endif
 #endif

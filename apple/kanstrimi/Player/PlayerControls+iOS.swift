@@ -15,6 +15,8 @@ struct PlayerControls: View {
     let isPortrait: Bool
     @Binding var panel: Panel?
     let onExit: () -> Void
+    /// The round button of the variants: their list opens beside the video.
+    let onVariants: () -> Void
     /// Any touch in the controls: they stay up a while longer.
     let onActivity: () -> Void
     private var player: PlayerService { env.player }
@@ -140,7 +142,7 @@ struct PlayerControls: View {
         }
     }
 
-    /// Panels on the left, the variants and the menus on the right; upright and short of room, the three fold into one menu.
+    /// Panels on the left; on the right the variants, listed beside the video, and the menus; upright and short of room, the three fold into one menu.
     private var buttons: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 10) {
@@ -158,7 +160,7 @@ struct PlayerControls: View {
                 Spacer(minLength: 8)
                 if player.offersVariants || player.offersAudio || player.offersSubtitles {
                     Menu {
-                        if player.offersVariants { Button { toggleVariants() } label: { Label("Variantes", systemImage: "rectangle.stack.badge.play") } }
+                        if player.offersVariants { Button { onVariants() } label: { Label("Variantes", systemImage: "rectangle.stack.badge.play") } }
                         if player.offersAudio { Menu { AudioMenuItems() } label: { Label("Audio", systemImage: "waveform") } }
                         if player.offersSubtitles { Menu { SubtitleMenuItems() } label: { Label("Sous-titres", systemImage: "captions.bubble") } }
                     } label: {
@@ -183,13 +185,9 @@ struct PlayerControls: View {
     }
 
     private var variantsButton: some View {
-        Button { toggleVariants() } label: { roundLabel("rectangle.stack.badge.play", selected: panel == .variants) }
+        Button { onVariants() } label: { roundLabel("rectangle.stack.badge.play") }
             .buttonStyle(.plain)
             .accessibilityLabel("Variantes")
-    }
-    private func toggleVariants() {
-        panel = panel == .variants ? nil : .variants
-        onActivity()
     }
     private var audioMenu: some View {
         Menu { AudioMenuItems() } label: { roundLabel("waveform") }.accessibilityLabel("Audio")
@@ -208,18 +206,16 @@ struct PlayerControls: View {
         case .related: RelatedStrip(onActivity: onActivity) { panel = nil }
         case .cast: PlayerCastStrip(onActivity: onActivity)
         case .infos: PlayerInfos(logoSize: 64).padding(.bottom, 8)
-        case .variants: VariantStrip(onActivity: onActivity) { panel = nil }
         }
     }
 
     // MARK: - Pieces
 
-    private func roundLabel(_ symbol: String, selected: Bool = false) -> some View {
+    private func roundLabel(_ symbol: String) -> some View {
         Image(systemName: symbol)
             .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(selected ? Color.black : Theme.text)
             .frame(width: 40, height: 40)
-            .background(selected ? Color.white : Theme.surfaceRaised, in: Circle())
+            .background(Theme.surfaceRaised, in: Circle())
             .contentShape(Circle())
     }
 

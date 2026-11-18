@@ -116,9 +116,9 @@ class PlayerService(
     var scanRate: Double by mutableDoubleStateOf(0.0); private set
     /** Playback goes on with the player screen reduced (Picture-in-Picture). */
     var isMinimized: Boolean by mutableStateOf(false)
-    /** Debug states: a drawn picture stands in for the video, and the panel the staged state opens. */
+    /** Debug states: a drawn picture stands in for the video, and the list the staged state opens beside it. */
     var debugFrame: Boolean by mutableStateOf(false); private set
-    var debugPanel: BarPanel? by mutableStateOf(null); private set
+    var debugSideList: SideListKind? by mutableStateOf(null); private set
     /** The facts the engine read in the stream, for the Infos panel. */
     var streamFacts: StreamFacts? by mutableStateOf(null); private set
 
@@ -335,7 +335,7 @@ class PlayerService(
         forgetMarkers()
         titleCard = null; titleCardFailed = false; titleCardId = null
         audioTracks = emptyList(); textTracks = emptyList(); streamFacts = null
-        debugFrame = false; debugPanel = null
+        debugFrame = false; debugSideList = null
     }
 
     // MARK: - Controls
@@ -556,7 +556,7 @@ class PlayerService(
         variant = v
         if (changedVariant && ctx.isLive) showGuide()
         failure = null
-        debugFrame = false; debugPanel = null
+        debugFrame = false; debugSideList = null
         phase = Phase.OPENING
         isBuffering = false
         bufferingProgress = 0
@@ -965,7 +965,7 @@ class PlayerService(
         engine.stop()
         cancelTimers()
         debugFrame = true
-        debugPanel = null
+        debugSideList = null
         context = ctx
         this.suggestions = suggestions
         variant = ctx.variants.firstOrNull()
@@ -994,9 +994,9 @@ class PlayerService(
             PreviewState.nextEpisode, PreviewState.nextTitle -> { phase = Phase.PLAYING; time = duration - 8; nextCountdown = 7 }
             PreviewState.panel -> phase = Phase.PLAYING
             PreviewState.variants -> {
-                // The Variantes panel open, as after a failure: the last variant marked.
+                // The list of variants open, as after a failure: the last variant marked.
                 phase = Phase.PLAYING
-                debugPanel = BarPanel.VARIANTS
+                debugSideList = SideListKind.VARIANTS
                 ctx.variants.lastOrNull()?.takeIf { it.id != variant?.id }?.let { failedVariants.markFailed(it.id) }
             }
             PreviewState.skipIntro -> {

@@ -6,7 +6,7 @@
 # Simulateurs : TVOS_UDID / IPHONE_UDID / IPAD_UDID pour changer ; WAIT=<s> pour attendre plus longtemps.
 # L'iPad se capture dans l'orientation où est le simulateur (portrait au démarrage ; simctl ne le tourne pas).
 # LANDSCAPE=1 : iPhone, le lecteur en paysage (fichier …-iphone-paysage.png).
-# PANEL=<Programme|Récentes|Épisodes|Infos|Chaînes> : iPhone, ce panneau du lecteur ouvert (ou la liste des chaînes).
+# PANEL=<Programme|Récentes|Épisodes|Infos|Chaînes|Variantes> : iPhone, ce panneau du lecteur ouvert (ou la liste des chaînes ou des variantes).
 set -e
 cd "${0:A:h}"
 B=dev.crafters.kanstrimi

@@ -8,58 +8,20 @@ struct VariantMarks: Hashable {
     var recommended = false
 }
 
-/// A variant as a card, in the sizes of a channel card of « Récentes »: the provider's own name of the stream (two
-/// lines for a movie or an episode, whose names are long and differ by their end), « EN COURS » or « EN ÉCHEC »,
-/// then its provider and category, its language when the title comes in several, and its quality.
-struct VariantCard: View {
-    @Environment(\.metrics) private var metrics
-    let variant: Variant
-    var marks = VariantMarks()
-    var showsLanguage = false
-    var nameLines = 1
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: metrics.compact ? 6 : 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(variant.name).font(metrics.compact ? .subheadline.weight(.semibold) : .headline)
-                        .lineLimit(nameLines, reservesSpace: true)
-                    if marks.playing { OnAirLabel() } else if marks.failed { FailedLabel() } else { OnAirLabel().hidden() }
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: metrics.compact ? 6 : 10) {
-                        Text([variant.provider.name, variant.edition].compactMap(\.self).joined(separator: " · "))
-                            .font(metrics.compact ? .footnote : .callout).lineLimit(1)
-                        Spacer(minLength: 0)
-                        if showsLanguage { Badge(variant.language.short, small: metrics.compact) }
-                        Badge(variant.badge, small: metrics.compact)
-                    }
-                    Text(variant.category ?? " ").font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
-                }
-            }
-            .multilineTextAlignment(.leading)
-            .padding(metrics.compact ? 12 : 18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            // tvOS: the card style draws the platter; touch screens have none, so the card draws its own.
-            .background {
-                if !Platform.isTV { RoundedRectangle(cornerRadius: metrics.cardRadius).fill(marks.playing ? Theme.surfaceRaised : Theme.surface) }
-            }
-        }
-        .cardButtonStyle()
-    }
-}
-
 /// The variants of a title as a list, in the order given (the server's): one row each, its quality, the provider's
 /// own name of the stream, then its provider and category. A title in several languages has a heading per
 /// language, or names the language on each row (`inline`, for a short list). `severalLanguages`: said by the
 /// caller that lists a part of the title's variants only, a lone VOSTF among them still being one of two languages.
+/// `stacked`: for a narrow list, each row's texts one under the other. `focused`: the row that has the focus
+/// (tvOS), by its variant's id, for the caller that puts it on the variant playing.
 struct VariantList: View {
     @Environment(\.metrics) private var metrics
     let variants: [Variant]
     var marks: (Variant) -> VariantMarks = { _ in VariantMarks() }
     var inline = false
     var severalLanguages: Bool? = nil
+    var stacked = false
+    var focused: FocusState<String?>.Binding? = nil
     let onPick: (Variant) -> Void
 
     var body: some View {
@@ -70,7 +32,8 @@ struct VariantList: View {
                     Text(section.language.label).font(.headline).foregroundStyle(Theme.secondary).padding(.top, 6)
                 }
                 ForEach(section.variants) { v in
-                    VariantRow(variant: v, marks: marks(v), showsLanguage: severalLanguages && inline) { onPick(v) }
+                    let row = VariantRow(variant: v, marks: marks(v), showsLanguage: severalLanguages && inline, stacked: stacked) { onPick(v) }
+                    if let focused { row.focused(focused, equals: v.id) } else { row }
                 }
             }
         }
@@ -82,24 +45,49 @@ struct VariantList: View {
     }
 }
 
-/// One row of `VariantList`.
+/// One row of `VariantList`: its quality in a column beside its texts, or above them in a narrow list (`stacked`).
 struct VariantRow: View {
     @Environment(\.metrics) private var metrics
     let variant: Variant
     var marks = VariantMarks()
     var showsLanguage = false
+    var stacked = false
     let action: () -> Void
 
     var body: some View {
-        if metrics.compact {
+        if Platform.isTV {
+            // tvOS: the button draws the platter and its focus.
+            Button(action: action) { texts.padding(.horizontal, stacked ? 0 : 10).padding(.vertical, 6) }
+        } else {
             Button(action: action) {
-                content.padding(.horizontal, 14).padding(.vertical, 9)
-                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                texts.padding(.horizontal, 14).padding(.vertical, 9)
+                    .background(marks.playing ? Theme.surfaceRaised : Theme.surface, in: RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)
-        } else {
-            Button(action: action) { content.padding(.horizontal, 10).padding(.vertical, 6) }
         }
+    }
+
+    @ViewBuilder private var texts: some View {
+        if stacked { stackedContent } else { content }
+    }
+
+    private var origin: String { [variant.edition, variant.provider.name, variant.category].compactMap(\.self).joined(separator: " · ") }
+
+    /// The quality and the marks on a line, then the name and where it comes from, each on two lines at most.
+    private var stackedContent: some View {
+        VStack(alignment: .leading, spacing: metrics.compact ? 4 : 8) {
+            HStack(spacing: 8) {
+                if showsLanguage { Badge(variant.language.short, small: metrics.compact) }
+                Badge(variant.badge, small: metrics.compact)
+                Spacer(minLength: 0)
+                tags
+                if marks.playing { Image(systemName: "checkmark").font(.headline).accessibilityLabel("En cours") }
+            }
+            Text(variant.name).font(metrics.compact ? .subheadline : .callout).lineLimit(2)
+            Text(origin).font(.caption).foregroundStyle(Theme.secondary).lineLimit(2)
+        }
+        .multilineTextAlignment(.leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var content: some View {
@@ -111,7 +99,7 @@ struct VariantRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 // A phone shows less of a line: the name takes two, what tells two variants apart being at its end.
                 Text(variant.name).font(metrics.compact ? .subheadline : .callout).lineLimit(metrics.compact ? 2 : 1)
-                Text([variant.edition, variant.provider.name, variant.category].compactMap(\.self).joined(separator: " · "))
+                Text(origin)
                     .font(.caption).foregroundStyle(Theme.secondary).lineLimit(metrics.compact ? 2 : 1)
                 if metrics.compact, marks.failed || marks.recommended { tags.padding(.top, 2) }
             }
@@ -157,26 +145,6 @@ private enum VariantSamples {
         variant("5", .vf, .hd, by: b, name: "FR: TF1 HD", category: "FRANCE HD"),
     ]
     static func marks(_ v: Variant) -> VariantMarks { VariantMarks(playing: v.id == "1", failed: v.id == "2", recommended: v.id == "1") }
-}
-
-#Preview("Variantes · cartes") {
-    let width = Metrics.current.recentCard
-    ScrollView(.horizontal) {
-        VStack(alignment: .leading, spacing: 24) {
-            HStack(alignment: .top, spacing: 20) {
-                ForEach(VariantSamples.film.prefix(3)) { v in
-                    VariantCard(variant: v, marks: VariantSamples.marks(v), showsLanguage: true, nameLines: 2) { }.frame(width: width)
-                }
-            }
-            HStack(alignment: .top, spacing: 20) {
-                ForEach(VariantSamples.channel.prefix(3)) { v in
-                    VariantCard(variant: v, marks: VariantSamples.marks(v)) { }.frame(width: width)
-                }
-            }
-        }
-        .padding(40)
-    }
-    .preferredColorScheme(.dark)
 }
 
 #Preview("Variantes · liste") {

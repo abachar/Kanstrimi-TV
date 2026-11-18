@@ -49,14 +49,14 @@ import dev.crafters.kanstrimi.ui.theme.Theme
 
 // The player's overlays: the loading badge, the toast, « Passer … », the failure dialog, « À suivre ».
 
-/** A round translucent button of the chrome; white while the panel it opens is up (`selected`), like the chips. */
+/** A round translucent button of the chrome. */
 @Composable
-fun RoundIcon(painter: Painter, label: String, size: Int = 40, selected: Boolean = false, onClick: () -> Unit) {
+fun RoundIcon(painter: Painter, label: String, size: Int = 40, onClick: () -> Unit) {
     Box(
-        modifier = Modifier.size(size.dp).background(if (selected) Color.White else Theme.surfaceRaised, CircleShape).clickable(onClick = onClick, role = Role.Button),
+        modifier = Modifier.size(size.dp).background(Theme.surfaceRaised, CircleShape).clickable(onClick = onClick, role = Role.Button),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(painter, contentDescription = label, tint = if (selected) Color.Black else Color.White, modifier = Modifier.size((size * 0.5f).dp))
+        Icon(painter, contentDescription = label, tint = Color.White, modifier = Modifier.size((size * 0.5f).dp))
     }
 }
 

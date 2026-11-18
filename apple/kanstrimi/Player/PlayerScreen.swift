@@ -6,13 +6,10 @@ import SwiftUI
 /// Each provides `host` (the wrapper around `content`) and `surface` (the invisible layer
 /// that receives the input when no panel is open).
 struct PlayerScreen: View {
-    enum Sheet: Equatable { case none, channels }
-    /// iPhone: what the bar of the touch controls opens above its buttons, like the tvOS bar's panels. `variants` is
-    /// opened by its round button, beside the audio and the subtitles, not by a text button.
-    enum BarPanel: String, Hashable {
-        case programme = "Programme", recents = "Récentes", episodes = "Épisodes", related = "Similaires", cast = "Distribution", infos = "Infos"
-        case variants = "Variantes"
-    }
+    /// A list beside the video: the channels of the live from the left, the variants of what plays from the right.
+    enum Sheet: Equatable { case none, channels, variants }
+    /// iPhone: what the bar of the touch controls opens above its buttons, like the tvOS bar's panels.
+    enum BarPanel: String, Hashable { case programme = "Programme", recents = "Récentes", episodes = "Épisodes", related = "Similaires", cast = "Distribution", infos = "Infos" }
 
     @Environment(AppEnvironment.self) var env
     @State var controlsVisible = true
@@ -74,6 +71,10 @@ struct PlayerScreen: View {
 
             if sheet == .channels {
                 ChannelListOverlay(onClose: { closeSheet() }, onActivity: { armSheetTimer() },
+                                   touch: !Platform.isTV, fromBottom: isPortrait)
+            }
+            if sheet == .variants {
+                VariantListOverlay(onClose: { closeSheet() }, onActivity: { armSheetTimer() },
                                    touch: !Platform.isTV, fromBottom: isPortrait)
             }
 
@@ -138,6 +139,14 @@ struct PlayerScreen: View {
         barFocused = false
         surfaceFocused = true
         if hide { hideTask?.cancel(); controlsVisible = false } else { showControls() }
+    }
+
+    /// The variants of what plays, beside the video: from the round button of the bar, which gives the focus back.
+    func openVariants() {
+        guard player.offersVariants else { return }
+        barFocused = false
+        barPanel = nil
+        sheet = .variants
     }
 
     func closeSheet() {

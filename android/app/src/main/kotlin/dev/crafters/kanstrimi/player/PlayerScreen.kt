@@ -67,8 +67,8 @@ fun PlayerScreen() {
     val engine = env.playerEngine
     var controlsVisible by remember { mutableStateOf(true) }
     var panel by remember { mutableStateOf<BarPanel?>(null) }
-    /** Live: the channel list beside the video (« Chaînes », or a swipe to the right). */
-    var channelsOpen by remember { mutableStateOf(false) }
+    /** The list beside the video: the channels of the live on the left (« Chaînes », or a swipe to the right), the variants of what plays on the right. */
+    var sideList by remember { mutableStateOf<SideListKind?>(null) }
     var scrubTime by remember { mutableStateOf<Double?>(null) }
     /** Bumped at each touch in the controls: the hide countdown starts again. */
     var activity by remember { mutableIntStateOf(0) }
@@ -81,7 +81,7 @@ fun PlayerScreen() {
 
     BackHandler {
         when {
-            channelsOpen -> { channelsOpen = false; showControls() }
+            sideList != null -> { sideList = null; showControls() }
             panel != null -> { panel = null; showControls() }
             else -> player.stop()
         }
@@ -94,9 +94,10 @@ fun PlayerScreen() {
         }
     }
     LaunchedEffect(player.phase) { if (player.phase != PlayerService.Phase.PLAYING) showControls() }
-    LaunchedEffect(player.context?.content?.id) { panel = null; showControls() }
-    LaunchedEffect(player.debugPanel) { player.debugPanel?.let { panel = it } }
-    LaunchedEffect(player.isLive) { if (!player.isLive) channelsOpen = false }
+    // Another title: its own panels, and its own variants.
+    LaunchedEffect(player.context?.content?.id) { panel = null; if (sideList == SideListKind.VARIANTS) sideList = null; showControls() }
+    LaunchedEffect(player.isLive) { if (!player.isLive && sideList == SideListKind.CHANNELS) sideList = null }
+    LaunchedEffect(player.debugSideList) { player.debugSideList?.let { sideList = it } }
 
     ImmersiveWindow()
     pip.Observe(player)
@@ -119,7 +120,7 @@ fun PlayerScreen() {
         )
         if (player.isMinimized) return@Box
 
-        val dialogUp = player.failure != null || player.nextCountdown != null || channelsOpen
+        val dialogUp = player.failure != null || player.nextCountdown != null || sideList != null
         if (!dialogUp) {
             Box(
                 modifier = Modifier.fillMaxSize()
@@ -149,7 +150,7 @@ fun PlayerScreen() {
                             },
                             onDragEnd = {
                                 // Live: a swipe to the right brings the channels.
-                                if (player.isLive && travelled > 60.dp.toPx()) channelsOpen = true
+                                if (player.isLive && travelled > 60.dp.toPx()) sideList = SideListKind.CHANNELS
                                 scrubTime?.let { player.seekTo(it) }; scrubTime = null; showControls()
                             },
                             onDragCancel = { scrubTime = null },
@@ -158,14 +159,20 @@ fun PlayerScreen() {
             )
         }
 
-        AnimatedVisibility(visible = controlsVisible && player.failure == null && !player.isChangingTitle, enter = fadeIn(), exit = fadeOut()) {
+        // A list beside the video takes the place of the controls: its own edge is where their buttons are.
+        AnimatedVisibility(visible = controlsVisible && sideList == null && player.failure == null && !player.isChangingTitle, enter = fadeIn(), exit = fadeOut()) {
             PlayerControls(
                 player = player, env = env, scrubTime = scrubTime, panel = panel, onPanel = { panel = it; showControls() },
                 onExit = { player.stop() }, onPictureInPicture = if (pip.isAvailable) ({ pip.enter(engine) }) else null,
-                onChannels = { channelsOpen = true }, onActivity = { showControls() },
+                onChannels = { sideList = SideListKind.CHANNELS }, onVariants = { panel = null; sideList = SideListKind.VARIANTS },
+                onActivity = { showControls() },
             )
         }
-        if (channelsOpen) ChannelListOverlay(player, env) { channelsOpen = false; showControls() }
+        when (sideList) {
+            SideListKind.CHANNELS -> ChannelListOverlay(player, env) { sideList = null; showControls() }
+            SideListKind.VARIANTS -> VariantListOverlay(player) { sideList = null; showControls() }
+            null -> {}
+        }
         val offer = player.skipOffer
         if (offer != null && panel == null && !dialogUp && !player.isChangingTitle) {
             SkipButton(offer.label, barShown = controlsVisible) { player.skip(); showControls() }

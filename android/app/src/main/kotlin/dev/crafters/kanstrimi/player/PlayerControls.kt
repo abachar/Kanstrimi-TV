@@ -59,8 +59,8 @@ import kotlinx.coroutines.launch
  * The touch controls, laid out like the Apple app's (`PlayerControls+iOS`). At the top: close, Picture-in-Picture.
  * In the middle (films, episodes): −10 s, play/pause, +10 s. At the bottom: the title, the progress, then on the
  * left the buttons that open a panel above them (Épisodes · Similaires · Distribution · Infos) and on the right
- * the Variantes button, which opens its panel too, and the Audio and Sous-titres menus. A panel open hides the
- * title and the progress.
+ * the Variantes button, which opens their list beside the video, and the Audio and Sous-titres menus. A panel
+ * open hides the title and the progress.
  */
 @Composable
 fun PlayerControls(
@@ -73,6 +73,8 @@ fun PlayerControls(
     onPictureInPicture: (() -> Unit)?,
     /** Live: « Chaînes » opens the channel list beside the video. */
     onChannels: () -> Unit,
+    /** The round Variantes button opens the variants of what plays beside the video. */
+    onVariants: () -> Unit,
     /** Any touch in the controls: they stay up a while longer. */
     onActivity: () -> Unit,
 ) {
@@ -88,12 +90,12 @@ fun PlayerControls(
             }
             Spacer(modifier = Modifier.weight(1f))
             if (panel != null) {
-                Buttons(player, panel, onPanel, onChannels, onActivity)
+                Buttons(player, panel, onPanel, onChannels, onVariants, onActivity)
                 PanelContent(panel, player, env, onPick = { onPanel(null) })
             } else {
                 PlayerHeader(player)
                 if (player.isLive) LiveProgress(player) else Progress(player, scrubTime, onActivity)
-                Buttons(player, null, onPanel, onChannels, onActivity)
+                Buttons(player, null, onPanel, onChannels, onVariants, onActivity)
             }
         }
     }
@@ -226,9 +228,9 @@ private fun Progress(player: PlayerService, scrubTime: Double?, onActivity: () -
     }
 }
 
-/** Panels on the left (live: « Chaînes » first, the list beside the video); the variants' panel and the menus on the right. */
+/** Panels on the left (live: « Chaînes » first, the list beside the video); the variants' list and the menus on the right. */
 @Composable
-private fun Buttons(player: PlayerService, panel: BarPanel?, onPanel: (BarPanel?) -> Unit, onChannels: () -> Unit, onActivity: () -> Unit) {
+private fun Buttons(player: PlayerService, panel: BarPanel?, onPanel: (BarPanel?) -> Unit, onChannels: () -> Unit, onVariants: () -> Unit, onActivity: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (player.isLive && player.channels.size > 1) Chip("Chaînes", selected = false) { onChannels(); onActivity() }
@@ -237,10 +239,7 @@ private fun Buttons(player: PlayerService, panel: BarPanel?, onPanel: (BarPanel?
                 Chip(p.title, selected) { onPanel(if (selected) null else p); onActivity() }
             }
         }
-        if (player.offersVariants) {
-            val selected = panel == BarPanel.VARIANTS
-            RoundIcon(painterResource(R.drawable.ic_layers), "Variantes", selected = selected) { onPanel(if (selected) null else BarPanel.VARIANTS); onActivity() }
-        }
+        if (player.offersVariants) RoundIcon(painterResource(R.drawable.ic_layers), "Variantes") { onVariants() }
         if (player.offersAudio) TracksMenu(player, audio = true, onActivity)
         if (player.offersSubtitles) TracksMenu(player, audio = false, onActivity)
     }

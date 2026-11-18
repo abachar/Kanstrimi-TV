@@ -20,7 +20,7 @@ extension PlayerScreen {
 
     /// The one bar, for a film, an episode or a channel.
     var controls: some View {
-        PlayerBar(interactive: barFocused, onActivity: { armSheetTimer() }, onLeave: { leaveBar(hide: $0) })
+        PlayerBar(interactive: barFocused, onActivity: { armSheetTimer() }, onLeave: { leaveBar(hide: $0) }, onVariants: { openVariants() })
     }
 
     /// Invisible focus surface that receives the remote when nothing else is focused.
@@ -40,9 +40,10 @@ extension PlayerScreen {
         if direction == .down { focusBar(); return }
         showControls()
         if player.isLive {
-            // No zapping on the arrows: without channel numbers to learn, the order means nothing.
-            // ▲ and ▶ do nothing: the recent channels and the programme are in the bar (▼).
+            // No zapping on the arrows: without channel numbers to learn, the order means nothing. ◀ brings the
+            // channels, ▶ the variants of this one; ▲ does nothing: the recent channels and the programme are in the bar (▼).
             if direction == .left { sheet = .channels }
+            if direction == .right { openVariants() }
         } else {
             switch direction {
             case .left: player.seek(by: -10)

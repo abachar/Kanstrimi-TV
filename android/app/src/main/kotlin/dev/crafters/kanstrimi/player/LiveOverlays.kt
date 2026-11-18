@@ -1,25 +1,16 @@
 package dev.crafters.kanstrimi.player
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,9 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,56 +36,10 @@ import dev.crafters.kanstrimi.ui.ProgrammeCard
 import dev.crafters.kanstrimi.ui.formatHour
 import dev.crafters.kanstrimi.ui.theme.Theme
 
-// The live player's overlays and panels, like the Apple app's `LiveOverlays` and `PlayerStrips`.
+// The live player's panels, like the Apple app's `LiveOverlays` and `PlayerStrips`; its channel list is in `SideLists.kt`.
 
 /** « Ensuite : Le Journal · 20:00 »: how the programme after the one on air is announced, everywhere. */
 val Programme.nextLine: String get() = "Ensuite : $title · ${formatHour(start)}"
-
-/**
- * The channels of the list the live started from, each with what it shows now, in a panel on the left of the
- * video; a tap zaps (the same engine takes the new stream) and closes it. A tap on the video beside it, or a swipe
- * towards the left, closes it too.
- */
-@Composable
-fun ChannelListOverlay(player: PlayerService, env: AppEnvironment, onClose: () -> Unit) {
-    val listState = rememberLazyListState()
-    LaunchedEffect(Unit) {
-        val idx = player.channels.indexOfFirst { it.id == player.channel?.id }
-        if (idx > 0) listState.scrollToItem(idx)
-    }
-    Row(
-        modifier = Modifier.fillMaxSize().pointerInput(Unit) {
-            var travelled = 0f
-            detectHorizontalDragGestures(
-                onDragStart = { travelled = 0f },
-                onHorizontalDrag = { change, dx -> travelled += dx; change.consume() },
-                onDragEnd = { if (travelled < -80.dp.toPx()) onClose() },
-            )
-        },
-    ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.width(420.dp).fillMaxHeight().background(Color.Black.copy(alpha = 0.78f)),
-            contentPadding = PaddingValues(horizontal = 32.dp, vertical = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            item(key = "title") { Text("Chaînes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 6.dp)) }
-            items(player.channels, key = { it.id }) { c ->
-                LoadedChannelCard(channel = c, modifier = Modifier.fillMaxWidth(), status = if (c.id == player.channel?.id) ChannelItem.Status.Playing else null) {
-                    player.playChannel(c, player.channels)
-                    env.recentChannels.record(c)
-                    onClose()
-                }
-            }
-        }
-        // The video stays readable on the right, darkened towards the list; a tap there closes the list.
-        Box(
-            modifier = Modifier.weight(1f).fillMaxHeight()
-                .background(Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.5f), 0.3f to Color.Transparent))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose),
-        )
-    }
-}
 
 /** Programme: the channel's programmes from the one on air onwards, one card each, the current one marked. */
 @Composable
