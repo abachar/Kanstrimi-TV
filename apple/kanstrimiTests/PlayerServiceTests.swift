@@ -68,20 +68,21 @@ struct PlayerServiceTests {
         let defaults = UserDefaults(suiteName: "player-tests-\(UUID().uuidString)")!
         client = MockCatalogClient(scenario: scenario)
         player = PlayerService(client: client, preferences: Preferences(defaults: defaults),
-                               failedSources: FailedSourcesStore(), progressQueue: ProgressQueue(fileURL: Fixtures.tempFile("queue")),
+                               failedVariants: FailedVariantsStore(), progressQueue: ProgressQueue(fileURL: Fixtures.tempFile("queue")),
                                playback: engine)
     }
 
     private static func url(_ name: String) -> URL { URL(string: "http://provider.test/movie/u/p/\(name).mkv")! }
 
-    /// A film in HD, its sources in that order.
-    private static func film(_ id: String = "tmdb:movie:603", sources: [String], duration: TimeInterval = 6000) -> PlaybackContext {
-        let version = Version(id: "vf-hd", language: .vf, quality: .hd, dynamicRange: nil,
-                              sources: sources.map { Source(id: $0, container: "MKV", streamURL: url($0), provider: nil, origin: nil, distinction: nil, label: $0) },
-                              edition: nil)
+    /// A film in HD: one variant per stream named, the same thing by as many providers, in that order.
+    private static func film(_ id: String = "tmdb:movie:603", streams: [String], duration: TimeInterval = 6000) -> PlaybackContext {
+        let variants = streams.enumerated().map { i, name in
+            Variant(id: name, language: .vf, quality: .hd, provider: Provider(id: "xtream-\(i + 1)", name: "Fournisseur \(i + 1)", kind: "xtream", rank: i + 1),
+                    name: name, streamURL: url(name))
+        }
         return PlaybackContext(content: PlaybackContent(id: ContentID(id), kind: .movie, title: "Matrix", subtitle: nil,
                                                         episode: nil, backdrop: nil),
-                               versions: [version], duration: duration)
+                               variants: variants, duration: duration)
     }
 
     /// The service hears the engine on the next main-queue turn, and restarts on the turn after.
@@ -90,21 +91,21 @@ struct PlayerServiceTests {
         #expect(done())
     }
 
-    @Test("Une panne passe à la source suivante, sans redemander le serveur")
-    func failureSwitchesSource() async throws {
-        player.play(Self.film(sources: ["a", "b"]))
+    @Test("Une panne passe à la variante équivalente suivante, sans redemander le serveur")
+    func failureSwitchesVariant() async throws {
+        player.play(Self.film(streams: ["a", "b"]))
         #expect(engine.loads == [Self.url("a")])
         engine.emit(.error("connexion fermée"))
         try await settle { engine.loads.count == 2 }
         #expect(engine.loads == [Self.url("a"), Self.url("b")])
-        #expect(player.source?.id == "b")
+        #expect(player.variant?.id == "b")
         #expect(player.phase == .opening)
         player.stop()
     }
 
-    @Test("Une seule source : deux nouveaux essais, puis le dialogue d'échec")
+    @Test("Une seule variante : deux nouveaux essais, puis le dialogue d'échec")
     func retriesThenDialog() async throws {
-        player.play(Self.film(sources: ["a"]))
+        player.play(Self.film(streams: ["a"]))
         for n in 2...3 {
             engine.emit(.loading)
             engine.emit(.error("connexion fermée"))
@@ -120,13 +121,13 @@ struct PlayerServiceTests {
 
     @Test("Les essais ratés d'un titre ne comptent pas pour le suivant")
     func attemptsResetWithTheTitle() async throws {
-        player.play(Self.film(sources: ["a"]))
+        player.play(Self.film(streams: ["a"]))
         for n in 2...3 {
             engine.emit(.loading)
             engine.emit(.error("connexion fermée"))
             try await settle { engine.loads.count == n }
         }
-        player.play(Self.film("tmdb:movie:949", sources: ["b"]))
+        player.play(Self.film("tmdb:movie:949", streams: ["b"]))
         engine.emit(.loading)
         engine.emit(.error("connexion fermée"))
         try await settle { engine.loads.count == 5 }
@@ -137,7 +138,7 @@ struct PlayerServiceTests {
 
     @Test("Un film qui s'arrête loin de sa fin a été coupé : la lecture reprend")
     func earlyEndIsACut() async throws {
-        player.play(Self.film(sources: ["a"]))
+        player.play(Self.film(streams: ["a"]))
         engine.emit(.playing)
         try await settle { player.phase == .playing }
         engine.emit(.ended)
@@ -148,10 +149,10 @@ struct PlayerServiceTests {
 
     @Test("Un titre choisi dans un panneau ne se lance pas si le lecteur a été quitté entre-temps")
     func pickedTitleIsDroppedAfterQuit() async {
-        player.play(Self.film(sources: ["a"]))
+        player.play(Self.film(streams: ["a"]))
         let played = await player.playPicked {
             player.stop()
-            return Self.film("tmdb:movie:949", sources: ["b"])
+            return Self.film("tmdb:movie:949", streams: ["b"])
         }
         #expect(!played)
         #expect(player.context == nil)
@@ -159,8 +160,8 @@ struct PlayerServiceTests {
 
     @Test("Un titre choisi dans un panneau se lance quand le lecteur n'a pas bougé")
     func pickedTitlePlays() async {
-        player.play(Self.film(sources: ["a"]))
-        let played = await player.playPicked { Self.film("tmdb:movie:949", sources: ["b"]) }
+        player.play(Self.film(streams: ["a"]))
+        let played = await player.playPicked { Self.film("tmdb:movie:949", streams: ["b"]) }
         #expect(played)
         #expect(player.context?.content.id == ContentID("tmdb:movie:949"))
         player.stop()
@@ -168,12 +169,12 @@ struct PlayerServiceTests {
 
     @Test("La fiche du titre lu n'est demandée qu'une fois, et de nouveau quand le titre change")
     func titleCardIsLoadedOnce() async {
-        player.play(Self.film("tmdb:movie:535544", sources: ["a"]))
+        player.play(Self.film("tmdb:movie:535544", streams: ["a"]))
         await player.loadTitleCard()
         await player.loadTitleCard()
         #expect(client.detailCalls == 1)
         #expect(player.titleCard?.id == ContentID("tmdb:movie:535544"))
-        player.play(Self.film("tmdb:movie:499701", sources: ["b"]))
+        player.play(Self.film("tmdb:movie:499701", streams: ["b"]))
         #expect(player.titleCard == nil)
         await player.loadTitleCard()
         #expect(client.detailCalls == 2)
@@ -188,7 +189,7 @@ struct PlayerServiceTests {
         let id = ContentID("tmdb:tv:300388:s01e01")
         let playback = try await client.playback(id: id)
         let content = PlaybackContent(id: id, kind: .episode, title: "Épisode 1", subtitle: "Güller ve Günahlar", episode: nil, backdrop: nil)
-        let context = PlaybackContext(content: content, versions: playback.versions, duration: 2700, next: playback.next)
+        let context = PlaybackContext(content: content, variants: playback.variants, duration: 2700, next: playback.next)
         #expect(context.next != nil)
         player.play(context)
         engine.emit(.playing)
@@ -254,8 +255,8 @@ struct PlayerServiceTests {
         engine.emit(.playing)
         try await Task.sleep(for: .milliseconds(100))
         #expect(client.markersAsked.count == 1)
-        // Another version is another file: its own markers.
-        player.switchVersion(context.versions[0])
+        // Another variant is another file: its own markers.
+        player.switchVariant(context.variants[0])
         engine.emit(.loading)
         engine.emit(.playing)
         try await settle { client.markersAsked.count == 2 }

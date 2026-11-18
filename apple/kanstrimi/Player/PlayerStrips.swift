@@ -35,15 +35,15 @@ struct ProgrammeStrip: View {
             }
         }
         .onChange(of: focused) { _, _ in onActivity() }
-        .task(id: "\(player.channel?.id.rawValue ?? "")|\(player.version?.id ?? "")") { await load() }
+        .task(id: "\(player.channel?.id.rawValue ?? "")|\(player.variant?.id ?? "")") { await load() }
     }
 
     private func load() async {
         guard player.isLive, let id = player.channel?.id else { return }
         programmes = nil
         // An unreliable guide is no reason for an error screen: a failure reads as an unknown programme.
-        let version = player.version?.id
-        programmes = (try? await env.client.programmes(channel: id, version: version)) ?? []
+        let variant = player.variant?.id
+        programmes = (try? await env.client.programmes(channel: id, variant: variant)) ?? []
     }
 }
 
@@ -94,7 +94,7 @@ struct RecentChannelsStrip: View {
 // MARK: - Infos and episodes, shared by the tvOS bar and the touch controls
 
 /// Infos: in live the channel and what it shows, the guide's summary included; otherwise the title,
-/// its facts and summary, and the version playing.
+/// its facts and summary, and the variant playing.
 struct PlayerInfos: View {
     @Environment(AppEnvironment.self) private var env
     /// The channel logo in live: large on the television, smaller on a phone.
@@ -179,7 +179,7 @@ struct SeasonEpisodesStrip: View {
                         ForEach(episodes) { ep in
                             Button { play(ep) } label: { card(ep) }
                                 .cardButtonStyle()
-                                .disabled(ep.versions.isEmpty)
+                                .disabled(ep.variants.isEmpty)
                                 .focused($focused, equals: ep.id)
                         }
                     }

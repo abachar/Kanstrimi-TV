@@ -138,23 +138,23 @@ struct LiveView: View {
         if isVisible, !env.player.isPresented, let c = focusedChannel { showPreview(c) }
     }
 
-    /// The quality and language the channel is shown in (`liveVersion`: remembered, else the best); the
-    /// channel's best and languages when it has no version.
+    /// The quality and language the channel is shown in (`liveVariant`: remembered, else the best); the
+    /// channel's best and languages when it has no variant.
     @ViewBuilder private func versionBadges(_ c: Channel, small: Bool) -> some View {
-        if let v = env.liveVersion(of: c) {
+        if let v = env.liveVariant(of: c) {
             Badge(v.quality.rawValue, small: small)
             Badge(v.language.short, small: small)
         } else {
             if let q = c.maxQuality { Badge(q.rawValue, small: small) }
-            ForEach(c.versions.languages.prefix(2), id: \.self) { Badge($0.short, small: small) }
+            ForEach(c.variants.languages.prefix(2), id: \.self) { Badge($0.short, small: small) }
         }
     }
 
     /// The side preview exists only in the three-column layout: a phone streams nothing until a tap. It
-    /// shows the version the channel would start in: « TF1 » switched to FHD previews in FHD.
+    /// shows the variant the channel would start in: « TF1 » switched to FHD previews in FHD.
     private func showPreview(_ c: Channel) {
-        let versions = focusedDetail?.id == c.id ? focusedDetail?.versions ?? c.versions : c.versions
-        guard metrics.liveColumns, let url = env.player.startChoice(c.id, versions: versions, remembered: c.remembered)?.source.streamURL else { return }
+        let variants = focusedDetail?.id == c.id ? focusedDetail?.variants ?? c.variants : c.variants
+        guard metrics.liveColumns, let url = env.player.startChoice(c.id, variants: variants, remembered: c.remembered)?.variant.streamURL else { return }
         preview.show(c.id, url: url)
     }
 
@@ -330,11 +330,10 @@ struct LiveView: View {
                         Text("Programme inconnu").foregroundStyle(Theme.secondary)
                     }
                     HStack(spacing: 8) {
-                        // The server's chips, as the badges beside the name; the version the channel starts in is filled.
-                        let start = env.liveVersion(of: c)?.id
-                        ForEach(c.versions) { v in
-                            Badge(v.chip ?? v.quality.rawValue, filled: v.id == start)
-                                .accessibilityLabel("\(v.quality.rawValue) \(v.language.label)")
+                        // The server's chips, as the badges beside the name; the variant the channel starts in is filled.
+                        let start = env.liveVariant(of: c)
+                        ForEach(c.chips, id: \.self) { chip in
+                            Badge(chip, filled: chip == (start?.chip ?? start?.quality.rawValue))
                         }
                     }
                     if !Platform.isTV {

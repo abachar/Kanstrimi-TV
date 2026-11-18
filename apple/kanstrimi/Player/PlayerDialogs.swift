@@ -17,21 +17,21 @@ struct StreamFailureDialog: View {
                     Text("La vidéo n'a pas démarré après \(f.attempts) tentative\(f.attempts > 1 ? "s" : "").")
                         .font(.body).foregroundStyle(Theme.secondary)
                 }
-                // One button per row, like a tvOS alert: the version label can be long and the dialog is narrow.
+                // One button per row, like a tvOS alert: the variant label can be long and the dialog is narrow.
                 VStack(alignment: .leading, spacing: 14) {
                     if !metrics.compact {
-                        // The current version retries; every other one, on a single line, plays instead.
-                        if let v = player.version {
+                        // The variant that failed retries; every other one, on a single line, plays instead.
+                        if let v = player.variant {
                             Button { player.retryFromServer() } label: { Label("Réessayer · \(v.label)", systemImage: "arrow.clockwise") }
                                 .focused($focused)
                         }
-                        let others = player.alternativeVersions
+                        let others = player.alternativeVariants
                         if !others.isEmpty {
-                            Text("ou essayer une autre version").font(.callout).foregroundStyle(Theme.secondary).padding(.top, 8)
+                            Text("ou essayer une autre variante").font(.callout).foregroundStyle(Theme.secondary).padding(.top, 8)
                             ScrollView(.horizontal) {
                                 HStack(spacing: 14) {
                                     ForEach(others) { v in
-                                        Button(v.label) { player.playInstead(v) }
+                                        Button("\(v.label) · \(v.provider.name)") { player.playInstead(v) }
                                     }
                                 }
                                 // Room for the focus enlargement, now that the scroll is clipped to the panel.
@@ -48,9 +48,9 @@ struct StreamFailureDialog: View {
                         }
                         .prominentButtonStyle()
                         .focused($focused)
-                        if let alt = player.alternativeVersions.first {
+                        if let alt = player.alternativeVariants.first {
                             Button { player.playInstead(alt) } label: {
-                                Label("Autre version · \(alt.label)", systemImage: "rectangle.stack.badge.play").phoneFullWidth(metrics, height: 40)
+                                Label("Autre variante · \(alt.label) · \(alt.provider.name)", systemImage: "rectangle.stack.badge.play").phoneFullWidth(metrics, height: 40)
                             }
                             .buttonStyle(.bordered)
                         }
@@ -62,7 +62,7 @@ struct StreamFailureDialog: View {
                     }
                 }
                 if metrics.compact {
-                    Text("Réessayer suffit souvent : la source change d'une tentative à l'autre.")
+                    Text("Réessayer suffit souvent : une variante de même qualité est essayée quand il y en a une autre.")
                         .font(.footnote).foregroundStyle(Theme.secondary)
                 }
             }
@@ -181,7 +181,7 @@ struct NextEpisodeCard: View {
 
     /// The chain's following episodes are not known here: no return announced.
     private func languageWarning(_ next: NextEpisode) -> String? {
-        guard let current = player.version?.language, let alternative = next.languages.first, !next.languages.contains(current) else { return nil }
-        return VersionChooser.languageWarning(episode: next.number, alternative: alternative, current: current, returnsAt: nil)
+        guard let current = player.variant?.language, let alternative = next.languages.first, !next.languages.contains(current) else { return nil }
+        return VariantChooser.languageWarning(episode: next.number, alternative: alternative, current: current, returnsAt: nil)
     }
 }

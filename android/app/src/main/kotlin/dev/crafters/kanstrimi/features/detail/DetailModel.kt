@@ -8,6 +8,7 @@ import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.contract.Card
 import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.contract.Episode
+import dev.crafters.kanstrimi.contract.Variant
 
 /** Loads the full card (`GET /movies/{id}` or `GET /series/{id}`, seasons included) and holds what the sheet changes. */
 class DetailModel(val id: String, private val env: AppEnvironment) {
@@ -65,4 +66,24 @@ class DetailModel(val id: String, private val env: AppEnvironment) {
     }
 
     fun play(fromStart: Boolean = false) = env.player.play(id, fromStart = fromStart)
+
+    /** The variant the sheet checks: the one Lecture starts in, else (a series' own variants play nothing) the one chosen for the series. */
+    val selectedVariantId: String?
+        get() {
+            val c = card ?: return null
+            return env.player.startChoice(id, c.variants, c.remembered)?.id ?: env.player.remembered(c.remembered, id, c.variants)?.id
+        }
+
+    /**
+     * A variant picked on the sheet. A movie plays in it at once, the choice kept for the title. A series' own variants
+     * play nothing: the one picked is kept for the series, each episode then starts on its variant under the same stream.
+     */
+    fun choose(variant: Variant) {
+        if (variant.isPlayable) return env.player.play(id, variantId = variant.id)
+        env.player.remember(variant, id)
+        env.notify(
+            if (env.preferences.settings.rememberVariants) "Variante de la série · ${variant.label}"
+            else "Variante non retenue : « Mémoriser la variante par titre » est désactivé dans les Réglages",
+        )
+    }
 }

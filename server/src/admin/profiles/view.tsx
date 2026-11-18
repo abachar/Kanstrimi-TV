@@ -83,7 +83,7 @@ export function ProfilesView({ rows, error }: { rows: ProfileLine[]; error?: str
     <>
       <Title
         t="Profils"
-        sub="Les personnes du foyer. Chacune a ses filtres, qui disent ce qu'elle voit, ses réglages de lecture, et ce que l'app enregistre pour elle : positions, lectures, versions choisies, « Ma liste », chaînes regardées, films attendus. Le profil par défaut est celui des appareils qui n'en ont pas choisi, du Top Shelf et des écrans de l'admin."
+        sub="Les personnes du foyer. Chacune a ses filtres, qui disent ce qu'elle voit, ses réglages de lecture, et ce que l'app enregistre pour elle : positions, lectures, variantes choisies, « Ma liste », chaînes regardées, films attendus. Le profil par défaut est celui des appareils qui n'en ont pas choisi, du Top Shelf et des écrans de l'admin."
       />
       <Card title="Profils" icon="profiles" extra={fmt(rows.length)}>
         {rows.length === 0 ? (
@@ -113,8 +113,8 @@ export function ProfilesView({ rows, error }: { rows: ProfileLine[]; error?: str
                   <p class="text-sm text-muted-foreground">
                     {QUALITY_LABELS[p.maxQuality as (typeof PROFILE_QUALITIES)[number]] ?? p.maxQuality} max
                     {p.autoPlayNext ? " · suite automatique" : ""}
-                    {p.rememberVersions ? " · versions mémorisées" : ""}
-                    {p.switchSourceOnFailure ? " · change de source" : ""}
+                    {p.rememberVariants ? " · variantes mémorisées" : ""}
+                    {p.switchVariantOnFailure ? " · change de variante" : ""}
                   </p>
                   <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                     {(KINDS as readonly Kind[]).map((k) => (
@@ -221,7 +221,7 @@ export function FilterPreview({ preview }: { preview: Preview }) {
     <div class="flex flex-col gap-3">
       <p class="text-sm">
         Garde <span class="font-medium">{fmt(preview.keptContents)}</span> {plural(preview.keptContents, "fiche")} sur{" "}
-        {fmt(preview.contents)} ({`${fmt(preview.keptVersions)} ${plural(preview.keptVersions, "version")} sur ${fmt(preview.versions)}`}),
+        {fmt(preview.contents)} ({`${fmt(preview.keptVersions)} ${plural(preview.keptVersions, "variante")} sur ${fmt(preview.versions)}`}),
         en écarte {fmt(left)}.
       </p>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -274,12 +274,12 @@ function SettingsForm({ p }: { p: Profile }) {
           on={p.autoPlayNext}
         />
         <Switch
-          name="remember_versions"
-          label="Mémoriser la version par titre"
-          hint="La version choisie dans le sélecteur est gardée pour le titre (pour une série, pour tous ses épisodes) et rejouée d'office."
-          on={p.rememberVersions}
+          name="remember_variants"
+          label="Mémoriser la variante par titre"
+          hint="La variante choisie dans le sélecteur est gardée pour le titre (pour une série, pour tous ses épisodes) et rejouée d'office."
+          on={p.rememberVariants}
         />
-        <Switch name="switch_source_on_failure" label="Changer de source en cas de panne" on={p.switchSourceOnFailure} />
+        <Switch name="switch_variant_on_failure" label="Changer de variante en cas de panne" on={p.switchVariantOnFailure} />
         <div>
           <button class="btn" data-variant="primary">
             <Icon name="save" />
@@ -331,7 +331,7 @@ export function ProfileView({
     <>
       <Title
         t={p.name}
-        sub="Ses filtres disent ce qu'il voit, un par type, jugés version par version à l'étape « Filtres » ; une fiche sans version gardée lui disparaît. Les langues nommées dans le filtre Films ou Séries, dans l'ordre écrit, sont son ordre de lecture."
+        sub="Ses filtres disent ce qu'il voit, un par type, jugés variante par variante à l'étape « Filtres » ; une fiche sans variante gardée lui disparaît. Les langues nommées dans le filtre Films ou Séries, dans l'ordre écrit, sont son ordre de lecture."
         actions={
           <div class="flex flex-wrap gap-2">
             {!p.isDefault && (

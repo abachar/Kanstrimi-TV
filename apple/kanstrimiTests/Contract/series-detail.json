@@ -39,16 +39,27 @@
   "max_quality": "HD",
   "progress": null,
   "play_label": "Lire S1 É2",
-  "versions": [
+  "variants": [
     {
-      "id": "vf-hd",
+      "id": "src-i6",
       "language": "VF",
       "quality": "HD",
-      "sources": []
+      "badge": "HD",
+      "label": "FR · HD",
+      "provider": {
+        "id": "xtream-1",
+        "name": "provider.test",
+        "kind": "xtream",
+        "rank": 1
+      },
+      "name": "|FR| Vincenzo (MULTI)",
+      "category": "|FR| SERIES",
+      "container": "MKV",
+      "stream_url": null
     }
   ],
   "remembered": {
-    "id": "vostfr-hd",
+    "id": "src-i6",
     "language": "VOSTFR",
     "quality": "HD",
     "label": "VOSTF · HD"
@@ -69,27 +80,23 @@
           "runtime": 80,
           "still": "http://kanstrimi.test/img/w300/s1e1.jpg?k=9yqx6gBqd7NctYnM",
           "air_date": "2021-02-20T00:00:00Z",
-          "versions": [
+          "variants": [
             {
-              "id": "vf-hd",
+              "id": "src-e1",
               "language": "VF",
               "quality": "HD",
-              "sources": [
-                {
-                  "id": "src-e1",
-                  "container": "MKV",
-                  "stream_url": "http://provider.test/series/u/p/e11.mkv",
-                  "provider": {
-                    "id": "xtream-1",
-                    "name": "provider.test",
-                    "kind": "xtream",
-                    "rank": 1
-                  },
-                  "origin": "|FR| SERIES",
-                  "distinction": null,
-                  "label": "provider.test"
-                }
-              ]
+              "badge": "HD",
+              "label": "FR · HD",
+              "provider": {
+                "id": "xtream-1",
+                "name": "provider.test",
+                "kind": "xtream",
+                "rank": 1
+              },
+              "name": "|FR| Vincenzo (MULTI)",
+              "category": "|FR| SERIES",
+              "container": "MKV",
+              "stream_url": "http://provider.test/series/u/p/e11.mkv"
             }
           ],
           "progress": {
@@ -127,27 +134,23 @@
           "runtime": 78,
           "still": "http://kanstrimi.test/img/w300/s1e2.jpg?k=zU5jYqdWDOufMGOl",
           "air_date": "2021-02-21T00:00:00Z",
-          "versions": [
+          "variants": [
             {
-              "id": "vf-hd",
+              "id": "src-e2",
               "language": "VF",
               "quality": "HD",
-              "sources": [
-                {
-                  "id": "src-e2",
-                  "container": "MKV",
-                  "stream_url": "http://provider.test/series/u/p/e12.mkv",
-                  "provider": {
-                    "id": "xtream-1",
-                    "name": "provider.test",
-                    "kind": "xtream",
-                    "rank": 1
-                  },
-                  "origin": "|FR| SERIES",
-                  "distinction": null,
-                  "label": "provider.test"
-                }
-              ]
+              "badge": "HD",
+              "label": "FR · HD",
+              "provider": {
+                "id": "xtream-1",
+                "name": "provider.test",
+                "kind": "xtream",
+                "rank": 1
+              },
+              "name": "|FR| Vincenzo (MULTI)",
+              "category": "|FR| SERIES",
+              "container": "MKV",
+              "stream_url": "http://provider.test/series/u/p/e12.mkv"
             }
           ],
           "progress": null,

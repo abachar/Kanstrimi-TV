@@ -303,19 +303,21 @@ beforeAll(async () => {
   await db.execute(
     sql`insert into app_live_watch (profile_id, content_key, day, seconds, updated_at) values (${PROFILE}, 'live:fr-tf1', current_date, 1800, ${at(-30).toISOString()}::timestamptz)`,
   );
-  // The versions chosen in the picker, a movie, a series (from an episode) and a channel; the plays of a movie watched again.
-  await db.insert(schema.appProfileVersions).values([
+  // The variants chosen in the picker, a movie, a series (from an episode) and a channel; the plays of a movie watched again.
+  const streams = await db.select({ id: schema.xtreamStreams.id, upstreamId: schema.xtreamStreams.upstreamId }).from(schema.xtreamStreams);
+  const stream = (upstreamId: string) => streams.find((x) => x.upstreamId === upstreamId)?.id ?? null;
+  await db.insert(schema.appProfileVariants).values([
     {
       profileId: PROFILE,
       contentKey: "tmdb:movie:603",
-      versionId: "vf-4k-dv",
+      streamId: stream("1"),
       language: "VF",
       quality: "4K",
       dynamicRange: "DV",
       updatedAt: at(-200),
     },
-    { profileId: PROFILE, contentKey: "tmdb:tv:1396", versionId: "vostfr-hd", language: "VOSTFR", quality: "HD", updatedAt: at(-150) },
-    { profileId: PROFILE, contentKey: "live:fr-tf1", versionId: "vf-fhd", language: "VF", quality: "FHD", updatedAt: at(-100) },
+    { profileId: PROFILE, contentKey: "tmdb:tv:1396", streamId: stream("200"), language: "VOSTFR", quality: "HD", updatedAt: at(-150) },
+    { profileId: PROFILE, contentKey: "live:fr-tf1", streamId: stream("101"), language: "VF", quality: "FHD", updatedAt: at(-100) },
   ]);
   await db
     .insert(schema.appPlays)

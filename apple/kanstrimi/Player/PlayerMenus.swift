@@ -14,7 +14,7 @@ extension PlayerService {
     }
 
     // Each menu only when it offers a choice; the tracks are known once the player has read the stream.
-    var offersVersions: Bool { (context?.versions.count ?? 0) > 1 }
+    var offersVariants: Bool { (context?.variants.count ?? 0) > 1 }
     var offersAudio: Bool { audioTracks.count > 1 }
     var offersSubtitles: Bool { !textTracks.isEmpty }
 
@@ -83,23 +83,18 @@ struct PlayerTimeLine: View {
     }
 }
 
-/// The Versions menu: by language, the one playing checked.
-/// The Versions menu: one section per provider in the order of preference, one line per copy (« FR · 4K Dolby
-/// Vision · LIGHT »), the one playing checked. A channel's lines carry its chips.
-struct VersionMenuItems: View {
+/// The Variantes menu: the title's variants in the server's order, the one playing checked. A channel's lines
+/// start with its chip.
+struct VariantMenuItems: View {
     @Environment(AppEnvironment.self) private var env
     var body: some View {
         let player = env.player
-        let groups = SourceLine.grouped(player.context?.versions ?? [])
-        ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
-            Section(group.provider ?? "Versions") {
-                ForEach(group.lines) { line in
-                    let current = line.version.id == player.version?.id && (line.source == nil || line.source?.id == player.source?.id)
-                    Button { player.switchVersion(line.version, source: line.source) } label: {
-                        let text = line.version.chip.map { [$0, line.source?.distinction].compactMap(\.self).joined(separator: " · ") } ?? line.text
-                        if current { Label(text, systemImage: "checkmark") } else { Text(text) }
-                    }
-                }
+        let variants = player.context?.variants.playable ?? []
+        let severalLanguages = variants.languages.count > 1
+        ForEach(variants) { v in
+            Button { player.switchVariant(v) } label: {
+                let text = "\(v.chip ?? v.title(withLanguage: severalLanguages)) · \(v.origin)"
+                if v.id == player.variant?.id { Label(text, systemImage: "checkmark") } else { Text(text) }
             }
         }
     }

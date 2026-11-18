@@ -47,7 +47,7 @@ Quatre tâches (`catalog/pipeline.ts`), chacune avec son cron dans Paramètres :
 | `source` | les listes Xtream de chaque fournisseur actif, écrites par différence dans `xtream_streams` et `xtream_categories` (un flux qui change est mis à jour, un nouveau inséré, un disparu supprimé : son `id` ne bouge pas), refusées pour lui si vides ou si son catalogue fond de moitié (panne) ; un fournisseur illisible garde ce qu'il avait, les autres passent, l'étape finit en échec sans arrêter le passage (`PartialFailure`) ; puis chaque flux nouveau reçoit sa variante, un flux renommé repart vers TMDB, et les noms sont lus (titre, année, marché, langue, qualité, édition) |
 | `enrich` | les titres sans fiche redemandés à TMDB (`catalog/matching.ts`) : ceux jamais demandés, ceux demandés il y a plus d'une semaine, et ceux que Claude (`providers/claude`, Sonnet) vient de lire, une fois, parmi les visibles que TMDB a déjà refusés (un titre en attente d'une relance passe d'abord par TMDB) : il suggère le titre à chercher, ou dit « hors TMDB » (concert, karaoké, combat) ; la suggestion est un titre de plus à chercher, jugé par les mêmes scores avec l'année exigée, jamais un verdict. Un titre sans fiche que TMDB connaît enfin devient ce titre, ou donne ses flux à celui que le catalogue a déjà. Puis une part des fiches anciennes est relue, et une fiche que TMDB n'a plus (supprimée, fusionnée) rend son titre à l'identification : sans fiche, il est cherché de nouveau par son nom ; puis chaque flux du direct est attaché à sa chaîne (`catalog/channels.ts`) : celle de la référence, trouvée ou créée, sinon une chaîne à son propre nom (« Événements » ou « Non reconnus ») ; la chaîne dit, d'après tous ses flux, si elle est reconnue, son thème, son pays dans une région et son drapeau adulte. L'un en panne n'empêche pas l'autre, et iptv-org injoignable n'empêche pas d'attacher les flux à la référence telle qu'elle est |
 | `group` | chaque flux nouveau de film ou de série est identifié et attaché à son titre (`attachTitles`), et un titre n'est créé qu'en dernier : l'identifiant TMDB fourni quand la fiche porte bien ce nom (fiche en cache si le catalogue a déjà ce titre), sinon le même titre et la même année qu'un flux déjà attaché, sans réseau, sinon une recherche TMDB par lecture, sinon un titre sans fiche. Puis les fiches tirées du cache TMDB, les agrégats sur les variantes visibles, et les titres ou chaînes restés sans flux sont retirés |
-| `filters` | les filtres de chaque profil (`catalog/filters/`) gardent ou écartent chaque version pour ce profil (`app_profile_streams`) ; `filtered` = écartée par tous ; puis les contenus touchés recomptent leurs agrégats, `visible` (vue par un profil au moins), ce que voit chaque profil (`app_profile_titles`, `app_profile_channels`) et les arrivées de la liste d'attente. Une version qu'aucun filtre n'a encore vue est écartée |
+| `filters` | les filtres de chaque profil (`catalog/filters/`) gardent ou écartent chaque variante pour ce profil (`app_profile_streams`) ; `filtered` = écartée par tous ; puis les contenus touchés recomptent leurs agrégats, `visible` (vue par un profil au moins), ce que voit chaque profil (`app_profile_titles`, `app_profile_channels`) et les arrivées de la liste d'attente. Une variante qu'aucun filtre n'a encore vue est écartée |
 
 | Tâche à part | Rôle |
 |---|---|
@@ -75,13 +75,13 @@ partie d'une étape ; il peut être arrêté depuis l'admin. La fin de chaque pa
 
 Le préfixe dit la portée : `xtream_` (ce que les fournisseurs envoient : `xtream_accounts`, les comptes, un par fournisseur, dans l'ordre de préférence, ses flux et ses catégories, `account_id` sur chaque ligne), `cache_` (les copies des sources externes, toutes reconstructibles : TMDB, iptv-org, SkipDB, TheIntroDB, IntroDB, fiches Xtream, guide des programmes),
 `catalog_` (ce que construit le pipeline, plus les corrections de l'admin sur les variantes, les épisodes construits à l'ouverture d'une fiche et les studios ; `catalog_channel_guides` = les guides liés à la main à une chaîne), `app_` (les personnes du foyer, `app_profiles` avec leurs réglages de lecture, leurs filtres, et ce que l'app enregistre pour chacune : favoris,
-progression, lectures (`app_plays`), versions choisies (`app_profile_versions`), temps regardé du direct, liste d'attente ; les flux que son filtre garde, `app_profile_streams`, les titres et les chaînes qu'elle voit, `app_profile_titles` et `app_profile_channels` ; les appareils, leurs alertes), `settings` et `settings_` (les réglages du serveur, les sources et décalages EPG), `task_` (journal).
+progression, lectures (`app_plays`), variantes choisies (`app_profile_variants`), temps regardé du direct, liste d'attente ; les flux que son filtre garde, `app_profile_streams`, les titres et les chaînes qu'elle voit, `app_profile_titles` et `app_profile_channels` ; les appareils, leurs alertes), `settings` et `settings_` (les réglages du serveur, les sources et décalages EPG), `task_` (journal).
 Un flux (`xtream_streams`) est une entrée d'un fournisseur, unique par (`account_id`, `kind`, `upstream_id`) : deux fournisseurs
 réutilisent les mêmes numéros. Il porte ce que le fournisseur envoie et ce qu'on lit dans son nom, relisible à tout moment sans réseau ;
 les lignes séparatrices y restent (`separator`), elles nomment les sections. Sa ligne dans `catalog_streams` (une par flux, sous son id : `xtream_id`) porte ce que le
 catalogue en décide : le titre ou la chaîne auquel il est attaché, comment (`how`) et si c'est à la main (`manual`), masqué à la main (`hidden`), écarté par les filtres (`filtered`). Le code lit les deux ensemble par `variants` (`db/variants.ts`)
 et écrit dans la table qui possède la colonne. Au-dessus, les contenus : un titre (`catalog_titles`, un film ou une série) ou une chaîne (`catalog_channels`), chacun avec sa `key`, la seule identité exposée à l'app ; leurs identifiants sortent de la même séquence, un id de contenu désigne une seule ligne. Une variante nomme le sien par `title_id` ou `channel_id`. Le code les lit sous une même forme (`titleContent`, `channelContent`, `db/contents.ts`). Un titre présent chez
-plusieurs fournisseurs est un contenu dont chaque version liste une source par fournisseur, le préféré en premier.
+plusieurs fournisseurs est un contenu qui porte une variante par flux, le fournisseur préféré d'abord à qualité égale.
 Une chaîne est sa chaîne de référence dans son marché (`live:<marché>-<nom de référence>`), quel que soit le nom que
 chaque fournisseur lui donne ; une entrée du direct sans chaîne de référence reste seule (`live:x:…`).
 Tout ce qui est personnel porte un `profile_id` ; un profil est par défaut (`is_default`, un seul) : celui des appareils tant que
@@ -134,7 +134,7 @@ par son index.
   PATCH, DELETE) doit venir du site, quel que soit son `Content-Type`.
 - **Profils** (admin › Application) : la liste, et une page par profil : nom, photo (choisie et recadrée carrée dans le
   navigateur, envoyée en data URL, réencodée en WebP 256 px par `sharp`, gardée en base), ses réglages de lecture
-  (qualité maximale, suite automatique, versions mémorisées, changement de source : les mêmes sur tous ses appareils,
+  (qualité maximale, suite automatique, variantes mémorisées, changement de variante : les mêmes sur tous ses appareils,
   l'app les change aussi par `PUT /profiles/me/settings` ; un téléphone ou une tablette plafonne de lui-même à FHD),
   ses trois filtres avec prévisualisation, « Appliquer maintenant » (l'étape `filters` pour ce seul profil, en fond), « Définir par défaut »,
   « Supprimer ». Un profil créé est jugé aussitôt en fond. Favoris, Historique et Liste d'attente montrent le profil de
@@ -154,16 +154,16 @@ par son index.
   les deux, écrit toujours le préfixe. Un filtre et une recherche de flux se jugent flux par flux, leurs mots de
   fiche lus sur la fiche du flux. Vérifiée mot par mot avant tout SQL, ses valeurs toujours en paramètres.
 - **Filtres** (`app_profile_filters`) : par profil, un au plus par type, une requête qui dit ce que ce profil voit, comme une
-  recherche dit ce qu'elle affiche ; sans filtre (ou vide), le profil voit tout. Il se juge version par version, ses champs de
-  fiche lus sur la fiche de la version (`app_profile_streams` : gardée pour ce profil ; `catalog_streams.filtered` :
-  true écartée par tous, null pas encore jugée) ; une fiche sans version gardée disparaît pour ce profil. Par exemple
+  recherche dit ce qu'elle affiche ; sans filtre (ou vide), le profil voit tout. Il se juge variante par variante, ses champs de
+  fiche lus sur la fiche de la variante (`app_profile_streams` : gardée pour ce profil ; `catalog_streams.filtered` :
+  true écartée par tous, null pas encore jugée) ; une fiche sans variante gardée disparaît pour ce profil. Par exemple
   `xtream.marché:"fr" || (xtream.marché:"ar" && (catalogue.pays:maroc || (catalogue.thème:"sport" && catalogue.pays:aucun)))`
   pour le direct, `xtream.langue:"vf","vo","ar" && xtream.marché:"fr","ar","en"` pour les films. Ils s'appliquent à l'étape `filters` ;
   enregistrer un filtre ne l'applique pas (`applied_at` null : bandeau) ; un profil créé ne voit rien tant que l'étape ne l'a pas
   jugé. Un regroupement manuel (séparer, fusionner, associer TMDB ou iptv-org) fait juger aussitôt ce qu'il touche.
   Un profil d'enfant se fait par le filtre : `catalogue.genre:"animation" && catalogue.classification:"TP","U","G" && xtream.langue:"vf"`
   (la classification TMDB manque sur la moitié des films : `|| catalogue.classification:aucun` les garde), `catalogue.thème:"jeunesse"` au Direct.
-  Les langues que le filtre Films ou Séries nomme (`xtream.langue:"vf","vo"`), dans l'ordre écrit, sont l'ordre des versions
+  Les langues que le filtre Films ou Séries nomme (`xtream.langue:"vf","vo"`), dans l'ordre écrit, sont l'ordre des variantes
   servies au profil et donc son ordre de lecture (`filterLanguages`, `ctx.languageOrder`) ; sans langue nommée, VF, VOSTFR, VO.
 - **Écran Flux de l'admin** (`admin/streams/`) : ce que les fournisseurs envoient, en liste plate par type (Direct,
   Films, Séries), chaque flux avec son fournisseur, sa catégorie, ce qu'on lit dans son nom, la fiche où il est rangé,
@@ -189,7 +189,7 @@ par son index.
   Les genres de Films et Séries restent en mémoire jusqu'à ce que le groupement réécrive les contenus
   (`contentsGeneration`) : une écriture directe dans `catalog_titles` ne les rafraîchit pas.
 - **Fournisseurs** (`config/accounts.ts`, page Fournisseurs) : les comptes Xtream en base, en clair (l'app les reçoit de toute
-  façon dans chaque `stream_url`), dans l'ordre de préférence ; `position` ordonne les sources d'une version, la première
+  façon dans chaque `stream_url`), dans l'ordre de préférence ; à qualité égale, `position` ordonne les variantes d'un titre : la première
   joue par défaut et l'app bascule sur la suivante en panne. Désactivé : son catalogue reste en base mais `visibleItem`
   l'écarte (relancer à partir de `group`, l'admin le fait) ; supprimé : tout ce qu'il a apporté part en cascade. Au premier
   démarrage, `XTREAM_URL`, `XTREAM_USERNAME`, `XTREAM_PASSWORD` de l'environnement remplissent le compte que la migration a
@@ -218,12 +218,14 @@ par son index.
   plus proche, puis le plus voté) ; une série le dit (« Série · 2025 »), une chaîne donne son groupe du Direct. un terme d'un caractère est un mot entier, un préfixe à partir de deux ; seuls les
   200 contenus les plus votés par type (préfixes, et mots entiers pour qu'un titre égal à la requête reste) sont classés.
 - **Ce que le profil garde de ses lectures** (rien ne reste sur un appareil, un profil retrouve tout partout) :
-  - *Version choisie* (`app_profile_versions`, `player/remembered.ts`) : `PUT /playback/{id}/version` garde la
-    version prise dans le sélecteur ou en changeant de qualité dans le lecteur ; un film ou une chaîne sous sa clé,
-    une série sous la sienne depuis n'importe quel épisode (langue × qualité × plage dynamique × édition, l'app
-    l'applique à chaque épisode, même langue à défaut). Servie en `remembered` sur la fiche, `/playback`,
-    `/channels` et les diapositives de l'accueil ; `DELETE …/version` l'oublie ; rien n'est servi quand le réglage
-    « versions mémorisées » du profil est coupé.
+  - *Variante choisie* (`app_profile_variants`, `player/remembered.ts`) : `PUT /playback/{id}/variant` garde la
+    variante prise dans le sélecteur ou dans le lecteur : le flux lui-même (`stream_id`) et ce qu'elle était (langue ×
+    qualité × plage dynamique × édition) ; un film ou une chaîne sous sa clé, une série sous la sienne depuis sa
+    fiche ou n'importe quel épisode (le flux de la série, dont chaque épisode joue alors sa propre variante). Servie
+    en `remembered` sur la fiche, `/playback`, `/channels` et les diapositives de l'accueil, son `id` étant la
+    variante correspondante parmi celles servies à côté ; un flux disparu ou un épisode qui n'y est pas : l'app
+    prend la plus proche, par ce qu'elle était. `DELETE …/variant` l'oublie ; rien n'est servi quand le réglage
+    « variantes mémorisées » du profil est coupé.
   - *Lectures* (`app_plays`, `player/plays.ts`) : comptées sur les rapports de position, une lecture = des rapports à
     moins de 6 h d'écart ; « Marquer non vu » efface la position, pas les lectures. Rangée d'accueil « Vos plus
     regardés » : un film lu deux fois au moins, une série dont les lectures d'épisodes atteignent cinq ; admin ›
@@ -232,10 +234,13 @@ par son index.
     `/channels` (1 = la dernière quittée, 20 au plus). L'app part de là et y ajoute ses zaps du moment.
 - **Appairage** : `POST /player/devices` rend le code et le jeton de l'appareil (seule son empreinte est en base) ; le jeton
   ne vaut qu'une fois le code approuvé dans l'admin, `GET /player/devices/{code}` ne donne que le statut.
-- **Sources d'une version** (`player/versions.ts`) : par fournisseur dans l'ordre de préférence (`Provider.rank`), la
-  première joue par défaut ; chaque source porte son texte prêt, `label` (« iPTVisions », « iPTVisions · LIGHT ») et
-  `distinction` quand le fournisseur a plusieurs copies de la version : les mots de sa catégorie que les autres n'ont pas,
-  sinon son titre brut, sinon une lettre (`distinguish`). Les apps affichent, elles ne nomment rien.
+- **Variantes d'un titre** (`player/variants.ts`) : une par flux de fournisseur, sans regroupement : l'app reçoit la
+  liste à plat, dans l'ordre où elle l'affiche et l'essaie (langues du profil, montage habituel avant une édition,
+  qualité décroissante puis plage dynamique, fournisseurs dans l'ordre de préférence). Chacune porte ses textes prêts,
+  `badge` (« 4K DV ») et `label` (« FR · 4K DV · Version longue »), et le nom et la catégorie que son fournisseur lui
+  donne (`name`, `category`), qui distinguent deux variantes de même qualité. Une série a ses propres variantes, ses
+  flux, qui ne se lisent pas (`stream_url` null) ; ce sont celles de ses épisodes qui se lisent. Une chaîne donne en
+  plus ses pastilles de qualité (`chips`). Les apps affichent, elles ne nomment rien.
 - **Liens de lecture** : `stream_url` est l'URL du fournisseur de la variante, compte compris, envoyée aux seuls appareils appairés ;
   l'app la lit elle-même (le fournisseur répond encore un `302` vers son backend) et ne redemande `/playback` qu'au « Réessayer » d'une panne.
 - **Ne jamais journaliser une URL brute** : le mot de passe Xtream y circule. Passer par `requestLogger()`.
@@ -272,7 +277,7 @@ par son index.
   chaînes ; un nom se rattache sur sa ligne (suggestions à un clic, ou « Autre… » : recherche dans toute la
   référence et création), pour tous les fournisseurs, et le marché est relu aussitôt ; le nom, le thème, le pays et
   les noms d'une chaîne se changent sur sa fiche. Une chaîne dont la clé change emmène ce que les profils y avaient
-  enregistré (liste, temps regardé, version choisie).
+  enregistré (liste, temps regardé, variante choisie).
 - **Groupes du direct** : pays × thème (« France · Sport », `section` et `theme` dans `/channels`), le thème venant de
   la référence. Une chaîne a un seul thème : celui posé à la main, sinon le plus fréquent de ses variantes. Son pays
   est celui de son marché quand le marché en est un (`homeCountries`) : le code d'un fournisseur n'est pas celui d'un

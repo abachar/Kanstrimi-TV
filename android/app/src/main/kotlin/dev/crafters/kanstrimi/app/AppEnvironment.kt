@@ -11,7 +11,7 @@ import dev.crafters.kanstrimi.contract.ProfileSettings
 import dev.crafters.kanstrimi.contract.ProfileSettingsPatch
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ServerInfo
-import dev.crafters.kanstrimi.contract.Version
+import dev.crafters.kanstrimi.contract.Variant
 import dev.crafters.kanstrimi.player.ExoPlaybackEngine
 import dev.crafters.kanstrimi.player.FallbackPlaybackEngine
 import dev.crafters.kanstrimi.player.MpvPlaybackEngine
@@ -190,17 +190,17 @@ class AppEnvironment(context: Context) {
     // MARK: - Direct
 
     /**
-     * The version a channel is shown in: the one playing, else the one it would start in (remembered for it, else
+     * The variant a channel is shown in: the one playing, else the one it would start in (remembered for it, else
      * the best). Its quality and language are the channel's badges, its guide the one shown.
      */
-    fun liveVersion(channel: Channel): Version? =
-        if (player.channel?.id == channel.id) player.version else player.startChoice(channel.id, channel.versions, channel.remembered)?.version
+    fun liveVariant(channel: Channel): Variant? =
+        if (player.channel?.id == channel.id) player.variant else player.startChoice(channel.id, channel.variants, channel.remembered)
 
-    /** A channel's guide as the app shows it, `liveVersion`'s: each quality may have its own (« M6 4K »). */
-    fun guide(channel: Channel): Channel.Guide = LiveGuide.guide(channel, liveVersion(channel))
+    /** A channel's guide as the app shows it, `liveVariant`'s: a variant may have its own (« M6 4K »). */
+    fun guide(channel: Channel): Channel.Guide = LiveGuide.guide(channel, liveVariant(channel))
 
     /** What a channel shows now, wherever it is drawn: the detail received while its programme airs, else its list's guide. */
-    fun nowPlaying(channel: Channel): Programme? = LiveGuide.nowPlaying(channel, channelCache.latest(channel.id), liveVersion(channel))
+    fun nowPlaying(channel: Channel): Programme? = LiveGuide.nowPlaying(channel, channelCache.latest(channel.id), liveVariant(channel))
 
     /** Asks the channel's detail when nothing on air is known, unless the server says it has no guide. */
     suspend fun loadNowPlaying(channel: Channel) {
@@ -209,7 +209,7 @@ class AppEnvironment(context: Context) {
     }
 
     /**
-     * Plays a channel from a card (the search, the home, a link): its detail gives its versions, the zapping order is
+     * Plays a channel from a card (the search, the home, a link): its detail gives its variants, the zapping order is
      * the channel alone. The side preview of the Direct is cut first: the account allows one connection.
      */
     suspend fun watchChannel(id: String) {

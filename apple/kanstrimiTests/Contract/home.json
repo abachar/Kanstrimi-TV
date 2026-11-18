@@ -24,28 +24,24 @@
       "overview": "Neo et ses alliés.",
       "runtime": 138,
       "certification": null,
-      "versions": [
+      "variants": [
         {
-          "id": "vf-4k-dv",
+          "id": "src-i3",
           "language": "VF",
           "quality": "4K",
           "dynamic_range": "DV",
-          "sources": [
-            {
-              "id": "src-i3",
-              "container": "MKV",
-              "stream_url": "http://provider.test/movie/u/p/3.mkv",
-              "provider": {
-                "id": "xtream-1",
-                "name": "provider.test",
-                "kind": "xtream",
-                "rank": 1
-              },
-              "origin": "|FR| FILMS 4K DV",
-              "distinction": null,
-              "label": "provider.test"
-            }
-          ]
+          "badge": "4K DV",
+          "label": "FR · 4K DV",
+          "provider": {
+            "id": "xtream-1",
+            "name": "provider.test",
+            "kind": "xtream",
+            "rank": 1
+          },
+          "name": "|FR| Matrix Reloaded",
+          "category": "|FR| FILMS 4K DV",
+          "container": "MKV",
+          "stream_url": "http://provider.test/movie/u/p/3.mkv"
         }
       ],
       "play_id": "tmdb:movie:604",
@@ -80,49 +76,41 @@
       "overview": "Thomas Anderson mène une double vie.",
       "runtime": 136,
       "certification": "12",
-      "versions": [
+      "variants": [
         {
-          "id": "vf-4k-dv",
+          "id": "src-i1",
           "language": "VF",
           "quality": "4K",
           "dynamic_range": "DV",
-          "sources": [
-            {
-              "id": "src-i1",
-              "container": "MKV",
-              "stream_url": "http://provider.test/movie/u/p/1.mkv",
-              "provider": {
-                "id": "xtream-1",
-                "name": "provider.test",
-                "kind": "xtream",
-                "rank": 1
-              },
-              "origin": "|FR| FILMS 4K DV",
-              "distinction": null,
-              "label": "provider.test"
-            }
-          ]
+          "badge": "4K DV",
+          "label": "FR · 4K DV",
+          "provider": {
+            "id": "xtream-1",
+            "name": "provider.test",
+            "kind": "xtream",
+            "rank": 1
+          },
+          "name": "|FR| Matrix (4K)",
+          "category": "|FR| FILMS 4K DV",
+          "container": "MKV",
+          "stream_url": "http://provider.test/movie/u/p/1.mkv"
         },
         {
-          "id": "vostfr-hd",
+          "id": "src-i2",
           "language": "VOSTFR",
           "quality": "HD",
-          "sources": [
-            {
-              "id": "src-i2",
-              "container": "MKV",
-              "stream_url": "http://provider.test/movie/u/p/2.mkv",
-              "provider": {
-                "id": "xtream-1",
-                "name": "provider.test",
-                "kind": "xtream",
-                "rank": 1
-              },
-              "origin": "|FR| FILMS VOST",
-              "distinction": null,
-              "label": "provider.test"
-            }
-          ]
+          "badge": "HD",
+          "label": "VOSTF · HD",
+          "provider": {
+            "id": "xtream-1",
+            "name": "provider.test",
+            "kind": "xtream",
+            "rank": 1
+          },
+          "name": "|FR| Matrix (VOST)",
+          "category": "|FR| FILMS VOST",
+          "container": "MKV",
+          "stream_url": "http://provider.test/movie/u/p/2.mkv"
         }
       ],
       "play_id": "tmdb:movie:603",
@@ -131,7 +119,7 @@
       "resume_at": null,
       "duration": 8160,
       "remembered": {
-        "id": "vf-4k-dv",
+        "id": "src-i1",
         "language": "VF",
         "quality": "4K",
         "dynamic_range": "DV",

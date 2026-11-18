@@ -17,20 +17,20 @@ profileRoutes.get("/", async (c) => json(await profiles(c.get("ctx"))));
 const settingsBody = z.object({
   max_quality: z.enum(PROFILE_QUALITIES).optional(),
   auto_play_next: z.boolean().optional(),
-  remember_versions: z.boolean().optional(),
-  switch_source_on_failure: z.boolean().optional(),
+  remember_variants: z.boolean().optional(),
+  switch_variant_on_failure: z.boolean().optional(),
 });
 profileRoutes.put("/me/settings", async (c) => {
   const body = settingsBody.safeParse(await c.req.json().catch(() => null));
   if (!body.success)
-    return fail("bad_request", "max_quality (SD, HD, FHD, 4K), auto_play_next, remember_versions, switch_source_on_failure attendus");
+    return fail("bad_request", "max_quality (SD, HD, FHD, 4K), auto_play_next, remember_variants, switch_variant_on_failure attendus");
   const ctx = c.get("ctx");
   try {
     const p = await updateProfileSettings(ctx.profile.id, {
       maxQuality: body.data.max_quality,
       autoPlayNext: body.data.auto_play_next,
-      rememberVersions: body.data.remember_versions,
-      switchSourceOnFailure: body.data.switch_source_on_failure,
+      rememberVariants: body.data.remember_variants,
+      switchVariantOnFailure: body.data.switch_variant_on_failure,
     });
     return p ? json(profileWire(ctx, p)) : fail("unknown_profile", "Profil inconnu");
   } catch (e) {
@@ -54,8 +54,8 @@ export const profileWire = (ctx: RestContext, p: Profile): ProfileWire => ({
 export const settingsWire = (p: Profile): ProfileSettings => ({
   max_quality: (PROFILE_QUALITIES as readonly string[]).includes(p.maxQuality) ? (p.maxQuality as ProfileSettings["max_quality"]) : "4K",
   auto_play_next: p.autoPlayNext,
-  remember_versions: p.rememberVersions,
-  switch_source_on_failure: p.switchSourceOnFailure,
+  remember_variants: p.rememberVariants,
+  switch_variant_on_failure: p.switchVariantOnFailure,
 });
 
 // ---------------------------------------------------------------- the pictures

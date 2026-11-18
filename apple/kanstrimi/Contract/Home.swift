@@ -4,7 +4,7 @@ nonisolated enum HomeRowKind: String, Codable, Sendable {
     case resume, mostWatchedChannels = "most_watched_channels", mostWatched = "most_watched", recommended
     case recentMovies = "recent_movies", recentSeries = "recent_series"
     case favorites, collection
-    /// A kind this version does not know: the row still shows, as a plain row of cards.
+    /// A kind this variant does not know: the row still shows, as a plain row of cards.
     case other
 
     init(from decoder: Decoder) throws {
@@ -20,7 +20,7 @@ nonisolated struct HomeRow: Codable, Hashable, Identifiable, Sendable {
 }
 
 /// A slide of the home carousel. `item` is what it draws and what Fiche opens (the series for a new episode);
-/// `playID` what Lecture plays, `versions`, `runtime`, `resumeAt` and `duration` being that title's own;
+/// `playID` what Lecture plays, `variants`, `runtime`, `resumeAt` and `duration` being that title's own;
 /// `episode` names it.
 nonisolated struct HomeHero: Codable, Hashable, Sendable {
     let item: ContentItem
@@ -29,7 +29,7 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
     let overview: String?
     let runtime: Int?
     let certification: String?
-    let versions: [Version]
+    let variants: [Variant]
     let playID: ContentID
     let episode: EpisodeRef?
     let isFavorite: Bool
@@ -38,11 +38,11 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
     /// Seconds: where Lecture resumes a movie, nil from the start.
     let resumeAt: TimeInterval?
     let duration: TimeInterval?
-    /// The version this profile chose for the title (the series' for an episode), as the server keeps it.
-    let remembered: RememberedVersion?
+    /// The variant this profile chose for the title (the series' for an episode), as the server keeps it.
+    let remembered: RememberedVariant?
 
     enum CodingKeys: String, CodingKey {
-        case item, tagline, overview, runtime, certification, versions, episode, remembered
+        case item, tagline, overview, runtime, certification, variants, episode, remembered
         case playID = "play_id"
         case isFavorite = "is_favorite"
         case playLabel = "play_label"
@@ -50,11 +50,11 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
         case duration
     }
 
-    init(item: ContentItem, tagline: String, overview: String?, runtime: Int?, certification: String?, versions: [Version],
+    init(item: ContentItem, tagline: String, overview: String?, runtime: Int?, certification: String?, variants: [Variant],
          playID: ContentID, episode: EpisodeRef?, isFavorite: Bool = false, playLabel: String = "Lecture", resumeAt: TimeInterval? = nil,
-         duration: TimeInterval? = nil, remembered: RememberedVersion? = nil) {
+         duration: TimeInterval? = nil, remembered: RememberedVariant? = nil) {
         self.item = item; self.tagline = tagline; self.overview = overview; self.runtime = runtime; self.certification = certification
-        self.versions = versions; self.playID = playID; self.episode = episode; self.isFavorite = isFavorite; self.playLabel = playLabel; self.resumeAt = resumeAt
+        self.variants = variants; self.playID = playID; self.episode = episode; self.isFavorite = isFavorite; self.playLabel = playLabel; self.resumeAt = resumeAt
         self.duration = duration; self.remembered = remembered
     }
 
@@ -65,14 +65,14 @@ nonisolated struct HomeHero: Codable, Hashable, Sendable {
         overview = try c.decodeIfPresent(String.self, forKey: .overview)
         runtime = try c.decodeIfPresent(Int.self, forKey: .runtime)
         certification = try c.decodeIfPresent(String.self, forKey: .certification)
-        versions = try c.decodeIfPresent([Version].self, forKey: .versions) ?? []
+        variants = try c.decodeIfPresent([Variant].self, forKey: .variants) ?? []
         playID = try c.decode(ContentID.self, forKey: .playID)
         episode = try c.decodeIfPresent(EpisodeRef.self, forKey: .episode)
         isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
         playLabel = try c.decode(String.self, forKey: .playLabel)
         resumeAt = try c.decodeIfPresent(TimeInterval.self, forKey: .resumeAt)
         duration = try c.decodeIfPresent(TimeInterval.self, forKey: .duration)
-        remembered = try c.decodeIfPresent(RememberedVersion.self, forKey: .remembered)
+        remembered = try c.decodeIfPresent(RememberedVariant.self, forKey: .remembered)
     }
 }
 
@@ -89,7 +89,7 @@ nonisolated struct HomeScreen: Codable, Hashable, Sendable {
         self.generatedAt = generatedAt
     }
 
-    /// A home cached by an older version has a single `hero`: read without a carousel rather than not at all.
+    /// A home cached by an older variant has a single `hero`: read without a carousel rather than not at all.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         heroes = try c.decodeIfPresent([HomeHero].self, forKey: .heroes) ?? []

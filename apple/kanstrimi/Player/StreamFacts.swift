@@ -45,22 +45,22 @@ struct StreamFacts: View {
     }
 
     var body: some View {
-        if let version = player.version {
+        if let variant = player.variant {
             let reading = reading
-            let picture = picture(reading, announced: version)
-            let sound = sound(reading, announced: version)
+            let picture = picture(reading, announced: variant)
+            let sound = sound(reading, announced: variant)
             Group {
                 if metrics.compact {
                     VStack(alignment: .leading, spacing: 8) {
                         group("film", picture)
                         group("speaker.wave.2", sound)
-                        sourceLabel(of: version)
+                        origin(of: variant)
                     }
                 } else {
                     HStack(spacing: 36) {
                         group("film", picture)
                         group("speaker.wave.2", sound)
-                        sourceLabel(of: version)
+                        origin(of: variant)
                     }
                 }
             }
@@ -82,11 +82,9 @@ struct StreamFacts: View {
         }
     }
 
-    /// The copy of the version in use, by its provider (« iPTVisions · LIGHT »), lone or not.
-    @ViewBuilder private func sourceLabel(of version: Version) -> some View {
-        if let source = player.source {
-            Text(player.sourceLabel(source, in: version)).font(.caption).foregroundStyle(Theme.secondary)
-        }
+    /// Where the variant in use comes from: its provider and the provider's own name of the stream.
+    private func origin(of variant: Variant) -> some View {
+        Text(variant.origin).font(.caption).foregroundStyle(Theme.secondary).lineLimit(1)
     }
 
     // MARK: - Facts
@@ -104,15 +102,15 @@ struct StreamFacts: View {
     }
 
     /// Definition, dynamic range as shown on the screen, codec, frame rate, bitrate.
-    private func picture(_ reading: Reading?, announced version: Version) -> [Fact] {
+    private func picture(_ reading: Reading?, announced variant: Variant) -> [Fact] {
         guard let reading, let codec = reading.videoCodec else {
-            return [Fact(text: version.quality.rawValue)] + (version.dynamicRange.map { [Fact(text: $0 == .sdr ? "SDR" : $0.label)] } ?? [])
+            return [Fact(text: variant.quality.rawValue)] + (variant.dynamicRange.map { [Fact(text: $0 == .sdr ? "SDR" : $0.label)] } ?? [])
         }
         let quality = Self.quality(width: reading.width)
         let range = Self.range(reading.shown)
         var facts = [
-            Fact(text: quality.rawValue, warning: quality < version.quality),
-            Fact(text: Self.label(reading.shown), warning: range < (version.dynamicRange ?? .sdr)),
+            Fact(text: quality.rawValue, warning: quality < variant.quality),
+            Fact(text: Self.label(reading.shown), warning: range < (variant.dynamicRange ?? .sdr)),
             Fact(text: Self.videoCodecs[codec] ?? codec.uppercased()),
         ]
         if let rate = reading.frameRate, rate > 0 { facts.append(Fact(text: "\(Int(rate.rounded())) i/s")) }
@@ -127,9 +125,9 @@ struct StreamFacts: View {
         return facts
     }
 
-    /// Language of the version, codec and channels of the track playing, Atmos when it carries it.
-    private func sound(_ reading: Reading?, announced version: Version) -> [Fact] {
-        var facts = [Fact(text: version.language.label)]
+    /// Language of the variant, codec and channels of the track playing, Atmos when it carries it.
+    private func sound(_ reading: Reading?, announced variant: Variant) -> [Fact] {
+        var facts = [Fact(text: variant.language.label)]
         guard let reading, let codec = reading.audioCodec else { return facts }
         facts.append(Fact(text: Self.soundLabel(codec: codec, channels: reading.channels)))
         if reading.atmos { facts.append(Fact(text: "Atmos")) }

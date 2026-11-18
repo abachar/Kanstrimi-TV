@@ -10,7 +10,7 @@ export const contentOfKey = async (key: string) => (await contentsByKey([key]))[
 /** Empty every catalogue table between test files, then seed the default profile and the provider account. */
 export async function resetDb() {
   await db.execute(
-    sql`truncate table xtream_accounts, xtream_streams, xtream_categories, catalog_streams, catalog_titles, catalog_channels, catalog_episodes, catalog_episode_sources, cache_tmdb, cache_xtream_info, app_profiles, app_profile_filters, app_profile_streams, app_profile_titles, app_profile_channels, task_steps, task_runs, cache_iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_versions, app_plays, app_devices, cache_epg_programmes, settings_epg_offsets, settings_epg_sources, cache_epg_source_channels, catalog_channel_guides, catalog_studios, app_waitlist, cache_tmdb_trending, cache_tmdb_recommendations, cache_tmdb_extras, cache_skipdb_segments, cache_theintrodb, cache_introdb restart identity cascade`,
+    sql`truncate table xtream_accounts, xtream_streams, xtream_categories, catalog_streams, catalog_titles, catalog_channels, catalog_episodes, catalog_episode_sources, cache_tmdb, cache_xtream_info, app_profiles, app_profile_filters, app_profile_streams, app_profile_titles, app_profile_channels, task_steps, task_runs, cache_iptvorg_channels, settings, app_watch_progress, app_live_watch, app_favorites, app_profile_variants, app_plays, app_devices, cache_epg_programmes, settings_epg_offsets, settings_epg_sources, cache_epg_source_channels, catalog_channel_guides, catalog_studios, app_waitlist, cache_tmdb_trending, cache_tmdb_recommendations, cache_tmdb_extras, cache_skipdb_segments, cache_theintrodb, cache_introdb restart identity cascade`,
   );
   await db.insert(schema.appProfiles).values({ name: "Hakim", isDefault: true, judgedAt: new Date() }); // the restarted identity gives it PROFILE
   await db
@@ -78,8 +78,8 @@ export const testProfile: Profile = {
   judgedAt: new Date("2026-09-01T00:00:00Z"),
   maxQuality: "4K",
   autoPlayNext: true,
-  rememberVersions: true,
-  switchSourceOnFailure: true,
+  rememberVariants: true,
+  switchVariantOnFailure: true,
   avatarVersion: "d41d8cd9",
 };
 /** The language order of a profile without filters, as a context carries it. */

@@ -86,7 +86,7 @@ export function SettingsView({ s }: { s: Settings }) {
           <Card
             title="Claude"
             icon="database"
-            hint="Lit à l'étape enrich les noms que TMDB ne reconnaît pas (titres arabes translittérés, documentaires) et suggère le titre à chercher, une fois par nom, pour les versions visibles seulement. Clé dans l'environnement : redémarrer après un changement ; sans clé, l'étape passe."
+            hint="Lit à l'étape enrich les noms que TMDB ne reconnaît pas (titres arabes translittérés, documentaires) et suggère le titre à chercher, une fois par nom, pour les variantes visibles seulement. Clé dans l'environnement : redémarrer après un changement ; sans clé, l'étape passe."
           >
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Env name="anthropic_api_key" label="Clé API Anthropic" col="md:col-span-2" />

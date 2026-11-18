@@ -372,16 +372,16 @@ function hidingReason(c: Content, variants: VariantDetail[]): string | null {
     else if (isCategoryHidden(v.category)) cats.add(v.category!.name);
   }
   const causes = [
-    filtered ? (filtered > 1 ? `${filtered} versions écartées par les filtres` : "version écartée par les filtres") : null,
+    filtered ? (filtered > 1 ? `${filtered} variantes écartées par les filtres` : "variante écartée par les filtres") : null,
     unjudged
       ? unjudged > 1
-        ? `${unjudged} versions pas encore jugées par les filtres`
-        : "version pas encore jugée par les filtres"
+        ? `${unjudged} variantes pas encore jugées par les filtres`
+        : "variante pas encore jugée par les filtres"
       : null,
-    manual ? (manual > 1 ? `${manual} versions masquées à la main` : "version masquée à la main") : null,
+    manual ? (manual > 1 ? `${manual} variantes masquées à la main` : "variante masquée à la main") : null,
     cats.size ? `catégorie masquée (${[...cats].join(", ")})` : null,
   ].filter(Boolean);
-  return causes.length ? `Aucune version servie : ${causes.join(", ")}` : "Aucune version servie";
+  return causes.length ? `Aucune variante servie : ${causes.join(", ")}` : "Aucune variante servie";
 }
 
 /** Whose list and positions the page shows: one link per profile, the current one marked. */

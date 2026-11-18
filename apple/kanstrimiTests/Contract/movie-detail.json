@@ -42,53 +42,45 @@
   "raw_title": null,
   "progress": null,
   "play_label": "Lecture",
-  "versions": [
+  "variants": [
     {
-      "id": "vf-4k-dv",
+      "id": "src-i1",
       "language": "VF",
       "quality": "4K",
       "dynamic_range": "DV",
-      "sources": [
-        {
-          "id": "src-i1",
-          "container": "MKV",
-          "stream_url": "http://provider.test/movie/u/p/1.mkv",
-          "provider": {
-            "id": "xtream-1",
-            "name": "provider.test",
-            "kind": "xtream",
-            "rank": 1
-          },
-          "origin": "|FR| FILMS 4K DV",
-          "distinction": null,
-          "label": "provider.test"
-        }
-      ]
+      "badge": "4K DV",
+      "label": "FR · 4K DV",
+      "provider": {
+        "id": "xtream-1",
+        "name": "provider.test",
+        "kind": "xtream",
+        "rank": 1
+      },
+      "name": "|FR| Matrix (4K)",
+      "category": "|FR| FILMS 4K DV",
+      "container": "MKV",
+      "stream_url": "http://provider.test/movie/u/p/1.mkv"
     },
     {
-      "id": "vostfr-hd",
+      "id": "src-i2",
       "language": "VOSTFR",
       "quality": "HD",
-      "sources": [
-        {
-          "id": "src-i2",
-          "container": "MKV",
-          "stream_url": "http://provider.test/movie/u/p/2.mkv",
-          "provider": {
-            "id": "xtream-1",
-            "name": "provider.test",
-            "kind": "xtream",
-            "rank": 1
-          },
-          "origin": "|FR| FILMS VOST",
-          "distinction": null,
-          "label": "provider.test"
-        }
-      ]
+      "badge": "HD",
+      "label": "VOSTF · HD",
+      "provider": {
+        "id": "xtream-1",
+        "name": "provider.test",
+        "kind": "xtream",
+        "rank": 1
+      },
+      "name": "|FR| Matrix (VOST)",
+      "category": "|FR| FILMS VOST",
+      "container": "MKV",
+      "stream_url": "http://provider.test/movie/u/p/2.mkv"
     }
   ],
   "remembered": {
-    "id": "vf-4k-dv",
+    "id": "src-i1",
     "language": "VF",
     "quality": "4K",
     "dynamic_range": "DV",

@@ -3,7 +3,7 @@ package dev.crafters.kanstrimi.app
 import dev.crafters.kanstrimi.contract.Channel
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.Quality
-import dev.crafters.kanstrimi.contract.Version
+import dev.crafters.kanstrimi.player.Fixtures
 import org.junit.Test
 import java.time.Instant
 import kotlin.test.assertEquals
@@ -16,12 +16,12 @@ class LiveGuideTest {
     private val now: Instant = Instant.parse("2026-10-10T20:30:00Z")
     private fun programme(title: String, from: Long, to: Long) = Programme(title, now.plusSeconds(from), now.plusSeconds(to), null)
 
-    private val fhd = Version(id = "fhd", language = "VF", quality = Quality.FHD)
-    private val hd = Version(id = "hd", language = "VF", quality = Quality.HD, hasEpg = true, now = programme("Journal HD", -600, 1200), next = null)
-    private val listed = Channel(id = "live:fr-tf1", name = "TF1", hasEpg = true, versions = listOf(fhd, hd), now = programme("Journal", -1200, 1800), next = programme("Film", 1800, 9000))
+    private val fhd = Fixtures.variant("fhd", "VF", Quality.FHD)
+    private val hd = Fixtures.variant("hd", "VF", Quality.HD).copy(hasEpg = true, now = programme("Journal HD", -600, 1200), next = null)
+    private val listed = Channel(id = "live:fr-tf1", name = "TF1", hasEpg = true, variants = listOf(fhd, hd), now = programme("Journal", -1200, 1800), next = programme("Film", 1800, 9000))
 
     @Test
-    fun `le guide est celui de la version quand elle en a un, sinon celui de la chaîne`() {
+    fun `le guide est celui de la variante quand elle en a un, sinon celui de la chaîne`() {
         assertEquals("Journal", LiveGuide.guide(listed, fhd).now?.title)
         assertEquals("Journal", LiveGuide.guide(listed, null).now?.title)
         assertEquals("Journal HD", LiveGuide.guide(listed, hd).now?.title)

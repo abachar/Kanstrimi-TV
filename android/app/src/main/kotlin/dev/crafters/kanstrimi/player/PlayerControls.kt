@@ -48,10 +48,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.crafters.kanstrimi.R
 import dev.crafters.kanstrimi.app.AppEnvironment
-import dev.crafters.kanstrimi.contract.Language
-import dev.crafters.kanstrimi.contract.SourceLine
+import dev.crafters.kanstrimi.contract.mixLanguages
 import dev.crafters.kanstrimi.ui.LiveTag
 import dev.crafters.kanstrimi.ui.ProgressBar
+import dev.crafters.kanstrimi.ui.VariantLine
 import dev.crafters.kanstrimi.ui.formatHour
 import dev.crafters.kanstrimi.ui.theme.Theme
 import kotlinx.coroutines.delay
@@ -61,7 +61,7 @@ import kotlinx.coroutines.launch
  * The touch controls, laid out like the Apple app's (`PlayerControls+iOS`). At the top: close, Picture-in-Picture.
  * In the middle (films, episodes): −10 s, play/pause, +10 s. At the bottom: the title, the progress, then on the
  * left the buttons that open a panel above them (Épisodes · Similaires · Distribution · Infos) and on the right
- * the Versions, Audio and Sous-titres menus. A panel open hides the title and the progress.
+ * the Variantes, Audio and Sous-titres menus. A panel open hides the title and the progress.
  */
 @Composable
 fun PlayerControls(
@@ -238,7 +238,7 @@ private fun Buttons(player: PlayerService, panel: BarPanel?, onPanel: (BarPanel?
                 Chip(p.title, selected) { onPanel(if (selected) null else p); onActivity() }
             }
         }
-        if (player.offersVersions) VersionsMenu(player, onActivity)
+        if (player.offersVariants) VariantsMenu(player, onActivity)
         if (player.offersAudio) TracksMenu(player, audio = true, onActivity)
         if (player.offersSubtitles) TracksMenu(player, audio = false, onActivity)
     }
@@ -255,27 +255,22 @@ private fun Chip(title: String, selected: Boolean, onClick: () -> Unit) {
     )
 }
 
-/**
- * The Versions menu: one section per provider in the order of preference, one line per copy (« FR · 4K DV · LIGHT »),
- * the one playing checked; a channel's lines carry its chips.
- */
+/** The Variantes menu: the title's variants in the server's order, one line each (`VariantLine`), the one playing checked. */
 @Composable
-private fun VersionsMenu(player: PlayerService, onActivity: () -> Unit) {
+private fun VariantsMenu(player: PlayerService, onActivity: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        RoundIcon(painterResource(R.drawable.ic_layers), "Versions") { open = true; onActivity() }
+        RoundIcon(painterResource(R.drawable.ic_layers), "Variantes") { open = true; onActivity() }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            SourceLine.grouped(player.context?.versions.orEmpty()).forEach { (provider, lines) ->
-                Text(provider ?: "Versions", style = MaterialTheme.typography.labelMedium, color = Theme.secondary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                lines.forEach { line ->
-                    val v = line.version
-                    val current = v.id == player.version?.id && (line.source == null || line.source.id == player.source?.id)
-                    DropdownMenuItem(
-                        text = { Text(v.chip?.let { listOfNotNull(it, line.source?.distinction).joinToString(" · ") } ?: line.text) },
-                        leadingIcon = { if (current) Icon(Icons.Filled.Check, contentDescription = null) else Spacer(modifier = Modifier.width(24.dp)) },
-                        onClick = { open = false; player.switchVersion(v, line.source); onActivity() },
-                    )
-                }
+            val variants = player.context?.variants.orEmpty().filter { it.isPlayable }
+            val amongLanguages = variants.mixLanguages
+            Text("Variantes", style = MaterialTheme.typography.labelMedium, color = Theme.secondary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            variants.forEach { v ->
+                DropdownMenuItem(
+                    text = { VariantLine(v, amongLanguages, modifier = Modifier.padding(vertical = 6.dp)) },
+                    leadingIcon = { if (v.id == player.variant?.id) Icon(Icons.Filled.Check, contentDescription = null) else Spacer(modifier = Modifier.width(24.dp)) },
+                    onClick = { open = false; player.switchVariant(v); onActivity() },
+                )
             }
         }
     }

@@ -86,83 +86,50 @@ object Language {
     }
 }
 
+/** `rank`: the provider's place in the admin's order of preference, 1 first: it orders the variants of a same quality. */
 @Serializable
-/** `rank`: the provider's place in the admin's order of preference, 1 first: the menus group the sources by it. */
 data class Provider(val id: String, val name: String, val kind: String, val rank: Int)
 
 /**
- * A copy of a version at one provider. `label` is what the app shows for it, written by the server (« iPTVisions »,
- * « iPTVisions · LIGHT »); `distinction` the part after the provider's name, null for a lone copy; `origin` the
- * provider's category, for the admin.
+ * One stream of one provider, as the app lists and plays it: a title has as many as its providers list it. The server
+ * sends them in the order the app shows them and tries them: the profile's languages in its order, the usual cut
+ * before an edition, descending quality then dynamic range, the providers in the order of preference.
+ * `badge` « 4K DV » and `label` « FR · 4K DV · Version longue » are written by the server; `name` and `category` are
+ * the provider's own words, what tells five « FHD » apart. `edition`: a cut other than the theatrical one, absent for
+ * the usual cut. `streamUrl`: null for a series' own variants (its sheet), which name its streams and play nothing.
+ * Live: `chip` « FHD », or « FHD/EN » when the channel mixes languages; `hasEpg`, `now`, `next` when this variant's
+ * guide is not the channel's.
  */
 @Serializable
-data class Source(
-    val id: String,
-    val container: String,
-    @SerialName("stream_url") val streamUrl: String,
-    val provider: Provider,
-    val origin: String? = null,
-    val distinction: String? = null,
-    val label: String,
-)
-
-/**
- * `edition`: a cut other than the theatrical one, absent for the usual cut. Live: `hasEpg`, `now`, `next` when this
- * quality's guide is not the channel's; `chip`: the version's chip, « FHD », or « FHD/EN » when the channel mixes languages.
- */
-@Serializable
-data class Version(
+data class Variant(
     val id: String,
     val language: String,
     val quality: Quality,
-    val chip: String? = null,
     @SerialName("dynamic_range") val dynamicRange: DynamicRange? = null,
     val edition: String? = null,
-    val sources: List<Source> = emptyList(),
+    val badge: String,
+    val label: String,
+    val provider: Provider,
+    val name: String,
+    val category: String? = null,
+    val container: String,
+    @SerialName("stream_url") val streamUrl: String? = null,
+    val chip: String? = null,
     @SerialName("has_epg") val hasEpg: Boolean? = null,
     val now: Programme? = null,
     val next: Programme? = null,
 ) {
-    /** « FR · 4K DV », « VOSTF · FHD · Version longue ». */
-    val label: String
-        get() = listOfNotNull(Language.short(language), qualityLabel, edition).joinToString(" · ")
-    val qualityLabel: String
-        get() = dynamicRange?.let { "${quality.label} ${it.label}" } ?: quality.label
+    val isPlayable: Boolean get() = streamUrl != null
 
-    /** The line of one copy under its provider: the version, then what tells the copy from the provider's others. */
-    fun line(source: Source?): String = listOfNotNull(label, source?.distinction).joinToString(" · ")
+    /** The second line of a variant in a list: whose stream it is, in the provider's words. */
+    val stream: String get() = "${provider.name} · $name"
+
+    /** The first line of a variant in a list: its label when the list mixes languages, else its quality and its cut. */
+    fun title(amongLanguages: Boolean): String = if (amongLanguages) label else listOfNotNull(badge, edition).joinToString(" · ")
 }
 
-/**
- * A copy of a version at one provider, as the menus list them: by provider in the order of preference, then by the
- * version (descending quality, the profile's languages, the usual cut first) and what tells the copies apart.
- * `source` is null for a series, whose versions name no source: one line per version then.
- */
-data class SourceLine(val version: Version, val source: Source?) {
-    val text: String get() = version.line(source)
-
-    companion object {
-        /** The lines of these versions grouped by provider (null for lines without a source), in the order of preference. */
-        fun grouped(versions: List<Version>): List<Pair<String?, List<SourceLine>>> {
-            val languages = versions.map { it.language }.distinct()
-            val lines = versions.flatMap { v -> if (v.sources.isEmpty()) listOf(SourceLine(v, null)) else v.sources.map { SourceLine(v, it) } }
-                .sortedWith(
-                    compareBy<SourceLine> { it.source?.provider?.rank ?: Int.MAX_VALUE }
-                        .thenByDescending { it.version.quality }
-                        .thenByDescending { it.version.dynamicRange?.ordinal ?: -1 }
-                        .thenBy { languages.indexOf(it.version.language) }
-                        .thenBy { if (it.version.edition == null) 0 else 1 }
-                        .thenBy { it.source?.distinction ?: "" },
-                )
-            val groups = mutableListOf<Pair<String?, MutableList<SourceLine>>>()
-            for (line in lines) {
-                val name = line.source?.provider?.name
-                if (groups.lastOrNull()?.first == name && groups.isNotEmpty()) groups.last().second.add(line) else groups.add(name to mutableListOf(line))
-            }
-            return groups
-        }
-    }
-}
+/** Whether these variants come in more than one language: their lines then say it. */
+val List<Variant>.mixLanguages: Boolean get() = distinctBy { it.language }.size > 1
 
 /** `resumable`: between 5 % and « Vu », decided by the server: the app offers « Reprendre » on it and compares no threshold. */
 @Serializable
@@ -190,24 +157,26 @@ data class Episode(
     val runtime: Int? = null,
     val still: String? = null,
     @SerialName("air_date") val airDate: String? = null,
-    val versions: List<Version> = emptyList(),
+    val variants: List<Variant> = emptyList(),
     val progress: Progress? = null,
     /** What its card and its row draw: the still, the progress, « vu », `facts`, `badges`, `overview`, `hint`. */
     val item: ContentItem,
 ) {
-    val languages: List<String> get() = versions.map { it.language }.distinct()
+    val languages: List<String> get() = variants.map { it.language }.distinct()
 }
 
 @Serializable
 data class Season(val number: Int, val title: String? = null, val year: Int? = null, val episodes: List<Episode> = emptyList())
 
 /**
- * The version the profile chose for a title, as the server keeps it (`PUT /playback/{id}/version`): a movie or a
- * channel starts on `id` when it is still listed; a series' choice (made on any episode) is the language × quality ×
- * dynamic range × edition applied to every episode, falling back to the same language. `label` « FR · 4K DV ».
+ * The variant the profile chose for a title, as the server keeps it (`PUT /playback/{id}/variant`). `id` is that
+ * variant among the ones served beside it: a movie or a channel starts on it; a series' choice (made on any episode)
+ * names the series' variant on its sheet and, on an episode, this episode's variant under the same stream. When `id`
+ * is not listed, the app plays the closest: the same language × quality × dynamic range × edition, else the same
+ * language. `label` « FR · 4K DV ».
  */
 @Serializable
-data class RememberedVersion(
+data class RememberedVariant(
     val id: String,
     val language: String,
     val quality: Quality,
@@ -216,8 +185,8 @@ data class RememberedVersion(
     val label: String,
 ) {
     companion object {
-        /** What the app remembers of a version it just chose, before the server says it back. */
-        fun of(v: Version): RememberedVersion = RememberedVersion(v.id, v.language, v.quality, v.dynamicRange, v.edition, v.label)
+        /** What the app remembers of a variant it just chose, before the server says it back. */
+        fun of(v: Variant): RememberedVariant = RememberedVariant(v.id, v.language, v.quality, v.dynamicRange, v.edition, v.label)
     }
 }
 
@@ -252,9 +221,9 @@ data class Card(
     @SerialName("has_tmdb") val hasTmdb: Boolean? = null,
     @SerialName("provider_category") val providerCategory: String? = null,
     @SerialName("raw_title") val rawTitle: String? = null,
-    val versions: List<Version> = emptyList(),
-    /** The version this profile chose for the title (a series: for every episode), as the server keeps it. */
-    val remembered: RememberedVersion? = null,
+    val variants: List<Variant> = emptyList(),
+    /** The variant this profile chose for the title (a series: for every episode), as the server keeps it. */
+    val remembered: RememberedVariant? = null,
     @SerialName("is_favorite") val isFavorite: Boolean? = null,
     val seasons: List<Season>? = null,
     @SerialName("current_episode") val currentEpisode: EpisodeRef? = null,
@@ -356,15 +325,17 @@ data class Channel(
     /** Sent for every listed channel; null for a channel built from a card (the home), whose guide is unknown until its detail. */
     @SerialName("has_epg") val hasEpg: Boolean? = null,
     @SerialName("is_favorite") val isFavorite: Boolean = false,
-    val versions: List<Version> = emptyList(),
+    val variants: List<Variant> = emptyList(),
+    /** The qualities the channel comes in, the best first, one chip each (« 4K », « FHD »); a variant's `chip` says which one it is. */
+    val chips: List<String> = emptyList(),
     val now: Programme? = null,
     val next: Programme? = null,
     /** 1 = the most watched over the last 30 days (« Les plus regardées », 10 channels at most); absent otherwise. */
     @SerialName("watched_rank") val watchedRank: Int? = null,
     /** 1 = the channel this profile watched last (« Récentes », 20 at most); absent otherwise. */
     @SerialName("recent_rank") val recentRank: Int? = null,
-    /** The version this profile chose for the channel, as the server keeps it. */
-    val remembered: RememberedVersion? = null,
+    /** The variant this profile chose for the channel, as the server keeps it. */
+    val remembered: RememberedVariant? = null,
 ) {
     /** What a channel shows now and next, and whether the guide knows it at all (`hasEpg` null: not said). */
     data class Guide(val now: Programme?, val next: Programme?, val hasEpg: Boolean?) {
@@ -373,9 +344,9 @@ data class Channel(
         }
     }
 
-    /** The guide of that version: its own when the server sent one (each quality may have its own), else the channel's. */
-    fun guide(version: Version?): Guide =
-        if (version?.hasEpg != null) Guide(version.now, version.next, version.hasEpg) else Guide(now, next, hasEpg)
+    /** The guide of that variant: its own when the server sent one (« M6 4K » has its own), else the channel's. */
+    fun guide(variant: Variant?): Guide =
+        if (variant?.hasEpg != null) Guide(variant.now, variant.next, variant.hasEpg) else Guide(now, next, hasEpg)
 }
 
 /** A country (« Maroc », the market name) and a theme (« Sport »); `name` = « Maroc · Sport ». */
@@ -401,7 +372,7 @@ data class HomeRow(val id: String, val kind: HomeRowKind = HomeRowKind.OTHER, va
 
 /**
  * A slide of the home carousel. `item` is what it draws and what Fiche opens; `playId` is what Lecture plays,
- * `versions`, `runtime`, `resumeAt` and `duration` (seconds) being that title's own.
+ * `variants`, `runtime`, `resumeAt` and `duration` (seconds) being that title's own.
  */
 @Serializable
 data class HomeHero(
@@ -410,15 +381,15 @@ data class HomeHero(
     val overview: String? = null,
     val runtime: Int? = null,
     val certification: String? = null,
-    val versions: List<Version> = emptyList(),
+    val variants: List<Variant> = emptyList(),
     @SerialName("play_id") val playId: String,
     val episode: EpisodeRef? = null,
     @SerialName("is_favorite") val isFavorite: Boolean = false,
     @SerialName("play_label") val playLabel: String = "Lecture",
     @SerialName("resume_at") val resumeAt: Double? = null,
     val duration: Double? = null,
-    /** The version this profile chose for the title (the series' for an episode), as the server keeps it. */
-    val remembered: RememberedVersion? = null,
+    /** The variant this profile chose for the title (the series' for an episode), as the server keeps it. */
+    val remembered: RememberedVariant? = null,
 )
 
 @Serializable
@@ -454,14 +425,14 @@ data class NextEpisode(
 /** `/playback/{id}`: on a series id, the episode to play is resolved and named in `episode`. */
 @Serializable
 data class Playback(
-    val versions: List<Version> = emptyList(),
+    val variants: List<Variant> = emptyList(),
     @SerialName("resume_at") val resumeAt: Double? = null,
     val duration: Double? = null,
     val next: NextEpisode? = null,
     val cast: List<Person> = emptyList(),
     val episode: PlaybackEpisode? = null,
-    /** The version this profile chose for the title (the series' for an episode); null when none. */
-    val remembered: RememberedVersion? = null,
+    /** The variant this profile chose for the title (the series' for an episode); null when none. */
+    val remembered: RememberedVariant? = null,
 )
 
 @Serializable
@@ -535,15 +506,15 @@ data class Profile(
 
 /**
  * The playback settings of a profile, kept by the server (Réglages › Lecture, admin › Profils): the quality played by
- * default (this device still caps it), the next episode starting by itself, the version chosen in the picker kept for
- * the title, another source tried when one fails.
+ * default (this device still caps it), the next episode starting by itself, the variant chosen in the picker kept for
+ * the title, another variant of the same language and quality tried when one fails.
  */
 @Serializable
 data class ProfileSettings(
     @SerialName("max_quality") val maxQuality: Quality = Quality.UHD,
     @SerialName("auto_play_next") val autoPlayNext: Boolean = true,
-    @SerialName("remember_versions") val rememberVersions: Boolean = true,
-    @SerialName("switch_source_on_failure") val switchSourceOnFailure: Boolean = true,
+    @SerialName("remember_variants") val rememberVariants: Boolean = true,
+    @SerialName("switch_variant_on_failure") val switchVariantOnFailure: Boolean = true,
 ) {
     companion object {
         val standard = ProfileSettings()
@@ -555,10 +526,10 @@ data class ProfileSettings(
 data class ProfileSettingsPatch(
     @SerialName("max_quality") val maxQuality: Quality? = null,
     @SerialName("auto_play_next") val autoPlayNext: Boolean? = null,
-    @SerialName("remember_versions") val rememberVersions: Boolean? = null,
-    @SerialName("switch_source_on_failure") val switchSourceOnFailure: Boolean? = null,
+    @SerialName("remember_variants") val rememberVariants: Boolean? = null,
+    @SerialName("switch_variant_on_failure") val switchVariantOnFailure: Boolean? = null,
 ) {
-    constructor(s: ProfileSettings) : this(s.maxQuality, s.autoPlayNext, s.rememberVersions, s.switchSourceOnFailure)
+    constructor(s: ProfileSettings) : this(s.maxQuality, s.autoPlayNext, s.rememberVariants, s.switchVariantOnFailure)
 }
 
 @Serializable

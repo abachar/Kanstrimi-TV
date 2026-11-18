@@ -93,130 +93,113 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k-dv",
+    "id": "src-i1322",
     "language": "VF",
     "quality": "4K",
     "dynamic_range": "DV",
-    "sources": [
-     {
-      "id": "src-i1322",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K DV",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K DV",
+    "label": "FR · 4K DV",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Downton Abbey 4K DV",
+    "category": "|FR| FILMS 4K DV",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-4k",
+    "id": "src-ixyr",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ixyr",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-i12e4",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Downton Abbey 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-i12e4",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Downton Abbey 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-ir5z",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ir5z",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| DRAMATIQUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Downton Abbey HD",
+    "category": "|FR| DRAMATIQUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd-version-longue",
+    "id": "src-irgi",
     "language": "VF",
     "quality": "HD",
     "edition": "Version longue",
-    "sources": [
-     {
-      "id": "src-irgi",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VERSION LONGUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD · Version longue",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Downton Abbey HD",
+    "category": "|FR| FILMS VERSION LONGUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-ir4h",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ir4h",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Downton Abbey HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:499701",
@@ -312,107 +295,94 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-isb5",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-isb5",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ixya",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Dora et la Cité perdue 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ixya",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Dora et la Cité perdue 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-iqy8",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iqy8",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FAMILLES ET ENFANTS",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Dora et la Cité perdue HD",
+    "category": "|FR| FAMILLES ET ENFANTS",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-iqxr",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iqxr",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Dora et la Cité perdue HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "ar-hd",
+    "id": "src-i1jdg",
     "language": "AR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i1jdg",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|AR| ARABIC AJNABI",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "AR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Dora et la Cité perdue HD",
+    "category": "|AR| ARABIC AJNABI",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:496243",
@@ -508,107 +478,94 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-irrd",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-irrd",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-irso",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Parasite 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-irso",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Parasite 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-ir4f",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ir4f",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| THRILLER",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Parasite HD",
+    "category": "|FR| THRILLER",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-iq6q",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iq6q",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Parasite HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "ar-hd",
+    "id": "src-i1jd9",
     "language": "AR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i1jd9",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|AR| ARABIC AJNABI",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "AR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Parasite HD",
+    "category": "|AR| ARABIC AJNABI",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:76600",
@@ -704,108 +661,95 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k-dv",
+    "id": "src-iiyn",
     "language": "VF",
     "quality": "4K",
     "dynamic_range": "DV",
-    "sources": [
-     {
-      "id": "src-iiyn",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K DV",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K DV",
+    "label": "FR · 4K DV",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avatar : La Voie de l'eau 4K DV",
+    "category": "|FR| FILMS 4K DV",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-4k",
+    "id": "src-ibaa",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ibaa",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-icyh",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avatar : La Voie de l'eau 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-icyh",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avatar : La Voie de l'eau 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-iixg",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iixg",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| SF ET FANTASTIQUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avatar : La Voie de l'eau HD",
+    "category": "|FR| SF ET FANTASTIQUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-iiyo",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iiyo",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avatar : La Voie de l'eau HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:484247",
@@ -901,108 +845,95 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k-dv",
+    "id": "src-i133a",
     "language": "VF",
     "quality": "4K",
     "dynamic_range": "DV",
-    "sources": [
-     {
-      "id": "src-i133a",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K DV",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K DV",
+    "label": "FR · 4K DV",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'Ombre d'Emily 4K DV",
+    "category": "|FR| FILMS 4K DV",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-4k",
+    "id": "src-ipn5",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ipn5",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-iy77",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'Ombre d'Emily 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-iy77",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'Ombre d'Emily 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-in3i",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-in3i",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| THRILLER",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'Ombre d'Emily HD",
+    "category": "|FR| THRILLER",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "ar-hd",
+    "id": "src-i1j7v",
     "language": "AR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i1j7v",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|AR| ARABIC AJNABI",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "AR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'Ombre d'Emily HD",
+    "category": "|AR| ARABIC AJNABI",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:60304",
@@ -1097,101 +1028,95 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k-dv",
+    "id": "src-i13uc",
     "language": "VF",
     "quality": "4K",
     "dynamic_range": "DV",
-    "sources": [
-     {
-      "id": "src-i13uc",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K DV",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K DV",
+    "label": "FR · 4K DV",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Hansel & Gretel : Witch Hunters 4K DV",
+    "category": "|FR| FILMS 4K DV",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-4k",
+    "id": "src-irte",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-irte",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ivnu",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Hansel & Gretel : Witch Hunters 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ivnu",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Hansel & Gretel : Witch Hunters 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-il03",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-il03",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FANTASTIQUE ET AVENTURE",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-inkl",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| HORREUR ET ÉPOUVANTE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Hansel & Gretel : Witch Hunters HD",
+    "category": "|FR| FANTASTIQUE ET AVENTURE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-inkl",
+    "language": "VF",
+    "quality": "HD",
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Hansel & Gretel : Witch Hunters HD",
+    "category": "|FR| HORREUR ET ÉPOUVANTE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:522212",
@@ -1286,86 +1211,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-itc6",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-itc6",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ixpk",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Voie de la justice 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ixpk",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Voie de la justice 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-irwv",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-irwv",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| HISTORIQUE ET BIOPIC",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Voie de la justice HD",
+    "category": "|FR| HISTORIQUE ET BIOPIC",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-irw3",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-irw3",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Voie de la justice HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:338952",
@@ -1460,94 +1376,78 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k-dv",
+    "id": "src-i13et",
     "language": "VF",
     "quality": "4K",
     "dynamic_range": "DV",
-    "sources": [
-     {
-      "id": "src-i13et",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K DV",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K DV",
+    "label": "FR · 4K DV",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Animaux Fantastiques : Les Crimes de Grindelwald 4K DV",
+    "category": "|FR| FILMS 4K DV",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-4k",
+    "id": "src-ir5c",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ir5c",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Animaux Fantastiques : Les Crimes de Grindelwald 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-inq5",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-inq5",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FANTASTIQUE ET AVENTURE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Animaux Fantastiques : Les Crimes de Grindelwald HD",
+    "category": "|FR| FANTASTIQUE ET AVENTURE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-ini1",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ini1",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Animaux Fantastiques : Les Crimes de Grindelwald HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:495764",
@@ -1641,86 +1541,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-is19",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-is19",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-isxz",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Birds of Prey et la fantabuleuse histoire de Harley Quinn 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-isxz",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Birds of Prey et la fantabuleuse histoire de Harley Quinn 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-irxn",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-irxn",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| MARVEL ET DC COMICS",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Birds of Prey et la fantabuleuse histoire de Harley Quinn HD",
+    "category": "|FR| MARVEL ET DC COMICS",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-irwx",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-irwx",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Birds of Prey et la fantabuleuse histoire de Harley Quinn HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:791373",
@@ -1815,86 +1706,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-iwme",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-iwme",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-iwor",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Zack Snyder's Justice League 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-iwor",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Zack Snyder's Justice League 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-iwm0",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iwm0",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| MARVEL ET DC COMICS",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Zack Snyder's Justice League HD",
+    "category": "|FR| MARVEL ET DC COMICS",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-iwlz",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iwlz",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Zack Snyder's Justice League HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:354912",
@@ -1990,86 +1872,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ir0h",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ir0h",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ivsu",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Coco 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ivsu",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Coco 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-imip",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-imip",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ANIMATION DISNEY",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Coco HD",
+    "category": "|FR| ANIMATION DISNEY",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "ar-hd",
+    "id": "src-i1jd6",
     "language": "AR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i1jd6",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|AR| ARABIC AJNABI",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "AR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Coco HD",
+    "category": "|AR| ARABIC AJNABI",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:299534",
@@ -2164,86 +2037,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-iq3t",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-iq3t",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-isab",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avengers : Endgame 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-isab",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avengers : Endgame 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-iktu",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iktu",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| MARVEL ET DC COMICS",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avengers : Endgame HD",
+    "category": "|FR| MARVEL ET DC COMICS",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-iq3l",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iq3l",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avengers : Endgame HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:331482",
@@ -2337,86 +2201,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-is18",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-is18",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-iyh9",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Filles du docteur March 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-iyh9",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Filles du docteur March 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-irxq",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-irxq",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ROMANCE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Filles du docteur March HD",
+    "category": "|FR| ROMANCE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-irv9",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-irv9",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Filles du docteur March HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:301528",
@@ -2513,94 +2368,78 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k-dv",
+    "id": "src-ihlh",
     "language": "VF",
     "quality": "4K",
     "dynamic_range": "DV",
-    "sources": [
-     {
-      "id": "src-ihlh",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K DV",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K DV",
+    "label": "FR · 4K DV",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Toy Story 4 4K DV",
+    "category": "|FR| FILMS 4K DV",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-4k",
+    "id": "src-ihli",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ihli",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Toy Story 4 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ihlf",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ihlf",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ANIMATION DISNEY",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Toy Story 4 HD",
+    "category": "|FR| ANIMATION DISNEY",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "ar-hd",
+    "id": "src-i1j0r",
     "language": "AR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i1j0r",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|AR| ARABIC KIDS",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "AR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Toy Story 4 HD",
+    "category": "|AR| ARABIC KIDS",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:38757",
@@ -2695,86 +2534,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ir7p",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ir7p",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ivpx",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Raiponce 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ivpx",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Raiponce 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-il8l",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-il8l",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ANIMATION DISNEY",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Raiponce HD",
+    "category": "|FR| ANIMATION DISNEY",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "ar-hd",
+    "id": "src-i1j2z",
     "language": "AR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i1j2z",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|AR| ARABIC KIDS",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "AR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Raiponce HD",
+    "category": "|AR| ARABIC KIDS",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:579047",
@@ -2870,94 +2700,78 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k-dv",
+    "id": "src-i1335",
     "language": "VF",
     "quality": "4K",
     "dynamic_range": "DV",
-    "sources": [
-     {
-      "id": "src-i1335",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K DV",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K DV",
+    "label": "FR · 4K DV",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Reminiscence 4K DV",
+    "category": "|FR| FILMS 4K DV",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-4k",
+    "id": "src-izx2",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-izx2",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Reminiscence 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-izbi",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-izbi",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| SF ET FANTASTIQUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Reminiscence HD",
+    "category": "|FR| SF ET FANTASTIQUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-iz39",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iz39",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Reminiscence HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:582014",
@@ -3052,86 +2866,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ix8d",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ix8d",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-iytb",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Promising Young Woman 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-iytb",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Promising Young Woman 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-iwko",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iwko",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| THRILLER",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Promising Young Woman HD",
+    "category": "|FR| THRILLER",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-ivuh",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ivuh",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Promising Young Woman HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:353081",
@@ -3225,86 +3030,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-issc",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-issc",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Mission : Impossible - Fallout 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-iaxk",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iaxk",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ACTION ET AVENTURE",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-imsp",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ACTION ET AVENTURE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Mission : Impossible - Fallout HD",
+    "category": "|FR| ACTION ET AVENTURE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-imsp",
+    "language": "VF",
+    "quality": "HD",
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Mission : Impossible - Fallout HD",
+    "category": "|FR| ACTION ET AVENTURE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-imnr",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-imnr",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Mission : Impossible - Fallout HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:1072371",
@@ -3399,86 +3195,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ifkk",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ifkk",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ifkl",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Jules 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ifkl",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Jules 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-ifkh",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ifkh",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| SF ET FANTASTIQUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Jules HD",
+    "category": "|FR| SF ET FANTASTIQUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-ihca",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ihca",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Jules HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:552178",
@@ -3572,86 +3359,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ixo4",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ixo4",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-iyhp",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Dark Waters 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-iyhp",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Dark Waters 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-irpg",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-irpg",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| HISTORIQUE ET BIOPIC",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Dark Waters HD",
+    "category": "|FR| HISTORIQUE ET BIOPIC",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-irp4",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-irp4",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Dark Waters HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:549559",
@@ -3746,86 +3524,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ir5v",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ir5v",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-isfg",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Apollo 11 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-isfg",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Apollo 11 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-ir1p",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ir1p",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| DOCUMENTAIRES",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Apollo 11 HD",
+    "category": "|FR| DOCUMENTAIRES",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-ipl3",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ipl3",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| DOCUMENTAIRES",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Apollo 11 HD",
+    "category": "|FR| DOCUMENTAIRES",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:9487",
@@ -3921,86 +3690,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ivsw",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ivsw",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ixy7",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "1001 Pattes 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ixy7",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "1001 Pattes 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-il7l",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-il7l",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ANIMATION DISNEY",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "1001 Pattes HD",
+    "category": "|FR| ANIMATION DISNEY",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "ar-hd",
+    "id": "src-i1in4",
     "language": "AR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i1in4",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|AR| ARABIC KIDS",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "AR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "1001 Pattes HD",
+    "category": "|AR| ARABIC KIDS",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:596161",
@@ -4095,86 +3855,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ixce",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ixce",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-i113b",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'Un des nôtres 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-i113b",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'Un des nôtres 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-ivmu",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ivmu",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| THRILLER",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'Un des nôtres HD",
+    "category": "|FR| THRILLER",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-ivbb",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ivbb",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'Un des nôtres HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:629542",
@@ -4272,86 +4023,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-i1288",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-i1288",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-i12zo",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Bad Guys 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-i12zo",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Bad Guys 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-ihdj",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ihdj",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ANIMATION",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Bad Guys HD",
+    "category": "|FR| ANIMATION",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-i1284",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i1284",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les Bad Guys HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:454467",
@@ -4446,86 +4188,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ir11",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ir11",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ivua",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Noëlle 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ivua",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Noëlle 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-ir0i",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ir0i",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS DE NOEL",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Noëlle HD",
+    "category": "|FR| FILMS DE NOEL",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-iqzr",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iqzr",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS DE NOEL",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Noëlle HD",
+    "category": "|FR| FILMS DE NOEL",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:1196573",
@@ -4620,86 +4353,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ib3t",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ib3t",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ibim",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Place du mort 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ibim",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Place du mort 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-ibk0",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ibk0",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ACTION ET AVENTURE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Place du mort HD",
+    "category": "|FR| ACTION ET AVENTURE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-ic8q",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ic8q",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Place du mort HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:661595",
@@ -4793,86 +4517,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-i117t",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-i117t",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-i11f9",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Yakuza Princess 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-i11f9",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Yakuza Princess 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-i1151",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i1151",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ACTION ET AVENTURE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Yakuza Princess HD",
+    "category": "|FR| ACTION ET AVENTURE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-izbq",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-izbq",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Yakuza Princess HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:531219",
@@ -4968,86 +4683,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ivmx",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ivmx",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ix8v",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Sacrées Sorcières 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ix8v",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Sacrées Sorcières 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-iicy",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iicy",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FAMILLES ET ENFANTS",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Sacrées Sorcières HD",
+    "category": "|FR| FAMILLES ET ENFANTS",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-iuvh",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iuvh",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Sacrées Sorcières HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:585244",
@@ -5142,86 +4848,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-ivoe",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-ivoe",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ixfv",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "J'y crois encore 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-ixfv",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "J'y crois encore 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-it80",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-it80",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| DRAMATIQUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "J'y crois encore HD",
+    "category": "|FR| DRAMATIQUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-is9l",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-is9l",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "J'y crois encore HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:1244531",
@@ -5317,86 +5014,77 @@
   "provider_category": null,
   "raw_title": null,
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-iar2",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-iar2",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K LIGHT",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-iar3",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Terreur en haute mer 4K",
+    "category": "|FR| FILMS 4K LIGHT",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-iar3",
+    "language": "VF",
+    "quality": "4K",
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Terreur en haute mer 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-iaek",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iaek",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| HORREUR ET ÉPOUVANTE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Terreur en haute mer HD",
+    "category": "|FR| HORREUR ET ÉPOUVANTE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vostfr-hd",
+    "id": "src-iby8",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iby8",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS VOST",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Terreur en haute mer HD",
+    "category": "|FR| FILMS VOST",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:801495",
@@ -5427,30 +5115,26 @@
   "raw_title": null,
   "max_quality": "HD",
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-hd",
+    "id": "src-iwgg",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iwgg",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| DOCUMENTAIRES",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Capital - Résumé de Capital : Complément de revenus : comment arrondir ses fins de mois sans piège ? HD",
+    "category": "|FR| DOCUMENTAIRES",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:660574",
@@ -5488,30 +5172,26 @@
   "raw_title": null,
   "max_quality": "HD",
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-hd",
+    "id": "src-iczx",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iczx",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| DOCUMENTAIRES",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Mémoires tsiganes, l'autre génocide: Les Tsiganes dans l'Europe de la Seconde Guerre mondiale HD",
+    "category": "|FR| DOCUMENTAIRES",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:444702",
@@ -5543,30 +5223,26 @@
   "raw_title": null,
   "max_quality": "HD",
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vostfr-hd",
+    "id": "src-iinr",
     "language": "VOSTFR",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iinr",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| DOCUMENTAIRES",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "VOSTF · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Les abris souterrains de la Grande Guerre - la ville secrète de la Première Guerre Mondiale HD",
+    "category": "|FR| DOCUMENTAIRES",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:11624",
@@ -5658,30 +5334,26 @@
   "raw_title": null,
   "max_quality": "HD",
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-hd",
+    "id": "src-iyg4",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iyg4",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS ANCIENS",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Tout ce que vous avez toujours voulu savoir sur le sexe… sans jamais oser le demander HD",
+    "category": "|FR| FILMS ANCIENS",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "tmdb:movie:260340",
@@ -5749,30 +5421,26 @@
   "raw_title": null,
   "max_quality": "HD",
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-hd",
+    "id": "src-i10t4",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i10t4",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| ANIMATION DISNEY",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Contes et légendes, Volume 3 : Donald au Pays des Mathémagiques et autres contes... HD",
+    "category": "|FR| ANIMATION DISNEY",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "fallback:movie:avant-charlie-brown-il-y-avait-schulz:-",
@@ -5801,51 +5469,43 @@
   "provider_category": "|FR| FILMS 4K UHD",
   "raw_title": "|FR| Avant Charlie Brown, il y avait Schulz. (UHD)",
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-4k",
+    "id": "src-iysl",
     "language": "VF",
     "quality": "4K",
-    "sources": [
-     {
-      "id": "src-iysl",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| FILMS 4K UHD",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "4K",
+    "label": "FR · 4K",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avant Charlie Brown, il y avait Schulz. 4K",
+    "category": "|FR| FILMS 4K UHD",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    },
    {
-    "id": "vf-hd",
+    "id": "src-iyo5",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-iyo5",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| DOCUMENTAIRES",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Avant Charlie Brown, il y avait Schulz. HD",
+    "category": "|FR| DOCUMENTAIRES",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "fallback:movie:halo-4-forward-unto-dawn:-",
@@ -5874,44 +5534,43 @@
   "raw_title": "|FR| Halo 4 Forward Unto Dawn",
   "max_quality": "HD",
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-hd",
+    "id": "src-imsh",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-imsh",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| SF ET FANTASTIQUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-iwf4",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| SF ET FANTASTIQUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Halo 4 Forward Unto Dawn HD",
+    "category": "|FR| SF ET FANTASTIQUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-iwf4",
+    "language": "VF",
+    "quality": "HD",
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "Halo 4 Forward Unto Dawn HD",
+    "category": "|FR| SF ET FANTASTIQUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "fallback:movie:l-experience-messmer:-",
@@ -5940,44 +5599,43 @@
   "raw_title": "|FR| L'expérience Messmer | Partie 1",
   "max_quality": "HD",
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-hd",
+    "id": "src-i11tx",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-i11tx",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| SPECTACLE",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-i11ty",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| SPECTACLE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'expérience Messmer HD",
+    "category": "|FR| SPECTACLE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-i11ty",
+    "language": "VF",
+    "quality": "HD",
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "L'expérience Messmer HD",
+    "category": "|FR| SPECTACLE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  },
  {
   "id": "fallback:movie:la-belle-etincelle:-",
@@ -6006,43 +5664,42 @@
   "raw_title": "|FR| La Belle Étincelle | Partie 2",
   "max_quality": "HD",
   "progress": null,
-  "versions": [
+  "is_favorite": false,
+  "variants": [
    {
-    "id": "vf-hd",
+    "id": "src-ih4t",
     "language": "VF",
     "quality": "HD",
-    "sources": [
-     {
-      "id": "src-ih4t",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| COMÉDIE DRAMATIQUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     },
-     {
-      "id": "src-ih5s",
-      "container": "MKV",
-      "stream_url": "demo://movie",
-      "provider": {
-       "id": "xtream",
-       "name": "Fournisseur",
-       "kind": "xtream",
-       "rank": 1
-      },
-      "origin": "|FR| COMÉDIE DRAMATIQUE",
-      "distinction": null,
-      "label": "Fournisseur"
-     }
-    ]
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Belle Étincelle HD",
+    "category": "|FR| COMÉDIE DRAMATIQUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
+   },
+   {
+    "id": "src-ih5s",
+    "language": "VF",
+    "quality": "HD",
+    "badge": "HD",
+    "label": "FR · HD",
+    "provider": {
+     "id": "xtream",
+     "name": "Fournisseur",
+     "kind": "xtream",
+     "rank": 1
+    },
+    "name": "La Belle Étincelle HD",
+    "category": "|FR| COMÉDIE DRAMATIQUE",
+    "container": "MKV",
+    "stream_url": "demo://movie"
    }
-  ],
-  "is_favorite": false
+  ]
  }
 ]

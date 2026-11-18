@@ -109,7 +109,7 @@ nonisolated struct Metrics: Sendable {
     var showsQR: Bool
     var codeCell: CGFloat
     var pairingColumn: CGFloat?
-    /// Player chrome: panel padding, version card width, channel list width, recent
+    /// Player chrome: panel padding, variant card width, channel list width, recent
     /// channel card width, dialog title size and width, next-episode card width, dialog margin.
     var panelPadding: CGFloat
     var panelCard: CGFloat
@@ -119,7 +119,7 @@ nonisolated struct Metrics: Sendable {
     var dialogWidth: CGFloat
     var nextCard: CGFloat
     var dialogMargin: CGFloat
-    /// Version picker: fixed width of the floating panel on TV, nil = the sheet's width on iOS.
+    /// Variant picker: fixed width of the floating panel on TV, nil = the sheet's width on iOS.
     var pickerWidth: CGFloat?
     /// Diameter of a round icon button (detail sheet), the height of the play button beside it.
     var iconButton: CGFloat
@@ -393,7 +393,7 @@ extension View {
         }
     }
 
-    /// A secondary screen (version picker): full screen on tvOS, a sheet on iOS.
+    /// A secondary screen (variant picker): full screen on tvOS, a sheet on iOS.
     @ViewBuilder func platformSheet<Item: Identifiable, Content: View>(item: Binding<Item?>, @ViewBuilder content: @escaping (Item) -> Content) -> some View {
         #if os(tvOS)
         fullScreenCover(item: item, content: content)

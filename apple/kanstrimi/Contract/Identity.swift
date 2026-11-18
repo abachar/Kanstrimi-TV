@@ -42,7 +42,7 @@ nonisolated enum ContentKind: String, Codable, Sendable, CaseIterable {
     }
 }
 
-/// Audio language of a version: VF, VOSTFR, VO or a raw language code.
+/// Audio language of a variant: VF, VOSTFR, VO or a raw language code.
 nonisolated struct Language: RawRepresentable, Hashable, Codable, Sendable, Comparable {
     let rawValue: String
     init(rawValue: String) { self.rawValue = rawValue.uppercased() }

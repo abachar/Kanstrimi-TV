@@ -67,7 +67,7 @@ nonisolated struct ListQuery: Hashable, Sendable {
     }
 
     var hasFilters: Bool { language != nil || minQuality != nil || dynamicRange != nil || vfAvailable }
-    /// The same list without the version filters, back on its default order.
+    /// The same list without the variant filters, back on its default order.
     var cleared: ListQuery { var q = ListQuery(kind: kind, genre: genre); q.studio = studio; return q }
 }
 
@@ -117,8 +117,8 @@ protocol CatalogClient: AnyObject {
     /// `GET /channels/{id}`: one channel with `now` and `next`.
     func channel(id: ContentID) async throws -> Channel
     /// `GET /channels/{id}/programmes`: the programme on air, then the following ones until 6:00.
-    /// In the guide of that version (each quality may have its own), the channel's without one.
-    func programmes(channel id: ContentID, version: String?) async throws -> [Programme]
+    /// In the guide of that variant (each quality may have its own), the channel's without one.
+    func programmes(channel id: ContentID, variant: String?) async throws -> [Programme]
 
     // Playback
     /// `GET /playback/{id}`: movie, episode or channel.
@@ -135,10 +135,10 @@ protocol CatalogClient: AnyObject {
     func removeFromResume(id: ContentID) async throws
     /// `PUT /playback/{id}/watched`: a movie or an episode; on a series id with `season`, that whole season.
     func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws
-    /// `PUT /playback/{id}/version`: the version chosen for the title (an episode's: for the whole series).
-    func rememberVersion(id: ContentID, _ versionID: String) async throws
-    /// `DELETE /playback/{id}/version`: the title starts on the best version again.
-    func forgetVersion(id: ContentID) async throws
+    /// `PUT /playback/{id}/variant`: the variant chosen for the title (an episode's: for the whole series).
+    func rememberVariant(id: ContentID, _ variantID: String) async throws
+    /// `DELETE /playback/{id}/variant`: the title starts on the best variant again.
+    func forgetVariant(id: ContentID) async throws
 
     // Search and favourites
     /// `GET /search?q=`: films, series and channels at once.

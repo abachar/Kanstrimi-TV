@@ -7,8 +7,8 @@ import OSLog
 
 private let log = Logger(subsystem: "dev.crafters.kanstrimi", category: "player")
 
-/// The one player of the app. Wraps AetherEngine, owns the playback context, the version and
-/// source in use, the automatic source switch, the failure dialog and the next-episode countdown.
+/// The one player of the app. Wraps AetherEngine, owns the playback context, the variant in use, the
+/// automatic switch to an equivalent one, the failure dialog and the next-episode countdown.
 @Observable
 final class PlayerService {
     enum Phase: Equatable {
@@ -35,8 +35,7 @@ final class PlayerService {
     // MARK: - Public state
 
     private(set) var context: PlaybackContext?
-    private(set) var version: Version?
-    private(set) var source: Source?
+    private(set) var variant: Variant?
     private(set) var phase: Phase = .idle
     private(set) var time: TimeInterval = 0
     private(set) var duration: TimeInterval = 0
@@ -90,7 +89,7 @@ final class PlayerService {
 
     private let client: CatalogClient
     private let preferences: Preferences
-    private let failedSources: FailedSourcesStore
+    private let failedVariants: FailedVariantsStore
     private let reporter: PlaybackReporter
     /// The engine and its surface, shared with the Direct preview's way of playing. Kept by the service: the surface
     /// outlives the player screen, which hides while Picture-in-Picture runs.
@@ -102,7 +101,7 @@ final class PlayerService {
     var videoView: AetherPlayerView { core.videoView }
     let pictureInPicture = PictureInPicture()
     private let nowPlaying = NowPlaying()
-    private let capabilities: VersionChooser.Capabilities
+    private let capabilities: VariantChooser.Capabilities
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
     private var startAttempts = 0
@@ -162,14 +161,14 @@ final class PlayerService {
     /// Fast forward / rewind speeds, one more level every 2 s of hold.
     static let scanRates: [TimeInterval] = [10, 30, 60, 120, 300]
 
-    init(client: CatalogClient, preferences: Preferences, failedSources: FailedSourcesStore, progressQueue: ProgressQueue,
-         capabilities: VersionChooser.Capabilities = .current, playback: (any PlaybackEngine)? = nil) {
+    init(client: CatalogClient, preferences: Preferences, failedVariants: FailedVariantsStore, progressQueue: ProgressQueue,
+         capabilities: VariantChooser.Capabilities = .current, playback: (any PlaybackEngine)? = nil) {
         let core = PlayerCore(ownsAudioSession: true)
         self.core = core
         self.playback = playback ?? core
         self.client = client
         self.preferences = preferences
-        self.failedSources = failedSources
+        self.failedVariants = failedVariants
         self.reporter = PlaybackReporter(client: client, queue: progressQueue)
         self.capabilities = capabilities
         observeEngine()
@@ -178,46 +177,46 @@ final class PlayerService {
     /// The profile's playback settings, as the server last said them.
     var settings: ProfileSettings { preferences.profileSettings }
 
-    var chooser: VersionChooser {
-        VersionChooser(languageOrder: [], maxQuality: settings.maxQuality, capabilities: capabilities,
-                       isSourceFailed: { [failedSources] in failedSources.isFailed($0) })
+    var chooser: VariantChooser {
+        VariantChooser(languageOrder: [], maxQuality: settings.maxQuality, capabilities: capabilities,
+                       isFailed: { [failedVariants] in failedVariants.isFailed($0) })
     }
 
-    /// The versions chosen on this device since launch, by the title they are kept under (a series for its episodes),
+    /// The variants chosen on this device since launch, by the title they are kept under (a series for its episodes),
     /// ahead of what the server served: a choice applies at once, before the lists are fetched again. nil = forgotten.
-    private(set) var chosenVersions: [ContentID: RememberedVersion?] = [:]
+    private(set) var chosenVariants: [ContentID: RememberedVariant?] = [:]
 
-    /// The version the profile chose for a title: the one chosen here since launch, else the server's.
-    func remembered(_ served: RememberedVersion?, for id: ContentID) -> RememberedVersion? {
-        if let local = chosenVersions[id] { return local }
+    /// The variant the profile chose for a title: the one chosen here since launch, else the server's.
+    func remembered(_ served: RememberedVariant?, for id: ContentID) -> RememberedVariant? {
+        if let local = chosenVariants[id] { return local }
         return served
     }
 
-    /// The version a title or a channel starts in (`VersionChooser.start`): « TF1 » switched to FHD reopens,
+    /// The variant a title or a channel starts in (`VariantChooser.choose`): « TF1 » switched to FHD reopens,
     /// previews and shows its guide in FHD. `remembered`: what the server served for the title.
-    func startChoice(_ id: ContentID, versions: [Version], remembered: RememberedVersion?) -> VersionChooser.Choice? {
-        chooser.start(versions: versions, remembered: self.remembered(remembered, for: id))
+    func startChoice(_ id: ContentID, variants: [Variant], remembered: RememberedVariant?) -> VariantChooser.Choice? {
+        chooser.choose(from: variants, remembered: self.remembered(remembered, for: id))
     }
 
-    /// Keeps `version` for the title (the series for an episode), here and on the server; nothing when the setting is off.
-    func remember(_ version: Version, for id: ContentID) {
-        guard settings.rememberVersions else { return }
-        chosenVersions[id] = RememberedVersion(version)
-        Task { [client] in try? await client.rememberVersion(id: id, version.id) }
+    /// Keeps `variant` for the title (the series for an episode), here and on the server; nothing when the setting is off.
+    func remember(_ variant: Variant, for id: ContentID) {
+        guard settings.rememberVariants else { return }
+        chosenVariants[id] = RememberedVariant(variant)
+        Task { [client] in try? await client.rememberVariant(id: id, variant.id) }
     }
 
-    /// The title starts on the best version again, here and on the server.
-    func forgetVersion(for id: ContentID) {
-        chosenVersions[id] = .some(nil)
-        Task { [client] in try? await client.forgetVersion(id: id) }
+    /// The title starts on the best variant again, here and on the server.
+    func forgetVariant(for id: ContentID) {
+        chosenVariants[id] = .some(nil)
+        Task { [client] in try? await client.forgetVariant(id: id) }
     }
 
     // MARK: - Entry points
 
-    /// Chooses the version with the engine and starts. Called by every "Lecture".
+    /// Chooses the variant with the engine and starts. Called by every "Lecture".
     func play(_ context: PlaybackContext) {
-        guard let choice = startChoice(context.rememberID, versions: context.versions, remembered: context.remembered) else { return }
-        start(context, version: choice.version, source: choice.source, at: context.resumeAt)
+        guard let choice = startChoice(context.rememberID, variants: context.variants, remembered: context.remembered) else { return }
+        start(context, variant: choice.variant, at: context.resumeAt)
     }
 
     /// Plays what a panel asked for once it is loaded; false when it was not played: nothing came back, or the
@@ -242,13 +241,11 @@ final class PlayerService {
         if let card { titleCard = card } else { titleCardFailed = true; titleCardID = nil }
     }
 
-    /// Plays an explicit version (picker, panel). Keeps the position when already playing the same content.
-    func play(_ context: PlaybackContext, version: Version, source: Source? = nil) {
-        let src = source ?? chooser.bestSource(of: version) ?? version.sources.first
-        guard let src else { return }
+    /// Plays an explicit variant (picker, panel). Keeps the position when already playing the same content.
+    func play(_ context: PlaybackContext, variant: Variant) {
         let samePlayback = self.context?.content.id == context.content.id && phase != .idle
         let at = samePlayback ? time : context.resumeAt
-        start(context, version: version, source: src, at: at)
+        start(context, variant: variant, at: at)
     }
 
     /// Live: play a channel out of an ordered list.
@@ -259,7 +256,7 @@ final class PlayerService {
         epg = .empty
         liveResets = 0
         let ctx = PlaybackContext(content: PlaybackContent(id: channel.id, kind: .live, title: channel.name, subtitle: nil, episode: nil, backdrop: nil),
-                                  versions: channel.versions, remembered: channel.remembered)
+                                  variants: channel.variants, remembered: channel.remembered)
         play(ctx)
         Task { [weak self] in
             guard let self else { return }
@@ -282,7 +279,7 @@ final class PlayerService {
         cancelTimers()
         restartTask?.cancel(); restartTask = nil
         playback.stop()
-        context = nil; version = nil; source = nil; channel = nil; channels = []
+        context = nil; variant = nil; channel = nil; channels = []
         phase = .idle; time = 0; duration = 0; isMinimized = false
         failure = nil; toast = nil; nextCountdown = nil; nextContext = nil; nextTriggered = false
         suggestions = nil; suggestionsTask?.cancel(); isChangingTitle = false
@@ -294,10 +291,10 @@ final class PlayerService {
         nowPlaying.clear()
     }
 
-    /// The guide of the version playing: each quality may have its own (« M6 4K »), else the channel's.
+    /// The guide of the variant playing: each quality may have its own (« M6 4K »), else the channel's.
     private func showGuide() {
         guard let channelDetail, channelDetail.id == channel?.id else { return }
-        let guide = channelDetail.guide(for: version)
+        let guide = channelDetail.guide(for: variant)
         epg = guide
         nowPlaying.update()
     }
@@ -311,8 +308,8 @@ final class PlayerService {
         case .paused: playback.play()
         // `.ended` is terminal for the engine: playing again is a new load from the start.
         case .ended:
-            guard let context, let version, let source else { return }
-            start(context, version: version, source: source, at: 0)
+            guard let context, let variant else { return }
+            start(context, variant: variant, at: 0)
         default: break
         }
     }
@@ -407,37 +404,38 @@ final class PlayerService {
         try? AVAudioSession.sharedInstance().setActive(true)
     }
 
-    // MARK: - Versions while playing
+    // MARK: - Variants while playing
 
-    /// Switches version, same position, and keeps it for the title (the series for an episode) when the profile's
+    /// Switches variant, same position, and keeps it for the title (the series for an episode) when the profile's
     /// setting says so.
-    func switchVersion(_ v: Version, source: Source? = nil) {
+    func switchVariant(_ v: Variant) {
         guard let context else { return }
         remember(v, for: context.rememberID)
-        play(context, version: v, source: source)
+        play(context, variant: v)
     }
 
-    /// "Réessayer" from the failure dialog: links asked for again, same version, same position.
+    /// "Réessayer" from the failure dialog: links asked for again, the same thing at the same position, by a
+    /// stream that has not just failed when there is one.
     func retryFromServer() {
-        guard let version else { return }
+        guard let variant else { return }
         failure = nil
         liveResets = 0
         startAttempts = 0
-        restartWithFreshLinks(version: version, source: nil)
+        restartWithFreshLinks(variant: variant)
     }
 
-    /// Every other version, the chooser's best first: the failure dialog offers each (tvOS).
-    var alternativeVersions: [Version] {
-        guard let context, let version else { return [] }
-        return chooser.alternatives(to: version, in: context.versions)
+    /// Every other variant, in the server's order: the failure dialog offers each (tvOS).
+    var alternativeVariants: [Variant] {
+        guard let context, let variant else { return [] }
+        return chooser.alternatives(to: variant, in: context.variants)
     }
 
-    /// From the failure dialog: another version, without remembering it as the title's choice.
-    func playInstead(_ v: Version) {
+    /// From the failure dialog: another variant, without remembering it as the title's choice.
+    func playInstead(_ v: Variant) {
         guard let context else { return }
         failure = nil
         startAttempts = 0
-        play(context, version: v)
+        play(context, variant: v)
     }
 
     // MARK: - Next episode
@@ -491,7 +489,8 @@ final class PlayerService {
 
     // MARK: - Start pipeline
 
-    private func start(_ ctx: PlaybackContext, version v: Version, source s: Source, at position: TimeInterval?) {
+    private func start(_ ctx: PlaybackContext, variant v: Variant, at position: TimeInterval?) {
+        guard let url = v.streamURL else { return }
         if context?.content.id != ctx.content.id {
             sendProgress(final: true)
             startAttempts = 0
@@ -505,13 +504,12 @@ final class PlayerService {
         }
         cancelTimers(keepCountdown: true)
         restartTask?.cancel(); restartTask = nil
-        // Another version, another source, the same one again: each start opens a file, its markers asked anew.
+        // Another variant, the same one again: each start opens a file, its markers asked anew.
         forgetMarkers()
         context = ctx
-        let changedVersion = version?.id != v.id
-        version = v
-        if changedVersion, isLive { showGuide() }
-        source = s
+        let changed = variant?.id != v.id
+        variant = v
+        if changed, isLive { showGuide() }
         failure = nil
         phase = .opening
         time = position ?? 0
@@ -525,7 +523,7 @@ final class PlayerService {
 
         let resume = !isLive && (position ?? 0) > 1 ? position : nil
         activateAudioSession()
-        playback.load(s.streamURL, live: isLive, startPosition: resume)
+        playback.load(url, live: isLive, startPosition: resume)
         armStartDeadline()
         armWatchdog()
         startProgressTicker()
@@ -539,13 +537,13 @@ final class PlayerService {
         if isLive, liveWatchedFrom == nil { liveWatchedFrom = .now }
         startAttempts = 0
         startDeadline?.cancel()
-        if let source { failedSources.clear(source.id) }
+        if let variant { failedVariants.clear(variant.id) }
         fetchMarkers()
     }
 
-    /// Once started, a source that keeps rebuffering or stalling while playing is a failed source (next
-    /// source, retry at the same position, then the dialog): the bandwidth at home is not the bottleneck,
-    /// the source is. A source that closes the connection for good ends in `.ended` or `.error` instead,
+    /// Once started, a variant that keeps rebuffering or stalling while playing is a failed one (the next
+    /// equivalent, retry at the same position, then the dialog): the bandwidth at home is not the bottleneck,
+    /// the stream is. One that closes the connection for good ends in `.ended` or `.error` instead,
     /// handled in `handle(enginePhase:)`.
     private func armWatchdog() {
         watchdog?.cancel()
@@ -581,48 +579,48 @@ final class PlayerService {
         }
     }
 
-    /// What follows a failed start or a freeze: the next source, the same one again, or the dialog.
-    nonisolated enum FailureStep: Equatable { case otherSource(Source), sameSource, giveUp }
-    nonisolated static func failureStep(attempts: Int, switchesSources: Bool, nextSource: Source?) -> FailureStep {
-        if switchesSources, let nextSource { return .otherSource(nextSource) }
-        return attempts <= 2 ? .sameSource : .giveUp
+    /// What follows a failed start or a freeze: the next equivalent variant, the same one again, or the dialog.
+    nonisolated enum FailureStep: Equatable { case otherVariant(Variant), sameVariant, giveUp }
+    nonisolated static func failureStep(attempts: Int, switches: Bool, next: Variant?) -> FailureStep {
+        if switches, let next { return .otherVariant(next) }
+        return attempts <= 2 ? .sameVariant : .giveUp
     }
 
-    /// Error or no image after 10 s: switch source, retry twice, then ask. The links held are the provider's own and
+    /// Error or no image after 10 s: switch to an equivalent variant, retry twice, then ask. The links held are the provider's own and
     /// do not expire: a restart reopens them, the provider handing out a fresh token of its own.
     private func handleStreamFailure() {
-        guard restartTask == nil, context != nil, let version, let source else { return }
+        guard restartTask == nil, let context, let variant else { return }
         startAttempts += 1
-        failedSources.markFailed(source.id)
-        switch Self.failureStep(attempts: startAttempts, switchesSources: settings.switchSourceOnFailure,
-                                nextSource: chooser.nextSource(after: source, in: version)) {
-        case .otherSource(let other):
-            showToast("Source changée automatiquement", detail: "\(sourceLabel(source, in: version)) → \(sourceLabel(other, in: version)) · même version \(version.label)")
-            restart(version: version, source: other)
-        case .sameSource:
-            restart(version: version, source: source)
+        failedVariants.markFailed(variant.id)
+        switch Self.failureStep(attempts: startAttempts, switches: settings.switchVariantOnFailure,
+                                next: chooser.next(after: variant, in: context.variants)) {
+        case .otherVariant(let other):
+            showToast("Variante changée automatiquement", detail: "\(variant.provider.name) → \(other.provider.name) · \(variant.label)")
+            restart(variant: other)
+        case .sameVariant:
+            restart(variant: variant)
         case .giveUp:
             presentFailure()
         }
     }
 
-    /// Restarts on the given source at the same position, on the next turn: a failure is noticed inside the engine's
+    /// Restarts on the given variant at the same position, on the next turn: a failure is noticed inside the engine's
     /// own callbacks, which must not be torn down from within.
-    private func restart(version: Version, source: Source) {
+    private func restart(variant: Variant) {
         guard let context else { return }
         let at = time
         restartTask?.cancel()
         restartTask = Task { [weak self] in
             guard let self, !Task.isCancelled, self.context?.content.id == context.content.id else { return }
             restartTask = nil
-            start(context, version: version, source: source, at: at)
+            start(context, variant: variant, at: at)
         }
     }
 
     /// « Réessayer »: asks `/playback` (`/channels/{id}` in live) again, in case the catalogue changed since, then
-    /// restarts on the same version and the given source (nil: the best) at the same position. Offline, the links
+    /// restarts on the same thing (`VariantChooser.retry`) at the same position. Offline, the links
     /// held are tried anyway.
-    private func restartWithFreshLinks(version: Version, source: Source?) {
+    private func restartWithFreshLinks(variant: Variant) {
         guard let context else { return }
         let at = time
         restartTask?.cancel()
@@ -631,17 +629,14 @@ final class PlayerService {
             let fresh = await freshLinks(context) ?? context
             guard !Task.isCancelled, self.context?.content.id == context.content.id else { return }
             restartTask = nil
-            let v = fresh.versions.first { $0.id == version.id } ?? version
-            guard let s = source.flatMap({ s in v.sources.first { $0.id == s.id } }) ?? source ?? chooser.bestSource(of: v) ?? v.sources.first
-            else { return }
-            start(fresh, version: v, source: s, at: at)
+            start(fresh, variant: chooser.retry(of: variant, in: fresh.variants) ?? variant, at: at)
         }
     }
 
     private func freshLinks(_ ctx: PlaybackContext) async -> PlaybackContext? {
         if ctx.content.kind == .live {
             guard let channel = try? await client.channel(id: ctx.content.id) else { return nil }
-            return PlaybackContext(content: ctx.content, versions: channel.versions)
+            return PlaybackContext(content: ctx.content, variants: channel.variants)
         }
         guard let playback = try? await client.playback(id: ctx.content.id) else { return nil }
         return PlaybackContext(content: ctx.content, playback: playback)
@@ -649,7 +644,7 @@ final class PlayerService {
 
     /// Stops and shows the failure dialog.
     private func presentFailure() {
-        guard version != nil, source != nil else { return }
+        guard variant != nil else { return }
         sendWatchTime(final: true)
         cancelTimers(keepCountdown: true)
         playback.stop()
@@ -661,10 +656,10 @@ final class PlayerService {
     /// Live: the source restarted from its beginning (the engine parked the session). Same switch as a
     /// failure, guarded: one restart at a time, `liveResetGap` apart, `maxLiveResets` per channel, then the dialog.
     private func handleLiveSourceReset() {
-        guard isLive, let source, phase != .opening, phase != .idle, phase != .failed else { return }
+        guard isLive, let variant, phase != .opening, phase != .idle, phase != .failed else { return }
         if liveResets >= Self.maxLiveResets {
             log.info("live source reset: limit reached")
-            failedSources.markFailed(source.id)
+            failedVariants.markFailed(variant.id)
             presentFailure()
             return
         }
@@ -685,8 +680,6 @@ final class PlayerService {
         handleStreamFailure()
     }
 
-    /// The server's label of the source (« iPTVisions · LIGHT »); « Source » for one the version no longer lists.
-    func sourceLabel(_ s: Source, in v: Version) -> String { v.sources.contains(s) ? s.label : "Source" }
 
     private func showToast(_ text: String, detail: String?) {
         toast = Toast(text: text, detail: detail)
@@ -705,7 +698,7 @@ final class PlayerService {
         }
     }
 
-    /// What follows `ctx`, ready to play: its versions asked from `/playback`.
+    /// What follows `ctx`, ready to play: its variants asked from `/playback`.
     private func context(for upNext: UpNext, after ctx: PlaybackContext) async -> PlaybackContext? {
         switch upNext {
         case .episode(let next):
@@ -963,8 +956,7 @@ extension PlayerService {
         debugFrame = true
         context = ctx
         self.suggestions = suggestions
-        version = ctx.versions.first
-        source = ctx.versions.first?.sources.first
+        variant = ctx.variants.first
         duration = ctx.duration ?? 7620
         time = ctx.resumeAt ?? 4368
         audioTracks = [Track(id: "1", name: "Français (AC3 5.1)", language: "fr", isSelected: true), Track(id: "2", name: "English", language: "en", isSelected: false)]

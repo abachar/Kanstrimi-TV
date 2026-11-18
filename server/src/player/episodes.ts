@@ -1,16 +1,16 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { db, schema, type Content, type Episode, type Variant } from "@/db";
 import { ensureEpisodes, seasonsOf } from "@/catalog";
-import { languageLabel, qualityBadgeOf, sourceId, versionsOf, versionsSummary, type Playable } from "./versions";
+import { languageLabel, playableOfItem, qualityBadgeOf, variantId, variantsSummary, wireVariants, type Playable } from "./variants";
 import { badgesOf, imageUrl, isWatched, progressWire, remaining, runtimeText } from "./cards";
 import type { RestContext } from "./context";
 import { variantsOf, type Variants } from "./contents";
 import { isResumable, setFinished, type Progress } from "./progress";
-import type { EpisodeWire, SeasonWire, Version } from "./types";
+import type { EpisodeWire, SeasonWire, Variant as VariantWire } from "./types";
 
 export type EpisodeRow = Episode & { playables: Playable[] };
 
-/** Episodes of a content in (season, number) order, each with its playable sources (visible variants only). */
+/** Episodes of a content in (season, number) order, each with its playable rows (under the series' visible variants only). */
 export async function loadEpisodes(
   content: Content,
   variants: Variant[],
@@ -38,7 +38,8 @@ export async function loadEpisodes(
     if (!it) continue; // hidden or gone
     const list = byEp.get(s.episodeId) ?? [];
     list.push({
-      sourceId: sourceId("episode", s.id),
+      variantId: variantId("episode", s.id),
+      streamId: it.id,
       container: (s.container ?? "mp4").toUpperCase(),
       upstream: { accountId: it.accountId, kind: "series", id: s.upstreamId, ext: s.container ?? "mp4" },
       lang: it.lang,
@@ -84,12 +85,12 @@ export function currentEpisode(episodes: EpisodeRow[], progress: Map<string, Pro
 export function episodeWire(ctx: RestContext, e: EpisodeRow, progress?: Progress): EpisodeWire {
   const title = e.title ?? `Épisode ${e.number}`;
   const still = imageUrl(ctx.baseUrl, "w300", e.stillPath) || null;
-  const versions = versionsOf(ctx, e.playables);
+  const variants = wireVariants(ctx, e.playables);
   const runtime = e.runtime ? runtimeText(e.runtime) : null;
   const resumable = isResumable(progress);
   const watched = isWatched(progress);
   const facts = [runtime, resumable ? remaining(progress) : watched ? "Vu" : null].filter((t) => t !== null);
-  const summary = versionsSummary(versions);
+  const summary = variantsSummary(variants);
   const quality = qualityBadgeOf(summary);
   return {
     id: e.key,
@@ -100,7 +101,7 @@ export function episodeWire(ctx: RestContext, e: EpisodeRow, progress?: Progress
     runtime: e.runtime,
     still,
     air_date: e.airDate ? `${e.airDate}T00:00:00Z` : null,
-    versions,
+    variants,
     progress: progressWire(progress, true),
     item: {
       id: e.key,
@@ -147,11 +148,20 @@ export async function seasonsWire(
   return [...out.values()].sort((a, b) => a.number - b.number);
 }
 
-/** Language × quality of the whole series, without sources ("Langue de la série"). */
-export function seriesVersions(ctx: RestContext, episodes: EpisodeRow[]): Version[] {
-  return versionsOf(
-    ctx,
-    episodes.flatMap((e) => e.playables),
-    false,
-  );
+/**
+ * The series' own variants (« Variante de la série »): its streams that hold an episode, one each. They play
+ * nothing; the one chosen is kept for every episode.
+ */
+export function seriesVariants(ctx: RestContext, { items, categoryName }: Variants, episodes: EpisodeRow[]): VariantWire[] {
+  const held = new Set(episodes.flatMap((e) => e.playables.map((p) => p.streamId)));
+  return wireVariants(ctx, seriesPlayables(items, categoryName, held), false);
+}
+/** The series' streams as playable rows, for their order and their texts; `held`: only those. */
+export function seriesPlayables(items: Variant[], categoryName: (it: Variant) => string | null, held?: Set<number>): Playable[] {
+  return items
+    .filter((it) => !held || held.has(it.id))
+    .map((it) => {
+      const p = playableOfItem(it, categoryName(it));
+      return { ...p, upstream: { ...p.upstream, kind: "series" as const } };
+    });
 }

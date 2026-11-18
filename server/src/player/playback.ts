@@ -6,22 +6,23 @@ import type { Env, RestContext } from "./context";
 import { fail, json, noContent } from "./http";
 import { contentByKey, keyExists, variantsOf } from "./contents";
 import { deleteProgress, getProgress, isResumable, setFinished, setProgress } from "./progress";
-import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
+import { qualityBadgeOf, variantsSummary, wireVariants } from "./variants";
 import { currentEpisode, type EpisodeRow, episodeWire, episodesOf, setSeriesWatched } from "./episodes";
 import { badgesOf, castOf, episodeCode, runtimeText } from "./cards";
 import { suggestions } from "./related";
 import { addWatchTime } from "./watch-time";
 import { playbackMarkers } from "./markers";
-import { forgetVersion, rememberedFor, rememberVersion } from "./remembered";
-import type { NextEpisode, Playback, Version } from "./types";
+import { forgetVariant, rememberedFor, rememberedWire, rememberVariant } from "./remembered";
+import type { ProfileVariant } from "@/db";
+import type { NextEpisode, Playback, Variant } from "./types";
 
 /**
- * `/playback/{id}`: versions, resume point and next episode (a series: of the episode it resumes on);
+ * `/playback/{id}`: variants, resume point and next episode (a series: of the episode it resumes on);
  * `GET …/suggestions`: « Si vous avez aimé… » and what follows a movie or a series; `PUT …/progress`: the position watched;
  * `DELETE …/progress`: out of « Reprendre »; `PUT …/watched`: seen or not, a whole season on a series id;
  * `POST …/watch-time`: seconds of a channel played, for « Chaînes les plus regardées »;
  * `POST …/markers`: the intro and the end credits of the file the app opened;
- * `PUT …/version`: the version chosen for the title (a series, from any episode), `DELETE …/version` forgets it.
+ * `PUT …/variant`: the variant chosen for the title (a series, from any episode), `DELETE …/variant` forgets it.
  */
 export const playbackRoutes = new Hono<Env>();
 
@@ -108,27 +109,24 @@ playbackRoutes.post("/:id/markers", async (c) => {
   return json(await playbackMarkers(key, body.data));
 });
 
-const versionBody = z.object({ version: z.string().min(1).max(200) });
-/** The version the picker chose, one of the title's (an episode's: kept for the whole series). */
-playbackRoutes.put("/:id/version", async (c) => {
+const variantBody = z.object({ variant: z.string().min(1).max(200) });
+/** The variant the picker chose, one of the title's (a series': its own, or an episode's: kept for the whole series). */
+playbackRoutes.put("/:id/variant", async (c) => {
   const key = c.req.param("id");
   if (!parseKey(key)) return fail("not_found", "Contenu introuvable");
-  const body = versionBody.safeParse(await c.req.json().catch(() => null));
-  if (!body.success) return fail("bad_request", "version (identifiant d'une version du titre) attendu");
-  const ctx = c.get("ctx");
-  const p = await playback(ctx, key);
-  if (!p) return fail("not_found", "Contenu introuvable");
-  const version = p.versions.find((v) => v.id === body.data.version);
-  if (!version) return fail("bad_request", "Version inconnue pour ce titre");
-  await rememberVersion(ctx.profile, key, version);
+  const body = variantBody.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return fail("bad_request", "variant (identifiant d'une variante du titre) attendu");
+  const kept = await rememberVariant(c.get("ctx"), key, body.data.variant);
+  if (kept === "unknown_title") return fail("not_found", "Contenu introuvable");
+  if (kept === "unknown_variant") return fail("bad_request", "Variante inconnue pour ce titre");
   return noContent();
 });
 
-/** The title starts on the best version again. */
-playbackRoutes.delete("/:id/version", async (c) => {
+/** The title starts on the best variant again. */
+playbackRoutes.delete("/:id/variant", async (c) => {
   const key = c.req.param("id");
   if (!parseKey(key) || !(await keyExists(c.get("ctx"), key))) return fail("not_found", "Contenu introuvable");
-  await forgetVersion(c.get("ctx").profile, key);
+  await forgetVariant(c.get("ctx").profile, key);
   return noContent();
 });
 
@@ -157,16 +155,18 @@ export async function playback(ctx: RestContext, key: string): Promise<Playback 
       ) ?? episodes[0];
     return e ? episodePlayback(ctx, content, episodes, episodes.indexOf(e), remembered) : null;
   }
-  const versions = versionsOf(ctx, (await variantsOf(ctx, content)).playables);
-  if (content.kind === "live") return { versions, resume_at: null, duration: null, next: null, cast: [], remembered };
+  const { playables } = await variantsOf(ctx, content);
+  const variants = wireVariants(ctx, playables);
+  if (content.kind === "live")
+    return { variants, resume_at: null, duration: null, next: null, cast: [], remembered: rememberedWire(remembered, playables) };
   const p = (await getProgress(ctx.profile.id, [key])).get(key);
   return {
-    versions,
+    variants,
     resume_at: isResumable(p) ? p.position : null,
     duration: p?.duration || (content.runtime ? content.runtime * 60 : null),
     next: null,
     cast: castOf(ctx, content),
-    remembered,
+    remembered: rememberedWire(remembered, playables),
   };
 }
 
@@ -176,27 +176,28 @@ async function episodePlayback(
   series: Content,
   episodes: EpisodeRow[],
   idx: number,
-  remembered: Playback["remembered"],
+  remembered: ProfileVariant | null,
 ): Promise<Playback> {
   const e = episodes[idx],
     next = episodes[idx + 1];
   const p = (await getProgress(ctx.profile.id, [e.key])).get(e.key);
-  const nextVersions = next ? versionsOf(ctx, next.playables, false) : [];
+  const nextVariants = next ? wireVariants(ctx, next.playables, false) : [];
   return {
     // Named for whoever plays it from its id alone (« Reprendre »): the app titles the player with it.
     episode: { id: e.key, season: e.season, number: e.number, title: e.title },
-    versions: versionsOf(ctx, e.playables),
+    variants: wireVariants(ctx, e.playables),
     resume_at: isResumable(p) ? p.position : null,
     duration: p?.duration || (e.runtime ? e.runtime * 60 : null),
-    next: next ? nextEpisodeOf(ctx, series, next, nextVersions) : null,
+    next: next ? nextEpisodeOf(ctx, series, next, nextVariants) : null,
     cast: castOf(ctx, series),
-    remembered,
+    // The series' choice, as this episode's variant under the same stream.
+    remembered: rememberedWire(remembered, e.playables),
   };
 }
 
 /** The episode that follows, and what « À suivre » draws of it. */
-function nextEpisodeOf(ctx: RestContext, series: Content, next: EpisodeRow, versions: Version[]): NextEpisode {
-  const summary = versionsSummary(versions);
+function nextEpisodeOf(ctx: RestContext, series: Content, next: EpisodeRow, variants: Variant[]): NextEpisode {
+  const summary = variantsSummary(variants);
   const wire = episodeWire(ctx, next);
   return {
     id: next.key,

@@ -168,7 +168,7 @@ private struct ChannelListPreviewHost: View {
             let start = Date.now.addingTimeInterval(-1500)
             let list = await PreviewData.channels(env).enumerated().map { i, c in
                 Channel(id: c.id, name: c.name, number: c.number, logo: c.logo, maxQuality: c.maxQuality, hasEPG: i % 5 != 4,
-                        isFavorite: c.isFavorite, versions: c.versions,
+                        isFavorite: c.isFavorite, variants: c.variants,
                         now: i % 5 == 4 ? nil : Programme(title: titles[i % titles.count], start: start.addingTimeInterval(Double(i) * -300),
                                                           end: start.addingTimeInterval(3600), overview: nil))
             }

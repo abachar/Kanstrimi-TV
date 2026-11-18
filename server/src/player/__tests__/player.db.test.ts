@@ -359,14 +359,14 @@ describe("adult contents", () => {
       db.update(schema.xtreamStreams).set({ adult: nameAdult }).where(eq(schema.xtreamStreams.upstreamId, xtreamId));
     await flag("7", true); // Heat, Director's Cut
     await flag("100", true); // TF1 HD
-    const heatVersions = async () => (await get("/movies/tmdb:movie:949")).body.versions.map((v: { id: string }) => v.id);
-    const tf1Versions = async () => (await get("/channels")).body[0].channels[0].versions.map((v: { id: string }) => v.id);
-    expect(await heatVersions()).toEqual(["vostfr-hd"]);
-    expect((await get("/playback/tmdb:movie:949")).body.versions.length).toBe(1);
-    expect(await tf1Versions()).toEqual(["vf-fhd"]);
+    const heatVariants = async () => (await get("/movies/tmdb:movie:949")).body.variants.map((v: { label: string }) => v.label);
+    const tf1Variants = async () => (await get("/channels")).body[0].channels[0].variants.map((v: { label: string }) => v.label);
+    expect(await heatVariants()).toEqual(["VOSTF · HD"]);
+    expect((await get("/playback/tmdb:movie:949")).body.variants.length).toBe(1);
+    expect(await tf1Variants()).toEqual(["FR · FHD"]);
     await setSettings({ serve_adult: "1" });
-    expect(await heatVersions()).toEqual(["vostfr-hd", "vostfr-hd-director-s-cut"]);
-    expect(await tf1Versions()).toEqual(["vf-fhd", "vf-hd"]);
+    expect(await heatVariants()).toEqual(["VOSTF · HD", "VOSTF · HD · Director's Cut"]);
+    expect(await tf1Variants()).toEqual(["FR · FHD", "FR · HD"]);
     await setSettings({ serve_adult: "0" });
     await flag("7", false);
     await flag("100", false);
@@ -395,7 +395,7 @@ describe("profiles", () => {
         name: "Hakim",
         is_default: true,
         avatar: expect.stringMatching(/^http:\/\/kanstrimi\.test\/img\/avatars\/1\.webp\?v=[0-9a-f]{8}$/),
-        settings: { max_quality: "4K", auto_play_next: true, remember_versions: true, switch_source_on_failure: true },
+        settings: { max_quality: "4K", auto_play_next: true, remember_variants: true, switch_variant_on_failure: true },
       },
     ]);
     expect((await get("/info")).body.profile).toEqual(body.profiles[0]);
@@ -407,9 +407,12 @@ describe("profiles", () => {
     expect((await withHeader("/info")).profile).toMatchObject({ id: vost.id, name: "VOST", is_default: false });
     // The filter's order: VOST first; its languages only.
     const sheet = await withHeader("/movies/tmdb:movie:603");
-    expect(sheet.versions.map((v: { id: string }) => v.id)).toEqual(["vostfr-hd", "vf-4k-dv"]);
+    expect(sheet.variants.map((v: { label: string }) => v.label)).toEqual(["VOSTF · HD", "FR · 4K DV"]);
     expect(sheet.languages).toEqual(["VOSTFR", "VF"]);
-    expect((await get("/movies/tmdb:movie:603")).body.versions.map((v: { id: string }) => v.id)).toEqual(["vf-4k-dv", "vostfr-hd"]);
+    expect((await get("/movies/tmdb:movie:603")).body.variants.map((v: { label: string }) => v.label)).toEqual([
+      "FR · 4K DV",
+      "VOSTF · HD",
+    ]);
     // Its own list and progress.
     await call("/favorites/tmdb:movie:603", { method: "PUT", headers: { "x-profile": String(vost.id) } });
     expect((await withHeader("/movies/tmdb:movie:603")).is_favorite).toBe(true);
@@ -434,12 +437,12 @@ describe("profiles", () => {
     expect((await bodyOf(r)).settings).toEqual({
       max_quality: "FHD",
       auto_play_next: false,
-      remember_versions: true,
-      switch_source_on_failure: true,
+      remember_variants: true,
+      switch_variant_on_failure: true,
     });
     expect((await get("/info")).body.profile.settings.max_quality).toBe("FHD");
-    r = await put({ switch_source_on_failure: false });
-    expect((await bodyOf(r)).settings).toMatchObject({ max_quality: "FHD", auto_play_next: false, switch_source_on_failure: false });
+    r = await put({ switch_variant_on_failure: false });
+    expect((await bodyOf(r)).settings).toMatchObject({ max_quality: "FHD", auto_play_next: false, switch_variant_on_failure: false });
     expect((await put({ max_quality: "8K" })).status).toBe(400);
     expect((await put({ auto_play_next: "oui" })).status).toBe(400);
     expect((await put({}, 999)).status).toBe(404);
@@ -447,7 +450,7 @@ describe("profiles", () => {
     const sara = await createProfile({ name: "Sara", avatar: null });
     expect((await bodyOf(await put({}, sara.id))).settings.max_quality).toBe("4K");
     await deleteProfile(sara.id);
-    await put({ max_quality: "4K", auto_play_next: true, switch_source_on_failure: true });
+    await put({ max_quality: "4K", auto_play_next: true, switch_variant_on_failure: true });
   });
 
   it("/img/avatars/{id}.webp: the picture, or an initial on a colour; 404 for a stranger", async () => {
@@ -574,7 +577,7 @@ describe("GET /movies and /series", () => {
 });
 
 describe("GET /movies/{id}", () => {
-  it("returns the full sheet with versions × sources and the provider's stream URLs", async () => {
+  it("returns the full sheet with its variants and the provider's stream URLs", async () => {
     const { status, body } = await get("/movies/tmdb:movie:603");
     expect(status).toBe(200);
     expect(body).toMatchObject({
@@ -601,23 +604,29 @@ describe("GET /movies/{id}", () => {
       dynamic_range: "DV",
       languages: ["VF", "VOSTFR"],
     });
-    expect(body.versions.map((v: { id: string }) => v.id)).toEqual(["vf-4k-dv", "vostfr-hd"]);
-    const src = body.versions[0].sources[0];
+    expect(body.variants.map((v: { label: string }) => v.label)).toEqual(["FR · 4K DV", "VOSTF · HD"]);
+    const src = body.variants[0];
     expect(src).toMatchObject({
+      language: "VF",
+      quality: "4K",
+      dynamic_range: "DV",
+      badge: "4K DV",
       container: "MKV",
       provider: { id: "xtream-1", name: "provider.test", kind: "xtream" },
-      origin: "|FR| FILMS 4K DV",
+      category: "|FR| FILMS 4K DV",
     });
+    // The provider's own name of the stream: what tells two variants of the same quality apart.
+    expect(typeof src.name).toBe("string");
     expect(src.id).toMatch(/^src-i[0-9a-z]+$/);
     expect(src.stream_url).toMatch(/^http:\/\/provider\.test\/movie\/u\/p\/\d+\.mkv$/);
   });
 
-  it("an edition is a version of its own, after the usual cut", async () => {
+  it("an edition is a variant of its own, after the usual cut", async () => {
     const { body } = await get("/movies/tmdb:movie:949");
     expect(body.title).toBe("Heat");
-    expect(body.versions.map((v: { id: string; edition?: string }) => [v.id, v.edition])).toEqual([
-      ["vostfr-hd", undefined],
-      ["vostfr-hd-director-s-cut", "Director's Cut"],
+    expect(body.variants.map((v: { label: string; edition?: string }) => [v.label, v.edition])).toEqual([
+      ["VOSTF · HD", undefined],
+      ["VOSTF · HD · Director's Cut", "Director's Cut"],
     ]);
   });
 
@@ -650,7 +659,7 @@ describe("GET /movies/{id}", () => {
 });
 
 describe("GET /series/{id}", () => {
-  it("merges episodes across variants, with TMDB names, versions per episode and the series' versions without sources", async () => {
+  it("merges episodes across variants, with TMDB names, variants per episode and the series' own, which play nothing", async () => {
     const { status, body } = await get("/series/tmdb:tv:1396");
     expect(status).toBe(200);
     expect(body).toMatchObject({
@@ -695,27 +704,27 @@ describe("GET /series/{id}", () => {
         overview: "Vincenzo arrive.",
       },
     });
-    expect(e1.versions.map((v: { id: string; sources: unknown[] }) => [v.id, v.sources.length])).toEqual([
-      ["vf-hd", 1],
-      ["vostfr-hd", 1],
-    ]);
-    expect(e1.versions[0].sources[0].id).toMatch(/^src-e[0-9a-z]+$/);
+    expect(e1.variants.map((v: { label: string }) => v.label)).toEqual(["FR · HD", "VOSTF · HD"]);
+    expect(e1.variants[0].id).toMatch(/^src-e[0-9a-z]+$/);
+    expect(e1.variants[0].stream_url).toMatch(/^http:\/\/provider\.test\/series\//);
     // S2E1 exists only in the MULTI variant: the provider title gives the name.
     const e21 = body.seasons[1].episodes[0];
     expect(e21).toMatchObject({ id: "tmdb:tv:1396:s02e01", title: "Marée haute", runtime: 80, overview: "Intrigue." });
-    expect(e21.versions.map((v: { id: string }) => v.id)).toEqual(["vf-hd"]);
+    expect(e21.variants.map((v: { label: string }) => v.label)).toEqual(["FR · HD"]);
     // One language: its warning, which the app shows when the series plays in another one.
     expect(e21.item).toMatchObject({ badges: ["HD", "FR"], hint: "FR SEUL" });
-    expect(body.versions).toEqual([
-      { id: "vf-hd", language: "VF", quality: "HD", sources: [] },
-      { id: "vostfr-hd", language: "VOSTFR", quality: "HD", sources: [] },
+    // The series' own variants: its streams, which play nothing.
+    expect(body.variants.map((v: { label: string; stream_url: string | null }) => [v.label, v.stream_url])).toEqual([
+      ["FR · HD", null],
+      ["VOSTF · HD", null],
     ]);
+    expect(body.variants[0].id).toMatch(/^src-i[0-9a-z]+$/);
     expect(body.hint).toBeNull();
   });
 });
 
 describe("channels", () => {
-  it("GET /channels groups by market and theme (section of the category, else the category), one channel per content with its versions", async () => {
+  it("GET /channels groups by market and theme (section of the category, else the category), one channel per content with its variants", async () => {
     const { body } = await get("/channels");
     expect(body.map((g: { id: string; name: string; channels: { id: string }[] }) => [g.id, g.name, g.channels.map((c) => c.id)])).toEqual([
       ["fr-generalistes", "France · Généralistes", ["live:fr-tf1"]],
@@ -731,10 +740,11 @@ describe("channels", () => {
       has_epg: true,
       is_favorite: false,
     });
-    expect(tf1.versions.map((v: { id: string }) => v.id)).toEqual(["vf-fhd", "vf-hd"]);
+    expect(tf1.variants.map((v: { label: string }) => v.label)).toEqual(["FR · FHD", "FR · HD"]);
     // One language: the chips name the quality only.
-    expect(tf1.versions.map((v: { chip: string }) => v.chip)).toEqual(["FHD", "HD"]);
-    expect(tf1.versions[0].sources[0].container).toBe("TS");
+    expect(tf1.variants.map((v: { chip: string }) => v.chip)).toEqual(["FHD", "HD"]);
+    expect(tf1.chips).toEqual(["FHD", "HD"]);
+    expect(tf1.variants[0].container).toBe("TS");
     // The guide: TF1 is on air and has a following programme; beIN has no id in the guide at all.
     expect(tf1.now).toMatchObject({ title: "Journal", overview: "Les titres" });
     expect(tf1.next).toMatchObject({ title: "Film du soir" });
@@ -871,10 +881,10 @@ describe("sheet texts and thresholds", () => {
 });
 
 describe("playback and progress", () => {
-  it("movie: versions, no resume, duration from runtime; then progress drives resume_at and the home row", async () => {
+  it("movie: variants, no resume, duration from runtime; then progress drives resume_at and the home row", async () => {
     let p = (await get("/playback/tmdb:movie:603")).body;
     expect(p).toMatchObject({ resume_at: null, duration: 136 * 60, next: null });
-    expect(p.versions.length).toBe(2);
+    expect(p.variants.length).toBe(2);
     // The player's « Distribution » panel: the sheet's cast.
     expect(p.cast).toEqual([{ id: "person:6384", name: "Keanu Reeves", role: "Neo", photo: img("w185", "/keanu.jpg") }]);
     let r = await call("/playback/tmdb:movie:603/progress", { method: "PUT", body: JSON.stringify({ position: 4520, duration: 8280 }) });
@@ -897,9 +907,9 @@ describe("playback and progress", () => {
     ).toBe(404);
   });
 
-  it("episode: versions of that episode and the next one, season change included", async () => {
+  it("episode: variants of that episode and the next one, season change included", async () => {
     const p = (await get("/playback/tmdb:tv:1396:s01e02")).body;
-    expect(p.versions.map((v: { id: string }) => v.id)).toEqual(["vf-hd", "vostfr-hd"]);
+    expect(p.variants.map((v: { label: string }) => v.label)).toEqual(["FR · HD", "VOSTF · HD"]);
     expect(p.duration).toBe(78 * 60);
     // An episode shows the series' cast.
     expect(p.cast).toEqual([{ id: "person:6384", name: "Keanu Reeves", role: "Invité", photo: img("w185", "/keanu.jpg") }]);
@@ -951,7 +961,7 @@ describe("playback and progress", () => {
     expect((await get("/playback/tmdb:tv:1396")).body).toEqual((await get("/playback/tmdb:tv:1396:s01e02")).body);
   });
 
-  it("channel: versions only", async () => {
+  it("channel: variants only", async () => {
     expect((await get("/playback/live:fr-tf1")).body).toMatchObject({ resume_at: null, duration: null, next: null });
   });
 });
@@ -981,7 +991,7 @@ describe("GET /home", () => {
     });
     expect(body.heroes[1].play_label).toBe("Lecture");
     expect(body.heroes[0].item.progress).toBeGreaterThan(0);
-    expect(body.heroes[0].versions.length).toBe(2);
+    expect(body.heroes[0].variants.length).toBe(2);
     expect(body.heroes[0].episode).toBeUndefined();
     expect(body.rows.map((r: { id: string; kind: string }) => [r.id, r.kind])).toEqual([
       ["resume", "resume"],
@@ -1459,84 +1469,113 @@ describe("« Chaînes les plus regardées »", () => {
   });
 });
 
-describe("remembered versions", () => {
-  const put = (id: string, version: string, profile?: number) =>
-    call(`/playback/${id}/version`, {
+describe("remembered variants", () => {
+  type V = { id: string; label: string };
+  /** The id of the variant `label` names among those `path` serves (a sheet, a playback). */
+  const variantOf = async (path: string, label: string): Promise<string> => {
+    const { body } = await get(path);
+    return ((body.variants ?? []) as V[]).find((v) => v.label === label)?.id ?? `none:${label}`;
+  };
+  const put = (id: string, variant: string, profile?: number) =>
+    call(`/playback/${id}/variant`, {
       method: "PUT",
-      body: JSON.stringify({ version }),
+      body: JSON.stringify({ variant }),
       headers: profile ? { "x-profile": String(profile) } : {},
     });
   const remembered = async (path: string) => (await get(path)).body.remembered ?? null;
 
-  it("PUT /playback/{id}/version keeps a movie's choice, served on the sheet, the playback and the home slide; DELETE forgets it", async () => {
-    expect((await put("tmdb:movie:603", "vostfr-hd")).status).toBe(204);
-    const wire = { id: "vostfr-hd", language: "VOSTFR", quality: "HD", label: "VOSTF · HD" };
+  it("PUT /playback/{id}/variant keeps a movie's choice, served on the sheet, the playback and the home slide; DELETE forgets it", async () => {
+    const vost = await variantOf("/movies/tmdb:movie:603", "VOSTF · HD");
+    expect((await put("tmdb:movie:603", vost)).status).toBe(204);
+    const wire = { id: vost, language: "VOSTFR", quality: "HD", label: "VOSTF · HD" };
     expect(await remembered("/movies/tmdb:movie:603")).toEqual(wire);
     expect(await remembered("/playback/tmdb:movie:603")).toEqual(wire);
     const hero = (await get("/home")).body.heroes.find((h: { play_id: string }) => h.play_id === "tmdb:movie:603");
     expect(hero.remembered).toEqual(wire);
     // The dynamic range and the edition travel too, and the label says them.
-    await put("tmdb:movie:603", "vf-4k-dv");
+    const dv = await variantOf("/movies/tmdb:movie:603", "FR · 4K DV");
+    await put("tmdb:movie:603", dv);
     expect(await remembered("/movies/tmdb:movie:603")).toEqual({
-      id: "vf-4k-dv",
+      id: dv,
       language: "VF",
       quality: "4K",
       dynamic_range: "DV",
       label: "FR · 4K DV",
     });
-    expect((await call("/playback/tmdb:movie:603/version", { method: "DELETE" })).status).toBe(204);
+    expect((await call("/playback/tmdb:movie:603/variant", { method: "DELETE" })).status).toBe(204);
     expect(await remembered("/movies/tmdb:movie:603")).toBeNull();
     expect(await remembered("/playback/tmdb:movie:603")).toBeNull();
   });
 
-  it("a version the title does not have, a malformed body, an unknown title", async () => {
-    expect((await put("tmdb:movie:603", "vf-8k")).status).toBe(400);
-    expect((await call("/playback/tmdb:movie:603/version", { method: "PUT", body: JSON.stringify({}) })).status).toBe(400);
-    expect((await put("tmdb:movie:999", "vf-4k-dv")).status).toBe(404);
-    expect((await call("/playback/tmdb:movie:999/version", { method: "DELETE" })).status).toBe(404);
+  it("a variant the title does not have, a malformed body, an unknown title", async () => {
+    const dv = await variantOf("/movies/tmdb:movie:603", "FR · 4K DV");
+    // Another title's variant is not this one's.
+    expect((await put("tmdb:movie:949", dv)).status).toBe(400);
+    expect((await put("tmdb:movie:603", "src-izzzz")).status).toBe(400);
+    expect((await call("/playback/tmdb:movie:603/variant", { method: "PUT", body: JSON.stringify({}) })).status).toBe(400);
+    expect((await put("tmdb:movie:999", dv)).status).toBe(404);
+    expect((await call("/playback/tmdb:movie:999/variant", { method: "DELETE" })).status).toBe(404);
   });
 
-  it("an episode's choice is the series': read on the series sheet, on every episode and on the series' playback", async () => {
-    expect((await put("tmdb:tv:1396:s01e01", "vostfr-hd")).status).toBe(204);
-    const wire = { id: "vostfr-hd", language: "VOSTFR", quality: "HD", label: "VOSTF · HD" };
-    expect(await remembered("/series/tmdb:tv:1396")).toEqual(wire);
-    expect(await remembered("/playback/tmdb:tv:1396:s01e02")).toEqual(wire);
-    expect(await remembered("/playback/tmdb:tv:1396")).toEqual(wire);
-    await call("/playback/tmdb:tv:1396:s02e01/version", { method: "DELETE" });
+  it("an episode's choice is the series': the series' stream on its sheet, each episode's own variant under it", async () => {
+    const e1 = await variantOf("/playback/tmdb:tv:1396:s01e01", "VOSTF · HD");
+    expect((await put("tmdb:tv:1396:s01e01", e1)).status).toBe(204);
+    const what = { language: "VOSTFR", quality: "HD", label: "VOSTF · HD" };
+    // The sheet names the series' variant, which plays nothing; an episode its own, which plays.
+    expect(await remembered("/series/tmdb:tv:1396")).toEqual({ id: await variantOf("/series/tmdb:tv:1396", "VOSTF · HD"), ...what });
+    const e2 = await variantOf("/playback/tmdb:tv:1396:s01e02", "VOSTF · HD");
+    expect(e2).toMatch(/^src-e/);
+    expect(e2).not.toBe(e1);
+    expect(await remembered("/playback/tmdb:tv:1396:s01e02")).toEqual({ id: e2, ...what });
+    expect((await remembered("/playback/tmdb:tv:1396")).label).toBe("VOSTF · HD");
+    // An episode the chosen stream does not have: the choice still says what it was, the app plays the closest.
+    const e21 = await get("/playback/tmdb:tv:1396:s02e01");
+    expect(e21.body.remembered).toMatchObject(what);
+    expect((e21.body.variants as V[]).map((v) => v.id)).not.toContain(e21.body.remembered.id);
+    await call("/playback/tmdb:tv:1396:s02e01/variant", { method: "DELETE" });
     expect(await remembered("/series/tmdb:tv:1396")).toBeNull();
+    // Picked on the sheet: one of the series' own variants, kept under the series' key; an episode's too, from the player.
+    const own = await variantOf("/series/tmdb:tv:1396", "FR · HD");
+    expect((await put("tmdb:tv:1396", own)).status).toBe(204);
+    expect(await remembered("/series/tmdb:tv:1396")).toMatchObject({ id: own, label: "FR · HD" });
+    expect((await put("tmdb:tv:1396", e1)).status).toBe(204);
+    expect(await remembered("/series/tmdb:tv:1396")).toMatchObject({ label: "VOSTF · HD" });
+    await call("/playback/tmdb:tv:1396/variant", { method: "DELETE" });
   });
 
   it("a channel's choice rides on /channels and /channels/{id}", async () => {
-    expect((await put("live:fr-tf1", "vf-fhd")).status).toBe(204);
-    expect(await remembered("/channels/live:fr-tf1")).toMatchObject({ id: "vf-fhd" });
+    const fhd = await variantOf("/channels/live:fr-tf1", "FR · FHD");
+    expect((await put("live:fr-tf1", fhd)).status).toBe(204);
+    expect(await remembered("/channels/live:fr-tf1")).toMatchObject({ id: fhd, label: "FR · FHD" });
     const tf1 = (await get("/channels")).body
       .flatMap((g: { channels: { id: string }[] }) => g.channels)
       .find((c: { id: string }) => c.id === "live:fr-tf1");
-    expect(tf1.remembered).toMatchObject({ id: "vf-fhd" });
-    await call("/playback/live:fr-tf1/version", { method: "DELETE" });
+    expect(tf1.remembered).toMatchObject({ id: fhd });
+    await call("/playback/live:fr-tf1/variant", { method: "DELETE" });
     expect((await get("/channels/live:fr-tf1")).body).not.toHaveProperty("remembered");
   });
 
-  it("per profile, and nothing while the profile's remember_versions is off", async () => {
+  it("per profile, and nothing while the profile's remember_variants is off", async () => {
     const sara = await createProfile({ name: "Sara", avatar: null });
     await applyFilters({ profileId: sara.id });
-    expect((await put("tmdb:movie:603", "vostfr-hd", sara.id)).status).toBe(204);
+    const vost = await variantOf("/movies/tmdb:movie:603", "VOSTF · HD");
+    expect((await put("tmdb:movie:603", vost, sara.id)).status).toBe(204);
     expect(await remembered("/movies/tmdb:movie:603")).toBeNull();
     const asSara = async (path: string) => (await bodyOf(await call(path, { headers: { "x-profile": String(sara.id) } }))).remembered;
-    expect(await asSara("/movies/tmdb:movie:603")).toMatchObject({ id: "vostfr-hd" });
+    expect(await asSara("/movies/tmdb:movie:603")).toMatchObject({ id: vost });
     await call("/profiles/me/settings", {
       method: "PUT",
-      body: JSON.stringify({ remember_versions: false }),
+      body: JSON.stringify({ remember_variants: false }),
       headers: { "x-profile": String(sara.id) },
     });
     expect(await asSara("/movies/tmdb:movie:603")).toBeNull();
-    expect((await put("tmdb:movie:603", "vf-4k-dv", sara.id)).status).toBe(204); // accepted, not kept
+    expect((await put("tmdb:movie:603", await variantOf("/movies/tmdb:movie:603", "FR · 4K DV"), sara.id)).status).toBe(204); // accepted, not kept
     await call("/profiles/me/settings", {
       method: "PUT",
-      body: JSON.stringify({ remember_versions: true }),
+      body: JSON.stringify({ remember_variants: true }),
       headers: { "x-profile": String(sara.id) },
     });
-    expect(await asSara("/movies/tmdb:movie:603")).toMatchObject({ id: "vostfr-hd" });
+    expect(await asSara("/movies/tmdb:movie:603")).toMatchObject({ id: vost });
     await deleteProfile(sara.id);
   });
 });
@@ -1656,9 +1695,9 @@ describe("GET /top-shelf", () => {
     expect(heroes[0].item.logo).toBe(img("w500", "/v-logo.png"));
     // The iPhone shows the poster full width: a larger size than the rows'.
     expect(heroes[1].item.poster).toMatch(/\/img\/w780\//);
-    // Lecture plays the episode, with its own versions.
+    // Lecture plays the episode, with its own variants.
     expect(heroes[0].episode).toEqual({ season: 1, number: 2, title: "Épisode 2" });
-    expect(heroes[0].versions.length).toBeGreaterThan(0);
+    expect(heroes[0].variants.length).toBeGreaterThan(0);
   });
 
   it("a title without a TMDB logo is left out: the carousel would show it untitled", async () => {
@@ -1736,20 +1775,22 @@ describe("guide per quality", () => {
     const channels = (await get("/channels")).body.flatMap((g: { channels: unknown[] }) => g.channels);
     const byName = (n: string) => channels.find((c: { name: string }) => c.name === n);
     const tf1 = byName("TF1");
-    expect(tf1.versions.map((v: { id: string }) => v.id)).toEqual(["vf-4k", "vf-fhd", "vf-hd"]);
+    expect(tf1.variants.map((v: { label: string }) => v.label)).toEqual(["FR · 4K", "FR · FHD", "FR · HD"]);
     expect(tf1.now.title).toBe("Journal");
-    expect(tf1.versions.every((v: object) => !("now" in v))).toBe(true);
+    expect(tf1.variants.every((v: object) => !("now" in v))).toBe(true);
     const tf1Content = await contentOfKey(tf1.id);
     expect(tf1Content.epgChannelId).toBe("TF1.fr");
 
     const m6 = byName("M6");
     expect(m6.now.title).toBe("Match en 4K");
-    expect(m6.versions.map((v: { id: string; now?: { title: string } }) => [v.id, v.now?.title])).toEqual([
-      ["vf-4k", undefined],
-      ["vf-hd", "Météo"],
+    expect(m6.variants.map((v: { label: string; now?: { title: string } }) => [v.label, v.now?.title])).toEqual([
+      ["FR · 4K", undefined],
+      ["FR · HD", "Météo"],
     ]);
-    expect((await get(`/channels/${m6.id}`)).body.versions[1]).toMatchObject({ has_epg: true, now: { title: "Météo" } });
-    expect((await get(`/channels/${m6.id}/programmes?version=vf-hd`)).body.map((p: { title: string }) => p.title)).toEqual(["Météo"]);
+    expect((await get(`/channels/${m6.id}`)).body.variants[1]).toMatchObject({ has_epg: true, now: { title: "Météo" } });
+    expect((await get(`/channels/${m6.id}/programmes?variant=${m6.variants[1].id}`)).body.map((p: { title: string }) => p.title)).toEqual([
+      "Météo",
+    ]);
     expect((await get(`/channels/${m6.id}/programmes`)).body.map((p: { title: string }) => p.title)).toEqual(["Match en 4K"]);
   });
 });
@@ -1768,10 +1809,10 @@ describe("guide of a channel with two languages", () => {
     await groupAndFilter();
   });
 
-  it("the catalog stores the guide the app serves: the first version's, best language first", async () => {
+  it("the catalog stores the guide the app serves: the first variant's, best language first", async () => {
     const channels = (await get("/channels")).body.flatMap((g: { channels: unknown[] }) => g.channels);
     const duo = channels.find((c: { name: string }) => c.name === "Duo");
-    expect(duo.versions.map((v: { id: string }) => v.id)).toEqual(["vf-hd", "vo-4k"]);
+    expect(duo.variants.map((v: { label: string }) => v.label)).toEqual(["FR · HD", "VO · 4K"]);
     expect(duo.now.title).toBe("Version française");
     const content = await contentOfKey(duo.id);
     expect(content.epgChannelId).toBe("duo-vf.fr");
@@ -1808,8 +1849,8 @@ describe("errors of /player", () => {
 describe("stream_url", () => {
   it("the provider's own URL, played as is: no redirect through this server", async () => {
     const sheet = (await get("/movies/tmdb:movie:603")).body;
-    expect(sheet.versions[0].sources[0].stream_url).toBe("http://provider.test/movie/u/p/1.mkv");
-    const ep = (await get("/series/tmdb:tv:1396")).body.seasons[1].episodes[0].versions[0].sources[0].stream_url;
+    expect(sheet.variants[0].stream_url).toBe("http://provider.test/movie/u/p/1.mkv");
+    const ep = (await get("/series/tmdb:tv:1396")).body.seasons[1].episodes[0].variants[0].stream_url;
     expect(ep).toBe("http://provider.test/series/u/p/e21.mkv");
   });
 

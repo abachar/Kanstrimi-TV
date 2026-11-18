@@ -110,13 +110,13 @@ struct SettingsView: View {
                         Text("Démarre 15 s avant la fin").font(.footnote).foregroundStyle(Theme.secondary)
                     }
                 }
-                Toggle("Mémoriser la version par titre", isOn: setting(\.rememberVersions))
-                Toggle("Changer de source en cas de panne", isOn: setting(\.switchSourceOnFailure))
+                Toggle("Mémoriser la variante par titre", isOn: setting(\.rememberVariants))
+                Toggle("Changer de variante en cas de panne", isOn: setting(\.switchVariantOnFailure))
             } header: {
                 Text(env.profile.map { "Lecture · \($0.name)" } ?? "Lecture")
             } footer: {
                 // A note, not a setting: a footer, so nothing focusable on tvOS.
-                Text("Ces réglages suivent le profil sur tous ses appareils. La langue jouée d'office est la première du filtre du profil, réglé dans l'admin. Un choix fait dans le sélecteur de versions est mémorisé pour le titre et prime sur ces réglages.")
+                Text("Ces réglages suivent le profil sur tous ses appareils. La langue jouée d'office est la première du filtre du profil, réglé dans l'admin. Un choix fait dans le sélecteur de variantes est mémorisé pour le titre et prime sur ces réglages.")
             }
 
             Section("Appareil") {
@@ -168,7 +168,7 @@ struct SettingsView: View {
                 ChoiceRow("Latence simulée", selection: $scenario.latency, options: [0.0, 0.6, 2.0, 5.0]) {
                     [0.6: "0,6 s", 2.0: "2 s", 5.0: "5 s"][$0] ?? "Aucune"
                 }
-                InfoRow("Sources en échec mémorisées", value: "\(env.failedSources.count)")
+                InfoRow("Variantes en échec mémorisées", value: "\(env.failedVariants.count)")
                 InfoRow("Progressions en attente", value: "\(env.progressQueue.pending.count)")
                 Button("Réinitialiser les préférences") { env.preferences.resetAll() }
             } header: {

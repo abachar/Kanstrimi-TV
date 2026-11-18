@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import dev.crafters.kanstrimi.client.CatalogClient
 import dev.crafters.kanstrimi.client.CatalogException
 import dev.crafters.kanstrimi.contract.Card
-import dev.crafters.kanstrimi.contract.RememberedVersion
+import dev.crafters.kanstrimi.contract.RememberedVariant
 import dev.crafters.kanstrimi.contract.Channel
 import dev.crafters.kanstrimi.contract.ContentItem
 import dev.crafters.kanstrimi.contract.ContentKind
@@ -18,10 +18,9 @@ import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
 import dev.crafters.kanstrimi.contract.Skip
-import dev.crafters.kanstrimi.contract.Source
 import dev.crafters.kanstrimi.contract.Suggestion
 import dev.crafters.kanstrimi.contract.Suggestions
-import dev.crafters.kanstrimi.contract.Version
+import dev.crafters.kanstrimi.contract.Variant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -37,7 +36,7 @@ private const val TAG = "kanstrimi.player"
 
 /**
  * The one player of the app, like the Apple app's `PlayerService`: it owns the engine, the playback context, the
- * version and source in use, the automatic source switch, the failure dialog and the « À suivre » countdown.
+ * variant in use, the automatic switch to an equivalent variant, the failure dialog and the « À suivre » countdown.
  * Its state is Compose state, read by `PlayerScreen`; every call happens on the main thread (`scope`).
  */
 class PlayerService(
@@ -46,8 +45,8 @@ class PlayerService(
     private val engine: PlaybackEngine,
     private val scope: CoroutineScope,
     progressQueue: ProgressQueue,
-    private val failedSources: FailedSourcesStore = FailedSourcesStore(),
-    private val capabilities: VersionChooser.Capabilities = VersionChooser.Capabilities.tablet,
+    private val failedVariants: FailedVariantsStore = FailedVariantsStore(),
+    private val capabilities: VariantChooser.Capabilities = VariantChooser.Capabilities.tablet,
     /** An action that failed outside the player screen (a title that cannot be loaded): said in the app's notice. */
     private val notify: (String) -> Unit = {},
     /** The final report of a playback reached the server (or the queue): the home reloads on it. */
@@ -78,8 +77,8 @@ class PlayerService(
     // MARK: - Public state
 
     var context: PlaybackContext? by mutableStateOf(null); private set
-    var version: Version? by mutableStateOf(null); private set
-    var source: Source? by mutableStateOf(null); private set
+    /** The variant playing: one stream of one provider. */
+    var variant: Variant? by mutableStateOf(null); private set
     var phase: Phase by mutableStateOf(Phase.IDLE); private set
     var time: Double by mutableDoubleStateOf(0.0); private set
     var duration: Double by mutableDoubleStateOf(0.0); private set
@@ -107,9 +106,9 @@ class PlayerService(
     /** Live: the ordered channel list to zap through, and the current one. */
     var channels: List<Channel> by mutableStateOf(emptyList()); private set
     var channel: Channel? by mutableStateOf(null); private set
-    /** The playing channel as `GET /channels/{id}` gives it: its guide, and each quality's own. */
+    /** The playing channel as `GET /channels/{id}` gives it: its guide, and each variant's own. */
     private var channelDetail: Channel? = null
-    /** Live: the guide of the version playing (now, next), empty until the channel's detail arrived. */
+    /** Live: the guide of the variant playing (now, next), empty until the channel's detail arrived. */
     var epg: Channel.Guide by mutableStateOf(Channel.Guide.empty); private set
     /** Fast forward / rewind while a direction is held: where the seek lands on release, and the signed rate. */
     var scanTarget: Double? by mutableStateOf(null); private set
@@ -162,47 +161,60 @@ class PlayerService(
     /** The profile's playback settings, as the server last said them. */
     private val settings get() = preferences.settings
 
-    val chooser: VersionChooser
-        get() = VersionChooser(preferences.languageOrder, settings.maxQuality, capabilities) { failedSources.isFailed(it) }
+    val chooser: VariantChooser
+        get() = VariantChooser(settings.maxQuality, capabilities) { failedVariants.isFailed(it) }
 
     /**
-     * The versions chosen on this device since launch, by the title they are kept under (a series for its episodes),
+     * The variants chosen on this device since launch, by the title they are kept under (a series for its episodes),
      * ahead of what the server served: a choice applies at once, before the lists are fetched again. A null value =
      * forgotten here.
      */
-    private val chosenVersions = HashMap<String, RememberedVersion?>()
-
-    /** The version the profile chose for a title: the one chosen here since launch, else the server's. */
-    fun remembered(served: RememberedVersion?, id: String): RememberedVersion? =
-        if (chosenVersions.containsKey(id)) chosenVersions[id] else served
+    private val chosenVariants = HashMap<String, RememberedVariant?>()
 
     /**
-     * The version a title or a channel starts in (`VersionChooser.start`): « TF1 » switched to FHD reopens, previews
-     * and shows its guide in FHD. `remembered`: what the server served for the title.
+     * The variant the profile chose for a title, among `variants`: the one chosen here since launch, else the server's.
+     * A choice made here on another list (the series' sheet, another episode) is not one of `variants`: when the
+     * server names the same language and quality in this list, its word is that choice, here.
      */
-    fun startChoice(id: String, versions: List<Version>, remembered: RememberedVersion?): VersionChooser.Choice? =
-        chooser.start(versions, remembered(remembered, id))
-
-    /** Keeps `version` for the title (the series for an episode), here and on the server; nothing when the setting is off. */
-    fun remember(version: Version, id: String) {
-        if (!settings.rememberVersions) return
-        chosenVersions[id] = RememberedVersion.of(version)
-        scope.launch { runCatching { client().rememberVersion(id, version.id) } }
+    fun remembered(served: RememberedVariant?, id: String, variants: List<Variant>): RememberedVariant? {
+        if (!chosenVariants.containsKey(id)) return served
+        val here = chosenVariants[id] ?: return null
+        val listed = { r: RememberedVariant -> variants.any { it.id == r.id } }
+        return if (served != null && !listed(here) && listed(served) && VariantKey(served) == VariantKey(here)) served else here
     }
 
-    /** The title starts on the best version again, here and on the server. */
-    fun forgetVersion(id: String) {
-        chosenVersions[id] = null
-        scope.launch { runCatching { client().forgetVersion(id) } }
+    /**
+     * The variant a title or a channel starts in (`VariantChooser.start`): « TF1 » switched to FHD reopens, previews
+     * and shows its guide in FHD. `remembered`: what the server served for the title.
+     */
+    fun startChoice(id: String, variants: List<Variant>, remembered: RememberedVariant?): Variant? =
+        chooser.start(variants, remembered(remembered, id, variants))
+
+    /**
+     * Keeps `variant` for the title, here and on the server; nothing when the profile's setting is off. `id` is the
+     * title the variant is one of: an episode for its own variants, kept for its whole series. `then` runs once the
+     * server has it.
+     */
+    fun remember(variant: Variant, id: String, then: () -> Unit = {}) {
+        if (!settings.rememberVariants) return
+        chosenVariants[seriesIdOf(id) ?: id] = RememberedVariant.of(variant)
+        scope.launch { if (runCatching { client().rememberVariant(id, variant.id) }.isSuccess) then() }
+    }
+
+    /** The title starts on the best variant again, here and on the server. */
+    fun forgetVariant(id: String) {
+        chosenVariants[seriesIdOf(id) ?: id] = null
+        scope.launch { runCatching { client().forgetVariant(id) } }
     }
 
     // MARK: - Entry points
 
     /**
      * Plays a movie, an episode, or a series (the server resolves the episode to play), from its resume point
-     * (`fromStart`: from the beginning), in the version and copy asked for, else the chooser's.
+     * (`fromStart`: from the beginning). `variantId`: the variant picked on the sheet, kept for the title like any
+     * choice; else the chooser's.
      */
-    fun play(id: String, fromStart: Boolean = false, versionId: String? = null, sourceId: String? = null) {
+    fun play(id: String, fromStart: Boolean = false, variantId: String? = null) {
         scope.launch {
             val loaded = try {
                 loadContext(id)
@@ -211,8 +223,10 @@ class PlayerService(
             }
             if (loaded == null) { notify("Lecture impossible · titre introuvable"); return@launch }
             val ctx = if (fromStart) loaded.resuming(null) else loaded
-            val wanted = versionId?.let { v -> ctx.versions.firstOrNull { it.id == v } }
-            if (wanted != null) play(ctx, wanted, sourceId?.let { s -> wanted.sources.firstOrNull { it.id == s } }) else play(ctx)
+            val wanted = variantId?.let { v -> ctx.variants.firstOrNull { it.id == v && it.isPlayable } }
+            if (wanted == null) return@launch play(ctx)
+            remember(wanted, ctx.content.id)
+            play(ctx, wanted)
         }
     }
 
@@ -228,18 +242,17 @@ class PlayerService(
         return PlaybackContext.of(c.detail(id), c.playback(id))
     }
 
-    /** Chooses the version with the chooser and starts. Called by every « Lecture ». */
+    /** Chooses the variant with the chooser and starts. Called by every « Lecture ». */
     fun play(ctx: PlaybackContext) {
-        val choice = startChoice(ctx.rememberId, ctx.versions, ctx.remembered)
-        if (choice == null) { notify("Lecture impossible · aucune source"); return }
-        start(ctx, choice.version, choice.source, ctx.resumeAt)
+        val choice = startChoice(ctx.rememberId, ctx.variants, ctx.remembered)
+        if (choice == null) { notify("Lecture impossible · aucune variante"); return }
+        start(ctx, choice, ctx.resumeAt)
     }
 
-    /** Plays an explicit version (picker, panel). Keeps the position when already playing the same content. */
-    fun play(ctx: PlaybackContext, version: Version, source: Source? = null) {
-        val src = source ?: chooser.bestSource(version) ?: return
+    /** Plays an explicit variant (picker, menu, dialog). Keeps the position when already playing the same content. */
+    fun play(ctx: PlaybackContext, variant: Variant) {
         val samePlayback = context?.content?.id == ctx.content.id && phase != Phase.IDLE
-        start(ctx, version, src, if (samePlayback) time else ctx.resumeAt)
+        start(ctx, variant, if (samePlayback) time else ctx.resumeAt)
     }
 
     /**
@@ -255,15 +268,15 @@ class PlayerService(
     }
 
     /**
-     * Live: plays a channel out of an ordered list (the category it was chosen in), in the version it starts in. The
-     * same engine takes the new source: a zap is this again. The channel's detail is asked for its guide.
+     * Live: plays a channel out of an ordered list (the category it was chosen in), in the variant it starts in. The
+     * same engine takes the new stream: a zap is this again. The channel's detail is asked for its guide.
      */
     fun playChannel(channel: Channel, order: List<Channel>) {
         channels = order
         this.channel = channel
         channelDetail = null
         epg = Channel.Guide.empty
-        val ctx = PlaybackContext(PlaybackContent(channel.id, ContentKind.LIVE, channel.name), channel.versions, remembered = channel.remembered)
+        val ctx = PlaybackContext(PlaybackContent(channel.id, ContentKind.LIVE, channel.name), channel.variants, remembered = channel.remembered)
         play(ctx)
         scope.launch {
             val full = runCatching { client().channel(channel.id) }.getOrNull()
@@ -283,11 +296,11 @@ class PlayerService(
         playChannel(channels[((idx + offset) % channels.size + channels.size) % channels.size], channels)
     }
 
-    /** The guide of the version playing, as the detail knows it: each quality may have its own (« M6 4K »), else the channel's. */
+    /** The guide of the variant playing, as the detail knows it: a variant may have its own (« M6 4K »), else the channel's. */
     private fun showGuide() {
         val detail = channelDetail ?: return
         if (detail.id != channel?.id) return
-        val v = version?.let { playing -> detail.versions.firstOrNull { it.id == playing.id } ?: playing }
+        val v = variant?.let { playing -> detail.variants.firstOrNull { it.id == playing.id } ?: playing }
         epg = detail.guide(v)
     }
 
@@ -310,7 +323,7 @@ class PlayerService(
         restartJob?.cancel(); restartJob = null
         changeJob?.cancel(); changeJob = null
         engine.stop()
-        context = null; version = null; source = null; channel = null; channels = emptyList()
+        context = null; variant = null; channel = null; channels = emptyList()
         channelDetail = null; epg = Channel.Guide.empty
         phase = Phase.IDLE; time = 0.0; duration = 0.0; isMinimized = false; isBuffering = false
         failure = null; toast = null; nextCountdown = null; nextContext = null; nextTriggered = false
@@ -330,9 +343,8 @@ class PlayerService(
             Phase.PAUSED -> engine.play()
             Phase.ENDED -> {
                 val ctx = context ?: return
-                val v = version ?: return
-                val s = source ?: return
-                start(ctx, v, s, 0.0)
+                val v = variant ?: return
+                start(ctx, v, 0.0)
             }
             else -> {}
         }
@@ -406,37 +418,41 @@ class PlayerService(
     fun selectText(track: EngineTrack?) = engine.selectTextTrack(track?.id)
 
     // Each menu only when it offers a choice; the tracks are known once the engine has read the stream.
-    val offersVersions: Boolean get() = (context?.versions?.size ?: 0) > 1
+    val offersVariants: Boolean get() = (context?.variants?.count { it.isPlayable } ?: 0) > 1
     val offersAudio: Boolean get() = audioTracks.size > 1
     val offersSubtitles: Boolean get() = textTracks.isNotEmpty()
 
-    // MARK: - Versions while playing
+    // MARK: - Variants while playing
 
-    /** Switches version, same position, and keeps it for the title (the series for an episode) when the profile's setting says so. */
-    fun switchVersion(v: Version, source: Source? = null) {
+    /**
+     * Switches variant, same position, and keeps it for the title (the series for an episode) when the profile's
+     * setting says so. The next episode was asked before the choice: asked again once the server has it, so it
+     * starts on its own variant under the same stream.
+     */
+    fun switchVariant(v: Variant) {
         val ctx = context ?: return
-        remember(v, ctx.rememberId)
-        play(ctx, v, source)
+        remember(v, ctx.content.id) { if (context?.content?.id == ctx.content.id) prefetchNext(ctx) }
+        play(ctx, v)
     }
 
-    /** « Réessayer » from the failure dialog: links asked for again, same version, same position. */
+    /** « Réessayer » from the failure dialog: links asked for again, same variant, same position. */
     fun retryFromServer() {
-        val v = version ?: return
+        val v = variant ?: return
         failure = null
         startAttempts = 0
         restartWithFreshLinks(v)
     }
 
-    /** Every other version, the chooser's best first: the failure dialog offers one. */
-    val alternativeVersions: List<Version>
+    /** Every other variant, in the server's order: the failure dialog offers them. */
+    val alternativeVariants: List<Variant>
         get() {
             val ctx = context ?: return emptyList()
-            val v = version ?: return emptyList()
-            return chooser.alternatives(v, ctx.versions)
+            val v = variant ?: return emptyList()
+            return chooser.alternatives(v, ctx.variants)
         }
 
-    /** From the failure dialog: another version, without remembering it as the title's choice. */
-    fun playInstead(v: Version) {
+    /** From the failure dialog: another variant, without remembering it as the title's choice. */
+    fun playInstead(v: Variant) {
         val ctx = context ?: return
         failure = null
         startAttempts = 0
@@ -512,7 +528,9 @@ class PlayerService(
 
     // MARK: - Start pipeline
 
-    private fun start(ctx: PlaybackContext, v: Version, s: Source, position: Double?) {
+    private fun start(ctx: PlaybackContext, v: Variant, position: Double?) {
+        // A series' own variants name its streams and play nothing: never handed here.
+        val url = v.streamUrl ?: return
         if (context?.content?.id != ctx.content.id) {
             sendProgress(final = true)
             startAttempts = 0
@@ -526,13 +544,12 @@ class PlayerService(
         }
         cancelTimers(keepCountdown = true)
         restartJob?.cancel(); restartJob = null
-        // Another version, another source, the same one again: each start opens a file, its markers asked anew.
+        // Another variant, the same one again: each start opens a file, its markers asked anew.
         forgetMarkers()
         context = ctx
-        val changedVersion = version?.id != v.id
-        version = v
-        if (changedVersion && ctx.isLive) showGuide()
-        source = s
+        val changedVariant = variant?.id != v.id
+        variant = v
+        if (changedVariant && ctx.isLive) showGuide()
         failure = null
         debugFrame = false
         phase = Phase.OPENING
@@ -548,7 +565,7 @@ class PlayerService(
 
         val resume = if (!ctx.isLive && (position ?: 0.0) > 1) position else null
         val description = MediaDescription(ctx.content.title, ctx.content.subtitle?.let { sub -> ctx.content.episode?.let { "$sub · ${it.shortCode}" } ?: sub }, ctx.content.backdrop)
-        engine.load(s.streamUrl, ctx.isLive, resume, description)
+        engine.load(url, ctx.isLive, resume, description)
         armStartDeadline()
         armWatchdog()
         startProgressTicker()
@@ -560,13 +577,13 @@ class PlayerService(
         if (isLive && liveWatchedFrom == null) liveWatchedFrom = now()
         startAttempts = 0
         startDeadline?.cancel()
-        source?.let { failedSources.clear(it.id) }
+        variant?.let { failedVariants.clear(it.id) }
         fetchMarkers()
     }
 
     /**
-     * Once started, a source that keeps rebuffering while playing is a failed source (next source, retry at the
-     * same position, then the dialog): the bandwidth at home is not the bottleneck, the source is.
+     * Once started, a variant that keeps rebuffering while playing is a failed variant (an equivalent one, retry at
+     * the same position, then the dialog): the bandwidth at home is not the bottleneck, the provider's stream is.
      */
     private fun armWatchdog() {
         watchdog?.cancel()
@@ -597,75 +614,73 @@ class PlayerService(
         }
     }
 
-    /** What follows a failed start or a freeze: the next source, the same one again, or the dialog. */
+    /** What follows a failed start or a freeze: an equivalent variant, the same one again, or the dialog. */
     sealed interface FailureStep {
-        data class OtherSource(val source: Source) : FailureStep
-        data object SameSource : FailureStep
+        data class OtherVariant(val variant: Variant) : FailureStep
+        data object SameVariant : FailureStep
         data object GiveUp : FailureStep
     }
 
-    /** Error or no image after 10 s: switch source, retry twice, then ask. The links held are the provider's own. */
+    /**
+     * Error or no image after 10 s: the next equivalent variant (same language, quality, dynamic range and cut, at
+     * another provider or in another of its streams), else the same one twice more, then the dialog.
+     */
     private fun handleStreamFailure() {
-        if (restartJob != null || context == null) return
-        val v = version ?: return
-        val s = source ?: return
+        if (restartJob != null) return
+        val ctx = context ?: return
+        val v = variant ?: return
         startAttempts += 1
-        failedSources.markFailed(s.id)
-        when (val step = failureStep(startAttempts, settings.switchSourceOnFailure, chooser.nextSource(s, v))) {
-            is FailureStep.OtherSource -> {
-                showToast("Source changée automatiquement", "${sourceLabel(s, v)} → ${sourceLabel(step.source, v)} · même version ${v.label}")
-                restart(v, step.source)
+        failedVariants.markFailed(v.id)
+        when (val step = failureStep(startAttempts, settings.switchVariantOnFailure, chooser.next(v, ctx.variants))) {
+            is FailureStep.OtherVariant -> {
+                showToast("Variante changée automatiquement", "${v.provider.name} → ${step.variant.provider.name} · ${step.variant.label}")
+                restart(step.variant)
             }
-            FailureStep.SameSource -> restart(v, s)
+            FailureStep.SameVariant -> restart(v)
             FailureStep.GiveUp -> presentFailure()
         }
     }
 
-    /** Restarts on the given source at the same position, on the next turn: a failure is noticed inside the engine's own callbacks. */
-    private fun restart(v: Version, s: Source) {
+    /** Restarts on the given variant at the same position, on the next turn: a failure is noticed inside the engine's own callbacks. */
+    private fun restart(v: Variant) {
         val ctx = context ?: return
         val at = time
         restartJob?.cancel()
         restartJob = scope.launch {
             if (context?.content?.id != ctx.content.id) return@launch
             restartJob = null
-            start(ctx, v, s, at)
+            start(ctx, v, at)
         }
     }
 
     /**
      * « Réessayer »: asks `/playback` (`/channels/{id}` in live) again, in case the catalogue changed since, then
-     * restarts on the same version at the same position.
+     * restarts at the same position on the same variant, or on the closest when the provider dropped it.
      */
-    private fun restartWithFreshLinks(v: Version) {
+    private fun restartWithFreshLinks(v: Variant) {
         val ctx = context ?: return
         val at = time
         restartJob?.cancel()
         restartJob = scope.launch {
             val fresh = runCatching {
-                if (ctx.isLive) PlaybackContext(ctx.content, client().channel(ctx.content.id).versions)
+                if (ctx.isLive) PlaybackContext(ctx.content, client().channel(ctx.content.id).variants)
                 else PlaybackContext(ctx.content, client().playback(ctx.content.id))
             }.getOrNull() ?: ctx
             if (context?.content?.id != ctx.content.id) return@launch
             restartJob = null
-            val version = fresh.versions.firstOrNull { it.id == v.id } ?: v
-            val source = chooser.bestSource(version) ?: return@launch
-            start(fresh, version, source, at)
+            start(fresh, chooser.start(fresh.variants, RememberedVariant.of(v)) ?: v, at)
         }
     }
 
     /** Stops and shows the failure dialog. */
     private fun presentFailure(reason: String? = null) {
-        if (version == null || source == null) return
+        if (variant == null) return
         sendWatchTime(final = true)
         cancelTimers(keepCountdown = true)
         engine.stop()
         phase = Phase.FAILED
         failure = Failure(startAttempts, reason)
     }
-
-    /** The server's label of the source (« iPTVisions · LIGHT »); « Source » for one the version no longer lists. */
-    fun sourceLabel(s: Source, v: Version): String = v.sources.firstOrNull { it.id == s.id }?.label ?: "Source"
 
     private fun showToast(text: String, detail: String?) {
         toast = Toast(text, detail)
@@ -685,7 +700,7 @@ class PlayerService(
         }
     }
 
-    /** What follows `ctx`, ready to play: its versions asked from `/playback`. */
+    /** What follows `ctx`, ready to play: its variants asked from `/playback`. */
     private suspend fun contextFor(up: UpNext, after: PlaybackContext): PlaybackContext? = when (up) {
         is UpNext.EpisodeNext -> runCatching { PlaybackContext.of(up.next, after, client().playback(up.next.id)) }.getOrNull()
         is UpNext.TitleNext -> runCatching { PlaybackContext.of(up.suggestion.item, client().playback(up.suggestion.item.id)) }.getOrNull()
@@ -865,7 +880,7 @@ class PlayerService(
     override fun onUnsupported(codec: String) {
         Log.i(TAG, "image non décodable : $codec")
         if (phase == Phase.IDLE || phase == Phase.FAILED) return
-        // Another source carries the same picture: straight to the dialog, with the reason and the other versions.
+        // An equivalent variant most often carries the same picture: straight to the dialog, with the reason and the other variants.
         presentFailure("L'image de ce flux est en $codec, qu'aucun décodeur de cet appareil ne sait lire.")
     }
 
@@ -905,8 +920,7 @@ class PlayerService(
         debugFrame = true
         context = ctx
         this.suggestions = suggestions
-        version = ctx.versions.firstOrNull()
-        source = ctx.versions.firstOrNull()?.sources?.firstOrNull()
+        variant = ctx.variants.firstOrNull()
         duration = ctx.duration ?: 7620.0
         time = ctx.resumeAt ?: 4368.0
         audioTracks = listOf(EngineTrack("0:0", "Français (AC3 5.1)", "fr", true), EngineTrack("0:1", "English (AAC stéréo)", "en", false))
@@ -949,7 +963,7 @@ class PlayerService(
         /** The countdown at 0 without the engine's end: past this, what follows starts anyway. */
         const val END_WAIT_MS = 2000L
         const val SUGGESTIONS_DELAY_MS = 3000L
-        /** Live: no new picture for this long means the source froze; films and episodes: longer, a seek in a remote MKV can hold the image. */
+        /** Live: no new picture for this long means the stream froze; films and episodes: longer, a seek in a remote MKV can hold the image. */
         const val FREEZE_TIMEOUT_S = 4
         const val VOD_FREEZE_TIMEOUT_S = 15
         /** Films and episodes: a stop further than this from the end is a cut, not the end of the file. */
@@ -957,9 +971,9 @@ class PlayerService(
         /** Fast forward / rewind speeds, one more level every 2 s of hold. */
         val SCAN_RATES = listOf(10.0, 30.0, 60.0, 120.0, 300.0)
 
-        fun failureStep(attempts: Int, switchesSources: Boolean, nextSource: Source?): FailureStep {
-            if (switchesSources && nextSource != null) return FailureStep.OtherSource(nextSource)
-            return if (attempts <= 2) FailureStep.SameSource else FailureStep.GiveUp
+        fun failureStep(attempts: Int, switchesVariant: Boolean, next: Variant?): FailureStep {
+            if (switchesVariant && next != null) return FailureStep.OtherVariant(next)
+            return if (attempts <= 2) FailureStep.SameVariant else FailureStep.GiveUp
         }
     }
 }

@@ -135,7 +135,7 @@ struct HTTPCatalogClientTests {
         switching.onUnauthorized = { revoked += 1 }
         answer(401, #"{"error":{"code":"unauthorized","message":"Appareil inconnu"}}"#)
         await #expect(throws: CatalogError.unauthorized) { try await switching.channels() }
-        await #expect(throws: CatalogError.unauthorized) { try await switching.programmes(channel: ContentID("live:fr-tf1"), version: nil) }
+        await #expect(throws: CatalogError.unauthorized) { try await switching.programmes(channel: ContentID("live:fr-tf1"), variant: nil) }
         #expect(revoked == 2)
         await #expect(throws: CatalogError.unauthorized) { try await switching.pollDevice(code: "K7Q4MZ") }
         #expect(revoked == 2)
@@ -173,7 +173,7 @@ struct HTTPCatalogClientTests {
         answer(200, #"{"id":"fallback:movie:tenet:2020","kind":"movie","title":"Tenet"}"#)
         _ = try await client.detail(id: ContentID("fallback:movie:tenet:2020"))
         #expect(try last.url?.path() == "/player/movies/fallback:movie:tenet:2020")
-        answer(200, #"{"versions":[],"resume_at":1140,"duration":3060,"next":null,"cast":[]}"#)
+        answer(200, #"{"variants":[],"resume_at":1140,"duration":3060,"next":null,"cast":[]}"#)
         let p = try await client.playback(id: ContentID("tmdb:tv:1396:s01e05"))
         #expect(p.resumeAt == 1140)
         #expect(try last.url?.path() == "/player/playback/tmdb:tv:1396:s01e05")
@@ -203,7 +203,7 @@ struct HTTPCatalogClientTests {
     }
 
     @Test func homeCarouselDecodesWhatLecturePlays() async throws {
-        answer(200, #"{"heroes":[{"item":{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo"},"tagline":"SÉRIE · NOUVEL ÉPISODE · S1 É2","overview":null,"runtime":80,"certification":null,"versions":[],"play_id":"tmdb:tv:1396:s01e02","play_label":"Lecture","episode":{"season":1,"number":2,"title":"Épisode 2"}},{"item":{"id":"tmdb:movie:603","kind":"movie","title":"Matrix"},"tagline":"FILM · N° 1 CETTE SEMAINE","overview":null,"runtime":136,"certification":"12","versions":[],"play_id":"tmdb:movie:603","play_label":"Reprendre · 40 min restantes"}],"rows":[],"generated_at":"2026-10-03T08:00:00Z"}"#)
+        answer(200, #"{"heroes":[{"item":{"id":"tmdb:tv:1396","kind":"series","title":"Vincenzo"},"tagline":"SÉRIE · NOUVEL ÉPISODE · S1 É2","overview":null,"runtime":80,"certification":null,"variants":[],"play_id":"tmdb:tv:1396:s01e02","play_label":"Lecture","episode":{"season":1,"number":2,"title":"Épisode 2"}},{"item":{"id":"tmdb:movie:603","kind":"movie","title":"Matrix"},"tagline":"FILM · N° 1 CETTE SEMAINE","overview":null,"runtime":136,"certification":"12","variants":[],"play_id":"tmdb:movie:603","play_label":"Reprendre · 40 min restantes"}],"rows":[],"generated_at":"2026-10-03T08:00:00Z"}"#)
         let home = try await client.home()
         #expect(home.heroes.map(\.playID) == [ContentID("tmdb:tv:1396:s01e02"), ContentID("tmdb:movie:603")])
         #expect(home.heroes[0].item.id == ContentID("tmdb:tv:1396"))
@@ -257,7 +257,7 @@ struct HTTPCatalogClientTests {
         answer(200, #"{"related":[],"next":null}"#)
         #expect(try await client.suggestions(id: ContentID("tmdb:movie:603")).next == nil)
 
-        answer(200, #"{"versions":[],"resume_at":1140,"duration":4680,"next":null,"cast":[],"episode":{"id":"tmdb:tv:1396:s01e02","season":1,"number":2,"title":"Épisode 2"}}"#)
+        answer(200, #"{"variants":[],"resume_at":1140,"duration":4680,"next":null,"cast":[],"episode":{"id":"tmdb:tv:1396:s01e02","season":1,"number":2,"title":"Épisode 2"}}"#)
         let p = try await client.playback(id: ContentID("tmdb:tv:1396"))
         #expect(p.episode?.id == ContentID("tmdb:tv:1396:s01e02"))
         #expect(p.episode?.ref.code == "S1 · É2")
@@ -350,26 +350,26 @@ struct HTTPCatalogClientTests {
     @Test("Les programmes d'une chaîne passent par /channels/{id}/programmes")
     func channelProgrammesTravel() async throws {
         answer(200, #"[{"title":"Journal","start":"2026-09-30T18:00:00.000Z","end":"2026-09-30T18:40:00.000Z","overview":"Les titres"},{"title":"Film","start":"2026-09-30T18:40:00.000Z","end":"2026-09-30T20:30:00.000Z","overview":null}]"#)
-        let day = try await client.programmes(channel: ContentID("live:fr-tf1"), version: "vf-4k")
+        let day = try await client.programmes(channel: ContentID("live:fr-tf1"), variant: "vf-4k")
         #expect(day.map(\.title) == ["Journal", "Film"])
         #expect(day[0].overview == "Les titres")
         #expect(try last.url?.path() == "/player/channels/live:fr-tf1/programmes")
-        #expect(try query(last) == ["version": "vf-4k"])
+        #expect(try query(last) == ["variant": "vf-4k"])
     }
 
     @Test("Une qualité au guide propre le porte ; les autres prennent celui de la chaîne")
     func guidePerQuality() async throws {
-        let src = #"{"id":"s","container":"TS","stream_url":"demo://live","provider":null,"origin":null,"distinction":null,"label":"Source"}"#
+        let src = #""badge":"x","label":"x","provider":{"id":"xtream-1","name":"Fournisseur","kind":"xtream","rank":1},"name":"M6","category":null,"container":"TS","stream_url":"demo://live""#
         answer(200, #"""
         {"id":"live:fr-m6","name":"M6","has_epg":true,
          "now":{"title":"Match en 4K","start":"2026-09-30T18:00:00.000Z","end":"2026-09-30T19:00:00.000Z","overview":null},"next":null,
-         "versions":[{"id":"vf-4k","language":"VF","quality":"4K","sources":[\#(src)]},
-                     {"id":"vf-hd","language":"VF","quality":"HD","sources":[\#(src)],"has_epg":true,
+         "variants":[{"id":"vf-4k","language":"VF","quality":"4K",\#(src)},
+                     {"id":"vf-hd","language":"VF","quality":"HD",\#(src),"has_epg":true,
                       "now":{"title":"Météo","start":"2026-09-30T18:00:00.000Z","end":"2026-09-30T19:00:00.000Z","overview":null},"next":null}]}
         """#)
         let m6 = try await client.channel(id: ContentID("live:fr-m6"))
-        #expect(m6.guide(for: m6.versions[0]).now?.title == "Match en 4K")
-        #expect(m6.guide(for: m6.versions[1]).now?.title == "Météo")
+        #expect(m6.guide(for: m6.variants[0]).now?.title == "Match en 4K")
+        #expect(m6.guide(for: m6.variants[1]).now?.title == "Météo")
         #expect(m6.guide(for: nil).now?.title == "Match en 4K")
     }
 
@@ -426,7 +426,7 @@ struct HTTPCatalogClientTests {
         let home = try await client.home()
         #expect(home.rows.map(\.kind) == [.mostWatchedChannels, .other])
 
-        answer(200, #"[{"id":"fr-generalistes","name":"France · Généralistes","section":"France","theme":"Généralistes","channels":[{"id":"live:fr-tf1","name":"TF1","number":1,"logo":null,"has_epg":false,"is_favorite":false,"versions":[],"watched_rank":1},{"id":"live:fr-m6","name":"M6","number":6,"logo":null,"has_epg":false,"is_favorite":false,"versions":[]}]}]"#)
+        answer(200, #"[{"id":"fr-generalistes","name":"France · Généralistes","section":"France","theme":"Généralistes","channels":[{"id":"live:fr-tf1","name":"TF1","number":1,"logo":null,"has_epg":false,"is_favorite":false,"variants":[],"watched_rank":1},{"id":"live:fr-m6","name":"M6","number":6,"logo":null,"has_epg":false,"is_favorite":false,"variants":[]}]}]"#)
         let groups = try await client.channels()
         #expect(groups.flatMap(\.channels).map(\.watchedRank) == [1, nil])
 

@@ -3,7 +3,7 @@ import Observation
 
 /// What this device keeps for itself (`UserDefaults`): the server, its name, the demo switch, and a copy of the
 /// profile's playback settings so the player has them before `/info` answers. Everything personal (the settings
-/// themselves, the versions chosen, the recent channels) lives on the server, with the profile.
+/// themselves, the variants chosen, the recent channels) lives on the server, with the profile.
 @Observable
 final class Preferences {
     private let defaults: UserDefaults

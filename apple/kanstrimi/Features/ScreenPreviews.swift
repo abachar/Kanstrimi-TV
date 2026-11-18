@@ -59,9 +59,9 @@ private struct ScreenHost<Content: View>: View {
 #Preview("Fiche · erreur") {
     ScreenHost(setup: { $0.scenario.failingDetail = true }) { NavigationStack { DetailView(id: ContentID("tmdb:tv:300388")) } }
 }
-#Preview("Sélecteur de version") {
+#Preview("Sélecteur de variantes") {
     ScreenHost {
-        VersionPicker(title: "La Lisière", versions: Fixtures.sevenVersions, recommendedID: "vf-4k-dv") { _, _ in }
+        VariantPicker(title: "La Lisière", variants: Fixtures.eightVariants, recommendedID: "a") { _ in }
     }
 }
 #Preview("Direct") { ScreenHost { LiveView() } }
@@ -108,18 +108,22 @@ private struct HomeOfflinePreview: View {
 }
 
 private enum Fixtures {
-    static func source(_ id: String, origin: String) -> Source {
-        Source(id: id, container: "MKV", streamURL: URL(string: "demo://movie")!, provider: Provider(id: "xtream-a", name: "Fournisseur A", kind: "xtream", rank: 1),
-               origin: origin, distinction: nil, label: "Fournisseur A")
+    static let providerA = Provider(id: "xtream-a", name: "Fournisseur A", kind: "xtream", rank: 1)
+    static let providerB = Provider(id: "xtream-b", name: "Fournisseur B", kind: "xtream", rank: 2)
+    static func variant(_ id: String, _ language: Language, _ quality: Quality, _ dynamicRange: DynamicRange? = nil, edition: String? = nil,
+                        by provider: Provider = providerA, name: String, category: String) -> Variant {
+        Variant(id: id, language: language, quality: quality, dynamicRange: dynamicRange, edition: edition, provider: provider, name: name,
+                category: category, streamURL: URL(string: "demo://movie"))
     }
-    static let sevenVersions: [Version] = [
-        Version(id: "vf-4k-dv", language: .vf, quality: .uhd, dynamicRange: .dolbyVision, sources: [source("a", origin: "4K DV")]),
-        Version(id: "vf-4k-hdr", language: .vf, quality: .uhd, dynamicRange: .hdr, sources: [source("b", origin: "Films 4K UHD"), source("c", origin: "4K LIGHT")]),
-        Version(id: "vf-fhd", language: .vf, quality: .fhd, dynamicRange: nil, sources: [source("d", origin: "Films FHD")]),
-        Version(id: "vf-fhd-version-longue", language: .vf, quality: .fhd, dynamicRange: nil, sources: [source("h", origin: "Films FHD")], edition: "Version longue"),
-        Version(id: "vostfr-4k-hdr", language: .vostfr, quality: .uhd, dynamicRange: .hdr, sources: [source("e", origin: "VOST")]),
-        Version(id: "vostfr-fhd", language: .vostfr, quality: .fhd, dynamicRange: nil, sources: [source("f", origin: "VOST")]),
-        Version(id: "vo-fhd", language: .vo, quality: .fhd, dynamicRange: nil, sources: [source("g", origin: "VO")]),
+    static let eightVariants: [Variant] = [
+        variant("a", .vf, .uhd, .dolbyVision, name: "La Lisière (2025) 4K DV", category: "|FR| FILMS 4K DOLBY VISION"),
+        variant("b", .vf, .uhd, .hdr, name: "La Lisière (2025) UHD", category: "|FR| FILMS 4K UHD"),
+        variant("c", .vf, .uhd, .hdr, by: providerB, name: "FR - La Lisiere 2025 2160p", category: "VOD | 4K LIGHT"),
+        variant("d", .vf, .fhd, name: "La Lisière (2025)", category: "|FR| FILMS RÉCENTS"),
+        variant("h", .vf, .fhd, edition: "Version longue", name: "La Lisière (2025) VERSION LONGUE", category: "|FR| FILMS RÉCENTS"),
+        variant("e", .vostfr, .uhd, .hdr, name: "La Lisière (2025) VOSTFR 4K", category: "|FR| V.O SOUS TITRÉS"),
+        variant("f", .vostfr, .fhd, name: "La Lisière (2025) VOSTFR", category: "|FR| V.O SOUS TITRÉS"),
+        variant("g", .vo, .fhd, by: providerB, name: "EN - The Edge (2025)", category: "EN | MOVIES"),
     ]
 }
 #endif

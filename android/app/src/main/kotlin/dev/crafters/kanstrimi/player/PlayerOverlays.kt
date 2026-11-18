@@ -3,13 +3,14 @@ package dev.crafters.kanstrimi.player
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,7 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.crafters.kanstrimi.R
+import dev.crafters.kanstrimi.contract.mixLanguages
 import dev.crafters.kanstrimi.ui.UpNextCard
+import dev.crafters.kanstrimi.ui.VariantLine
 import dev.crafters.kanstrimi.ui.theme.Theme
 
 // The player's overlays: the loading badge, the toast, « Passer … », the failure dialog, « À suivre ».
@@ -70,7 +73,7 @@ fun LoadingBadge(player: PlayerService) {
     }
 }
 
-/** A message at the bottom: the automatic source switch, or the app's notice while the player is up. */
+/** A message at the bottom: the automatic switch of variant, or the app's notice while the player is up. */
 @Composable
 fun ToastView(text: String, detail: String? = null, warning: Boolean = false) {
     Box(modifier = Modifier.fillMaxSize().padding(bottom = 140.dp), contentAlignment = Alignment.BottomCenter) {
@@ -99,9 +102,9 @@ fun SkipButton(label: String, barShown: Boolean, onClick: () -> Unit) {
 }
 
 /**
- * After 10 s without an image and the automatic attempts: Réessayer, another version, Quitter. When the picture's
- * codec has no decoder here (`Failure.reason`), the reason replaces the count and Réessayer: only another version
- * can help.
+ * After 10 s without an image and the automatic attempts: Réessayer, the other variants (one line each, in the
+ * server's order), Quitter. When the picture's codec has no decoder here (`Failure.reason`), the reason replaces the
+ * count and Réessayer: only another variant can help.
  */
 @Composable
 fun StreamFailureDialog(player: PlayerService) {
@@ -121,18 +124,22 @@ fun StreamFailureDialog(player: PlayerService) {
                     Icon(Icons.Filled.Refresh, contentDescription = null)
                     Text("Réessayer", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 6.dp))
                 }
-                val others = player.alternativeVersions
+                val others = player.alternativeVariants
                 if (others.isNotEmpty()) {
-                    Text("ou essayer une autre version", style = MaterialTheme.typography.bodyMedium, color = Theme.secondary)
-                    Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val amongLanguages = player.context?.variants.orEmpty().mixLanguages
+                    Text("ou essayer une autre variante", style = MaterialTheme.typography.bodyMedium, color = Theme.secondary)
+                    Column(modifier = Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         others.forEach { v ->
-                            OutlinedButton(onClick = { player.playInstead(v) }, colors = ButtonDefaults.outlinedButtonColors(contentColor = Theme.text)) { Text(v.label) }
+                            OutlinedButton(
+                                onClick = { player.playInstead(v) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Theme.text),
+                            ) { VariantLine(v, amongLanguages, modifier = Modifier.weight(1f)) }
                         }
                     }
                 }
                 TextButton(onClick = { player.stop() }, modifier = Modifier.fillMaxWidth()) { Text("Quitter", color = Theme.text) }
             }
-            if (reason == null) Text("Réessayer suffit souvent : la source change d'une tentative à l'autre.", style = MaterialTheme.typography.bodySmall, color = Theme.secondary)
+            if (reason == null) Text("Réessayer suffit souvent : le fournisseur change de serveur d'une tentative à l'autre.", style = MaterialTheme.typography.bodySmall, color = Theme.secondary)
         }
     }
 }
@@ -142,9 +149,9 @@ fun StreamFailureDialog(player: PlayerService) {
 fun NextEpisodeCard(player: PlayerService) {
     val up = player.upNext ?: return
     val warning = (up as? PlayerService.UpNext.EpisodeNext)?.let { e ->
-        val current = player.version?.language ?: return@let null
+        val current = player.variant?.language ?: return@let null
         val alternative = e.next.languages.firstOrNull() ?: return@let null
-        if (e.next.languages.contains(current)) null else VersionChooser.languageWarning(e.next.number, alternative, current)
+        if (e.next.languages.contains(current)) null else VariantChooser.languageWarning(e.next.number, alternative, current)
     }
     Box(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 72.dp), contentAlignment = Alignment.TopEnd) {
         UpNextCard(

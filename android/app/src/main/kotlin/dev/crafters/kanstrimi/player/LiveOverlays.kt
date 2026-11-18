@@ -54,7 +54,7 @@ val Programme.nextLine: String get() = "Ensuite : $title · ${formatHour(start)}
 
 /**
  * The channels of the list the live started from, each with what it shows now, in a panel on the left of the
- * video; a tap zaps (the same engine takes the new source) and closes it. A tap on the video beside it, or a swipe
+ * video; a tap zaps (the same engine takes the new stream) and closes it. A tap on the video beside it, or a swipe
  * towards the left, closes it too.
  */
 @Composable
@@ -102,14 +102,14 @@ fun ChannelListOverlay(player: PlayerService, env: AppEnvironment, onClose: () -
 @Composable
 fun ProgrammeStrip(player: PlayerService, env: AppEnvironment) {
     val channelId = player.channel?.id
-    val versionId = player.version?.id
+    val variantId = player.variant?.id
     /** null while loading. */
     var programmes by remember { mutableStateOf<List<Programme>?>(null) }
-    LaunchedEffect(channelId, versionId) {
+    LaunchedEffect(channelId, variantId) {
         programmes = null
         if (channelId == null) return@LaunchedEffect
         // An unreliable guide is no reason for an error screen: a failure reads as an unknown programme.
-        programmes = runCatching { env.client.programmes(channelId, versionId) }.getOrDefault(emptyList())
+        programmes = runCatching { env.client.programmes(channelId, variantId) }.getOrDefault(emptyList())
     }
     val p = programmes
     when {
@@ -137,8 +137,8 @@ fun RecentChannelsStrip(player: PlayerService, env: AppEnvironment, onPick: () -
             val playing = r.id == player.channel?.id
             LoadedChannelCard(channel = channel, modifier = Modifier.width(metrics.channelCardWidth), status = if (playing) ChannelItem.Status.Playing else ChannelItem.Status.Watched(r.watchedAt)) {
                 if (playing) return@LoadedChannelCard
-                val full = if (channel.versions.isEmpty()) env.channelCache.latest(r.id) else channel
-                if (full == null || full.versions.isEmpty()) { env.notify("Chaîne indisponible"); return@LoadedChannelCard }
+                val full = if (channel.variants.isEmpty()) env.channelCache.latest(r.id) else channel
+                if (full == null || full.variants.isEmpty()) { env.notify("Chaîne indisponible"); return@LoadedChannelCard }
                 val order = if (player.channels.any { it.id == full.id }) player.channels else listOf(full) + player.channels
                 player.playChannel(full, order)
                 env.recentChannels.record(full)

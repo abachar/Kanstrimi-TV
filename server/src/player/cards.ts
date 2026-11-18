@@ -4,7 +4,7 @@ import { signedImagePath } from "@/shared";
 import type { Card, ContentItem, Person, ProgressWire } from "./types";
 import type { RestContext } from "./context";
 import { isResumable, type Progress } from "./progress";
-import { drOf, languageLabel, qualityBadgeOf, qualityOfRank, sortLanguages } from "./versions";
+import { drOf, languageLabel, qualityBadgeOf, qualityOfRank, sortLanguages } from "./variants";
 
 /** The one `Card` of the contract, in its three sizes: base (every list), grid (+ year, rating…), sheet (+ overview, cast…). */
 

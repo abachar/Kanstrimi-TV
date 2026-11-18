@@ -88,11 +88,11 @@ fun SettingsScreen() {
             }
             // The profile's settings, kept by the server and read by `PlayerService` through `PlaybackPreferences`.
             val settings by env.preferences.settingsFlow.collectAsState()
-            // No « Langue audio » any more: the versions come in the order of the profile's filter, set in the admin.
+            // No « Langue audio » any more: the variants come in the order of the profile's filter, set in the admin.
             Section(info?.profile?.let { "Lecture · ${it.name}" } ?: "Lecture") {
                 ToggleRow("Lire la suite automatiquement", settings.autoPlayNext) { on -> scope.launch { env.updateSettings { it.copy(autoPlayNext = on) } } }
-                ToggleRow("Retenir la version choisie pour chaque titre", settings.rememberVersions) { on -> scope.launch { env.updateSettings { it.copy(rememberVersions = on) } } }
-                ToggleRow("Changer de source en cas de panne", settings.switchSourceOnFailure) { on -> scope.launch { env.updateSettings { it.copy(switchSourceOnFailure = on) } } }
+                ToggleRow("Mémoriser la variante par titre", settings.rememberVariants) { on -> scope.launch { env.updateSettings { it.copy(rememberVariants = on) } } }
+                ToggleRow("Changer de variante en cas de panne", settings.switchVariantOnFailure) { on -> scope.launch { env.updateSettings { it.copy(switchVariantOnFailure = on) } } }
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("Qualité maximale")
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

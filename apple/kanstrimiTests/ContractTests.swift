@@ -73,7 +73,7 @@ struct ContractTests {
                 case "kind" where path.last == "provider": nil // a source's provider, not a content kind
                 case "kind" where path.last == "rows": text != "other" && HomeRowKind(rawValue: text) != nil
                 case "kind": ContentItem.Kind(rawValue: text) != nil // movie, series, episode, live, saga: ContentKind's too
-                case "quality" where path.last == "versions", "max_quality": Quality(rawValue: text) != nil // elsewhere « quality » is a display text (« 4K DV »)
+                case "quality" where path.last == "variants", "max_quality": Quality(rawValue: text) != nil // elsewhere « quality » is a display text (« 4K DV »)
                 case "dynamic_range": DynamicRange(rawValue: text) != nil
                 case "reason": text != "other" && Suggestion.Reason(rawValue: text) != nil
                 default: nil

@@ -8,49 +8,49 @@ export type ContentKind = "movie" | "series" | "episode" | "live";
 export type Quality = "SD" | "HD" | "FHD" | "4K";
 export type DynamicRange = "HDR" | "DV";
 
-/** `rank`: the provider's place in the admin's order of preference (1 = preferred): the apps group the sources by it. */
+/** `rank`: the provider's place in the admin's order of preference (1 = preferred): it orders the variants of a same quality. */
 export type Provider = { id: string; name: string; kind: "xtream" | "local" | (string & {}); rank: number };
 /**
- * A copy of a version at one provider. `label` is what the app shows for it (« iPTVisions », or
- * « iPTVisions · LIGHT » when that provider has several copies of the version); `distinction` is the part
- * after the provider's name, null for a lone copy: the word of its category the other copies lack, else its raw
- * title, else a letter. `origin`: the provider's category, for the admin.
- */
-export type Source = {
-  id: string;
-  container: string;
-  stream_url: string;
-  provider: Provider;
-  origin: string | null;
-  distinction: string | null;
-  label: string;
-};
-/**
+ * One stream of one provider, as the app lists and plays it: a title has as many as its providers list it.
+ * They come in the order the app shows them and tries them: the profile's languages in its order, the usual
+ * cut before an edition, descending quality then dynamic range, the providers in the order of preference.
+ * `badge` « 4K DV », `label` « FR · 4K DV · Version longue »: the variant's language, quality and cut, written
+ * here. `name` and `category` are the provider's own words: what tells five « FHD » apart.
  * `edition`: a cut other than the theatrical one (« Version longue », « Director's Cut »), absent for the usual cut.
- * Live: `has_epg`, `now`, `next` when this quality's guide is not the channel's (« M6 4K » has its own);
- * absent, the channel's apply. `chip`: the version's chip, « FHD », or « FHD/EN » when the channel mixes languages.
+ * `stream_url`: the provider's own URL, played as is; null for a series' own variants (its sheet), which
+ * name its streams and play nothing: an episode's variants play.
+ * Live: `chip` « FHD », or « FHD/EN » when the channel mixes languages; `has_epg`, `now`, `next` when this
+ * variant's guide is not the channel's (« M6 4K » has its own): absent, the channel's apply.
  */
-export type Version = {
+export type Variant = {
   id: string;
   language: string;
   quality: Quality;
-  chip?: string;
   dynamic_range?: DynamicRange;
   edition?: string;
-  sources: Source[];
+  badge: string;
+  label: string;
+  provider: Provider;
+  name: string;
+  category: string | null;
+  container: string;
+  stream_url: string | null;
+  chip?: string;
   has_epg?: boolean;
   now?: Programme | null;
   next?: Programme | null;
 };
 
 /**
- * The version the profile chose for a title (`PUT /playback/{id}/version`), served back wherever the title
- * plays: a movie or a channel starts on `id` when it is still listed; a series' choice (written from any
- * episode, read on every one) is the language × quality × dynamic range × edition the app applies to each
- * episode, falling back to the same language. `label` « FR · 4K DV · Version longue ». Nothing when the
- * profile's `remember_versions` is off.
+ * The variant the profile chose for a title (`PUT /playback/{id}/variant`), served back wherever the title
+ * plays. `id` is that variant among the ones served beside it: a movie or a channel starts on it; a series'
+ * choice (written from any episode, read on every one) names the series' variant on its sheet and, on an
+ * episode, this episode's variant under the same stream. When `id` is not listed (the provider dropped the
+ * stream, the episode is not in it), the app plays the closest: the same language × quality × dynamic
+ * range × edition, else the same language. `label` « FR · 4K DV · Version longue ». Nothing when the
+ * profile's `remember_variants` is off.
  */
-export type RememberedVersion = {
+export type RememberedVariant = {
   id: string;
   language: string;
   quality: Quality;
@@ -74,7 +74,7 @@ export type EpisodeWire = {
   runtime: number | null;
   still: string | null;
   air_date: string | null;
-  versions: Version[];
+  variants: Variant[];
   progress: ProgressWire | null;
   /**
    * What its card and its row draw: the still, the progress, « vu »; the sheet's row adds `facts` (« 52 min · 12 min
@@ -114,9 +114,9 @@ export type Card = {
   has_tmdb?: boolean;
   provider_category?: string | null;
   raw_title?: string | null;
-  versions?: Version[];
-  /** Sheet: the version this profile chose for the title (a series: for every episode); null when none. */
-  remembered?: RememberedVersion | null;
+  variants?: Variant[];
+  /** Sheet: the variant this profile chose for the title (a series: for every episode); null when none. */
+  remembered?: RememberedVariant | null;
   is_favorite?: boolean;
   seasons?: SeasonWire[];
   current_episode?: EpisodeRef | null;
@@ -188,15 +188,17 @@ export type ChannelWire = {
   max_quality?: Quality;
   has_epg: boolean;
   is_favorite: boolean;
-  versions: Version[];
+  variants: Variant[];
+  /** The qualities the channel comes in, the best first, one chip each (« 4K », « FHD »): what its row shows, a variant's `chip` saying which one it is. */
+  chips: string[];
   now?: Programme | null;
   next?: Programme | null;
   /** 1 = the most watched over the last 30 days (« Les plus regardées », 10 channels at most); absent otherwise. */
   watched_rank?: number;
   /** 1 = the channel watched last by this profile (« Récentes », 20 at most); absent otherwise. */
   recent_rank?: number;
-  /** The version this profile chose for the channel; absent when none. */
-  remembered?: RememberedVersion;
+  /** The variant this profile chose for the channel; absent when none. */
+  remembered?: RememberedVariant;
 };
 /**
  * A country (« Maroc », the market name) and a theme (« Sport »); `name` = « Maroc · Sport », kept
@@ -221,7 +223,7 @@ export type HomeRow = {
 /**
  * A slide of the home carousel. `item` is what it draws and what Fiche opens (the series for a new episode):
  * its picture, logo, « S2 É5 · 2026 · Drame · 2 h 16 », `progress` when it resumes. `play_id` is what Lecture
- * plays, `versions`, `runtime`, `resume_at` and `duration` (seconds) being that title's own; `episode` names
+ * plays, `variants`, `runtime`, `resume_at` and `duration` (seconds) being that title's own; `episode` names
  * the episode played. `tagline`: what the slide is, « FILM · N° 1 CETTE SEMAINE ».
  */
 export type HomeHero = {
@@ -230,7 +232,7 @@ export type HomeHero = {
   overview: string | null;
   runtime: number | null;
   certification: string | null;
-  versions: Version[];
+  variants: Variant[];
   play_id: string;
   episode?: EpisodeRef;
   is_favorite: boolean;
@@ -238,8 +240,8 @@ export type HomeHero = {
   play_label: string;
   resume_at: number | null;
   duration: number | null;
-  /** The version this profile chose for the title (the series' for an episode); null when none. */
-  remembered: RememberedVersion | null;
+  /** The variant this profile chose for the title (the series' for an episode); null when none. */
+  remembered: RememberedVariant | null;
 };
 /**
  * `heroes`: the Top Shelf without the title in progress (« Reprendre » is a row), at most six; the
@@ -296,14 +298,14 @@ export type NextEpisode = {
  * resolved and named in `episode`; the app reports progress on `episode.id`.
  */
 /** `cast`: the player's « Distribution » panel, the movie's or the series' (empty for a channel). */
-/** `remembered`: the version this profile chose for the title (the series' for an episode); null when none. */
+/** `remembered`: the variant this profile chose for the title (the series' for an episode); null when none. */
 export type Playback = {
-  versions: Version[];
+  variants: Variant[];
   resume_at: number | null;
   duration: number | null;
   next: NextEpisode | null;
   cast: Person[];
-  remembered: RememberedVersion | null;
+  remembered: RememberedVariant | null;
   episode?: EpisodeRef & { id: string };
 };
 
@@ -349,15 +351,15 @@ export type ServerInfo = {
 
 /**
  * The playback settings of a profile, the same on every device it watches on: the quality played by
- * default (a device still caps it: a phone stops at FHD), the next episode starting by itself, the version
- * chosen in the picker kept for the title, another source tried when one fails. `PUT /profiles/me/settings`
+ * default (a device still caps it: a phone stops at FHD), the next episode starting by itself, the variant
+ * chosen in the picker kept for the title, another variant of the same language and quality tried when one fails. `PUT /profiles/me/settings`
  * changes any of them (each optional) and answers the profile.
  */
 export type ProfileSettings = {
   max_quality: Quality;
   auto_play_next: boolean;
-  remember_versions: boolean;
-  switch_source_on_failure: boolean;
+  remember_variants: boolean;
+  switch_variant_on_failure: boolean;
 };
 /**
  * A person of the household (`GET /profiles`). Every request names the one it is for with `X-Profile: <id>`

@@ -4,7 +4,8 @@ import dev.crafters.kanstrimi.contract.Channel
 import dev.crafters.kanstrimi.contract.Credits
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.Quality
-import dev.crafters.kanstrimi.contract.RememberedVersion
+import dev.crafters.kanstrimi.contract.Playback
+import dev.crafters.kanstrimi.contract.RememberedVariant
 import dev.crafters.kanstrimi.contract.FileFacts
 import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Skip
@@ -28,35 +29,88 @@ class PlayerServiceTest {
     private val client = FakeCatalogClient()
     private val preferences = FakePreferences()
     private var revisions = 0
+    private val notices = ArrayList<String>()
     /** The clock the service counts the time watched on, moved by hand. */
     private var now: Instant = Instant.parse("2026-10-10T20:00:00Z")
 
     private fun TestScope.service(): PlayerService = PlayerService(
         client = { client }, preferences = preferences, engine = engine, scope = backgroundScope, progressQueue = ProgressQueue(),
-        capabilities = VersionChooser.Capabilities(dev.crafters.kanstrimi.contract.Quality.UHD, true, true),
+        capabilities = VariantChooser.Capabilities(Quality.UHD, true, true), notify = { notices += it },
         onProgressReported = { revisions += 1 }, now = { now },
     )
 
     private fun url(name: String) = "http://provider.test/movie/u/p/$name.mkv"
 
     @Test
-    fun `une panne passe à la source suivante, sans redemander le serveur`() = runTest {
+    fun `une panne passe à la variante équivalente suivante, sans redemander le serveur, et le dit`() = runTest {
         val player = service()
-        player.play(Fixtures.film(sources = listOf("a", "b")))
+        player.play(Fixtures.film(variants = listOf("a", "b")))
         assertEquals(listOf(url("a")), engine.loads)
         engine.emitError()
         runCurrent()
         assertEquals(listOf(url("a"), url("b")), engine.loads)
-        assertEquals("b", player.source?.id)
+        assertEquals("b", player.variant?.id)
         assertEquals(PlayerService.Phase.OPENING, player.phase)
-        assertNotNull(player.toast)
+        assertEquals(PlayerService.Toast("Variante changée automatiquement", "Fournisseur A → Fournisseur B · FR · HD"), player.toast)
+        // The switch is not the profile's choice: nothing kept, nothing sent.
+        assertNull(player.remembered(null, "tmdb:movie:603", player.context!!.variants))
+        assertTrue(client.rememberedVariants.isEmpty())
+        // The second fails too and the first failed lately: no equivalent left, the same one again, then the dialog.
+        engine.emit(EnginePhase.LOADING)
+        engine.emitError()
+        runCurrent()
+        assertEquals(listOf(url("a"), url("b"), url("b")), engine.loads)
+        engine.emit(EnginePhase.LOADING)
+        engine.emitError()
+        runCurrent()
+        assertEquals(PlayerService.Phase.FAILED, player.phase)
+        assertEquals(listOf("a"), player.alternativeVariants.map { it.id })
         player.stop()
     }
 
     @Test
-    fun `une seule source - deux nouveaux essais, puis le dialogue d'échec`() = runTest {
+    fun `réglage coupé - pas de bascule, la même variante est réessayée`() = runTest {
+        preferences.settings = preferences.settings.copy(switchVariantOnFailure = false)
         val player = service()
-        player.play(Fixtures.film(sources = listOf("a")))
+        player.play(Fixtures.film(variants = listOf("a", "b")))
+        engine.emitError()
+        runCurrent()
+        assertEquals(listOf(url("a"), url("a")), engine.loads)
+        assertNull(player.toast)
+        player.stop()
+    }
+
+    @Test
+    fun `sans équivalente - une autre qualité n'est jamais prise d'office, le dialogue liste les autres variantes dans l'ordre du serveur`() = runTest {
+        val variants = listOf(
+            Fixtures.variant("vf-fhd", "VF", Quality.FHD), Fixtures.variant("vf-hd", "VF", Quality.HD),
+            Fixtures.variant("vo-fhd", "VO", Quality.FHD), Fixtures.variant("serie", "VF", Quality.FHD, url = null),
+        )
+        val player = service()
+        player.play(Fixtures.film(variants = emptyList()).copy(variants = variants))
+        assertEquals("vf-fhd", player.variant?.id)
+        repeat(3) {
+            engine.emit(EnginePhase.LOADING)
+            engine.emitError()
+            runCurrent()
+        }
+        assertEquals(List(3) { url("vf-fhd") }, engine.loads)
+        assertEquals(PlayerService.Phase.FAILED, player.phase)
+        assertNull(player.toast)
+        assertEquals(listOf("vf-hd", "vo-fhd"), player.alternativeVariants.map { it.id })
+        // Another variant from the dialog plays, without becoming the title's choice.
+        player.playInstead(variants[2])
+        assertEquals(url("vo-fhd"), engine.loads.last())
+        assertNull(player.failure)
+        runCurrent()
+        assertTrue(client.rememberedVariants.isEmpty())
+        player.stop()
+    }
+
+    @Test
+    fun `une seule variante - deux nouveaux essais, puis le dialogue d'échec`() = runTest {
+        val player = service()
+        player.play(Fixtures.film(variants = listOf("a")))
         for (n in 2..3) {
             engine.emit(EnginePhase.LOADING)
             engine.emitError()
@@ -73,9 +127,9 @@ class PlayerServiceTest {
     }
 
     @Test
-    fun `une image sans décodeur va droit au dialogue, avec la raison, sans autre source`() = runTest {
+    fun `une image sans décodeur va droit au dialogue, avec la raison, sans autre variante`() = runTest {
         val player = service()
-        player.play(Fixtures.film(sources = listOf("a", "b")))
+        player.play(Fixtures.film(variants = listOf("a", "b")))
         engine.emit(EnginePhase.LOADING)
         engine.emitUnsupported()
         runCurrent()
@@ -86,9 +140,9 @@ class PlayerServiceTest {
     }
 
     @Test
-    fun `sans image après 10 s, la source est relancée`() = runTest {
+    fun `sans image après 10 s, la variante équivalente est lancée`() = runTest {
         val player = service()
-        player.play(Fixtures.film(sources = listOf("a", "b")))
+        player.play(Fixtures.film(variants = listOf("a", "b")))
         advanceTimeBy(PlayerService.START_TIMEOUT_MS + 1)
         runCurrent()
         assertEquals(listOf(url("a"), url("b")), engine.loads)
@@ -98,14 +152,14 @@ class PlayerServiceTest {
     @Test
     fun `les essais ratés d'un titre ne comptent pas pour le suivant`() = runTest {
         val player = service()
-        player.play(Fixtures.film(sources = listOf("a")))
+        player.play(Fixtures.film(variants = listOf("a")))
         for (n in 2..3) {
             engine.emit(EnginePhase.LOADING)
             engine.emitError()
             runCurrent()
             assertEquals(n, engine.loads.size)
         }
-        player.play(Fixtures.film("tmdb:movie:949", sources = listOf("b")))
+        player.play(Fixtures.film("tmdb:movie:949", variants = listOf("b")))
         engine.emit(EnginePhase.LOADING)
         engine.emitError()
         runCurrent()
@@ -118,7 +172,7 @@ class PlayerServiceTest {
     @Test
     fun `un film qui s'arrête loin de sa fin a été coupé - la lecture reprend à la même position`() = runTest {
         val player = service()
-        player.play(Fixtures.film(sources = listOf("a")))
+        player.play(Fixtures.film(variants = listOf("a")))
         engine.emit(EnginePhase.PLAYING)
         engine.emitTime(1200.0, 6000.0)
         assertEquals(PlayerService.Phase.PLAYING, player.phase)
@@ -133,16 +187,16 @@ class PlayerServiceTest {
     @Test
     fun `un titre choisi dans un panneau ne se lance pas si le lecteur a été quitté entre-temps`() = runTest {
         val player = service()
-        player.play(Fixtures.film(sources = listOf("a")))
+        player.play(Fixtures.film(variants = listOf("a")))
         val played = player.playPicked {
             player.stop()
-            Fixtures.film("tmdb:movie:949", sources = listOf("b"))
+            Fixtures.film("tmdb:movie:949", variants = listOf("b"))
         }
         assertFalse(played)
         assertNull(player.context)
         val again = service()
-        again.play(Fixtures.film(sources = listOf("a")))
-        assertTrue(again.playPicked { Fixtures.film("tmdb:movie:949", sources = listOf("b")) })
+        again.play(Fixtures.film(variants = listOf("a")))
+        assertTrue(again.playPicked { Fixtures.film("tmdb:movie:949", variants = listOf("b")) })
         assertEquals("tmdb:movie:949", again.context?.content?.id)
         again.stop()
     }
@@ -152,7 +206,7 @@ class PlayerServiceTest {
     @Test
     fun `la position part toutes les 10 s, à la pause et à l'arrêt, et l'accueil se recharge à l'arrêt`() = runTest {
         val player = service()
-        player.play(Fixtures.film(sources = listOf("a")))
+        player.play(Fixtures.film(variants = listOf("a")))
         engine.emit(EnginePhase.PLAYING)
         engine.emitTime(100.0, 6000.0)
         advanceTimeBy(PlayerService.PROGRESS_INTERVAL_MS + 1)
@@ -255,8 +309,8 @@ class PlayerServiceTest {
         engine.emit(EnginePhase.PLAYING)
         runCurrent()
         assertEquals(1, client.markersAsked.size)
-        // Another version is another file: its own markers.
-        player.switchVersion(ctx.versions[0])
+        // Another start is another file: its own markers.
+        player.switchVariant(ctx.variants[0])
         engine.emit(EnginePhase.LOADING)
         engine.emit(EnginePhase.PLAYING)
         runCurrent()
@@ -360,7 +414,7 @@ class PlayerServiceTest {
         )
         client.suggestionsAnswer = dev.crafters.kanstrimi.contract.Suggestions(related = listOf(next.item), next = next)
         val player = service()
-        player.play(Fixtures.film(sources = listOf("a")))
+        player.play(Fixtures.film(variants = listOf("a")))
         engine.emit(EnginePhase.PLAYING)
         assertNull(player.suggestions)
         advanceTimeBy(PlayerService.SUGGESTIONS_DELAY_MS + 1)
@@ -371,13 +425,89 @@ class PlayerServiceTest {
         player.stop()
     }
 
+    // MARK: - The profile's choice
+
+    @Test
+    fun `la variante choisie sur la fiche d'un film se lit aussitôt, part au serveur et vaut dès maintenant`() = runTest {
+        val variants = listOf(Fixtures.variant("vf-fhd", "VF", Quality.FHD), Fixtures.variant("vf-fhd-b", "VF", Quality.FHD, provider = Fixtures.second))
+        client.playbackAnswer = { Playback(variants = variants, duration = 6000.0) }
+        val player = service()
+        player.play("tmdb:movie:603", variantId = "vf-fhd-b")
+        runCurrent()
+        assertEquals(listOf(url("vf-fhd-b")), engine.loads)
+        assertEquals(listOf("tmdb:movie:603" to "vf-fhd-b"), client.rememberedVariants)
+        player.stop()
+        // The sheet was fetched before the choice: what was chosen here wins over what it served.
+        assertEquals("vf-fhd-b", player.startChoice("tmdb:movie:603", variants, RememberedVariant.of(variants[0]))?.id)
+        player.forgetVariant("tmdb:movie:603")
+        runCurrent()
+        assertEquals("vf-fhd", player.startChoice("tmdb:movie:603", variants, RememberedVariant.of(variants[1]))?.id)
+        assertEquals("tmdb:movie:603" to "", client.rememberedVariants.last())
+    }
+
+    @Test
+    fun `la variante choisie sur un épisode part au serveur sous cet épisode, vaut pour la série, et l'épisode suivant démarre sur la sienne sous le même flux`() = runTest {
+        // Both providers carry the series in the same language and quality: only the id tells whose stream plays.
+        fun episode(n: Int) = listOf(Fixtures.variant("e$n-a", "VF", Quality.HD), Fixtures.variant("e$n-b", "VF", Quality.HD, provider = Fixtures.second))
+        // The server keeps the stream chosen and names, on each episode, this episode's variant under it.
+        client.playbackAnswer = { Playback(variants = episode(2), duration = 2700.0, remembered = if (client.rememberedVariants.isEmpty()) null else RememberedVariant.of(episode(2)[1])) }
+        val player = service()
+        val first = Fixtures.episode().copy(variants = episode(1))
+        player.play(first)
+        runCurrent()
+        engine.emit(EnginePhase.PLAYING)
+        assertEquals("e1-a", player.variant?.id)
+        player.switchVariant(first.variants[1])
+        assertEquals("e1-b", player.variant?.id)
+        assertEquals("e1-b", player.remembered(null, "tmdb:tv:1396", first.variants)?.id)
+        runCurrent()
+        assertEquals(listOf("tmdb:tv:1396:s01e01" to "e1-b"), client.rememberedVariants)
+        player.playNextNow()
+        assertEquals("tmdb:tv:1396:s01e02", player.context?.content?.id)
+        assertEquals("e2-b", player.variant?.id)
+        player.stop()
+        // An episode the server has not translated the choice for: the first of the same language and quality.
+        assertEquals("e3-a", player.startChoice("tmdb:tv:1396", episode(3), null)?.id)
+    }
+
+    @Test
+    fun `la variante choisie sur la fiche d'une série ne se lit pas - elle vaut pour ses épisodes`() = runTest {
+        val series = listOf(Fixtures.variant("serie-fhd", "VF", Quality.FHD, url = null), Fixtures.variant("serie-hd", "VF", Quality.HD, url = null))
+        val episode = listOf(Fixtures.variant("e1-fhd", "VF", Quality.FHD), Fixtures.variant("e1-hd", "VF", Quality.HD))
+        val player = service()
+        player.remember(series[1], "tmdb:tv:1396")
+        runCurrent()
+        assertEquals(listOf("tmdb:tv:1396" to "serie-hd"), client.rememberedVariants)
+        assertTrue(engine.loads.isEmpty())
+        assertEquals("serie-hd", player.remembered(null, "tmdb:tv:1396", series)?.id)
+        assertEquals("e1-hd", player.startChoice("tmdb:tv:1396", episode, null)?.id)
+        // A context holding nothing that plays says so instead of opening the player.
+        player.play(PlaybackContext(PlaybackContent("tmdb:tv:1396", dev.crafters.kanstrimi.contract.ContentKind.SERIES, "Vincenzo"), series))
+        assertNull(player.context)
+        assertEquals(listOf("Lecture impossible · aucune variante"), notices)
+    }
+
+    @Test
+    fun `réglage « mémoriser » coupé - le choix se lit mais ne se garde ni ici ni au serveur`() = runTest {
+        preferences.settings = preferences.settings.copy(rememberVariants = false)
+        val player = service()
+        val ctx = Fixtures.film(variants = listOf("a", "b"))
+        player.play(ctx)
+        player.switchVariant(ctx.variants[1])
+        runCurrent()
+        assertEquals("b", player.variant?.id)
+        assertTrue(client.rememberedVariants.isEmpty())
+        player.stop()
+        assertEquals("a", player.startChoice(ctx.content.id, ctx.variants, null)?.id)
+    }
+
     // MARK: - Live
 
     private val tf1 = Fixtures.channel("live:fr-tf1", "TF1")
     private val france2 = Fixtures.channel("live:fr-france2", "FRANCE 2")
 
     @Test
-    fun `une chaîne s'ouvre dans sa version de départ, son guide arrive avec son détail, et ne se met jamais en pause`() = runTest {
+    fun `une chaîne s'ouvre dans sa variante de départ, son guide arrive avec son détail, et ne se met jamais en pause`() = runTest {
         client.channelAnswer = { id -> Fixtures.channel(id, now = now) }
         val player = service()
         player.playChannel(tf1, listOf(tf1, france2))
@@ -406,7 +536,7 @@ class PlayerServiceTest {
         player.zap(1)
         runCurrent()
         assertEquals("live:fr-france2", player.channel?.id)
-        assertEquals(2, engine.loads.size, "the same engine takes the new source")
+        assertEquals(2, engine.loads.size, "the same engine takes the new stream")
         assertEquals(listOf("live:fr-tf1" to 90), client.watchTimes)
         assertEquals(0, revisions, "not reloaded on a zap")
         // Around the end of the list, back to the first.
@@ -445,39 +575,39 @@ class PlayerServiceTest {
     }
 
     @Test
-    fun `changer de qualité en direct garde la position au bord du direct, suit le guide de la version et se mémorise pour la chaîne`() = runTest {
+    fun `changer de variante en direct garde la position au bord du direct, suit le guide de la variante et se mémorise pour la chaîne`() = runTest {
         client.channelAnswer = { id ->
             val c = Fixtures.channel(id, now = now)
-            // The HD quality has a guide of its own.
-            c.copy(versions = c.versions.map { v -> if (v.quality == Quality.HD) v.copy(hasEpg = true, now = Programme("Journal HD", now, now.plusSeconds(1800), null), next = null) else v })
+            // The HD variant has a guide of its own.
+            c.copy(variants = c.variants.map { v -> if (v.quality == Quality.HD) v.copy(hasEpg = true, now = Programme("Journal HD", now, now.plusSeconds(1800), null), next = null) else v })
         }
         val player = service()
         player.playChannel(tf1, listOf(tf1))
         runCurrent()
         engine.emit(EnginePhase.PLAYING)
         assertEquals("Journal", player.epg.now?.title)
-        val hd = tf1.versions.first { it.quality == Quality.HD }
-        player.switchVersion(hd)
+        val hd = tf1.variants.first { it.quality == Quality.HD }
+        player.switchVariant(hd)
         assertEquals(2, engine.loads.size)
         assertEquals("Journal HD", player.epg.now?.title)
         assertNull(player.epg.next)
-        assertEquals(hd.id, player.remembered(null, "live:fr-tf1")?.id)
+        assertEquals(hd.id, player.remembered(null, "live:fr-tf1", tf1.variants)?.id)
         runCurrent()
-        assertEquals(listOf("live:fr-tf1" to hd.id), client.rememberedVersions)
+        assertEquals(listOf("live:fr-tf1" to hd.id), client.rememberedVariants)
         player.stop()
-        // The quality chosen is the one the channel starts in next time, before the server even says it back.
+        // The variant chosen is the one the channel starts in next time, before the server even says it back.
         player.playChannel(tf1, listOf(tf1))
-        assertEquals(hd.id, player.version?.id)
+        assertEquals(hd.id, player.variant?.id)
         player.stop()
         // What the server serves for the channel applies to a fresh launch.
         val again = service()
-        again.playChannel(tf1.copy(remembered = RememberedVersion.of(hd)), listOf(tf1))
-        assertEquals(hd.id, again.version?.id)
+        again.playChannel(tf1.copy(remembered = RememberedVariant.of(hd)), listOf(tf1))
+        assertEquals(hd.id, again.variant?.id)
         again.stop()
     }
 
     @Test
-    fun `une chaîne qui ne démarre pas passe à la source suivante puis au dialogue, comme un film`() = runTest {
+    fun `une chaîne qui ne démarre pas est réessayée puis passe au dialogue, comme un film`() = runTest {
         client.channelAnswer = { id -> Fixtures.channel(id, now = now) }
         val player = service()
         player.playChannel(tf1, listOf(tf1))

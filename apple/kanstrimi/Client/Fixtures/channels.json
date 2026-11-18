@@ -14,95 +14,85 @@
      "max_quality": "4K",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-4k",
+       "id": "src-i5",
        "language": "VF",
        "quality": "4K",
-       "chip": "4K",
-       "sources": [
-        {
-         "id": "src-i5",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "4K",
+       "label": "FR · 4K",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TF1 4K",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "4K"
       },
       {
-       "id": "vf-fhd",
+       "id": "src-i2",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i2",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TF1 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i3",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i3",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TF1 HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i4",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i4",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TF1 SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "4K",
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -113,95 +103,85 @@
      "max_quality": "4K",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-4k",
+       "id": "src-i9",
        "language": "VF",
        "quality": "4K",
-       "chip": "4K",
-       "sources": [
-        {
-         "id": "src-i9",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "4K",
+       "label": "FR · 4K",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 2 4K",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "4K"
       },
       {
-       "id": "vf-fhd",
+       "id": "src-i6",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i6",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 2 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i7",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i7",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 2 HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i8",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i8",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 2 SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "4K",
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -212,73 +192,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-ia",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-ia",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 3 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ib",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ib",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 3 HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-ic",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-ic",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 3 SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -289,73 +262,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-id",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-id",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 4 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ie",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ie",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 4 HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-if",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-if",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 4 SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -366,73 +332,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-ig",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-ig",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 5 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ih",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ih",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 5 HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-ii",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-ii",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "FRANCE 5 SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -443,95 +402,85 @@
      "max_quality": "4K",
      "has_epg": false,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-4k",
+       "id": "src-im",
        "language": "VF",
        "quality": "4K",
-       "chip": "4K",
-       "sources": [
-        {
-         "id": "src-im",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "4K",
+       "label": "FR · 4K",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "M6 4K",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "4K"
       },
       {
-       "id": "vf-fhd",
+       "id": "src-ij",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-ij",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "M6 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ik",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ik",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "M6 HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-il",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-il",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "M6 SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "4K",
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -542,73 +491,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-in",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-in",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "ARTE FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-io",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-io",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "ARTE HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-ip",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-ip",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "ARTE SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -619,73 +561,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-iq",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-iq",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "W9 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ir",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ir",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "W9 HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-is",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-is",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "W9 SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -696,73 +631,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-it",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-it",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TMC FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-iu",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-iu",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TMC HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-iv",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-iv",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TMC SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -773,73 +701,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-iw",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-iw",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TFX FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ix",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ix",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TFX HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-iy",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-iy",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "TFX SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -850,73 +771,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-iz",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-iz",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CSTAR FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i10",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i10",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CSTAR HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i11",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i11",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CSTAR SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -927,73 +841,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i12",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i12",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "T18 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i13",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i13",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "T18 HD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i14",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i14",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "T18 SD",
+       "category": "FRANCE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     }
    ]
@@ -1012,118 +919,104 @@
      "max_quality": "4K",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-4k-hdr",
+       "id": "src-i1w",
        "language": "VF",
        "quality": "4K",
-       "chip": "4K",
        "dynamic_range": "HDR",
-       "sources": [
-        {
-         "id": "src-i1w",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "4K HDR",
+       "label": "FR · 4K HDR",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ 4K HDR",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "4K"
       },
       {
-       "id": "vf-4k",
+       "id": "src-i1v",
        "language": "VF",
        "quality": "4K",
-       "chip": "4K",
-       "sources": [
-        {
-         "id": "src-i1v",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "4K",
+       "label": "FR · 4K",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ 4K",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "4K"
       },
       {
-       "id": "vf-fhd",
+       "id": "src-i1s",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i1s",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i1t",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i1t",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i1u",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i1u",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ SD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "4K",
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -1134,87 +1027,84 @@
      "max_quality": "4K",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-4k",
+       "id": "src-i1y",
        "language": "VF",
        "quality": "4K",
-       "chip": "4K",
-       "sources": [
-        {
-         "id": "src-i1y",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "4K",
+       "label": "FR · 4K",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ BOX OFFICE 4K",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "4K"
       },
       {
-       "id": "vf-fhd",
+       "id": "src-i1x",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i1x",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ BOX OFFICE FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i1z",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i1z",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        },
-        {
-         "id": "src-i20",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ BOX OFFICE HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
+      },
+      {
+       "id": "src-i20",
+       "language": "VF",
+       "quality": "HD",
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ BOX OFFICE HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "4K",
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -1225,65 +1115,65 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i21",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i21",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ GRAND ECRAN FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i22",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i22",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        },
-        {
-         "id": "src-i23",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ GRAND ECRAN HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
+      },
+      {
+       "id": "src-i23",
+       "language": "VF",
+       "quality": "HD",
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ GRAND ECRAN HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -1294,65 +1184,65 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i24",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i24",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ CINEMA(S) FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i25",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i25",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        },
-        {
-         "id": "src-i26",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ CINEMA(S) HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
+      },
+      {
+       "id": "src-i26",
+       "language": "VF",
+       "quality": "HD",
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ CINEMA(S) HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -1363,65 +1253,65 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i27",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i27",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CINE+ OCS FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i28",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i28",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        },
-        {
-         "id": "src-i29",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CINE+ OCS HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
+      },
+      {
+       "id": "src-i29",
+       "language": "VF",
+       "quality": "HD",
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CINE+ OCS HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -1432,73 +1322,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i2a",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i2a",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CINE+ FRISSON FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i2b",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i2b",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CINE+ FRISSON HD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i2c",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i2c",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "CINEMA HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CINE+ FRISSON SD",
+       "category": "CINEMA HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     }
    ]
@@ -1517,73 +1400,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-icp",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-icp",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ SPORT FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-icq",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-icq",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ SPORT HD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-icr",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-icr",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ SPORT SD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -1594,73 +1470,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-ics",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-ics",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ SPORT 360 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ict",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ict",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ SPORT 360 HD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-icu",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-icu",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ SPORT 360 SD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -1671,118 +1540,104 @@
      "max_quality": "4K",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-4k-hdr",
+       "id": "src-icw",
        "language": "VF",
        "quality": "4K",
-       "chip": "4K",
        "dynamic_range": "HDR",
-       "sources": [
-        {
-         "id": "src-icw",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "4K HDR",
+       "label": "FR · 4K HDR",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ FOOT 4K HDR",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "4K"
       },
       {
-       "id": "vf-4k",
+       "id": "src-icv",
        "language": "VF",
        "quality": "4K",
-       "chip": "4K",
-       "sources": [
-        {
-         "id": "src-icv",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "4K",
+       "label": "FR · 4K",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ FOOT 4K",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "4K"
       },
       {
-       "id": "vf-fhd",
+       "id": "src-icm",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-icm",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ FOOT FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-icn",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-icn",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ FOOT HD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-ico",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-ico",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ FOOT SD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "4K",
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -1793,73 +1648,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-icx",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-icx",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 1 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-icy",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-icy",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 1 HD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-icz",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-icz",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 1 SD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -1870,73 +1718,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-id0",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-id0",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 2 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-id1",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-id1",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 2 HD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-id2",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-id2",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 2 SD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -1947,73 +1788,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-id3",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-id3",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 3 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-id4",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-id4",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 3 HD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-id5",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-id5",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 3 SD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -2024,73 +1858,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-id6",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-id6",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "RMC SPORT 1 FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-id7",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-id7",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "RMC SPORT 1 HD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-id8",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-id8",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "RMC SPORT 1 SD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -2101,73 +1928,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-id9",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-id9",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "INFOSPORT+ FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ida",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ida",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "INFOSPORT+ HD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-idb",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-idb",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "INFOSPORT+ SD",
+       "category": "SPORTS HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     }
    ]
@@ -2186,65 +2006,65 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i7x",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i7x",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ KIDS FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i7y",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i7y",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "JEUNESSE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        },
-        {
-         "id": "src-i7z",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "JEUNESSE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ KIDS HD",
+       "category": "JEUNESSE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
+      },
+      {
+       "id": "src-i7z",
+       "language": "VF",
+       "quality": "HD",
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ KIDS HD",
+       "category": "JEUNESSE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -2255,73 +2075,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i80",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i80",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PIWI+ FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i81",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i81",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "JEUNESSE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PIWI+ HD",
+       "category": "JEUNESSE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i82",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i82",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "JEUNESSE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PIWI+ SD",
+       "category": "JEUNESSE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -2332,73 +2145,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i83",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i83",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "DISNEY JUNIOR FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i84",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i84",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "JEUNESSE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "DISNEY JUNIOR HD",
+       "category": "JEUNESSE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i85",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i85",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "JEUNESSE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "DISNEY JUNIOR SD",
+       "category": "JEUNESSE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -2409,73 +2215,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i86",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i86",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "NICKELODEON JUNIOR FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i87",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i87",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "JEUNESSE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "NICKELODEON JUNIOR HD",
+       "category": "JEUNESSE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i88",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i88",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "JEUNESSE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "NICKELODEON JUNIOR SD",
+       "category": "JEUNESSE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     }
    ]
@@ -2494,51 +2293,47 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-ibe",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-ibe",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "LA CHAINE METEO FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ibf",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ibf",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "INFORMATION HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "LA CHAINE METEO HD",
+       "category": "INFORMATION HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -2549,51 +2344,47 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-ibg",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-ibg",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CNEWS FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ibh",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ibh",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "INFORMATION HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CNEWS HD",
+       "category": "INFORMATION HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -2604,51 +2395,47 @@
      "max_quality": "FHD",
      "has_epg": false,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-ibi",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-ibi",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CNEWS PRIME FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ibj",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ibj",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "INFORMATION HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CNEWS PRIME HD",
+       "category": "INFORMATION HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -2659,51 +2446,47 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-ibk",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-ibk",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BFM FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-ibl",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-ibl",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "INFORMATION HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BFM HD",
+       "category": "INFORMATION HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     }
    ]
@@ -2722,65 +2505,65 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i5u",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i5u",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ DOCS FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i5v",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i5v",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "DOCUMENTAIRE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        },
-        {
-         "id": "src-i5w",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "DOCUMENTAIRE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ DOCS HD",
+       "category": "DOCUMENTAIRE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
+      },
+      {
+       "id": "src-i5w",
+       "language": "VF",
+       "quality": "HD",
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "CANAL+ DOCS HD",
+       "category": "DOCUMENTAIRE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -2791,73 +2574,66 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i5x",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i5x",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PLANETE+ FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i5y",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i5y",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "DOCUMENTAIRE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PLANETE+ HD",
+       "category": "DOCUMENTAIRE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       },
       {
-       "id": "vf-sd",
+       "id": "src-i5z",
        "language": "VF",
        "quality": "SD",
-       "chip": "SD",
-       "sources": [
-        {
-         "id": "src-i5z",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "DOCUMENTAIRE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "FR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PLANETE+ SD",
+       "category": "DOCUMENTAIRE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD",
+      "SD"
      ]
     },
     {
@@ -2868,65 +2644,65 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i60",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i60",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PLANETE+ CRIME FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i61",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i61",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "DOCUMENTAIRE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        },
-        {
-         "id": "src-i62",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "DOCUMENTAIRE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PLANETE+ CRIME HD",
+       "category": "DOCUMENTAIRE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
+      },
+      {
+       "id": "src-i62",
+       "language": "VF",
+       "quality": "HD",
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PLANETE+ CRIME HD",
+       "category": "DOCUMENTAIRE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -2937,65 +2713,65 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i63",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i63",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PLANETE+ AVENTURE FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i64",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i64",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "DOCUMENTAIRE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        },
-        {
-         "id": "src-i65",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "DOCUMENTAIRE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PLANETE+ AVENTURE HD",
+       "category": "DOCUMENTAIRE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
+      },
+      {
+       "id": "src-i65",
+       "language": "VF",
+       "quality": "HD",
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "PLANETE+ AVENTURE HD",
+       "category": "DOCUMENTAIRE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     }
    ]
@@ -3014,51 +2790,47 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-itq",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-itq",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "EUROPE 2 POP TV FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-itr",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-itr",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "MUSIQUE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "EUROPE 2 POP TV HD",
+       "category": "MUSIQUE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -3069,51 +2841,47 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-its",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-its",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "M6 MUSIC FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-itt",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-itt",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "MUSIQUE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "M6 MUSIC HD",
+       "category": "MUSIQUE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -3124,65 +2892,65 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-itu",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-itu",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "FRANCE FHD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "NRJ HITS FHD",
+       "category": "FRANCE FHD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "vf-hd",
+       "id": "src-itv",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-itv",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "MUSIQUE HD | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        },
-        {
-         "id": "src-i9hm",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": null,
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "NRJ HITS HD",
+       "category": "MUSIQUE HD | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
+      },
+      {
+       "id": "src-i9hm",
+       "language": "VF",
+       "quality": "HD",
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "NRJ HITS HD",
+       "category": null,
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     }
    ]
@@ -3201,117 +2969,104 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i40g",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD/FR",
-       "sources": [
-        {
-         "id": "src-i40g",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 1 FHD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD/FR"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i40h",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD/FR",
-       "sources": [
-        {
-         "id": "src-i40h",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 1 HD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD/FR"
       },
       {
-       "id": "ar-fhd",
+       "id": "src-i3yo",
        "language": "AR",
        "quality": "FHD",
-       "chip": "FHD/AR",
-       "sources": [
-        {
-         "id": "src-i3yo",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "AR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 1 FHD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD/AR"
       },
       {
-       "id": "ar-hd",
+       "id": "src-i3yp",
        "language": "AR",
        "quality": "HD",
-       "chip": "HD/AR",
-       "sources": [
-        {
-         "id": "src-i3yp",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "AR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 1 HD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD/AR"
       },
       {
-       "id": "ar-sd",
+       "id": "src-i3yq",
        "language": "AR",
        "quality": "SD",
-       "chip": "SD/AR",
-       "sources": [
-        {
-         "id": "src-i3yq",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "AR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 1 SD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD/AR"
       }
+     ],
+     "chips": [
+      "FHD/FR",
+      "FHD/AR",
+      "HD/FR",
+      "HD/AR",
+      "SD/AR"
      ]
     },
     {
@@ -3322,51 +3077,47 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "ar-fhd",
+       "id": "src-i3yk",
        "language": "AR",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i3yk",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "AR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS GLOBAL FHD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "ar-hd",
+       "id": "src-i3yl",
        "language": "AR",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i3yl",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "AR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS GLOBAL HD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -3377,51 +3128,47 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "ar-fhd",
+       "id": "src-i3ym",
        "language": "AR",
        "quality": "FHD",
-       "chip": "FHD",
-       "sources": [
-        {
-         "id": "src-i3ym",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "AR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS NEWS FHD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD"
       },
       {
-       "id": "ar-hd",
+       "id": "src-i3yn",
        "language": "AR",
        "quality": "HD",
-       "chip": "HD",
-       "sources": [
-        {
-         "id": "src-i3yn",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "AR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS NEWS HD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD"
       }
+     ],
+     "chips": [
+      "FHD",
+      "HD"
      ]
     },
     {
@@ -3432,117 +3179,104 @@
      "max_quality": "FHD",
      "has_epg": true,
      "is_favorite": false,
-     "versions": [
+     "variants": [
       {
-       "id": "vf-fhd",
+       "id": "src-i40i",
        "language": "VF",
        "quality": "FHD",
-       "chip": "FHD/FR",
-       "sources": [
-        {
-         "id": "src-i40i",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "FR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 2 FHD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD/FR"
       },
       {
-       "id": "vf-hd",
+       "id": "src-i40j",
        "language": "VF",
        "quality": "HD",
-       "chip": "HD/FR",
-       "sources": [
-        {
-         "id": "src-i40j",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "FR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 2 HD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD/FR"
       },
       {
-       "id": "ar-fhd",
+       "id": "src-i3yr",
        "language": "AR",
        "quality": "FHD",
-       "chip": "FHD/AR",
-       "sources": [
-        {
-         "id": "src-i3yr",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "FHD",
+       "label": "AR · FHD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 2 FHD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "FHD/AR"
       },
       {
-       "id": "ar-hd",
+       "id": "src-i3ys",
        "language": "AR",
        "quality": "HD",
-       "chip": "HD/AR",
-       "sources": [
-        {
-         "id": "src-i3ys",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "HD",
+       "label": "AR · HD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 2 HD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "HD/AR"
       },
       {
-       "id": "ar-sd",
+       "id": "src-i3yt",
        "language": "AR",
        "quality": "SD",
-       "chip": "SD/AR",
-       "sources": [
-        {
-         "id": "src-i3yt",
-         "container": "TS",
-         "stream_url": "demo://live",
-         "provider": {
-          "id": "xtream",
-          "name": "Fournisseur",
-          "kind": "xtream",
-          "rank": 1
-         },
-         "origin": "SPORTS ARABIC | TV",
-         "distinction": null,
-         "label": "Fournisseur"
-        }
-       ]
+       "badge": "SD",
+       "label": "AR · SD",
+       "provider": {
+        "id": "xtream",
+        "name": "Fournisseur",
+        "kind": "xtream",
+        "rank": 1
+       },
+       "name": "BEIN SPORTS 2 SD",
+       "category": "SPORTS ARABIC | TV",
+       "container": "TS",
+       "stream_url": "demo://live",
+       "chip": "SD/AR"
       }
+     ],
+     "chips": [
+      "FHD/FR",
+      "FHD/AR",
+      "HD/FR",
+      "HD/AR",
+      "SD/AR"
      ]
     }
    ]

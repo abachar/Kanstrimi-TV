@@ -153,8 +153,8 @@ profilesRoutes.post(
     const p = await updateProfileSettings(intParam(c, "id"), {
       maxQuality: c.req.valid("form").max_quality,
       autoPlayNext: await checked(c, "auto_play_next"),
-      rememberVersions: await checked(c, "remember_versions"),
-      switchSourceOnFailure: await checked(c, "switch_source_on_failure"),
+      rememberVariants: await checked(c, "remember_variants"),
+      switchVariantOnFailure: await checked(c, "switch_variant_on_failure"),
     });
     if (!p) return c.notFound();
     return back(c, `/admin/profiles/${p.id}`, { ok: "Réglages de lecture enregistrés" });

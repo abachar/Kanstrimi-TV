@@ -63,17 +63,17 @@ final class DetailModel {
         await env.setFavorite(id, !isFavorite)
     }
 
-    // MARK: - Versions
+    // MARK: - Variants
 
-    /// The version the profile chose for the title: what was chosen here since launch, else what the sheet says.
-    var remembered: RememberedVersion? { env.player.remembered(detail?.remembered, for: id) }
+    /// The variant the profile chose for the title: what was chosen here since launch, else what the sheet says.
+    var remembered: RememberedVariant? { env.player.remembered(detail?.remembered, for: id) }
 
-    /// The version `Lecture` will play, as the engine decides it.
-    var choice: VersionChooser.Choice? {
+    /// The variant `Lecture` will play, as the engine decides it.
+    var choice: VariantChooser.Choice? {
         guard let d = detail else { return nil }
-        // Series versions carry no sources: choose on the current episode's versions when known.
-        let pool = d.kind == .series ? (currentEpisode?.versions ?? d.versions) : d.versions
-        return env.player.startChoice(id, versions: pool, remembered: d.remembered)
+        // A series' own variants play nothing: choose on the current episode's when known.
+        let pool = d.kind == .series ? (currentEpisode?.variants ?? d.variants) : d.variants
+        return env.player.startChoice(id, variants: pool, remembered: d.remembered)
     }
 
     var currentEpisode: Episode? {
@@ -81,9 +81,9 @@ final class DetailModel {
         return episodes(in: cur.season).first { $0.number == cur.number }
     }
 
-    var seriesChoice: VersionChoiceKey? {
-        remembered?.key ?? choice.map { VersionChoiceKey($0.version) }
-    }
+    /// What the series plays in, « FR · 4K DV », and its language: the choice remembered for it, else what Lecture would play.
+    var seriesLabel: String? { remembered?.label ?? choice?.variant.label }
+    var seriesLanguage: Language? { remembered?.language ?? choice?.variant.language }
 
     /// « Depuis le début » is offered when the main button resumes: the movie, or the current episode.
     var canRestart: Bool {
@@ -99,16 +99,16 @@ final class DetailModel {
             if let ep = currentEpisode { await play(episode: ep, fromStart: fromStart) }
             return
         }
-        play(movie: d, version: nil, source: nil, fromStart: fromStart)
+        play(movie: d, variant: nil, fromStart: fromStart)
     }
 
-    /// The sheet already carries the versions: no call.
-    func play(movie d: Card, version: Version?, source: Source?, fromStart: Bool = false) {
+    /// The sheet already carries the variants: no call.
+    func play(movie d: Card, variant: Variant?, fromStart: Bool = false) {
         let resume = !fromStart && d.progress?.isResumable == true ? d.progress?.position : nil
         let ctx = PlaybackContext(content: PlaybackContent(id: d.id, kind: .movie, title: d.title, subtitle: nil, episode: nil, backdrop: d.backdrop),
-                                  versions: d.versions, resumeAt: resume, duration: d.progress?.duration ?? d.runtime.map { TimeInterval($0 * 60) },
+                                  variants: d.variants, resumeAt: resume, duration: d.progress?.duration ?? d.runtime.map { TimeInterval($0 * 60) },
                                   cast: d.cast, remembered: d.remembered)
-        if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
+        if let variant { env.player.play(ctx, variant: variant) } else { env.player.play(ctx) }
     }
 
     /// `/playback` of the episode: fresh links, and what follows written by the server (« À suivre »).
@@ -118,21 +118,21 @@ final class DetailModel {
         env.player.play(fromStart ? ctx.resuming(at: nil) : ctx)
     }
 
-    /// Picker result. A series keeps the language picked (for the profile, on the server); a film plays the version,
-    /// and forgets the one kept for it: only a switch made while playing is kept.
-    func chose(version: Version, source: Source?) {
+    /// Picker result. A series keeps the variant picked (for the profile, on the server); a film plays it, and
+    /// forgets the one kept for it: only a switch made while playing is kept.
+    func chose(variant: Variant) {
         guard let d = detail else { return }
         if d.kind == .series {
-            env.player.remember(version, for: id)
+            env.player.remember(variant, for: id)
         } else {
-            env.player.forgetVersion(for: id)
-            play(movie: d, version: version, source: source)
+            env.player.forgetVariant(for: id)
+            play(movie: d, variant: variant)
         }
     }
 
     /// Episodes of the selected season missing the series language, for the warning line.
     func languageGaps(in season: Int) -> [Episode] {
-        guard let lang = seriesChoice?.language else { return [] }
-        return episodes(in: season).filter { !$0.languages.contains(lang) && !$0.versions.isEmpty }
+        guard let lang = seriesLanguage else { return [] }
+        return episodes(in: season).filter { !$0.languages.contains(lang) && !$0.variants.isEmpty }
     }
 }

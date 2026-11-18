@@ -75,27 +75,27 @@ fun DetailScreen(id: String) {
     val env = LocalEnvironment.current
     val scope = rememberCoroutineScope()
     val model = remember(id) { DetailModel(id, env) }
-    var showVersions by remember { mutableStateOf(false) }
+    var showVariants by remember { mutableStateOf(false) }
     LaunchedEffect(model) { if (model.card == null) model.load() }
 
     val card = model.card
     val error = model.error
     when {
-        card != null -> DetailContent(model, card, onVersions = { showVersions = true })
+        card != null -> DetailContent(model, card, onVariants = { showVariants = true })
         error != null -> StatePanel("Fiche indisponible", error, actionTitle = "Réessayer") { scope.launch { model.load() } }
         else -> LoadingPanel()
     }
-    if (showVersions && card != null) {
-        VersionSheet(card, onDismiss = { showVersions = false }) { v, s ->
-            showVersions = false
-            env.player.play(card.id, versionId = v.id, sourceId = s?.id)
+    if (showVariants && card != null) {
+        VariantSheet(card, selectedId = model.selectedVariantId, onDismiss = { showVariants = false }) { variant ->
+            showVariants = false
+            model.choose(variant)
         }
     }
 }
 
 /** The backdrop melting into the page, the header, the buttons, the seasons, the cast and the related titles. */
 @Composable
-private fun DetailContent(model: DetailModel, card: Card, onVersions: () -> Unit) {
+private fun DetailContent(model: DetailModel, card: Card, onVariants: () -> Unit) {
     val env = LocalEnvironment.current
     val metrics = LocalMetrics.current
     val scope = rememberCoroutineScope()
@@ -109,7 +109,7 @@ private fun DetailContent(model: DetailModel, card: Card, onVersions: () -> Unit
         }
         LazyColumn(contentPadding = PaddingValues(top = metrics.pushedTop + 24.dp, bottom = 80.dp)) {
             item(key = "header") { Header(card, onSaga = { env.navigate(Route.Saga(it.id)) }) }
-            item(key = "buttons") { Buttons(model, card, onVersions) }
+            item(key = "buttons") { Buttons(model, card, onVariants) }
             if (model.isSeries) {
                 item(key = "seasons") { SeasonChips(model, card) }
                 val season = model.selectedSeason
@@ -195,9 +195,9 @@ private fun NoTmdb() {
     }
 }
 
-/** Lecture, then the round actions: restart, the versions, seen, the trailer, Ma liste. */
+/** Lecture, then the round actions: restart, the variants, seen, the trailer, Ma liste. */
 @Composable
-private fun Buttons(model: DetailModel, card: Card, onVersions: () -> Unit) {
+private fun Buttons(model: DetailModel, card: Card, onVariants: () -> Unit) {
     val env = LocalEnvironment.current
     val metrics = LocalMetrics.current
     val scope = rememberCoroutineScope()
@@ -207,7 +207,7 @@ private fun Buttons(model: DetailModel, card: Card, onVersions: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.Top,
     ) {
         Button(
-            onClick = { model.play() }, enabled = card.versions.isNotEmpty(),
+            onClick = { model.play() }, enabled = card.variants.isNotEmpty(),
             colors = ButtonDefaults.buttonColors(containerColor = Theme.text, contentColor = Color.Black, disabledContainerColor = Theme.surfaceRaised, disabledContentColor = Theme.secondary),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp), modifier = Modifier.height(52.dp),
         ) {
@@ -218,8 +218,8 @@ private fun Buttons(model: DetailModel, card: Card, onVersions: () -> Unit) {
         if (model.canRestart) {
             RoundAction("Depuis le début", onClick = { model.play(fromStart = true) }) { Icon(painterResource(R.drawable.ic_restart), contentDescription = null) }
         }
-        if (versionLines(card.versions) > 1) {
-            RoundAction("Versions (${card.versions.size})", onClick = onVersions) { Icon(painterResource(R.drawable.ic_versions), contentDescription = null) }
+        if (card.variants.size > 1) {
+            RoundAction("Variantes (${card.variants.size})", onClick = onVariants) { Icon(painterResource(R.drawable.ic_versions), contentDescription = null) }
         }
         if (!model.isSeries) {
             val watched = card.progress?.isWatched == true

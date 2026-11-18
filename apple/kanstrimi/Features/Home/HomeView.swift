@@ -39,8 +39,8 @@ struct HomeView: View {
         .onChange(of: env.favoriteRevision) { Task { await model?.load() } }
         .platformSheet(isPresented: $showPicker) {
             if let model, let hero = model.hero {
-                VersionPicker(title: hero.item.title, versions: hero.versions, recommendedID: model.heroChoice?.version.id) { v, s in
-                    model.playHero(hero, version: v, source: s)
+                VariantPicker(title: hero.item.title, variants: hero.variants, recommendedID: model.heroChoice?.variant.id) { v in
+                    model.playHero(hero, variant: v)
                 }
                 .environment(env)
             }
@@ -90,7 +90,7 @@ struct HomeView: View {
     }
 
     /// One slide at a time, the next every eight seconds unless held: the hero's buttons focused (tvOS),
-    /// a finger on it (iPhone), the version picker open. A slide turned by hand starts its eight seconds again.
+    /// a finger on it (iPhone), the variant picker open. A slide turned by hand starts its eight seconds again.
     private func carousel(_ hero: HomeHero, count: Int, model: HomeModel) -> some View {
         let held = heroFocus != nil || dragging || showPicker
         return heroView(hero, model: model)
@@ -124,7 +124,7 @@ struct HomeView: View {
         if metrics.compact { phoneHero(hero, model: model) } else { tvHero(hero, model: model) }
     }
 
-    /// iPhone: Ma liste, Lecture (a long press offers the versions) and the sheet. A tap on the picture opens the sheet too.
+    /// iPhone: Ma liste, Lecture (a long press offers the variants) and the sheet. A tap on the picture opens the sheet too.
     private func phoneHero(_ hero: HomeHero, model: HomeModel) -> some View {
         HeroBanner(item: hero.item, tagline: hero.tagline, certification: hero.certification, slideID: hero.playID,
                    onTapPicture: { env.open(hero.item.id) }) {
@@ -133,14 +133,14 @@ struct HomeView: View {
                 .buttonStyle(RoundIconStyle(diameter: 46))
                 .accessibilityLabel(favorite ? "Retirer de ma liste" : "Ajouter à ma liste")
                 .sensoryFeedback(.selection, trigger: favorite)
-            Button { model.playHero(hero, version: nil, source: nil) } label: {
+            Button { model.playHero(hero, variant: nil) } label: {
                 Label(hero.playLabel, systemImage: "play.fill")
                     .font(.headline).phoneFullWidth(metrics)
             }
             .prominentButtonStyle()
             .contextMenu {
-                if VersionPicker.lineCount(hero.versions) > 1 {
-                    Button { showPicker = true } label: { Label("Choisir la version", systemImage: "rectangle.stack.badge.play") }
+                if hero.variants.count > 1 {
+                    Button { showPicker = true } label: { Label("Choisir la variante", systemImage: "rectangle.stack.badge.play") }
                 }
             }
             Button { env.open(hero.item.id) } label: { Image(systemName: "info") }
@@ -149,7 +149,7 @@ struct HomeView: View {
         }
     }
 
-    /// TV and tablet: Lecture (a long press offers the versions), Ma liste and Fiche. On TV, between two invisible stops,
+    /// TV and tablet: Lecture (a long press offers the variants), Ma liste and Fiche. On TV, between two invisible stops,
     /// focusable once the focus is in the row (coming up from a row below never lands on it): reaching one turns the carousel.
     private func tvHero(_ hero: HomeHero, model: HomeModel) -> some View {
         HeroBanner(item: hero.item, tagline: hero.tagline, certification: hero.certification, slideID: hero.playID) {
@@ -191,16 +191,16 @@ private struct PageDots: View {
 
 private extension HomeView {
     @ViewBuilder func heroButtons(_ hero: HomeHero, model: HomeModel) -> some View {
-        Button { model.playHero(hero, version: nil, source: nil) } label: {
+        Button { model.playHero(hero, variant: nil) } label: {
             Label(hero.playLabel, systemImage: "play.fill").font(.headline)
         }
         .prominentButtonStyle()
         .focused($heroFocus, equals: .play)
-        .onLongPressGesture(minimumDuration: 0.5) { if VersionPicker.lineCount(hero.versions) > 1 { showPicker = true } }
+        .onLongPressGesture(minimumDuration: 0.5) { if hero.variants.count > 1 { showPicker = true } }
         // The tablet: the same choice from the long press menu, as on the phone.
         .touchContextMenu {
-            if VersionPicker.lineCount(hero.versions) > 1 {
-                Button { showPicker = true } label: { Label("Choisir la version", systemImage: "rectangle.stack.badge.play") }
+            if hero.variants.count > 1 {
+                Button { showPicker = true } label: { Label("Choisir la variante", systemImage: "rectangle.stack.badge.play") }
             }
         }
         // The round icons of the sheet, their name under the focused one.
@@ -278,14 +278,14 @@ final class HomeModel {
         await env.setFavorite(hero.item.id, !isFavorite(hero))
     }
 
-    var heroChoice: VersionChooser.Choice? {
+    var heroChoice: VariantChooser.Choice? {
         guard let hero else { return nil }
-        return env.player.startChoice(hero.item.id, versions: hero.versions, remembered: hero.remembered)
+        return env.player.startChoice(hero.item.id, variants: hero.variants, remembered: hero.remembered)
     }
 
     /// Asks `/playback` first (the episode after it, the cast of the Distribution panel), and falls back on what the
     /// slide carries, offline included.
-    func playHero(_ hero: HomeHero, version: Version?, source: Source?) {
+    func playHero(_ hero: HomeHero, variant: Variant?) {
         let content: PlaybackContent
         if let e = hero.episode {
             content = PlaybackContent(id: hero.playID, kind: .episode, title: e.title ?? hero.item.title, subtitle: hero.item.title,
@@ -294,14 +294,14 @@ final class HomeModel {
             content = PlaybackContent(id: hero.playID, kind: hero.item.kind.content ?? .movie, title: hero.item.title, subtitle: nil, episode: nil,
                                       backdrop: hero.item.picture)
         }
-        let local = PlaybackContext(content: content, versions: hero.versions, resumeAt: hero.resumeAt, duration: hero.duration,
+        let local = PlaybackContext(content: content, variants: hero.variants, resumeAt: hero.resumeAt, duration: hero.duration,
                                     remembered: hero.remembered)
         Task {
             var ctx = local
             if let playback = try? await env.client.playback(id: hero.playID) {
                 ctx = PlaybackContext(content: content, playback: playback)
             }
-            if let version { env.player.play(ctx, version: version, source: source) } else { env.player.play(ctx) }
+            if let variant { env.player.play(ctx, variant: variant) } else { env.player.play(ctx) }
         }
     }
 
@@ -321,8 +321,8 @@ final class HomeModel {
     func resume(_ card: ContentItem) {
         Task {
             if let hero = home?.heroes.first(where: { $0.item.id == card.id }) {
-                // The carousel already holds its versions: played even when the server does not answer.
-                if let ctx = try? await env.playbackContext(for: card) { env.player.play(ctx) } else { playHero(hero, version: nil, source: nil) }
+                // The carousel already holds its variants: played even when the server does not answer.
+                if let ctx = try? await env.playbackContext(for: card) { env.player.play(ctx) } else { playHero(hero, variant: nil) }
             } else if let ctx = await env.attempt("Lecture", { try await env.playbackContext(for: card) }) {
                 env.player.play(ctx)
             }

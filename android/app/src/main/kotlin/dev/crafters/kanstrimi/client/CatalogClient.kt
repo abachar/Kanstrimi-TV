@@ -55,7 +55,7 @@ enum class CatalogSort(val wire: String, val label: String) {
     }
 }
 
-/** A paginated list of `/movies` or `/series`: a genre or a studio, the sort, the version filters. */
+/** A paginated list of `/movies` or `/series`: a genre or a studio, the sort, the language and quality filters. */
 data class ListQuery(
     val kind: ContentKind,
     val genre: String? = null,
@@ -69,7 +69,7 @@ data class ListQuery(
     val cursor: String? = null,
 ) {
     val hasFilters: Boolean get() = language != null || minQuality != null || dynamicRange != null || vfAvailable
-    /** The same list without the version filters, back on its default order. */
+    /** The same list without the language and quality filters, back on its default order. */
     val cleared: ListQuery get() = ListQuery(kind = kind, genre = genre, studio = studio)
 
     companion object {
@@ -106,7 +106,8 @@ interface CatalogClient {
 
     suspend fun channels(): List<ChannelGroup>
     suspend fun channel(id: String): Channel
-    suspend fun programmes(channelId: String, version: String?): List<Programme>
+    /** `GET /channels/{id}/programmes?variant=…`: the guide of that variant (null: the channel's). */
+    suspend fun programmes(channelId: String, variantId: String?): List<Programme>
 
     suspend fun playback(id: String): Playback
     suspend fun suggestions(id: String): Suggestions
@@ -118,10 +119,10 @@ interface CatalogClient {
     suspend fun removeFromResume(id: String)
     suspend fun setWatched(id: String, watched: Boolean, season: Int? = null)
     suspend fun setFavorite(id: String, favorite: Boolean)
-    /** `PUT /playback/{id}/version`: the version chosen for the title (an episode's: for the whole series). */
-    suspend fun rememberVersion(id: String, versionId: String)
-    /** `DELETE /playback/{id}/version`: the title starts on the best version again. */
-    suspend fun forgetVersion(id: String)
+    /** `PUT /playback/{id}/variant`: the variant chosen, one of the title's (an episode's: kept for the whole series). */
+    suspend fun rememberVariant(id: String, variantId: String)
+    /** `DELETE /playback/{id}/variant`: the title starts on the best variant again. */
+    suspend fun forgetVariant(id: String)
 }
 
 /** `tmdb:tv:…` and `fallback:series:…` are series, the rest are movies. */

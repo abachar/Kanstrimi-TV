@@ -146,7 +146,7 @@ struct PlayerControls: View {
             HStack(spacing: 10) {
                 panelButtons
                 Spacer(minLength: 8)
-                if player.offersVersions { versionsMenu }
+                if player.offersVariants { variantsMenu }
                 if player.offersAudio { audioMenu }
                 if player.offersSubtitles { subtitlesMenu }
             }
@@ -156,15 +156,15 @@ struct PlayerControls: View {
                     HStack(spacing: 10) { panelButtons }
                 }
                 Spacer(minLength: 8)
-                if player.offersVersions || player.offersAudio || player.offersSubtitles {
+                if player.offersVariants || player.offersAudio || player.offersSubtitles {
                     Menu {
-                        if player.offersVersions { Menu { VersionMenuItems() } label: { Label("Versions", systemImage: "rectangle.stack.badge.play") } }
+                        if player.offersVariants { Menu { VariantMenuItems() } label: { Label("Variantes", systemImage: "rectangle.stack.badge.play") } }
                         if player.offersAudio { Menu { AudioMenuItems() } label: { Label("Audio", systemImage: "waveform") } }
                         if player.offersSubtitles { Menu { SubtitleMenuItems() } label: { Label("Sous-titres", systemImage: "captions.bubble") } }
                     } label: {
                         roundLabel("ellipsis")
                     }
-                    .accessibilityLabel("Versions, audio et sous-titres")
+                    .accessibilityLabel("Variantes, audio et sous-titres")
                 }
             }
         }
@@ -182,8 +182,8 @@ struct PlayerControls: View {
         }
     }
 
-    private var versionsMenu: some View {
-        Menu { VersionMenuItems() } label: { roundLabel("rectangle.stack.badge.play") }.accessibilityLabel("Versions")
+    private var variantsMenu: some View {
+        Menu { VariantMenuItems() } label: { roundLabel("rectangle.stack.badge.play") }.accessibilityLabel("Variantes")
     }
     private var audioMenu: some View {
         Menu { AudioMenuItems() } label: { roundLabel("waveform") }.accessibilityLabel("Audio")

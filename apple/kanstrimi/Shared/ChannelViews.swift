@@ -53,11 +53,11 @@ struct LoadedChannelCard: View {
 extension AppEnvironment {
     /// A channel as its card shows it: the quality it starts in here, its programme on air, its guide state.
     func channelItem(_ channel: Channel, status: ChannelItem.Status? = nil) -> ChannelItem {
-        // A channel drawn from a card of the home (no versions, no favourite) takes both from the detail that
+        // A channel drawn from a card of the home (no variants, no favourite) takes both from the detail that
         // `loadNowPlaying` fetched, once known; a listed channel is already complete and fresher than the cache.
-        let full = channel.versions.isEmpty ? (channelCache.latest(channel.id) ?? channel) : channel
+        let full = channel.variants.isEmpty ? (channelCache.latest(channel.id) ?? channel) : channel
         return ChannelItem(id: channel.id, name: channel.name, logo: channel.logo, status: status,
-                    quality: (liveVersion(of: full)?.quality ?? full.maxQuality)?.rawValue, isFavorite: full.isFavorite ?? false,
+                    quality: (liveVariant(of: full)?.quality ?? full.maxQuality)?.rawValue, isFavorite: full.isFavorite ?? false,
                     now: nowPlaying(on: channel), hasEPG: guide(of: channel).hasEPG)
     }
 }

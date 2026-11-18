@@ -6,51 +6,47 @@
   "max_quality": "FHD",
   "has_epg": true,
   "is_favorite": false,
-  "versions": [
+  "variants": [
     {
-      "id": "vf-fhd",
+      "id": "src-i8",
       "language": "VF",
       "quality": "FHD",
-      "sources": [
-        {
-          "id": "src-i8",
-          "container": "TS",
-          "stream_url": "http://provider.test/live/u/p/101.ts",
-          "provider": {
-            "id": "xtream-1",
-            "name": "provider.test",
-            "kind": "xtream",
-            "rank": 1
-          },
-          "origin": "FRANCE FHD | TV",
-          "distinction": null,
-          "label": "provider.test"
-        }
-      ],
+      "badge": "FHD",
+      "label": "FR · FHD",
+      "provider": {
+        "id": "xtream-1",
+        "name": "provider.test",
+        "kind": "xtream",
+        "rank": 1
+      },
+      "name": "|FR| TF1 FHD",
+      "category": "FRANCE FHD | TV",
+      "container": "TS",
+      "stream_url": "http://provider.test/live/u/p/101.ts",
       "chip": "FHD"
     },
     {
-      "id": "vf-hd",
+      "id": "src-i7",
       "language": "VF",
       "quality": "HD",
-      "sources": [
-        {
-          "id": "src-i7",
-          "container": "TS",
-          "stream_url": "http://provider.test/live/u/p/100.ts",
-          "provider": {
-            "id": "xtream-1",
-            "name": "provider.test",
-            "kind": "xtream",
-            "rank": 1
-          },
-          "origin": "FRANCE FHD | TV",
-          "distinction": null,
-          "label": "provider.test"
-        }
-      ],
+      "badge": "HD",
+      "label": "FR · HD",
+      "provider": {
+        "id": "xtream-1",
+        "name": "provider.test",
+        "kind": "xtream",
+        "rank": 1
+      },
+      "name": "|FR| TF1 HD",
+      "category": "FRANCE FHD | TV",
+      "container": "TS",
+      "stream_url": "http://provider.test/live/u/p/100.ts",
       "chip": "HD"
     }
+  ],
+  "chips": [
+    "FHD",
+    "HD"
   ],
   "now": {
     "title": "Journal",
@@ -67,7 +63,7 @@
   "watched_rank": 1,
   "recent_rank": 1,
   "remembered": {
-    "id": "vf-fhd",
+    "id": "src-i8",
     "language": "VF",
     "quality": "FHD",
     "label": "FR · FHD"

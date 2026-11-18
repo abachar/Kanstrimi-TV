@@ -50,20 +50,20 @@ nonisolated struct Episode: Codable, Hashable, Identifiable, Sendable {
     let runtime: Int?
     let still: URL?
     let airDate: Date?
-    let versions: [Version]
+    let variants: [Variant]
     let progress: Progress?
     /// What its card draws: the still, « É4 · 52 min », the progress, « vu ».
     let item: ContentItem
 
     enum CodingKeys: String, CodingKey {
-        case id, season, number, title, overview, runtime, still, versions, progress, item
+        case id, season, number, title, overview, runtime, still, variants, progress, item
         case airDate = "air_date"
     }
 
     init(id: ContentID, season: Int, number: Int, title: String, overview: String?, runtime: Int?, still: URL?, airDate: Date?,
-         versions: [Version], progress: Progress?, item: ContentItem) {
+         variants: [Variant], progress: Progress?, item: ContentItem) {
         self.id = id; self.season = season; self.number = number; self.title = title; self.overview = overview; self.runtime = runtime
-        self.still = still; self.airDate = airDate; self.versions = versions; self.progress = progress; self.item = item
+        self.still = still; self.airDate = airDate; self.variants = variants; self.progress = progress; self.item = item
     }
 
     init(from decoder: Decoder) throws {
@@ -76,14 +76,14 @@ nonisolated struct Episode: Codable, Hashable, Identifiable, Sendable {
         runtime = try c.decodeIfPresent(Int.self, forKey: .runtime)
         still = try c.decodeIfPresent(URL.self, forKey: .still)
         airDate = try c.decodeIfPresent(Date.self, forKey: .airDate)
-        versions = try c.decodeIfPresent([Version].self, forKey: .versions) ?? []
+        variants = try c.decodeIfPresent([Variant].self, forKey: .variants) ?? []
         progress = try c.decodeIfPresent(Progress.self, forKey: .progress)
         // The demo fixtures carry none: the still alone until the client writes it.
         item = try c.decodeIfPresent(ContentItem.self, forKey: .item) ?? ContentItem(id: id, kind: .episode, title: title, picture: still)
     }
 
     var ref: EpisodeRef { EpisodeRef(season: season, number: number, title: title) }
-    var languages: [Language] { versions.languages }
+    var languages: [Language] { variants.languages }
 }
 
 /// A season with its episodes: `GET /series/{id}` carries them all.
@@ -128,9 +128,9 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
     let hasTMDB: Bool?
     let providerCategory: String?
     let rawTitle: String?
-    let versions: [Version]
-    /// The version this profile chose for the title (a series: for every episode), as the server keeps it.
-    var remembered: RememberedVersion? = nil
+    let variants: [Variant]
+    /// The variant this profile chose for the title (a series: for every episode), as the server keeps it.
+    var remembered: RememberedVariant? = nil
     var isFavorite: Bool?
     let seasons: [Season]?
     let currentEpisode: EpisodeRef?
@@ -146,7 +146,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, kind, title, poster, languages, backdrop, progress, episode, year, rating, genres, hint
-        case overview, runtime, certification, cast, director, trailer, versions, seasons, saga, logo, related, tagline, facts, remembered
+        case overview, runtime, certification, cast, director, trailer, variants, seasons, saga, logo, related, tagline, facts, remembered
         case maxQuality = "max_quality"
         case dynamicRange = "dynamic_range"
         case addedAt = "added_at"
@@ -166,7 +166,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
          year: Int? = nil, rating: Double? = nil, genres: [String] = [], hint: String? = nil, addedAt: Date? = nil, logo: URL? = nil,
          originalTitle: String? = nil, endYear: Int? = nil, overview: String? = nil, runtime: Int? = nil, certification: String? = nil,
          cast: [Person] = [], director: String? = nil, trailer: URL? = nil, hasTMDB: Bool? = nil, providerCategory: String? = nil,
-         rawTitle: String? = nil, versions: [Version] = [], isFavorite: Bool? = nil, seasons: [Season]? = nil, currentEpisode: EpisodeRef? = nil,
+         rawTitle: String? = nil, variants: [Variant] = [], isFavorite: Bool? = nil, seasons: [Season]? = nil, currentEpisode: EpisodeRef? = nil,
          saga: SagaRef? = nil, tagline: String = "", facts: String? = nil, ratingLabel: String? = nil, playLabel: String = "",
          related: [ContentItem] = []) {
         self.id = id; self.kind = kind; self.title = title; self.poster = poster; self.maxQuality = maxQuality; self.dynamicRange = dynamicRange
@@ -174,7 +174,7 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
         self.year = year; self.rating = rating; self.genres = genres; self.hint = hint; self.addedAt = addedAt; self.logo = logo
         self.originalTitle = originalTitle; self.endYear = endYear; self.overview = overview; self.runtime = runtime; self.certification = certification
         self.cast = cast; self.director = director; self.trailer = trailer; self.hasTMDB = hasTMDB; self.providerCategory = providerCategory
-        self.rawTitle = rawTitle; self.versions = versions; self.isFavorite = isFavorite; self.seasons = seasons; self.currentEpisode = currentEpisode
+        self.rawTitle = rawTitle; self.variants = variants; self.isFavorite = isFavorite; self.seasons = seasons; self.currentEpisode = currentEpisode
         self.saga = saga; self.tagline = tagline; self.facts = facts; self.ratingLabel = ratingLabel; self.playLabel = playLabel; self.related = related
     }
 
@@ -207,8 +207,8 @@ nonisolated struct Card: Codable, Hashable, Identifiable, Sendable {
         hasTMDB = try c.decodeIfPresent(Bool.self, forKey: .hasTMDB)
         providerCategory = try c.decodeIfPresent(String.self, forKey: .providerCategory)
         rawTitle = try c.decodeIfPresent(String.self, forKey: .rawTitle)
-        versions = try c.decodeIfPresent([Version].self, forKey: .versions) ?? []
-        remembered = try c.decodeIfPresent(RememberedVersion.self, forKey: .remembered)
+        variants = try c.decodeIfPresent([Variant].self, forKey: .variants) ?? []
+        remembered = try c.decodeIfPresent(RememberedVariant.self, forKey: .remembered)
         isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite)
         seasons = try c.decodeIfPresent([Season].self, forKey: .seasons)
         currentEpisode = try c.decodeIfPresent(EpisodeRef.self, forKey: .currentEpisode)

@@ -17,10 +17,10 @@ import { accountsById, deleteAccount, moveAccount, setAccountEnabled } from "@/c
 import { runNaming } from "@/catalog";
 import type { RestContext } from "../context";
 import { variantsOf } from "../contents";
-import { versionsOf } from "../versions";
+import { wireVariants } from "../variants";
 
 /**
- * Two providers: the same film at both, under the same provider id, is one content with two sources
+ * Two providers: the same film at both, under the same provider id, is one content with a variant each
  * in the preferred account's order; a disabled account hides its variants; a deleted one takes them away.
  */
 let backup: ProviderAccount;
@@ -38,10 +38,10 @@ const matrix = async () => {
   const [c] = await db.select(titleContent).from(schema.catalogTitles).where(eq(schema.catalogTitles.tmdbId, 603));
   return c;
 };
-const sources = async () => {
+const variantsOfMatrix = async () => {
   const c = await ctx();
   const { playables } = await variantsOf(c, await matrix());
-  return versionsOf(c, playables).flatMap((v) => v.sources.map((s) => `${v.id} ${s.provider.name} ${s.stream_url}`));
+  return wireVariants(c, playables).map((v) => `${v.label} ${v.provider.name} ${v.stream_url}`);
 };
 
 beforeAll(async () => {
@@ -70,14 +70,14 @@ describe("provider accounts", () => {
     expect((await matrix()).sourceCount).toBe(3);
   });
 
-  it("lists one source per account in a version, the preferred account first, each on its own URL", async () => {
-    expect(await sources()).toEqual([
-      "vf-4k provider.test http://provider.test/movie/u/p/1.mkv",
-      "vf-4k Backup http://backup.test/movie/u2/p2/1.mkv",
-      "vf-hd Backup http://backup.test/movie/u2/p2/2.mkv",
+  it("lists one variant per stream, the preferred account first within a quality, each on its own URL", async () => {
+    expect(await variantsOfMatrix()).toEqual([
+      "FR · 4K provider.test http://provider.test/movie/u/p/1.mkv",
+      "FR · 4K Backup http://backup.test/movie/u2/p2/1.mkv",
+      "FR · HD Backup http://backup.test/movie/u2/p2/2.mkv",
     ]);
     await moveAccount(backup.id, "up");
-    expect((await sources())[0]).toBe("vf-4k Backup http://backup.test/movie/u2/p2/1.mkv");
+    expect((await variantsOfMatrix())[0]).toBe("FR · 4K Backup http://backup.test/movie/u2/p2/1.mkv");
     await moveAccount(backup.id, "down");
   });
 
@@ -87,7 +87,7 @@ describe("provider accounts", () => {
     expect(hidden).toHaveLength(2);
     await groupAndFilter();
     expect((await matrix()).sourceCount).toBe(1);
-    expect(await sources()).toEqual(["vf-4k provider.test http://provider.test/movie/u/p/1.mkv"]);
+    expect(await variantsOfMatrix()).toEqual(["FR · 4K provider.test http://provider.test/movie/u/p/1.mkv"]);
     await setAccountEnabled(backup.id, true);
     await groupAndFilter();
     expect((await matrix()).sourceCount).toBe(3);

@@ -98,7 +98,7 @@ private extension RootView {
         case "live":
             guard let groups = try? await env.client.channels(), let first = groups.flatMap(\.channels).first else { return }
             if let staged {
-                let ctx = PlaybackContext(content: PlaybackContent(id: first.id, kind: .live, title: first.name, subtitle: nil, episode: nil, backdrop: nil), versions: first.versions)
+                let ctx = PlaybackContext(content: PlaybackContent(id: first.id, kind: .live, title: first.name, subtitle: nil, episode: nil, backdrop: nil), variants: first.variants)
                 env.player.debugPut(ctx, state: staged, channels: groups.flatMap(\.channels))
             } else {
                 env.player.play(channel: first, in: groups.flatMap(\.channels))

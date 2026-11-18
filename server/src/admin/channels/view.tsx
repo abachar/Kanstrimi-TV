@@ -163,7 +163,7 @@ export function NamePanel({
       </form>
       {variants.length > 0 && (
         <p class="text-xs text-muted-foreground">
-          {variants.length} version{variants.length > 1 ? "s" : ""} :{" "}
+          {variants.length} variante{variants.length > 1 ? "s" : ""} :{" "}
           {variants.slice(0, 8).map((v, i) => (
             <>
               {i > 0 && " · "}
@@ -259,7 +259,7 @@ export function ChannelCard({ ch }: { ch: ContentChannel }) {
             hx-confirm={
               ch.iptv
                 ? `Retirer nos précisions sur ${ch.own.name} ? La chaîne reste, telle qu'iptv-org la connaît.`
-                : `Supprimer ${ch.own.name} ? Ses versions redeviennent non rattachées.`
+                : `Supprimer ${ch.own.name} ? Ses variantes redeviennent non rattachées.`
             }
           >
             <input type="hidden" name="item" value={String(ch.variantId)} />

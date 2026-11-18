@@ -39,41 +39,41 @@ nonisolated struct Profiles: Codable, Hashable, Sendable {
 }
 
 /// The playback settings of a profile, kept by the server (Réglages › Lecture, admin › Profils): the quality played by
-/// default (this device still caps it), the next episode starting by itself, the version chosen in the picker kept for
-/// the title, another source tried when one fails.
+/// default (this device still caps it), the next episode starting by itself, the variant chosen in the picker kept for
+/// the title, another variant of the same language and quality tried when one fails.
 nonisolated struct ProfileSettings: Codable, Hashable, Sendable {
     var maxQuality: Quality
     var autoPlayNext: Bool
-    var rememberVersions: Bool
-    var switchSourceOnFailure: Bool
+    var rememberVariants: Bool
+    var switchVariantOnFailure: Bool
 
     enum CodingKeys: String, CodingKey {
         case maxQuality = "max_quality"
         case autoPlayNext = "auto_play_next"
-        case rememberVersions = "remember_versions"
-        case switchSourceOnFailure = "switch_source_on_failure"
+        case rememberVariants = "remember_variants"
+        case switchVariantOnFailure = "switch_variant_on_failure"
     }
 
-    static let standard = ProfileSettings(maxQuality: .uhd, autoPlayNext: true, rememberVersions: true, switchSourceOnFailure: true)
+    static let standard = ProfileSettings(maxQuality: .uhd, autoPlayNext: true, rememberVariants: true, switchVariantOnFailure: true)
 }
 
 /// `PUT /profiles/me/settings`: the settings to change, each optional.
 nonisolated struct ProfileSettingsPatch: Codable, Hashable, Sendable {
     var maxQuality: Quality? = nil
     var autoPlayNext: Bool? = nil
-    var rememberVersions: Bool? = nil
-    var switchSourceOnFailure: Bool? = nil
+    var rememberVariants: Bool? = nil
+    var switchVariantOnFailure: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case maxQuality = "max_quality"
         case autoPlayNext = "auto_play_next"
-        case rememberVersions = "remember_versions"
-        case switchSourceOnFailure = "switch_source_on_failure"
+        case rememberVariants = "remember_variants"
+        case switchVariantOnFailure = "switch_variant_on_failure"
     }
 
     /// Everything of `settings`: what the apps send, so a stale cache cannot keep an old value.
     init(_ settings: ProfileSettings) {
         maxQuality = settings.maxQuality; autoPlayNext = settings.autoPlayNext
-        rememberVersions = settings.rememberVersions; switchSourceOnFailure = settings.switchSourceOnFailure
+        rememberVariants = settings.rememberVariants; switchVariantOnFailure = settings.switchVariantOnFailure
     }
 }

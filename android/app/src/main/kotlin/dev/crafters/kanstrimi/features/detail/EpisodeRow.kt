@@ -33,7 +33,7 @@ import dev.crafters.kanstrimi.ui.theme.Theme
 @Composable
 fun EpisodeRow(episode: Episode, stillWidth: Dp, onClick: () -> Unit, onLongClick: () -> Unit) {
     val item = episode.item
-    val playable = episode.versions.isNotEmpty()
+    val playable = episode.variants.isNotEmpty()
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
             .combinedClickable(enabled = playable, onClick = onClick, onLongClick = onLongClick)

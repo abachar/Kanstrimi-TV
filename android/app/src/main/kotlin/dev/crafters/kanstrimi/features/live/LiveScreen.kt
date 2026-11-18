@@ -140,7 +140,7 @@ fun LiveScreen() {
     LaunchedEffect(visible.isEmpty(), selectedChannelId) {
         if (selectedChannelId == null) visible.firstOrNull()?.let { selectedChannelId = it.id }
     }
-    // The detail is the latest word on the channel: its guide, its versions for the preview.
+    // The detail is the latest word on the channel: its guide, its variants for the preview.
     LaunchedEffect(selectedChannelId) { selectedChannelId?.let { env.channelCache.channel(it) } }
     // Back from the player: on the channel that was playing (a zap may have moved it), not on the first one.
     val playingId = env.player.channel?.id
@@ -161,9 +161,9 @@ fun LiveScreen() {
     LaunchedEffect(active, selectedChannel, detail) {
         if (!active) { preview.stop(); return@LaunchedEffect }
         val c = selectedChannel ?: return@LaunchedEffect
-        // The version the channel would start in: « TF1 » switched to FHD previews in FHD.
-        val versions = detail?.versions ?: c.versions
-        val url = env.player.startChoice(c.id, versions, c.remembered)?.source?.streamUrl ?: return@LaunchedEffect
+        // The variant the channel would start in: « TF1 » switched to FHD previews in FHD.
+        val variants = detail?.variants ?: c.variants
+        val url = env.player.startChoice(c.id, variants, c.remembered)?.streamUrl ?: return@LaunchedEffect
         preview.show(c.id, url)
     }
 
@@ -263,14 +263,13 @@ private fun Side(channel: Channel?, detail: Channel?, modifier: Modifier, onWatc
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 LiveTag("EN DIRECT", size = 12)
                 Text(channel.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                // The quality and language the channel is shown in; its best and languages when it has no version.
-                val v = env.liveVersion(channel)
+                // The quality and language the channel is shown in; its best quality when it has no variant.
+                val v = env.liveVariant(channel)
                 if (v != null) {
-                    Badge(v.quality.label)
+                    Badge(v.badge)
                     Badge(Language.short(v.language))
                 } else {
                     channel.maxQuality?.let { Badge(it.label) }
-                    channel.versions.map { it.language }.distinct().take(2).forEach { Badge(Language.short(it)) }
                 }
             }
             val now = detail?.let { env.guide(it).now }
@@ -279,10 +278,10 @@ private fun Side(channel: Channel?, detail: Channel?, modifier: Modifier, onWatc
                 detail == null -> Box(modifier = Modifier.fillMaxWidth().height(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Theme.text, modifier = Modifier.size(24.dp)) }
                 else -> Text("Programme inconnu", color = Theme.secondary)
             }
-            // The server's chips, as the badges beside the name; the version the channel starts in is filled.
-            val start = env.liveVersion(channel)?.id
+            // The qualities the channel comes in, as the server lists them; the one of the variant it starts in is filled.
+            val start = env.liveVariant(channel)?.chip
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                channel.versions.forEach { v -> Badge(v.chip ?: v.quality.label, filled = v.id == start) }
+                channel.chips.forEach { chip -> Badge(chip, filled = chip == start) }
             }
             Button(
                 onClick = onWatch, modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(44.dp),

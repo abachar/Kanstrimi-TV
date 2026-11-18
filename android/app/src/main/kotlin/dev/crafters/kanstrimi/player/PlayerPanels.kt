@@ -88,7 +88,7 @@ private fun SeasonEpisodesStrip(player: PlayerService, env: AppEnvironment, onPi
                 val current = ep.id == player.context?.content?.id
                 Box(modifier = Modifier.then(if (current) Modifier.border(2.dp, Theme.accent, RoundedCornerShape(14.dp)) else Modifier)) {
                     WideCard(item = ep.item, width = cardWidth) {
-                        if (current || ep.versions.isEmpty()) return@WideCard
+                        if (current || ep.variants.isEmpty()) return@WideCard
                         scope.launch {
                             val played = player.playPicked { env.attempt("Lecture") { PlaybackContext.of(ep, series, env.client.playback(ep.id)) } }
                             if (played) onPick()
@@ -162,13 +162,13 @@ private fun PlayerInfos(player: PlayerService) {
     }
 }
 
-/** What plays, as the engine read it: definition, dynamic range, codec, frame rate, decoder; then the sound's codec, channels, decoder. */
+/** What plays, as the engine read it: definition, dynamic range, codec, frame rate, decoder; then the sound's codec, channels, decoder; then whose stream it is. */
 @Composable
 private fun StreamFactsRow(player: PlayerService) {
-    val version = player.version ?: return
+    val variant = player.variant ?: return
     val facts = player.streamFacts
     val picture = if (facts?.videoCodec == null) {
-        listOfNotNull(version.quality.label, version.dynamicRange?.label ?: "SDR")
+        listOfNotNull(variant.quality.label, variant.dynamicRange?.label ?: "SDR")
     } else {
         listOfNotNull(
             definition(facts.width), facts.dynamicRange ?: "SDR", facts.videoCodec,
@@ -180,8 +180,7 @@ private fun StreamFactsRow(player: PlayerService) {
         FactGroup(R.drawable.ic_movie, picture)
         if (sound.isNotEmpty()) FactGroup(R.drawable.ic_audiotrack, sound)
         facts?.engine?.let { if (it != "ExoPlayer") Badge(it, small = true) }
-        val source = player.source
-        if (source != null) Text(player.sourceLabel(source, version), style = MaterialTheme.typography.bodySmall, color = Theme.secondary)
+        Text(variant.stream, style = MaterialTheme.typography.bodySmall, color = Theme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

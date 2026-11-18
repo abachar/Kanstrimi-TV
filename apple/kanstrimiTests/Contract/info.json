@@ -19,8 +19,8 @@
     "settings": {
       "max_quality": "4K",
       "auto_play_next": true,
-      "remember_versions": true,
-      "switch_source_on_failure": true
+      "remember_variants": true,
+      "switch_variant_on_failure": true
     }
   }
 }

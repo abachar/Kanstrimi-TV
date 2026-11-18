@@ -7,12 +7,12 @@ import { contentByKey, variantsOf, type Variants } from "./contents";
 import { getProgress } from "./progress";
 import { favoriteSet } from "./favorites";
 import { hintOf, playLabel, progressWire, sheetCard } from "./cards";
-import { languageLabel, versionsOf, versionsSummary } from "./versions";
+import { languageLabel, variantsSummary, wireVariants } from "./variants";
 import { sagaRefOf } from "./sagas";
 import { sheetRelated } from "./related";
-import { rememberedFor } from "./remembered";
-import { currentEpisode, episodesOf, seasonsWire, seriesVersions, type EpisodeRow } from "./episodes";
-import type { Card, EpisodeRef, Version } from "./types";
+import { rememberedFor, rememberedWire } from "./remembered";
+import { currentEpisode, episodesOf, seasonsWire, seriesPlayables, seriesVariants, type EpisodeRow } from "./episodes";
+import type { Card, EpisodeRef, Variant } from "./types";
 
 /** `/movies/{id}`, `/series/{id}`: the whole sheet in one call. */
 export function sheetRoutes(kind: "vod" | "series") {
@@ -33,8 +33,8 @@ export function sheetRoutes(kind: "vod" | "series") {
 }
 
 export async function movieSheet(ctx: RestContext, content: Content): Promise<Card> {
-  const variants = await variantsOf(ctx, content);
-  const versions = versionsOf(ctx, variants.playables);
+  const own = await variantsOf(ctx, content);
+  const variants = wireVariants(ctx, own.playables);
   const [progress, favs, saga, remembered] = await Promise.all([
     getProgress(ctx.profile.id, [content.key]),
     favoriteSet(ctx.profile.id),
@@ -42,20 +42,20 @@ export async function movieSheet(ctx: RestContext, content: Content): Promise<Ca
     rememberedFor(ctx.profile, content.key),
   ]);
   return {
-    ...sheetCard(ctx, content, provenance(variants)),
-    ...versionsSummary(versions),
+    ...sheetCard(ctx, content, provenance(own)),
+    ...variantsSummary(variants),
     progress: progressWire(progress.get(content.key), true),
     play_label: playLabel(progress.get(content.key)),
-    versions,
-    remembered,
+    variants,
+    remembered: rememberedWire(remembered, own.playables),
     is_favorite: favs.has(content.key),
     ...(saga ? { saga } : {}),
   };
 }
 
-/** Seasons, episodes with versions and progress, current episode. */
+/** Seasons, episodes with variants and progress, current episode. */
 export async function seriesSheet(ctx: RestContext, content: Content): Promise<Card> {
-  const { variants, episodes } = await episodesOf(ctx, content);
+  const { variants: own, episodes } = await episodesOf(ctx, content);
   const [progress, favs, remembered] = await Promise.all([
     getProgress(
       ctx.profile.id,
@@ -65,17 +65,17 @@ export async function seriesSheet(ctx: RestContext, content: Content): Promise<C
     rememberedFor(ctx.profile, content.key),
   ]);
   const seasons = await seasonsWire(ctx, content, episodes, progress);
-  const versions = seriesVersions(ctx, episodes);
+  const variants = seriesVariants(ctx, own, episodes);
   const current = currentEpisode(episodes, progress);
-  const summary = versionsSummary(versions);
+  const summary = variantsSummary(variants);
   return {
-    ...sheetCard(ctx, content, { ...provenance(variants), seasonCount: seasons.length }),
+    ...sheetCard(ctx, content, { ...provenance(own), seasonCount: seasons.length }),
     ...summary,
     hint: seriesHint(summary.languages ?? [], seasons),
     progress: current ? progressWire(progress.get(current.key), true) : null,
     play_label: playLabel(current && progress.get(current.key), current ?? null),
-    versions,
-    remembered,
+    variants,
+    remembered: rememberedWire(remembered, seriesPlayables(own.items, own.categoryName)),
     is_favorite: favs.has(content.key),
     seasons,
     current_episode: current ? episodeRef(current) : null,
@@ -87,10 +87,10 @@ function provenance({ items, categoryName }: Variants) {
   return { providerCategory: best ? categoryName(best) : null, rawTitle: best?.name ?? null };
 }
 const episodeRef = (e: EpisodeRow): EpisodeRef => ({ season: e.season, number: e.number, title: e.title });
-function seriesHint(languages: string[], seasons: { number: number; episodes: { versions: Version[] }[] }[]): string | null {
+function seriesHint(languages: string[], seasons: { number: number; episodes: { variants: Variant[] }[] }[]): string | null {
   if (hintOf(languages)) return hintOf(languages);
   const last = seasons[seasons.length - 1];
-  if (last && languages.includes("VF") && last.episodes.some((e) => !e.versions.some((v) => v.language === "VF")))
+  if (last && languages.includes("VF") && last.episodes.some((e) => !e.variants.some((v) => v.language === "VF")))
     return `${languageLabel("VF")} partielle S${last.number}`;
   return null;
 }

@@ -372,7 +372,7 @@ describe("admin", () => {
   it("a profile's filters: preview, save without applying, the banner to apply them, a refused query typed again, clear", async () => {
     const me = `/admin/profiles/${PROFILE}`;
     const preview = await (await post("/admin/profiles/preview", { query: "matrix", kind: "vod" })).text();
-    expect(preview).toMatch(/Garde <span[^>]*>1<\/span> fiche sur 1 \(2 versions sur 2\)/);
+    expect(preview).toMatch(/Garde <span[^>]*>1<\/span> fiche sur 1 \(2 variantes sur 2\)/);
     expect(await (await post("/admin/profiles/preview", { query: "catalogue.genre:>5", kind: "vod" })).text()).toContain("pas un nombre");
     expect(flash(await post(`${me}/filters`, { kind: "live", query: 'xtream.marché:"fr"' }))).toContain("à appliquer");
     const page = await html(me);
@@ -417,17 +417,17 @@ describe("admin", () => {
     expect(await (await post("/admin/profiles", { name: "sara", avatar })).text()).toContain("déjà"); // the name is unique, as cleaned
     expect(flash(await post(`/admin/profiles/${sara}`, { name: "Sarah", avatar: "" }))).toContain("Profil enregistré");
     // The playback settings: a switch left off is absent from the form.
-    expect(flash(await post(`/admin/profiles/${sara}/settings`, { max_quality: "FHD", remember_versions: "on" }))).toContain(
+    expect(flash(await post(`/admin/profiles/${sara}/settings`, { max_quality: "FHD", remember_variants: "on" }))).toContain(
       "Réglages de lecture",
     );
     expect(await profileById(sara)).toMatchObject({
       maxQuality: "FHD",
       autoPlayNext: false,
-      rememberVersions: true,
-      switchSourceOnFailure: false,
+      rememberVariants: true,
+      switchVariantOnFailure: false,
     });
     expect(await html(`/admin/profiles/${sara}`)).toContain('value="FHD" selected');
-    expect(await html("/admin/profiles")).toContain("HD 1080p max · versions mémorisées");
+    expect(await html("/admin/profiles")).toContain("HD 1080p max · variantes mémorisées");
     expect((await post(`/admin/profiles/${sara}/settings`, { max_quality: "8K" })).headers.get("location")).toContain("err=");
     expect(await (await post(`/admin/profiles/${sara}`, { name: "Hakim", avatar: "" })).text()).toContain("déjà");
     expect(await (await post(`/admin/profiles/${sara}`, { name: "Sarah", avatar: "data:image/png;base64,bm9wZQ==" })).text()).toContain(
@@ -660,7 +660,7 @@ describe("admin", () => {
     }
   });
 
-  it("a filter on versions, applied from « Filtres »: the version and the content say so", async () => {
+  it("a filter on variants, applied from « Filtres »: the variant and the content say so", async () => {
     const page = await html(`/admin/profiles/${PROFILE}`);
     expect(page).toContain("Mots d&#39;un flux : xtream.");
     expect(page).toContain("catalogue.genre:&quot;animation&quot;"); // a filter writes every prefix
@@ -677,7 +677,7 @@ describe("admin", () => {
       expect(sheet).toContain("écartée par les filtres");
       expect(flash(await save('xtream.langue:"it"'))).toContain("Filtre enregistré");
       expect(await runAll("manual", "filters")).toBe(true);
-      expect(await html(`/admin/content/${matrix}`)).toContain("Aucune version servie : 2 versions écartées par les filtres");
+      expect(await html(`/admin/content/${matrix}`)).toContain("Aucune variante servie : 2 variantes écartées par les filtres");
     } finally {
       await db.delete(schema.appProfileFilters);
       await runAll("manual", "group");

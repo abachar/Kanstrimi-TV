@@ -8,7 +8,7 @@ import { json } from "./http";
 import { contentByKey, contentsInOrder, variantsOf, visibleTitle } from "./contents";
 import { getProgress, resumeKeys } from "./progress";
 import { type EpisodeRow, loadEpisodes } from "./episodes";
-import { drOf, qualityOfRank } from "./versions";
+import { drOf, qualityOfRank } from "./variants";
 import { remaining } from "./cards";
 import type { TopShelfItem } from "./types";
 

@@ -12,14 +12,14 @@ lit tout, TS en direct, MKV et MP4 en VOD, sans relais ni AVPlayer d'hôte.
 | `App/` | Démarrage, `AppEnvironment` (services partagés, navigation, profils), `RootView` (appairage, puis « Qui regarde ? » si l'appareil n'est sur aucun profil, puis onglets, lecteur, liens profonds, hooks de debug), `Preferences`, `DeviceStore` (jeton et profil choisi en Keychain, injectable pour les tests), `DeepLink` (seuls nos identifiants), `PushNotifications+iOS` (les alertes du serveur sur l'iPhone). `Preferences` ne garde que ce qui est à l'appareil (serveur, nom, démo) et une copie des réglages du profil. |
 | `Contract/` | Types calqués sur `/player` (`server/src/player/types.ts`). |
 | `Client/` | `CatalogClient` : `HTTPCatalogClient` (le serveur), `MockCatalogClient` (fixtures JSON de démo), `SwitchingCatalogClient`. |
-| `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping ; il parle au moteur par la façade `PlaybackEngine`, que les tests remplacent), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VersionChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
+| `Player/` | Le lecteur, service transverse unique : `PlayerCore` (moteur, surface, options d'ouverture, partagé avec l'aperçu du Direct `LivePreview`), `PlayerService` (bascules, gels, zapping ; il parle au moteur par la façade `PlaybackEngine`, que les tests remplacent), `PlaybackReporter` (progression et file hors ligne), `PlayerMenus` (panneaux et menus communs aux deux plateformes), `VariantChooser`, `PlayerScreen` (+ `+tvOS`, `+iOS`), `SubtitleOverlay`, Picture-in-Picture. |
 | `Features/` | Un dossier par écran, une seule vue pour les deux plateformes ; `Profiles/` = « Qui regarde ? », l'écran Profil et l'avatar. |
 | `Shared/` | `Platform.swift` (`Metrics`, `Platform.isTV` / `isPad`, modificateurs par plateforme), `Theme`, `CardViews` (images, rangées, grilles, menu d'une affiche), `ChannelViews` (logo, `LoadedChannelCard`, `channelItem`), `Stores`. |
 | `Shared/Cards/` | Les cartes (`PosterCard`, `WideCard`, `ChannelCard`, `ProgrammeCard`, `UpNextCard`, `HeroBanner`, `SeeAllCard`, `RetryCard`, `StudioTile`, `CastCell`), un fichier chacune avec ses `#Preview` (données fixes). Composants bêtes : un modèle (`ContentItem` du contrat, `ChannelItem`…) et des actions en entrée, jamais `AppEnvironment` ni `.task` (vérifié par `CardsArchitectureTests`) ; charger, garder l'état, le focus et agir reste à l'écran. Le parent (rangée, grille, colonne) fixe la largeur, souvent depuis `Metrics` ; la carte prend toute celle qu'on lui donne et en tire sa hauteur. |
 | `../TopShelf/` | Extension Top Shelf (tvOS seul) : appelle `GET /player/top-shelf` pour le profil de l'Apple TV (`X-Profile` lu dans le Keychain partagé), carrousel plein écran. |
 | `../Entitlements/` | Groupe de Keychain partagé par l'app et l'extension. |
 | `scripts/` | `shot.sh` / `shot-all.sh` : captures du client de démo dans `ui-review/` (hors git). |
-| `../kanstrimiTests/` | Swift Testing : client HTTP, choix de version, progression et file hors ligne, pannes du lecteur (faux moteur `FakePlaybackEngine` : bascule de source, essais, dialogue, coupure), liens. |
+| `../kanstrimiTests/` | Swift Testing : client HTTP, choix de variante, progression et file hors ligne, pannes du lecteur (faux moteur `FakePlaybackEngine` : bascule de variante, essais, dialogue, coupure), liens. |
 
 ## Une vue, trois appareils
 
@@ -53,14 +53,14 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
   iPad : un onglet en tête de barre, la seule photo du profil (la barre ne dessine que des images : `TabAvatar` la
   télécharge et la découpe en rond) ; iPhone : l'avatar en haut à gauche de l'accueil. L'écran est celui de « Qui
   regarde ? », façon YouTube : des cercles sans plateau qui grossissent au focus avec un anneau blanc, l'actuel cerclé d'ambre. Les filtres, la
-  liste et les photos se gèrent dans l'admin ; l'app n'a plus de réglage « Langue audio » : l'ordre des versions est
-  celui du serveur, le filtre du profil (`[Version].languages` le garde, `VersionChooser` sans ordre le suit).
-- **Rien de personnel sur l'appareil** : Réglages › Lecture (qualité maximale, suite automatique, versions mémorisées,
-  changement de source) sont ceux du profil, lus dans `/info` et envoyés par `PUT /profiles/me/settings`
+  liste et les photos se gèrent dans l'admin ; l'app n'a plus de réglage « Langue audio » : l'ordre des variantes est
+  celui du serveur, le filtre du profil (`[Variant].languages` le garde, `VariantChooser` sans ordre le suit).
+- **Rien de personnel sur l'appareil** : Réglages › Lecture (qualité maximale, suite automatique, variantes mémorisées,
+  changement de variante) sont ceux du profil, lus dans `/info` et envoyés par `PUT /profiles/me/settings`
   (`env.updateSettings`, remis comme avant si le serveur refuse) ; `Preferences.profileSettings` n'en est que la copie,
-  pour jouer avant que `/info` réponde. La version choisie pour un titre (sélecteur, changement de qualité dans le
-  lecteur) part au serveur (`PUT /playback/{id}/version`, sous la série pour un épisode) et revient en `remembered`
-  sur la fiche, `/playback`, `/channels` et les diapositives ; `PlayerService.chosenVersions` garde les choix faits
+  pour jouer avant que `/info` réponde. La variante choisie pour un titre (sélecteur, changement dans le
+  lecteur) part au serveur (`PUT /playback/{id}/variant`, sous la série pour un épisode) et revient en `remembered`
+  sur la fiche, `/playback`, `/channels` et les diapositives ; `PlayerService.chosenVariants` garde les choix faits
   depuis le lancement pour qu'ils s'appliquent avant que les listes ne soient rechargées. Les chaînes récentes
   viennent de `recent_rank` sur `/channels` (`RecentChannelsStore.seed`), les zaps du moment devant, en mémoire seulement.
 
@@ -70,11 +70,13 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
 - **Direct** : décodé par le moteur (`preferredDecodePath: .software`), image en 0,6 s contre 6 s par le HLS local
   d'AVPlayer ; jamais de pause, comme une télé. Fenêtre de retour de 30 s (`dvrWindowSeconds`) : seule voie où le moteur
   décode le son à part, sinon une chaîne HE-AAC à 50 i/s (Canal+ Foot) saccade ; le son démarre ~0,8 s plus tard.
-- **Sources** : le serveur nomme chaque copie (`Source.label`, `distinction`) ; « Versions » de la fiche et le menu
-  Versions du lecteur listent les copies par fournisseur dans l'ordre de préférence (`SourceLine.grouped`), une ligne
-  « FR · 4K Dolby Vision · LIGHT » chacune ; Infos nomme toujours la source en cours. Une série (versions sans source) :
-  une ligne par version, mémorisée pour tous les épisodes.
-- **Pannes** : un seul chemin (`handleStreamFailure`) : source suivante, deux essais, puis le dialogue ; une reprise
+- **Variantes** : un titre porte une variante par flux de fournisseur (`Variant`), dans l'ordre du serveur (langues du
+  profil, qualité décroissante, fournisseur préféré d'abord), avec ses textes (`badge` « 4K DV », `label`
+  « FR · 4K DV ») et le nom et la catégorie que le fournisseur lui donne, qui distinguent deux variantes de même
+  qualité. « Variantes » de la fiche et du lecteur les listent telles quelles ; Infos nomme celle en cours. Les
+  variantes propres d'une série ne se lisent pas : celle choisie est mémorisée pour tous ses épisodes.
+- **Pannes** : un seul chemin (`handleStreamFailure`) : la variante équivalente suivante (même langue, qualité, plage
+  dynamique et montage, chez un autre fournisseur), deux essais, puis le dialogue ; une reprise
   rouvre les liens du fournisseur tels quels (ils n'expirent pas), seul « Réessayer » les redemande au serveur
   (`/playback`, `/channels/{id}`). Seuils dans `PlayerService`.
 - **Retour après 10 min d'absence** : l'accueil et le Direct se rechargent (`resumeRevision`). Une action qui échoue
@@ -83,18 +85,19 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
 - **iPad** : tourne librement (l'iPhone reste en portrait hors lecteur, `OrientationLock`), le lecteur est celui du
   tactile avec les marges de `Metrics.pad`, les cartes se lèvent sous le pointeur (`hoverEffect`). Direct en trois colonnes
   sans focus : un tap choisit la chaîne (aperçu et programme à droite, carte soulignée), un second tap, l'aperçu ou
-  « Regarder » la lit. Réglages est un onglet ; le sélecteur de versions est une feuille. Qualité plafonnée à FHD comme
-  l'iPhone (`VersionChooser.Capabilities`).
+  « Regarder » la lit. Réglages est un onglet ; le sélecteur de variantes est une feuille. Qualité plafonnée à FHD comme
+  l'iPhone (`VariantChooser.Capabilities`).
 - **Picture-in-Picture (iPhone)** : le lecteur ne se cache qu'une fois l'image dans l'image démarrée, sinon iOS
   l'abandonne ; lancée par iOS au balayage vers l'accueil, elle ne cache rien.
 - **Carte « En lecture » (iPhone)** : par `MPNowPlayingInfoCenter` directement, la session du moteur laissant le direct sans carte.
-- **Version de départ** (`VersionChooser.start`) : celle que le profil a choisie pour le titre ou la chaîne (`remembered`,
-  exacte si elle existe encore, sinon la même langue à la meilleure qualité), sinon la meilleure. La lecture, l'aperçu
+- **Variante de départ** (`VariantChooser.choose`) : celle que le profil a choisie pour le titre ou la chaîne (`remembered`,
+  exacte si elle existe encore, sinon la même chose chez un autre fournisseur, sinon la même langue à la meilleure
+  qualité), sinon la meilleure. La lecture, l'aperçu
   du Direct et le guide affiché s'en servent : TF1 passée en FHD rouvre, s'aperçoit et se guide en FHD.
 - **Programme en cours** : une seule règle, `env.nowPlaying(on:)` (guide de la liste, sinon le détail reçu tant que
   le programme dure), portée par `env.channelItem` jusqu'à `ChannelCard` ; `LoadedChannelCard` le demande. Les lignes
   du Direct tvOS ne demandent rien : la colonne de droite montre déjà celui de la chaîne en focus.
-- **Guide du direct** : celui de la version lue, ou de départ (`env.guide(of:)`) ; une qualité sans guide prend celui
+- **Guide du direct** : celui de la variante lue, ou de départ (`env.guide(of:)`) ; une qualité sans guide prend celui
   de la qualité inférieure la plus proche, sinon supérieure (calculé par le serveur).
 - **Chaînes les plus regardées** : `PlayerService` envoie le temps regardé (`POST /playback/{id}/watch-time`) ; l'accueil
   et le Direct se rechargent en quittant le lecteur.
@@ -113,8 +116,8 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
   `production` = TestFlight). Une alerte reçue app ouverte s'affiche en bannière ; touchée, son `link`
   (`kanstrimi://open/<id>`) passe par `DeepLink`. L'iPad et l'Apple TV ne s'enregistrent pas (l'entitlement est
   partagé, le code est sous `!Platform.isPad`). Réglages › Appareil montre l'état et renvoie aux réglages système si refusé.
-- **Éditions** (« Version longue », « Director's Cut ») : une version à part, jamais choisie d'office tant que le
-  montage habituel existe ; elle se prend dans le sélecteur, puis la langue de la série la garde.
+- **Éditions** (« Version longue », « Director's Cut ») : des variantes à part, jamais choisies d'office tant que le
+  montage habituel existe ; une édition se prend dans le sélecteur, puis le choix de la série la garde.
 - **« Si vous avez aimé… »** : « Titres similaires » en bas de la fiche ; dans le lecteur, `PlayerService` demande
   `/playback/{id}/suggestions` 3 s après le démarrage (panneau « Similaires », carte « À suivre » après un film ou le
   dernier épisode). Une série suggérée se lit par `/playback/{série}`, qui renvoie l'épisode où elle reprend.
@@ -133,7 +136,7 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
   carte la retire.
 - **Accueil** : un type de rangée inconnu de l'app s'affiche en rangée simple au lieu de faire échouer l'écran.
 - **Carrousel de l'accueil** : les éléments du serveur, un toutes les 8 s, retenu tant que ses boutons ont le focus
-  (tvOS), qu'un doigt le touche (iPhone) ou que le sélecteur de version est ouvert. tvOS : deux butées invisibles
+  (tvOS), qu'un doigt le touche (iPhone) ou que le sélecteur de variantes est ouvert. tvOS : deux butées invisibles
   de part et d'autre des boutons tournent le carrousel ; elles ne prennent le focus qu'une fois dans la rangée.
   « Lecture » joue `play_id` (l'épisode pour une série), « Fiche » ouvre la carte.
 - **tvOS 27** : la liste poussée par un `Picker` s'ouvre noire ; `ChoiceRow` ouvre un menu à la place. À retester à

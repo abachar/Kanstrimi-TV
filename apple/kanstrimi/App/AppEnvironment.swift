@@ -11,7 +11,7 @@ final class AppEnvironment {
     let preferences: Preferences
     let device: DeviceStore
     let recentChannels: RecentChannelsStore
-    let failedSources: FailedSourcesStore
+    let failedVariants: FailedVariantsStore
     let progressQueue: ProgressQueue
     let homeCache: HomeCache
     let channelCache: ChannelCache
@@ -55,17 +55,17 @@ final class AppEnvironment {
         let device = DeviceStore(secrets: secrets)
         let http = HTTPCatalogClient(baseURL: URL(string: preferences.serverURL) ?? URL(string: Preferences.compiledServerURL)!, device: device)
         let client = SwitchingCatalogClient(mock: mock, http: http, preferences: preferences)
-        let failed = FailedSourcesStore()
+        let failed = FailedVariantsStore()
         self.scenario = scenario
         self.client = client
         self.preferences = preferences
         self.device = device
         self.recentChannels = RecentChannelsStore()
-        self.failedSources = failed
+        self.failedVariants = failed
         self.progressQueue = ProgressQueue()
         self.homeCache = HomeCache()
         self.channelCache = ChannelCache(client: client)
-        self.player = PlayerService(client: client, preferences: preferences, failedSources: failed, progressQueue: progressQueue)
+        self.player = PlayerService(client: client, preferences: preferences, failedVariants: failed, progressQueue: progressQueue)
         client.onUnauthorized = { [weak self] in self?.handleUnauthorized() }
         client.onUnknownProfile = { [weak self] in self?.handleUnknownProfile() }
         mock.profileID = device.profileID
@@ -217,15 +217,15 @@ final class AppEnvironment {
         inactiveSince = nil
     }
 
-    /// The version a channel is shown in: the one playing, else the one it would start in (remembered, else
+    /// The variant a channel is shown in: the one playing, else the one it would start in (remembered, else
     /// the best). Its quality and language are the channel's badges, its guide the one shown.
-    func liveVersion(of channel: Channel) -> Version? {
-        player.channel?.id == channel.id ? player.version : player.startChoice(channel.id, versions: channel.versions, remembered: channel.remembered)?.version
+    func liveVariant(of channel: Channel) -> Variant? {
+        player.channel?.id == channel.id ? player.variant : player.startChoice(channel.id, variants: channel.variants, remembered: channel.remembered)?.variant
     }
 
-    /// A channel's guide as the app shows it, `liveVersion`'s: each quality may have its own (« M6 4K »).
+    /// A channel's guide as the app shows it, `liveVariant`'s: each quality may have its own (« M6 4K »).
     func guide(of channel: Channel) -> Channel.Guide {
-        channel.guide(for: liveVersion(of: channel))
+        channel.guide(for: liveVariant(of: channel))
     }
 
     /// What a channel shows now, wherever it is drawn: its list's guide, else the detail `channelCache` received,
@@ -242,7 +242,7 @@ final class AppEnvironment {
         _ = await channelCache.channel(channel.id)
     }
 
-    /// Plays a channel from a card (search, home): its versions and the zapping order come with the channel list.
+    /// Plays a channel from a card (search, home): its variants and the zapping order come with the channel list.
     func watchChannel(_ id: ContentID) async {
         guard let groups = await attempt("Lecture", { try await client.channels() }) else { return }
         let all = groups.flatMap(\.channels)

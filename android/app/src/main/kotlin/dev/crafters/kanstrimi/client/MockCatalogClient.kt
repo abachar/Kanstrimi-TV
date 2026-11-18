@@ -18,7 +18,7 @@ import dev.crafters.kanstrimi.contract.PlaybackMarkers
 import dev.crafters.kanstrimi.contract.Profile
 import dev.crafters.kanstrimi.contract.ProfileSettings
 import dev.crafters.kanstrimi.contract.ProfileSettingsPatch
-import dev.crafters.kanstrimi.contract.RememberedVersion
+import dev.crafters.kanstrimi.contract.RememberedVariant
 import dev.crafters.kanstrimi.contract.Profiles
 import dev.crafters.kanstrimi.contract.Programme
 import dev.crafters.kanstrimi.contract.ProgressReport
@@ -51,7 +51,7 @@ class MockCatalogClient(private val assets: AssetManager, private val latencyMil
     private fun Programme.shifted() = copy(start = start.plus(guideShift), end = end.plus(guideShift))
     private fun Channel.shifted() = copy(
         now = now?.shifted(), next = next?.shifted(),
-        versions = versions.map { it.copy(now = it.now?.shifted(), next = it.next?.shifted()) },
+        variants = variants.map { it.copy(now = it.now?.shifted(), next = it.next?.shifted()) },
     )
 
     private suspend inline fun <reified T> read(name: String): T = withContext(Dispatchers.IO) {
@@ -70,9 +70,9 @@ class MockCatalogClient(private val assets: AssetManager, private val latencyMil
     var profileId: Int? = null
 
     /** The recorded household (Hakim alone), and three more so the picker has something to choose among. */
-    /** What the server keeps per profile, here for the demo: the settings changed, the versions chosen. */
+    /** What the server keeps per profile, here for the demo: the settings changed, the variants chosen. */
     private val settings = HashMap<Int, ProfileSettings>()
-    val remembered = HashMap<String, RememberedVersion>()
+    val remembered = HashMap<String, RememberedVariant>()
     private fun withSettings(p: Profile) = settings[p.id]?.let { p.copy(settings = it) } ?: p
     override suspend fun profiles(): List<Profile> = (read<Profiles>("profiles").profiles + DEMO_PROFILES).map(::withSettings)
     override suspend fun info(): ServerInfo = read<ServerInfo>("info").let { info ->
@@ -83,15 +83,16 @@ class MockCatalogClient(private val assets: AssetManager, private val latencyMil
         val s = current.settings
         settings[current.id] = ProfileSettings(
             patch.maxQuality ?: s.maxQuality, patch.autoPlayNext ?: s.autoPlayNext,
-            patch.rememberVersions ?: s.rememberVersions, patch.switchSourceOnFailure ?: s.switchSourceOnFailure,
+            patch.rememberVariants ?: s.rememberVariants, patch.switchVariantOnFailure ?: s.switchVariantOnFailure,
         )
         return withSettings(current)
     }
-    override suspend fun rememberVersion(id: String, versionId: String) {
-        val v = playback(id).versions.firstOrNull { it.id == versionId } ?: return
-        remembered[seriesIdOf(id) ?: id] = RememberedVersion.of(v)
+    override suspend fun rememberVariant(id: String, variantId: String) {
+        val listed = if (id.startsWith("live:")) channel(id).variants else playback(id).variants
+        val v = listed.firstOrNull { it.id == variantId } ?: return
+        remembered[seriesIdOf(id) ?: id] = RememberedVariant.of(v)
     }
-    override suspend fun forgetVersion(id: String) { remembered.remove(seriesIdOf(id) ?: id) }
+    override suspend fun forgetVariant(id: String) { remembered.remove(seriesIdOf(id) ?: id) }
 
     override suspend fun home(): Home = read("home")
     override suspend fun rows(kind: ContentKind): List<CatalogRow> = read(if (kind == ContentKind.SERIES) "series" else "movies")
@@ -104,7 +105,7 @@ class MockCatalogClient(private val assets: AssetManager, private val latencyMil
 
     override suspend fun channels(): List<ChannelGroup> = read<List<ChannelGroup>>("channels").map { g -> g.copy(channels = g.channels.map { it.shifted() }) }
     override suspend fun channel(id: String): Channel = read<Channel>("channel").shifted().let { if (it.id == id) it else it.copy(id = id) }
-    override suspend fun programmes(channelId: String, version: String?): List<Programme> = read<List<Programme>>("channel-programmes").map { it.shifted() }
+    override suspend fun programmes(channelId: String, variantId: String?): List<Programme> = read<List<Programme>>("channel-programmes").map { it.shifted() }
 
     override suspend fun playback(id: String): Playback = read(if (kindOf(id) == ContentKind.SERIES) "playback-series" else "playback-movie")
     override suspend fun suggestions(id: String): Suggestions = read("suggestions")

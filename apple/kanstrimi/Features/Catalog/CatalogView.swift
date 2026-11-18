@@ -124,7 +124,7 @@ struct ShelfRow: View {
     }
 }
 
-/// « Voir tout » of a genre or a studio: the paginated grid, six per row, version filters above [4] [5] [19].
+/// « Voir tout » of a genre or a studio: the paginated grid, six per row, variant filters above [4] [5] [19].
 struct GenreGridView: View {
     let kind: ContentKind
     let title: String
@@ -225,7 +225,7 @@ struct GenreGridView: View {
     }
 }
 
-/// Sort and version filters of the grid. Active filters are chips a click removes.
+/// Sort and variant filters of the grid. Active filters are chips a click removes.
 struct FilterBar: View {
     @Environment(\.metrics) private var metrics
     let kind: ContentKind

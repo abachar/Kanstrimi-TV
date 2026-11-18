@@ -5,27 +5,23 @@
     "number": 2,
     "title": "Épisode 2"
   },
-  "versions": [
+  "variants": [
     {
-      "id": "vf-hd",
+      "id": "src-e2",
       "language": "VF",
       "quality": "HD",
-      "sources": [
-        {
-          "id": "src-e2",
-          "container": "MKV",
-          "stream_url": "http://provider.test/series/u/p/e12.mkv",
-          "provider": {
-            "id": "xtream-1",
-            "name": "provider.test",
-            "kind": "xtream",
-            "rank": 1
-          },
-          "origin": "|FR| SERIES",
-          "distinction": null,
-          "label": "provider.test"
-        }
-      ]
+      "badge": "HD",
+      "label": "FR · HD",
+      "provider": {
+        "id": "xtream-1",
+        "name": "provider.test",
+        "kind": "xtream",
+        "rank": 1
+      },
+      "name": "|FR| Vincenzo (MULTI)",
+      "category": "|FR| SERIES",
+      "container": "MKV",
+      "stream_url": "http://provider.test/series/u/p/e12.mkv"
     }
   ],
   "resume_at": null,
@@ -40,7 +36,7 @@
     }
   ],
   "remembered": {
-    "id": "vostfr-hd",
+    "id": "src-e2",
     "language": "VOSTFR",
     "quality": "HD",
     "label": "VOSTF · HD"

@@ -66,7 +66,7 @@ import dev.crafters.kanstrimi.ui.formatCount
 import dev.crafters.kanstrimi.ui.theme.Theme
 import kotlinx.coroutines.launch
 
-/** « Voir tout » of a genre: the paginated grid with the version filters above. */
+/** « Voir tout » of a genre: the paginated grid with the language and quality filters above. */
 @Composable
 fun GenreGridScreen(kind: ContentKind, row: CatalogRow) {
     ListGridScreen(kind, title = row.name, total = row.total, initial = ListQuery(kind = kind, genre = row.id), studio = null)
@@ -155,7 +155,7 @@ fun <T : Any> LazyGridScope.pagedPosters(paginator: Paginator<T>, metrics: Metri
     }
 }
 
-/** Sort and version filters of the grid: the sort in a menu, the filters as chips a tap toggles. */
+/** Sort and filters of the grid: the sort in a menu, the language and quality filters as chips a tap toggles. */
 @Composable
 private fun FilterBar(kind: ContentKind, query: ListQuery, onChange: (ListQuery) -> Unit) {
     var sortMenu by remember { mutableStateOf(false) }

@@ -421,27 +421,29 @@ export const appProfiles = pgTable(
     /** The highest quality played by default (« SD », « HD », « FHD », « 4K »); a device still caps it (a phone stops at FHD). */
     maxQuality: text("max_quality").default("4K").notNull(),
     autoPlayNext: boolean("auto_play_next").default(true).notNull(),
-    /** The version chosen in the picker is kept for the title (`app_profile_versions`) and served back. */
-    rememberVersions: boolean("remember_versions").default(true).notNull(),
-    switchSourceOnFailure: boolean("switch_source_on_failure").default(true).notNull(),
+    /** The variant chosen in the picker is kept for the title (`app_profile_variants`) and served back. */
+    rememberVariants: boolean("remember_variants").default(true).notNull(),
+    /** A variant that fails gives way to the next one of the same language and quality. */
+    switchVariantOnFailure: boolean("switch_variant_on_failure").default(true).notNull(),
   },
   (t) => [uniqueIndex("app_profiles_default_idx").on(t.isDefault).where(sql`is_default`)],
 );
 
 /**
- * The version a profile chose for a title, in the picker or by changing quality in the player: a movie
- * or a channel plays it again; a series' row (its key, written from any episode) is the language ×
- * quality × dynamic range × edition applied to every episode. `version_id` is the contract's id
- * (`vf-4k-dv`), the other columns what it is made of, for the apps' fallback on an episode without it.
+ * The variant a profile chose for a title, in the picker or in the player: a movie or a channel plays
+ * that stream again; a series' row (its key, written from any episode) names the series' stream whose
+ * episodes it plays. `stream_id` goes when the provider drops the stream: the other columns, what the
+ * variant was (language × quality × dynamic range × edition), then say what to play instead, as they do
+ * for an episode the stream does not have.
  */
-export const appProfileVersions = pgTable(
-  "app_profile_versions",
+export const appProfileVariants = pgTable(
+  "app_profile_variants",
   {
     profileId: integer("profile_id")
       .notNull()
       .references(() => appProfiles.id, { onDelete: "cascade" }),
     contentKey: text("content_key").notNull(),
-    versionId: text("version_id").notNull(),
+    streamId: integer("stream_id").references(() => xtreamStreams.id, { onDelete: "set null" }),
     language: text("language").notNull(),
     quality: text("quality").notNull(),
     dynamicRange: text("dynamic_range"),
@@ -999,7 +1001,7 @@ export type Title = typeof catalogTitles.$inferSelect;
 export type Channel = typeof catalogChannels.$inferSelect;
 export type Category = typeof xtreamCategories.$inferSelect;
 export type ProfileFilter = typeof appProfileFilters.$inferSelect;
-export type ProfileVersion = typeof appProfileVersions.$inferSelect;
+export type ProfileVariant = typeof appProfileVariants.$inferSelect;
 export type Plays = typeof appPlays.$inferSelect;
 /** A profile as the lists carry it: its avatar stays in its row (`profileAvatar`), `avatarVersion` changes with it (the image URL). */
 export type Profile = Omit<typeof appProfiles.$inferSelect, "avatar"> & { avatarVersion: string };

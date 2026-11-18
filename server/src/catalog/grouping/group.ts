@@ -231,7 +231,7 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
 const LIVE_MARKS = [
   { table: "app_favorites", same: () => pg`x.profile_id = m.profile_id` },
   { table: "app_live_watch", same: () => pg`x.profile_id = m.profile_id and x.day = m.day` },
-  { table: "app_profile_versions", same: () => pg`x.profile_id = m.profile_id` },
+  { table: "app_profile_variants", same: () => pg`x.profile_id = m.profile_id` },
 ] as const;
 
 /**
@@ -247,7 +247,7 @@ export async function followLiveKeys(moves: Map<string, Map<string, number>>) {
     where not exists (select 1 from catalog_streams v join catalog_channels c on c.id = v.channel_id where c.key = o.key)
       and (exists (select 1 from app_favorites f where f.content_key = o.key)
         or exists (select 1 from app_live_watch w where w.content_key = o.key)
-        or exists (select 1 from app_profile_versions p where p.content_key = o.key)
+        or exists (select 1 from app_profile_variants p where p.content_key = o.key)
         or exists (select 1 from catalog_channel_guides g join catalog_channels c on c.id = g.channel_id where c.key = o.key))`;
   for (const { key } of marked) {
     const [to] = [...moves.get(key)!].sort((a, b) => b[1] - a[1])[0];
@@ -539,9 +539,9 @@ async function refreshAggregates(onlyIds?: number[]): Promise<number> {
           (array_agg(market order by vis desc, quality_rank desc, position, id))[1] as market,
           (array_agg(nullif(raw->>'stream_icon', '') order by vis desc, quality_rank desc, position, id))[1] as logo,
           (array_agg(nullif(regexp_replace(coalesce(raw->>'num', ''), '\\D', '', 'g'), '')::int order by vis desc, quality_rank desc, position, id))[1] as num,
-          -- The app's guide is the first version's (best language, then best quality; player/versions.ts).
+          -- The app's guide is the first variant's (best language, then best quality; player/variants.ts).
           -- Same order here, among the variants that have a guide with programmes (« TF1 4K » files none,
-          -- « TF1 FHD » does). They can still differ when that first version has no guide in its language:
+          -- « TF1 FHD » does). They can still differ when that first variant has no guide in its language:
           -- the app then takes the closest quality, every language mixed (player/guides.ts).
           (array_agg(epg_id order by vis desc, lang_rank, has_epg desc, quality_rank desc, position, id) filter (where epg_id is not null))[1] as epg
         from (${counted(true)}) i

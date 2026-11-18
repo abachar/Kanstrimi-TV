@@ -8,17 +8,17 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.time.Instant
 
-/** A source that failed to start is skipped for a day; a successful start clears the mark. */
-class FailedSourcesStore(private val now: () -> Instant = { Instant.now() }) {
+/** A variant that failed to start gives way to its equivalents for a day; a successful start clears the mark. */
+class FailedVariantsStore(private val now: () -> Instant = { Instant.now() }) {
     private val failures = HashMap<String, Instant>()
 
-    fun markFailed(sourceId: String) { failures[sourceId] = now() }
-    fun isFailed(sourceId: String): Boolean {
-        val at = failures[sourceId] ?: return false
-        if (now().epochSecond - at.epochSecond > TTL_SECONDS) { failures.remove(sourceId); return false }
+    fun markFailed(variantId: String) { failures[variantId] = now() }
+    fun isFailed(variantId: String): Boolean {
+        val at = failures[variantId] ?: return false
+        if (now().epochSecond - at.epochSecond > TTL_SECONDS) { failures.remove(variantId); return false }
         return true
     }
-    fun clear(sourceId: String) { failures.remove(sourceId) }
+    fun clear(variantId: String) { failures.remove(variantId) }
 
     companion object {
         const val TTL_SECONDS = 24 * 3600L

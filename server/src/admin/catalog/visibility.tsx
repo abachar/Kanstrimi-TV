@@ -40,7 +40,7 @@ export function VisibilityToggle({
         ? "Le filtre de son type ne la garde pas : modifiez-le pour la réafficher."
         : catHidden
           ? "Sa catégorie est masquée à la main."
-          : "Afficher ou masquer cette version pour l'app";
+          : "Afficher ou masquer cette variante pour l'app";
   return (
     <div id={domId} class="flex items-center gap-2">
       <input

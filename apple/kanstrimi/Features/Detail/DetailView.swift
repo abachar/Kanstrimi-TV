@@ -27,8 +27,8 @@ struct DetailView: View {
         .onChange(of: env.player.progressRevision) { Task { await model?.refresh() } }
         .platformSheet(isPresented: $showPicker) {
             if let model, let d = model.detail {
-                VersionPicker(title: d.title, versions: d.versions, recommendedID: model.choice?.version.id, isSeries: model.isSeries) { v, s in
-                    model.chose(version: v, source: s)
+                VariantPicker(title: d.title, variants: d.variants, recommendedID: model.choice?.variant.id, isSeries: model.isSeries) { v in
+                    model.chose(variant: v)
                 }
                 .environment(env)
             }
@@ -53,7 +53,7 @@ private struct DetailContent: View {
     @FocusState private var focused: Focus?
     /// iPhone: the overview shows in full after a tap.
     @State private var overviewExpanded = false
-    private enum Focus: Hashable { case play, restart, watched, versions, trailer, favorite, language, season(Int), episode(ContentID) }
+    private enum Focus: Hashable { case play, restart, watched, variants, trailer, favorite, language, season(Int), episode(ContentID) }
 
     var body: some View {
         if let error = model.error, model.detail == nil {
@@ -131,23 +131,19 @@ private struct DetailContent: View {
         .ignoresSafeArea()
     }
 
-    /// The version Lecture plays, filled: its quality and its language; the other languages outlined.
+    /// The variant Lecture plays, filled: its quality and its language; the other languages outlined.
     /// Without a choice yet, the best quality and every language, all outlined.
     private func versionTags(_ d: Card) -> some View {
-        let chosen = model.choice?.version
-        let quality = chosen.map(Self.qualityTag) ?? d.versions.maxQuality.map { q in
-            d.versions.maxDynamicRange.map { $0 == .sdr ? q.rawValue : "\(q.rawValue) \($0.label)" } ?? q.rawValue
+        let chosen = model.choice?.variant
+        let quality = chosen?.badge ?? d.variants.maxQuality.map { q in
+            d.variants.maxDynamicRange.map { $0 == .sdr ? q.rawValue : "\(q.rawValue) \($0.shortLabel)" } ?? q.rawValue
         }
         return HStack(spacing: 6) {
             if let quality { Badge(quality, filled: chosen != nil) }
-            ForEach(d.versions.languages, id: \.self) { l in Badge(l.short, filled: l == chosen?.language) }
+            ForEach(d.variants.languages, id: \.self) { l in Badge(l.short, filled: l == chosen?.language) }
         }
     }
 
-    private static func qualityTag(_ v: Version) -> String {
-        guard let dr = v.dynamicRange, dr != .sdr else { return v.quality.rawValue }
-        return "\(v.quality.rawValue) \(dr.label)"
-    }
 
     private func header(_ d: Card) -> some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -262,7 +258,7 @@ private struct DetailContent: View {
             .prominentButtonStyle()
             .focused($focused, equals: .play)
             .onLongPressGesture(minimumDuration: 0.5) { if hasChoice(d) { showPicker = true } }
-            .disabled(d.versions.isEmpty)
+            .disabled(d.variants.isEmpty)
         }
         if !primaryOnly {
             if model.canRestart {
@@ -270,16 +266,16 @@ private struct DetailContent: View {
                     Task { await model.playPrimary(fromStart: true) }
                 }
                 .focused($focused, equals: .restart)
-                .disabled(d.versions.isEmpty)
+                .disabled(d.variants.isEmpty)
             }
             if d.kind == .series, hasChoice(d) {
-                IconAction(title: "Version · \(model.seriesChoice?.label ?? "—")", systemImage: "rectangle.stack.badge.play", focused: focused == .language) { showPicker = true }
+                IconAction(title: "Variante · \(model.seriesLabel ?? "—")", systemImage: "rectangle.stack.badge.play", focused: focused == .language) { showPicker = true }
                     .focused($focused, equals: .language)
-                    .disabled(d.versions.isEmpty)
+                    .disabled(d.variants.isEmpty)
             } else if d.kind != .series {
                 if hasChoice(d) {
-                    IconAction(title: "Versions (\(d.versions.count))", systemImage: "rectangle.stack.badge.play", focused: focused == .versions) { showPicker = true }
-                        .focused($focused, equals: .versions)
+                    IconAction(title: "Variantes (\(d.variants.count))", systemImage: "rectangle.stack.badge.play", focused: focused == .variants) { showPicker = true }
+                        .focused($focused, equals: .variants)
                 }
                 let watched = d.progress?.isWatched == true
                 IconAction(title: watched ? "Vu" : "Marquer comme vu", systemImage: "checkmark", focused: focused == .watched) {
@@ -299,8 +295,8 @@ private struct DetailContent: View {
         }
     }
 
-    /// The version picker would show more than one line.
-    private func hasChoice(_ d: Card) -> Bool { VersionPicker.lineCount(d.versions) > 1 }
+    /// The variant picker would show more than one line.
+    private func hasChoice(_ d: Card) -> Bool { d.variants.count > 1 }
 
     // MARK: - Series
 
@@ -332,16 +328,16 @@ private struct DetailContent: View {
                 seasonButtons(d)
             }
             if let n = model.selectedSeason {
-                if let gap = model.languageGaps(in: n).first, let lang = model.seriesChoice?.language, let alt = gap.languages.first {
+                if let gap = model.languageGaps(in: n).first, let lang = model.seriesLanguage, let alt = gap.languages.first {
                     let back = model.episodes(in: n).first { $0.number > gap.number && $0.languages.contains(lang) }
-                    Label(VersionChooser.languageWarning(episode: gap.number, alternative: alt, current: lang, returnsAt: back?.number,
-                                                         quality: gap.versions.maxQuality),
+                    Label(VariantChooser.languageWarning(episode: gap.number, alternative: alt, current: lang, returnsAt: back?.number,
+                                                         quality: gap.variants.maxQuality),
                           systemImage: "info.circle")
                         .font(.callout).foregroundStyle(Theme.accent)
                 }
                 LazyVStack(spacing: metrics.compact ? 6 : 14) {
                     ForEach(model.episodes(in: n)) { e in
-                        EpisodeRow(episode: e, seriesLanguage: model.seriesChoice?.language) { Task { await model.play(episode: e) } }
+                        EpisodeRow(episode: e, seriesLanguage: model.seriesLanguage) { Task { await model.play(episode: e) } }
                             .focused($focused, equals: .episode(e.id))
                             .contextMenu {
                                 let watched = e.progress?.isWatched == true
@@ -367,7 +363,7 @@ struct EpisodeRow: View {
         if metrics.compact { phoneRow } else { tvRow }
     }
 
-    /// iPhone: the still and the title side by side, the summary under both at full width; no version
+    /// iPhone: the still and the title side by side, the summary under both at full width; no variant
     /// tags, the sheet already shows them, except the one-language warning.
     private var phoneRow: some View {
         Button(action: action) {
@@ -390,7 +386,7 @@ struct EpisodeRow: View {
             .contentShape(Rectangle())
         }
         .cardButtonStyle()
-        .disabled(episode.versions.isEmpty)
+        .disabled(episode.variants.isEmpty)
     }
 
     private var item: ContentItem { episode.item }
@@ -428,7 +424,7 @@ struct EpisodeRow: View {
             .padding(14)
         }
         .cardButtonStyle()
-        .disabled(episode.versions.isEmpty)
+        .disabled(episode.variants.isEmpty)
     }
 }
 

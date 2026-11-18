@@ -4,10 +4,10 @@ import SwiftUI
 /// tvOS: the one bar over the video, for a film, an episode or a channel. A press shows it a few seconds;
 /// ▼ hands the focus to its buttons. On top the title and the progress (the programme's in live); below,
 /// on the left the text buttons that open a panel above the bar, on the right the icons whose menu picks
-/// a version, an audio track or the subtitles.
+/// a variant, an audio track or the subtitles.
 struct PlayerBar: View {
     typealias Panel = PlayerScreen.BarPanel
-    private enum Focus: Hashable { case panel(Panel), versions, audio, subtitles }
+    private enum Focus: Hashable { case panel(Panel), variants, audio, subtitles }
 
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
@@ -108,7 +108,7 @@ struct PlayerBar: View {
             }
             Spacer()
             // Each menu only when it offers a choice; the tracks are known once the player has read the stream.
-            if player.offersVersions { versionsMenu }
+            if player.offersVariants { variantsMenu }
             if player.offersAudio { audioMenu }
             if player.offersSubtitles { subtitlesMenu }
         }
@@ -120,15 +120,15 @@ struct PlayerBar: View {
         }
     }
 
-    private var versionsMenu: some View {
+    private var variantsMenu: some View {
         Menu {
-            VersionMenuItems()
+            VariantMenuItems()
         } label: {
-            Image(systemName: "rectangle.stack.badge.play").accessibilityLabel("Versions")
+            Image(systemName: "rectangle.stack.badge.play").accessibilityLabel("Variantes")
         }
         .menuStyle(.button)
         .buttonStyle(BarButtonStyle(round: true))
-        .focused($focus, equals: .versions)
+        .focused($focus, equals: .variants)
     }
 
     private var audioMenu: some View {

@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * What this device keeps for itself, in the app's private preferences: the server, the device name, the demo client,
  * and a copy of the profile's playback settings so the player has them before `/info` answers. Everything personal
- * (the settings themselves, the versions chosen, the recent channels) lives on the server, with the profile.
+ * (the settings themselves, the variants chosen, the recent channels) lives on the server, with the profile.
  */
 class Preferences(context: Context) : PlaybackPreferences {
     private val prefs: SharedPreferences = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
@@ -26,9 +26,6 @@ class Preferences(context: Context) : PlaybackPreferences {
 
     private val _useMock = MutableStateFlow(prefs.getBoolean(KEY_USE_MOCK, false))
     val useMock: StateFlow<Boolean> = _useMock.asStateFlow()
-
-    /** None of its own: the versions arrive in the order of the profile's filter, the first one plays. */
-    override val languageOrder: List<String> get() = emptyList()
 
     private val _settings = MutableStateFlow(
         prefs.getString(KEY_PROFILE_SETTINGS, null)?.let { runCatching { Wire.json.decodeFromString(ProfileSettings.serializer(), it) }.getOrNull() }

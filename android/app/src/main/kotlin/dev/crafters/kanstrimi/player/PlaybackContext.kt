@@ -8,8 +8,8 @@ import dev.crafters.kanstrimi.contract.EpisodeRef
 import dev.crafters.kanstrimi.contract.NextEpisode
 import dev.crafters.kanstrimi.contract.Person
 import dev.crafters.kanstrimi.contract.Playback
-import dev.crafters.kanstrimi.contract.RememberedVersion
-import dev.crafters.kanstrimi.contract.Version
+import dev.crafters.kanstrimi.contract.RememberedVariant
+import dev.crafters.kanstrimi.contract.Variant
 
 /** `tmdb:tv:1396:s01e05` → `tmdb:tv:1396`; null when this is not an episode id. */
 fun seriesIdOf(id: String): String? {
@@ -30,21 +30,21 @@ data class PlaybackContent(
 /** What the app hands the player: who it is, plus the playback the server gave (`/playback/{id}`). */
 data class PlaybackContext(
     val content: PlaybackContent,
-    val versions: List<Version>,
+    val variants: List<Variant>,
     val resumeAt: Double? = null,
     val duration: Double? = null,
     val next: NextEpisode? = null,
     val cast: List<Person> = emptyList(),
-    /** The version the profile chose for the title (the series' for an episode), as the server served it. */
-    val remembered: RememberedVersion? = null,
+    /** The variant the profile chose for the title (the series' for an episode), as the server served it. */
+    val remembered: RememberedVariant? = null,
 ) {
     constructor(content: PlaybackContent, playback: Playback) :
-        this(content, playback.versions, playback.resumeAt, playback.duration, playback.next, playback.cast, playback.remembered)
+        this(content, playback.variants, playback.resumeAt, playback.duration, playback.next, playback.cast, playback.remembered)
 
     val isLive: Boolean get() = content.kind == ContentKind.LIVE
-    /** The series of an episode, for the per-series language choice. */
+    /** The series of an episode: its sheet, and the title its variant is chosen for. */
     val seriesId: String? get() = if (content.kind == ContentKind.EPISODE) seriesIdOf(content.id) else null
-    /** The title a chosen version is kept under: the series for an episode, the title itself otherwise. */
+    /** The title a chosen variant is kept under: the series for an episode, the title itself otherwise. */
     val rememberId: String get() = seriesId ?: content.id
 
     /** The same title from `position` (null: from the start), everything else kept. */

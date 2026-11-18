@@ -38,23 +38,23 @@ final class RecentChannelsStore {
     func clear() { entries = [] }
 }
 
-/// Sources that failed recently are skipped by the version chooser for 24 h. Memory only.
+/// Variants that failed recently are skipped by the variant chooser for 24 h. Memory only.
 @Observable
-final class FailedSourcesStore {
+final class FailedVariantsStore {
     static let ttl: TimeInterval = 24 * 3600
     private var failures: [String: Date] = [:]
     let now: () -> Date
 
     init(now: @escaping () -> Date = { .now }) { self.now = now }
 
-    func markFailed(_ sourceID: String) { failures[sourceID] = now() }
-    func isFailed(_ sourceID: String) -> Bool {
-        guard let at = failures[sourceID] else { return false }
-        if now().timeIntervalSince(at) > Self.ttl { failures.removeValue(forKey: sourceID); return false }
+    func markFailed(_ variantID: String) { failures[variantID] = now() }
+    func isFailed(_ variantID: String) -> Bool {
+        guard let at = failures[variantID] else { return false }
+        if now().timeIntervalSince(at) > Self.ttl { failures.removeValue(forKey: variantID); return false }
         return true
     }
-    /// A successful start clears the mark: "la source A sera réessayée à la prochaine lecture".
-    func clear(_ sourceID: String) { failures.removeValue(forKey: sourceID) }
+    /// A successful start clears the mark: the variant is tried again at the next playback.
+    func clear(_ variantID: String) { failures.removeValue(forKey: variantID) }
     var count: Int { failures.count }
 }
 

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { db, type ProfileVersion, schema, titleContent } from "@/db";
+import { db, type ProfileVariant, schema, titleContent } from "@/db";
 import { hasTmdbKey, isEpisodeKey } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
@@ -11,7 +11,7 @@ import { MOST_WATCHED_LIMIT, mostWatchedKeys } from "./watch-time";
 import { mostPlayedKeys } from "./plays";
 import { rememberedOf, rememberedWire } from "./remembered";
 import { badgesOf, contentItem, imageUrl, playLabel, resumeItem, runtimeText } from "./cards";
-import { qualityBadgeOf, versionsOf, versionsSummary } from "./versions";
+import { qualityBadgeOf, variantsSummary, wireVariants } from "./variants";
 import { recommendedRow } from "./related";
 import { type ShelfPick, shelfPicks, TOP_SHELF_SIZE } from "./top-shelf";
 import type { ContentItem, Home, HomeHero, HomeRow } from "./types";
@@ -105,17 +105,18 @@ export async function home(ctx: RestContext): Promise<Home> {
   return { heroes, rows, generated_at: new Date().toISOString() };
 }
 
-/** A slide: what it draws, and what Lecture plays with its own versions (an episode for a series). */
+/** A slide: what it draws, and what Lecture plays with its own variants (an episode for a series). */
 async function heroOf(
   ctx: RestContext,
   p: Pick<ShelfPick, "content" | "playId" | "context" | "episode">,
   progress: Progress | undefined,
   favorite: boolean,
-  remembered?: ProfileVersion,
+  remembered?: ProfileVariant,
 ): Promise<HomeHero> {
   const { content: c, episode: e } = p;
-  const versions = versionsOf(ctx, e ? e.playables : (await variantsOf(ctx, c)).playables);
-  const summary = versionsSummary(versions);
+  const playables = e ? e.playables : (await variantsOf(ctx, c)).playables;
+  const variants = wireVariants(ctx, playables);
+  const summary = variantsSummary(variants);
   const runtime = e ? e.runtime : c.runtime;
   const facts = [
     e ? `S${e.season} É${e.number}` : null,
@@ -143,14 +144,14 @@ async function heroOf(
     overview: e?.overview || c.overview,
     runtime,
     certification: c.certification,
-    versions,
+    variants,
     play_id: p.playId,
     ...(e ? { episode: { season: e.season, number: e.number, title: e.title } } : {}),
     is_favorite: favorite,
     play_label: playLabel(e ? undefined : progress, c.kind === "series" ? (e ?? null) : undefined),
     resume_at: resumes ? progress.position : null,
     duration: resumes ? progress.duration : runtime ? runtime * 60 : null,
-    remembered: remembered ? rememberedWire(remembered) : null,
+    remembered: rememberedWire(remembered, playables),
   };
 }
 

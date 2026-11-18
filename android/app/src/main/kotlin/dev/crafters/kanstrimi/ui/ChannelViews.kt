@@ -40,12 +40,12 @@ fun LoadedChannelCard(
 
 /** A channel as its card shows it: the quality it starts in here, its programme on air, its guide state. */
 fun AppEnvironment.channelItem(channel: Channel, status: ChannelItem.Status? = null): ChannelItem {
-    // A channel drawn from a card of the home (no versions, no favourite) takes both from the detail that
+    // A channel drawn from a card of the home (no variants, no favourite) takes both from the detail that
     // `loadNowPlaying` fetched, once known; a listed channel is already complete and fresher than the cache.
-    val full = if (channel.versions.isEmpty()) channelCache.latest(channel.id) ?: channel else channel
+    val full = if (channel.variants.isEmpty()) channelCache.latest(channel.id) ?: channel else channel
     return ChannelItem(
         id = channel.id, name = channel.name, logo = channel.logo, status = status,
-        quality = (liveVersion(full)?.quality ?: full.maxQuality)?.label, isFavorite = full.isFavorite,
+        quality = liveVariant(full)?.badge ?: full.maxQuality?.label, isFavorite = full.isFavorite,
         now = nowPlaying(channel), hasEpg = guide(channel).hasEpg,
     )
 }

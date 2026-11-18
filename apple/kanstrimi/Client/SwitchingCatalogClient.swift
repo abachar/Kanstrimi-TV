@@ -43,7 +43,7 @@ final class SwitchingCatalogClient: CatalogClient {
     func person(id: String) async throws -> PersonSheet { try await authenticated { try await $0.person(id: id) } }
     func channels() async throws -> [ChannelGroup] { try await authenticated { try await $0.channels() } }
     func channel(id: ContentID) async throws -> Channel { try await authenticated { try await $0.channel(id: id) } }
-    func programmes(channel id: ContentID, version: String?) async throws -> [Programme] { try await authenticated { try await $0.programmes(channel: id, version: version) } }
+    func programmes(channel id: ContentID, variant: String?) async throws -> [Programme] { try await authenticated { try await $0.programmes(channel: id, variant: variant) } }
     func playback(id: ContentID) async throws -> Playback { try await authenticated { try await $0.playback(id: id) } }
     func suggestions(id: ContentID) async throws -> Suggestions { try await authenticated { try await $0.suggestions(id: id) } }
     func markers(id: ContentID, file: FileFacts) async throws -> PlaybackMarkers { try await authenticated { try await $0.markers(id: id, file: file) } }
@@ -52,7 +52,7 @@ final class SwitchingCatalogClient: CatalogClient {
     func removeFromResume(id: ContentID) async throws { try await authenticated { try await $0.removeFromResume(id: id) } }
     func setWatched(id: ContentID, _ watched: Bool, season: Int?) async throws { try await authenticated { try await $0.setWatched(id: id, watched, season: season) } }
     func search(_ query: String) async throws -> SearchResults { try await authenticated { try await $0.search(query) } }
-    func rememberVersion(id: ContentID, _ versionID: String) async throws { try await authenticated { try await $0.rememberVersion(id: id, versionID) } }
-    func forgetVersion(id: ContentID) async throws { try await authenticated { try await $0.forgetVersion(id: id) } }
+    func rememberVariant(id: ContentID, _ variantID: String) async throws { try await authenticated { try await $0.rememberVariant(id: id, variantID) } }
+    func forgetVariant(id: ContentID) async throws { try await authenticated { try await $0.forgetVariant(id: id) } }
     func setFavorite(id: ContentID, _ favorite: Bool) async throws { try await authenticated { try await $0.setFavorite(id: id, favorite) } }
 }

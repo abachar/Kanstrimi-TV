@@ -6,7 +6,7 @@ import pkg from "../../package.json";
 import type { Env, RestContext } from "./context";
 import { json } from "./http";
 import { servedVariant, visibleChannel, visibleTitle } from "./contents";
-import { sortLanguages } from "./versions";
+import { sortLanguages } from "./variants";
 import { profileWire } from "./profiles";
 import type { ServerInfo } from "./types";
 

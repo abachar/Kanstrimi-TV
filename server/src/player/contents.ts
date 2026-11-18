@@ -13,7 +13,7 @@ import {
 } from "@/db";
 import { parseKey } from "@/catalog";
 import type { RestContext } from "./context";
-import { playableOfItem, type Playable } from "./versions";
+import { playableOfItem, type Playable } from "./variants";
 
 /**
  * What the profile may see: a title or a channel its filter keeps (`app_profile_titles`,

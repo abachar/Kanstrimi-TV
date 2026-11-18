@@ -2,24 +2,24 @@ import { Hono } from "hono";
 import { channelContent, db, schema, variants, type Content } from "@/db";
 import { and, asc, eq, isNotNull } from "drizzle-orm";
 import { slug } from "@/shared";
-import { LIVE_THEMES, parseKey } from "@/catalog";
+import { LIVE_THEMES, parseKey, QUALITY_RANK } from "@/catalog";
 import type { Env, RestContext } from "./context";
 import { fail, json } from "./http";
 import { categoryNameOf, categoryNames, contentByKey, liveCategories, servedVariant, variantsOf, visibleChannel } from "./contents";
 import { favoriteSet } from "./favorites";
 import { MOST_WATCHED_LIMIT, mostWatchedKeys, RECENT_LIMIT, recentKeys } from "./watch-time";
 import { rememberedOf, rememberedWire } from "./remembered";
-import { languageLabel, playableOfItem, qualityOfRank, versionsOf, type Playable } from "./versions";
+import { languageLabel, playableOfItem, qualityOfRank, wireVariants, type Playable } from "./variants";
 import { guidesOf } from "./guides";
 import { dayProgrammes, epgOf, type ChannelEpg } from "./epg";
 import { channelLogo } from "./cards";
-import type { ProfileVersion } from "@/db";
-import type { ChannelGroupWire, ChannelWire, Version } from "./types";
+import type { ProfileVariant } from "@/db";
+import type { ChannelGroupWire, ChannelWire, Variant } from "./types";
 
 /**
  * `/channels`: every visible live category with its channels; `/channels/{id}`: one channel;
- * `/channels/{id}/programmes?version=`: its programmes until 6:00, for the live player, in the guide of
- * that version (each quality may have its own), the channel's without one.
+ * `/channels/{id}/programmes?variant=`: its programmes until 6:00, for the live player, in the guide of
+ * that variant (each quality may have its own), the channel's without one.
  */
 export const channelRoutes = new Hono<Env>();
 
@@ -38,38 +38,38 @@ channelRoutes.get("/:id/programmes", async (c) => {
   const content = await contentByKey(ctx, key);
   if (!content) return fail("not_found", "Chaîne introuvable");
   const playables = withFallback(content, (await variantsOf(ctx, content)).playables);
-  const { versions, guides } = guided(ctx, playables, await epgOf(playables.flatMap((p) => p.epgIds)));
-  const version = c.req.query("version");
-  const id = (version && guides.has(version) ? guides.get(version) : guides.get(versions[0]?.id ?? "")) ?? null;
+  const { variants: all, guides } = guided(ctx, playables, await epgOf(playables.flatMap((p) => p.epgIds)));
+  const variant = c.req.query("variant");
+  const id = (variant && guides.has(variant) ? guides.get(variant) : guides.get(all[0]?.id ?? "")) ?? null;
   return json(id ? await dayProgrammes(id) : []);
 });
 
 /**
  * A channel's fallback guide (a source completing the provider's, `catalog/epg-sources.ts`), tried by
- * every version after the provider's own ids.
+ * every variant after the provider's own ids.
  */
 function withFallback(c: Content, playables: Playable[]): Playable[] {
   const f = c.epgFallbackId;
   return f ? playables.map((p) => ({ ...p, epgIds: [...p.epgIds, f] })) : playables;
 }
 
-/** The versions of a channel and the guide of each (`guidesOf`), from the guides known to `epg`. */
+/** The variants of a channel and the guide of each (`guidesOf`), from the guides known to `epg`. */
 function guided(ctx: RestContext, playables: Playable[], epg: Map<string, ChannelEpg>) {
-  const versions = versionsOf(ctx, playables);
-  return { versions, guides: guidesOf(versions, playables, (id) => epg.get(id)?.hasEpg ?? false) };
+  const all = wireVariants(ctx, playables);
+  return { variants: all, guides: guidesOf(all, playables, (id) => epg.get(id)?.hasEpg ?? false) };
 }
 
-/** A live version's chip: its quality, then its language (« FR » for VF) when the channel mixes languages. */
-export function liveChip(v: Pick<Version, "quality" | "language">, mixed: boolean): string {
+/** A live variant's chip: its quality, then its language (« FR » for VF) when the channel mixes languages. */
+export function liveChip(v: Pick<Variant, "quality" | "language">, mixed: boolean): string {
   return mixed ? `${v.quality}/${languageLabel(v.language)}` : v.quality;
 }
 
-/** What the profile recorded of its channels: list, time watched, last watched, chosen versions. */
+/** What the profile recorded of its channels: list, time watched, last watched, chosen variants. */
 type ProfileMarks = {
   favs: Set<string>;
   watchedRank: Map<string, number>;
   recentRank: Map<string, number>;
-  remembered: Map<string, ProfileVersion>;
+  remembered: Map<string, ProfileVariant>;
 };
 async function profileMarks(ctx: RestContext, keys: string[]): Promise<ProfileMarks> {
   const [favs, watched, recent, remembered] = await Promise.all([
@@ -91,14 +91,14 @@ async function profileMarks(ctx: RestContext, keys: string[]): Promise<ProfileMa
 
 /**
  * Lists and sheets alike carry `now` / `next`: the app rolls over on `end` without asking again. The
- * channel's guide is its first version's; a version whose guide differs carries its own.
+ * channel's guide is its first variant's; a variant whose guide differs carries its own.
  */
 function channelWire(ctx: RestContext, c: Content, playables: Playable[], marks: ProfileMarks, epgs: Map<string, ChannelEpg>): ChannelWire {
-  const { versions: all, guides } = guided(ctx, playables, epgs);
+  const { variants: all, guides } = guided(ctx, playables, epgs);
   const main = guides.get(all[0]?.id ?? "") ?? null;
   const epg = main ? epgs.get(main) : undefined;
   const mixed = new Set(all.map((v) => v.language)).size > 1;
-  const versions: Version[] = all.map((v) => {
+  const list: Variant[] = all.map((v) => {
     const own = guides.get(v.id) ?? null;
     const labelled = { ...v, chip: liveChip(v, mixed) };
     if (own === main) return labelled;
@@ -113,12 +113,14 @@ function channelWire(ctx: RestContext, c: Content, playables: Playable[], marks:
     ...(c.maxQualityRank ? { max_quality: qualityOfRank(c.maxQualityRank) } : {}),
     has_epg: epg?.hasEpg ?? false,
     is_favorite: marks.favs.has(c.key),
-    versions,
+    variants: list,
+    // The best quality first, whatever the language it comes in.
+    chips: [...new Set([...list].sort((a, b) => QUALITY_RANK[b.quality] - QUALITY_RANK[a.quality]).map((v) => v.chip!))],
     now: epg?.now ?? null,
     next: epg?.next ?? null,
     ...(marks.watchedRank.has(c.key) ? { watched_rank: marks.watchedRank.get(c.key) } : {}),
     ...(marks.recentRank.has(c.key) ? { recent_rank: marks.recentRank.get(c.key) } : {}),
-    ...(marks.remembered.has(c.key) ? { remembered: rememberedWire(marks.remembered.get(c.key)!) } : {}),
+    ...(marks.remembered.has(c.key) ? { remembered: rememberedWire(marks.remembered.get(c.key), playables)! } : {}),
   };
 }
 

@@ -78,8 +78,8 @@ final class HTTPCatalogClient: CatalogClient {
 
     func channels() async throws -> [ChannelGroup] { try await send("GET", "channels") }
     func channel(id: ContentID) async throws -> Channel { try await send("GET", "channels/\(id.rawValue)") }
-    func programmes(channel id: ContentID, version: String?) async throws -> [Programme] {
-        try await send("GET", "channels/\(id.rawValue)/programmes", query: version.map { [URLQueryItem(name: "version", value: $0)] } ?? [])
+    func programmes(channel id: ContentID, variant: String?) async throws -> [Programme] {
+        try await send("GET", "channels/\(id.rawValue)/programmes", query: variant.map { [URLQueryItem(name: "variant", value: $0)] } ?? [])
     }
 
     // MARK: - Playback
@@ -113,12 +113,12 @@ final class HTTPCatalogClient: CatalogClient {
         try await sendNoContent("PUT", "playback/\(id.rawValue)/watched", body: Body(watched: watched, season: season))
     }
 
-    func rememberVersion(id: ContentID, _ versionID: String) async throws {
-        struct Body: Encodable { let version: String }
-        try await sendNoContent("PUT", "playback/\(id.rawValue)/version", body: Body(version: versionID))
+    func rememberVariant(id: ContentID, _ variantID: String) async throws {
+        struct Body: Encodable { let variant: String }
+        try await sendNoContent("PUT", "playback/\(id.rawValue)/variant", body: Body(variant: variantID))
     }
-    func forgetVersion(id: ContentID) async throws {
-        try await sendNoContent("DELETE", "playback/\(id.rawValue)/version")
+    func forgetVariant(id: ContentID) async throws {
+        try await sendNoContent("DELETE", "playback/\(id.rawValue)/variant")
     }
 
     func setFavorite(id: ContentID, _ favorite: Bool) async throws {

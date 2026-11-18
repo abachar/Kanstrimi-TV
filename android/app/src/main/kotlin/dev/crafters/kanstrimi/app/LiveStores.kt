@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import dev.crafters.kanstrimi.client.CatalogClient
 import dev.crafters.kanstrimi.contract.Channel
 import dev.crafters.kanstrimi.contract.Programme
-import dev.crafters.kanstrimi.contract.Version
+import dev.crafters.kanstrimi.contract.Variant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -17,25 +17,25 @@ import java.time.Instant
 
 /**
  * The one rule for « what is on air » on a channel, wherever it is drawn (the Direct, the home, the player's lists),
- * like the Apple app's `env.nowPlaying(on:)`: the guide of the version the channel plays or would start in (each
- * quality may have its own, else the channel's); the detail `GET /channels/{id}` received is the latest word while
+ * like the Apple app's `env.nowPlaying(on:)`: the guide of the variant the channel plays or would start in (it may
+ * have its own, else the channel's); the detail `GET /channels/{id}` received is the latest word while
  * its programme lasts, the list's copy otherwise. Pure, so the JVM tests cover it.
  */
 object LiveGuide {
-    /** The guide shown for `channel` in `version` (null: the channel's own). */
-    fun guide(channel: Channel, version: Version?): Channel.Guide = channel.guide(version)
+    /** The guide shown for `channel` in `variant` (null: the channel's own). */
+    fun guide(channel: Channel, variant: Variant?): Channel.Guide = channel.guide(variant)
 
     /**
      * @param channel the channel as its list gave it (or as a card knows it: id, name, logo only).
      * @param detail the last detail received for it, however old; null when none.
-     * @param version the version it plays or would start in.
+     * @param variant the variant it plays or would start in.
      */
-    fun nowPlaying(channel: Channel, detail: Channel?, version: Version?, now: Instant = Instant.now()): Programme? {
+    fun nowPlaying(channel: Channel, detail: Channel?, variant: Variant?, now: Instant = Instant.now()): Programme? {
         if (detail != null) {
-            val fresh = guide(detail, version).now
+            val fresh = guide(detail, variant).now
             if (fresh != null && fresh.end.isAfter(now)) return fresh
         }
-        return guide(channel, version).now
+        return guide(channel, variant).now
     }
 }
 
@@ -80,7 +80,7 @@ class ChannelCache(private val client: () -> CatalogClient, private val scope: C
  */
 class RecentChannels(private val now: () -> Instant = Instant::now) {
     data class Entry(val id: String, val name: String, val logo: String? = null, val watchedAt: Instant?) {
-        /** The channel as a card can draw it; its versions and programme come from the cache. */
+        /** The channel as a card can draw it; its variants and programme come from the cache. */
         val channel: Channel get() = Channel(id = id, name = name, logo = logo)
     }
 

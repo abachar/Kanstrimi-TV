@@ -170,7 +170,7 @@ export function ProvidersView({ lines }: { lines: AccountLine[] }) {
     <>
       <Title
         t="Fournisseurs"
-        sub="Les comptes Xtream, dans l'ordre de préférence : le premier joue par défaut, les autres sont des sources de secours dans « Versions »."
+        sub="Les comptes Xtream, dans l'ordre de préférence : à qualité égale le premier joue par défaut, les autres donnent les variantes de secours dans « Variantes »."
       />
       <div class="flex flex-col gap-6">
         <Card

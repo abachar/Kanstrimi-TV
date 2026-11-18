@@ -17,13 +17,13 @@ const columns = {
   judgedAt: p.judgedAt,
   maxQuality: p.maxQuality,
   autoPlayNext: p.autoPlayNext,
-  rememberVersions: p.rememberVersions,
-  switchSourceOnFailure: p.switchSourceOnFailure,
+  rememberVariants: p.rememberVariants,
+  switchVariantOnFailure: p.switchVariantOnFailure,
   avatarVersion: sql<string>`left(md5(coalesce(${p.avatar}, ''::bytea)), 8)`,
 };
 
 /** The playback settings of a profile, as the apps and the admin set them; each one optional in a change. */
-export type ProfileSettingsInput = Partial<Pick<Profile, "maxQuality" | "autoPlayNext" | "rememberVersions" | "switchSourceOnFailure">>;
+export type ProfileSettingsInput = Partial<Pick<Profile, "maxQuality" | "autoPlayNext" | "rememberVariants" | "switchVariantOnFailure">>;
 export const PROFILE_QUALITIES = ["SD", "HD", "FHD", "4K"] as const;
 
 /** All profiles, the default first, then by name. */
@@ -113,8 +113,8 @@ export async function updateProfileSettings(id: number, input: ProfileSettingsIn
     set.maxQuality = input.maxQuality;
   }
   if (input.autoPlayNext !== undefined) set.autoPlayNext = input.autoPlayNext;
-  if (input.rememberVersions !== undefined) set.rememberVersions = input.rememberVersions;
-  if (input.switchSourceOnFailure !== undefined) set.switchSourceOnFailure = input.switchSourceOnFailure;
+  if (input.rememberVariants !== undefined) set.rememberVariants = input.rememberVariants;
+  if (input.switchVariantOnFailure !== undefined) set.switchVariantOnFailure = input.switchVariantOnFailure;
   if (!Object.keys(set).length) return profileById(id);
   const [row] = await db.update(p).set(set).where(eq(p.id, id)).returning(columns);
   return row ?? null;

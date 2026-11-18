@@ -103,8 +103,8 @@ class HttpCatalogClient(
 
     override suspend fun channels(): List<ChannelGroup> = send("GET", "channels")
     override suspend fun channel(id: String): Channel = send("GET", "channels/$id")
-    override suspend fun programmes(channelId: String, version: String?): List<Programme> =
-        send("GET", "channels/$channelId/programmes", query = listOfNotNull(version?.let { "version" to it }))
+    override suspend fun programmes(channelId: String, variantId: String?): List<Programme> =
+        send("GET", "channels/$channelId/programmes", query = listOfNotNull(variantId?.let { "variant" to it }))
 
     override suspend fun playback(id: String): Playback = send("GET", "playback/$id")
     override suspend fun suggestions(id: String): Suggestions = send("GET", "playback/$id/suggestions")
@@ -118,10 +118,10 @@ class HttpCatalogClient(
     override suspend fun removeFromResume(id: String) = sendNoContent("DELETE", "playback/$id/progress")
     override suspend fun setWatched(id: String, watched: Boolean, season: Int?) = sendNoContent("PUT", "playback/$id/watched", body = WatchedBody(watched, season))
     override suspend fun setFavorite(id: String, favorite: Boolean) = sendNoContent(if (favorite) "PUT" else "DELETE", "favorites/$id")
-    override suspend fun rememberVersion(id: String, versionId: String) = sendNoContent("PUT", "playback/$id/version", body = VersionBody(versionId))
-    override suspend fun forgetVersion(id: String) = sendNoContent("DELETE", "playback/$id/version")
+    override suspend fun rememberVariant(id: String, variantId: String) = sendNoContent("PUT", "playback/$id/variant", body = VariantBody(variantId))
+    override suspend fun forgetVariant(id: String) = sendNoContent("DELETE", "playback/$id/variant")
 
-    @Serializable private data class VersionBody(val version: String)
+    @Serializable private data class VariantBody(val variant: String)
     @Serializable private data class ProgressBody(val position: Double, val duration: Double)
     @Serializable private data class WatchTimeBody(val seconds: Int)
     @Serializable private data class WatchedBody(val watched: Boolean, val season: Int? = null)
@@ -158,6 +158,8 @@ class HttpCatalogClient(
             is ProgressBody -> encode(body)
             is WatchTimeBody -> encode(body)
             is WatchedBody -> encode(body)
+            is VariantBody -> encode(body)
+            is ProfileSettingsPatch -> encode(body)
             else -> error("corps non sérialisable : ${body::class}")
         }
         val requestBody = when {

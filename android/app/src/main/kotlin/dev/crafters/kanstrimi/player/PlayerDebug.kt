@@ -9,8 +9,7 @@ import dev.crafters.kanstrimi.contract.ContentKind
 import dev.crafters.kanstrimi.contract.NextEpisode
 import dev.crafters.kanstrimi.contract.Provider
 import dev.crafters.kanstrimi.contract.Quality
-import dev.crafters.kanstrimi.contract.Source
-import dev.crafters.kanstrimi.contract.Version
+import dev.crafters.kanstrimi.contract.Variant
 
 /**
  * Debug only (`MainActivity.debugHooks`): the player staged in a state without a stream for the captures, or
@@ -42,7 +41,7 @@ object PlayerDebug {
         val all = runCatching { client.channels() }.getOrNull().orEmpty().flatMap { it.channels }.distinctBy { it.id }
         val channel = all.firstOrNull { it.id == id } ?: all.firstOrNull() ?: return
         if (staged == null) return player.playChannel(channel, all)
-        val ctx = PlaybackContext(PlaybackContent(channel.id, ContentKind.LIVE, channel.name), channel.versions)
+        val ctx = PlaybackContext(PlaybackContent(channel.id, ContentKind.LIVE, channel.name), channel.variants)
         player.debugPut(ctx, staged, channels = all)
     }
 
@@ -60,11 +59,14 @@ object PlayerDebug {
         }
     }
 
-    /** `debug.playUrl <url>`: a public file played as a one-version, one-source title, through the whole pipeline. */
+    /** `debug.playUrl <url>`: a public file played as a one-variant title, through the whole pipeline. */
     fun playUrl(player: PlayerService, url: String) {
-        val source = Source(id = "debug", container = url.substringAfterLast('.').uppercase(), streamUrl = url, provider = Provider("debug", "Fichier public", "debug", 1), label = "Fichier public")
-        val version = Version(id = "debug-vo", language = "VO", quality = Quality.HD, sources = listOf(source))
         val item = ContentItem(id = "debug:url", kind = ContentKind.MOVIE, title = url.substringAfterLast('/'))
-        player.play(PlaybackContext(PlaybackContent(item.id, ContentKind.MOVIE, item.title), listOf(version)))
+        val variant = Variant(
+            id = "debug", language = "VO", quality = Quality.HD, badge = "HD", label = "VO · HD",
+            provider = Provider("debug", "Fichier public", "debug", 1), name = item.title,
+            container = url.substringAfterLast('.').uppercase(), streamUrl = url,
+        )
+        player.play(PlaybackContext(PlaybackContent(item.id, ContentKind.MOVIE, item.title), listOf(variant)))
     }
 }

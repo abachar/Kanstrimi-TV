@@ -13,6 +13,7 @@ import dev.crafters.kanstrimi.contract.DynamicRange
 import dev.crafters.kanstrimi.contract.EpisodeRef
 import dev.crafters.kanstrimi.contract.FileFacts
 import dev.crafters.kanstrimi.contract.Home
+import dev.crafters.kanstrimi.contract.Language
 import dev.crafters.kanstrimi.contract.NextEpisode
 import dev.crafters.kanstrimi.contract.Page
 import dev.crafters.kanstrimi.contract.PairingCode
@@ -28,59 +29,70 @@ import dev.crafters.kanstrimi.contract.Quality
 import dev.crafters.kanstrimi.contract.SagaSheet
 import dev.crafters.kanstrimi.contract.SearchResults
 import dev.crafters.kanstrimi.contract.ServerInfo
-import dev.crafters.kanstrimi.contract.Source
 import dev.crafters.kanstrimi.contract.Studio
 import dev.crafters.kanstrimi.contract.Suggestions
-import dev.crafters.kanstrimi.contract.Version
+import dev.crafters.kanstrimi.contract.Variant
 
-/** Versions and sources built by hand, like the Apple tests' `Fixtures`. */
+/** Variants built by hand, like the Apple tests' `Fixtures`. */
 object Fixtures {
-    fun source(id: String, url: String = "http://provider.test/movie/u/p/$id.mkv"): Source =
-        Source(id = id, container = "MKV", streamUrl = url, provider = Provider("xtream", "provider.test", "xtream", 1), origin = "Films 4K UHD", label = "provider.test")
+    val first = Provider("xtream-1", "Fournisseur A", "xtream", 1)
+    val second = Provider("xtream-2", "Fournisseur B", "xtream", 2)
 
-    fun version(id: String, language: String, quality: Quality, dr: DynamicRange? = null, sources: Int = 1, edition: String? = null): Version =
-        Version(id = id, language = language, quality = quality, dynamicRange = dr, edition = edition, sources = (0 until sources).map { source("$id-s$it") })
+    /** A variant as the server writes it: its badge « 4K DV », its label « FR · 4K DV · Version longue ». `url` null: a series' own. */
+    fun variant(
+        id: String, language: String, quality: Quality, dr: DynamicRange? = null, edition: String? = null,
+        provider: Provider = first, url: String? = "http://provider.test/movie/u/p/$id.mkv", chip: String? = null,
+    ): Variant {
+        val badge = listOfNotNull(quality.label, dr?.label).joinToString(" ")
+        return Variant(
+            id = id, language = language, quality = quality, dynamicRange = dr, edition = edition, badge = badge,
+            label = listOfNotNull("${Language.short(language)} · $badge", edition).joinToString(" · "),
+            provider = provider, name = "|FR| $id", category = "Films 4K UHD", container = "MKV", streamUrl = url, chip = chip,
+        )
+    }
 
-    /** The canvas sheet: six versions (VF ×3, VOSTFR ×2, VO ×1) and seven sources, one version having two. */
-    val canvasVersions: List<Version> = listOf(
-        version("vf-4k-dv", "VF", Quality.UHD, dr = DynamicRange.DOLBY_VISION),
-        version("vf-4k-hdr", "VF", Quality.UHD, dr = DynamicRange.HDR, sources = 2),
-        version("vf-fhd", "VF", Quality.FHD),
-        version("vostfr-4k-hdr", "VOSTFR", Quality.UHD, dr = DynamicRange.HDR),
-        version("vostfr-fhd", "VOSTFR", Quality.FHD),
-        version("vo-fhd", "VO", Quality.FHD),
+    /**
+     * The canvas sheet in the server's order: VF ×4 (the 4K HDR at both providers), VOSTFR ×2, VO ×1; in each
+     * language the best quality first.
+     */
+    val canvasVariants: List<Variant> = listOf(
+        variant("vf-4k-dv", "VF", Quality.UHD, dr = DynamicRange.DOLBY_VISION),
+        variant("vf-4k-hdr", "VF", Quality.UHD, dr = DynamicRange.HDR),
+        variant("vf-4k-hdr-b", "VF", Quality.UHD, dr = DynamicRange.HDR, provider = second),
+        variant("vf-fhd", "VF", Quality.FHD),
+        variant("vostfr-4k-hdr", "VOSTFR", Quality.UHD, dr = DynamicRange.HDR),
+        variant("vostfr-fhd", "VOSTFR", Quality.FHD),
+        variant("vo-fhd", "VO", Quality.FHD),
     )
 
-    /** A film in HD, its sources in that order. */
-    fun film(id: String = "tmdb:movie:603", sources: List<String>, duration: Double = 6000.0): PlaybackContext {
-        val version = Version(id = "vf-hd", language = "VF", quality = Quality.HD, sources = sources.map { source(it) })
-        return PlaybackContext(PlaybackContent(id, ContentKind.MOVIE, "Matrix"), listOf(version), duration = duration)
+    /** A film in HD carried by as many providers as `variants` names, in the order of preference: equivalent variants. */
+    fun film(id: String = "tmdb:movie:603", variants: List<String>, duration: Double = 6000.0): PlaybackContext {
+        val list = variants.mapIndexed { i, name -> variant(name, "VF", Quality.HD, provider = Provider("xtream-${i + 1}", "Fournisseur ${'A' + i}", "xtream", i + 1)) }
+        return PlaybackContext(PlaybackContent(id, ContentKind.MOVIE, "Matrix"), list, duration = duration)
     }
 
     /** An episode 45 minutes long whose next one exists. */
     fun episode(id: String = "tmdb:tv:1396:s01e01", nextId: String = "tmdb:tv:1396:s01e02"): PlaybackContext {
-        val version = Version(id = "vf-hd", language = "VF", quality = Quality.HD, sources = listOf(source("e1")))
         val next = NextEpisode(id = nextId, title = "Épisode 2", season = 1, number = 2, runtime = 45, languages = listOf("VF"),
             item = ContentItem(id = nextId, kind = ContentKind.EPISODE, title = "Épisode 2"), heading = "ÉPISODE SUIVANT")
-        return PlaybackContext(PlaybackContent(id, ContentKind.EPISODE, "Épisode 1", "Vincenzo", EpisodeRef(1, 1, "Épisode 1")), listOf(version), duration = 2700.0, next = next)
+        return PlaybackContext(PlaybackContent(id, ContentKind.EPISODE, "Épisode 1", "Vincenzo", EpisodeRef(1, 1, "Épisode 1")), listOf(variant("e1", "VF", Quality.HD)), duration = 2700.0, next = next)
     }
 
     fun report(id: String, position: Double): ProgressReport = ProgressReport(id, position, 6000.0)
 
-    /** A channel with one TS source per quality (FHD then HD), its programme on air for an hour from `now`. */
+    /** A channel with one TS variant per quality (FHD then HD), its programme on air for an hour from `now`. */
     fun channel(id: String = "live:fr-tf1", name: String = "TF1", now: java.time.Instant? = null, hasEpg: Boolean = true): Channel {
-        val versions = listOf(Quality.FHD, Quality.HD).map { q ->
-            Version(id = "$id-${q.label}", language = "VF", quality = q, chip = q.label, sources = listOf(source("$id-${q.label}", "http://provider.test/live/u/p/$id-${q.label}.ts")))
+        val variants = listOf(Quality.FHD, Quality.HD).map { q ->
+            variant("$id-${q.label}", "VF", q, url = "http://provider.test/live/u/p/$id-${q.label}.ts", chip = q.label)
         }
         val programme = now?.let { Programme("Journal", it.minusSeconds(600), it.plusSeconds(3000), "Les titres du jour.") }
         val next = now?.let { Programme("Film du soir", it.plusSeconds(3000), it.plusSeconds(10200), null) }
-        return Channel(id = id, name = name, maxQuality = Quality.FHD, hasEpg = hasEpg, versions = versions, now = programme, next = next)
+        return Channel(id = id, name = name, maxQuality = Quality.FHD, hasEpg = hasEpg, variants = variants, chips = variants.mapNotNull { it.chip }, now = programme, next = next)
     }
 }
 
 /** Plain preferences for the tests: the profile's settings as the server would have said them. */
 class FakePreferences(
-    override var languageOrder: List<String> = PlaybackPreferences.defaultLanguageOrder,
     override var settings: ProfileSettings = ProfileSettings(maxQuality = Quality.UHD),
 ) : PlaybackPreferences {
     var autoPlayNext: Boolean
@@ -147,8 +159,10 @@ class FakeCatalogClient : CatalogClient {
 
     fun reported(id: String): ProgressReport? = reports.lastOrNull { it.contentId == id }
 
+    /** `/playback/{id}` when a test needs its own; else one HD variant named after the title. */
+    var playbackAnswer: ((String) -> Playback)? = null
     override suspend fun playback(id: String): Playback =
-        Playback(versions = listOf(Version(id = "vf-hd", language = "VF", quality = Quality.HD, sources = listOf(Fixtures.source("next-$id")))), duration = 2700.0)
+        playbackAnswer?.invoke(id) ?: Playback(variants = listOf(Fixtures.variant("next-$id", "VF", Quality.HD)), duration = 2700.0)
     override suspend fun suggestions(id: String): Suggestions = suggestionsAnswer
     override suspend fun markers(id: String, file: FileFacts): PlaybackMarkers { markersAsked.add(file); return markersAnswer }
     override suspend fun report(progress: ProgressReport) {
@@ -165,10 +179,10 @@ class FakeCatalogClient : CatalogClient {
     override suspend fun info(): ServerInfo = error("unused")
     override suspend fun profiles(): List<dev.crafters.kanstrimi.contract.Profile> = error("unused")
     override suspend fun updateSettings(patch: dev.crafters.kanstrimi.contract.ProfileSettingsPatch): dev.crafters.kanstrimi.contract.Profile = error("unused")
-    /** What the player told the server to keep: the title and the version id, in order. */
-    val rememberedVersions = ArrayList<Pair<String, String>>()
-    override suspend fun rememberVersion(id: String, versionId: String) { rememberedVersions += id to versionId }
-    override suspend fun forgetVersion(id: String) { rememberedVersions += id to "" }
+    /** What the player told the server to keep: the title and the variant id, in order. */
+    val rememberedVariants = ArrayList<Pair<String, String>>()
+    override suspend fun rememberVariant(id: String, variantId: String) { rememberedVariants += id to variantId }
+    override suspend fun forgetVariant(id: String) { rememberedVariants += id to "" }
     override suspend fun home(): Home = error("unused")
     override suspend fun rows(kind: ContentKind): List<CatalogRow> = error("unused")
     override suspend fun list(query: ListQuery): Page<ContentItem> = error("unused")
@@ -177,7 +191,7 @@ class FakeCatalogClient : CatalogClient {
     override suspend fun saga(id: String): SagaSheet = error("unused")
     override suspend fun person(id: String): PersonSheet = error("unused")
     override suspend fun channels(): List<ChannelGroup> = error("unused")
-    override suspend fun programmes(channelId: String, version: String?): List<Programme> = error("unused")
+    override suspend fun programmes(channelId: String, variantId: String?): List<Programme> = error("unused")
     override suspend fun search(query: String): SearchResults = error("unused")
     override suspend fun removeFromResume(id: String) = error("unused")
     override suspend fun setWatched(id: String, watched: Boolean, season: Int?) = error("unused")

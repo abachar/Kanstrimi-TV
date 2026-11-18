@@ -4,15 +4,15 @@ Système de streaming **personnel, pour un foyer**. Il se branche sur un ou plus
 Xtream Codes (un préféré, les autres en secours), importe leurs catalogues, les nettoie, les enrichit via **TMDB** pour les films et les séries et via une référence de chaînes pour le direct (Claude lit les noms que ni l'une ni l'autre ne reconnaît) et les sert à
 l'app Apple maison (Apple TV, iPhone et iPad) et à l'app Android (tablette, en construction).
 Chaque personne a son **profil**, créé dans l'admin : ses filtres (ce qu'elle voit, dans quelles langues), ses
-réglages de lecture, les versions qu'elle a choisies, sa progression, ses lectures, ses chaînes récentes, sa liste et
+réglages de lecture, les variantes qu'elle a choisies, sa progression, ses lectures, ses chaînes récentes, sa liste et
 ses films attendus ; tout est au serveur, rien de personnel ne reste sur un appareil, qui ne retient que le dernier
 profil choisi (« Qui regarde ? »).
 
-Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées, et chaque source porte l'URL
+Principe directeur : **le serveur ne relaie jamais la vidéo**. Il sert des métadonnées, et chaque variante porte l'URL
 du fournisseur, que l'app lit directement (sans passer par le serveur, donc par le VPN de l'appareil s'il en a un).
 Cette URL contient le compte du fournisseur : seuls les appareils appairés la reçoivent. Un titre présent chez plusieurs
-fournisseurs n'apparaît qu'une fois ; chaque version liste une source par fournisseur, le préféré d'abord, et le lecteur
-bascule sur la suivante en cas de panne.
+fournisseurs n'apparaît qu'une fois ; il porte une variante par flux, le fournisseur préféré d'abord à qualité égale,
+et le lecteur bascule sur la variante équivalente suivante en cas de panne.
 
 ```
 Fournisseurs Xtream ─► server/ ──► Postgres (catalogue filtré, enrichi, groupé)
