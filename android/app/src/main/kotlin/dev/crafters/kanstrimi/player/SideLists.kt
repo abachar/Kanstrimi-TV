@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.crafters.kanstrimi.app.AppEnvironment
 import dev.crafters.kanstrimi.ui.ChannelItem
@@ -51,16 +52,19 @@ private enum class Side { LEADING, TRAILING }
 
 private val listWidth = 420.dp
 private val listPadding = 32.dp
+/** The variants' rows are small: their list is narrower than the channels', its margins tighter. */
+private val variantListWidth = 360.dp
+private val variantListPadding = 20.dp
 /** A list left alone this long closes by itself. */
 private const val SIDE_LIST_TIMEOUT_MS = 10_000L
 
 /**
  * A list beside the video, which stays readable next to it, darkened towards the list. `content` draws the list
- * itself, on the panel it is handed (its width, its background). It closes on a tap on the video beside it, on a
+ * itself, on the panel it is handed (`width` wide, with its background). It closes on a tap on the video beside it, on a
  * swipe back towards the edge it came from, and by itself after ten seconds without a touch.
  */
 @Composable
-private fun SideList(side: Side, onClose: () -> Unit, content: @Composable (Modifier) -> Unit) {
+private fun SideList(side: Side, onClose: () -> Unit, width: Dp = listWidth, content: @Composable (Modifier) -> Unit) {
     val close by rememberUpdatedState(onClose)
     /** Bumped at each touch, anywhere: the countdown to the automatic close starts again. */
     var activity by remember { mutableIntStateOf(0) }
@@ -91,7 +95,7 @@ private fun SideList(side: Side, onClose: () -> Unit, content: @Composable (Modi
                 )
             },
     ) {
-        val panel = Modifier.width(listWidth).fillMaxHeight().background(Color.Black.copy(alpha = 0.78f))
+        val panel = Modifier.width(width).fillMaxHeight().background(Color.Black.copy(alpha = 0.78f))
         // The video darkened towards the list; a tap there closes it.
         val shade: @Composable () -> Unit = {
             val gradient = if (side == Side.LEADING) Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.5f), 0.3f to Color.Transparent)
@@ -140,20 +144,19 @@ fun ChannelListOverlay(player: PlayerService, env: AppEnvironment, onClose: () -
 
 /**
  * The round button of the bar: the variants of what plays (a movie, an episode, a channel) on the right of the
- * video, in the server's order, a heading per language when the title comes in several, the one playing ticked,
- * those that failed here lately marked. A tap on another one switches at once, keeps the choice for the title and
+ * video, in the server's order, two small lines each (seven or eight show at once): its name with its language
+ * (when the title comes in several) and its quality, then where it comes from with « EN COURS » or « EN ÉCHEC ». A tap on another one switches at once, keeps the choice for the title and
  * closes the list; a tap on the one playing only closes it. It opens on the one playing.
  */
 @Composable
 fun VariantListOverlay(player: PlayerService, onClose: () -> Unit) {
     val variants = player.context?.variants.orEmpty().filter { it.isPlayable }
-    SideList(Side.TRAILING, onClose) { panel ->
-        Column(modifier = panel.verticalScroll(rememberScrollState()).padding(listPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    SideList(Side.TRAILING, onClose, width = variantListWidth) { panel ->
+        Column(modifier = panel.verticalScroll(rememberScrollState()).padding(variantListPadding), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             SideListTitle("Variantes")
-            // Two lines for a name: the list is narrow, and what tells two variants apart is at its end.
             VariantList(
                 variants, marks = { VariantMarks(playing = it.id == player.variant?.id, failed = player.failedVariants.isFailed(it.id)) },
-                nameLines = 2, shownId = player.variant?.id,
+                narrow = true, shownId = player.variant?.id,
             ) { v ->
                 if (v.id != player.variant?.id) player.switchVariant(v)
                 onClose()

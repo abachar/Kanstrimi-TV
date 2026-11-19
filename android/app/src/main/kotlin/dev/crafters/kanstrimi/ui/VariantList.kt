@@ -42,8 +42,8 @@ data class VariantMarks(val playing: Boolean = false, val failed: Boolean = fals
  * The variants of a title as a list, in the order given (the server's), one row each. A title in several languages
  * has a heading per language (« Français », « VOSTF »), or names the language on each row (`inline`, for a short
  * list); a title in one language does not say it. `severalLanguages` is the title's, when the list is only a part
- * of its variants. `nameLines`: how many lines a name may take where the list is narrow. `shownId`: the variant the
- * list opens on, scrolled into view.
+ * of its variants. `narrow`: for a list beside the video, rows of two small lines and no heading, the language as a
+ * badge on the row. `shownId`: the variant the list opens on, scrolled into view.
  */
 @Composable
 fun VariantList(
@@ -52,21 +52,21 @@ fun VariantList(
     marks: (Variant) -> VariantMarks = { VariantMarks() },
     inline: Boolean = false,
     severalLanguages: Boolean = variants.mixLanguages,
-    nameLines: Int = 1,
+    narrow: Boolean = false,
     shownId: String? = null,
     onPick: (Variant) -> Unit,
 ) {
     val shown = remember { BringIntoViewRequester() }
     LaunchedEffect(Unit) { if (shownId != null) shown.bringIntoView() }
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(if (narrow) 6.dp else 10.dp)) {
         variants.map { it.language }.distinct().forEach { language ->
-            if (severalLanguages && !inline) {
+            if (severalLanguages && !inline && !narrow) {
                 Text(Language.label(language), style = MaterialTheme.typography.titleSmall, color = Theme.secondary, modifier = Modifier.padding(top = 6.dp))
             }
             variants.filter { it.language == language }.forEach { v ->
                 VariantRow(
                     v, modifier = if (v.id == shownId) Modifier.bringIntoViewRequester(shown) else Modifier,
-                    marks = marks(v), showsLanguage = severalLanguages && inline, nameLines = nameLines,
+                    marks = marks(v), showsLanguage = severalLanguages && (inline || narrow), narrow = narrow,
                 ) { onPick(v) }
             }
         }
@@ -76,8 +76,8 @@ fun VariantList(
 /**
  * One row of `VariantList`: the quality in a column of its own (after the language when `showsLanguage`), the
  * provider's own name of the stream over « edition · provider · category », then the marks: « EN ÉCHEC »,
- * « RECOMMANDÉ », a tick for the one playing. A narrow list (`nameLines` above one) puts the first two under the
- * name, which keeps the width.
+ * « RECOMMANDÉ », a tick for the one playing. In a `narrow` list, two small lines instead: the name with its
+ * language and quality badges, then where it comes from with « EN COURS » or « EN ÉCHEC ».
  */
 @Composable
 fun VariantRow(
@@ -85,14 +85,28 @@ fun VariantRow(
     modifier: Modifier = Modifier,
     marks: VariantMarks = VariantMarks(),
     showsLanguage: Boolean = false,
-    nameLines: Int = 1,
+    narrow: Boolean = false,
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(12.dp)
-    val narrow = nameLines > 1
-    val tags: @Composable () -> Unit = {
-        if (marks.failed) FailedLabel()
-        if (marks.recommended) AccentTag("RECOMMANDÉ")
+    val origin = listOfNotNull(variant.edition, variant.provider.name, variant.category).joinToString(" · ")
+    if (narrow) {
+        Column(
+            modifier = modifier.fillMaxWidth().clip(shape).background(if (marks.playing) Theme.surfaceRaised else Theme.surface, shape)
+                .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                Text(variant.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (showsLanguage) Badge(Language.short(variant.language), small = true)
+                Badge(variant.badge, small = true)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(origin, style = MaterialTheme.typography.labelSmall, color = Theme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (marks.playing) OnAirLabel() else if (marks.failed) FailedLabel()
+            }
+        }
+        return
     }
     Row(
         modifier = modifier.fillMaxWidth().clip(shape).background(Theme.surface, shape).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
@@ -104,16 +118,11 @@ fun VariantRow(
             modifier = Modifier.width(if (showsLanguage) 150.dp else 84.dp),
         )
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(variant.name, style = MaterialTheme.typography.bodyLarge, maxLines = nameLines, overflow = TextOverflow.Ellipsis)
-            Text(
-                listOfNotNull(variant.edition, variant.provider.name, variant.category).joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall, color = Theme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-            if (narrow && (marks.failed || marks.recommended)) {
-                Row(modifier = Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { tags() }
-            }
+            Text(variant.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(origin, style = MaterialTheme.typography.bodySmall, color = Theme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (!narrow) tags()
+        if (marks.failed) FailedLabel()
+        if (marks.recommended) AccentTag("RECOMMANDÉ")
         if (marks.playing) Icon(Icons.Filled.Check, contentDescription = "En cours", tint = Theme.text)
     }
 }

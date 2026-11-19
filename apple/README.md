@@ -77,7 +77,9 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
   ou la langue sur la ligne) : feuille « Variantes » de la fiche et de l'accueil, dialogue d'échec, et dans le lecteur
   une liste à droite de la vidéo (`VariantListOverlay`, `Player/SideLists.swift`), pendant de celle des chaînes à
   gauche, ouverte par le bouton rond de la barre et, en direct sur Apple TV, par ▶ ; l'iPhone tenu droit la fait
-  monter du bas. Elle marque la variante en cours, celles en échec récent sur l'appareil et celle que Lecture jouerait. Infos nomme
+  monter du bas. Dans cette liste, plus étroite que celle des chaînes, une variante tient en deux petites lignes : son
+  nom et ses pastilles (langue si la fiche en a plusieurs, qualité), puis « fournisseur · catégorie » et « EN COURS » ou
+  « EN ÉCHEC » ; sur tvOS les lignes ont le style carte, le bouton standard blanchissant sous le focus. Elle marque la variante en cours, celles en échec récent sur l'appareil et celle que Lecture jouerait. Infos nomme
   celle en cours. Les variantes propres d'une série ne se lisent pas : celle choisie est mémorisée pour tous ses épisodes.
 - **Qualité mesurée** : une fois l'image affichée, `PlayerService` envoie la taille de l'image que le moteur a lue dans
   le flux (`POST /playback/{id}/measure`, une fois par ouverture) ; le serveur en fait la qualité de la variante, quoi

@@ -12,27 +12,28 @@ struct VariantMarks: Hashable {
 /// own name of the stream, then its provider and category. A title in several languages has a heading per
 /// language, or names the language on each row (`inline`, for a short list). `severalLanguages`: said by the
 /// caller that lists a part of the title's variants only, a lone VOSTF among them still being one of two languages.
-/// `stacked`: for a narrow list, each row's texts one under the other. `focused`: the row that has the focus
-/// (tvOS), by its variant's id, for the caller that puts it on the variant playing.
+/// `narrow`: for a list beside the video, rows of two small lines and no heading, the language as a badge on the
+/// row. `focused`: the row that has the focus (tvOS), by its variant's id, for the caller that puts it on the
+/// variant playing.
 struct VariantList: View {
     @Environment(\.metrics) private var metrics
     let variants: [Variant]
     var marks: (Variant) -> VariantMarks = { _ in VariantMarks() }
     var inline = false
     var severalLanguages: Bool? = nil
-    var stacked = false
+    var narrow = false
     var focused: FocusState<String?>.Binding? = nil
     let onPick: (Variant) -> Void
 
     var body: some View {
         let severalLanguages = severalLanguages ?? (variants.languages.count > 1)
-        VStack(alignment: .leading, spacing: metrics.compact ? 8 : 14) {
+        VStack(alignment: .leading, spacing: metrics.compact ? 8 : narrow ? 10 : 14) {
             ForEach(sections, id: \.language) { section in
-                if severalLanguages, !inline {
+                if severalLanguages, !inline, !narrow {
                     Text(section.language.label).font(.headline).foregroundStyle(Theme.secondary).padding(.top, 6)
                 }
                 ForEach(section.variants) { v in
-                    let row = VariantRow(variant: v, marks: marks(v), showsLanguage: severalLanguages && inline, stacked: stacked) { onPick(v) }
+                    let row = VariantRow(variant: v, marks: marks(v), showsLanguage: severalLanguages && (inline || narrow), narrow: narrow) { onPick(v) }
                     if let focused { row.focused(focused, equals: v.id) } else { row }
                 }
             }
@@ -45,19 +46,22 @@ struct VariantList: View {
     }
 }
 
-/// One row of `VariantList`: its quality in a column beside its texts, or above them in a narrow list (`stacked`).
+/// One row of `VariantList`: its quality in a column beside its texts; in a `narrow` list two small lines, the name
+/// with its badges, then where it comes from with « EN COURS » or « EN ÉCHEC ».
 struct VariantRow: View {
     @Environment(\.metrics) private var metrics
     let variant: Variant
     var marks = VariantMarks()
     var showsLanguage = false
-    var stacked = false
+    var narrow = false
     let action: () -> Void
 
     var body: some View {
         if Platform.isTV {
-            // tvOS: the button draws the platter and its focus.
-            Button(action: action) { texts.padding(.horizontal, stacked ? 0 : 10).padding(.vertical, 6) }
+            // tvOS: the card style draws the platter and lifts the row in focus, its texts staying as they are (the
+            // plain button turns white under the focus, and the light texts vanish on it).
+            Button(action: action) { texts.padding(.horizontal, narrow ? 16 : 20).padding(.vertical, narrow ? 12 : 14) }
+                .cardButtonStyle()
         } else {
             Button(action: action) {
                 texts.padding(.horizontal, 14).padding(.vertical, 9)
@@ -68,23 +72,25 @@ struct VariantRow: View {
     }
 
     @ViewBuilder private var texts: some View {
-        if stacked { stackedContent } else { content }
+        if narrow { narrowContent } else { content }
     }
 
     private var origin: String { [variant.edition, variant.provider.name, variant.category].compactMap(\.self).joined(separator: " · ") }
 
-    /// The quality and the marks on a line, then the name and where it comes from, each on two lines at most.
-    private var stackedContent: some View {
-        VStack(alignment: .leading, spacing: metrics.compact ? 4 : 8) {
-            HStack(spacing: 8) {
+    /// The name and its badges, then where it comes from and its state: two lines, small enough for a long list.
+    private var narrowContent: some View {
+        VStack(alignment: .leading, spacing: metrics.compact ? 3 : 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(variant.name).font(metrics.compact ? .subheadline.weight(.semibold) : .caption.weight(.semibold)).lineLimit(2)
+                Spacer(minLength: 8)
                 if showsLanguage { Badge(variant.language.short, small: metrics.compact) }
                 Badge(variant.badge, small: metrics.compact)
-                Spacer(minLength: 0)
-                tags
-                if marks.playing { Image(systemName: "checkmark").font(.headline).accessibilityLabel("En cours") }
             }
-            Text(variant.name).font(metrics.compact ? .subheadline : .callout).lineLimit(2)
-            Text(origin).font(.caption).foregroundStyle(Theme.secondary).lineLimit(2)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(origin).font(metrics.compact ? .caption : .caption2).foregroundStyle(Theme.secondary).lineLimit(1)
+                Spacer(minLength: 8)
+                if marks.playing { OnAirLabel().fixedSize() } else if marks.failed { FailedLabel().fixedSize() }
+            }
         }
         .multilineTextAlignment(.leading)
         .frame(maxWidth: .infinity, alignment: .leading)

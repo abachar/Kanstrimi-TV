@@ -96,9 +96,10 @@ Tab S9 ; la vidéo par MediaCodec, HDR10+ natif, pas de Dolby Vision sur cet app
   (`ui/VariantList.kt`), partout en liste (`VariantList`) : la qualité, puis le nom du flux tel que le fournisseur
   l'écrit et « édition · fournisseur · catégorie ». Dans la feuille « Variantes » de la fiche, un intertitre par
   langue ; dans le dialogue d'échec, la langue sur la ligne ; dans le lecteur, son bouton rond ouvre la liste à
-  droite de la vidéo (`VariantListOverlay`, pendant de la liste des chaînes à gauche : même largeur, même fond,
-  fermée par un tap sur la vidéo, un balayage vers son bord, ou seule après 10 s sans geste), positionnée sur la
-  variante en cours, le nom sur deux lignes ; un tap sur une autre la lit, la mémorise et ferme la liste. Marques
+  droite de la vidéo (`VariantListOverlay`, pendant de la liste des chaînes à gauche : même fond, fermée par un tap
+  sur la vidéo, un balayage vers son bord, ou seule après 10 s sans geste), positionnée sur la variante en cours,
+  en lignes resserrées (`narrow` : le nom avec les pastilles de langue et de qualité, puis l'origine avec
+  « EN COURS » ou « EN ÉCHEC », sans intertitre) ; un tap sur une autre la lit, la mémorise et ferme la liste. Marques
   (`VariantMarks`) : « EN COURS », « EN ÉCHEC » (`FailedVariantsStore`, état Compose, lu sans
   rien modifier pendant le dessin), « RECOMMANDÉ » (celle que Lecture jouerait). Infos nomme le flux en cours.
   `VariantChooser.start` : la variante

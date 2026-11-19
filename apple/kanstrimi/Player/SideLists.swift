@@ -7,6 +7,8 @@ private struct SideList<Content: View>: View {
 
     @Environment(\.metrics) private var metrics
     let side: Side
+    /// Narrower than the usual list, for one that has less to say on a row.
+    var maxWidth: CGFloat = .infinity
     /// iPhone: a tap beside the list or a swipe towards its edge closes it.
     let touch: Bool
     let fromBottom: Bool
@@ -17,6 +19,8 @@ private struct SideList<Content: View>: View {
     var body: some View {
         if fromBottom { bottomSheet } else { sideList }
     }
+
+    private var width: CGFloat { min(metrics.listWidth, maxWidth) }
 
     private var list: some View {
         ScrollView { content.padding(metrics.panelPadding) }
@@ -48,7 +52,7 @@ private struct SideList<Content: View>: View {
             }
             list
                 .scrollClipDisabled()
-                .frame(width: metrics.listWidth)
+                .frame(width: width)
                 .background(.ultraThinMaterial)
                 .background(.black.opacity(0.35))
             if side == .leading {
@@ -60,9 +64,9 @@ private struct SideList<Content: View>: View {
             // iPhone: a tap on the video beside the list closes it.
             if touch {
                 HStack(spacing: 0) {
-                    if side == .leading { Color.clear.frame(width: metrics.listWidth) }
+                    if side == .leading { Color.clear.frame(width: width) }
                     Color.clear.contentShape(Rectangle()).onTapGesture { onClose() }
-                    if side == .trailing { Color.clear.frame(width: metrics.listWidth) }
+                    if side == .trailing { Color.clear.frame(width: width) }
                 }
             }
         }
@@ -127,11 +131,10 @@ struct VariantListOverlay: View {
 
     var body: some View {
         let variants = player.context?.variants.playable ?? []
-        SideList(side: .trailing, touch: touch, fromBottom: fromBottom, onClose: onClose, onActivity: onActivity) {
+        SideList(side: .trailing, maxWidth: 500, touch: touch, fromBottom: fromBottom, onClose: onClose, onActivity: onActivity) {
             VStack(alignment: .leading, spacing: touch ? 4 : 14) {
-                Text("Variantes").font(.title2.weight(.bold)).padding(.bottom, 6)
-                // The list is narrow, and what tells two variants apart is at the end of their names: texts one under the other.
-                VariantList(variants: variants, marks: marks, stacked: true, focused: $focusedID) { v in
+                Text("Variantes").font(.title3.weight(.bold)).padding(.bottom, 6)
+                VariantList(variants: variants, marks: marks, narrow: true, focused: $focusedID) { v in
                     if v.id != player.variant?.id { player.switchVariant(v) }
                     onClose()
                 }
