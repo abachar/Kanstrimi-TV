@@ -1,11 +1,13 @@
 import SwiftUI
 
 /// What a list knows of a variant besides itself: the one playing, one that failed on this device a moment ago,
-/// the one Lecture would play.
+/// the one Lecture would play, the one in the comparison inset; `enabled` false greys it out.
 struct VariantMarks: Hashable {
     var playing = false
     var failed = false
     var recommended = false
+    var inset = false
+    var enabled = true
 }
 
 /// The variants of a title as a list, in the order given (the server's): one row each, its quality, the provider's
@@ -62,6 +64,8 @@ struct VariantRow: View {
             // plain button turns white under the focus, and the light texts vanish on it).
             Button(action: action) { texts.padding(.horizontal, narrow ? 16 : 20).padding(.vertical, narrow ? 12 : 14) }
                 .cardButtonStyle()
+                .disabled(!marks.enabled)
+                .opacity(marks.enabled ? 1 : 0.35)
         } else {
             Button(action: action) {
                 texts.padding(.horizontal, 14).padding(.vertical, 9)
@@ -89,7 +93,7 @@ struct VariantRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(origin).font(metrics.compact ? .caption : .caption2).foregroundStyle(Theme.secondary).lineLimit(1)
                 Spacer(minLength: 8)
-                if marks.playing { OnAirLabel().fixedSize() } else if marks.failed { FailedLabel().fixedSize() }
+                if marks.playing { OnAirLabel().fixedSize() } else if marks.inset { InsetLabel().fixedSize() } else if marks.failed { FailedLabel().fixedSize() }
             }
         }
         .multilineTextAlignment(.leading)

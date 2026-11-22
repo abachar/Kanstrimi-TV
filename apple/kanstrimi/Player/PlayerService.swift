@@ -100,6 +100,8 @@ final class PlayerService {
     private let playback: any PlaybackEngine
     var videoView: AetherPlayerView { core.videoView }
     let pictureInPicture = PictureInPicture()
+    /// Apple TV: another variant of the channel playing, by another provider, in a small window over the video.
+    let comparison: ComparisonInset
     private let nowPlaying = NowPlaying()
     private let capabilities: VariantChooser.Capabilities
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
@@ -164,8 +166,10 @@ final class PlayerService {
     static let scanRates: [TimeInterval] = [10, 30, 60, 120, 300]
 
     init(client: CatalogClient, preferences: Preferences, failedVariants: FailedVariantsStore, progressQueue: ProgressQueue,
-         capabilities: VariantChooser.Capabilities = .current, playback: (any PlaybackEngine)? = nil) {
+         capabilities: VariantChooser.Capabilities = .current, playback: (any PlaybackEngine)? = nil,
+         comparison: ComparisonInset? = nil) {
         let core = PlayerCore(ownsAudioSession: true)
+        self.comparison = comparison ?? ComparisonInset()
         self.core = core
         self.playback = playback ?? core
         self.client = client
@@ -290,6 +294,7 @@ final class PlayerService {
         audioTracks = []; textTracks = []
         epg = .empty
         channelDetail = nil
+        comparison.stop()
         nowPlaying.clear()
     }
 
@@ -440,6 +445,34 @@ final class PlayerService {
         play(context, variant: v)
     }
 
+    // MARK: - Comparison (Apple TV)
+
+    /// A variant the inset may show: one of the channel playing, by another provider than the big video's, the account
+    /// allowing a single stream at a time.
+    func canCompare(_ v: Variant) -> Bool {
+        guard isLive, let variant, v.streamURL != nil else { return false }
+        return v.provider.id != variant.provider.id
+    }
+
+    /// Whether the channel playing has a variant to compare with.
+    var offersComparison: Bool { context?.variants.contains(where: canCompare) ?? false }
+
+    func compare(_ v: Variant) {
+        guard canCompare(v), comparison.variant?.id != v.id else { return }
+        comparison.show(v)
+    }
+
+    /// The inset's variant takes the big video, with the sound, and the big video's goes in the inset once its provider
+    /// is free again.
+    func swapComparison() {
+        guard let other = comparison.variant, let current = variant else { return }
+        comparison.stop()
+        switchVariant(other)
+        comparison.wait(for: current)
+    }
+
+    func endComparison() { comparison.stop() }
+
     // MARK: - Next episode
 
     func playNextNow() {
@@ -503,7 +536,11 @@ final class PlayerService {
             if titleCardID != (ctx.seriesID ?? ctx.content.id) { titleCard = nil; titleCardFailed = false; titleCardID = nil }
             prefetchNext(ctx)
             fetchSuggestions(ctx)
+            // Another channel or title: the comparison was of the one before.
+            comparison.stop()
         }
+        // One connection per provider account: the big video takes its provider back from the inset.
+        comparison.yield(to: v.provider)
         cancelTimers(keepCountdown: true)
         restartTask?.cancel(); restartTask = nil
         // Another variant, the same one again: each start opens a file, its markers asked and its picture read anew.
@@ -652,6 +689,8 @@ final class PlayerService {
         sendWatchTime(final: true)
         cancelTimers(keepCountdown: true)
         playback.stop()
+        // The big video lets go of its provider: what the inset waited for may open.
+        comparison.resume()
         phase = .failed
         failure = Failure(attempts: startAttempts)
         nowPlaying.update()
@@ -916,6 +955,8 @@ final class PlayerService {
             phase = .playing
             hasPlayed = true
             markStartedIfReady()
+            // The previous stream is closed: after a swap, the inset may open it.
+            comparison.resume()
         case .paused:
             phase = .paused
         case .seeking, .rebuffering, .stalled:

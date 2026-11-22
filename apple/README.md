@@ -65,7 +65,8 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
   viennent de `recent_rank` sur `/channels` (`RecentChannelsStore.seed`), les zaps du moment devant, en mémoire seulement.
 
 - **Une seule connexion au fournisseur** : `maxConcurrentSourceRequests: 1`, et l'aperçu du Direct (son propre
-  `PlayerCore`, sonore dès que l'image paraît) est coupé avant toute lecture. Pas d'option du moteur qui ouvrirait une seconde connexion (`confirmAtmos`).
+  `PlayerCore`, sonore dès que l'image paraît) est coupé avant toute lecture. La vignette « Comparer » tient un second
+  flux, toujours chez un autre fournisseur que la grande vidéo. Pas d'option du moteur qui ouvrirait une seconde connexion (`confirmAtmos`).
 - **ATS** : `NSAllowsArbitraryLoads`, les `stream_url` sont des URL `http://` du fournisseur.
 - **Direct** : décodé par le moteur (`preferredDecodePath: .software`), image en 0,6 s contre 6 s par le HLS local
   d'AVPlayer ; jamais de pause, comme une télé. Fenêtre de retour de 30 s (`dvrWindowSeconds`) : seule voie où le moteur
@@ -81,6 +82,11 @@ onglets sont `sidebarAdaptable` sur iOS : barre en bas sur l'iPhone, barre en ha
   nom et ses pastilles (langue si la fiche en a plusieurs, qualité), puis « fournisseur · catégorie » et « EN COURS » ou
   « EN ÉCHEC » ; sur tvOS les lignes ont le style carte, le bouton standard blanchissant sous le focus. Elle marque la variante en cours, celles en échec récent sur l'appareil et celle que Lecture jouerait. Infos nomme
   celle en cours. Les variantes propres d'une série ne se lisent pas : celle choisie est mémorisée pour tous ses épisodes.
+- **Comparer (Apple TV, direct)** : « Comparer » en tête de la liste des variantes ouvre une variante d'un autre
+  fournisseur dans une vignette muette en haut à gauche (`ComparisonInset`, son propre `PlayerCore`, sans mode
+  d'affichage) ; les variantes du fournisseur de la grande vidéo sont grisées. « Échanger » passe la vignette en grand,
+  l'ancienne variante ne rouvre en vignette qu'une fois la nouvelle à l'image. La grande vidéo reprend toujours son
+  fournisseur : une bascule ou une panne vers celui de la vignette la ferme ; changer de chaîne et Retour aussi.
 - **Qualité mesurée** : une fois l'image affichée, `PlayerService` envoie la taille de l'image que le moteur a lue dans
   le flux (`POST /playback/{id}/measure`, une fois par ouverture) ; le serveur en fait la qualité de la variante, quoi
   qu'en dise le nom du fournisseur. Quand la mesure change cette qualité, l'app redemande ses variantes sans

@@ -57,9 +57,24 @@ final class FakePlaybackEngine: PlaybackEngine {
     func emitSourceReset() { sourceResets.send(()) }
 }
 
+/// The comparison inset's engine as the tests play it: what it opens, how often it stops.
+@MainActor
+final class FakeInsetEngine: InsetEngine {
+    private(set) var loads: [URL] = []
+    private(set) var stops = 0
+    private let phases = PassthroughSubject<PlaybackPhase, Never>()
+
+    func loadInset(_ url: URL) { loads.append(url) }
+    func stop() { stops += 1 }
+    var insetView: AetherPlayerView? { nil }
+    var phaseChanges: AnyPublisher<PlaybackPhase, Never> { phases.eraseToAnyPublisher() }
+    func emit(_ phase: PlaybackPhase) { phases.send(phase) }
+}
+
 @MainActor
 struct PlayerServiceTests {
     let engine = FakePlaybackEngine()
+    let inset: FakeInsetEngine
     let player: PlayerService
     let client: MockCatalogClient
 
@@ -68,9 +83,11 @@ struct PlayerServiceTests {
         scenario.latency = 0
         let defaults = UserDefaults(suiteName: "player-tests-\(UUID().uuidString)")!
         client = MockCatalogClient(scenario: scenario)
+        let inset = FakeInsetEngine()
+        self.inset = inset
         player = PlayerService(client: client, preferences: Preferences(defaults: defaults),
                                failedVariants: FailedVariantsStore(), progressQueue: ProgressQueue(fileURL: Fixtures.tempFile("queue")),
-                               playback: engine)
+                               playback: engine, comparison: ComparisonInset(makeEngine: { inset }))
     }
 
     private static func url(_ name: String) -> URL { URL(string: "http://provider.test/movie/u/p/\(name).mkv")! }
@@ -446,6 +463,101 @@ struct PlayerServiceTests {
         #expect(engine.loads.count == 2, "le second redémarrage est différé de liveResetGap")
         #expect(player.phase == .playing)
         #expect(player.failure == nil)
+        player.stop()
+    }
+
+    // MARK: - Comparison inset
+
+    private static func liveURL(_ name: String) -> URL { URL(string: "http://provider.test/live/u/p/\(name).ts")! }
+
+    /// A channel in HD, one variant per stream named, each by the provider numbered.
+    private static func channel(_ id: String = "live:fr-bein-sports-1", streams: [(name: String, provider: Int)]) -> PlaybackContext {
+        let variants = streams.map { s in
+            Variant(id: s.name, language: .vf, quality: .hd,
+                    provider: Provider(id: "xtream-\(s.provider)", name: "Fournisseur \(s.provider)", kind: "xtream", rank: s.provider),
+                    name: s.name, streamURL: liveURL(s.name))
+        }
+        return PlaybackContext(content: PlaybackContent(id: ContentID(id), kind: .live, title: "beIN Sports 1", subtitle: nil, episode: nil,
+                                                        backdrop: nil),
+                               variants: variants)
+    }
+
+    @Test("Seules les variantes d'un autre fournisseur se comparent, et seulement en direct")
+    func comparesOtherProvidersOnly() {
+        let ctx = Self.channel(streams: [("a", 1), ("a2", 1), ("b", 2)])
+        player.play(ctx)
+        #expect(player.variant?.id == "a")
+        #expect(!player.canCompare(ctx.variants[0]))
+        #expect(!player.canCompare(ctx.variants[1]), "même fournisseur : une seule connexion par compte")
+        #expect(player.canCompare(ctx.variants[2]))
+        #expect(player.offersComparison)
+        player.compare(ctx.variants[1])
+        #expect(inset.loads.isEmpty)
+        player.play(Self.film(streams: ["x", "y"]))
+        #expect(!player.offersComparison, "un film ne se compare pas")
+        player.stop()
+    }
+
+    @Test("La grande vidéo reprend le fournisseur de l'incrustation : l'incrustation se ferme avant")
+    func bigVideoTakesTheProviderBack() {
+        let ctx = Self.channel(streams: [("a", 1), ("b", 2), ("b2", 2)])
+        player.play(ctx)
+        player.compare(ctx.variants[1])
+        #expect(inset.loads == [Self.liveURL("b")])
+        #expect(player.comparison.variant?.id == "b")
+        player.switchVariant(ctx.variants[2])
+        #expect(player.comparison.variant == nil)
+        #expect(inset.stops >= 1)
+        #expect(engine.loads.last == Self.liveURL("b2"))
+        player.stop()
+    }
+
+    @Test("Échanger : la grande vidéo prend l'incrustation, qui rouvre l'ancienne une fois la nouvelle à l'image")
+    func swapWaitsForTheBigVideo() async throws {
+        let ctx = Self.channel(streams: [("a", 1), ("b", 2)])
+        player.play(ctx)
+        engine.emit(.playing)
+        try await settle { player.phase == .playing }
+        player.compare(ctx.variants[1])
+        inset.emit(.playing)
+        try await settle { player.comparison.state == .playing }
+        player.swapComparison()
+        #expect(engine.loads.last == Self.liveURL("b"))
+        #expect(player.comparison.variant?.id == "a")
+        #expect(player.comparison.state == .waiting)
+        #expect(inset.loads == [Self.liveURL("b")], "rien n'ouvre le fournisseur 1 tant que la grande vidéo le tient")
+        engine.emit(.loading)
+        engine.emit(.playing)
+        try await settle { inset.loads.count == 2 }
+        #expect(inset.loads.last == Self.liveURL("a"))
+        #expect(player.comparison.state == .opening)
+        player.stop()
+    }
+
+    @Test("Changer de chaîne ou quitter le lecteur ferme l'incrustation")
+    func zapOrStopEndsTheComparison() {
+        let ctx = Self.channel(streams: [("a", 1), ("b", 2)])
+        player.play(ctx)
+        player.compare(ctx.variants[1])
+        player.play(Self.channel("live:fr-bein-sports-2", streams: [("c", 3), ("d", 4)]))
+        #expect(player.comparison.variant == nil)
+        player.compare(player.context!.variants[1])
+        #expect(player.comparison.isActive)
+        player.stop()
+        #expect(player.comparison.variant == nil)
+    }
+
+    @Test("Une incrustation en panne le dit, sans toucher à la grande vidéo")
+    func insetFailureStaysInTheInset() async throws {
+        let ctx = Self.channel(streams: [("a", 1), ("b", 2)])
+        player.play(ctx)
+        engine.emit(.playing)
+        try await settle { player.phase == .playing }
+        player.compare(ctx.variants[1])
+        inset.emit(.error("connexion fermée"))
+        try await settle { player.comparison.state == .failed }
+        #expect(player.phase == .playing)
+        #expect(engine.loads.count == 1)
         player.stop()
     }
 }
