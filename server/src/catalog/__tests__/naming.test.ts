@@ -2,7 +2,18 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import type { Kind } from "@/db";
-import { parseName, parseCategory, defaultLanguage, cleanTitle, sectionLabel, themeOf, liveTheme, liveMarket, regionOf } from "../naming";
+import {
+  parseName,
+  parseCategory,
+  defaultLanguage,
+  cleanTitle,
+  sectionLabel,
+  themeOf,
+  liveTheme,
+  liveMarket,
+  liveEdition,
+  regionOf,
+} from "../naming";
 import { contentKey, parseKey, episodeKey } from "../keys";
 import { slug } from "@/shared";
 
@@ -301,6 +312,25 @@ describe("live names of other providers", () => {
     expect(liveMarket(undefined, "ar")).toEqual({ market: "ar", country: null });
     expect(liveMarket("fr", "eu")).toEqual({ market: "fr", country: null });
     expect(liveMarket(undefined, undefined)).toEqual({ market: null, country: null });
+  });
+});
+
+describe("liveEdition", () => {
+  it("reads a language edition at the end of a channel's name, before its number and technical labels", () => {
+    expect(liveEdition("8K - BEIN SPORTS 1 FRANCE ᴴᴰ")).toMatchObject({ word: "FRANCE", language: "VF" });
+    expect(liveEdition("BEIN SPORTS FRENCH 1 4K")).toMatchObject({ word: "FRENCH", language: "VF" });
+    expect(liveEdition("BEIN SPORTS 1 EN HEVC")).toMatchObject({ word: "EN", language: "VO", label: "ENGLISH" });
+    expect(liveEdition("AR - BEIN SPORTS 1 ENGLISH FHD")).toMatchObject({ word: "ENGLISH", language: "VO" });
+  });
+
+  it("leaves the sound's language and the words of a name alone", () => {
+    expect(liveEdition("ENG - NDTV 24x7")).toBeNull(); // a prefix
+    expect(liveEdition("|CA| CBC NEWS HD (EN)")).toBeNull(); // between brackets
+    expect(liveEdition("AF - FRANCE 24")).toBeNull(); // the first word
+    expect(liveEdition("FR - SPORT EN FRANCE FHD")).toBeNull(); // after a preposition, and « EN » before a word
+    expect(liveEdition("USA - FLO 4: 2022 TOUR DE FRANCE")).toBeNull();
+    expect(liveEdition("|URY| RT EN ESPAÑOL")).toBeNull();
+    expect(liveEdition("BEIN SPORTS 1 EN ULTRA FHD")).toBeNull(); // « ULTRA » is no technical label
   });
 });
 

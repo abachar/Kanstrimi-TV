@@ -276,7 +276,11 @@ par son index.
   nom de nos chaînes dans le marché, iptv-org (identifiant EPG puis nom : dans le pays du préfixe, dans le marché,
   unique au monde, sauf un nombre ou deux lettres : « 06 » est un flux numéroté, pas « 0-6 TV »), enfin le nom que Claude y lit (une fois par nom, dans les marchés qu'un profil regarde, avec la
   liste des chaînes du marché : seul un nom que la référence porte compte ; sa lecture reste sur la chaîne « non
-  reconnue » de ce nom, gardée même sans flux pour ne pas le redemander). Une radio n'est jamais une chaîne. Sans
+  reconnue » de ce nom, gardée même sans flux pour ne pas le redemander). Une édition de langue à la fin du nom
+  (`liveEdition` : « BEIN SPORTS 1 FRANCE », « BEIN SPORTS FRENCH 1 », « BEIN SPORTS 1 EN 4K » ; ni en préfixe, ni
+  entre parenthèses, ni en premier mot, ni après une préposition) donne la langue du flux et va à l'édition que la
+  référence connaît dans le marché (beIN Sports French 1, English 1) ; sinon, la chaîne du nom, comme avant (« AFRICA
+  NEWS FR »). Une radio n'est jamais une chaîne. Sans
   chaîne de référence, l'entrée va sous « Événements » (catégorie ou section PPV, EVENT, LIVE ; nom qui porte une date,
   une heure, deux équipes, un flux numéroté) ou « Non reconnus » : un filtre de profil les écarte. L'écran Live est
   le seul écran des chaînes : un seul arbre, pays → thème → chaînes (`catalog/live-tree.ts` ; une chaîne sans pays va

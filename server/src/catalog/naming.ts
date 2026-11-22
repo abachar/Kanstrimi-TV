@@ -493,6 +493,48 @@ export function defaultLanguage(market?: string): Language {
 
 // ---------------------------------------------------------------- live markets, sections and themes
 
+/** Words that name a language edition of a channel inside its name, with that language and the word the reference uses for it. */
+const EDITION_WORDS: Record<string, { language: Language; label: string }> = {
+  FR: { language: "VF", label: "FRENCH" },
+  FRANCE: { language: "VF", label: "FRENCH" },
+  FRENCH: { language: "VF", label: "FRENCH" },
+  EN: { language: "VO", label: "ENGLISH" },
+  ENG: { language: "VO", label: "ENGLISH" },
+  ENGLISH: { language: "VO", label: "ENGLISH" },
+};
+/** The prefixes of a live name, stacked: « |AR| », « AR - », « 8K - ». */
+const LIVE_PREFIXES = /^(?:\s*(?:\|[^|]*\||\[[^\]]*\]|[A-Z0-9]{2,3}\s*[-:]\s+))+/i;
+
+export type LiveEdition = { word: string; language: Language; label: string };
+
+/** What may follow an edition word: a channel number and technical labels, « BEIN SPORTS FRENCH 1 4K », « … 1 EN HEVC ». */
+const TECHNICAL = /^(?:[FU]?HD|SD|[48]K|HEVC|H26[45]|X26[45]|[LH]Q|RAW|\d{1,4}P?)$/;
+/** Before a country, a word of the name: « TOUR DE FRANCE », « SPORT EN FRANCE ». */
+const PREPOSITIONS = new Set(["DE", "DU", "DES", "EN", "OF", "LA", "LE", "AU"]);
+
+/**
+ * The language edition a live name says at the end of the channel's own name: « BEIN SPORTS 1 FRANCE », « BEIN
+ * SPORTS FRENCH 1 », « BEIN SPORTS 1 EN 4K » are other channels than « BEIN SPORTS 1 ». Only a number and technical
+ * labels may follow it. Not in a prefix (« ENG - NDTV »), between brackets (« CBC NEWS (EN) »), as the first word
+ * (« FRANCE 24 ») or after a preposition (« TOUR DE FRANCE »): there it is the sound's language or a word of the name.
+ */
+export function liveEdition(name: string): LiveEdition | null {
+  const body = name
+    .normalize("NFKC")
+    .replace(LIVE_PREFIXES, "")
+    .replace(/\([^)]*\)|\[[^\]]*\]|\|[^|]*\|/g, " ");
+  const words = stripAccents(body)
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean);
+  for (let i = 1; i < words.length; i++) {
+    const w = words[i];
+    if (!EDITION_WORDS[w] || PREPOSITIONS.has(words[i - 1])) continue;
+    if (words.slice(i + 1).every((t) => TECHNICAL.test(t))) return { word: w, ...EDITION_WORDS[w] };
+  }
+  return null;
+}
+
 /** Our markets are mostly countries; « ar » is a region, the Arabic-speaking world, shown country by country. */
 export const REGIONS: Record<string, string[]> = {
   ar: ["SA", "EG", "AE", "QA", "LB", "KW", "BH", "OM", "JO", "IQ", "SY", "MA", "DZ", "TN", "LY", "YE", "PS", "SD", "MR"],

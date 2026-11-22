@@ -2,6 +2,7 @@ import { getSettings } from "@/config";
 import { db, schema, client as pg, sqlTmdbMediaType, tmdbMediaType, variants, visibleItem, type Kind } from "@/db";
 import { and, asc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import {
+  liveEdition,
   liveMarket,
   liveTheme,
   parseName,
@@ -181,7 +182,9 @@ export async function runNaming(onlyIds?: number[]): Promise<{ items_named: numb
       titles.push(p.title);
       years.push(p.year ?? null);
       markets.push(market);
-      langs.push(p.language ?? h?.language ?? defaultLanguage(market ?? undefined));
+      // A channel's language edition (« BEIN SPORTS 1 FRANCE ») says its language, whatever its category's.
+      const edition = r.kind === "live" ? liveEdition(r.name) : null;
+      langs.push(edition?.language ?? p.language ?? h?.language ?? defaultLanguage(market ?? undefined));
       qualities.push(quality);
       qranks.push(quality ? QUALITY_RANK[quality] : 0);
       drs.push(dr);

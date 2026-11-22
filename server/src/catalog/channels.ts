@@ -6,7 +6,7 @@ import { type ChannelSuggestion, suggestChannels } from "@/providers/claude";
 import { followLiveKeys, regroupItems } from "./grouping/group";
 import { contentKey } from "./keys";
 import { applyFilters } from "./filters/apply";
-import { EVENTS_THEME, LIVE_THEMES, REGIONS, themeOf, UNKNOWN_THEME, type LiveTheme } from "./naming";
+import { EVENTS_THEME, liveEdition, LIVE_THEMES, REGIONS, themeOf, UNKNOWN_THEME, type LiveEdition, type LiveTheme } from "./naming";
 
 /**
  * The `channels` step: what a live entry is. Films have TMDB; channels have a reference of their
@@ -439,37 +439,96 @@ function pinnedMismatch(idx: Index, epgId: string | null, pinned: IndexedChannel
 
 const epgIdOf = (it: Pick<LiveRow, "raw">) => (it.raw as { epg_channel_id?: string }).epg_channel_id ?? null;
 /** The key a live name has while the reference knows no channel for it: what Claude's reading of it is kept under. */
-const unknownKey = (it: Pick<LiveRow, "title" | "name" | "market">) =>
-  contentKey({ kind: "live", title: it.title || it.name, market: it.market });
+const unknownKey = (title: string, market: string | null) => contentKey({ kind: "live", title, market });
+
+/** The name of a language edition: « French » for « BEIN SPORTS 1 FRANCE », « English » for « BEIN SPORTS 1 EN ». */
+const EDITION_NAME: Record<string, RegExp> = { VF: /\b(french|france|fr|francais)\b/i, VO: /\b(english|eng|en)\b/i };
+const carries = (name: string | null | undefined, ed: LiveEdition) => Boolean(name && EDITION_NAME[ed.language].test(stripAccents(name)));
+const wordAt = (w: string) => new RegExp(`(^|[^A-Za-z0-9])${w}(?=$|[^A-Za-z0-9])`, "i");
 
 /**
- * The reference channel of a live stream, in this order: a channel of ours one of whose names it bears in
+ * The name a live stream is matched under: its title, with the language edition the reading took out of it put
+ * back (« BEIN SPORTS 1 EN »): without it, the edition would pass for the channel of the name.
+ */
+function liveTitle(it: Pick<LiveRow, "title" | "name">): string {
+  const title = it.title || it.name;
+  const ed = liveEdition(it.name);
+  return ed && !wordAt(ed.word).test(title) ? `${title} ${ed.word}` : title;
+}
+
+type Found = { ch: IndexedChannel | undefined; own: OwnChannel | undefined; how: ChannelMatch | null; epgMismatch: boolean };
+const NONE: Found = { ch: undefined, own: undefined, how: null, epgMismatch: false };
+
+/**
+ * The reference channel of a live name, in this order: a channel of ours one of whose names it bears in
  * its market (what the admin attached wins over any guess); iptv-org's (`matchChannel`); then the usual
  * name Claude read in it, looked up the same two ways. An iptv-org channel completed by a row of ours in
- * that market takes it along (name, theme, country). A radio has none.
+ * that market takes it along (name, theme, country).
  */
-function findChannel(idx: Index, it: LiveRow, epgId: string | null) {
-  const title = it.title || it.name;
+function findByName(idx: Index, it: LiveRow, title: string, epgId: string | null): Found {
   const iptvOf = (id: string | null | undefined) => (id ? idx.byId.get(id.toLowerCase()) : undefined);
   const completed = (ch: IndexedChannel | undefined) =>
     ch && it.market ? idx.ownByIptv.get(`${it.market}|${ch.id.toLowerCase()}`) : undefined;
-  if (isRadio(it)) return { ch: undefined, own: undefined, how: null, epgMismatch: false };
   const named = ownByKeys(idx, it.market, nameKeys(title));
   if (named) {
     const ch = iptvOf(named.iptvId);
-    return { ch, own: named, how: "alias" as ChannelMatch, epgMismatch: pinnedMismatch(idx, epgId, ch, title) };
+    return { ch, own: named, how: "alias", epgMismatch: pinnedMismatch(idx, epgId, ch, title) };
   }
   const r = matchChannel(idx, { epgId, title, market: it.market, country: it.nameCountry });
   const found = iptvOf(r.match?.id);
-  if (found) return { ch: found, own: completed(found), how: r.match!.how as ChannelMatch, epgMismatch: r.epgMismatch };
-  const ai = idx.read.get(unknownKey(it));
+  if (found) return { ch: found, own: completed(found), how: r.match!.how, epgMismatch: r.epgMismatch };
+  const ai = idx.read.get(unknownKey(title, it.market));
   if (ai?.kind === "channel" && ai.name) {
     const keys = nameKeys(ai.name);
     const own = ownByKeys(idx, it.market, keys);
     const ch = own ? iptvOf(own.iptvId) : (matchByName(idx, keys, it.market, it.nameCountry) ?? undefined);
-    if (own || ch) return { ch, own: own ?? completed(ch), how: "ai" as ChannelMatch, epgMismatch: pinnedMismatch(idx, epgId, ch, title) };
+    if (own || ch) return { ch, own: own ?? completed(ch), how: "ai", epgMismatch: pinnedMismatch(idx, epgId, ch, title) };
   }
-  return { ch: undefined, own: undefined, how: null, epgMismatch: false };
+  return NONE;
+}
+
+/**
+ * The channel of a language edition by the reference's own name for it in the market: the edition's word at
+ * each place of the name without it (« BEIN SPORTS 1 » → « BEIN SPORTS FRENCH 1 », beIN Sports French 1).
+ */
+function editionInMarket(idx: Index, it: LiveRow, short: string, ed: LiveEdition, epgId: string | null): Found | null {
+  const words = short.split(" ");
+  for (let i = 0; i <= words.length; i++) {
+    const name = [...words.slice(0, i), ed.label, ...words.slice(i)].join(" ");
+    const keys = nameKeys(name);
+    const own = ownByKeys(idx, it.market, keys);
+    if (own && carries(own.name, ed)) {
+      const ch = own.iptvId ? idx.byId.get(own.iptvId.toLowerCase()) : undefined;
+      return { ch, own, how: "alias", epgMismatch: pinnedMismatch(idx, epgId, ch, name) };
+    }
+    const ch = matchByName(idx, keys, it.market, it.nameCountry);
+    if (ch?.how === "name" && carries(ch.name, ed)) {
+      const own = it.market ? idx.ownByIptv.get(`${it.market}|${ch.id.toLowerCase()}`) : undefined;
+      return { ch, own, how: "name", epgMismatch: pinnedMismatch(idx, epgId, ch, name) };
+    }
+  }
+  return null;
+}
+
+/**
+ * The reference channel of a live stream (`findByName`), and the name it goes by. A radio has none. A name
+ * that says a language edition (`liveEdition`: « BEIN SPORTS 1 FRANCE », « BEIN SPORTS 1 EN ») goes to that
+ * edition when the reference knows it: the channel of its whole name if that one is the edition, else the
+ * edition's channel in the market (beIN Sports French 1). Otherwise the edition is no other channel the
+ * reference knows (« TLC FRANCE », « AFRICA NEWS FR »): the channel of its name, as without the edition.
+ */
+function findChannel(idx: Index, it: LiveRow, epgId: string | null): Found & { title: string } {
+  const title = it.title || it.name;
+  if (isRadio(it)) return { ...NONE, title };
+  const ed = liveEdition(it.name);
+  if (!ed) return { ...findByName(idx, it, title, epgId), title };
+  const whole = liveTitle(it);
+  const found = findByName(idx, it, whole, epgId);
+  if (carries(found.own?.name ?? found.ch?.name, ed)) return { ...found, title: whole };
+  const short = whole.replace(wordAt(ed.word), "$1").replace(/\s+/g, " ").trim();
+  const edition = editionInMarket(idx, it, short, ed, epgId);
+  if (edition) return { ...edition, title: whole };
+  return { ...findByName(idx, it, title, epgId), title };
 }
 
 /**
@@ -480,8 +539,8 @@ function findChannel(idx: Index, it: LiveRow, epgId: string | null) {
  */
 function resolve(idx: Index, it: LiveRow, pin?: { iptvId: string | null }): Resolved {
   const epgId = epgIdOf(it);
-  const title = it.title || it.name;
-  let found = findChannel(idx, it, epgId);
+  const { title, ...byName } = findChannel(idx, it, epgId);
+  let found: Found = byName;
   if (pin) {
     // Put there by hand: that iptv-org channel (with the row of ours that completes it in this market), or none.
     const ch = pin.iptvId ? idx.byId.get(pin.iptvId.toLowerCase()) : undefined;
@@ -490,7 +549,7 @@ function resolve(idx: Index, it: LiveRow, pin?: { iptvId: string | null }): Reso
   }
   const { ch, own, how, epgMismatch } = found;
   const known = Boolean(ch || own);
-  const event = !known && isEventFeed({ ...it, aiKind: idx.read.get(unknownKey(it))?.kind });
+  const event = !known && isEventFeed({ ...it, aiKind: idx.read.get(unknownKey(title, it.market))?.kind });
   const channelName = own?.name ?? ch?.name ?? null;
   return {
     id: it.id,
@@ -784,7 +843,7 @@ async function askClaude(
   // One question per name: the first stream that bears it speaks for the others.
   const names = new Map<string, LiveRow>();
   rows.forEach((it, i) => {
-    if (resolved[i].known || resolved[i].event || it.manual || isRadio(it) || idx.read.has(unknownKey(it))) return;
+    if (resolved[i].known || resolved[i].event || it.manual || isRadio(it) || idx.read.has(resolved[i].key)) return;
     if (!it.market || !watched.has(it.market) || unused.has(it.id)) return;
     if (!names.has(resolved[i].key)) names.set(resolved[i].key, it);
   });

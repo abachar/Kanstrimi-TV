@@ -365,3 +365,38 @@ describe("a channel of ours is a channel", () => {
     expect(await contentOfKey("live:ar-bein-sports-one")).toMatchObject({ id: bein.id, sourceCount: 1, visible: true });
   });
 });
+
+describe("a language edition is a channel of its own", () => {
+  it("goes to the edition the reference knows, and keeps to the channel of its name otherwise", async () => {
+    const editions = [
+      ...CHANNELS,
+      { id: "beINSportsFrench1.qa", name: "beIN Sports French 1", alt_names: [], country: "QA", categories: ["sports"], is_nsfw: false },
+      { id: "beINSportsEnglish1.qa", name: "beIN Sports English 1", alt_names: [], country: "QA", categories: ["sports"], is_nsfw: false },
+    ];
+    // A fresh copy of iptv-org, with the editions.
+    fs.rmSync(path.join(env.dataDir, "iptv-org"), { recursive: true, force: true });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const body = String(url).endsWith("/channels.json") ? editions : String(url).endsWith("/logos.json") ? [] : null;
+        return body ? new Response(JSON.stringify(body), { headers: { etag: '"v2"' } }) : new Response("", { status: 404 });
+      }),
+    );
+    await seedItems([
+      { kind: "live", upstreamId: "40", name: "8K - BEIN SPORTS 1 FRANCE ᴴᴰ", cat: "30" },
+      { kind: "live", upstreamId: "41", name: "BEIN SPORTS FRENCH 1 4K", cat: "30" },
+      { kind: "live", upstreamId: "42", name: "BEIN SPORTS 1 EN 4K", cat: "30" },
+      { kind: "live", upstreamId: "43", name: "AR - BEIN SPORTS 1 ENGLISH FHD", cat: "30" },
+      // No English 2M in the reference: still 2M.
+      { kind: "live", upstreamId: "44", name: "|MA| 2M MAROC EN", cat: "33" },
+    ]);
+    await runNaming();
+    await runChannels();
+    await groupAndFilter();
+    expect(await keysOf(["40", "41"])).toEqual(["live:ar-bein-sports-french-1", "live:ar-bein-sports-french-1"]);
+    expect(await keysOf(["42", "43"])).toEqual(["live:ar-bein-sports-english-1", "live:ar-bein-sports-english-1"]);
+    expect(await keysOf(["44"])).toEqual(["live:ar-2m"]);
+    // The edition says the language, whatever the category's.
+    expect([await by("40"), await by("42"), await by("43")].map((v) => v.lang)).toEqual(["VF", "VO", "VO"]);
+  });
+});
