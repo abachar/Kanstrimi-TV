@@ -41,7 +41,7 @@ struct PlayerScreen: View {
 
     var content: some View {
         ZStack {
-            VideoSurface(view: player.videoView).ignoresSafeArea()
+            VideoSurface(view: player.videoView, active: !player.isMinimized).ignoresSafeArea()
             #if DEBUG
             if player.debugFrame {
                 // iPhone: a 16:9 picture, fitted like the video, centred with black around when upright.
@@ -50,8 +50,10 @@ struct PlayerScreen: View {
             #endif
             // Edge to edge like the video: a bitmap subtitle is placed against the picture's frame.
             SubtitleOverlay(engine: player.engine).ignoresSafeArea()
-            // Apple TV: another variant of the channel, by another provider, over the video's corner.
-            if player.failure == nil, !player.isChangingTitle { ComparisonInsetView() }
+            // Apple TV: the channel that played before, in the bottom-right corner; it gives way to what takes the corner.
+            if player.failure == nil, !player.isChangingTitle, player.skipOffer == nil, player.nextCountdown == nil {
+                VignetteView(barShown: (controlsVisible || barFocused) && sheet == .none)
+            }
 
             // The surface steps aside while the failure dialog is up, otherwise it keeps the
             // focus and every press lands on it instead of on the dialog's buttons.
@@ -94,7 +96,7 @@ struct PlayerScreen: View {
         .animation(.easeInOut(duration: 0.25), value: player.isChangingTitle)
         .animation(.easeInOut(duration: 0.25), value: player.skipOffer)
         .animation(.easeInOut(duration: 0.25), value: sheet)
-        .animation(.easeInOut(duration: 0.25), value: player.comparison.isActive)
+        .animation(.easeInOut(duration: 0.25), value: player.vignette.isActive)
         .onChange(of: sheet) { _, s in
             if s == .none { sheetTimer?.cancel() } else { armSheetTimer() }
         }
@@ -127,7 +129,7 @@ struct PlayerScreen: View {
     func exit() {
         if sheet != .none { closeSheet(); return }
         if barFocused { leaveBar(hide: true); return }
-        if player.comparison.isActive { player.endComparison(); return }
+        if player.vignette.isActive { player.closeVignette(); return }
         player.stop()
     }
 

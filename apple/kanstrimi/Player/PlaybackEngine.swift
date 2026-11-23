@@ -14,6 +14,8 @@ protocol PlaybackEngine: AnyObject {
     func selectAudioTrack(index: Int)
     func selectSubtitleTrack(index: Int)
     func clearSubtitle()
+    /// 0 silences it: the vignette's sound plays instead.
+    func setVolume(_ volume: Float)
 
     var playbackPhase: PlaybackPhase { get }
     var state: PlaybackState { get }

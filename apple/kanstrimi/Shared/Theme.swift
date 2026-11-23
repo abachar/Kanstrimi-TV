@@ -148,13 +148,6 @@ struct OnAirLabel: View {
     }
 }
 
-/// The variant shown in the comparison inset of the player.
-struct InsetLabel: View {
-    var body: some View {
-        Text("INCRUSTÉE").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(.white)
-    }
-}
-
 /// A variant that failed on this device a moment ago.
 struct FailedLabel: View {
     var body: some View {

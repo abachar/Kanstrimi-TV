@@ -27,6 +27,8 @@ final class FakePlaybackEngine: PlaybackEngine {
     func selectAudioTrack(index: Int) {}
     func selectSubtitleTrack(index: Int) {}
     func clearSubtitle() {}
+    private(set) var volume: Float = 1
+    func setVolume(_ volume: Float) { self.volume = volume }
 
     private(set) var playbackPhase: PlaybackPhase = .idle
     var state: PlaybackState = .idle
@@ -57,15 +59,17 @@ final class FakePlaybackEngine: PlaybackEngine {
     func emitSourceReset() { sourceResets.send(()) }
 }
 
-/// The comparison inset's engine as the tests play it: what it opens, how often it stops.
+/// The vignette's engine as the tests play it: what it opens, how often it stops, how loud.
 @MainActor
 final class FakeInsetEngine: InsetEngine {
     private(set) var loads: [URL] = []
     private(set) var stops = 0
+    private(set) var volume: Float = 1
     private let phases = PassthroughSubject<PlaybackPhase, Never>()
 
     func loadInset(_ url: URL) { loads.append(url) }
     func stop() { stops += 1 }
+    func setVolume(_ volume: Float) { self.volume = volume }
     var insetView: AetherPlayerView? { nil }
     var phaseChanges: AnyPublisher<PlaybackPhase, Never> { phases.eraseToAnyPublisher() }
     func emit(_ phase: PlaybackPhase) { phases.send(phase) }
@@ -87,7 +91,7 @@ struct PlayerServiceTests {
         self.inset = inset
         player = PlayerService(client: client, preferences: Preferences(defaults: defaults),
                                failedVariants: FailedVariantsStore(), progressQueue: ProgressQueue(fileURL: Fixtures.tempFile("queue")),
-                               playback: engine, comparison: ComparisonInset(makeEngine: { inset }))
+                               playback: engine, vignette: Vignette(makeEngine: { inset }))
     }
 
     private static func url(_ name: String) -> URL { URL(string: "http://provider.test/movie/u/p/\(name).mkv")! }
@@ -466,98 +470,133 @@ struct PlayerServiceTests {
         player.stop()
     }
 
-    // MARK: - Comparison inset
+    // MARK: - Vignette (Apple TV)
 
     private static func liveURL(_ name: String) -> URL { URL(string: "http://provider.test/live/u/p/\(name).ts")! }
 
     /// A channel in HD, one variant per stream named, each by the provider numbered.
-    private static func channel(_ id: String = "live:fr-bein-sports-1", streams: [(name: String, provider: Int)]) -> PlaybackContext {
+    private static func channel(_ id: String, streams: [(name: String, provider: Int)]) -> PlaybackContext {
         let variants = streams.map { s in
             Variant(id: s.name, language: .vf, quality: .hd,
                     provider: Provider(id: "xtream-\(s.provider)", name: "Fournisseur \(s.provider)", kind: "xtream", rank: s.provider),
                     name: s.name, streamURL: liveURL(s.name))
         }
-        return PlaybackContext(content: PlaybackContent(id: ContentID(id), kind: .live, title: "beIN Sports 1", subtitle: nil, episode: nil,
-                                                        backdrop: nil),
+        return PlaybackContext(content: PlaybackContent(id: ContentID(id), kind: .live, title: id, subtitle: nil, episode: nil, backdrop: nil),
                                variants: variants)
     }
 
-    @Test("Seules les variantes d'un autre fournisseur se comparent, et seulement en direct")
-    func comparesOtherProvidersOnly() {
-        let ctx = Self.channel(streams: [("a", 1), ("a2", 1), ("b", 2)])
-        player.play(ctx)
-        #expect(player.variant?.id == "a")
-        #expect(!player.canCompare(ctx.variants[0]))
-        #expect(!player.canCompare(ctx.variants[1]), "même fournisseur : une seule connexion par compte")
-        #expect(player.canCompare(ctx.variants[2]))
-        #expect(player.offersComparison)
-        player.compare(ctx.variants[1])
-        #expect(inset.loads.isEmpty)
-        player.play(Self.film(streams: ["x", "y"]))
-        #expect(!player.offersComparison, "un film ne se compare pas")
-        player.stop()
-    }
-
-    @Test("La grande vidéo reprend le fournisseur de l'incrustation : l'incrustation se ferme avant")
-    func bigVideoTakesTheProviderBack() {
-        let ctx = Self.channel(streams: [("a", 1), ("b", 2), ("b2", 2)])
-        player.play(ctx)
-        player.compare(ctx.variants[1])
-        #expect(inset.loads == [Self.liveURL("b")])
-        #expect(player.comparison.variant?.id == "b")
-        player.switchVariant(ctx.variants[2])
-        #expect(player.comparison.variant == nil)
-        #expect(inset.stops >= 1)
-        #expect(engine.loads.last == Self.liveURL("b2"))
-        player.stop()
-    }
-
-    @Test("Échanger : la grande vidéo prend l'incrustation, qui rouvre l'ancienne une fois la nouvelle à l'image")
-    func swapWaitsForTheBigVideo() async throws {
-        let ctx = Self.channel(streams: [("a", 1), ("b", 2)])
-        player.play(ctx)
+    /// Channel A plays, minimized; channel B starts: B in full, A in the vignette once B shows.
+    private func minimizeThenPlay(_ next: PlaybackContext) async throws {
+        player.play(Self.channel("live:a", streams: [("a1", 1)]))
         engine.emit(.playing)
         try await settle { player.phase == .playing }
-        player.compare(ctx.variants[1])
-        inset.emit(.playing)
-        try await settle { player.comparison.state == .playing }
-        player.swapComparison()
-        #expect(engine.loads.last == Self.liveURL("b"))
-        #expect(player.comparison.variant?.id == "a")
-        #expect(player.comparison.state == .waiting)
-        #expect(inset.loads == [Self.liveURL("b")], "rien n'ouvre le fournisseur 1 tant que la grande vidéo le tient")
+        player.minimize()
+        #expect(player.isMinimized)
+        player.play(next)
+    }
+
+    @Test("Réduire puis lancer une autre chaîne : elle passe en grand, l'ancienne en vignette une fois la nouvelle à l'image",
+          .enabled(if: Platform.isTV))
+    func minimizedChannelGoesToTheVignette() async throws {
+        try await minimizeThenPlay(Self.channel("live:b", streams: [("b1", 1), ("b2", 2)]))
+        #expect(!player.isMinimized)
+        #expect(player.variant?.id == "b2", "une variante d'un autre fournisseur que la vignette")
+        #expect(player.vignette.variant?.id == "a1")
+        #expect(player.vignette.state == .waiting)
+        #expect(inset.loads.isEmpty, "rien n'ouvre le fournisseur 1 tant que la grande vidéo le tient")
+        engine.emit(.loading)
+        engine.emit(.playing)
+        try await settle { inset.loads.count == 1 }
+        #expect(inset.loads == [Self.liveURL("a1")])
+        #expect(inset.volume == 0, "la vignette est muette")
+        player.stop()
+        #expect(player.vignette.variant == nil)
+    }
+
+    @Test("La nouvelle chaîne n'existe que chez le fournisseur de la vignette : pas de vignette", .enabled(if: Platform.isTV))
+    func sameProviderDropsTheVignette() async throws {
+        try await minimizeThenPlay(Self.channel("live:b", streams: [("b1", 1)]))
+        #expect(!player.isMinimized)
+        #expect(player.variant?.id == "b1")
+        #expect(!player.vignette.isActive)
+        #expect(player.toast?.text == "Vignette fermée")
+        player.stop()
+    }
+
+    @Test("Un film réduit s'arrête quand autre chose commence : la vignette ne lit que du direct", .enabled(if: Platform.isTV))
+    func minimizedFilmStops() async throws {
+        player.play(Self.film(streams: ["f"]))
+        engine.emit(.playing)
+        try await settle { player.phase == .playing }
+        player.minimize()
+        player.play(Self.channel("live:b", streams: [("b1", 2)]))
+        #expect(!player.isMinimized)
+        #expect(!player.vignette.isActive)
+        player.stop()
+    }
+
+    @Test("Changer de chaîne garde la vignette ; passer chez son fournisseur la ferme", .enabled(if: Platform.isTV))
+    func bigVideoTakesTheProviderBack() async throws {
+        try await minimizeThenPlay(Self.channel("live:b", streams: [("b2", 2)]))
+        player.play(Self.channel("live:c", streams: [("c3", 3), ("c1", 1)]))
+        #expect(player.variant?.id == "c3", "le fournisseur de la vignette est évité")
+        #expect(player.vignette.variant?.id == "a1")
+        player.play(Self.channel("live:d", streams: [("d1", 1)]))
+        #expect(!player.vignette.isActive)
+        #expect(engine.loads.last == Self.liveURL("d1"))
+        player.stop()
+    }
+
+    @Test("Échanger : la vignette passe en grand, la grande vidéo rouvre en vignette une fois l'autre à l'image",
+          .enabled(if: Platform.isTV))
+    func swapWaitsForTheBigVideo() async throws {
+        try await minimizeThenPlay(Self.channel("live:b", streams: [("b2", 2)]))
+        engine.emit(.loading)
+        engine.emit(.playing)
+        try await settle { inset.loads.count == 1 }
+        player.swapVignette()
+        #expect(player.context?.content.id == ContentID("live:a"))
+        #expect(engine.loads.last == Self.liveURL("a1"))
+        #expect(player.vignette.variant?.id == "b2")
+        #expect(player.vignette.state == .waiting)
         engine.emit(.loading)
         engine.emit(.playing)
         try await settle { inset.loads.count == 2 }
-        #expect(inset.loads.last == Self.liveURL("a"))
-        #expect(player.comparison.state == .opening)
+        #expect(inset.loads.last == Self.liveURL("b2"))
         player.stop()
     }
 
-    @Test("Changer de chaîne ou quitter le lecteur ferme l'incrustation")
-    func zapOrStopEndsTheComparison() {
-        let ctx = Self.channel(streams: [("a", 1), ("b", 2)])
-        player.play(ctx)
-        player.compare(ctx.variants[1])
-        player.play(Self.channel("live:fr-bein-sports-2", streams: [("c", 3), ("d", 4)]))
-        #expect(player.comparison.variant == nil)
-        player.compare(player.context!.variants[1])
-        #expect(player.comparison.isActive)
-        player.stop()
-        #expect(player.comparison.variant == nil)
-    }
-
-    @Test("Une incrustation en panne le dit, sans toucher à la grande vidéo")
-    func insetFailureStaysInTheInset() async throws {
-        let ctx = Self.channel(streams: [("a", 1), ("b", 2)])
-        player.play(ctx)
+    @Test("Écouter la vignette coupe la grande vidéo ; fermer la vignette lui rend le son", .enabled(if: Platform.isTV))
+    func hearingTheVignette() async throws {
+        try await minimizeThenPlay(Self.channel("live:b", streams: [("b2", 2)]))
+        engine.emit(.loading)
         engine.emit(.playing)
-        try await settle { player.phase == .playing }
-        player.compare(ctx.variants[1])
+        try await settle { inset.loads.count == 1 }
+        player.hearVignette(true)
+        #expect(inset.volume == 1)
+        #expect(engine.volume == 0)
+        player.closeVignette()
+        #expect(engine.volume == 1)
+        #expect(!player.vignette.isActive)
+        player.stop()
+    }
+
+    @Test("Une vignette en panne le dit, sans toucher à la grande vidéo", .enabled(if: Platform.isTV))
+    func vignetteFailureStaysInTheVignette() async throws {
+        try await minimizeThenPlay(Self.channel("live:b", streams: [("b2", 2)]))
+        engine.emit(.loading)
+        engine.emit(.playing)
+        try await settle { inset.loads.count == 1 }
         inset.emit(.error("connexion fermée"))
-        try await settle { player.comparison.state == .failed }
+        try await settle { player.vignette.state == .failed }
         #expect(player.phase == .playing)
-        #expect(engine.loads.count == 1)
+        player.stop()
+    }
+
+    @Test("Réduire n'existe que sur Apple TV", .enabled(if: !Platform.isTV))
+    func noMinimizeOffTV() {
+        player.play(Self.channel("live:a", streams: [("a1", 1)]))
+        #expect(!player.offersMinimize)
         player.stop()
     }
 }

@@ -7,7 +7,7 @@ import SwiftUI
 /// beside the video, then the menus that pick an audio track or the subtitles.
 struct PlayerBar: View {
     typealias Panel = PlayerScreen.BarPanel
-    private enum Focus: Hashable { case panel(Panel), variants, audio, subtitles }
+    private enum Focus: Hashable { case panel(Panel), minimize, vignette, variants, audio, subtitles }
 
     @Environment(AppEnvironment.self) private var env
     @Environment(\.metrics) private var metrics
@@ -110,6 +110,8 @@ struct PlayerBar: View {
             }
             Spacer()
             // Each menu only when it offers a choice; the tracks are known once the player has read the stream.
+            if player.offersMinimize { minimizeButton }
+            if player.vignette.isActive { vignetteMenu }
             if player.offersVariants { variantsButton }
             if player.offersAudio { audioMenu }
             if player.offersSubtitles { subtitlesMenu }
@@ -120,6 +122,35 @@ struct PlayerBar: View {
         .onMoveCommand { direction in
             if direction == .up, panel == nil { onLeave(false) }
         }
+    }
+
+    /// What plays goes on in the corner, the app back under it to choose something else.
+    private var minimizeButton: some View {
+        Button { player.minimize() } label: {
+            Image(systemName: "pip.enter").accessibilityLabel("Réduire en vignette")
+        }
+        .buttonStyle(BarButtonStyle(round: true))
+        .focused($focus, equals: .minimize)
+    }
+
+    /// The vignette in the corner: swapped with the big video, heard instead of it, or closed.
+    private var vignetteMenu: some View {
+        Menu {
+            if player.offersSwap {
+                Button { player.swapVignette() } label: { Label("Échanger", systemImage: "arrow.left.arrow.right") }
+            }
+            if player.vignette.isHeard {
+                Button { player.hearVignette(false) } label: { Label("Écouter la grande vidéo", systemImage: "speaker.wave.2") }
+            } else {
+                Button { player.hearVignette(true) } label: { Label("Écouter la vignette", systemImage: "speaker.wave.2") }
+            }
+            Button(role: .destructive) { player.closeVignette() } label: { Label("Fermer la vignette", systemImage: "pip.remove") }
+        } label: {
+            Image(systemName: "pip").accessibilityLabel("Vignette")
+        }
+        .menuStyle(.button)
+        .buttonStyle(BarButtonStyle(round: true))
+        .focused($focus, equals: .vignette)
     }
 
     private var variantsButton: some View {

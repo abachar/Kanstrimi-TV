@@ -14,7 +14,7 @@ struct RootView: View {
                         ProfilePickerView()
                     } else {
                         // A new profile: new tabs, every screen starting again for it.
-                        MainTabsView().id(env.profileRevision)
+                        MainTabsView().id(env.profileRevision).restoresMiniPlayer(env)
                     }
                 }
                 .task(id: env.device.token) {
@@ -41,6 +41,7 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.25), value: env.notice)
         .background(Theme.background.ignoresSafeArea())
         .detailCover(env)
+        .miniPlayer()
         .fullScreenCover(isPresented: Binding(get: { env.player.isPresented && !env.player.isMinimized && env.presentedDetail == nil },
                                               set: { if !$0, !env.player.isMinimized { env.player.stop() } })) {
             PlayerScreen().environment(env).adaptiveMetrics().interactiveDismissDisabled()
@@ -127,7 +128,8 @@ private extension RootView {
 extension View {
     /// Presents the player above this view when playback starts from it.
     func playerCover(_ env: AppEnvironment) -> some View {
-        fullScreenCover(isPresented: Binding(get: { env.player.isPresented }, set: { if !$0, !env.player.isMinimized { env.player.stop() } })) {
+        fullScreenCover(isPresented: Binding(get: { env.player.isPresented && !env.player.isMinimized },
+                                             set: { if !$0, !env.player.isMinimized { env.player.stop() } })) {
             PlayerScreen().environment(env).interactiveDismissDisabled()
         }
     }

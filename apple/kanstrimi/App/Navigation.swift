@@ -55,6 +55,7 @@ extension View {
             DetailView(id: id)
                 .id(id)
                 .environment(env)
+                .restoresMiniPlayer(env)
                 .playerCover(env)
         }
         // An actor opened from the player; a title chosen there replaces it by its sheet.
@@ -122,7 +123,9 @@ private struct RouteCover: ViewModifier {
 
     func body(content: Content) -> some View {
         content.fullScreenCover(item: $route) { route in
-            RouteView(route: route, onSelect: closesOnSelect ? { id in self.route = nil; env.open(id) } : nil).environment(env)
+            RouteView(route: route, onSelect: closesOnSelect ? { id in self.route = nil; env.open(id) } : nil)
+                .environment(env)
+                .restoresMiniPlayer(env)
         }
     }
 }

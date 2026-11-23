@@ -100,8 +100,10 @@ final class PlayerService {
     private let playback: any PlaybackEngine
     var videoView: AetherPlayerView { core.videoView }
     let pictureInPicture = PictureInPicture()
-    /// Apple TV: another variant of the channel playing, by another provider, in a small window over the video.
-    let comparison: ComparisonInset
+    /// Apple TV: the channel that played before another started, kept in a small window over the video.
+    let vignette: Vignette
+    /// Apple TV: the channel playing when the player was minimized, which the vignette takes once another one starts.
+    private var minimizedChannel: (channel: Channel?, channels: [Channel])?
     private let nowPlaying = NowPlaying()
     private let capabilities: VariantChooser.Capabilities
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
@@ -167,9 +169,9 @@ final class PlayerService {
 
     init(client: CatalogClient, preferences: Preferences, failedVariants: FailedVariantsStore, progressQueue: ProgressQueue,
          capabilities: VariantChooser.Capabilities = .current, playback: (any PlaybackEngine)? = nil,
-         comparison: ComparisonInset? = nil) {
+         vignette: Vignette? = nil) {
         let core = PlayerCore(ownsAudioSession: true)
-        self.comparison = comparison ?? ComparisonInset()
+        self.vignette = vignette ?? Vignette()
         self.core = core
         self.playback = playback ?? core
         self.client = client
@@ -178,6 +180,8 @@ final class PlayerService {
         self.reporter = PlaybackReporter(client: client, queue: progressQueue)
         self.capabilities = capabilities
         observeEngine()
+        // The vignette stopped while heard: the big video's sound comes back.
+        self.vignette.onSilenced = { [weak self] in self?.playback.setVolume(1) }
     }
 
     /// The profile's playback settings, as the server last said them.
@@ -221,7 +225,7 @@ final class PlayerService {
 
     /// Chooses the variant with the engine and starts. Called by every "Lecture".
     func play(_ context: PlaybackContext) {
-        guard let choice = startChoice(context.rememberID, variants: context.variants, remembered: context.remembered) else { return }
+        guard let choice = startChoice(context.rememberID, variants: variantsBesideVignette(context), remembered: context.remembered) else { return }
         start(context, variant: choice.variant, at: context.resumeAt)
     }
 
@@ -256,14 +260,19 @@ final class PlayerService {
 
     /// Live: play a channel out of an ordered list.
     func play(channel: Channel, in list: [Channel]) {
+        tune(to: channel, in: list)
+        let ctx = PlaybackContext(content: PlaybackContent(id: channel.id, kind: .live, title: channel.name, subtitle: nil, episode: nil, backdrop: nil),
+                                  variants: channel.variants, remembered: channel.remembered)
+        play(ctx)
+    }
+
+    /// Live: the channel about to play and its list, its guide asked for.
+    private func tune(to channel: Channel, in list: [Channel]) {
         channels = list
         self.channel = channel
         channelDetail = nil
         epg = .empty
         liveResets = 0
-        let ctx = PlaybackContext(content: PlaybackContent(id: channel.id, kind: .live, title: channel.name, subtitle: nil, episode: nil, backdrop: nil),
-                                  variants: channel.variants, remembered: channel.remembered)
-        play(ctx)
         Task { [weak self] in
             guard let self else { return }
             let full = try? await client.channel(id: channel.id)
@@ -294,7 +303,9 @@ final class PlayerService {
         audioTracks = []; textTracks = []
         epg = .empty
         channelDetail = nil
-        comparison.stop()
+        minimizedChannel = nil
+        vignette.stop()
+        playback.setVolume(1)
         nowPlaying.clear()
     }
 
@@ -445,33 +456,57 @@ final class PlayerService {
         play(context, variant: v)
     }
 
-    // MARK: - Comparison (Apple TV)
+    // MARK: - Vignette (Apple TV)
 
-    /// A variant the inset may show: one of the channel playing, by another provider than the big video's, the account
-    /// allowing a single stream at a time.
-    func canCompare(_ v: Variant) -> Bool {
-        guard isLive, let variant, v.streamURL != nil else { return false }
-        return v.provider.id != variant.provider.id
+    /// « Réduire en vignette »: the player hides, what plays goes on in the corner above the app, with its sound.
+    var offersMinimize: Bool { Platform.isTV && isPresented && !isMinimized && !vignette.isActive && failure == nil }
+
+    func minimize() {
+        guard offersMinimize else { return }
+        minimizedChannel = (channel, channels)
+        isMinimized = true
     }
 
-    /// Whether the channel playing has a variant to compare with.
-    var offersComparison: Bool { context?.variants.contains(where: canCompare) ?? false }
+    /// The player minimized comes back in full.
+    func restore() { isMinimized = false }
 
-    func compare(_ v: Variant) {
-        guard canCompare(v), comparison.variant?.id != v.id else { return }
-        comparison.show(v)
+    /// The provider the vignette holds, or will hold: the channel minimized once another starts.
+    private var vignetteProvider: Provider? {
+        if isMinimized, isLive { return variant?.provider }
+        return vignette.variant?.provider
     }
 
-    /// The inset's variant takes the big video, with the sound, and the big video's goes in the inset once its provider
-    /// is free again.
-    func swapComparison() {
-        guard let other = comparison.variant, let current = variant else { return }
-        comparison.stop()
-        switchVariant(other)
-        comparison.wait(for: current)
+    /// The variants a new title or channel starts among while a vignette is kept: those of another provider than
+    /// the vignette's, one stream per account; all of them when it has none, the vignette then closing.
+    private func variantsBesideVignette(_ ctx: PlaybackContext) -> [Variant] {
+        guard Platform.isTV, let held = vignetteProvider, ctx.content.id != context?.content.id else { return ctx.variants }
+        let others = ctx.variants.filter { $0.provider.id != held.id }
+        return others.contains { $0.streamURL != nil } ? others : ctx.variants
     }
 
-    func endComparison() { comparison.stop() }
+    /// The vignette's channel takes the big video, with the sound, and the big video's goes in the vignette once its
+    /// provider is free again. A live in full only: the vignette plays no film.
+    var offersSwap: Bool { isLive && vignette.isActive }
+
+    func swapVignette() {
+        guard offersSwap, let held = vignette.stream, let current = variant, let ctx = context else { return }
+        let mine = VignetteStream(context: ctx, variant: current, channel: channel, channels: channels)
+        vignette.stop()
+        if let ch = held.channel { tune(to: ch, in: held.channels) }
+        start(held.context, variant: held.variant, at: nil)
+        vignette.wait(for: mine)
+    }
+
+    /// The vignette's sound instead of the big video's, or back.
+    func hearVignette(_ on: Bool) {
+        vignette.hear(on)
+        playback.setVolume(vignette.isHeard ? 0 : 1)
+    }
+
+    func closeVignette() {
+        vignette.stop()
+        playback.setVolume(1)
+    }
 
     // MARK: - Next episode
 
@@ -536,11 +571,10 @@ final class PlayerService {
             if titleCardID != (ctx.seriesID ?? ctx.content.id) { titleCard = nil; titleCardFailed = false; titleCardID = nil }
             prefetchNext(ctx)
             fetchSuggestions(ctx)
-            // Another channel or title: the comparison was of the one before.
-            comparison.stop()
         }
-        // One connection per provider account: the big video takes its provider back from the inset.
-        comparison.yield(to: v.provider)
+        // One connection per provider account: the big video takes its provider back from the vignette.
+        vignette.yield(to: v.provider)
+        if isMinimized, Platform.isTV, context?.content.id != ctx.content.id { handOver(to: ctx, variant: v) }
         cancelTimers(keepCountdown: true)
         restartTask?.cancel(); restartTask = nil
         // Another variant, the same one again: each start opens a file, its markers asked and its picture read anew.
@@ -569,6 +603,20 @@ final class PlayerService {
         startProgressTicker()
         nowPlaying.attach(to: self)
         nowPlaying.update()
+    }
+
+    /// Another title or channel starts while the player is minimized: it comes back in full, and a channel that
+    /// played goes in the vignette, unless the new one plays its provider (one stream per account).
+    private func handOver(to ctx: PlaybackContext, variant v: Variant) {
+        let held = minimizedChannel
+        minimizedChannel = nil
+        isMinimized = false
+        guard isLive, let old = variant, let oldCtx = context else { return }
+        if old.provider.id == v.provider.id {
+            showToast("Vignette fermée", detail: "\(v.provider.name) ne permet qu'un flux à la fois")
+            return
+        }
+        vignette.wait(for: VignetteStream(context: oldCtx, variant: old, channel: held?.channel, channels: held?.channels ?? []))
     }
 
     private func markStarted() {
@@ -689,8 +737,10 @@ final class PlayerService {
         sendWatchTime(final: true)
         cancelTimers(keepCountdown: true)
         playback.stop()
-        // The big video lets go of its provider: what the inset waited for may open.
-        comparison.resume()
+        // The big video lets go of its provider: what the vignette waited for may open.
+        vignette.resume()
+        // Minimized: the player comes back to say it.
+        if Platform.isTV { isMinimized = false }
         phase = .failed
         failure = Failure(attempts: startAttempts)
         nowPlaying.update()
@@ -955,8 +1005,8 @@ final class PlayerService {
             phase = .playing
             hasPlayed = true
             markStartedIfReady()
-            // The previous stream is closed: after a swap, the inset may open it.
-            comparison.resume()
+            // The previous stream is closed: after a hand-over or a swap, the vignette may open it.
+            vignette.resume()
         case .paused:
             phase = .paused
         case .seeking, .rebuffering, .stalled:

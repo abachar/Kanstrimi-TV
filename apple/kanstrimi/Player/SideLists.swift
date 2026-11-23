@@ -119,34 +119,23 @@ struct ChannelListOverlay: View {
 
 /// The round button of the bar, and ▶ in live on tvOS: the variants of what plays, in the server's order, the one
 /// playing ticked, those that failed here a moment ago marked. A pick switches at once and keeps the choice for the
-/// title. Apple TV, in live: « Comparer » turns the list into a choice for the inset, the variants of the big video's
-/// provider greyed out (one stream per account); with an inset up, its own actions come first.
+/// title.
 struct VariantListOverlay: View {
     @Environment(AppEnvironment.self) private var env
     @FocusState private var focusedID: String?
-    @State private var comparing = false
     let onClose: () -> Void
     var onActivity: () -> Void = { }
     var touch = false
     var fromBottom = false
     private var player: PlayerService { env.player }
-    private var comparison: ComparisonInset { player.comparison }
-    private var offersComparison: Bool { Platform.isTV && player.offersComparison }
-
-    private enum Action: String { case compare, swap, end }
 
     var body: some View {
         let variants = player.context?.variants.playable ?? []
         SideList(side: .trailing, maxWidth: 500, touch: touch, fromBottom: fromBottom, onClose: onClose, onActivity: onActivity) {
             VStack(alignment: .leading, spacing: touch ? 4 : 14) {
-                Text(comparing ? "Comparer avec…" : "Variantes").font(.title3.weight(.bold)).padding(.bottom, 6)
-                if offersComparison { actions }
+                Text("Variantes").font(.title3.weight(.bold)).padding(.bottom, 6)
                 VariantList(variants: variants, marks: marks, narrow: true, focused: $focusedID) { v in
-                    if comparing {
-                        player.compare(v)
-                    } else if v.id != player.variant?.id {
-                        player.switchVariant(v)
-                    }
+                    if v.id != player.variant?.id { player.switchVariant(v) }
                     onClose()
                 }
             }
@@ -155,39 +144,7 @@ struct VariantListOverlay: View {
         .onChange(of: focusedID) { _, _ in onActivity() }
     }
 
-    /// « Comparer » (or « Annuler » while choosing), then « Échanger » and « Fermer l'incrustation » with an inset up.
-    @ViewBuilder private var actions: some View {
-        if comparing {
-            action(.compare, "Annuler", icon: "xmark") { toggleComparing() }
-        } else {
-            action(.compare, comparison.isActive ? "Comparer avec une autre" : "Comparer", icon: "rectangle.inset.topleft.filled") { toggleComparing() }
-            if comparison.isActive {
-                action(.swap, "Échanger les deux vidéos", icon: "arrow.left.arrow.right") { player.swapComparison(); onClose() }
-                action(.end, "Fermer l'incrustation", icon: "xmark.rectangle") { player.endComparison(); onClose() }
-            }
-        }
-    }
-
-    private func action(_ id: Action, _ title: String, icon: String, perform: @escaping () -> Void) -> some View {
-        Button(action: perform) {
-            Label(title, systemImage: icon)
-                .font(.caption.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16).padding(.vertical, 12)
-        }
-        .cardButtonStyle()
-        .focused($focusedID, equals: "action.\(id.rawValue)")
-    }
-
-    /// Into the choice for the inset, the focus on the first variant it may show; back, on the one playing.
-    private func toggleComparing() {
-        comparing.toggle()
-        let variants = player.context?.variants.playable ?? []
-        focusedID = comparing ? variants.first(where: player.canCompare)?.id : player.variant?.id
-    }
-
     private func marks(_ variant: Variant) -> VariantMarks {
-        VariantMarks(playing: variant.id == player.variant?.id, failed: env.failedVariants.isFailed(variant.id),
-                     inset: variant.id == comparison.variant?.id, enabled: !comparing || player.canCompare(variant))
+        VariantMarks(playing: variant.id == player.variant?.id, failed: env.failedVariants.isFailed(variant.id))
     }
 }
